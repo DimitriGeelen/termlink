@@ -4,20 +4,20 @@ name: "Webhook fan-out S1 — signed + allowlisted outbound POST primitive + tar
 description: >
   First build slice descending from the T-2331 GO (webhooks = external HTTP fan-out from the hub). Delivers the SEND PRIMITIVE only, security-first, opt-in: an outbound HTTP client in termlink-hub that POSTs a payload to a configured WebhookTarget with an HMAC-SHA256 signature header, gated by a deny-by-default host allowlist (SSRF guard). No event wiring yet (Slice 2), no retry/dead-letter yet (Slice 3), no CLI yet (Slice 4). Zero configured targets = no-op, no behavior change (portability: outbound HTTP must not become a hard substrate dependency). Descends from docs/reports/T-2331-webhooks-external-fan-out-inception.md.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-hub/src/lib.rs, crates/termlink-hub/src/webhook.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-03T09:50:44Z
-last_update: 2026-07-03T09:51:14Z
-date_finished: null
+last_update: 2026-07-03T09:58:38Z
+date_finished: 2026-07-03T09:58:38Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -110,6 +110,10 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+# AC#2 explicit structural check (module exists + registered in lib.rs):
+test -f crates/termlink-hub/src/webhook.rs
+grep -q "pub mod webhook;" crates/termlink-hub/src/lib.rs
+# AC#1/#3-#6 (builds clean + all webhook unit tests pass):
 cargo build -p termlink-hub
 cargo test -p termlink-hub webhook
 
@@ -183,3 +187,15 @@ cargo test -p termlink-hub webhook
 
 ### 2026-07-03T09:51:14Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-f3602f39
+- **Timestamp:** 2026-07-03T09:58:45Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-03T09:58:38Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2332: Webhook fan-out S1 — signed + allowlisted outbound POST primitive + target config (T-2331 GO)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-03T09:58:48Z
+# ============================================================================
+
+task_id: T-2332
+task_name: "Webhook fan-out S1 — signed + allowlisted outbound POST primitive + target config (T-2331 GO)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-03T09:50:44Z
+completed: 2026-07-03T09:58:38Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-03T11:57:19+02:00
+last_commit: 2026-07-03T11:57:19+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  webhook fan-out S1 — signed + allowlisted outbound POST primitive (arc-004, T-2331 GO)
+
+# Key outcomes
+outcomes:
+  - '`reqwest` (rustls-tls, no default features) + `hmac`/`sha2` added to `termlink-hub`; `cargo build -p termlink-hub` succeeds with no openssl/native-tls in the tree'
+  - '`crates/termlink-hub/src/webhook.rs` exists and is registered in `lib.rs`, exposing `WebhookConfig`, `WebhookTarget`, `sign_payload`, `host_allowed`, `dispatch`'
+  - '`sign_payload` produces `sha256=<hex>` HMAC-SHA256; a unit test asserts the canonical vector (key="key", "The quick brown fox…" → sha256=f7bc83f4…3cd8)'
+  - '`host_allowed` is deny-by-default with EXACT host match (SSRF guard): unit tests cover empty-allowlist deny, exact allow, suffix-attack deny (`hooks.example.com.evil.com`), and garbage-URL deny'
+  - '`dispatch` refuses a non-allowlisted target (e.g. `169.254.169.254` cloud-metadata) with `HostNotAllowed` BEFORE any network call — proven by an async unit test'
+  - '`WebhookConfig::is_enabled()` is false with zero targets (opt-in: no configured targets ⇒ no-op, no behavior change); unit-tested + config parses from JSON'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'Cargo.lock'
+  - 'Cargo.toml'
+  - 'crates/termlink-hub/Cargo.toml'
+  - 'crates/termlink-hub/src/lib.rs'
+  - 'crates/termlink-hub/src/webhook.rs'
+  - '.tasks/active/T-2332-webhook-fan-out-s1--signed--allowlisted-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-03T11:57:19"
+    action: "T-2332: webhook fan-out S1 — signed + allowlisted outbound POST primitive (arc-004, T-2331 GO)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 6
+  lines_added: 1023
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2332-webhook-fan-out-s1--signed--allowlisted-.md
+generated_by: context-agent-hybrid
