@@ -149,9 +149,24 @@ run_waker() {
     # `read` on the idle push stream — so the PRIMARY reaper is cmd_stop killing
     # this waker's whole process group (we are a setsid group leader). Keep both.
     _pw_reap_children() {
-        local kids
-        kids="$(pgrep -P $$ 2>/dev/null)" || kids=""
-        [ -n "$kids" ] && kill $kids 2>/dev/null || true
+        # Reap our WHOLE subtree, not just direct children (T-2327). After the
+        # T-2324 rail refactor the `channel subscribe … --push` process is a
+        # GRANDCHILD (waker → rail-loop subshell → subscribe), so a flat
+        # `pgrep -P $$` reaps the subshell but ORPHANS the subscribe — it
+        # reparents to init and keeps holding the WS. Walk the process tree
+        # breadth-first, collect every descendant, then kill them all so no
+        # subscribe survives the INT/EXIT trap path. (A process tree has no
+        # cycles, so the frontier drains to empty at the leaves.)
+        local frontier="$$" all="" next p kids
+        while [ -n "$frontier" ]; do
+            next=""
+            for p in $frontier; do
+                kids="$(pgrep -P "$p" 2>/dev/null)" || kids=""
+                [ -n "$kids" ] && { all="$all $kids"; next="$next $kids"; }
+            done
+            frontier="$next"
+        done
+        [ -n "$all" ] && kill $all 2>/dev/null || true
     }
     _pw_on_stop() { _pw_reap_children; exit 0; }
     trap '_pw_on_stop' TERM INT

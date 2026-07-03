@@ -3,15 +3,15 @@ id: T-2327
 name: "pushwaker trap reaps only direct children — subscribe grandchild can orphan"
 description: >
   pushwaker trap reaps only direct children — subscribe grandchild can orphan on non-pgroup stop
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-07-03T08:40:00Z
-last_update: 2026-07-03T08:40:00Z
+last_update: 2026-07-03T08:47:40Z
 date_finished: null
 ---
 
@@ -45,14 +45,14 @@ normal-stop bug — the review verdict was SHIP-WITH-NITS.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `_pw_reap_children` reaps the full subtree, not just direct children —
+- [x] `_pw_reap_children` reaps the full subtree, not just direct children —
   e.g. recurse (`pgrep -P` per child, or kill the process group), so a killed
   rail subshell cannot orphan its `channel subscribe --push` grandchild on the
   INT/EXIT trap path.
-- [ ] `be-reachable.sh cmd_stop` (pgroup kill) still fully reaps (no regression);
+- [x] `be-reachable.sh cmd_stop` (pgroup kill) still fully reaps (no regression);
   a standalone-`Ctrl-C` of the waker leaves NO lingering `channel subscribe
   --push` process.
-- [ ] `bash -n scripts/be-reachable-pushwaker.sh` clean; `bash
+- [x] `bash -n scripts/be-reachable-pushwaker.sh` clean; `bash
   scripts/test-pushwaker-filter.sh` still green.
 
 ## Verification
@@ -65,3 +65,21 @@ bash scripts/test-pushwaker-filter.sh
 ### 2026-07-03 — captured from code-review
 - Filed from the arc-004 review agent's one MINOR finding. Budget gate blocked
   fixing it in-session; captured for a fresh session. One-line fix expected.
+
+### 2026-07-03 — fixed (fresh session, post-compaction)
+- `_pw_reap_children` (scripts/be-reachable-pushwaker.sh) rewritten from a flat
+  `pgrep -P $$` to a breadth-first descendant walk: collect every process in the
+  waker's subtree (waker → rail-loop subshell → `channel subscribe --push`), then
+  `kill` them all. A process tree has no cycles so the frontier drains at the
+  leaves. cmd_stop's pgroup-kill path is untouched (no regression) — the change
+  only strengthens the defense-in-depth INT/EXIT trap path.
+- **Live proof (AC2):** built a fake `termlink` whose `channel subscribe` execs a
+  tagged long-lived grandchild, ran the real waker with BOTH rails, then sent
+  `SIGINT to the waker pid only` (the standalone-Ctrl-C / non-pgroup case).
+  Before: 2 subscribe grandchildren alive. After trap-path stop: **0 survivors**,
+  waker exited clean. The old flat reaper would have orphaned both.
+- **AC1/AC3:** `bash -n` clean; `test-pushwaker-filter.sh` 11/11 PASS.
+
+### 2026-07-03T08:47:40Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
