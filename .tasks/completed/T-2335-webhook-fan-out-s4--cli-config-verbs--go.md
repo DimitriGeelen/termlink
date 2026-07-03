@@ -4,20 +4,20 @@ name: "Webhook fan-out S4 — governor_status telemetry (RPC + MCP + hub status 
 description: >
   Observability slice of the T-2331 GO webhook feature. Slices 1-3 shipped: signed+allowlisted dispatch primitive (T-2332), event->dispatch fan-out (T-2333), retry/backoff/dead-letter with observability counters (T-2334). S4 surfaces the T-2334 RetryQueue counters to operators via the established governor-telemetry channel: wire webhook_enabled + webhook_target_count + the RetryQueue counters (depth, enqueued_total, retry_success_total, dropped_full_total, dead_letter_total) into hub.governor_status JSON-RPC, following the exact cv_index telemetry pattern (T-2110/T-2119). termlink_hub_governor_status MCP is pass-through (clones the RPC result verbatim) so it inherits the fields for free; 'hub status --governor' local CLI render (render_governor_section in infrastructure.rs) gets an explicit webhook row. RetryQueue accessors already exist on webhook::retry_queue(); adds one pub fn target_count() to webhook.rs. CLI config verbs ('termlink webhook add/list/test') were DECOMPOSED into follow-up T-2336 (one task = one deliverable). See docs/reports/T-2331-webhooks-external-fan-out-inception.md and crates/termlink-hub/src/webhook.rs.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/webhook.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-03T13:48:46Z
-last_update: 2026-07-03T13:55:20Z
-date_finished: null
+last_update: 2026-07-03T14:06:52Z
+date_finished: 2026-07-03T14:06:52Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -216,3 +216,15 @@ cargo test -p termlink render_governor_section 2>&1 | tail -3
 ### 2026-07-03T13:55:20Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-1d3207b6
+- **Timestamp:** 2026-07-03T14:08:06Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-03T14:06:52Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

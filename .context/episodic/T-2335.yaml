@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2335: Webhook fan-out S4 — governor_status telemetry (RPC + MCP + hub status --governor)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-03T14:08:09Z
+# ============================================================================
+
+task_id: T-2335
+task_name: "Webhook fan-out S4 — governor_status telemetry (RPC + MCP + hub status --governor)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-03T13:48:46Z
+completed: 2026-07-03T14:06:52Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-03T16:06:36+02:00
+last_commit: 2026-07-03T16:06:36+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  webhook fan-out S4 — governor_status telemetry (RPC + MCP pass-through + hub status --governor)
+
+# Key outcomes
+outcomes:
+  - '`webhook::target_count() -> usize` added — returns configured target count (0 when disabled)'
+  - '`handle_hub_governor_status` (router.rs) emits `webhook_enabled` (bool), `webhook_target_count`, `webhook_retry_depth`, `webhook_enqueued_total`, `webhook_retry_success_total`, `webhook_dropped_full_total`, `webhook_dead_letter_total`'
+  - 'router.rs governor_status test asserts the 7 new `webhook_*` fields are present in the response'
+  - '`render_governor_section` (infrastructure.rs) prints a `webhook:` row sourced from the new fields (n/a for pre-slice hubs, consistent with cv_index render)'
+  - '`cargo build -p termlink-hub -p termlink` succeeds (66s, clean)'
+  - 'full `cargo test -p termlink-hub` suite run: 396 pass + 1 load-flaky (T-2258 10s-bound stress test, passes in isolation — 82s; slice touches no channel/TLS path). Slice tests deterministic-green: `governor_status_exposes_cv_index_counters` + both `render_governor_section` tests.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/infrastructure.rs'
+  - 'crates/termlink-hub/src/router.rs'
+  - 'crates/termlink-hub/src/webhook.rs'
+  - '.tasks/active/T-2335-webhook-fan-out-s4--cli-config-verbs--go.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-03T16:06:36"
+    action: "T-2335: webhook fan-out S4 — governor_status telemetry (RPC + MCP pass-through + hub status --governor)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 18 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 18
+  commits: 1
+  files_changed: 4
+  lines_added: 312
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2335-webhook-fan-out-s4--cli-config-verbs--go.md
+generated_by: context-agent-hybrid
