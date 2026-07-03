@@ -15,6 +15,7 @@ pub mod rpc_audit;
 pub mod template_cache;
 pub mod topic_lint;
 pub mod trust;
+pub mod webhook;
 pub mod server;
 pub mod supervisor;
 pub mod tls;

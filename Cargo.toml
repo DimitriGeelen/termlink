@@ -57,6 +57,11 @@ rustls = "0.23"
 rustls-pemfile = "2"
 rcgen = "0.13"
 
+# Outbound HTTP client (arc-004 webhook fan-out, T-2332, descends from T-2331 GO).
+# rustls-tls reuses the existing rustls stack — no openssl / native-tls. Slice 1
+# uses it only for the signed + allowlisted POST primitive.
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+
 # WebSocket transport (arc-004 push-transport, T-2305). TLS is already terminated
 # by tokio-rustls before the WS layer runs over the decrypted stream, so we take
 # tokio-tungstenite WITHOUT its own TLS features — just the RFC6455 handshake +
