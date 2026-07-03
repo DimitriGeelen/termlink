@@ -2408,3 +2408,10 @@ learnings:
   date: 2026-07-03
   context: Added via context agent
   application: TBD
+- id: PL-236
+  learning: "agent identity (identity show) ignores the identity resolver env (TERMLINK_IDENTITY_FILE/DIR/AGENT_ID) and always reads the default ~/.termlink/identity.key — so it MISREPORTS the fingerprint for a per-agent (T-2292) session, returning the shared host fp instead of the per-agent one. The only code that resolves the real registered fp is registration.rs::load_identity_fingerprint_best_effort (private). Blocks arc-004 S2 dm-rail self-fp resolution; fix = expose a resolver-honoring fingerprint (e.g. agent identity --resolve)."
+  source: P-001
+  task: T-2324
+  date: 2026-07-03
+  context: Added via context agent
+  application: TBD
