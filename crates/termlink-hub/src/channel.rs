@@ -804,6 +804,25 @@ pub(crate) async fn handle_channel_post_with_peer(
                     });
                 }
             }
+            // T-2333 (arc-004 webhook fan-out, Slice 2): fan the successful post
+            // out to any configured external webhook target subscribed to this
+            // topic. Sibling of the inbox/dm emits above — placed in the Ok arm
+            // so a failed post never fans out. fan_out is fire-and-forget and a
+            // no-op when the subsystem is disabled (opt-in / no hard dependency),
+            // so this is a cheap early-return for the common no-webhook hub.
+            if crate::webhook::webhooks().is_some() {
+                let body = serde_json::json!({
+                    "topic": &topic,
+                    "offset": offset,
+                    "ts": env.ts_unix_ms,
+                    "sender_id": &env.sender_id,
+                    "msg_type": &env.msg_type,
+                    "event_type": env.metadata.get("event_type"),
+                });
+                if let Ok(bytes) = serde_json::to_vec(&body) {
+                    crate::webhook::fan_out(&topic, bytes);
+                }
+            }
             Response::success(id, json!({"offset": offset, "ts": ts_unix_ms})).into()
         }
         Err(termlink_bus::BusError::UnknownTopic(t)) => ErrorResponse::new(

@@ -4,10 +4,10 @@ name: "Webhook fan-out S2 — wire hub events → signed dispatch (arc-004, foll
 description: >
   Slice 2 of the T-2331 GO webhook feature. Slice 1 (T-2332) shipped the SEND PRIMITIVE (sign_payload + host_allowed + dispatch + WebhookConfig in crates/termlink-hub/src/webhook.rs, all unit-tested). Slice 2 wires it to real hub events: subscribe each WebhookTarget to topics/event-kinds, load WebhookConfig at hub startup from the hub config surface, and fan out a signed POST when a matching event is appended. Build on the existing channel-post path (crates/termlink-hub/src/channel.rs). Keep opt-in: zero targets = no dispatch. Then S3 = retry/backoff/dead-letter (reuse T-2051 queue pattern); S4 = CLII config verbs (webhook add/list/test) + governor_status counters. See docs/reports/T-2331-webhooks-external-fan-out-inception.md.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-03T09:59:52Z
-last_update: 2026-07-03T09:59:52Z
+last_update: 2026-07-03T13:12:39Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,24 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Slice 2 of the T-2331 GO webhook feature. Slice 1 (T-2332) shipped the SEND
+primitive (`sign_payload` + `host_allowed` + `dispatch` + `WebhookConfig`) in
+`crates/termlink-hub/src/webhook.rs`. This slice wires it to real hub events:
+a per-target topic filter, a process-global runtime loaded at hub startup, and
+a fire-and-forget fan-out invoked from the `channel.post` `Ok(offset)` arm — the
+same sibling-emit placement the inbox (T-1637) and dm-rail (T-2323) wakers use.
+Opt-in preserved: no `TERMLINK_WEBHOOK_CONFIG` env ⇒ disabled ⇒ zero behaviour
+change. See `docs/reports/T-2331-webhooks-external-fan-out-inception.md`.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `WebhookTarget` gains a `topics: Vec<String>` filter and `WebhookConfig::targets_for(topic)` returns only targets whose `topics` contains the exact topic OR `"*"` (empty `topics` ⇒ never fires — opt-in). Unit-tested (`matches_topic_exact_wildcard_and_empty`, `targets_for_selects_matching_only`).
+- [x] Process-global runtime (`OnceLock`) holding the parsed `WebhookConfig` + a bounded-timeout `reqwest::Client`, installed by `pub fn init()` that reads `TERMLINK_WEBHOOK_CONFIG` (path to JSON); absent / unreadable / parse-fail ⇒ disabled with NO panic (opt-in, no hard dependency). Unit-tested (`webhooks_none_when_uninitialised_in_this_test_binary`).
+- [x] `pub fn fan_out(topic, body)` spawns one signed `dispatch` per matching target fire-and-forget (returns immediately, never blocks the post response); selection helper unit-tested (non-matching topic ⇒ 0 targets, matching ⇒ correct set) without touching the network.
+- [x] `channel.rs` `Ok(offset)` arm calls `crate::webhook::fan_out(...)` as a new sibling block after the dm-rail emit and before `Response::success` — a failed post never fans out.
+- [x] `server.rs` calls `crate::webhook::init()` in BOTH startup paths (`run_with_tcp` + `run_blocking`) alongside the dedupe/cv_index init.
+- [x] `cargo build -p termlink-hub` and `cargo test -p termlink-hub webhook` both pass (11 webhook tests: Slice-1's 8 + 3 new). Full workspace green: 394 hub + 945 CLI/session, zero regressions (the ring/aws-lc-rs crypto-provider fix restored the 4 tls:: tests).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -75,6 +85,14 @@ date_finished: null
 -->
 
 ## Verification
+
+grep -q "pub fn init" crates/termlink-hub/src/webhook.rs
+grep -q "pub fn fan_out" crates/termlink-hub/src/webhook.rs
+grep -q "fn targets_for" crates/termlink-hub/src/webhook.rs
+grep -q "crate::webhook::fan_out" crates/termlink-hub/src/channel.rs
+grep -q "crate::webhook::init" crates/termlink-hub/src/server.rs
+cargo build -p termlink-hub
+cargo test -p termlink-hub webhook
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -149,14 +167,15 @@ date_finished: null
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-07-03 — reqwest crypto-provider pin (ring vs aws-lc-rs)
+- **Chose:** reqwest feature `rustls-tls-webpki-roots-no-provider` instead of the plain `rustls-tls`.
+- **Why:** the hub's TLS stack deliberately uses rustls's aws-lc-rs backend (Cargo.toml line 54). Plain `rustls-tls` transitively enables `__rustls-ring`, so BOTH aws-lc-rs and ring provider features end up compiled into the shared rustls dep. rustls 0.23 then refuses to auto-select a process-default provider and panics ("make sure exactly one of the 'aws-lc-rs' and 'ring' features is enabled") whenever a TLS config is built without an explicit provider — this broke the 4 `tls::tests`. The regression was latent since Slice-1 (T-2332) because that slice only ran `cargo test -p termlink-hub webhook`, never the full suite. The `-no-provider` variant keeps the bundled Mozilla webpki roots (portable HTTPS validation, Directive 4 — no OS trust store) WITHOUT enabling ring, leaving aws-lc-rs the sole provider so auto-default works again.
+- **Rejected:** (a) calling `CryptoProvider::install_default()` at hub startup — doesn't help the unit tests, which build TLS configs directly outside the startup path; (b) `native-roots` — needs the OS trust store, less portable than bundled webpki roots.
+
+### 2026-07-03 — topic filter matching semantics
+- **Chose:** exact topic membership OR the `"*"` wildcard; empty `topics` list never fires.
+- **Why:** deny-by-default symmetry with the Slice-1 host allowlist — a target only fires for topics it explicitly subscribes to. No prefix/substring matching keeps the rule un-surprising and audit-clear.
+- **Rejected:** prefix matching (`work-*`) — deferred; adds glob-parse surface with no demand yet.
 
 ## Decision
 
@@ -174,3 +193,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2333-webhook-fan-out-s2--wire-hub-events--sig.md
 - **Context:** Initial task creation
+
+### 2026-07-03T13:12:39Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

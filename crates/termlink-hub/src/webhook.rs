@@ -5,8 +5,13 @@
 //!   - HMAC-SHA256 signed payloads (`X-Termlink-Signature: sha256=<hex>`)
 //!   - deny-by-default host allowlist (SSRF guard)
 //!
+//! Slice 2 (T-2333) wires the primitive to real hub events: a per-target topic
+//! filter ([`WebhookTarget::topics`] / [`WebhookConfig::targets_for`]), a
+//! process-global runtime loaded at hub startup from `TERMLINK_WEBHOOK_CONFIG`
+//! ([`init`] / [`webhooks`]), and a fire-and-forget [`fan_out`] invoked from the
+//! `channel.post` `Ok(offset)` arm.
+//!
 //! Explicitly OUT of scope here (later slices):
-//!   - event → webhook dispatch wiring (Slice 2)
 //!   - retry / backoff / dead-letter (Slice 3, will reuse the T-2051 queue pattern)
 //!   - CLI config verbs + observability counters (Slice 4)
 //!
@@ -17,6 +22,8 @@
 use hmac::{Hmac, Mac};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
+use std::sync::OnceLock;
+use std::time::Duration;
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -29,6 +36,20 @@ pub struct WebhookTarget {
     /// Opaque secret used to HMAC-SHA256-sign the payload body. Distinct from the
     /// peer-auth `hub.secret` — a compromised webhook key must not grant hub auth.
     pub signing_key: String,
+    /// Topics that trigger this target. A post on `topic` fires this target iff
+    /// `topics` contains that exact topic OR the `"*"` wildcard. An empty list
+    /// never fires — opt-in by construction (mirrors the deny-by-default host
+    /// allowlist). Slice 2 (T-2333).
+    #[serde(default)]
+    pub topics: Vec<String>,
+}
+
+impl WebhookTarget {
+    /// True iff a post on `topic` should fan out to this target: exact membership
+    /// in [`WebhookTarget::topics`] or the `"*"` wildcard. Empty ⇒ never.
+    pub fn matches_topic(&self, topic: &str) -> bool {
+        self.topics.iter().any(|t| t == "*" || t == topic)
+    }
 }
 
 /// Hub-level webhook configuration. Deny-by-default: a target only dispatches if
@@ -49,6 +70,140 @@ impl WebhookConfig {
     /// unaffected by the webhook subsystem (opt-in / no hard dependency).
     pub fn is_enabled(&self) -> bool {
         !self.targets.is_empty()
+    }
+
+    /// Targets that should fan out for a post on `topic` (Slice 2, T-2333).
+    /// Selection only — the host-allowlist SSRF guard still runs per target
+    /// inside [`dispatch`], so a topic match never bypasses the allowlist.
+    pub fn targets_for(&self, topic: &str) -> Vec<&WebhookTarget> {
+        self.targets
+            .iter()
+            .filter(|t| t.matches_topic(topic))
+            .collect()
+    }
+}
+
+/// Process-global webhook runtime: the parsed config plus a shared, bounded-timeout
+/// HTTP client. Installed once at hub startup by [`init`]. Absent ⇒ the subsystem
+/// is disabled and [`fan_out`] is a no-op (opt-in / no hard dependency).
+pub struct WebhookRuntime {
+    cfg: WebhookConfig,
+    client: reqwest::Client,
+}
+
+static WEBHOOKS: OnceLock<Option<WebhookRuntime>> = OnceLock::new();
+
+/// Bounded per-request timeout. External endpoints must never let a hung POST
+/// pin a spawned dispatch task indefinitely.
+const WEBHOOK_TIMEOUT_SECS: u64 = 10;
+
+/// Install the process-global webhook runtime from `TERMLINK_WEBHOOK_CONFIG`
+/// (a path to a JSON [`WebhookConfig`]). Idempotent (`OnceLock` semantics).
+///
+/// Failure is always soft — a missing env var, unreadable file, unparseable
+/// JSON, or a config with no targets all resolve to a DISABLED subsystem with
+/// NO panic. Outbound HTTP is opt-in and must never be a hard dependency of the
+/// substrate (Directive 4). Called from hub startup alongside
+/// [`crate::dedupe::init`] / [`crate::cv_index::init`].
+pub fn init() {
+    let runtime = load_runtime_from_env();
+    let enabled = runtime.is_some();
+    let _ = WEBHOOKS.set(runtime);
+    if enabled {
+        tracing::info!("Hub webhook fan-out active (T-2333 — TERMLINK_WEBHOOK_CONFIG configured)");
+    } else {
+        tracing::debug!("Hub webhook fan-out disabled (no TERMLINK_WEBHOOK_CONFIG)");
+    }
+}
+
+/// Ensure the process-wide rustls crypto provider is installed (aws-lc-rs — the
+/// same backend the hub's TLS stack uses). `reqwest` is built with the
+/// `rustls-tls-webpki-roots-no-provider` feature so it does NOT pull in a second
+/// `ring` provider (which would make rustls's process-default ambiguous and panic
+/// the `tls::` tests). The trade-off is that reqwest then needs the process-default
+/// provider installed explicitly before it builds any client, or it panics
+/// "No provider set". Idempotent — a no-op if another component already installed
+/// one (its `Err` is intentionally ignored).
+fn ensure_crypto_provider() {
+    use std::sync::Once;
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+    });
+}
+
+/// Build the runtime from env, or `None` when disabled for ANY reason.
+fn load_runtime_from_env() -> Option<WebhookRuntime> {
+    let path = std::env::var("TERMLINK_WEBHOOK_CONFIG").ok()?;
+    let raw = match std::fs::read_to_string(&path) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!(path = %path, error = %e, "webhook config unreadable — subsystem disabled");
+            return None;
+        }
+    };
+    let cfg: WebhookConfig = match serde_json::from_str(&raw) {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::warn!(path = %path, error = %e, "webhook config unparseable — subsystem disabled");
+            return None;
+        }
+    };
+    if !cfg.is_enabled() {
+        return None;
+    }
+    // reqwest (no-provider feature) needs the process-default crypto provider
+    // installed before it can build a TLS-capable client.
+    ensure_crypto_provider();
+    let client = match reqwest::Client::builder()
+        .timeout(Duration::from_secs(WEBHOOK_TIMEOUT_SECS))
+        .build()
+    {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::warn!(error = %e, "webhook HTTP client build failed — subsystem disabled");
+            return None;
+        }
+    };
+    Some(WebhookRuntime { cfg, client })
+}
+
+/// Access the global runtime, or `None` when the subsystem is disabled (either
+/// [`init`] was never called, or it resolved to disabled).
+pub fn webhooks() -> Option<&'static WebhookRuntime> {
+    WEBHOOKS.get().and_then(|o| o.as_ref())
+}
+
+/// Fan a hub event out to every configured target subscribed to `topic`.
+///
+/// Fire-and-forget: each matching target's [`dispatch`] runs in its own spawned
+/// task, so a slow or unreachable endpoint never blocks the `channel.post`
+/// response. No-op (returns immediately) when the subsystem is disabled or no
+/// target matches the topic. Dispatch outcomes are logged via `tracing`.
+pub fn fan_out(topic: &str, body: Vec<u8>) {
+    let Some(rt) = webhooks() else { return };
+    let targets = rt.cfg.targets_for(topic);
+    if targets.is_empty() {
+        return;
+    }
+    for target in targets {
+        let client = rt.client.clone();
+        let cfg = rt.cfg.clone();
+        let target = target.clone();
+        let body = body.clone();
+        let topic = topic.to_string();
+        tokio::spawn(async move {
+            match dispatch(&client, &cfg, &target, &body).await {
+                Ok(status) => tracing::debug!(
+                    topic = %topic, url = %target.url, status,
+                    "webhook dispatched"
+                ),
+                Err(e) => tracing::warn!(
+                    topic = %topic, url = %target.url, error = %e,
+                    "webhook dispatch failed"
+                ),
+            }
+        });
     }
 }
 
@@ -182,11 +337,15 @@ mod tests {
     async fn dispatch_refuses_non_allowlisted_without_network() {
         // 169.254.169.254 is the cloud-metadata SSRF target. With an empty
         // allowlist it must be refused BEFORE any connection is attempted.
+        // Install the crypto provider first — reqwest's no-provider feature
+        // needs it before building a client (mirrors load_runtime_from_env).
+        ensure_crypto_provider();
         let client = reqwest::Client::new();
         let cfg = WebhookConfig::default();
         let target = WebhookTarget {
             url: "http://169.254.169.254/latest/meta-data".to_string(),
             signing_key: "k".to_string(),
+            topics: vec!["*".to_string()],
         };
         let err = dispatch(&client, &cfg, &target, b"x").await.unwrap_err();
         assert!(
@@ -211,5 +370,61 @@ mod tests {
         assert_eq!(cfg.allowed_hosts, vec!["hooks.example.com".to_string()]);
         assert_eq!(cfg.targets.len(), 1);
         assert_eq!(cfg.targets[0].url, "https://hooks.example.com/x");
+        // topics defaults to empty when the field is absent (Slice 2).
+        assert!(cfg.targets[0].topics.is_empty());
+    }
+
+    // ── Slice 2 (T-2333) ───────────────────────────────────────────────
+
+    fn target(url: &str, topics: &[&str]) -> WebhookTarget {
+        WebhookTarget {
+            url: url.to_string(),
+            signing_key: "s".to_string(),
+            topics: topics.iter().map(|t| t.to_string()).collect(),
+        }
+    }
+
+    #[test]
+    fn matches_topic_exact_wildcard_and_empty() {
+        assert!(target("https://h/x", &["work-queue"]).matches_topic("work-queue"));
+        assert!(!target("https://h/x", &["work-queue"]).matches_topic("other"));
+        // Wildcard matches anything.
+        assert!(target("https://h/x", &["*"]).matches_topic("anything"));
+        // Empty topics never fires — opt-in by construction.
+        assert!(!target("https://h/x", &[]).matches_topic("work-queue"));
+        // No prefix/substring matching — exact only.
+        assert!(!target("https://h/x", &["work"]).matches_topic("work-queue"));
+    }
+
+    #[test]
+    fn targets_for_selects_matching_only() {
+        let cfg = WebhookConfig {
+            allowed_hosts: vec!["h".to_string()],
+            targets: vec![
+                target("https://h/a", &["work-queue"]),
+                target("https://h/b", &["*"]),
+                target("https://h/c", &["other"]),
+                target("https://h/d", &[]),
+            ],
+        };
+        let hit: Vec<&str> = cfg
+            .targets_for("work-queue")
+            .iter()
+            .map(|t| t.url.as_str())
+            .collect();
+        // a (exact) + b (wildcard); NOT c (other topic) or d (empty).
+        assert_eq!(hit, vec!["https://h/a", "https://h/b"]);
+        assert!(cfg.targets_for("nothing-matches").iter().all(|t| t.url == "https://h/b"));
+    }
+
+    #[test]
+    fn webhooks_none_when_uninitialised_in_this_test_binary() {
+        // init() is never called in the unit-test binary, so the accessor is
+        // None and fan_out is a no-op — proving the opt-in default. (OnceLock is
+        // process-global; asserting None here documents the disabled default
+        // without depending on cross-test ordering, since no test calls init.)
+        assert!(webhooks().is_none());
+        // fan_out on a disabled subsystem returns immediately without spawning.
+        fan_out("work-queue", b"{}".to_vec());
     }
 }

@@ -58,9 +58,16 @@ rustls-pemfile = "2"
 rcgen = "0.13"
 
 # Outbound HTTP client (arc-004 webhook fan-out, T-2332, descends from T-2331 GO).
-# rustls-tls reuses the existing rustls stack — no openssl / native-tls. Slice 1
-# uses it only for the signed + allowlisted POST primitive.
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+# CRYPTO-PROVIDER PIN (T-2333): the hub's TLS stack uses rustls's aws-lc-rs
+# backend (see line 54). reqwest's plain `rustls-tls` feature pulls in the RING
+# provider via hyper-rustls, so BOTH aws-lc-rs and ring end up compiled — and
+# rustls 0.23 then refuses to auto-select a process-default provider, panicking
+# ("make sure exactly one of the 'aws-lc-rs' and 'ring' features is enabled") the
+# moment any TLS config is built without an explicit provider (broke the tls::
+# tests). The `-webpki-roots-no-provider` variant keeps the bundled Mozilla roots
+# (portable HTTPS validation, Directive 4 — no OS trust store) WITHOUT enabling
+# ring, leaving aws-lc-rs the sole provider so auto-default works again.
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-webpki-roots-no-provider"] }
 
 # WebSocket transport (arc-004 push-transport, T-2305). TLS is already terminated
 # by tokio-rustls before the WS layer runs over the decrypted stream, so we take

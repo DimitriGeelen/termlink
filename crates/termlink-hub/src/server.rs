@@ -266,6 +266,11 @@ pub async fn run_with_tcp(
     // DEFAULT_CV_INDEX_CAP_PER_TOPIC.
     crate::cv_index::init();
 
+    // T-2333 (arc-004 webhook fan-out, Slice 2): Install the outbound webhook
+    // runtime. Reads TERMLINK_WEBHOOK_CONFIG (JSON path); absent/invalid ⇒
+    // disabled with no panic (opt-in, no hard dependency).
+    crate::webhook::init();
+
     // Start the session supervisor
     let supervisor_rx = shutdown_rx.clone();
     tokio::spawn(async move {
@@ -358,6 +363,8 @@ pub async fn run_blocking(socket_path: &Path, tcp_addr: Option<&str>) -> std::io
     crate::governor::spawn_rate_evict_loop();
     // T-2049: Dedupe cache (idempotent).
     crate::dedupe::init();
+    // T-2333: Webhook fan-out runtime (idempotent; opt-in via TERMLINK_WEBHOOK_CONFIG).
+    crate::webhook::init();
 
     let (_shutdown_tx, shutdown_rx) = watch::channel(false);
     run_accept_loop(unix_listener, tcp_listener, tls_acceptor, token_secret, shutdown_rx).await;
