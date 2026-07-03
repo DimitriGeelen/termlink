@@ -566,11 +566,27 @@ pub fn sign_payload(signing_key: &str, body: &[u8]) -> String {
 }
 
 /// Extract the host from a URL, or `None` on parse failure / missing host.
-fn url_host(url: &str) -> Option<String> {
+/// Public so the CLI config-authoring verbs (`termlink webhook add`, T-2336) can
+/// derive the host to auto-add to `allowed_hosts` without re-implementing the
+/// exact same reqwest::Url parse (single source of truth for host extraction).
+pub fn url_host(url: &str) -> Option<String> {
     reqwest::Url::parse(url)
         .ok()?
         .host_str()
         .map(|h| h.to_string())
+}
+
+/// Build a bounded-timeout reqwest client for one-shot CLI-side webhook testing
+/// (`termlink webhook test`, T-2336). Installs the aws-lc-rs process-default
+/// crypto provider (PL-238) exactly as the hub runtime does — so the CLI never
+/// re-implements the provider-pin dance and can never drift from the hub's TLS
+/// backend. Same [`WEBHOOK_TIMEOUT_SECS`] bound as production dispatch.
+pub fn build_test_client() -> Result<reqwest::Client, WebhookError> {
+    ensure_crypto_provider();
+    reqwest::Client::builder()
+        .timeout(Duration::from_secs(WEBHOOK_TIMEOUT_SECS))
+        .build()
+        .map_err(|e| WebhookError::Http(e.to_string()))
 }
 
 /// Deny-by-default allowlist check (SSRF guard). A URL is permitted only if its

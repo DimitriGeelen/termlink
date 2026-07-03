@@ -951,6 +951,12 @@ pub(crate) enum Command {
         action: TokenAction,
     },
 
+    /// Configure hub webhook fan-out targets (arc-004; add/list/test)
+    Webhook {
+        #[command(subcommand)]
+        action: WebhookAction,
+    },
+
     // === Agent Communication ===
 
     /// Agent-to-agent communication (typed request/response protocol)
@@ -4354,6 +4360,74 @@ pub(crate) enum TokenAction {
     Inspect {
         /// The token string to inspect
         token: String,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+}
+
+/// Webhook fan-out config-authoring actions (T-2336, arc-004 Slice 5).
+/// Config surface is the `TERMLINK_WEBHOOK_CONFIG` JSON file (or `--config`).
+#[derive(Subcommand)]
+pub(crate) enum WebhookAction {
+    /// Add a target to the config (auto-adds the URL host to the SSRF allowlist)
+    Add {
+        /// Absolute http/https URL the hub should POST to
+        #[arg(long)]
+        url: String,
+
+        /// HMAC-SHA256 signing key (generated randomly when omitted)
+        #[arg(long)]
+        signing_key: Option<String>,
+
+        /// Topic that fires this target (repeatable; use '*' for all topics)
+        #[arg(long = "topic")]
+        topics: Vec<String>,
+
+        /// Extra host to add to the SSRF allowlist (repeatable; the URL host is added automatically)
+        #[arg(long = "allowed-host")]
+        allowed_hosts: Vec<String>,
+
+        /// Config file path (overrides TERMLINK_WEBHOOK_CONFIG)
+        #[arg(long)]
+        config: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// List configured targets + allowlist (signing keys redacted in text output)
+    List {
+        /// Config file path (overrides TERMLINK_WEBHOOK_CONFIG)
+        #[arg(long)]
+        config: Option<String>,
+
+        /// Output the parsed config verbatim as JSON
+        #[arg(long)]
+        json: bool,
+    },
+    /// Dispatch a signed sample payload to a target and report the HTTP status
+    Test {
+        /// Target http/https URL to POST the sample payload to
+        #[arg(long)]
+        url: String,
+
+        /// Signing key (defaults to a matching config target's key, else a test key)
+        #[arg(long)]
+        signing_key: Option<String>,
+
+        /// Extra host to permit for this test (repeatable; the URL host is permitted automatically)
+        #[arg(long = "allowed-host")]
+        allowed_hosts: Vec<String>,
+
+        /// Topic name embedded in the sample payload
+        #[arg(long)]
+        topic: Option<String>,
+
+        /// Config file path to source the signing key + allowlist from
+        #[arg(long)]
+        config: Option<String>,
 
         /// Output as JSON
         #[arg(long)]

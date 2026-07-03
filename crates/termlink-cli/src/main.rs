@@ -260,6 +260,17 @@ async fn main() -> Result<()> {
             }
             TokenAction::Inspect { token, json } => commands::token::cmd_token_inspect(&token, json),
         },
+        Command::Webhook { action } => match action {
+            WebhookAction::Add { url, signing_key, topics, allowed_hosts, config, json } => {
+                commands::webhook::cmd_webhook_add(&url, signing_key.as_deref(), topics, allowed_hosts, config.as_deref(), json)
+            }
+            WebhookAction::List { config, json } => {
+                commands::webhook::cmd_webhook_list(config.as_deref(), json)
+            }
+            WebhookAction::Test { url, signing_key, allowed_hosts, topic, config, json } => {
+                commands::webhook::cmd_webhook_test(&url, signing_key.as_deref(), allowed_hosts, topic.as_deref(), config.as_deref(), json).await
+            }
+        },
         Command::Agent { action } => match action {
             AgentAction::Ask { target, action, params, from, timeout, interval, json } => {
                 commands::agent::cmd_agent_ask(&target, &action, &params, from.as_deref(), timeout, interval, json).await
