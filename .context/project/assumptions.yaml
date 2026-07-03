@@ -388,3 +388,39 @@ assumptions:
   linked_task: T-2303
   created: '2026-07-02'
   resolved_date: null
+- id: A-039
+  statement: Agents are not HTTP servers — cannot receive inbound webhooks; webhooks
+    are outbound-to-external only (A1, confirmed T-2303)
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-2331
+  created: '2026-07-03'
+  resolved_date: null
+- id: A-040
+  statement: Agent-to-agent live-push need is fully met by the shipped WebSocket path
+    — webhooks add zero agent-case coverage (A2)
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-2331
+  created: '2026-07-03'
+  resolved_date: null
+- id: A-041
+  statement: No named external consumer needs hub-to-HTTP push today (A3) — this is
+    the demand-gated DEFER trigger
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-2331
+  created: '2026-07-03'
+  resolved_date: null
+- id: A-042
+  statement: Hub is greenfield for outbound HTTP — no reqwest/hyper client in any
+    crate manifest (A4, verified 2026-07-03)
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-2331
+  created: '2026-07-03'
+  resolved_date: null
