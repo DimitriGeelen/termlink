@@ -2437,3 +2437,10 @@ learnings:
   date: 2026-07-03
   context: Added via context agent
   application: TBD
+- id: PL-240
+  learning: "E2E recovery demos catch integration-level ?-exit/process-death gaps that unit tests + happy-path smokes miss. T-2340's WS re-probe was unit-tested AND passed a happy-path smoke, yet was functionally UNREACHABLE end-to-end: the poll loop ?-exited the consumer on the first poll against a down hub, so the re-probe never fired. For any resilience/recovery fix, drive the ACTUAL failure scenario (hard-down, restart, transient hub-level error) end-to-end before claiming it works."
+  source: unknown
+  task: T-2341
+  date: 2026-07-03
+  context: Added via context agent
+  application: TBD

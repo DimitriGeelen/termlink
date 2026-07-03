@@ -461,12 +461,39 @@ const WS_HEALTHY_SESSION_MS: u128 = 5_000;
 /// many poll cycles (≈1s each) — frequent enough to recover sub-second push
 /// promptly after the hub returns, bounded enough that it is never a tight spin
 /// (the reconnect loop's own anti-spin cap still applies within each probe).
-const WS_REPROBE_POLL_CYCLES: u32 = 30;
+/// T-2341: default; tunable via `TERMLINK_WS_REPROBE_POLL_CYCLES`.
+const WS_REPROBE_POLL_CYCLES_DEFAULT: u32 = 30;
+/// T-2341: clamp floor — 1 cycle allows near-immediate re-probe (fast recovery /
+/// deterministic demos); 0 would make every poll cycle a re-probe (tight spin).
+const WS_REPROBE_POLL_CYCLES_MIN: u32 = 1;
+/// T-2341: clamp ceiling — an hour of 1s poll cycles; beyond this the "recover
+/// without restart" promise is effectively void, so cap rather than honour it.
+const WS_REPROBE_POLL_CYCLES_MAX: u32 = 3_600;
 
-/// T-2340: true when a poll-floor consumer has waited the re-probe cadence and
-/// should re-attempt the live WS. Pure — unit-tested.
-fn should_ws_reprobe(cycles_on_poll_floor: u32) -> bool {
-    cycles_on_poll_floor >= WS_REPROBE_POLL_CYCLES
+/// T-2341: clamp a parsed `TERMLINK_WS_REPROBE_POLL_CYCLES` into the sane range,
+/// falling back to the default when absent/unparseable. Pure — unit-tested.
+fn clamp_reprobe_cycles(parsed: Option<u32>) -> u32 {
+    parsed
+        .unwrap_or(WS_REPROBE_POLL_CYCLES_DEFAULT)
+        .clamp(WS_REPROBE_POLL_CYCLES_MIN, WS_REPROBE_POLL_CYCLES_MAX)
+}
+
+/// T-2341: the re-probe cadence in poll cycles, tunable via
+/// `TERMLINK_WS_REPROBE_POLL_CYCLES` (default 30). Lower recovers push faster
+/// after a hub-down; higher reduces re-probe churn on a busy hub. Read once per
+/// subscribe (mirrors the `TERMLINK_WEBHOOK_RETRY_INTERVAL_MS` clamp pattern).
+fn ws_reprobe_poll_cycles() -> u32 {
+    clamp_reprobe_cycles(
+        std::env::var("TERMLINK_WS_REPROBE_POLL_CYCLES")
+            .ok()
+            .and_then(|s| s.parse().ok()),
+    )
+}
+
+/// T-2340: true when a poll-floor consumer has waited the re-probe cadence
+/// (`threshold` poll cycles) and should re-attempt the live WS. Pure — unit-tested.
+fn should_ws_reprobe(cycles_on_poll_floor: u32, threshold: u32) -> bool {
+    cycles_on_poll_floor >= threshold
 }
 
 /// Exponential reconnect backoff: `BASE × 2^(attempt-1)`, clamped to `CAP_MS`, plus
@@ -8636,8 +8663,10 @@ pub(crate) async fn cmd_channel_subscribe(
     // degrade (correctness over dedup); active reconnect-to-WS is a follow-on.
     // T-2340: poll cycles spent on the steady floor since the last WS re-probe.
     // Only advances (and only triggers a re-probe) for `--push` consumers; a
-    // plain `channel subscribe` never touches it.
+    // plain `channel subscribe` never touches it. T-2341: the cadence is read
+    // once here (env-tunable) so a long-running consumer's threshold is stable.
     let mut poll_cycles_since_probe: u32 = 0;
+    let reprobe_threshold = ws_reprobe_poll_cycles();
     if push {
         // T-2314/T-2340: run the active reconnect loop. It returns only when the
         // hub stays hard-down past the anti-spin cap, at which point we settle on
@@ -8650,6 +8679,22 @@ pub(crate) async fn cmd_channel_subscribe(
     // don't re-ship the same snapshot.
     let mut request_cv_snapshot = include_current_value;
     loop {
+        // T-2340/T-2341: re-probe the WS from the poll floor BEFORE polling. Once
+        // `poll_cycles_since_probe` reaches the cadence we re-enter the active
+        // reconnect loop; if the hub is back it resumes live push (recovery WITHOUT
+        // a process restart), if still down its own anti-spin cap returns here.
+        // Placed at the loop top (not the tail) so it fires on BOTH the normal poll
+        // path and the hub-down-retry path — both advance the counter.
+        if push && should_ws_reprobe(poll_cycles_since_probe, reprobe_threshold) {
+            poll_cycles_since_probe = 0;
+            // T-2341: make the re-probe observable — a *successful* re-probe streams
+            // silently (run_ws_push only logs on failure/end), so without this line
+            // an operator couldn't tell push had been restored from the poll floor.
+            eprintln!(
+                "[push] re-probing WS from poll floor (every {reprobe_threshold} poll cycles)"
+            );
+            run_ws_reconnect_loop(&sock, topic, json_output, &mut cursor).await;
+        }
         let mut params = json!({"topic": topic, "cursor": cursor, "limit": limit});
         if let Some(cid) = conversation_id
             && let Some(obj) = params.as_object_mut()
@@ -8668,11 +8713,43 @@ pub(crate) async fn cmd_channel_subscribe(
         {
             obj.insert("include_current_value".to_string(), json!(true));
         }
-        let resp = rpc_call_authed(&sock, method::CHANNEL_SUBSCRIBE, params)
-            .await
-            .context("Hub rpc_call failed")?;
-        let result = client::unwrap_result(resp)
-            .map_err(|e| anyhow!("Hub returned error for channel.subscribe: {e}"))?;
+        let resp = match rpc_call_authed(&sock, method::CHANNEL_SUBSCRIBE, params).await {
+            Ok(r) => r,
+            Err(e) if follow || push => {
+                // T-2341 (demo-caught defect): a long-lived consumer (`--follow` or
+                // the inherently-live `--push`) must SURVIVE a down hub. Otherwise
+                // the first poll after the reconnect loop degraded us to this floor
+                // — with the hub still down — would `?`-exit the whole process, and
+                // the T-2340 re-probe could never fire. Count the cycle (so the
+                // re-probe cadence still advances), sleep, and retry. A true
+                // single-shot (`!follow && !push`) subscribe still errors.
+                eprintln!("[poll] hub unavailable ({e}) — retrying");
+                if push {
+                    poll_cycles_since_probe = poll_cycles_since_probe.saturating_add(1);
+                }
+                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                continue;
+            }
+            Err(e) => return Err(e).context("Hub rpc_call failed"),
+        };
+        let result = match client::unwrap_result(resp) {
+            Ok(r) => r,
+            Err(e) if follow || push => {
+                // T-2341 (demo-caught defect, part 2): tolerate a transient
+                // hub-LEVEL error the same way as a connection error. After a hub
+                // restart the aggregator topic (e.g. `inbox.queued`) may not exist
+                // yet ("-32013: unknown topic"), which a long-lived consumer must
+                // ride out — not `?`-exit — so the re-probe can recover once the
+                // topic reappears. A true single-shot (`!follow && !push`) still errors.
+                eprintln!("[poll] hub error ({e}) — retrying");
+                if push {
+                    poll_cycles_since_probe = poll_cycles_since_probe.saturating_add(1);
+                }
+                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                continue;
+            }
+            Err(e) => return Err(anyhow!("Hub returned error for channel.subscribe: {e}")),
+        };
         // T-2105: render cv_index snapshot BEFORE the messages stream.
         // Snapshot is one-shot — clear the flag so paginated calls don't re-fetch.
         if request_cv_snapshot {
@@ -8971,11 +9048,15 @@ pub(crate) async fn cmd_channel_subscribe(
         {
             eprintln!("warning: failed to persist cursor: {e}");
         }
-        if !follow {
+        if !follow && !push {
             // T-1346: when --tail is set, emit only the last N collected
             // envelope outputs. (--tail conflicts_with --follow at the
             // clap level, so we only ever reach the slicing path in
             // single-shot mode.)
+            // T-2341: `--push` is an inherently live, long-lived consumer (the
+            // reconnect loop already loops forever while the hub is healthy), so it
+            // never single-shots out of the poll floor — otherwise a hard hub-down
+            // that degraded us here would exit the process instead of re-probing.
             if tail_mode {
                 let kept = tail_slice(&env_outputs, tail);
                 for chunk in kept {
@@ -8985,23 +9066,13 @@ pub(crate) async fn cmd_channel_subscribe(
             return Ok(());
         }
         cursor = next;
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-        // T-2340: periodic WS re-probe from the steady poll floor. Once the
-        // reconnect loop above degraded us to poll (hub was hard-down past the
-        // anti-spin cap), re-attempt the live WS on a bounded cadence: on success
-        // `run_ws_reconnect_loop` streams live and resumes immediate
-        // reconnect-on-drop, restoring sub-second push without a process restart;
-        // on failure its own cap returns us here to keep polling. A plain
-        // `channel subscribe` (push=false) never re-probes. Only reachable in
-        // --follow mode (the !follow path returns above), so it is inherently
-        // scoped to long-lived consumers.
+        // T-2340/T-2341: advance the re-probe cadence counter on each successful
+        // poll cycle; the re-probe itself fires at the loop TOP once the counter
+        // reaches the cadence. push=false never re-probes.
         if push {
-            poll_cycles_since_probe += 1;
-            if should_ws_reprobe(poll_cycles_since_probe) {
-                poll_cycles_since_probe = 0;
-                run_ws_reconnect_loop(&sock, topic, json_output, &mut cursor).await;
-            }
+            poll_cycles_since_probe = poll_cycles_since_probe.saturating_add(1);
         }
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     }
 }
 
@@ -13773,17 +13844,26 @@ mod tests {
     fn ws_reprobe_below_threshold_is_false() {
         // T-2340: a poll-floor consumer that has not yet waited the cadence must
         // NOT re-probe — otherwise the "bounded, no tight spin" guarantee breaks.
-        assert!(!should_ws_reprobe(0));
-        assert!(!should_ws_reprobe(1));
-        assert!(!should_ws_reprobe(WS_REPROBE_POLL_CYCLES - 1));
+        assert!(!should_ws_reprobe(0, WS_REPROBE_POLL_CYCLES_DEFAULT));
+        assert!(!should_ws_reprobe(1, WS_REPROBE_POLL_CYCLES_DEFAULT));
+        assert!(!should_ws_reprobe(
+            WS_REPROBE_POLL_CYCLES_DEFAULT - 1,
+            WS_REPROBE_POLL_CYCLES_DEFAULT
+        ));
     }
 
     #[test]
     fn ws_reprobe_at_or_past_threshold_is_true() {
         // T-2340: exactly at the cadence, and any time after, it should re-probe.
-        assert!(should_ws_reprobe(WS_REPROBE_POLL_CYCLES));
-        assert!(should_ws_reprobe(WS_REPROBE_POLL_CYCLES + 5));
-        assert!(should_ws_reprobe(u32::MAX));
+        assert!(should_ws_reprobe(
+            WS_REPROBE_POLL_CYCLES_DEFAULT,
+            WS_REPROBE_POLL_CYCLES_DEFAULT
+        ));
+        assert!(should_ws_reprobe(
+            WS_REPROBE_POLL_CYCLES_DEFAULT + 5,
+            WS_REPROBE_POLL_CYCLES_DEFAULT
+        ));
+        assert!(should_ws_reprobe(u32::MAX, WS_REPROBE_POLL_CYCLES_DEFAULT));
     }
 
     #[test]
@@ -13791,7 +13871,26 @@ mod tests {
         // T-2340: ~a few-to-tens of seconds at a 1s poll — prompt recovery after
         // the hub returns, but never a tight spin. Pin the intent, not the exact
         // value, so a future tune within this band doesn't break the test.
-        assert!((10..=120).contains(&WS_REPROBE_POLL_CYCLES));
+        assert!((10..=120).contains(&WS_REPROBE_POLL_CYCLES_DEFAULT));
+    }
+
+    #[test]
+    fn clamp_reprobe_cycles_defaults_when_absent_or_unparseable() {
+        // T-2341: no env / unparseable value → the default cadence.
+        assert_eq!(clamp_reprobe_cycles(None), WS_REPROBE_POLL_CYCLES_DEFAULT);
+    }
+
+    #[test]
+    fn clamp_reprobe_cycles_clamps_low_and_high() {
+        // T-2341: 0 (tight-spin request) is floored to MIN; an absurd value is
+        // capped to MAX; an in-range value passes through unchanged.
+        assert_eq!(clamp_reprobe_cycles(Some(0)), WS_REPROBE_POLL_CYCLES_MIN);
+        assert_eq!(
+            clamp_reprobe_cycles(Some(u32::MAX)),
+            WS_REPROBE_POLL_CYCLES_MAX
+        );
+        assert_eq!(clamp_reprobe_cycles(Some(2)), 2);
+        assert_eq!(clamp_reprobe_cycles(Some(30)), 30);
     }
 
     #[test]
