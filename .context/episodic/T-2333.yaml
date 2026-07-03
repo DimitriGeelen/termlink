@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2333: Webhook fan-out S2 — wire hub events → signed dispatch (arc-004, follows T-2332)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-03T13:30:43Z
+# ============================================================================
+
+task_id: T-2333
+task_name: "Webhook fan-out S2 — wire hub events → signed dispatch (arc-004, follows T-2332)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-03T09:59:52Z
+completed: 2026-07-03T13:30:31Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-03T12:00:14+02:00
+last_commit: 2026-07-03T15:26:32+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  capture webhook fan-out S2 (event→dispatch wiring) as next build task. webhook fan-out S2 — wire hub events → signed dispatch + crypto-provider pin
+
+# Key outcomes
+outcomes:
+  - '`WebhookTarget` gains a `topics: Vec<String>` filter and `WebhookConfig::targets_for(topic)` returns only targets whose `topics` contains the exact topic OR `"*"` (empty `topics` ⇒ never fires — opt-in). Unit-tested (`matches_topic_exact_wildcard_and_empty`, `targets_for_selects_matching_only`).'
+  - 'Process-global runtime (`OnceLock`) holding the parsed `WebhookConfig` + a bounded-timeout `reqwest::Client`, installed by `pub fn init()` that reads `TERMLINK_WEBHOOK_CONFIG` (path to JSON); absent / unreadable / parse-fail ⇒ disabled with NO panic (opt-in, no hard dependency). Unit-tested (`webhooks_none_when_uninitialised_in_this_test_binary`).'
+  - '`pub fn fan_out(topic, body)` spawns one signed `dispatch` per matching target fire-and-forget (returns immediately, never blocks the post response); selection helper unit-tested (non-matching topic ⇒ 0 targets, matching ⇒ correct set) without touching the network.'
+  - '`channel.rs` `Ok(offset)` arm calls `crate::webhook::fan_out(...)` as a new sibling block after the dm-rail emit and before `Response::success` — a failed post never fans out.'
+  - '`server.rs` calls `crate::webhook::init()` in BOTH startup paths (`run_with_tcp` + `run_blocking`) alongside the dedupe/cv_index init.'
+  - '`cargo build -p termlink-hub` and `cargo test -p termlink-hub webhook` both pass (11 webhook tests: Slice-1''s 8 + 3 new). Full workspace green: 394 hub + 945 CLI/session, zero regressions (the ring/aws-lc-rs crypto-provider fix restored the 4 tls:: tests).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-07-03 — reqwest crypto-provider pin (ring vs aws-lc-rs)'
+    chose: 'reqwest feature `rustls-tls-webpki-roots-no-provider` instead of the plain `rustls-tls`.'
+    rationale: 'the hub''s TLS stack deliberately uses rustls''s aws-lc-rs backend (Cargo.toml line 54). Plain `rustls-tls` transitively enables `__rustls-ring`, so BOTH aws-lc-rs and ring provider features end up compiled into the shared rustls dep. rustls 0.23 then refuses to auto-select a process-default provider and panics ("make sure exactly one of the ''aws-lc-rs'' and ''ring'' features is enabled") whenever a TLS config is built without an explicit provider — this broke the 4 `tls::tests`. The regression was latent since Slice-1 (T-2332) because that slice only ran `cargo test -p termlink-hub webhook`, never the full suite. The `-no-provider` variant keeps the bundled Mozilla webpki roots (portable HTTPS validation, Directive 4 — no OS trust store) WITHOUT enabling ring, leaving aws-lc-rs the sole provider so auto-default works again.'
+    alternatives_rejected: ['(a) calling `CryptoProvider::install_default()` at hub startup — doesn''t help the unit tests, which build TLS configs directly outside the startup path; (b) `native-roots` — needs the OS trust store, less portable than bundled webpki roots.']
+  - decision: '2026-07-03 — topic filter matching semantics'
+    chose: 'exact topic membership OR the `"*"` wildcard; empty `topics` list never fires.'
+    rationale: 'deny-by-default symmetry with the Slice-1 host allowlist — a target only fires for topics it explicitly subscribes to. No prefix/substring matching keeps the rule un-surprising and audit-clear.'
+    alternatives_rejected: ['prefix matching (`work-*`) — deferred; adds glob-parse surface with no demand yet.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'Cargo.lock'
+  - 'Cargo.toml'
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'crates/termlink-hub/src/server.rs'
+  - 'crates/termlink-hub/src/webhook.rs'
+  - '.tasks/active/T-2333-webhook-fan-out-s2--wire-hub-events--sig.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-03T12:00:14"
+    action: "T-2333: capture webhook fan-out S2 (event→dispatch wiring) as next build task"
+  - time: "2026-07-03T15:26:32"
+    action: "T-2333: webhook fan-out S2 — wire hub events → signed dispatch + crypto-provider pin"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 210 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 210
+  commits: 2
+  files_changed: 6
+  lines_added: 466
+  lines_removed: 114
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2333-webhook-fan-out-s2--wire-hub-events--sig.md
+generated_by: context-agent-hybrid
