@@ -570,3 +570,59 @@ decisions:
     date: 2026-07-02
     task: T-2314
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-061
+    decision: "reqwest feature `rustls-tls-webpki-roots-no-provider` instead of the plain `rustls-tls`."
+    scope: project
+    date: 2026-07-03
+    task: T-2333
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-062
+    decision: "exact topic membership OR the `\"*\"` wildcard; empty `topics` list never fires."
+    scope: project
+    date: 2026-07-03
+    task: T-2333
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-063
+    decision: "in-memory bounded `VecDeque` retry queue reusing the *shape* of the T-2051 offline-queue flush loop (attempts counter + jittered periodic drain + poison→dead-letter), NOT its SQLite store."
+    scope: project
+    date: 2026-07-03
+    task: T-2334
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-064
+    decision: "derive ±25% backoff jitter from `SystemTime::now().subsec_nanos()`."
+    scope: project
+    date: 2026-07-03
+    task: T-2334
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-065
+    decision: "2xx=Success, 4xx + config errors (bad URL / non-allowlisted host)=PermanentDrop, 5xx/3xx/1xx + transport errors=Retryable."
+    scope: project
+    date: 2026-07-03
+    task: T-2334
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-066
+    decision: "`test` runs the URL against the config's allowlist + explicit `--allowed-host` extras only; it does NOT auto-add the URL's own host. A host absent from the allowlist refuses loudly with an actionable `--allowed-host` hint."
+    scope: project
+    date: 2026-07-03
+    task: T-2336
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-067
+    decision: "Read 32 bytes from `/dev/urandom` directly for auto-generated signing keys."
+    scope: project
+    date: 2026-07-03
+    task: T-2336
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-068
+    decision: "Made `webhook::url_host` public and added `webhook::build_test_client()` in the hub crate; the CLI reuses both plus the existing `dispatch`/`sign_payload`."
+    scope: project
+    date: 2026-07-03
+    task: T-2336
+    rationale: "Auto-captured from task file on completion"

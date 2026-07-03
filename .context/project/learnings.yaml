@@ -2430,3 +2430,10 @@ learnings:
   date: 2026-07-03
   context: Added via context agent
   application: TBD
+- id: PL-239
+  learning: "A 'test'/'dry-run' verb that exercises a security guard must run the guard against the REAL policy, never auto-permit the thing being tested. termlink webhook test first auto-added the target URL's own host to the SSRF allowlist — which made the deny-by-default guard unreachable via the very command meant to surface it (green '✓ dispatched' for a target prod would refuse). Fix: test mirrors production deny-by-default; a non-allowlisted host refuses loudly with an actionable --allowed-host hint. Rule: convenience must not silently widen the policy under test."
+  source: P-001
+  task: T-2336
+  date: 2026-07-03
+  context: Added via context agent
+  application: TBD
