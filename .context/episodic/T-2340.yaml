@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2340: WS re-probe from steady poll so raw --push consumer recovers push after hard hub-down without restart
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-03T22:44:04Z
+# ============================================================================
+
+task_id: T-2340
+task_name: "WS re-probe from steady poll so raw --push consumer recovers push after hard hub-down without restart"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-03T22:33:11Z
+completed: 2026-07-03T22:42:57Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-04T00:42:47+02:00
+last_commit: 2026-07-04T00:42:47+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  WS re-probe from steady poll — raw --push consumer recovers push after hard hub-down without restart
+
+# Key outcomes
+outcomes:
+  - 'After the reconnect cap degrades a raw `channel subscribe --push` consumer to the steady'
+  - '`push=false` (plain `channel subscribe`) control flow is unchanged: no re-probe, poll'
+  - 'The re-probe gating decision is a pure helper (poll-cycles → bool) unit-tested for'
+  - '`cargo build -p termlink` succeeds; targeted `cargo test -p termlink --bin termlink'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - '.tasks/active/T-2340-ws-re-probe-from-steady-poll-so-raw---pu.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-04T00:42:47"
+    action: "T-2340: WS re-probe from steady poll — raw --push consumer recovers push after hard hub-down without restart"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 1
+  files_changed: 2
+  lines_added: 339
+  lines_removed: 43
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2340-ws-re-probe-from-steady-poll-so-raw---pu.md
+generated_by: context-agent-hybrid
