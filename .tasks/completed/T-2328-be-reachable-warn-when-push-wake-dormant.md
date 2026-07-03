@@ -4,20 +4,20 @@ name: "be-reachable WARN when push-wake dormant (no bound pty_session)"
 description: >
   PL-237: push-wake (inbox+dm rails) silently falls back to poll floor when no pty_session binds (headless session, no tmux/screen, no --pty-session). Emit a WARN on be-reachable start so the dormancy is observable, not silent.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/be-reachable.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-03T08:55:18Z
-last_update: 2026-07-03T08:55:18Z
-date_finished: null
+last_update: 2026-07-03T08:59:39Z
+date_finished: 2026-07-03T08:59:39Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -171,3 +171,6 @@ bash scripts/test-be-reachable-dormancy.sh
   heartbeat/waker or touching a hub.
 - New `scripts/test-be-reachable-dormancy.sh` (4 assertions: dormant→WARN,
   stderr-only, bound→silent, always-returns-0) — RESULT: PASS. `bash -n` clean.
+
+### 2026-07-03T08:59:39Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
