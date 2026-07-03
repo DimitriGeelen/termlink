@@ -456,6 +456,12 @@ impl std::fmt::Display for NegotiateError {
 
 pub mod inbox_topic { pub const QUEUED: &str = "inbox.queued"; }
 
+/// T-2323 (arc-004 S1): sibling of `inbox_topic::QUEUED` for the dm rail. The hub
+/// emits this aggregator frame when a `channel.post` lands on a `dm:<a>:<b>` topic
+/// so the push-waker can ring the receiver even when the poster is not a
+/// live-sender (raw `channel post` / cron / remote peer / MCP `channel_post`).
+pub mod dm_topic { pub const QUEUED: &str = "dm.queued"; }
+
 /// Payload for `inbox.queued` (T-1636): hub emits when a message spools to an offline inbox.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InboxQueued {

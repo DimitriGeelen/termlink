@@ -766,6 +766,44 @@ pub(crate) async fn handle_channel_post_with_peer(
                     timestamp: env.ts_unix_ms.max(0) as u64,
                 });
             }
+            // T-2323 (arc-004 S1): sibling emit for the dm rail. A canonical
+            // `dm:<a>:<b>` topic carries both participant fingerprints; the
+            // addressee is the participant that is NOT the sender. This lets the
+            // push-waker ring the receiver when the poster does not itself ring
+            // (raw `channel post` / cron / remote peer / MCP `channel_post`). Mirror
+            // of the inbox emit above — same placement after the Ok arm so a failed
+            // post (unknown topic / error) never emits.
+            if let Some(rest) = topic.strip_prefix("dm:")
+                && let Some((a, b)) = rest.split_once(':')
+                && let Some(agg) = crate::router::aggregator() {
+                // Wake the participant who is not the sender. If the two halves
+                // are identical (degenerate self-dm) or sender_id matches neither
+                // half (relay / third-party post), emit nothing — waking a wrong
+                // or self party is worse than falling back to poll.
+                let addressee = if a != b && env.sender_id == a {
+                    Some(b)
+                } else if a != b && env.sender_id == b {
+                    Some(a)
+                } else {
+                    None
+                };
+                if let Some(addressee) = addressee {
+                    agg.inject(crate::aggregator::AggregatedEvent {
+                        session_id: "hub".to_string(),
+                        session_name: "hub".to_string(),
+                        seq: 0,
+                        topic: termlink_protocol::events::dm_topic::QUEUED.to_string(),
+                        payload: serde_json::json!({
+                            "schema_version": termlink_protocol::events::SCHEMA_VERSION,
+                            "addressee_session_id": addressee,
+                            "channel": &topic,
+                            "message_offset": offset,
+                            "enqueued_at": env.ts_unix_ms,
+                        }),
+                        timestamp: env.ts_unix_ms.max(0) as u64,
+                    });
+                }
+            }
             Response::success(id, json!({"offset": offset, "ts": ts_unix_ms})).into()
         }
         Err(termlink_bus::BusError::UnknownTopic(t)) => ErrorResponse::new(
@@ -3055,6 +3093,70 @@ mod tests {
                 Ok(Ok(evt)) => {
                     assert_ne!(evt.payload["channel"], topic,
                         "inbox.queued must not fire for non-inbox topic '{topic}'");
+                }
+                _ => break,
+            }
+        }
+    }
+
+    /// T-2323 (arc-004 S1) positive: channel.post to a canonical `dm:<a>:<b>`
+    /// topic fires `dm.queued` addressed to the participant that is NOT the
+    /// sender — so the push-waker can ring the receiver even when the poster
+    /// does not itself ring (raw post / cron / remote peer / MCP channel_post).
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn channel_post_dm_topic_fires_dm_queued() {
+        let (_d, bus) = tmp_bus();
+        let key = signing_key();
+        let sender_fp = fingerprint_of(&key.verifying_key());
+        let addressee = "t2323-dm-addressee";
+        let topic = format!("dm:{sender_fp}:{addressee}");
+        bus.create_topic(&topic, Retention::Forever).unwrap();
+        crate::router::init_aggregator();
+        let mut rx = crate::router::aggregator().unwrap().subscribe();
+        let params = post_params(&key, &topic, "dm.msg", b"hello", 99);
+        let resp = handle_channel_post_with(&bus, json!(1), &params).await;
+        let v = unwrap_success(resp);
+        assert_eq!(v["offset"], 0);
+        // Aggregator is a process-global singleton; filter to our addressee.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(500);
+        let evt = loop {
+            let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+            let r = tokio::time::timeout(remaining, rx.recv()).await
+                .expect("timeout waiting for dm.queued").expect("closed");
+            if r.topic == termlink_protocol::events::dm_topic::QUEUED
+                && r.payload["addressee_session_id"] == addressee {
+                break r;
+            }
+        };
+        assert_eq!(evt.payload["channel"], topic);
+        assert_eq!(evt.payload["message_offset"], 0);
+        assert_eq!(evt.payload["enqueued_at"], 99);
+    }
+
+    /// T-2323 (arc-004 S1) negative: a dm post whose authenticated sender is
+    /// NEITHER participant (relay / third party) fires nothing — we never wake a
+    /// party we cannot attribute. Guards the `None` branch of the addressee
+    /// derivation. Uses unique halves so parallel emits don't false-positive.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn channel_post_dm_topic_sender_not_participant_does_not_fire() {
+        let (_d, bus) = tmp_bus();
+        let key = signing_key();
+        let topic = "dm:t2323-other-a:t2323-other-b"; // sender fp is neither half
+        bus.create_topic(topic, Retention::Forever).unwrap();
+        crate::router::init_aggregator();
+        let mut rx = crate::router::aggregator().unwrap().subscribe();
+        let params = post_params(&key, topic, "dm.msg", b"x", 5);
+        let resp = handle_channel_post_with(&bus, json!(1), &params).await;
+        let _ = unwrap_success(resp);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(80);
+        loop {
+            let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+            if remaining.is_zero() { break; }
+            match tokio::time::timeout(remaining, rx.recv()).await {
+                Ok(Ok(evt)) => {
+                    assert!(!(evt.topic == termlink_protocol::events::dm_topic::QUEUED
+                        && evt.payload["channel"] == topic),
+                        "dm.queued must not fire when sender is not a participant");
                 }
                 _ => break,
             }
