@@ -4,15 +4,15 @@ name: "Inception — active WS reconnect-with-backoff for push consumer"
 description: >
   arc-004 follow-on. Question (one, go/no-go): should v2 add an active WS reconnect-with-backoff loop that restores push when the hub returns? Explore: reconnect trigger, backoff policy, avoiding missed posts during the gap (durable offset replay on reconnect), interaction with the degrade-to-poll floor. See docs/operations/push-transport-recipe.md §4 + docs/reports/T-2303-push-transport-inception.md.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
-horizon: later
+horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-07-03T19:09:44Z
-last_update: 2026-07-03T19:09:44Z
+last_update: 2026-07-03T22:32:30Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -51,6 +51,19 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
      §Disposition Gate. Bypass: --skip-disposition-gate "rationale" (direct) or
      FW_SKIP_DISPOSITION_GATE=1 (env-var, T-1890 producer/consumer parity).
 -->
+
+- **IW-1: Should v2 add an active WS reconnect-with-backoff loop for the push consumer?**
+  confidence: 3
+  disposition: dissolved
+  rationale: Premise false — the loop already exists (T-2314), `channel.rs:8568-8611`. The
+  raw CLI `--push` and the waker share it. No v2 rebuild needed.
+
+- **IW-2: Does any real reconnect gap survive T-2314?**
+  confidence: 3
+  disposition: answered
+  rationale: Yes, one narrow one — after 6 consecutive sub-5s failures the raw consumer
+  breaks to steady poll permanently (`channel.rs:8597-8601`, never re-probes WS). Scoped
+  to build task T-2340 (periodic WS re-probe from steady poll); not a rebuild.
 
 ## Exploration Plan
 
@@ -112,9 +125,37 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 ## Recommendation
 
-**Recommendation:** GO
+**Recommendation:** NO-GO (superseded by T-2314)
 
-**Rationale:** Real reliability gap: v1 push consumer (channel subscribe --push) degrades to poll on socket loss and STAYS on poll until process restart — a long-lived agent silently loses sub-second wake permanently after any hub restart/blip, defeating the arc's core value. The durable substrate still delivers at poll-floor so it's not data-loss, but the latency regression is invisible and unrecoverable in-process. Advisory GO to explore a v2 active reconnect loop (backoff+jitter, reuse webhook backoff_delay_ms pattern; durable-offset replay across the gap). Deferred past GO(scoped) per T-2303 §10 (degrade-to-poll was the deliberate v1); human decides final go/no-go after exploration.
+**Rationale (revised 2026-07-04 after code investigation):** The proposed "v2 active
+WS reconnect-with-backoff loop" was ALREADY BUILT AND SHIPPED by T-2314. The original
+GO rationale below described the **pre-T-2314** behavior; the gap it names no longer
+exists. Verified in current code:
+
+- `crates/termlink-cli/src/commands/channel.rs:8568-8611` — inside `cmd_channel_subscribe`,
+  the `if push` branch wraps `run_ws_push` in a reconnect loop that on each drop (1) drains
+  the gap via `ws_poll_catchup` advancing the durable cursor, (2) backs off via
+  `ws_reconnect_backoff`, (3) retries the WS. A healthy session (≥ `WS_HEALTHY_SESSION_MS`
+  = 5s, line 458) resets the backoff so transient blips reconnect indefinitely.
+- The raw `channel subscribe --push` CLI and the push-waker share THIS ONE path —
+  `scripts/be-reachable-pushwaker.sh:100` invokes `channel subscribe … --push`, so there is
+  no separate reconnect behavior to build.
+- `docs/operations/push-transport-recipe.md` §4 already documents this as current behavior.
+- Demo evidence: `docs/reports/T-2314-arc-004-active-reconnect-demo.md` (post-blip DM
+  delivered over the resumed live WS; "no permanent degrade").
+
+**Original GO rationale (now stale — retained for audit):** ~~Real reliability gap: v1 push
+consumer degrades to poll on socket loss and STAYS on poll until process restart …~~ — this
+was the state T-2314 fixed.
+
+**Narrow residual carved out → T-2340:** after `WS_RECONNECT_MAX_ATTEMPTS` = 6 *consecutive
+sub-5s* reconnect failures (hub hard-down for a few seconds), the raw consumer `break`s to the
+steady poll loop (`channel.rs:8597-8601`) and stays on poll until process restart — the poll
+loop never re-probes WS. The waker path self-heals via its outer re-subscribe
+(`be-reachable-pushwaker.sh`), but a long-lived raw `--push` invocation does not. This is a
+small, scoped, bounded follow-up (periodic WS re-probe from steady poll), NOT the full rebuild
+this inception assumed. Filed as build task T-2340. Human records the final no-go via
+`fw inception decide T-2338 no-go`.
 
 ## Decisions
 
@@ -135,3 +176,7 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-07-03T22:32:30Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
