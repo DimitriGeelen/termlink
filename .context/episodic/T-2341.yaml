@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2341: E2E recovery demo for T-2340 WS re-probe + env-tunable cadence knob
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-03T23:58:03Z
+# ============================================================================
+
+task_id: T-2341
+task_name: "E2E recovery demo for T-2340 WS re-probe + env-tunable cadence knob"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-03T23:35:53Z
+completed: 2026-07-03T23:56:49Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-04T01:56:37+02:00
+last_commit: 2026-07-04T01:56:37+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  WS re-probe recovery demo + env-tunable cadence — demo caught+fixed 2 poll-loop hub-down exit defects (PL-240)
+
+# Key outcomes
+outcomes:
+  - 'The re-probe cadence is env-tunable via `TERMLINK_WS_REPROBE_POLL_CYCLES` (default 30,'
+  - '**(demo-caught defect)** In a long-lived consumer (`--follow` or the inherently-live'
+  - '`scripts/demo-ws-reprobe-recovery.sh` is a self-contained reproducer against an ISOLATED'
+  - '`docs/reports/T-2341-arc-004-ws-reprobe-recovery-demo.md` records the demo run with the'
+  - '`cargo build -p termlink` succeeds; targeted `cargo test -p termlink --bin termlink'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'WS re-probe recovery demo + env-tunable cadence — demo caught+fixed 2 poll-loop hub-down exit defects (PL-240)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-07-04 — the demo caught a defect in shipped T-2340; fix-forward here vs. new bug task'
+    chose: 'Fix the two poll-loop `?`-exit defects (RPC-level + hub-level) inside T-2341 and'
+    rationale: 'The defects and the demo are not independent — the demo''s entire purpose is to'
+    alternatives_rejected: ['(a) File T-2342 for the resilience fix — creates an awkward T-2341→T-2342']
+  - decision: '2026-07-04 — re-probe cadence env-tunable (not a fixed const)'
+    chose: '`TERMLINK_WS_REPROBE_POLL_CYCLES` (default 30, clamp 1..=3600), mirroring'
+    rationale: 'Makes the recovery demo deterministic (cadence=2 → ~2s re-probe instead of ~30s) AND'
+    alternatives_rejected: ['Hardcoded const — would force a flaky ~50s timing-scrape demo and give operators']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/learnings.yaml'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'docs/reports/T-2341-arc-004-ws-reprobe-recovery-demo.md'
+  - 'scripts/demo-ws-reprobe-recovery.sh'
+  - '.tasks/active/T-2341-e2e-recovery-demo-for-t-2340-ws-re-probe.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-04T01:56:37"
+    action: "T-2341: WS re-probe recovery demo + env-tunable cadence — demo caught+fixed 2 poll-loop hub-down exit defects (PL-240)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 20 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 20
+  commits: 1
+  files_changed: 5
+  lines_added: 657
+  lines_removed: 34
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2341-e2e-recovery-demo-for-t-2340-ws-re-probe.md
+generated_by: context-agent-hybrid
