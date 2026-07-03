@@ -4,20 +4,20 @@ name: "Webhook fan-out S3 — retry/backoff/dead-letter for outbound dispatch (a
 description: >
   Slice 3 of the T-2331 GO webhook feature. Slices 1-2 shipped the signed+allowlisted dispatch primitive (T-2332) and the event->dispatch fan-out wiring (T-2333). S3 adds delivery resilience: an in-memory bounded retry queue with per-entry exponential backoff + jitter, poison->dead-letter after N attempts, drained by one hub-startup-spawned loop (mirrors governor::spawn_rate_evict_loop). Reuses the SHAPE of the T-2051 offline-queue flush loop (attempts column + jittered periodic drain + poison->dead-letter) WITHOUT its sqlite store — webhook delivery is best-effort/opt-in and durability-across-hub-restart is lower priority than keeping a Mutex<Connection> off the hot channel.post path. Classify HTTP outcomes: 2xx=success, 4xx=permanent-drop, 5xx/transport=retryable. Observability counters (retry_enqueued/retry_success/dead_letter_total + queue depth) for Slice 4 to surface. See docs/reports/T-2331-webhooks-external-fan-out-inception.md.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-hub/src/server.rs, crates/termlink-hub/src/webhook.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-03T13:39:30Z
-last_update: 2026-07-03T13:39:30Z
-date_finished: null
+last_update: 2026-07-03T13:47:21Z
+date_finished: 2026-07-03T13:47:21Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -202,3 +202,15 @@ cargo test -p termlink-hub webhook
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2334-webhook-fan-out-s3--retrybackoffdead-let.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-e6abb42e
+- **Timestamp:** 2026-07-03T13:47:31Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-03T13:47:21Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

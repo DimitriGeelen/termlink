@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2334: Webhook fan-out S3 — retry/backoff/dead-letter for outbound dispatch (arc-004, follows T-2333)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-03T13:47:34Z
+# ============================================================================
+
+task_id: T-2334
+task_name: "Webhook fan-out S3 — retry/backoff/dead-letter for outbound dispatch (arc-004, follows T-2333)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-03T13:39:30Z
+completed: 2026-07-03T13:47:21Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-03T15:47:11+02:00
+last_commit: 2026-07-03T15:47:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  webhook fan-out S3 — retry/backoff/dead-letter for outbound dispatch
+
+# Key outcomes
+outcomes:
+  - 'HTTP outcome classification: pure `classify_outcome` maps a dispatch result to `Success` (2xx) / `PermanentDrop` (4xx + config errors) / `Retryable` (5xx / transport error). Unit-tested across all classes (`classify_outcome_maps_status_and_errors`).'
+  - 'Exponential backoff: `backoff_base_ms(attempts)` monotonic non-decreasing, capped at `BACKOFF_CAP_MS` (60s), shift-overflow-guarded; `jitter_ms(base)` applies ±25% via a wall-clock-nanos entropy source (no new crate). Unit-tested (`backoff_base_is_monotonic_and_capped`, `jitter_stays_within_25_percent_bounds`).'
+  - 'In-memory `RetryQueue` (bounded by `TERMLINK_WEBHOOK_RETRY_CAP`, default 1000): `enqueue` rejects (loud, `dropped_full_total`-counted) when full; `drain_due(now)` returns only due entries; `schedule_retry` dead-letters (terminal drop + `dead_letter_total` + bounded observability ring) at `WEBHOOK_MAX_ATTEMPTS`. Unit-tested (`retry_queue_enqueue_rejects_when_full`, `retry_queue_drain_due_selects_only_ready_entries`, `dead_letter_records_and_counts`, `dead_letter_ring_is_bounded`).'
+  - '`fan_out` integration via shared `dispatch_once_and_handle`: first attempt inline (happy path unchanged); a `Retryable` failure enqueues a retry (bumped attempt count); a `PermanentDrop` is dropped + logged, never retried.'
+  - '`webhook::spawn_retry_loop()` (mirror of `spawn_rate_evict_loop`, `TERMLINK_WEBHOOK_RETRY_INTERVAL_MS` clamped 250..=60000, default 2000) drains due entries each tick and re-dispatches; wired into BOTH server.rs startup paths after `webhook::init()`; idles when disabled.'
+  - 'Observability counters (`enqueued_total`, `retry_success_total`, `dropped_full_total`, `dead_letter_total`, `depth`, `dead_letters` snapshot) exposed via accessors for Slice 4. `cargo build -p termlink-hub` + `cargo test -p termlink-hub webhook` green (18 tests); full hub suite 397 green, clippy clean, no new deps.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-07-03 — in-memory retry queue vs durable sqlite (T-2051 reuse)'
+    chose: 'in-memory bounded `VecDeque` retry queue reusing the *shape* of the T-2051 offline-queue flush loop (attempts counter + jittered periodic drain + poison→dead-letter), NOT its SQLite store.'
+    rationale: 'the hub is long-running so durability-across-restart is a real but low-value benefit here — webhook fan-out is best-effort/opt-in and external endpoints are expected to be idempotent. In-memory avoids a `Mutex<Connection>` on the hot `channel.post` path, a new sqlite file, and schema/migration burden. PL-111 flags that restart-surviving state belongs in runtime_dir; this is a deliberate, documented tradeoff (in-flight retries are lost on hub restart) that can graduate to a durable table later if dropped-on-restart webhooks prove to matter.'
+    alternatives_rejected: ['durable `OfflineQueue`-style sqlite table keyed on target+topic — correct only if webhook delivery were governance-critical (T-2243 dead-letter class); it isn''t for v1.']
+  - decision: '2026-07-03 — jitter entropy without a new crate'
+    chose: 'derive ±25% backoff jitter from `SystemTime::now().subsec_nanos()`.'
+    rationale: 'decorrelates retries across targets (T-2055 thundering-herd guard) without adding the `rand` crate to the hub''s dependency surface (Directive 4 — minimal deps). subsec_nanos is more than enough entropy to spread retry times across a fleet of targets.'
+    alternatives_rejected: ['adding `rand` — unnecessary weight for a non-cryptographic jitter; deterministic-only backoff — reintroduces the thundering-herd risk T-2055 fixed for the offline queue.']
+  - decision: '2026-07-03 — retry classification (which failures retry)'
+    chose: '2xx=Success, 4xx + config errors (bad URL / non-allowlisted host)=PermanentDrop, 5xx/3xx/1xx + transport errors=Retryable.'
+    rationale: 'standard webhook semantics — a 4xx or a config error will never succeed on retry (retrying just wastes attempts and hammers the endpoint), whereas 5xx/transport failures are transient. Prevents a misconfigured target from consuming the whole retry budget.'
+    alternatives_rejected: ['retry everything — would loop a permanently-broken 4xx target to the dead-letter for no benefit.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-hub/src/server.rs'
+  - 'crates/termlink-hub/src/webhook.rs'
+  - '.tasks/active/T-2334-webhook-fan-out-s3--retrybackoffdead-let.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-03T15:47:11"
+    action: "T-2334: webhook fan-out S3 — retry/backoff/dead-letter for outbound dispatch"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 3
+  lines_added: 658
+  lines_removed: 16
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2334-webhook-fan-out-s3--retrybackoffdead-let.md
+generated_by: context-agent-hybrid
