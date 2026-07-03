@@ -456,6 +456,18 @@ const WS_RECONNECT_MAX_ATTEMPTS: u32 = 6;
 /// attempt counter, so the cap fires only on rapid connect failures, not on a
 /// long-lived agent whose stable stream occasionally drops.
 const WS_HEALTHY_SESSION_MS: u128 = 5_000;
+/// T-2340: once a `--push` consumer has degraded to the steady poll floor (the
+/// reconnect loop hit `WS_RECONNECT_MAX_ATTEMPTS`), re-probe the WS every this
+/// many poll cycles (≈1s each) — frequent enough to recover sub-second push
+/// promptly after the hub returns, bounded enough that it is never a tight spin
+/// (the reconnect loop's own anti-spin cap still applies within each probe).
+const WS_REPROBE_POLL_CYCLES: u32 = 30;
+
+/// T-2340: true when a poll-floor consumer has waited the re-probe cadence and
+/// should re-attempt the live WS. Pure — unit-tested.
+fn should_ws_reprobe(cycles_on_poll_floor: u32) -> bool {
+    cycles_on_poll_floor >= WS_REPROBE_POLL_CYCLES
+}
 
 /// Exponential reconnect backoff: `BASE × 2^(attempt-1)`, clamped to `CAP_MS`, plus
 /// up to +25% jitter selected by `jitter_frac` (0.0..=1.0) to de-synchronise a fleet
@@ -512,6 +524,63 @@ async fn ws_poll_catchup(
         }
     }
     Ok(result["next_cursor"].as_u64().unwrap_or(cursor))
+}
+
+/// T-2314 / T-2340: the active WS reconnect loop for a `--push` consumer.
+/// Alternates the fast WS path with a durable poll catch-up: on each drop it
+/// (1) drains the gap from `*cursor` so nothing is missed, (2) backs off, (3)
+/// retries the WS. A healthy session (≥ `WS_HEALTHY_SESSION_MS`) resets the
+/// backoff; after `WS_RECONNECT_MAX_ATTEMPTS` consecutive fast failures it
+/// RETURNS so the caller settles on the steady poll floor rather than spin.
+///
+/// T-2340: extracted from the inline `cmd_channel_subscribe` loop precisely so it
+/// *returns* on cap — the poll floor can then call it again on a bounded cadence
+/// (`should_ws_reprobe`) to re-probe the WS and, once the hub is back, resume
+/// immediate reconnect-on-drop without a process restart. Correctness floor
+/// unchanged: the durable poll path stays authoritative, the WS is only a faster
+/// transport.
+async fn run_ws_reconnect_loop(
+    addr: &TransportAddr,
+    topic: &str,
+    json_output: bool,
+    cursor: &mut u64,
+) {
+    let mut attempt: u32 = 0;
+    loop {
+        let started = std::time::Instant::now();
+        match run_ws_push(addr, topic, json_output, attempt > 0).await {
+            Ok(WsPushOutcome::Ended) => {
+                eprintln!("[push] WS stream ended — catching up then reconnecting");
+            }
+            Err(e) => {
+                eprintln!("[push] WS unavailable ({e}) — catching up then reconnecting");
+            }
+        }
+        let healthy = started.elapsed().as_millis() >= WS_HEALTHY_SESSION_MS;
+        // RB2: drain the gap from the durable cursor before retrying the
+        // live-only WS, advancing the cursor so we neither miss nor re-render.
+        match ws_poll_catchup(addr, topic, *cursor, json_output).await {
+            Ok(next) => *cursor = next,
+            Err(e) => eprintln!("[push] catch-up poll failed ({e}) — retrying"),
+        }
+        // A healthy (long-lived) session resets the backoff; only consecutive
+        // fast failures accumulate toward the cap.
+        attempt = if healthy { 0 } else { attempt + 1 };
+        if attempt > WS_RECONNECT_MAX_ATTEMPTS {
+            eprintln!(
+                "[push] WS reconnect cap ({WS_RECONNECT_MAX_ATTEMPTS}) reached — degrading to poll"
+            );
+            return;
+        }
+        let delay = ws_reconnect_backoff(attempt, wallclock_jitter_frac());
+        eprintln!(
+            "[push] reconnecting to WS in {} ms (attempt {}/{})",
+            delay.as_millis(),
+            attempt,
+            WS_RECONNECT_MAX_ATTEMPTS
+        );
+        tokio::time::sleep(delay).await;
+    }
 }
 
 pub(crate) async fn cmd_channel_create(
@@ -8565,50 +8634,16 @@ pub(crate) async fn cmd_channel_subscribe(
     // Unix target degrades immediately with a hint. The poll loop then resumes
     // from `cursor` — some overlap with already-pushed events is acceptable on a
     // degrade (correctness over dedup); active reconnect-to-WS is a follow-on.
+    // T-2340: poll cycles spent on the steady floor since the last WS re-probe.
+    // Only advances (and only triggers a re-probe) for `--push` consumers; a
+    // plain `channel subscribe` never touches it.
+    let mut poll_cycles_since_probe: u32 = 0;
     if push {
-        // T-2314 (arc-004 active reconnect, Option B): alternate the fast WS path
-        // with a durable poll catch-up. On each drop we (1) drain the gap from the
-        // cursor so nothing is missed, (2) back off, (3) retry the WS. A healthy
-        // session resets the backoff; after MAX consecutive fast failures we settle
-        // on the steady poll loop below rather than spin. Unix hubs are supported
-        // (raw socket) and reconnect the same way. Correctness floor unchanged: the
-        // poll path is authoritative, the WS is only a faster transport.
-        let mut attempt: u32 = 0;
-        loop {
-            let started = std::time::Instant::now();
-            match run_ws_push(&sock, topic, json_output, attempt > 0).await {
-                Ok(WsPushOutcome::Ended) => {
-                    eprintln!("[push] WS stream ended — catching up then reconnecting");
-                }
-                Err(e) => {
-                    eprintln!("[push] WS unavailable ({e}) — catching up then reconnecting");
-                }
-            }
-            let healthy = started.elapsed().as_millis() >= WS_HEALTHY_SESSION_MS;
-            // RB2: drain the gap from the durable cursor before retrying the
-            // live-only WS, advancing the cursor so we neither miss nor re-render.
-            match ws_poll_catchup(&sock, topic, cursor, json_output).await {
-                Ok(next) => cursor = next,
-                Err(e) => eprintln!("[push] catch-up poll failed ({e}) — retrying"),
-            }
-            // A healthy (long-lived) session resets the backoff; only consecutive
-            // fast failures accumulate toward the cap.
-            attempt = if healthy { 0 } else { attempt + 1 };
-            if attempt > WS_RECONNECT_MAX_ATTEMPTS {
-                eprintln!(
-                    "[push] WS reconnect cap ({WS_RECONNECT_MAX_ATTEMPTS}) reached — degrading to poll"
-                );
-                break;
-            }
-            let delay = ws_reconnect_backoff(attempt, wallclock_jitter_frac());
-            eprintln!(
-                "[push] reconnecting to WS in {} ms (attempt {}/{})",
-                delay.as_millis(),
-                attempt,
-                WS_RECONNECT_MAX_ATTEMPTS
-            );
-            tokio::time::sleep(delay).await;
-        }
+        // T-2314/T-2340: run the active reconnect loop. It returns only when the
+        // hub stays hard-down past the anti-spin cap, at which point we settle on
+        // the steady poll floor below — which re-probes the WS on a bounded
+        // cadence (see the loop tail) so push is regained without a restart.
+        run_ws_reconnect_loop(&sock, topic, json_output, &mut cursor).await;
     }
     // T-2105: one-shot snapshot — request cv_index only on the first hub call.
     // Set false after the first response is rendered so paginated fetches
@@ -8951,6 +8986,22 @@ pub(crate) async fn cmd_channel_subscribe(
         }
         cursor = next;
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        // T-2340: periodic WS re-probe from the steady poll floor. Once the
+        // reconnect loop above degraded us to poll (hub was hard-down past the
+        // anti-spin cap), re-attempt the live WS on a bounded cadence: on success
+        // `run_ws_reconnect_loop` streams live and resumes immediate
+        // reconnect-on-drop, restoring sub-second push without a process restart;
+        // on failure its own cap returns us here to keep polling. A plain
+        // `channel subscribe` (push=false) never re-probes. Only reachable in
+        // --follow mode (the !follow path returns above), so it is inherently
+        // scoped to long-lived consumers.
+        if push {
+            poll_cycles_since_probe += 1;
+            if should_ws_reprobe(poll_cycles_since_probe) {
+                poll_cycles_since_probe = 0;
+                run_ws_reconnect_loop(&sock, topic, json_output, &mut cursor).await;
+            }
+        }
     }
 }
 
@@ -13716,6 +13767,31 @@ mod tests {
             ws_reconnect_backoff(1, 5.0).as_millis(),
             ws_reconnect_backoff(1, 1.0).as_millis()
         );
+    }
+
+    #[test]
+    fn ws_reprobe_below_threshold_is_false() {
+        // T-2340: a poll-floor consumer that has not yet waited the cadence must
+        // NOT re-probe — otherwise the "bounded, no tight spin" guarantee breaks.
+        assert!(!should_ws_reprobe(0));
+        assert!(!should_ws_reprobe(1));
+        assert!(!should_ws_reprobe(WS_REPROBE_POLL_CYCLES - 1));
+    }
+
+    #[test]
+    fn ws_reprobe_at_or_past_threshold_is_true() {
+        // T-2340: exactly at the cadence, and any time after, it should re-probe.
+        assert!(should_ws_reprobe(WS_REPROBE_POLL_CYCLES));
+        assert!(should_ws_reprobe(WS_REPROBE_POLL_CYCLES + 5));
+        assert!(should_ws_reprobe(u32::MAX));
+    }
+
+    #[test]
+    fn ws_reprobe_cadence_is_sane() {
+        // T-2340: ~a few-to-tens of seconds at a 1s poll — prompt recovery after
+        // the hub returns, but never a tight spin. Pin the intent, not the exact
+        // value, so a future tune within this band doesn't break the test.
+        assert!((10..=120).contains(&WS_REPROBE_POLL_CYCLES));
     }
 
     #[test]
