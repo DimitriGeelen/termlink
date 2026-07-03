@@ -10,14 +10,18 @@
 #
 # Mechanism (code-grounded):
 #   - The hub emits an `inbox.queued` aggregator frame for every post to an
-#     `inbox:<id>` topic (crates/termlink-hub/src/channel.rs:748/752), carrying
-#     {addressee_session_id, channel, message_offset, enqueued_at}. A `dm:*`
-#     post does NOT emit it (channel.rs:3034) — the dm rail already wakes the
-#     receiver via the sender's ring-1 inject (agent-send.sh), so the waker's
-#     value is the inbox-deposit path.
-#   - We hold `termlink channel subscribe inbox.queued --push` and, on each
-#     frame whose addressee matches our inbox id, fire the SAME ring
-#     `agent-send.sh` uses:  termlink inject <pty_session> "<text>" --enter.
+#     `inbox:<id>` topic (crates/termlink-hub/src/channel.rs:752), carrying
+#     {addressee_session_id, channel, message_offset, enqueued_at}.
+#   - T-2323 (arc-004 S1) added a sibling `dm.queued` emit for `dm:<a>:<b>`
+#     posts, addressed to the participant that is NOT the sender. This closes the
+#     gap where a direct `dm:` post by a NON-live-sender (raw `channel post`,
+#     cron, remote peer, MCP `channel_post`) reached the durable topic but never
+#     push-woke the receiver.
+#   - We hold ONE subscribe per rail: `channel subscribe inbox.queued --push`
+#     (match addressee == inbox id) and, when a self-fp is supplied,
+#     `channel subscribe dm.queued --push` (match addressee == self-fp). On a
+#     matching frame we fire the SAME ring `agent-send.sh` uses:
+#     termlink inject <pty_session> "<text>" --enter.
 #
 # Durability: unchanged. WS is a faster TRIGGER, never a source of truth. On WS
 # drop the CLI's built-in active reconnect (T-2314) resumes push; if the WS is
@@ -34,7 +38,11 @@
 #
 # Usage:
 #   be-reachable-pushwaker.sh --inbox-id <id> --pty-session <name>
-#                             [--hub <addr>] [--doorbell-text <text>] [--ttl <secs>]
+#                             [--self-fp <fingerprint>] [--hub <addr>]
+#                             [--doorbell-text <text>] [--ttl <secs>]
+#
+#   --self-fp enables the dm rail (T-2324): ring on `dm.queued` frames whose
+#   addressee equals this fingerprint. Omit it to run the inbox rail only.
 #
 # Normally spawned by be-reachable.sh start; runnable standalone for testing.
 # Sourcing with BE_REACHABLE_PUSHWAKER_LIB=1 exposes the pure helpers without
@@ -76,42 +84,35 @@ pushwaker_dedup_ok() {
 
 # ---- main loop -----------------------------------------------------------
 
-run_waker() {
-    local inbox_id="$1" pty_session="$2" hub="$3" doorbell_text="$4" ttl="$5"
+# One "rail" = one (push_topic, expected_addressee) subscribe→decide→ring loop.
+# The inbox rail matches addressee == inbox_id; the dm rail (T-2324, arc-004 S2)
+# matches addressee == self_fp (the identity fingerprint that is the non-sender
+# half of the `dm:<a>:<b>` topic — see the hub emit in channel.rs, T-2323). Both
+# rails reuse the SAME pure helpers (pushwaker_extract_payload / pushwaker_decide
+# / pushwaker_dedup_ok); only the push-topic prefix and the addressee to match
+# differ. Each rail keeps its own dedup map — an inbox offset N and a dm offset N
+# are distinct messages on distinct topics, so per-rail dedup is correct and
+# collision-free.
+pushwaker_rail_loop() {
+    local push_topic="$1" match_addressee="$2" pty_session="$3" hub="$4" \
+          doorbell_text="$5" ttl="$6"
 
-    local sub_args=( channel subscribe inbox.queued --push )
+    local sub_args=( channel subscribe "$push_topic" --push )
     [ -n "$hub" ] && sub_args+=( --hub "$hub" )
 
-    declare -A seen   # message_offset -> epoch last rung
+    declare -A seen   # message_offset -> epoch last rung (per-rail)
 
-    # T-2319: reap the `channel subscribe … --push` child so it is not orphaned.
-    # This trap is DEFENSE-IN-DEPTH: it fires on a foreground Ctrl-C (INT) or when
-    # the subscribe stream dies and we are between iterations (EXIT), reaping our
-    # direct children (the subscribe). It CANNOT be relied on for `be-reachable
-    # stop`, because bash defers a trapped signal while blocked in `read` on the
-    # idle push stream — so the PRIMARY reaper is cmd_stop killing this waker's
-    # whole process group (we are a setsid group leader). Keep both.
-    _pw_stopping=0
-    _pw_reap_children() {
-        local kids
-        kids="$(pgrep -P $$ 2>/dev/null)" || kids=""
-        [ -n "$kids" ] && kill $kids 2>/dev/null || true
-    }
-    _pw_on_stop() { _pw_stopping=1; _pw_reap_children; exit 0; }
-    trap '_pw_on_stop' TERM INT
-    trap '_pw_reap_children' EXIT
+    echo "pushwaker: watching $push_topic for '$match_addressee' -> ring '$pty_session'${hub:+ @ $hub}" >&2
 
-    echo "pushwaker: watching inbox.queued for inbox '$inbox_id' -> ring '$pty_session'${hub:+ @ $hub}" >&2
-
-    while [ "$_pw_stopping" = 0 ]; do
+    while true; do
         while IFS= read -r line; do
             case "$line" in
-                '[push] inbox.queued '*) : ;;
+                "[push] $push_topic "*) : ;;
                 *) continue ;;
             esac
             local json decision offset now
             json="$(pushwaker_extract_payload "$line")"
-            decision="$(pushwaker_decide "$json" "$inbox_id")"
+            decision="$(pushwaker_decide "$json" "$match_addressee")"
             [ "${decision%% *}" = "RING" ] || continue
             offset="${decision#RING }"
             now="$(date +%s)"
@@ -125,34 +126,67 @@ run_waker() {
                 [ $(( now - seen[$k] )) -ge "$ttl" ] && unset 'seen[$k]'
             done
             if "$TERMLINK" inject "$pty_session" "$doorbell_text" --enter >/dev/null 2>&1; then
-                echo "pushwaker: rang '$pty_session' for inbox '$inbox_id' offset=$offset" >&2
+                echo "pushwaker: rang '$pty_session' via $push_topic offset=$offset" >&2
             else
-                echo "pushwaker: WARN inject into '$pty_session' failed (session gone?); offset=$offset" >&2
+                echo "pushwaker: WARN inject into '$pty_session' failed (session gone?); $push_topic offset=$offset" >&2
             fi
         done < <("$TERMLINK" "${sub_args[@]}" 2>/dev/null)
         # subscribe exited (crash or degrade-exit); re-subscribe after a pause.
-        echo "pushwaker: subscribe stream exited — re-subscribing in 3s" >&2
+        echo "pushwaker: $push_topic stream exited — re-subscribing in 3s" >&2
         sleep 3
     done
+}
+
+run_waker() {
+    local inbox_id="$1" pty_session="$2" hub="$3" doorbell_text="$4" ttl="$5" \
+          self_fp="${6:-}"
+
+    # T-2319: reap the `channel subscribe … --push` children so they are not
+    # orphaned. This trap is DEFENSE-IN-DEPTH: it fires on a foreground Ctrl-C
+    # (INT) or when a rail loop dies (EXIT), reaping our direct children (the
+    # rail-loop subshells + their subscribes). It CANNOT be relied on for
+    # `be-reachable stop`, because bash defers a trapped signal while blocked in
+    # `read` on the idle push stream — so the PRIMARY reaper is cmd_stop killing
+    # this waker's whole process group (we are a setsid group leader). Keep both.
+    _pw_reap_children() {
+        local kids
+        kids="$(pgrep -P $$ 2>/dev/null)" || kids=""
+        [ -n "$kids" ] && kill $kids 2>/dev/null || true
+    }
+    _pw_on_stop() { _pw_reap_children; exit 0; }
+    trap '_pw_on_stop' TERM INT
+    trap '_pw_reap_children' EXIT
+
+    # Launch the inbox rail (always) and the dm rail (only when a self-fp is
+    # known — empty/absent keeps S1-era behaviour, back-compat). Both run as
+    # background jobs; `wait` blocks until a signal reaps them.
+    pushwaker_rail_loop inbox.queued "$inbox_id" "$pty_session" "$hub" "$doorbell_text" "$ttl" &
+    if [ -n "$self_fp" ]; then
+        pushwaker_rail_loop dm.queued "$self_fp" "$pty_session" "$hub" "$doorbell_text" "$ttl" &
+    else
+        echo "pushwaker: dm rail disabled (no --self-fp) — inbox rail only" >&2
+    fi
+    wait
 }
 
 # ---- arg parsing / dispatch ----------------------------------------------
 
 if [ "${BE_REACHABLE_PUSHWAKER_LIB:-0}" != "1" ]; then
-    inbox_id="" pty_session="" hub="" doorbell_text="/check-arc respond" ttl=120
+    inbox_id="" pty_session="" hub="" doorbell_text="/check-arc respond" ttl=120 self_fp=""
     while [ $# -gt 0 ]; do
         case "$1" in
             --inbox-id)      inbox_id="${2:-}"; shift 2 ;;
             --pty-session)   pty_session="${2:-}"; shift 2 ;;
             --hub)           hub="${2:-}"; shift 2 ;;
+            --self-fp)       self_fp="${2:-}"; shift 2 ;;
             --doorbell-text) doorbell_text="${2:-}"; shift 2 ;;
             --ttl)           ttl="${2:-}"; shift 2 ;;
-            -h|--help)       sed -n '2,40p' "$0"; exit 0 ;;
+            -h|--help)       sed -n '2,44p' "$0"; exit 0 ;;
             *)               echo "pushwaker: unknown arg: $1" >&2; exit 2 ;;
         esac
     done
     [ -n "$inbox_id" ]    || { echo "pushwaker: --inbox-id is required" >&2; exit 2; }
     [ -n "$pty_session" ] || { echo "pushwaker: --pty-session is required (nothing to ring)" >&2; exit 2; }
     command -v jq >/dev/null 2>&1 || { echo "pushwaker: jq is required" >&2; exit 3; }
-    run_waker "$inbox_id" "$pty_session" "$hub" "$doorbell_text" "$ttl"
+    run_waker "$inbox_id" "$pty_session" "$hub" "$doorbell_text" "$ttl" "$self_fp"
 fi
