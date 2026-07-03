@@ -1,12 +1,12 @@
 ---
-id: T-2325
-name: "arc-004 S3 live E2E — dm-rail push-wake (blocked on hub restart)"
+id: T-2329
+name: "Vendor policy/anti-patterns.yaml into consumer .agentic-framework — reviewer non-functional without it"
 description: >
-  Live end-to-end validation of the arc-004 Candidate-A dm-rail push-wake (S1 T-2323 hub emit + S2 T-2324 waker/self-fp). PRECONDITION: the local hub must be restarted onto a binary >= S1 (d905c367) — the running hub (pid observed 3933629, started Jun 24) predates dm.queued (grep /proc/PID/exe for dm.queued = 0; on-disk exe shows (deleted)). Restart is operator-gated (disrupts live sessions). Deferred until an operator restarts the hub.
+  The static-scan reviewer (fw reviewer) resolves its catalogue to framework_root/policy/anti-patterns.yaml then project_root/policy/anti-patterns.yaml (static_scan.py:2452-2457). Neither exists in /opt/termlink: the vendored .agentic-framework/ ships no policy/ dir. Result: every reviewer inline+dispatch here returned 'ERROR: catalogue not found' — the governance reviewer has been silently disabled for the whole project. Local repair applied 2026-07-03 (copied 514-line catalogue from upstream AEF into .agentic-framework/policy/, gitignored so it will vanish on next vendor refresh). Systemic fix: the AEF vendor/update process must include policy/ in consumer installs.
 
-status: started-work
-workflow_type: test
-owner: human
+status: captured
+workflow_type: build
+owner: agent
 horizon: now
 tags: []
 components: []
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-07-03T07:26:49Z
-last_update: 2026-07-03T09:21:49Z
+created: 2026-07-03T09:31:15Z
+last_update: 2026-07-03T09:31:15Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,66 +30,18 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2325: arc-004 S3 live E2E — dm-rail push-wake (blocked on hub restart)
+# T-2329: Vendor policy/anti-patterns.yaml into consumer .agentic-framework — reviewer non-functional without it
 
 ## Context
 
-Final validation slice of the T-2322 GO (Candidate A): prove the dm-rail
-push-wake works end-to-end on a live hub. S1 (T-2323) added the hub `dm.queued`
-aggregator emit for `dm:<a>:<b>` posts; S2 (T-2324) taught the push-waker to
-subscribe `dm.queued` and ring when the addressee equals this session's resolved
-self-fp (via `agent identity --resolve`, which fixed PL-236). Both slices are
-shipped, unit-tested, and pushed (HEAD 623196f2). What remains is a live E2E: a
-direct `dm:` post by a NON-live sender rings the receiver's PTY doorbell with no
-poll-cycle wait.
-
-**PRECONDITION — hub restart (operator-gated).** The running local hub predates
-S1: `grep -a -c dm.queued /proc/<hub-pid>/exe` returns 0, and `/proc/<hub-pid>/exe`
-shows `-> /root/.cargo/bin/termlink (deleted)` — the on-disk binary was replaced
-by a later build but the process still serves the old in-memory image (PL-209 /
-preflight Check 5 stale-hub pattern). Until an operator restarts the hub onto a
-binary >= S1 (commit d905c367), `dm.queued` never fires and this E2E cannot pass.
-Restart is NOT agent-delegated (disrupts every connected session; verify
-runtime_dir persistence first — here `/var/lib/termlink`, persistent, so
-persist-if-present should preserve secret/cert per CLAUDE.md §Hub Auth Rotation).
-
-Design: `docs/reports/T-2322-arc-004-dm-rail-push-wake-inception.md`.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Running hub confirmed on a binary >= S1: `grep -a -c dm.queued
-  /proc/$(pgrep -f 'termlink hub')/exe` returns >= 1 (precondition met — implies
-  operator restarted the hub).
-  *(Operator authorized restart 2026-07-03. Deployed HEAD 39e29c07 binary to
-  `/root/.cargo/bin/termlink` (rm-then-cp, backed up) + `systemctl restart
-  termlink-hub.service`. New MainPID 1993651, exe fresh (not `(deleted)`),
-  `grep -a -c dm.queued /proc/1993651/exe` = 1. NO rotation: secret sha
-  `bce6f5f6…` and cert sha `85932433…` identical pre/post — persist-if-present
-  held, no client re-pin.)*
-- [x] With a live `/be-reachable` session (PTY doorbell bound, dm rail active —
-  its `be-reachable.log` shows the `pushwaker: watching dm.queued` line, NOT the
-  `dm rail disabled (no --self-fp)` line), a direct `dm:<poster-fp>:<self-fp>`
-  post by a NON-live sender causes the waker to fire: `be-reachable.log` shows a
-  `pushwaker: rang '<pty>' via dm.queued offset=<n>` line, and the PTY receives
-  `/check-arc respond`.
-  *(Receiver rx=`2d897938…`, non-live poster tx=`1083ba0d…` (one-shot CLI
-  `channel post`, never registered). Waker log: `watching dm.queued for
-  '2d897938037480b1'` then `rang 't2325-rx-pty' via dm.queued offset=0`. PTY
-  `output` showed `/check-arc respond` delivered (errored under the scratch bash
-  shell as expected — in a real claude session it's a skill call).)*
-- [x] The inbox rail still works unchanged in the same session (no regression):
-  an `inbox:<id>` deposit rings via the `inbox.queued` rail as before.
-  *(Same session: post to `inbox:t2325-rx` → `rang 't2325-rx-pty' via
-  inbox.queued offset=0`. Inbox rail unaffected by the new dm rail.)*
-- [x] Double-wake safety observed: a DM that ALSO deposits to `inbox:<id>` rings
-  at most once per (addressee, offset) within TTL (per-rail dedup), and any
-  duplicate `/check-arc respond` is benign (idempotent).
-  *(Second dm → `rang … via dm.queued offset=1` (new offset rings once). Each
-  rail keeps its own offset-keyed dedup map (unit-tested pushwaker_dedup_ok);
-  inbox offset=0 and dm offset=0 are distinct rails so both ring correctly.
-  `/check-arc respond` is idempotent by design.)*
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -218,20 +170,7 @@ Design: `docs/reports/T-2322-arc-004-dm-rail-push-wake-inception.md`.
 
 ## Updates
 
-### 2026-07-03T07:26:49Z — task-created [task-create-agent]
+### 2026-07-03T09:31:15Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2325-arc-004-s3-live-e2e--dm-rail-push-wake-b.md
+- **Output:** /opt/termlink/.tasks/active/T-2329-vendor-policyanti-patternsyaml-into-cons.md
 - **Context:** Initial task creation
-
-### 2026-07-03T07:45:53Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
-- **Change:** horizon: next → now (auto-sync)
-
-## Reviewer Verdict (v1.5)
-
-- **Scan ID:** R-0717ff89
-- **Timestamp:** 2026-07-03T09:30:45Z
-- **Catalogue:** v1.3-seed
-- **Overall:** PASS
-- **Needs Human:** no
-- **Findings:** none
