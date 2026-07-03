@@ -4,16 +4,16 @@ name: "Inception extend push-wake to dm rail for non-live-sender dm posts"
 description: >
   Verify+design whether to extend the arc-004 push-waker to ring on direct dm posts absent a live-sender ring
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: agent
-horizon: now
+horizon: null
 tags: ["push-transport", "reliable-comms", "inception"]
 components: []
 related_tasks: [T-2316, T-2318, T-2320, T-2303]
 created: 2026-07-02T23:45:13Z
-last_update: 2026-07-03T06:31:48Z
-date_finished: null
+last_update: 2026-07-03T06:35:55Z
+date_finished: 2026-07-03T06:35:55Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -139,15 +139,15 @@ waker subscribe / E2E) under fresh task IDs, mirroring the T-2316→T-2320 arc.
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -230,7 +230,17 @@ DEFER (with a G-053 revisit) loses little.
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: The wake gap is verified in hub code, and the fix is a bounded,
+reversible, testable mirror of an already-shipped pattern (T-1637). The one soft
+spot is value-of-information: the two *primary* agent-to-agent paths are already
+covered by the shipped arc, and I could not confirm a live consumer of the
+uncovered non-live-sender `dm:` path today. Because the fix is cheap and the arc's
+goal is "no silent wake gaps," my default is GO; if you read demand as absent,
+DEFER (with a G-053 revisit) loses little.
+
+**Date**: 2026-07-03T06:35:55Z
 
 ## Updates
 
@@ -240,3 +250,18 @@ DEFER (with a G-053 revisit) loses little.
 ### 2026-07-03T06:31:48Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+### 2026-07-03T06:35:55Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** The wake gap is verified in hub code, and the fix is a bounded,
+reversible, testable mirror of an already-shipped pattern (T-1637). The one soft
+spot is value-of-information: the two *primary* agent-to-agent paths are already
+covered by the shipped arc, and I could not confirm a live consumer of the
+uncovered non-live-sender `dm:` path today. Because the fix is cheap and the arc's
+goal is "no silent wake gaps," my default is GO; if you read demand as absent,
+DEFER (with a G-053 revisit) loses little.
+
+### 2026-07-03T06:35:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
