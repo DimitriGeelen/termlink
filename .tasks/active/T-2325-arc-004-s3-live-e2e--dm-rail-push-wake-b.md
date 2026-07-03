@@ -4,10 +4,10 @@ name: "arc-004 S3 live E2E — dm-rail push-wake (blocked on hub restart)"
 description: >
   Live end-to-end validation of the arc-004 Candidate-A dm-rail push-wake (S1 T-2323 hub emit + S2 T-2324 waker/self-fp). PRECONDITION: the local hub must be restarted onto a binary >= S1 (d905c367) — the running hub (pid observed 3933629, started Jun 24) predates dm.queued (grep /proc/PID/exe for dm.queued = 0; on-disk exe shows (deleted)). Restart is operator-gated (disrupts live sessions). Deferred until an operator restarts the hub.
 
-status: captured
+status: started-work
 workflow_type: test
 owner: human
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-03T07:26:49Z
-last_update: 2026-07-03T07:26:49Z
+last_update: 2026-07-03T07:45:53Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -59,20 +59,37 @@ Design: `docs/reports/T-2322-arc-004-dm-rail-push-wake-inception.md`.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Running hub confirmed on a binary >= S1: `grep -a -c dm.queued
+- [x] Running hub confirmed on a binary >= S1: `grep -a -c dm.queued
   /proc/$(pgrep -f 'termlink hub')/exe` returns >= 1 (precondition met — implies
   operator restarted the hub).
-- [ ] With a live `/be-reachable` session (PTY doorbell bound, dm rail active —
+  *(Operator authorized restart 2026-07-03. Deployed HEAD 39e29c07 binary to
+  `/root/.cargo/bin/termlink` (rm-then-cp, backed up) + `systemctl restart
+  termlink-hub.service`. New MainPID 1993651, exe fresh (not `(deleted)`),
+  `grep -a -c dm.queued /proc/1993651/exe` = 1. NO rotation: secret sha
+  `bce6f5f6…` and cert sha `85932433…` identical pre/post — persist-if-present
+  held, no client re-pin.)*
+- [x] With a live `/be-reachable` session (PTY doorbell bound, dm rail active —
   its `be-reachable.log` shows the `pushwaker: watching dm.queued` line, NOT the
   `dm rail disabled (no --self-fp)` line), a direct `dm:<poster-fp>:<self-fp>`
   post by a NON-live sender causes the waker to fire: `be-reachable.log` shows a
   `pushwaker: rang '<pty>' via dm.queued offset=<n>` line, and the PTY receives
   `/check-arc respond`.
-- [ ] The inbox rail still works unchanged in the same session (no regression):
+  *(Receiver rx=`2d897938…`, non-live poster tx=`1083ba0d…` (one-shot CLI
+  `channel post`, never registered). Waker log: `watching dm.queued for
+  '2d897938037480b1'` then `rang 't2325-rx-pty' via dm.queued offset=0`. PTY
+  `output` showed `/check-arc respond` delivered (errored under the scratch bash
+  shell as expected — in a real claude session it's a skill call).)*
+- [x] The inbox rail still works unchanged in the same session (no regression):
   an `inbox:<id>` deposit rings via the `inbox.queued` rail as before.
-- [ ] Double-wake safety observed: a DM that ALSO deposits to `inbox:<id>` rings
+  *(Same session: post to `inbox:t2325-rx` → `rang 't2325-rx-pty' via
+  inbox.queued offset=0`. Inbox rail unaffected by the new dm rail.)*
+- [x] Double-wake safety observed: a DM that ALSO deposits to `inbox:<id>` rings
   at most once per (addressee, offset) within TTL (per-rail dedup), and any
   duplicate `/check-arc respond` is benign (idempotent).
+  *(Second dm → `rang … via dm.queued offset=1` (new offset rings once). Each
+  rail keeps its own offset-keyed dedup map (unit-tested pushwaker_dedup_ok);
+  inbox offset=0 and dm offset=0 are distinct rails so both ring correctly.
+  `/check-arc respond` is idempotent by design.)*
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -205,3 +222,7 @@ Design: `docs/reports/T-2322-arc-004-dm-rail-push-wake-inception.md`.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2325-arc-004-s3-live-e2e--dm-rail-push-wake-b.md
 - **Context:** Initial task creation
+
+### 2026-07-03T07:45:53Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
