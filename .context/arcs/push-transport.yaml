@@ -35,9 +35,14 @@ demo_evidence: "docs/reports/T-2310-arc-004-ws-push-demo.md"
 #   T-2342 dm-rail push-wake demo:   docs/reports/T-2342-arc-004-dm-rail-pushwake-demo.md      (PASS; 3-fingerprint isolated-hub reproducer, positive+negative+inbox-rail)
 #   T-2343 webhook fan-out demo:     docs/reports/T-2343-arc-004-webhook-fanout-demo.md        (PASS; signed POST + HMAC-over-wire + topic-filter + SSRF deny — Candidate B)
 #   T-2344 webhook retry demo:       docs/reports/T-2344-arc-004-webhook-retry-demo.md         (PASS; flaky-sink 503→retry→204, HMAC intact, governor counters move)
-# Decision-ready inceptions awaiting human decide (recommendations filed in task files):
-#   T-2338 WS reconnect-with-backoff: rec NO-GO (loop already exists via T-2314; residual closed by T-2340/41)
-#   T-2339 WS-over-Unix co-located:   rec NO-GO (already shipped by T-2312/13; waker rides Unix by default)
+# Inception decides recorded 2026-07-04 (human, via Watchtower — corrects the earlier "awaiting" note):
+#   T-2338 WS reconnect-with-backoff: NO-GO decided (commit e554bdd3; loop already exists via T-2314; residual closed by T-2340/41)
+#   T-2339 WS-over-Unix co-located:   NO-GO decided (commit b8491dfb; already shipped by T-2312/13; waker rides Unix by default)
+# Post-close hardening wave 2026-07-04..05 (arc-orbit, no reopen):
+#   T-2355..T-2358 walk-deadline + G-070: hub-side WALK_DEADLINE_EXCEEDED (-32020) shipped + ACTIVATED on .107 (0.11.324 under systemd); preflight Check 6 (unit health / detached ghost)
+#   T-2359 fleet binary-freshness canary: fires daily on any hub serving below its declared version floor (G-069 item 1) — at ship time naming ring20-management 0.11.296 < 0.11.324 until their restart
+#   T-2360 deploy-script G-070 guard:     hub-binary-swap.sh + fleet-deploy-binary.sh refuse setsid-nohup relaunch on systemd-supervised targets
+#   T-2361 staging-only deploy epilogue:  loud HUB RESTART REQUIRED when a stage leaves the running hub on the old binary (G-069 item 3)
 created: 2026-07-02T15:47:28Z
 closed_at: 2026-07-02T23:13:52Z
 decision: "shipped"
