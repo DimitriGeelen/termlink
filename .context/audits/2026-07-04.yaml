@@ -1,8 +1,8 @@
-# Audit Results - 2026-07-04-1054
-timestamp: 2026-07-04T08:54:20Z
+# Audit Results - 2026-07-04-1104
+timestamp: 2026-07-04T09:04:07Z
 sections: "structure"
 summary:
-  pass: 28
+  pass: 29
   warn: 2
   fail: 0
 findings:
@@ -52,6 +52,8 @@ findings:
     check: "cron(heartbeat): USER-field syntax installed at /etc/cron.d/termlink-heartbeat"
   - level: PASS
     check: "cron(preflight-doc-set-drift-canary): USER-field syntax installed at /etc/cron.d/termlink-preflight-doc-set-drift-canary"
+  - level: PASS
+    check: "cron(presence-sweep): USER-field syntax installed at /etc/cron.d/termlink-presence-sweep"
   - level: PASS
     check: "cron(release-mirror-canary): USER-field syntax installed at /etc/cron.d/termlink-release-mirror-canary"
   - level: PASS

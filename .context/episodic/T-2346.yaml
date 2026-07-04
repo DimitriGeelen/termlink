@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2346: arc-004 registry ledger correction — record dm-rail build + reproducer matrix
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-04T09:11:19Z
+# ============================================================================
+
+task_id: T-2346
+task_name: "arc-004 registry ledger correction — record dm-rail build + reproducer matrix"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-04T09:09:04Z
+completed: 2026-07-04T09:11:15Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-04T11:11:09+02:00
+last_commit: 2026-07-04T11:11:09+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  arc-004 registry ledger correction — dm-rail lineage (T-2322 GO'd, T-2323/24/25 built+E2E), reproducer wave T-2340..44, T-2312 report path, decision-ready inceptions noted
+
+# Key outcomes
+outcomes:
+  - 'Registry ledger reflects T-2322 GO + T-2323/24/25 build/E2E lineage (no more "NOT built — awaiting GO")'
+  - 'Reproducer wave T-2341..T-2344 recorded with report paths'
+  - 'WS-over-Unix report path corrected to T-2312-arc-004-ws-over-unix-inception.md'
+  - 'YAML still parses; status/decision/closed_at fields unchanged (verified: status closed / decision "shipped" / closed_at byte-identical)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/arcs/push-transport.yaml'
+  - '.tasks/active/T-2346-arc-004-registry-ledger-correction--reco.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-04T11:11:09"
+    action: "T-2346: arc-004 registry ledger correction — dm-rail lineage (T-2322 GO'd, T-2323/24/25 built+E2E), reproducer wave T-2340..44, T-2312 report path, decision-ready inceptions noted"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 2
+  lines_added: 206
+  lines_removed: 3
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2346-arc-004-registry-ledger-correction--reco.md
+generated_by: context-agent-hybrid
