@@ -1,0 +1,26 @@
+# T-2345 — Daily agent-presence sweep (arc-002 R2 live activation; runbook §4)
+# Source of truth: /opt/termlink/.context/cron/presence-sweep.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-presence-sweep (USER field syntax — do NOT load into a user crontab)
+#
+# R2 (T-2244/T-2245) persists `latest-per-cv-key` retention on agent-presence,
+# but the bus runs NO background sweep thread (T-1155: enforcement is explicit,
+# never implicit) — the topic REGROWS between sweeps (one heartbeat per agent
+# every ~30s). This cron is the enforcement half: a daily `channel sweep`
+# collapses the day's beats back to one record per agent (per-key compaction,
+# T-2107 cv_key=agent_id). Sweep is idempotent — on an already-compact topic it
+# prunes 0 and costs only an O(live-set) scan.
+#
+# History: T-2252's topic-growth canary FIRED 2026-07-04 at 30,804 records with
+# retention=forever — R2 shipped the verbs but this activation step never ran
+# (T-1991 recurrence class). T-2345 applied §3 (set-retention + sweep) and
+# installed this cron so it cannot recur silently. If the topic-growth canary
+# fires again with a BOUNDED policy and a large count, THIS cron stopped firing —
+# check it is still installed and /root/.cargo/bin/termlink still resolves.
+#
+# See docs/operations/agent-presence-retention-reset.md §4 for the full model.
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 04:17 UTC — deliberately BEFORE the 05:11 topic-growth canary check
+# (the canary then always evaluates post-sweep state, not the day's regrowth).
+17 4 * * * root TERMLINK_RUNTIME_DIR=/var/lib/termlink /root/.cargo/bin/termlink channel sweep agent-presence >> /root/.termlink/presence-sweep.log 2>&1
