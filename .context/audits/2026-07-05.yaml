@@ -1,8 +1,8 @@
-# Audit Results - 2026-07-05-0009
-timestamp: 2026-07-04T22:09:14Z
+# Audit Results - 2026-07-05-0044
+timestamp: 2026-07-04T22:44:10Z
 sections: "structure"
 summary:
-  pass: 29
+  pass: 30
   warn: 2
   fail: 0
 findings:
@@ -42,6 +42,8 @@ findings:
     check: "Cron registry in sync with /etc/cron.d/agentic-audit-termlink"
   - level: PASS
     check: "cron(fleet-adoption-snapshot): USER-field syntax installed at /etc/cron.d/termlink-fleet-adoption-snapshot"
+  - level: PASS
+    check: "cron(fleet-binary-canary): USER-field syntax installed at /etc/cron.d/termlink-fleet-binary-canary"
   - level: PASS
     check: "cron(fleet-doorbell-mail-canary): USER-field syntax installed at /etc/cron.d/termlink-fleet-doorbell-mail-canary"
   - level: PASS

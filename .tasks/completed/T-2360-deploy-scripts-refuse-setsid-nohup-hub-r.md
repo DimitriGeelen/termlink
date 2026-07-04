@@ -4,10 +4,10 @@ name: "Deploy scripts refuse setsid-nohup hub relaunch on systemd-supervised tar
 description: >
   Deploy scripts refuse setsid-nohup hub relaunch on systemd-supervised targets (G-070 recreation vector)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-04T22:45:52Z
-last_update: 2026-07-04T22:45:52Z
-date_finished: null
+last_update: 2026-07-04T22:50:11Z
+date_finished: 2026-07-04T22:50:11Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -200,3 +200,15 @@ grep -q "force-detached" scripts/fleet-deploy-binary.sh
 - **Action:** G-070 guard added to both deploy helpers: `hub-binary-swap.sh` (UNIT_PRESENT via existing PRE_STATE probe; refuse exit 2 pre-swap) and `fleet-deploy-binary.sh --swap-restart` (dedicated remote probe before runner generation; refuse exit 4, staging unaffected). `--force-detached` override on both with loud `!!!` log line; fail-open on probe error/no-systemd. Usage headers updated.
 - **Evidence:** `bash -n` clean on both; probe smoke-tested on .107 (unit present → 1); markers grep-able
 - **Context:** Closes the G-070 recreation vector — T-2351's setsid-nohup relaunch is exactly what these scripts would have done to any systemd host. Preflight Check 6 (T-2358) detects the ghost after the fact; this prevents creating it.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-1b4925f4
+- **Timestamp:** 2026-07-04T22:50:12Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-04T22:50:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

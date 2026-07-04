@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2360: Deploy scripts refuse setsid-nohup hub relaunch on systemd-supervised targets (G-070 recreation vector)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-04T22:50:15Z
+# ============================================================================
+
+task_id: T-2360
+task_name: "Deploy scripts refuse setsid-nohup hub relaunch on systemd-supervised targets (G-070 recreation vector)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-04T22:45:52Z
+completed: 2026-07-04T22:50:11Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-05T00:50:05+02:00
+last_commit: 2026-07-05T00:50:05+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  G-070 guard — deploy scripts refuse setsid-nohup relaunch on systemd-supervised targets (--force-detached override)
+
+# Key outcomes
+outcomes:
+  - '`hub-binary-swap.sh`: pre-swap check queries the target for `termlink-hub.service` (unit file present); if found and `--force-detached` not passed, the script REFUSES before any swap action with a message naming the unit, the correct path (install staged binary + `systemctl restart termlink-hub`), and the `--force-detached` override — UNIT_PRESENT emitted from the existing PRE_STATE probe (read-only), guard fires before dry-run/swap, exit 2 (pre-condition failure class)'
+  - '`fleet-deploy-binary.sh --swap-restart`: same guard before generating/pushing the detached deploy runner (staging is unaffected — refusal message names the staged path so the operator can `install && systemctl restart` directly); `--force-detached` flag added; exit 4 (deploy-phase class)'
+  - '`--force-detached` on either script prints a loud one-line `!!!` warning that a detached hub on a systemd host recreates G-070 (unit flap + lost supervision) so the override is visible in deploy logs'
+  - 'Guard is fail-open on probe error: hub-binary-swap.sh treats non-1/0/no-systemd UNIT_PRESENT as inconclusive-proceed; fleet-deploy-binary.sh wraps the remote probe in `{ ... || true; }` so a remote-exec failure yields empty → inconclusive-proceed with an info line (unit-less hosts, the scripts'' original audience, are unaffected)'
+  - 'Syntax check passes on both scripts (`bash -n` clean); `G-070 guard` marker present in both files; probe command smoke-tested on .107 (unit present → returns 1, guard would refuse)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/fleet-deploy-binary.sh'
+  - 'scripts/hub-binary-swap.sh'
+  - '.tasks/active/T-2360-deploy-scripts-refuse-setsid-nohup-hub-r.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-05T00:50:05"
+    action: "T-2360: G-070 guard — deploy scripts refuse setsid-nohup relaunch on systemd-supervised targets (--force-detached override)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 3
+  lines_added: 271
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2360-deploy-scripts-refuse-setsid-nohup-hub-r.md
+generated_by: context-agent-hybrid
