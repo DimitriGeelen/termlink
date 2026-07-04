@@ -4,15 +4,15 @@ name: "auto-reconnect MCP via PTY-inject after binary upgrade"
 description: >
   Inception: auto-reconnect MCP via PTY-inject after binary upgrade
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
-horizon: later
+horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-24T11:39:09Z
-last_update: 2026-06-25T06:31:17Z
+last_update: 2026-07-04T09:13:14Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,11 +28,28 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+After a termlink binary upgrade, a live Claude Code session keeps talking to the OLD
+in-memory MCP server (stdio child of the session) until the session restarts — the same
+stale-binary class as the hub's `(deleted)` /proc/exe footgun (T-2184 preflight Check 5),
+but on the client side. Question: can the fleet self-heal this by PTY-injecting an
+`/mcp`-reconnect command into the live session (`termlink inject`) right after a deploy?
+For: every long-lived agent session on a host where binaries get upgraded underneath it.
 
 ## Assumptions
 
-<!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+- A1: "the Claude Code session is a registered/injectable termlink PTY" — **REFUTED for the
+  common case** (IW-1): `termlink inject` reaches only termlink-MANAGED sessions; a
+  sudo/bash-launched claude session is not one. Feasible only if claude is launched under
+  termlink (`register --shell` / claude-fw) — a deployment-pattern prerequisite, not
+  retrofittable.
+- A2: "Claude Code has a non-interactive MCP reconnect an injected line could trigger" —
+  **REFUTED** (IW-2, claude-code-guide 2026-06-24): `/mcp` is an interactive panel, takes no
+  args, does not reconnect stdio servers; the only documented path to pick up a replaced
+  stdio binary is a full session restart.
+- A3: "injecting a slash command into the live TUI is safe/effective" — **MOOT** (IW-3):
+  with no reconnect command to inject, the only effective injection would be a full
+  restart, which the existing claude-fw auto-restart (T-179 `.restart-requested` signal)
+  already implements.
 
 ## Open Questions
 
@@ -144,17 +161,29 @@ last mile. Awaiting human confirmation via `fw task review T-2276`.
 
 ## Recommendation
 
-**Recommendation:** DEFER
+**Recommendation:** NO-GO (on the literal PTY-inject idea; pivot recorded below)
 
-**Rationale:**
-
-Pending exploration of three assumptions: (A1) the Claude Code session is a registered/injectable termlink PTY; (A2) Claude Code supports a non-interactive /mcp reconnect that a single injected line can trigger (vs an interactive menu); (A3) injecting a slash command into the TUI PTY actually submits without disrupting the live turn. No evidence gathered yet.
+**Rationale (revised 2026-07-04 — supersedes the filing-time DEFER, whose "no evidence
+gathered yet" no longer holds):** All three assumptions were explored and refuted/mooted
+(see Assumptions + IW-1..3 dispositions, each confidence 3): (a) `/mcp` is interactive-only,
+takes no args, and does NOT reconnect stdio servers — there is no reconnect command to
+inject; (b) only a full session restart picks up a replaced stdio MCP binary; (c)
+`termlink inject` cannot reach a non-termlink-managed session anyway. The mechanism the
+idea wants already exists as claude-fw auto-restart (T-179): a deploy hook that writes
+`.context/working/.restart-requested` gets the sanctioned full-restart for claude-fw-wrapped
+sessions. Building PTY-inject reconnect would be new machinery for a path that cannot work.
 
 **Evidence:**
 
-<!-- Add evidence bullets as exploration progresses (file paths,
-     commit hashes, test results). The filing-time recommendation
-     can be revised before fw inception decide. -->
+- IW-1: `termlink list` shows 4 registered sessions; this session
+  (`claude(28635)←bash←su←sudo`) is not among them — inject-unreachable.
+- IW-2: claude-code-guide consult (2026-06-24) — no `/mcp reconnect` form exists; stdio
+  servers require session restart.
+- IW-3: moot given IW-2; restart primitive already shipped as T-179
+  (`.restart-requested` + claude-fw wrapper).
+- Pivot for a future build task (if wanted): post-deploy hook writing
+  `.restart-requested` for claude-fw-wrapped sessions — reuses T-179, no new inject
+  machinery. Human records the final no-go via `fw inception decide T-2276 no-go`.
 
 ## Decisions
 
@@ -204,3 +233,7 @@ Evidence:
 - **Change:** horizon: now → later
 - **Change:** status: started-work → captured (auto-sync)
 - **Reason:** Inception decision: DEFER — parking task
+
+### 2026-07-04T09:13:14Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
