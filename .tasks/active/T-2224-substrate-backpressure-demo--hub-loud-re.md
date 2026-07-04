@@ -201,3 +201,11 @@ grep -q "NO-GO on a backpressure/governor smoke-gate demo" /opt/termlink/.tasks/
 
 ### 2026-06-13T21:52:00Z — status-update [task-update-agent]
 - **Change:** workflow_type: build → inception
+
+### 2026-07-04T22:15:00Z — placeholder-ACs-filled [agent]
+- **Action:** Replaced the two template placeholders with 5 evidence-anchored Agent ACs (all satisfied by the 2026-06-13 investigation) + a [RUBBER-STAMP] Human AC carrying the Tier-0 decide command — unblocks the Watchtower review/decide flow that errored on placeholders
+- **Blocked follow-up:** committing this file requires the C-001 research artifact (docs/reports/T-2224-*.md), whose write the budget gate blocked at session end. FULL DRAFT STAGED at `.context/working/T-2224-artifact-draft.md` — next session: cp to `docs/reports/T-2224-backpressure-demo-inception.md` (strip the leading comment block), rm the draft, commit together with this file
+
+### 2026-07-05T00:00:00Z — c001-artifact-landed [agent]
+- **Action:** Promoted the staged draft to `docs/reports/T-2224-backpressure-demo-inception.md` (comment block stripped, draft removed) — C-001 commit gate satisfied; committed together with the AC fill above
+- **Context:** Post-compaction budget reset re-allowed docs/ writes; task now fully decide-ready (rec NO-GO, command in the Human AC)
