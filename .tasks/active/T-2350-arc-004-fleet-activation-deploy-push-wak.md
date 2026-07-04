@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-04T11:16:45Z
-last_update: 2026-07-04T11:19:36Z
+last_update: 2026-07-04T11:22:59Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -55,12 +55,12 @@ agent-presence listeners on swapped hosts need re-registration.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Current-code binary (dm.queued grep=1) installed at /usr/local/bin/termlink on .122, sha256 matches the local source binary
-- [ ] .122 hub restarted and serving the dm-rail: running hub pid's /proc/<pid>/exe grep dm.queued = 1, exe NOT "(deleted)"
-- [ ] No auth/TLS rotation caused: .122 hub.secret + hub.cert.pem unchanged (same mtime/hash), `termlink fleet verify` reports match for ring20-management, fleet doctor shows no auth-mismatch
-- [ ] Post-restart hub functional: `termlink remote list 192.168.10.122:9100` succeeds; governor_status serves cv_index fields
-- [ ] .121 (ring20-dashboard) dispositioned: upgraded via an existing management path, or explicitly documented as unreachable-for-deploy with the blocker named
-- [ ] PL-200 follow-up recorded: presence-listener re-registration need on .122 either verified n/a or relayed to the ring20 agent via DM
+- [x] Current-code binary (dm.queued grep=1) installed at /usr/local/bin/termlink on .122, sha256 matches the local source binary — swap log: installed sha d23dfb5ba1e14e0790f9bd294c4b8ee749e065b32fa84cea232bdd9b177b8f4e == local musl build sha; `--version` 0.11.296
+- [x] .122 hub restarted and serving the dm-rail: running hub pid's /proc/<pid>/exe grep dm.queued = 1, exe NOT "(deleted)" — new pid 3724159, dmq=1, exe=/usr/local/bin/termlink (swap log 2026-07-04T11:31:46Z; downtime ~8s)
+- [x] No auth/TLS rotation caused — hub.secret sha 3dd9d01a… and hub.cert.pem sha 2355a206… IDENTICAL pre/post (mtimes 1777149260 unchanged); `fleet verify` = "match — pin matches wire"; `fleet doctor` = PASS connected (version: 0.11.296), no auth-mismatch
+- [x] Post-restart hub functional: `remote list` returns both sessions (tl-dzbcxxka, tl-fj5gsdvb re-registered); governor_status serves Connections/Rate/Dedupe/cv_index fields
+- [x] .121 (ring20-dashboard) dispositioned: unreachable-for-deploy — 0 registered sessions (no remote exec), SSH BatchMode denied from .107 AND from .122, hypervisor .180 does not host the ring20 CTs; upgrade request relayed to ring20 agent (DM offset 50, ask #2)
+- [x] PL-200 follow-up recorded: agent-presence on .122 hub had ZERO listeners pre-restart (verified: no heartbeats in 10-min window, no cv_keys) → re-registration n/a for existing listeners; /be-reachable opt-in invite relayed to ring20 agent (DM dm:9219671e…:d1993c2c… offset 50 on their hub, doorbell injected into tl-dzbcxxka)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -209,3 +209,20 @@ out=$(timeout 30 termlink fleet verify 2>&1); echo "$out" | grep -q "ring20-mana
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2350-arc-004-fleet-activation-deploy-push-wak.md
 - **Context:** Initial task creation
+
+### 2026-07-04T11:35:00Z — .122 upgrade executed + verified [agent]
+- **Action:** Rebuilt musl-static binary from HEAD (0.11.296, dm.queued=1, sha
+  d23dfb5b…), staged to .122 via fleet-deploy-binary.sh (729/729 chunks, sha
+  verified, exec probe OK), then hand-rolled detached swap+restart (see
+  Decisions): backup → swap → kill 2296932 → relaunch with
+  TERMLINK_RUNTIME_DIR=/var/lib/termlink → new pid 3724159. Downtime ~8s
+  (11:31:37Z launch → 11:31:45Z hub back).
+- **Output:** .122 hub LIVE on 0.11.296 serving the full arc-004 push rails;
+  zero rotation (secret/cert hashes+mtimes identical); both spokes
+  re-registered; fleet verify=match, fleet doctor=PASS.
+- **Context:** First DM through the upgraded hub = the upgrade notice to the
+  ring20 agent (canonical topic, offset 50 on their hub + doorbell inject).
+  agent-send.sh --to-session path had 2 defects for this flow (wrong self-fp
+  topic minted via PL-236-class resolution; doorbell injected on local hub
+  instead of peer hub) — worked around with direct channel post --hub +
+  remote inject; defects noted for a follow-up filing.
