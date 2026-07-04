@@ -3150,3 +3150,165 @@ scan_id: R-7574e73d
 task_id: T-2351
 payload:
   task_file: .tasks/active/T-2351-arc-004-local-parity-upgrade-107-hub-to-.md
+---
+kind: scan_emitted
+timestamp: '2026-07-04T13:02:29Z'
+scan_id: R-043c2b16
+task_id: T-2352
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-04T13:02:29Z'
+scan_id: R-043c2b16
+task_id: T-2352
+payload:
+  task_file: .tasks/active/T-2352-agent-sendsh---to-session-mints-wrong-se.md
+---
+kind: scan_emitted
+timestamp: '2026-07-04T13:09:51Z'
+scan_id: R-517e3aaf
+task_id: T-2353
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-04T13:09:51Z'
+scan_id: R-517e3aaf
+task_id: T-2353
+payload:
+  task_file: .tasks/active/T-2353-agent-sendsh-doorbell-inject-ignores-pee.md
+---
+kind: scan_emitted
+timestamp: '2026-07-04T13:30:45Z'
+scan_id: R-eb0f1b26
+task_id: T-2354
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-04T13:30:45Z'
+scan_id: R-eb0f1b26
+task_id: T-2354
+payload:
+  task_file: .tasks/active/T-2354-channel-infounread-hang-indefinitely-ove.md
+---
+kind: scan_emitted
+timestamp: '2026-07-04T14:40:14Z'
+scan_id: R-981807fa
+task_id: T-2356
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-04T14:40:14Z'
+scan_id: R-981807fa
+task_id: T-2356
+payload:
+  task_file: .tasks/active/T-2356-install-release-cli-with-t-23525354-fixe.md
+---
+kind: scan_emitted
+timestamp: '2026-07-04T14:53:29Z'
+scan_id: R-3382a0a2
+task_id: T-2355
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-04T14:53:29Z'
+scan_id: R-3382a0a2
+task_id: T-2355
+payload:
+  task_file: .tasks/active/T-2355-hub-record-walk-starvation-channelsubscr.md
+---
+kind: scan_emitted
+timestamp: '2026-07-04T15:12:19Z'
+scan_id: R-8ddfdffe
+task_id: T-2357
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-04T15:12:19Z'
+scan_id: R-8ddfdffe
+task_id: T-2357
+payload:
+  task_file: .tasks/active/T-2357-activate-t-2355-walk-deadline-on-107-reb.md
+---
+kind: scan_emitted
+timestamp: '2026-07-04T21:38:16Z'
+scan_id: R-383b3412
+task_id: T-2358
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-04T21:38:16Z'
+scan_id: R-383b3412
+task_id: T-2358
+payload:
+  task_file: .tasks/active/T-2358-preflight-check-6-systemd-unit-health--p.md
+---
+kind: scan_emitted
+timestamp: '2026-07-04T22:02:53Z'
+scan_id: R-6aff3442
+task_id: T-2338
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-04T22:02:53Z'
+scan_id: R-6aff3442
+task_id: T-2338
+payload:
+  task_file: .tasks/active/T-2338-inception--active-ws-reconnect-with-back.md
+---
+kind: scan_emitted
+timestamp: '2026-07-04T22:03:11Z'
+scan_id: R-f57490b1
+task_id: T-2339
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-04T22:03:11Z'
+scan_id: R-f57490b1
+task_id: T-2339
+payload:
+  task_file: .tasks/active/T-2339-inception--ws-over-unix-for-co-located-p.md

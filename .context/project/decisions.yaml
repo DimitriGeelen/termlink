@@ -668,3 +668,59 @@ decisions:
     date: 2026-07-04
     task: T-2350
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-075
+    decision: "peer participation (`channel info` senders: does peer_fp have >0 posts in the candidate?) as the primary discriminator among existing dm threads; post-count and canonical-mint-existence only as fallbacks when no thread has peer posts."
+    scope: project
+    date: 2026-07-04
+    task: T-2352
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-076
+    decision: "wrap the T-2352 dm-topic scan (`channel list` + per-candidate `channel info`) in `timeout ${TERMLINK_SCAN_TIMEOUT:-8}`; on list failure/timeout emit a loud stderr NOTE and fall back to the canonical mint."
+    scope: project
+    date: 2026-07-04
+    task: T-2353
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-077
+    decision: "explicit `--hub <addr>` flag, mutex with `--to`."
+    scope: project
+    date: 2026-07-04
+    task: T-2353
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-078
+    decision: "bound every TCP RPC read in `rpc_call_authed` via a new `Client::call_with_timeout` (default 30s, `TERMLINK_RPC_READ_TIMEOUT_SECS` override clamped 1..=600); map expiry to `ClientError::Io(TimedOut)` so no caller error-handling changes."
+    scope: project
+    date: 2026-07-04
+    task: T-2354
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-079
+    decision: "re-run the live probe after confirming `target/debug/termlink` mtime postdates the edit."
+    scope: project
+    date: 2026-07-04
+    task: T-2354
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-080
+    decision: "per-walk elapsed-time deadline checked at top of each iteration, explicit structured error on expiry"
+    scope: project
+    date: 2026-07-04
+    task: T-2355
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-081
+    decision: "`WALK_DEADLINE_EXCEEDED` (-32020) error with `data.next_cursor`, never a truncated success page"
+    scope: project
+    date: 2026-07-04
+    task: T-2355
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-082
+    decision: "default 20_000ms, strictly under the T-2354 client read-timeout default (30s)"
+    scope: project
+    date: 2026-07-04
+    task: T-2355
+    rationale: "Auto-captured from task file on completion"

@@ -530,7 +530,13 @@
       "mcp__termlink__termlink_hub_probe",
       "mcp__termlink__termlink_tofu_verify",
       "mcp__termlink__termlink_agent_listeners_fleet",
-      "mcp__termlink__termlink_agent_chat_arc_recent"
+      "mcp__termlink__termlink_agent_chat_arc_recent",
+      "Read(//var/lib/termlink/**)",
+      "Bash(cp -a /root/.cargo/bin/termlink /root/.cargo/bin/termlink.pre-t2351.bak)",
+      "Bash(rm /root/.cargo/bin/termlink)",
+      "Bash(cp target/x86_64-unknown-linux-musl/release/termlink /root/.cargo/bin/termlink)",
+      "Read(//root/.cargo/bin/**)",
+      "mcp__termlink__termlink_channel_unread"
     ]
   },
   "enabledMcpjsonServers": [
