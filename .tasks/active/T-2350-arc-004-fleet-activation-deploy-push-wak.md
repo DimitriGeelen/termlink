@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-04T11:16:45Z
-last_update: 2026-07-04T11:16:45Z
+last_update: 2026-07-04T11:19:36Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -170,14 +170,28 @@ out=$(timeout 30 termlink fleet verify 2>&1); echo "$out" | grep -q "ring20-mana
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-07-04 — swap+restart mechanism for .122
+- **Chose:** fleet-deploy-binary.sh for staging+probe ONLY; hand-rolled detached
+  swap+restart script with hardcoded `TARGET=/usr/local/bin/termlink` and
+  `TERMLINK_RUNTIME_DIR=/var/lib/termlink`.
+- **Why:** two defects in `--swap-restart` for this host's state: (1) it resolves
+  TARGET via `readlink /proc/PID/exe`, which returns `/usr/local/bin/termlink
+  (deleted)` here (stale-binary state) — the swap would create a file literally
+  named `termlink (deleted)` and leave the real path on the old build; (2) its
+  relaunch falls back to `$HOME/.termlink/runtime` when the exec-channel env
+  lacks TERMLINK_RUNTIME_DIR — silently rotating hub.secret/cert (PL-021 class).
+- **Rejected:** `--swap-restart` as-is (above); systemd unit install (larger
+  change than this task needs — hub is historically launched detached on .122;
+  unit migration is T-935 playbook territory, separate task if wanted).
+- **Recovery path verified BEFORE restart:** SSH root@192.168.10.122 works
+  (BatchMode) — if the hub fails to relaunch, repair goes over SSH.
+
+### 2026-07-04 — .121 (ring20-dashboard) disposition
+- **Chose:** relay upgrade request to ring20 agent via DM; no direct deploy.
+- **Why:** no management path from here: 0 registered sessions (remote exec
+  impossible), SSH denied from .107 AND from .122 (BatchMode publickey), and
+  the accessible hypervisor (.180 "proxmox") does not host the ring20 CTs.
+- **Rejected:** password/interactive SSH (no credentials, not agent-appropriate).
 
 ## Decision
 
