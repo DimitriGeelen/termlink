@@ -50,6 +50,18 @@ async fn call(client: &McpClient, name: &'static str, args: serde_json::Value) -
         .unwrap_or_default()
 }
 
+/// Helper: unwrap the `{ok, sessions: [...]}` envelope returned by
+/// `termlink_list_sessions` / `termlink_discover` since T-1918/T-1919
+/// (CLI `--json` parity — was a bare array). T-2272.
+fn envelope_sessions(text: &str) -> Vec<serde_json::Value> {
+    let v: serde_json::Value = serde_json::from_str(text).expect("valid JSON envelope");
+    assert_eq!(v["ok"], true, "envelope not ok: {text}");
+    v["sessions"]
+        .as_array()
+        .unwrap_or_else(|| panic!("no sessions array in envelope: {text}"))
+        .clone()
+}
+
 #[tokio::test]
 async fn test_list_tools() {
     let _lock = ENV_LOCK.lock().await;
@@ -94,7 +106,7 @@ async fn test_list_sessions_empty() {
     let client = mcp_client().await;
     let text = call(&client, "termlink_list_sessions", json!({})).await;
 
-    let parsed: Vec<serde_json::Value> = serde_json::from_str(&text).unwrap();
+    let parsed = envelope_sessions(&text);
     assert!(parsed.is_empty(), "expected empty list, got: {text}");
 
     client.cancel().await.unwrap();
@@ -111,7 +123,7 @@ async fn test_list_sessions_with_session() {
     let client = mcp_client().await;
     let text = call(&client, "termlink_list_sessions", json!({})).await;
 
-    let parsed: Vec<serde_json::Value> = serde_json::from_str(&text).unwrap();
+    let parsed = envelope_sessions(&text);
     assert_eq!(parsed.len(), 1);
     assert_eq!(parsed[0]["display_name"], "mcp-test-alpha");
     assert!(parsed[0]["roles"].as_array().unwrap().contains(&json!("worker")));
@@ -133,19 +145,19 @@ async fn test_list_sessions_filtered_by_role() {
 
     // Filter by role=coder — should return only coder-one
     let text = call(&client, "termlink_list_sessions", json!({"role": "coder"})).await;
-    let parsed: Vec<serde_json::Value> = serde_json::from_str(&text).unwrap();
+    let parsed = envelope_sessions(&text);
     assert_eq!(parsed.len(), 1, "expected 1 coder session, got: {text}");
     assert_eq!(parsed[0]["display_name"], "coder-one");
 
     // Filter by name substring
     let text = call(&client, "termlink_list_sessions", json!({"name": "tester"})).await;
-    let parsed: Vec<serde_json::Value> = serde_json::from_str(&text).unwrap();
+    let parsed = envelope_sessions(&text);
     assert_eq!(parsed.len(), 1, "expected 1 tester session, got: {text}");
     assert_eq!(parsed[0]["display_name"], "tester-one");
 
     // No filter — returns all
     let text = call(&client, "termlink_list_sessions", json!({})).await;
-    let parsed: Vec<serde_json::Value> = serde_json::from_str(&text).unwrap();
+    let parsed = envelope_sessions(&text);
     assert_eq!(parsed.len(), 2, "expected 2 sessions, got: {text}");
 
     client.cancel().await.unwrap();
@@ -217,19 +229,19 @@ async fn test_discover_by_role_and_name() {
 
     // Discover by role
     let text = call(&client, "termlink_discover", json!({"roles": ["coder"]})).await;
-    let parsed: Vec<serde_json::Value> = serde_json::from_str(&text).unwrap();
+    let parsed = envelope_sessions(&text);
     assert_eq!(parsed.len(), 1, "expected 1 match, got: {text}");
     assert_eq!(parsed[0]["display_name"], "disc-alpha");
 
     // Discover by name substring
     let text = call(&client, "termlink_discover", json!({"name": "beta"})).await;
-    let parsed: Vec<serde_json::Value> = serde_json::from_str(&text).unwrap();
+    let parsed = envelope_sessions(&text);
     assert_eq!(parsed.len(), 1);
     assert_eq!(parsed[0]["display_name"], "disc-beta");
 
     // Discover all (no filters)
     let text = call(&client, "termlink_discover", json!({})).await;
-    let parsed: Vec<serde_json::Value> = serde_json::from_str(&text).unwrap();
+    let parsed = envelope_sessions(&text);
     assert_eq!(parsed.len(), 2, "expected 2 sessions: {text}");
 
     client.cancel().await.unwrap();
@@ -1309,8 +1321,12 @@ async fn test_topics_with_events() {
     let parsed: serde_json::Value = serde_json::from_str(&result).expect("valid JSON");
     assert_eq!(parsed["ok"], true);
     assert!(parsed["total_topics"].as_u64().unwrap() >= 1, "should have at least 1 topic");
-    let sessions = parsed["sessions"].as_object().unwrap();
-    assert!(sessions.contains_key("topics-test"), "should include topics-test session");
+    // T-2272: `sessions` is an array of {session, topics} objects (was a name-keyed map).
+    let sessions = parsed["sessions"].as_array().unwrap();
+    assert!(
+        sessions.iter().any(|s| s["session"] == "topics-test"),
+        "should include topics-test session, got: {result}"
+    );
 
     client.cancel().await.unwrap();
 }
@@ -1333,7 +1349,15 @@ async fn test_topics_specific_session() {
 
     let parsed: serde_json::Value = serde_json::from_str(&result).expect("valid JSON");
     assert_eq!(parsed["ok"], true);
-    assert!(parsed["sessions"].as_object().unwrap().contains_key("topics-target"));
+    // T-2272: `sessions` is an array of {session, topics} objects (was a name-keyed map).
+    assert!(
+        parsed["sessions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s["session"] == "topics-target"),
+        "should include topics-target session, got: {result}"
+    );
 
     client.cancel().await.unwrap();
 }

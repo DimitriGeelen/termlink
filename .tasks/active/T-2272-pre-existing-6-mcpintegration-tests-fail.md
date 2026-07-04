@@ -4,10 +4,10 @@ name: "Pre-existing: 6 mcp_integration tests fail on main (map vs sequence) — 
 description: >
   Discovered during T-2268. On clean main (verified by stashing unrelated edits), 6 tests in crates/termlink-mcp/tests/mcp_integration.rs fail with 'invalid type: map, expected a sequence' at line 97: test_list_sessions_empty/_with_session/_filtered_by_role, test_discover_by_role_and_name, test_topics_specific_session/_with_events. Likely the tool output shape changed array->object OR they need a live hub fixture absent in sandbox. Investigate env-dependence vs genuine breakage; the suite is red either way. Not caused by T-2268 (error-rendering only).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-24T08:32:00Z
-last_update: 2026-06-24T08:32:00Z
+last_update: 2026-07-04T23:20:55Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,25 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Investigated 2026-07-05: NOT env-dependence — all 6 failures are stale test-side response
+shapes against DELIBERATE tool-side envelope changes:
+- `termlink_list_sessions` (tools.rs ~11060) + `termlink_discover` (~11495): bare array →
+  `{ok, sessions: [...]}` envelope, T-1918/T-1919 (CLI `--json` parity; comments in-source).
+- `termlink_topics` (~13230): `sessions` map keyed by name → `sessions` ARRAY of
+  `{session, topics}` objects (total_topics/total_sessions retained; the topics tests'
+  `total_topics >= 1` assert passes — only the `.as_object()` on the array panics).
+Fix is test-side only; tool behavior is correct and intentional.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The 6 failing tests (`test_list_sessions_empty` / `_with_session` / `_filtered_by_role`,
+      `test_discover_by_role_and_name`, `test_topics_specific_session` / `_with_events`)
+      updated to the T-1918/T-1919 envelope shapes via a shared `envelope_sessions()` helper
+      (list/discover) + array-membership asserts (topics). NO tool-code changes.
+- [x] `cargo test -p termlink-mcp --test mcp_integration` fully green (99 passed, 0 failed, 15.07s).
+- [x] RCA filled: why the suite sat red ~2 weeks (deliberate shape change shipped without
+      updating the integration suite; nothing gates red tests in this crate).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -107,7 +118,32 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+out=$(cargo test -p termlink-mcp --test mcp_integration 2>&1); echo "$out" | grep -q "test result: ok"
+
 ## RCA
+
+**Symptom:** 6 tests in `crates/termlink-mcp/tests/mcp_integration.rs` red on clean main
+(`invalid type: map, expected a sequence` for list_sessions/discover; `Option::unwrap()`
+on None for the topics tests' `sessions.as_object()`), sitting red ~2 weeks until T-2268
+stumbled on them 2026-06-24.
+
+**Root cause:** T-1918/T-1919 deliberately changed three MCP tool response shapes for CLI
+`--json` parity — `termlink_list_sessions` and `termlink_discover` from bare array to
+`{ok, sessions: [...]}` envelope, `termlink_topics` `sessions` from a name-keyed map to an
+array of `{session, topics}` — but the integration suite's consumers of those shapes were
+not updated in the same change. Test-side staleness, not tool breakage.
+
+**Why structurally allowed:** no gate runs the termlink-mcp integration suite — the
+pre-push audit is structure-only, task Verification blocks run only the crates each task
+touched (T-1918/T-1919 were BVP/arc-tooling tasks whose verification never exercised this
+crate), and there is no CI test job (release workflow only builds). A red suite in an
+untouched crate is invisible until someone happens to run it.
+
+**Prevention:** (1) the shared `envelope_sessions()` helper concentrates the envelope
+assumption in one place — the next deliberate shape change breaks one helper with a clear
+panic message instead of scattering 8 stale parse sites; (2) learning registered (this
+session): a deliberate tool-response shape change must grep the integration tests for
+consumers of the old shape in the same commit.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -174,3 +210,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2272-pre-existing-6-mcpintegration-tests-fail.md
 - **Context:** Initial task creation
+
+### 2026-07-04T23:20:55Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

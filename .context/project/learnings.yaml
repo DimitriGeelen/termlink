@@ -2465,3 +2465,10 @@ learnings:
   date: 2026-07-04
   context: Added via context agent
   application: TBD
+- id: PL-244
+  learning: "Deliberate tool-response shape changes (e.g. bare-array → {ok,...} envelope for CLI parity) must update/grep the crate's integration tests for consumers of the old shape IN THE SAME COMMIT — no gate runs cross-crate test suites, so stale-shape tests sit red invisibly (T-1918/T-1919 left mcp_integration red ~2 weeks)"
+  source: P-011
+  task: T-2272
+  date: 2026-07-04
+  context: Added via context agent
+  application: TBD
