@@ -6,7 +6,7 @@
 #
 # Usage:
 #   fleet-deploy-binary.sh HUB [--binary PATH] [--dst PATH] [--session SID]
-#                              [--chunk-bytes N] [--swap-restart]
+#                              [--chunk-bytes N] [--swap-restart] [--force-detached]
 #
 #   HUB              Hub display name from ~/.termlink/hubs.toml
 #   --binary PATH    Local binary to push. Default: prefer the musl-static
@@ -56,6 +56,7 @@ SESSION=""
 CHUNK=$((45 * 1024))
 SWAP=0
 PROBE=0
+FORCE_DETACHED=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -64,6 +65,7 @@ while [ $# -gt 0 ]; do
     --session)       SESSION="$2"; shift 2;;
     --chunk-bytes)   CHUNK="$2"; shift 2;;
     --swap-restart)  SWAP=1; shift;;
+    --force-detached) FORCE_DETACHED=1; shift;;
     --probe)         PROBE=1; shift;;
     -h|--help)
       sed -n '2,/^$/p' "$0"; exit 0;;
@@ -168,6 +170,37 @@ fi
 
 # --- Optional: swap + restart ------------------------------------------------
 if [ "$SWAP" = "1" ]; then
+  # --- G-070 guard: never create a detached hub on a systemd-supervised host --
+  # T-2360. The generated runner below relaunches via setsid-nohup — on a host
+  # where termlink-hub.service supervises the hub, that creates a detached ghost
+  # the unit then crash-loops against (G-070: 2178-restart flap, lost
+  # crash-restart + reboot survival). Probe the target; refuse unless
+  # --force-detached. Probe failure (no systemctl, exec error) fails OPEN —
+  # unit-less hosts are this script's original audience.
+  echo ">>> G-070 guard: checking target for termlink-hub.service"
+  UNIT_PRESENT=$({ timeout 30 termlink remote exec --timeout 25 "$HUB" "$SESSION" \
+    "if command -v systemctl >/dev/null 2>&1; then systemctl list-unit-files termlink-hub.service 2>/dev/null | grep -q '^termlink-hub.service' && echo 1 || echo 0; else echo no-systemd; fi" 2>/dev/null || true; } | tr -d '[:space:]')
+  case "$UNIT_PRESENT" in
+    1)
+      if [ "${FORCE_DETACHED}" != "1" ]; then
+        echo "" >&2
+        echo "REFUSED: target host has a termlink-hub.service systemd unit (G-070 guard)." >&2
+        echo "  The --swap-restart runner relaunches via setsid-nohup — a detached hub OUTSIDE" >&2
+        echo "  supervision; the unit then crash-loops against it ('Hub is already running')" >&2
+        echo "  and the hub silently loses crash-restart + reboot survival (G-070)." >&2
+        echo "  Correct path on this host (binary already staged at $DST):" >&2
+        echo "    install -m755 $DST /usr/local/bin/termlink && systemctl restart termlink-hub" >&2
+        echo "  Override (only if the unit is intentionally unused): --force-detached" >&2
+        exit 4
+      fi
+      echo "!!! --force-detached on a systemd host: a detached hub here recreates G-070 (unit flap + lost supervision) — visible override, proceed at your own risk"
+      ;;
+    0|no-systemd)
+      echo "  no termlink-hub unit on target — detached relaunch is correct here" ;;
+    *)
+      echo "  systemd probe inconclusive (${UNIT_PRESENT:-empty}) — proceeding with legacy detached path (fail-open for unit-less hosts)" ;;
+  esac
+
   echo ">>> generating swap+restart deploy script"
   DEPLOY_SCRIPT=$(mktemp)
   cat > "$DEPLOY_SCRIPT" <<EOF

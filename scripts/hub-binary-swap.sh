@@ -16,10 +16,14 @@
 # previous binary.
 #
 # Usage:
-#   hub-binary-swap.sh HUB [--dry-run] [--staged-path PATH] [--session SID]
+#   hub-binary-swap.sh HUB [--dry-run] [--staged-path PATH] [--session SID] [--force-detached]
 #
 #   HUB              Hub display name from ~/.termlink/hubs.toml
 #   --dry-run        Print the planned actions; do not execute the swap
+#   --force-detached T-2360 G-070 guard override: proceed with the setsid-nohup
+#                    relaunch even though the target has a termlink-hub systemd
+#                    unit (default: REFUSE — restarts on unit hosts must go
+#                    through `systemctl restart termlink-hub`)
 #   --staged-path    Path on remote where the staged binary lives
 #                    (default: /tmp/termlink.new — matches fleet-deploy-binary.sh)
 #   --session        Remote session id; auto-detected via remote list HUB if omitted
@@ -54,12 +58,14 @@ HUB=""
 STAGED_PATH="/tmp/termlink.new"
 SESSION=""
 DRY_RUN=0
+FORCE_DETACHED=0
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --staged-path)  STAGED_PATH="$2"; shift 2;;
     --session)      SESSION="$2"; shift 2;;
     --dry-run)      DRY_RUN=1; shift;;
+    --force-detached) FORCE_DETACHED=1; shift;;
     -h|--help)
       sed -n '2,/^$/p' "$0"; exit 0;;
     -*)
@@ -125,6 +131,7 @@ echo \"OLD_VERSION=\$(/usr/local/bin/termlink --version)\"
 echo \"NEW_VERSION=\$('$STAGED_PATH' --version)\"
 echo \"SECRET_SHA=\$(sha256sum /var/lib/termlink/hub.secret | awk '{print \$1}')\"
 echo \"CERT_SHA=\$(sha256sum /var/lib/termlink/hub.cert.pem | awk '{print \$1}')\"
+echo \"UNIT_PRESENT=\$(if command -v systemctl >/dev/null 2>&1; then systemctl list-unit-files termlink-hub.service 2>/dev/null | grep -q '^termlink-hub.service' && echo 1 || echo 0; else echo no-systemd; fi)\"
 ")
 
 echo "$PRE_STATE" | sed 's/^/  /'
@@ -140,6 +147,33 @@ OLD_VERSION=$(parse_kv     "$PRE_STATE" OLD_VERSION)
 NEW_VERSION=$(parse_kv     "$PRE_STATE" NEW_VERSION)
 SECRET_SHA=$(parse_kv      "$PRE_STATE" SECRET_SHA)
 CERT_SHA=$(parse_kv        "$PRE_STATE" CERT_SHA)
+UNIT_PRESENT=$(parse_kv    "$PRE_STATE" UNIT_PRESENT)
+
+# --- G-070 guard: never create a detached hub on a systemd-supervised host ---
+# T-2360. Origin: T-2351 relaunched the .107 hub via setsid-nohup while
+# termlink-hub.service supervised it — the unit crash-looped 2178 times against
+# the detached ghost (G-070). Restarts on unit hosts must go THROUGH the unit.
+case "$UNIT_PRESENT" in
+  1)
+    if [ "$FORCE_DETACHED" != "1" ]; then
+      echo "" >&2
+      echo "REFUSED: target host has a termlink-hub.service systemd unit (G-070 guard)." >&2
+      echo "  A setsid-nohup relaunch would create a detached hub OUTSIDE supervision —" >&2
+      echo "  the unit then crash-loops against it ('Hub is already running') and the hub" >&2
+      echo "  silently loses crash-restart + reboot survival (G-070: 2178-restart flap)." >&2
+      echo "  Correct path on this host:" >&2
+      echo "    install -m755 $STAGED_PATH /usr/local/bin/termlink && systemctl restart termlink-hub" >&2
+      echo "  Override (only if you know the unit is intentionally unused): --force-detached" >&2
+      exit 2
+    fi
+    echo "!!! --force-detached on a systemd host: a detached hub here recreates G-070 (unit flap + lost supervision) — visible override, proceed at your own risk"
+    ;;
+  0|no-systemd)
+    : ;;  # unit-less host — the script's original audience; detached relaunch is correct
+  *)
+    echo ">>> G-070 guard: systemd probe inconclusive ($UNIT_PRESENT) — proceeding with legacy detached path (fail-open for unit-less hosts)"
+    ;;
+esac
 
 if [ "$OLD_BIN_SHA" = "$NEW_BIN_SHA" ]; then
   echo ">>> binaries identical — nothing to swap. Exiting OK."
