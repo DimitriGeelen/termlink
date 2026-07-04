@@ -1,10 +1,10 @@
 ---
-id: T-2353
-name: "agent-send.sh doorbell inject ignores peer hub"
+id: T-2354
+name: "channel info/unread hang indefinitely over --hub <tcp> (list works)"
 description: >
-  Field-discovered in T-2350: with --to-session targeting a session on a REMOTE hub (tl-dzbcxxka on 192.168.10.122:9100), the doorbell inject ran against the LOCAL hub ('session missing?' WARN x2) — the mail posted but the doorbell never rang the peer. Workaround used: direct 'channel post --hub <peer-hub>' + 'termlink remote inject <hub> <session>'. Fix: agent-send.sh explicit-routing path must carry/accept the peer hub (--hub flag or resolve from presence) and use remote inject when the session is not local.
+  Field-discovered during T-2353 verification: 'termlink channel info <topic> --json --hub 192.168.10.122:9100' and 'channel unread ... --hub <tcp>' hang past 12s (killed by timeout) while 'channel list --hub <tcp>' returns fast on the same hub — a remote read-verb wedge class, plausibly the same as ring20's G-157 ('cross-host reads deadlock'). Suspect: these verbs issue a second/streaming RPC after connect that never completes over TCP. Repro: timeout 8 termlink channel info agent-chat-arc --json --hub 192.168.10.122:9100 => exit 124. agent-send.sh now bounds its scan calls (TERMLINK_SCAN_TIMEOUT, T-2353) so sends degrade loudly instead of hanging; this task is the root-cause fix in the CLI/hub.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
 horizon: now
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-07-04T12:00:55Z
-last_update: 2026-07-04T13:02:53Z
+created: 2026-07-04T13:08:58Z
+last_update: 2026-07-04T13:08:58Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,21 +30,18 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2353: agent-send.sh doorbell inject ignores peer hub
+# T-2354: channel info/unread hang indefinitely over --hub <tcp> (list works)
 
 ## Context
 
-Field failure (T-2350): with `--to-session` targeting a session on a REMOTE hub (tl-dzbcxxka on 192.168.10.122:9100), the doorbell inject ran against the LOCAL hub (`session missing?` WARN ×2) — the mail posted locally and the doorbell never rang the peer. The remote plumbing (post `--hub`, `remote inject`, hub-scoped receipt polling) already exists but is only wired to the `--to` auto-discover path; explicit routing never sets `peer_hub`. Fix: accept `--hub <addr>` on the explicit-routing path.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] `agent-send.sh` accepts `--hub <addr>` with explicit routing (`--to-session` + `--topic`/`--peer-fp`), setting `peer_hub` so the existing remote plumbing applies: mail posts to the peer hub, doorbell rings via `termlink remote inject`, receipt/reply polling targets the peer hub
-- [x] `--hub` is mutex with `--to` (auto-discover resolves its own hub) — combining them exits 2 with a clear message
-- [x] The dm-topic existence scan (T-2352) runs against the destination hub when `--hub` is set (dm topics are per-hub state, G-060) — and every scan call is time-bounded (`TERMLINK_SCAN_TIMEOUT`, default 8s) with loud degradation to the canonical mint, so a wedged remote hub can never hang the send (T-2354 discovered here)
-- [x] `--dry-run` with explicit routing + `--hub` prints `hub=<addr> routing=remote` in the RESOLVED line (regression seam)
-- [x] Usage text documents `--hub` under explicit routing
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -110,21 +107,7 @@ Field failure (T-2350): with `--to-session` targeting a session on a REMOTE hub 
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-bash -n scripts/agent-send.sh
-# explicit routing + --hub resolves remote routing in the RESOLVED line
-out=$(TERMLINK_SELF_FP=d1993c2c3ec44c94 bash scripts/agent-send.sh --to-session tl-seam-test --peer-fp 9219671e28054458 --hub 192.168.10.122:9100 --message seam --dry-run 2>&1); echo "$out" | grep -q "hub=192.168.10.122:9100 routing=remote"
-# --hub is mutex with --to
-out=$(bash scripts/agent-send.sh --to some-agent --hub 1.2.3.4:9100 --message seam --dry-run 2>&1); echo "$out" | grep -qi "mutex"
-
 ## RCA
-
-**Symptom:** `--to-session tl-dzbcxxka` (a session on hub 192.168.10.122:9100) posted the mail to the LOCAL hub and rang the doorbell via local `inject` — `WARN ... (session missing?)` ×2; the peer was never woken and never saw the turn.
-
-**Root cause:** `peer_hub` is only populated by the `--to` auto-discover path (T-2273 fleet lookup). The explicit-routing path (`--to-session` + `--topic`/`--peer-fp`) has no way to name the peer's hub, so all remote plumbing (post `--hub`, `remote inject`, hub-scoped polling) silently degrades to local.
-
-**Why structurally allowed:** The explicit path predates cross-hub support (pre-T-1834 form) and was never extended when T-2273 added the hub-aware plumbing; inject failure is deliberately non-fatal (best-effort doorbell), so the misroute surfaced only as a WARN while the send "succeeded" against the wrong hub.
-
-**Prevention:** `--hub` flag on the explicit path reuses the exact same plumbing as auto-discover (one `peer_hub` variable, no second code path); `--dry-run` RESOLVED seam prints `hub=... routing=remote` so the routing is assertable in verification; mutex with `--to` prevents conflicting hub sources.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -166,15 +149,14 @@ out=$(bash scripts/agent-send.sh --to some-agent --hub 1.2.3.4:9100 --message se
 
 ## Decisions
 
-### 2026-07-04 — Bounded scan calls after discovering T-2354
-- **Chose:** wrap the T-2352 dm-topic scan (`channel list` + per-candidate `channel info`) in `timeout ${TERMLINK_SCAN_TIMEOUT:-8}`; on list failure/timeout emit a loud stderr NOTE and fall back to the canonical mint.
-- **Why:** verification against the live .122 hub exposed that `channel info`/`channel unread` over `--hub <tcp>` hang indefinitely (while `channel list` works) — an unbounded scan would have hung every remote send, a worse regression than the wrong-mint bug being fixed. Filed as T-2354 (root-cause fix in the CLI/hub).
-- **Rejected:** reverting the destination-hub scan (loses the G-060 correctness — topics are per-hub); waiting for the T-2354 root-cause fix (blocks this shipped fix on an unscoped one).
-
-### 2026-07-04 — `--hub` flag vs presence auto-resolve for explicit routing
-- **Chose:** explicit `--hub <addr>` flag, mutex with `--to`.
-- **Why:** the explicit-routing form exists precisely for cases where presence discovery is unavailable or wrong (the T-2350 field case: session known, presence rail incomplete); auto-resolving from presence there re-introduces the dependency the operator was routing around. One `peer_hub` variable engages ALL existing remote plumbing — no second code path to maintain.
-- **Rejected:** resolving hub from presence when `--to-session` is given (fails exactly when explicit routing is needed most); trying local inject first then falling back to remote probing (slow, and inject failure is non-fatal by design so the misroute would stay silent).
+<!-- Record decisions ONLY when choosing between alternatives.
+     Skip for tasks with no meaningful choices.
+     Format:
+     ### [date] — [topic]
+     - **Chose:** [what was decided]
+     - **Why:** [rationale]
+     - **Rejected:** [alternatives and why not]
+-->
 
 ## Decision
 
@@ -188,10 +170,7 @@ out=$(bash scripts/agent-send.sh --to some-agent --hub 1.2.3.4:9100 --message se
 
 ## Updates
 
-### 2026-07-04T12:00:55Z — task-created [task-create-agent]
+### 2026-07-04T13:08:58Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2353-agent-sendsh-doorbell-inject-ignores-pee.md
+- **Output:** /opt/termlink/.tasks/active/T-2354-channel-infounread-hang-indefinitely-ove.md
 - **Context:** Initial task creation
-
-### 2026-07-04T13:02:53Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work

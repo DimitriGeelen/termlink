@@ -39,8 +39,14 @@ Required:
                         prefers the local hub when the peer is there.
                         Requires the listener to declare pty_session +
                         identity_fingerprint.
-    --to-session <name> + (--topic <dm-topic> | --peer-fp <fp>)
-                        explicit routing (the pre-T-1834 form).
+    --to-session <name> + (--topic <dm-topic> | --peer-fp <fp>) [--hub <addr>]
+                        explicit routing (the pre-T-1834 form). Add
+                        --hub <host:port> when the target session lives on a
+                        REMOTE hub (T-2353): the mail posts to that hub, the
+                        doorbell rings via `remote inject`, and receipt/reply
+                        polling targets that hub. Without --hub the session is
+                        assumed local. Mutex with --to (which resolves the hub
+                        from fleet presence itself).
 
 Optional:
   --conversation-id <id>  thread id (default: cid-<epoch>-<rand>)
@@ -99,6 +105,7 @@ EOF
 
 to_session="" topic="" peer_fp="" message="" cid="" await_reply=""
 to_agent_id="" dry_run=0 peer_hub="" no_await_ack=0 transport="auto" status=""
+hub_flag=""
 
 # T-2299/V6-S2: bounded reachability probe. Wraps `termlink remote ping <addr>`
 # (cmd_remote_ping) under a short timeout so a wedged/unreachable peer hub can
@@ -133,6 +140,7 @@ while [ $# -gt 0 ]; do
         --to-session)     to_session="${2:-}"; shift 2 ;;
         --topic)          topic="${2:-}"; shift 2 ;;
         --peer-fp)        peer_fp="${2:-}"; shift 2 ;;
+        --hub)            hub_flag="${2:-}"; shift 2 ;;
         --message)        message="${2:-}"; shift 2 ;;
         --conversation-id) cid="${2:-}"; shift 2 ;;
         --timeout)        timeout="${2:-}"; shift 2 ;;
@@ -158,6 +166,9 @@ if [ -n "$to_agent_id" ]; then
     if [ -n "$to_session" ] || [ -n "$topic" ] || [ -n "$peer_fp" ]; then
         die "--to is mutex with --to-session / --topic / --peer-fp; pick one routing form"
     fi
+    # T-2353: --hub is mutex with --to — auto-discover resolves the peer's hub
+    # itself from fleet presence; an operator-supplied hub would conflict.
+    [ -z "$hub_flag" ] || die "--hub is mutex with --to (auto-discover resolves the peer hub from presence); use --hub only with explicit routing (--to-session + --topic/--peer-fp)"
     # T-2273: discover across the whole fleet so peers on ANY hub in hubs.toml are
     # reachable, not just the local hub. Try the LOCAL hub first (cheap; keeps
     # same-hub sends on their original local transport — peer_hub stays empty), then
@@ -220,6 +231,15 @@ fi
 # plan) without posting or injecting. This is the regression seam for the
 # self-fp/topic resolution below; agent_id/status render empty on this path.
 
+# T-2353: explicit routing to a session on a REMOTE hub. Setting peer_hub here
+# engages the exact same plumbing the --to path uses — mail posts with
+# `--hub $peer_hub`, the doorbell rings via `remote inject`, receipt/reply
+# polling targets the peer hub, and the T-2352 dm-topic scan runs against the
+# destination hub (dm topics are per-hub state, G-060). Before this flag the
+# explicit path silently posted + injected against the LOCAL hub ("session
+# missing?" WARN) while the remote peer never saw the turn or the ring.
+[ -n "$hub_flag" ] && peer_hub="$hub_flag"
+
 [ -n "$to_session" ] || die "missing --to-session (the doorbell target) — or use --to <agent-id> for auto-discover"
 [[ "$timeout" =~ ^[0-9]+$ && "$timeout" -ge 1 ]]     || die "--timeout must be a positive integer"
 [[ "$max_rings" =~ ^[0-9]+$ && "$max_rings" -ge 1 ]] || die "--max-rings must be a positive integer"
@@ -280,18 +300,28 @@ elif [ -n "$peer_fp" ]; then
     # mint only ever contains our own posts. This redirects a mis-resolved
     # self_fp back to the canonical thread instead of fragmenting the
     # conversation across topics.
+    # Every scan call is TIME-BOUNDED (default 8s, TERMLINK_SCAN_TIMEOUT
+    # overrides): a wedged/slow destination hub must degrade the scan LOUDLY
+    # to the canonical mint, never hang the send. Field-relevant: `channel
+    # info`/`unread` over --hub <tcp> can hang indefinitely against a remote
+    # hub even when `channel list` works (T-2354 class).
     scan_hub_args=()
     [ -n "$peer_hub" ] && scan_hub_args=(--hub "$peer_hub")
+    scan_t="${TERMLINK_SCAN_TIMEOUT:-8}"
     _peer_posted() {  # $1=topic → exit 0 if peer_fp has >0 posts in it
-        "$TERMLINK" channel info "$1" --json "${scan_hub_args[@]+"${scan_hub_args[@]}"}" 2>/dev/null \
+        timeout "$scan_t" "$TERMLINK" channel info "$1" --json "${scan_hub_args[@]+"${scan_hub_args[@]}"}" 2>/dev/null \
             | jq -e --arg p "$peer_fp" '[.senders[]? | select(.sender_id == $p and ((.posts // 0) > 0))] | length > 0' >/dev/null 2>&1
     }
-    candidates="$("$TERMLINK" channel list --prefix "dm:" --json "${scan_hub_args[@]+"${scan_hub_args[@]}"}" 2>/dev/null \
-        | jq -r --arg p "$peer_fp" '.topics[].name
+    if list_json="$(timeout "$scan_t" "$TERMLINK" channel list --prefix "dm:" --json "${scan_hub_args[@]+"${scan_hub_args[@]}"}" 2>/dev/null)"; then
+        candidates="$(printf '%s' "$list_json" | jq -r --arg p "$peer_fp" '.topics[].name
             | select(startswith("dm:"))
             | . as $n | ($n | split(":")) as $c
             | select(($c | length) == 3)
-            | select(($c[1] == $p or $c[2] == $p) and (($c[1] == $p and $c[2] == $p) | not))')" || candidates=""
+            | select(($c[1] == $p or $c[2] == $p) and (($c[1] == $p and $c[2] == $p) | not))' 2>/dev/null)" || candidates=""
+    else
+        candidates=""
+        echo "agent-send: NOTE dm-topic scan skipped (channel list failed/timed out after ${scan_t}s${peer_hub:+ on $peer_hub}) — using canonical mint '$topic'" >&2
+    fi
     if [ -n "$candidates" ]; then
         peer_active=""
         while IFS= read -r cand; do
