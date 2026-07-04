@@ -2,6 +2,21 @@
 # Type: gap (spec-reality) | risk (forward-looking)
 # Status: watching | decided-build | decided-simplify | decided-defer | closed
 concerns:
+- id: G-070
+  type: gap
+  title: "systemd termlink-hub unit crash-looped 2178 times ('Hub is already running') while a detached hub held the pidfile — no framework surface fires on a flapping supervisor unit"
+  description: "T-2357 activation (2026-07-04) found termlink-hub.service in `activating (auto-restart)` with restart counter 2178: every ~5s systemd started ExecStart, the new process exited 1 with 'Hub is already running (PID 3515069)', and systemd rescheduled — for hours, spamming the journal. The actual hub was a DETACHED process (PPID 1, started outside systemd, likely a manual `hub start` during an earlier incident) holding /var/lib/termlink/hub.pid. Operationally the hub worked, so every existing surface stayed green: preflight checks hub-up + local binary freshness (Checks 1-5), /substrate reads runtime state, fleet doctor auths fine, canaries watch logs — NONE observe supervisor-unit health. Consequences of the blind spot: (a) journal spam at ~17k failed starts/day; (b) the hub silently lost crash-restart + survive-reboot supervision (a reboot would have raced the detached-process ghost vs the unit); (c) binary upgrades via the unit (systemctl restart) were impossible — the flap silently absorbed them, the exact G-069-adjacent 'upgraded on disk, never live' class. Fixed instance: T-2357 stopped the detached hub; systemd took over from the new binary (Main PID 3475796, zero rotation). The CLASS — supervisor-unit flap invisible while the supervised service appears healthy — is unaddressed."
+  spec_reference: ".context/systemd/termlink-hub.service (Restart= policy); scripts/substrate-preflight.sh (Checks 1-5, none probe unit state); CLAUDE.md §Substrate preflight canary; T-2357 (the fix instance)"
+  severity: medium
+  trigger_fired: true
+  trigger_event: "2026-07-04T15:08Z T-2357: systemctl showed 'activating (auto-restart), restart counter is at 2178' during routine pre-restart inspection; detached hub PID 3515069 (PPID 1) held the pidfile"
+  detection_lag_days: "unknown (>=hours at 5s cadence; counter implies ~3h minimum of continuous flap; the detached-hub condition may predate the counter window)"
+  status: watching
+  what_works_now: "Hub is back under systemd supervision from the current binary; the flap is over. journalctl retains the forensic trail. `systemctl is-active termlink-hub` returns the truth in one command — it is just never asked."
+  what_remains: |
+    1. **Preflight Check 6 candidate** — when termlink-hub.service exists: FAIL/WARN if unit state is not `active`, or if `systemctl show -p NRestarts` exceeds a small threshold; cross-check Main PID vs the pidfile's PID (detached-ghost detection: pidfile PID alive but != unit Main PID).
+    2. **Canary form** — same check on the daily cron tier (empty-log = healthy convention), so a flap that starts between sessions surfaces within a day instead of on the next manual restart attempt.
+  mitigation_candidate: "Preflight Check 6 (unit-health + pidfile-vs-MainPID cross-check) is the lowest-friction insertion — the script already shells systemctl-adjacent probes and has the WARN/FAIL taxonomy."
 - id: G-069
   type: gap
   title: "Fleet hubs run stale/deleted-exe binaries for weeks and nothing surfaces it — .122 hub served a 13-day-old deleted inode lacking the shipped arc-004 rails"
