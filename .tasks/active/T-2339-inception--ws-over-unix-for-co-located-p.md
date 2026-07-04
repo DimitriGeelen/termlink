@@ -4,15 +4,15 @@ name: "Inception — WS-over-Unix for co-located push consumers"
 description: >
   arc-004 follow-on. Question (one, go/no-go): should co-located agents get WS push over a Unix socket instead of TCP+TLS-to-localhost? connect_tls_stream rejects Unix today. Explore only if a same-host workload demonstrates the localhost TLS path is a bottleneck. See docs/operations/push-transport-recipe.md + docs/reports/T-2309 scope finding.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
-horizon: later
+horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-07-03T19:10:07Z
-last_update: 2026-07-03T19:10:07Z
+last_update: 2026-07-04T09:07:22Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,11 +28,24 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+Should co-located agents (same host as the hub) get WS push over the hub's **Unix socket**
+instead of TCP+TLS-to-localhost? Filed from a T-2309 scope note claiming
+`connect_tls_stream` rejects Unix, so same-host consumers would be paying TLS-handshake +
+loopback-TCP overhead for no trust benefit. For: every `/be-reachable` push-waker session
+on a hub host (the most common consumer topology in this fleet).
 
 ## Assumptions
 
-<!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+- A1 (the filing premise): "WS push cannot ride the Unix socket today" — **REFUTED.** The
+  premise was already stale at filing time: the T-2312 inception GO'd exactly this and
+  T-2313 built it. `scripts/demo-ws-push-unix.sh` proves a live consumer on
+  `channel subscribe <topic> --push` over the hub's Unix socket receives a DM push (~31 ms,
+  no TLS, no hubs.toml profile, no token — Unix connections are peer-cred-trusted and
+  pre-granted Execute scope, which satisfies `hub.ws_subscribe`).
+- A2: "co-located consumers actually use the Unix path in practice" — **VERIFIED.** The
+  push-waker (`be-reachable-pushwaker.sh`) invokes `channel subscribe … --push` with no
+  `--hub` unless overridden; default address resolution for the local hub is the
+  runtime_dir Unix socket. Co-located sessions ride Unix push today.
 
 ## Open Questions
 
@@ -52,9 +65,23 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
      FW_SKIP_DISPOSITION_GATE=1 (env-var, T-1890 producer/consumer parity).
 -->
 
+- **IW-1: Should co-located push consumers get WS-over-Unix instead of TCP+TLS-to-localhost?**
+  confidence: 3
+  disposition: dissolved
+  rationale: Premise false — already shipped. T-2312 inception (GO) → T-2313 build;
+  `scripts/demo-ws-push-unix.sh` proves ~31 ms Unix push with no TLS/token; the
+  push-waker's default local-hub resolution already selects the Unix socket, so
+  co-located consumers ride it today with zero configuration.
+
 ## Exploration Plan
 
-<!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+Executed (source + artifact verification, no spikes needed): (1) locate the shipped
+WS-over-Unix evidence — `docs/reports/T-2312-arc-004-ws-over-unix-inception.md` +
+`scripts/demo-ws-push-unix.sh` (part of the arc-004 reproducer matrix, passing); (2)
+confirm the consumer's default address resolution picks the Unix socket for the local hub
+(`channel.rs` transport-addr fallback + `be-reachable-pushwaker.sh` passing no `--hub`);
+(3) check nothing co-located is forced onto TCP+TLS-to-localhost. All three confirm the
+capability exists and is the default.
 
 ## Technical Constraints
 
@@ -66,7 +93,10 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 ## Scope Fence
 
-<!-- What's IN scope for this exploration? What's explicitly OUT? -->
+**IN:** whether WS-over-Unix for co-located consumers is needed (one go/no-go question).
+**OUT:** building any transport code under this ID (it already exists — T-2313); remote
+(cross-host) consumers, which correctly stay on TCP+TLS; changes to the Unix peer-cred
+trust model.
 
 ## Acceptance Criteria
 
@@ -112,9 +142,26 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 ## Recommendation
 
-**Recommendation:** DEFER
+**Recommendation:** NO-GO (dissolved — already shipped by T-2312/T-2313)
 
-**Rationale:** Lower-value optimization. connect_tls_stream currently rejects Unix sockets, so a co-located agent gets WS push over TCP+TLS to 127.0.0.1 — which already works and is already sub-second (demo showed 91-99ms). A Unix-socket path would shave TLS-handshake + loopback overhead but the measured latency is already far under the 1s poll floor, so the reliability/latency win is marginal against the complexity of a second transport path (auth model over Unix, cert-less trust, code fork in the consumer). Advisory DEFER until a concrete same-host workload shows the TCP+TLS localhost path is a real bottleneck. Filed so the option is tracked, not lost.
+**Rationale (revised 2026-07-04 after artifact verification):** The question this inception
+poses was answered and BUILT before it was filed. T-2312 ran the WS-over-Unix inception
+(GO), T-2313 built it, and `scripts/demo-ws-push-unix.sh` is standing regression evidence:
+a live consumer subscribed with `channel subscribe <topic> --push` over the hub's Unix
+socket receives a DM push in ~31 ms — no TLS, no hubs.toml profile, no token (Unix
+connections are peer-cred-trusted and pre-granted Execute scope, satisfying
+`hub.ws_subscribe`). Co-located consumers get this path BY DEFAULT: the push-waker passes
+no `--hub`, and local-hub address resolution selects the runtime_dir Unix socket. There is
+nothing left to decide or build; a GO here would authorise duplicate work.
+
+**Original DEFER draft (retained for audit — premise was stale):** ~~connect_tls_stream
+currently rejects Unix sockets, so a co-located agent gets WS push over TCP+TLS to
+127.0.0.1 … DEFER until a same-host workload shows the TLS path is a bottleneck.~~ — this
+described the pre-T-2313 state; the "explore only if bottleneck" trigger is moot because
+the Unix path already exists and is the default.
+
+Human records the final no-go via `fw inception decide T-2339 no-go` (or the Watchtower
+review form).
 
 ## Decisions
 
@@ -135,3 +182,7 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-07-04T09:07:22Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)

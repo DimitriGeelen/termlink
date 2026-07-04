@@ -28,11 +28,23 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+After a hub blip, the arc-004 push consumer degrades to polling (by design — the durable
+layer stays authoritative). This inception was filed to answer: does v2 need an **active
+reconnect-with-backoff loop** so push is restored when the hub returns, instead of the
+consumer staying on the poll floor indefinitely? For: any live agent relying on sub-second
+push wake — a consumer stuck on the ~15s poll floor after a transient blip silently loses
+the arc's headline latency win. Filed from `push-transport-recipe.md` §4, which at filing
+time framed reconnect as an open v2 item.
 
 ## Assumptions
 
-<!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+- A1 (implicit in the filing): "the shipped consumer has no reconnect loop" — **REFUTED by
+  source verification.** T-2314 already built it; the raw CLI `--push` path and the
+  push-waker share the same loop (`channel.rs:8568-8611`).
+- A2: "if a loop exists, it covers all failure sequences" — **REFUTED, narrowly.** After 6
+  consecutive sub-5s connect failures the consumer broke to steady poll permanently and
+  never re-probed WS (`channel.rs:8597-8601`). That single gap was carved out to build task
+  T-2340 (shipped 2026-07-03; E2E-proven by T-2341's reproducer).
 
 ## Open Questions
 
@@ -67,19 +79,25 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 ## Exploration Plan
 
-<!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+Executed (source-verification, no spikes needed): (1) read the shipped `--push` consumer
+loop in `channel.rs` end-to-end; (2) trace the push-waker's invocation path
+(`be-reachable-pushwaker.sh` → `channel subscribe … --push`) to confirm both consumers
+share one reconnect implementation; (3) enumerate the failure sequences the loop does NOT
+cover. Result: IW-1 dissolved, IW-2 answered (see Open Questions); residual gap scoped to
+T-2340 rather than expanding this inception.
 
 ## Technical Constraints
 
-<!-- What platform, browser, network, or hardware constraints apply?
-     For web apps: HTTPS requirements, browser API restrictions, CORS, device support.
-     For hardware APIs (mic, camera, GPS, Bluetooth): access requirements, permissions model.
-     For infrastructure: network topology, firewall rules, latency bounds.
-     Fill this BEFORE building. Discovering constraints after implementation wastes sessions. -->
+None new — the reconnect loop rides the existing WS transport constraints documented in
+`docs/operations/push-transport-recipe.md` (backoff clamp, `WS_HEALTHY_SESSION_MS` = 5s
+healthy-session reset, durable-cursor catch-up on reconnect so no posts are missed during
+the gap).
 
 ## Scope Fence
 
-<!-- What's IN scope for this exploration? What's explicitly OUT? -->
+**IN:** whether a v2 reconnect loop is needed (one go/no-go question). **OUT:** building
+anything under this inception ID (the residual re-probe gap became T-2340, its E2E proof
+T-2341); webhook transport (Candidate B, separate); receipts-through-WS (S4).
 
 ## Acceptance Criteria
 
