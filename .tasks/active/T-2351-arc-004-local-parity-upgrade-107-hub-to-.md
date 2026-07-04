@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-04T11:38:39Z
-last_update: 2026-07-04T11:38:39Z
+last_update: 2026-07-04T11:40:08Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -47,10 +47,10 @@ TERMLINK_RUNTIME_DIR=/var/lib/termlink (verified from /proc/1993651/environ).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] 0.11.296 binary (sha d23dfb5b…) installed at /root/.cargo/bin/termlink; old 0.11.219 backed up
-- [ ] Local hub restarted: new pid serves webhook fan-out (hub status --governor --json carries webhook/governor fields from 0.11.296) and dm.queued; exe = /root/.cargo/bin/termlink (not deleted)
-- [ ] No rotation: /var/lib/termlink hub.secret + hub.cert.pem hashes identical pre/post; fleet doctor PASS for workstation-107-public with version 0.11.296
-- [ ] Spokes recover: `termlink list` works post-restart; remote hubs still reachable via fleet doctor
+- [x] 0.11.296 binary (sha d23dfb5ba1e14e0790f9bd294c4b8ee749e065b32fa84cea232bdd9b177b8f4e, same as .122) installed at /root/.cargo/bin/termlink; old 0.11.219 backed up at termlink.pre-t2351.bak
+- [x] Local hub restarted: new pid 3515069 serves dm.queued=1 AND `hub status --governor` now renders the T-2335 webhook telemetry line (`webhook: enabled=false targets=0 retry_depth=0 …`); exe=/root/.cargo/bin/termlink (not deleted)
+- [x] No rotation: hub.secret bce6f5f6… + hub.cert.pem 85932433… identical pre/post; fleet doctor PASS ×2 local profiles (version: 0.11.296)
+- [x] Spokes recover: `termlink list` returns 372 sessions post-restart; ring20-management (0.11.296) + ring20-dashboard (0.11.806) still PASS via fleet doctor (141 down pre-existing)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
