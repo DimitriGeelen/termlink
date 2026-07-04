@@ -3078,3 +3078,57 @@ scan_id: R-57c7d068
 task_id: T-2347
 payload:
   task_file: .tasks/active/T-2347-g-068-register-human-ac-tick-bypassed-t-.md
+---
+kind: scan_emitted
+timestamp: '2026-07-04T09:55:43Z'
+scan_id: R-0154d276
+task_id: T-2348
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-04T09:55:43Z'
+scan_id: R-0154d276
+task_id: T-2348
+payload:
+  task_file: .tasks/active/T-2348-reviewer-agent-assisted-inception-decide.md
+---
+kind: scan_emitted
+timestamp: '2026-07-04T10:27:47Z'
+scan_id: R-170c35b8
+task_id: T-2349
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-04T10:27:47Z'
+scan_id: R-170c35b8
+task_id: T-2349
+payload:
+  task_file: .tasks/active/T-2349-t-2348-go-spikes-a1a2--reviewer-rail-vs-.md
+---
+kind: scan_emitted
+timestamp: '2026-07-04T11:37:16Z'
+scan_id: R-53f4b27c
+task_id: T-2350
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-04T11:37:16Z'
+scan_id: R-53f4b27c
+task_id: T-2350
+payload:
+  task_file: .tasks/active/T-2350-arc-004-fleet-activation-deploy-push-wak.md

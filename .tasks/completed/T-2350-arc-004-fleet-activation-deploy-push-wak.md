@@ -4,10 +4,10 @@ name: "arc-004 fleet activation: deploy push-wake binary to ring20 hubs + restar
 description: >
   arc-004 fleet activation: deploy push-wake binary to ring20 hubs + restart
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-04T11:16:45Z
-last_update: 2026-07-04T11:36:33Z
-date_finished: null
+last_update: 2026-07-04T11:37:12Z
+date_finished: 2026-07-04T11:37:12Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -226,3 +226,15 @@ out=$(timeout 30 termlink fleet verify 2>&1); echo "$out" | grep -q "ring20-mana
   topic minted via PL-236-class resolution; doorbell injected on local hub
   instead of peer hub) — worked around with direct channel post --hub +
   remote inject; defects noted for a follow-up filing.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-53f4b27c
+- **Timestamp:** 2026-07-04T11:37:16Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-04T11:37:12Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -654,3 +654,17 @@ decisions:
     date: 2026-07-04
     task: T-2345
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-073
+    decision: "fleet-deploy-binary.sh for staging+probe ONLY; hand-rolled detached"
+    scope: project
+    date: 2026-07-04
+    task: T-2350
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-074
+    decision: "relay upgrade request to ring20 agent via DM; no direct deploy."
+    scope: project
+    date: 2026-07-04
+    task: T-2350
+    rationale: "Auto-captured from task file on completion"

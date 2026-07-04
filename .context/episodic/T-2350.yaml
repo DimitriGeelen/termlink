@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2350: arc-004 fleet activation: deploy push-wake binary to ring20 hubs + restart
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-04T11:37:19Z
+# ============================================================================
+
+task_id: T-2350
+task_name: "arc-004 fleet activation: deploy push-wake binary to ring20 hubs + restart"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-04T11:16:45Z
+completed: 2026-07-04T11:37:12Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-04T13:19:36+02:00
+last_commit: 2026-07-04T13:37:12+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  task scoped — arc-004 fleet activation (deploy push-wake binary to ring20 hubs + restart); .122 stale-binary evidence + real ACs. decisions — hand-rolled swap+restart (2 --swap-restart defects for deleted-exe state, PL-021 runtime_dir fallback); .121 no-mgmt-path disposition. .122 upgraded to 0.11.296 — arc-004 push rails LIVE (dm.queued=1, zero rotation, ~8s downtime); all 6 Agent ACs evidenced. fix verification grep (compact JSON, no space after colon)
+
+# Key outcomes
+outcomes:
+  - 'Current-code binary (dm.queued grep=1) installed at /usr/local/bin/termlink on .122, sha256 matches the local source binary — swap log: installed sha d23dfb5ba1e14e0790f9bd294c4b8ee749e065b32fa84cea232bdd9b177b8f4e == local musl build sha; `--version` 0.11.296'
+  - '.122 hub restarted and serving the dm-rail: running hub pid''s /proc/<pid>/exe grep dm.queued = 1, exe NOT "(deleted)" — new pid 3724159, dmq=1, exe=/usr/local/bin/termlink (swap log 2026-07-04T11:31:46Z; downtime ~8s)'
+  - 'No auth/TLS rotation caused — hub.secret sha 3dd9d01a… and hub.cert.pem sha 2355a206… IDENTICAL pre/post (mtimes 1777149260 unchanged); `fleet verify` = "match — pin matches wire"; `fleet doctor` = PASS connected (version: 0.11.296), no auth-mismatch'
+  - 'Post-restart hub functional: `remote list` returns both sessions (tl-dzbcxxka, tl-fj5gsdvb re-registered); governor_status serves Connections/Rate/Dedupe/cv_index fields'
+  - '.121 (ring20-dashboard) dispositioned: unreachable-for-deploy — 0 registered sessions (no remote exec), SSH BatchMode denied from .107 AND from .122, hypervisor .180 does not host the ring20 CTs; upgrade request relayed to ring20 agent (DM offset 50, ask #2)'
+  - 'PL-200 follow-up recorded: agent-presence on .122 hub had ZERO listeners pre-restart (verified: no heartbeats in 10-min window, no cv_keys) → re-registration n/a for existing listeners; /be-reachable opt-in invite relayed to ring20 agent (DM dm:9219671e…:d1993c2c… offset 50 on their hub, doorbell injected into tl-dzbcxxka)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix verification grep (compact JSON, no space after colon)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-07-04 — swap+restart mechanism for .122'
+    chose: 'fleet-deploy-binary.sh for staging+probe ONLY; hand-rolled detached'
+    rationale: 'two defects in `--swap-restart` for this host''s state: (1) it resolves'
+    alternatives_rejected: ['`--swap-restart` as-is (above); systemd unit install (larger']
+  - decision: '2026-07-04 — .121 (ring20-dashboard) disposition'
+    chose: 'relay upgrade request to ring20 agent via DM; no direct deploy.'
+    rationale: 'no management path from here: 0 registered sessions (remote exec'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2350-arc-004-fleet-activation-deploy-push-wak.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-04T13:19:36"
+    action: "T-2350: task scoped — arc-004 fleet activation (deploy push-wake binary to ring20 hubs + restart); .122 stale-binary evidence + real ACs"
+  - time: "2026-07-04T13:22:58"
+    action: "T-2350: decisions — hand-rolled swap+restart (2 --swap-restart defects for deleted-exe state, PL-021 runtime_dir fallback); .121 no-mgmt-path disposition"
+  - time: "2026-07-04T13:36:33"
+    action: "T-2350: .122 upgraded to 0.11.296 — arc-004 push rails LIVE (dm.queued=1, zero rotation, ~8s downtime); all 6 Agent ACs evidenced"
+  - time: "2026-07-04T13:37:12"
+    action: "T-2350: fix verification grep (compact JSON, no space after colon)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 20 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 20
+  commits: 4
+  files_changed: 1
+  lines_added: 246
+  lines_removed: 18
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2350-arc-004-fleet-activation-deploy-push-wak.md
+generated_by: context-agent-hybrid
