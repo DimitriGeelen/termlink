@@ -3060,3 +3060,21 @@ scan_id: R-b566b241
 task_id: T-2346
 payload:
   task_file: .tasks/active/T-2346-arc-004-registry-ledger-correction--reco.md
+---
+kind: scan_emitted
+timestamp: '2026-07-04T09:20:41Z'
+scan_id: R-57c7d068
+task_id: T-2347
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-04T09:20:41Z'
+scan_id: R-57c7d068
+task_id: T-2347
+payload:
+  task_file: .tasks/active/T-2347-g-068-register-human-ac-tick-bypassed-t-.md
