@@ -1,9 +1,9 @@
-# Audit Results - 2026-07-05-0057
-timestamp: 2026-07-04T22:57:01Z
+# Audit Results - 2026-07-05-0101
+timestamp: 2026-07-04T23:01:52Z
 sections: "structure"
 summary:
-  pass: 30
-  warn: 2
+  pass: 29
+  warn: 3
   fail: 0
 findings:
   - level: PASS
@@ -66,8 +66,9 @@ findings:
     check: "cron(topic-growth-canary): USER-field syntax installed at /etc/cron.d/termlink-topic-growth-canary"
   - level: PASS
     check: "cron(unconfirmed-delivery-canary): USER-field syntax installed at /etc/cron.d/termlink-unconfirmed-delivery-canary"
-  - level: PASS
-    check: "Hook threshold: no hooks failing over threshold"
+  - level: WARN
+    check: "Hook threshold: 1 hook(s) failing over threshold (T-1626)"
+    mitigation: "Run: python3 /opt/termlink/.agentic-framework/lib/hook-threshold.py --register (or fw upgrade if witness pattern)"
   - level: PASS
     check: "Secret scan: tracked tree clean"
   - level: PASS
