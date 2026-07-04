@@ -2444,3 +2444,10 @@ learnings:
   date: 2026-07-03
   context: Added via context agent
   application: TBD
+- id: PL-241
+  learning: "R2-style per-key retention (latest-per-cv-key) never prunes records lacking metadata.cv_key — activating it on a topic with pre-cv_key history leaves the residue in place and the topic-growth canary keeps firing. Remediation pattern (T-2345): one-time interim days:N set-retention + sweep to clear the old records, then restore latest-per-cv-key as the standing policy. Verify final count ~= live-agent count."
+  source: T-2252
+  task: T-2345
+  date: 2026-07-04
+  context: Added via context agent
+  application: TBD
