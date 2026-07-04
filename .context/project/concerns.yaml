@@ -2,6 +2,21 @@
 # Type: gap (spec-reality) | risk (forward-looking)
 # Status: watching | decided-build | decided-simplify | decided-defer | closed
 concerns:
+- id: G-069
+  type: gap
+  title: "Fleet hubs run stale/deleted-exe binaries for weeks and nothing surfaces it — .122 hub served a 13-day-old deleted inode lacking the shipped arc-004 rails"
+  description: "T-2350 sweep (2026-07-04) found ring20-management's hub (pid 2296932) executing /usr/local/bin/termlink '(deleted)' — the binary was upgraded on disk ~Jun 21 but the hub was never restarted, so the in-memory process served a pre-arc-004 feature set for ~13 days while the project shipped and 'closed' the push-transport arc against it. Same PL-209/T-2184 class the LOCAL preflight Check 5 exists for — but that check only probes the LOCAL hub. Nothing walks hubs.toml comparing each remote hub's served capability/version against expectations: fleet doctor prints per-hub versions and even a 'fleet version skew' hint, but no canary/audit FIRES on it, so the drift is visible-if-you-look, never surfaced. Compounding: the .107 hub ITSELF was 26 hub-side commits stale (0.11.219 predating the entire T-2332..36 webhook arc) while arc-004 was recorded closed=shipped — 'shipped' conflated code-merged with capability-live. Cost class: G-058-shaped silent drift (weeks of 'shipped but not live'), discovered only because a directive refocused on the arc. Fixed instances: .122 + .107 both upgraded to 0.11.296 and restarted (T-2350/T-2351, zero rotation). The CLASS is unaddressed."
+  spec_reference: "CLAUDE.md §Substrate preflight canary (T-2154/T-2184 Check 5 — local-only); fleet doctor version output + skew hint (informational, non-firing); .context/arcs/push-transport.yaml (closed=shipped while 0/2 prod hubs served the rails); T-2350/T-2351 (the fixes)"
+  severity: medium
+  trigger_fired: true
+  trigger_event: "2026-07-04 T-2350 residual-value sweep: grep -a -c dm.queued /proc/<hubpid>/exe = 0 on .122 (deleted exe, 13 days), then same-class finding on .107 itself"
+  detection_lag_days: 13
+  what_works_now: "Local preflight Check 5 (T-2184) catches the local stale-hub case ad-hoc. fleet doctor shows per-hub versions + skew hint when an operator reads it. Both live prod hubs now at 0.11.296 (sha-identical fleet-wide)."
+  what_remains: "(1) Fleet-tier stale-binary canary: daily cron walking hubs.toml, per reachable hub compare served version (fleet doctor Tier-A) against local VERSION (or a pinned floor) AND flag deleted-exe hubs where a session exists to probe /proc — append to .context/working/.fleet-stale-binary-canary.log (empty-log-healthy convention, /canaries auto-discovers). (2) Arc-closure semantics: 'shipped' checklists should include a capability-live check on at least the primary hub (a one-line Verification on the arc-closing task). (3) Optional: deploy scripts print a loud 'hub restart required' epilogue when they detect a running hub on the replaced binary (T-2052 install-time-gap pattern, applied to restarts)."
+  mitigation_candidate: "Small build task for (1) — same skeleton as check-mirror-freshness.sh; version-compare via fleet doctor, deleted-exe probe only where a remote session exists (else version-compare alone). (2) is a one-line arc-template change."
+  status: watching
+  created: 2026-07-04
+  related_tasks: [T-2350, T-2351, T-2184, T-2154]
 - id: G-068
   type: gap
   title: "Human-AC tick via Bash bulk edit bypasses the T-1731 hook and nothing detects it post-hoc — T-2276 [REVIEW] AC sat ticked 9 days with no decision recorded"
