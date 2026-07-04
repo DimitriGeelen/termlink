@@ -4,10 +4,10 @@ name: "agent-send.sh doorbell inject ignores peer hub"
 description: >
   Field-discovered in T-2350: with --to-session targeting a session on a REMOTE hub (tl-dzbcxxka on 192.168.10.122:9100), the doorbell inject ran against the LOCAL hub ('session missing?' WARN x2) — the mail posted but the doorbell never rang the peer. Workaround used: direct 'channel post --hub <peer-hub>' + 'termlink remote inject <hub> <session>'. Fix: agent-send.sh explicit-routing path must carry/accept the peer hub (--hub flag or resolve from presence) and use remote inject when the session is not local.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-04T12:00:55Z
-last_update: 2026-07-04T13:02:53Z
-date_finished: null
+last_update: 2026-07-04T13:09:42Z
+date_finished: 2026-07-04T13:09:42Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -195,3 +195,15 @@ out=$(bash scripts/agent-send.sh --to some-agent --hub 1.2.3.4:9100 --message se
 
 ### 2026-07-04T13:02:53Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-517e3aaf
+- **Timestamp:** 2026-07-04T13:09:51Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-04T13:09:42Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

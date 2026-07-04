@@ -4,20 +4,20 @@ name: "channel info/unread hang indefinitely over --hub <tcp> (list works)"
 description: >
   Field-discovered during T-2353 verification: 'termlink channel info <topic> --json --hub 192.168.10.122:9100' and 'channel unread ... --hub <tcp>' hang past 12s (killed by timeout) while 'channel list --hub <tcp>' returns fast on the same hub — a remote read-verb wedge class, plausibly the same as ring20's G-157 ('cross-host reads deadlock'). Suspect: these verbs issue a second/streaming RPC after connect that never completes over TCP. Repro: timeout 8 termlink channel info agent-chat-arc --json --hub 192.168.10.122:9100 => exit 124. agent-send.sh now bounds its scan calls (TERMLINK_SCAN_TIMEOUT, T-2353) so sends degrade loudly instead of hanging; this task is the root-cause fix in the CLI/hub.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/channel.rs, crates/termlink-session/src/client.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-04T13:08:58Z
-last_update: 2026-07-04T13:27:41Z
-date_finished: null
+last_update: 2026-07-04T13:29:31Z
+date_finished: 2026-07-04T13:29:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -195,3 +195,20 @@ cargo test -q -p termlink >/tmp/.t2354-cli.out 2>&1
 
 ### 2026-07-04T13:19:55Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-eb0f1b26
+- **Timestamp:** 2026-07-04T13:30:45Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — `rpc_call_authed` (crates/termlink-cli/src/commands/channel.rs) bounds BOTH the `hub.auth` call and the main RPC on the TCP path with a read deadline: env `TERMLINK_RPC_READ_TIMEOUT_SECS` (default 30,
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-cli/src/commands/channel.rs in: `rpc_call_authed` (crates/termlink-cli/src/commands/channel.rs) bounds BOTH the `hub.auth` call and the main RPC on the TCP path with a read deadline:`
+
+### 2026-07-04T13:29:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

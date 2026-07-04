@@ -4,10 +4,10 @@ name: "Install release CLI with T-2352/53/54 fixes on .107 (rm-then-cp to /root/
 description: >
   Deploy follow-up: the installed /root/.cargo/bin/termlink is 0.11.296 (pre-fix); main now carries T-2352 (self-fp chain + peer-posted thread preference), T-2353 (agent-send --hub), T-2354 (bounded TCP RPC reads). CLI-only change — NO hub restart needed (client.rs/channel.rs are client-side). Path: cargo build --release -p termlink, backup existing binary, rm-then-cp (avoids ETXTBSY), verify termlink --version >= 0.11.313 and the T-2354 seam (TERMLINK_RPC_READ_TIMEOUT_SECS bounded error vs wedged .122 read). Closes the preflight Check 4 stale-binary WARN.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-04T14:02:48Z
-last_update: 2026-07-04T14:26:25Z
-date_finished: null
+last_update: 2026-07-04T14:40:13Z
+date_finished: 2026-07-04T14:40:13Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -188,3 +188,15 @@ bash scripts/substrate-preflight.sh > /tmp/.t2356-preflight.out 2>&1 && grep -q 
 - **Action:** Built release CLI at 30a4b559 (11m29s, exit 0), backed up 0.11.296 to `/root/.cargo/bin/termlink.0.11.296.bak`, swapped via rm-then-cp (termlink_run — T-559 boundary), chmod 755
 - **Evidence:** installed `termlink --version` = 0.11.321; T-2354 seam live-proven (bounded 5.26s error vs .122's still-wedged walk); preflight 5 pass / 0 warn / 0 fail (Check 4 stale-binary WARN cleared)
 - **Context:** CLI-only deploy — no hub restart, no re-pin, no auth impact, as scoped
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-981807fa
+- **Timestamp:** 2026-07-04T14:40:14Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-04T14:40:13Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

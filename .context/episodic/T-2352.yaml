@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2352: agent-send.sh --to-session mints wrong-self-fp dm topic
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-04T13:02:32Z
+# ============================================================================
+
+task_id: T-2352
+task_name: "agent-send.sh --to-session mints wrong-self-fp dm topic"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-04T12:00:35Z
+completed: 2026-07-04T13:02:28Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-04T15:02:22+02:00
+last_commit: 2026-07-04T15:02:22+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent-send self-fp via signing-path chain + peer-posted existing-thread preference (field wrong-mint fix)
+
+# Key outcomes
+outcomes:
+  - 'Self-fp resolution in the `--peer-fp` path follows the chain: `$TERMLINK_SELF_FP` env (test seam/override) → `be-reachable.state` `.self_fp` (T-2324) → `termlink agent identity --resolve` (signing-path precedence) → legacy senders-scan (last resort only) — replacing the senders[0]-first heuristic'
+  - 'Before minting a new dm topic, EXISTING `dm:*` threads with peer-fp as exactly one component are preferred, disambiguated by **peer participation**: exactly one thread the peer has posted in → use it (loud stderr NOTE if ≠ canonical mint); multiple peer-posted threads none matching the mint → refuse (exit 2) with candidate list + `--topic` hint; zero peer-posted → canonical mint if it exists, else single candidate reused with NOTE, else refuse ambiguous'
+  - 'Peer self-dm topics (`dm:<peer>:<peer>`) are excluded from candidate matching (a DM from us to the peer is never their self-thread)'
+  - '`--dry-run` works with explicit routing (`--to-session` + `--peer-fp`/`--topic`), printing the RESOLVED line without posting/injecting — the regression seam for this fix'
+  - 'Regression proven: with `TERMLINK_SELF_FP=06cd308242ef95bc` (the field wrong-fp) and `--peer-fp 9219671e28054458`, the resolved topic is the existing canonical `dm:9219671e28054458:d1993c2c3ec44c94`, NOT a fresh `dm:06cd...` mint'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'agent-send self-fp via signing-path chain + peer-posted existing-thread preference (field wrong-mint fix)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-07-04 — Existing-thread disambiguation discriminator'
+    chose: 'peer participation (`channel info` senders: does peer_fp have >0 posts in the candidate?) as the primary discriminator among existing dm threads; post-count and canonical-mint-existence only as fallbacks when no thread has peer posts.'
+    rationale: 'The field incident left BOTH the canonical thread (110 posts, peer active) and the wrong-mint `dm:06cd...:9219...` (1 post, only us) on the local hub. "Canonical mint exists → use it" would have PERPETUATED the bug whenever the resolved self-fp is wrong (the wrong mint exists precisely because of the earlier failure). "A thread the peer has spoken in" is the semantically correct definition of the live conversation and self-heals around stale wrong-mint cruft.'
+    alternatives_rejected: ['highest-post-count heuristic (correlates but is not the semantic property; ties are unresolvable); refuse-on-any-ambiguity (would make every send to ring20 fail until the 1-post cruft topic is manually deleted).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/agent-send.sh'
+  - '.tasks/active/T-2352-agent-sendsh---to-session-mints-wrong-se.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-04T15:02:22"
+    action: "T-2352: agent-send self-fp via signing-path chain + peer-posted existing-thread preference (field wrong-mint fix)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 61 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 61
+  commits: 1
+  files_changed: 2
+  lines_added: 122
+  lines_removed: 23
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2352-agent-sendsh---to-session-mints-wrong-se.md
+generated_by: context-agent-hybrid

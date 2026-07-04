@@ -2451,3 +2451,10 @@ learnings:
   date: 2026-07-04
   context: Added via context agent
   application: TBD
+- id: PL-242
+  learning: "Bounding WHERE blocking work runs (spawn_blocking, T-2258) is not bounding HOW LONG it runs — pool saturation just moves the wedge. Every hub-side record walk needs an explicit deadline, and layered deadlines must nest: server walk deadline (TERMLINK_WALK_DEADLINE_MS, 20s) strictly UNDER client read timeout (TERMLINK_RPC_READ_TIMEOUT_SECS, 30s) so the structured, resumable server error (WALK_DEADLINE_EXCEEDED -32020 with data.next_cursor) reaches the operator instead of an opaque client timeout. Prefer loud refusal over partial-success pages: legacy pagers treat short pages as end-of-topic and would silently under-count."
+  source: P-001
+  task: T-2355
+  date: 2026-07-04
+  context: Added via context agent
+  application: TBD

@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2356: Install release CLI with T-2352/53/54 fixes on .107 (rm-then-cp to /root/.cargo/bin)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-04T14:40:17Z
+# ============================================================================
+
+task_id: T-2356
+task_name: "Install release CLI with T-2352/53/54 fixes on .107 (rm-then-cp to /root/.cargo/bin)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-04T14:02:48Z
+completed: 2026-07-04T14:40:13Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-07-04T16:03:30+02:00
+last_commit: 2026-07-04T16:40:06+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  filed — install release CLI with T-2352/53/54 fixes on .107 (next-session first mechanical step). release CLI 0.11.321 installed on .107 (backup + rm-then-cp; T-2354 seam live-proven; preflight Check 4 cleared)
+
+# Key outcomes
+outcomes:
+  - '`cargo build --release -p termlink` completes cleanly on main at or after commit 998785dc (T-2354) — built at 30a4b559, exit 0, 11m29s, artifact mtime 16:38 (fresh, PL-209 checked)'
+  - 'Existing `/root/.cargo/bin/termlink` backed up (e.g. `termlink.0.11.296.bak`) before replacement — `/root/.cargo/bin/termlink.0.11.296.bak` present (33577280 bytes)'
+  - 'Binary swapped via rm-then-cp (not cp-over, which hits ETXTBSY); `termlink --version` reports >= 0.11.313 — installed reports 0.11.321'
+  - 'T-2354 seam present in installed binary: `TERMLINK_RPC_READ_TIMEOUT_SECS=5 termlink channel info agent-chat-arc --hub 192.168.10.122:9100` errored bounded at 5256ms with "RPC ''channel.subscribe'' response timeout after 5s (hub accepted the connection but never replied — wedged record-walk or overloaded hub)" — vs pre-fix indefinite hang (.122 walk confirmed still wedged, live reinforcement for T-2355)'
+  - '`/preflight` Check 4 (CLI version >= project VERSION) no longer WARNs stale-binary — `[PASS] binary termlink 0.11.321 >= project VERSION 0.11.321`; summary: 5 pass, 0 warn, 0 fail'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'filed — install release CLI with T-2352/53/54 fixes on .107 (next-session first mechanical step)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2356-install-release-cli-with-t-23525354-fixe.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-04T16:03:30"
+    action: "T-2356: filed — install release CLI with T-2352/53/54 fixes on .107 (next-session first mechanical step)"
+  - time: "2026-07-04T16:40:06"
+    action: "T-2356: release CLI 0.11.321 installed on .107 (backup + rm-then-cp; T-2354 seam live-proven; preflight Check 4 cleared)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 37 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 37
+  commits: 2
+  files_changed: 1
+  lines_added: 196
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2356-install-release-cli-with-t-23525354-fixe.md
+generated_by: context-agent-hybrid

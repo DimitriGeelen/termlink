@@ -4,20 +4,20 @@ name: "Hub record-walk starvation: channel.subscribe/receipts blocking-I/O wedge
 description: >
   The hub-side seat of the read-hang class T-2354 bounded client-side: handle_channel_subscribe_with / channel.receipts run blocking File::seek/read_exact per record on spawn_blocking (crates/termlink-hub/src/channel.rs:947-960 T-2258 note) — under concurrent large-topic walks the blocking pool starves and the walk never completes; observed live on .122 (channel info agent-chat-arc walk wedged >2m while list/subscribe-single-page stayed fast). Client now errors bounded (T-2354) but the walk still fails. Fix directions to evaluate: chunked/yielding walk (bounded records per spawn_blocking hop), per-request walk deadline server-side with partial-result or explicit error, or async file I/O. Also the true seat of ring20's G-157 (cross-host read deadlock) — reply with findings posted at DM offset 110, cid-g157-rootcause.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-hub/src/channel.rs, crates/termlink-protocol/src/control.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-04T13:45:10Z
-last_update: 2026-07-04T14:40:45Z
-date_finished: null
+last_update: 2026-07-04T14:52:31Z
+date_finished: 2026-07-04T14:52:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -213,3 +213,15 @@ grep -q "walk_deadline_from_env" /opt/termlink/crates/termlink-hub/src/channel.r
 - **Action:** Server-side walk deadline: `WALK_DEADLINE_EXCEEDED` (-32020) in termlink-protocol; `walk_deadline_from_env` + factored `walk_subscribe_records` / `walk_receipt_records` in termlink-hub channel.rs; both spawn_blocking walks now bounded; 6 new unit tests + wire-stability test
 - **Evidence:** hub suite 403 passed / protocol suite 102 passed / workspace check clean
 - **Activation note:** hub-side change — takes effect on hub restart with the new binary. The .107 local hub and ring20's .122 hub (the field-wedged one) both run pre-fix binaries until their operators restart; .122 is ring20's domain (their G-157) — notify via the existing dm cid-g157-rootcause thread
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-3382a0a2
+- **Timestamp:** 2026-07-04T14:53:29Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-04T14:52:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

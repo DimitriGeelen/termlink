@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2353: agent-send.sh doorbell inject ignores peer hub
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-04T13:09:54Z
+# ============================================================================
+
+task_id: T-2353
+task_name: "agent-send.sh doorbell inject ignores peer hub"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-04T12:00:55Z
+completed: 2026-07-04T13:09:42Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-04T15:09:36+02:00
+last_commit: 2026-07-04T15:09:36+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  --hub flag for explicit routing (remote post + remote inject + bounded dm-topic scan); T-2354 filed (channel info/unread hang over TCP hub)
+
+# Key outcomes
+outcomes:
+  - '`agent-send.sh` accepts `--hub <addr>` with explicit routing (`--to-session` + `--topic`/`--peer-fp`), setting `peer_hub` so the existing remote plumbing applies: mail posts to the peer hub, doorbell rings via `termlink remote inject`, receipt/reply polling targets the peer hub'
+  - '`--hub` is mutex with `--to` (auto-discover resolves its own hub) — combining them exits 2 with a clear message'
+  - 'The dm-topic existence scan (T-2352) runs against the destination hub when `--hub` is set (dm topics are per-hub state, G-060) — and every scan call is time-bounded (`TERMLINK_SCAN_TIMEOUT`, default 8s) with loud degradation to the canonical mint, so a wedged remote hub can never hang the send (T-2354 discovered here)'
+  - '`--dry-run` with explicit routing + `--hub` prints `hub=<addr> routing=remote` in the RESOLVED line (regression seam)'
+  - 'Usage text documents `--hub` under explicit routing'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-07-04 — Bounded scan calls after discovering T-2354'
+    chose: 'wrap the T-2352 dm-topic scan (`channel list` + per-candidate `channel info`) in `timeout ${TERMLINK_SCAN_TIMEOUT:-8}`; on list failure/timeout emit a loud stderr NOTE and fall back to the canonical mint.'
+    rationale: 'verification against the live .122 hub exposed that `channel info`/`channel unread` over `--hub <tcp>` hang indefinitely (while `channel list` works) — an unbounded scan would have hung every remote send, a worse regression than the wrong-mint bug being fixed. Filed as T-2354 (root-cause fix in the CLI/hub).'
+    alternatives_rejected: ['reverting the destination-hub scan (loses the G-060 correctness — topics are per-hub); waiting for the T-2354 root-cause fix (blocks this shipped fix on an unscoped one).']
+  - decision: '2026-07-04 — `--hub` flag vs presence auto-resolve for explicit routing'
+    chose: 'explicit `--hub <addr>` flag, mutex with `--to`.'
+    rationale: 'the explicit-routing form exists precisely for cases where presence discovery is unavailable or wrong (the T-2350 field case: session known, presence rail incomplete); auto-resolving from presence there re-introduces the dependency the operator was routing around. One `peer_hub` variable engages ALL existing remote plumbing — no second code path to maintain.'
+    alternatives_rejected: ['resolving hub from presence when `--to-session` is given (fails exactly when explicit routing is needed most); trying local inject first then falling back to remote probing (slow, and inject failure is non-fatal by design so the misroute would stay silent).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/agent-send.sh'
+  - '.tasks/active/T-2353-agent-sendsh-doorbell-inject-ignores-pee.md'
+  - '.tasks/active/T-2354-channel-infounread-hang-indefinitely-ove.md'
+  - '.tasks/completed/T-2352-agent-sendsh---to-session-mints-wrong-se.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-04T15:09:36"
+    action: "T-2353: --hub flag for explicit routing (remote post + remote inject + bounded dm-topic scan); T-2354 filed (channel info/unread hang over TCP hub)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 68 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 68
+  commits: 1
+  files_changed: 4
+  lines_added: 246
+  lines_removed: 19
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2353-agent-sendsh-doorbell-inject-ignores-pee.md
+generated_by: context-agent-hybrid

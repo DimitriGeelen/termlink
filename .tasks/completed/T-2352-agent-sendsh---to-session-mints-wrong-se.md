@@ -4,10 +4,10 @@ name: "agent-send.sh --to-session mints wrong-self-fp dm topic"
 description: >
   Field-discovered in T-2350: explicit-routing send (--to-session tl-dzbcxxka --peer-fp 9219671e...) resolved self-fp as 06cd308242ef95bc (identity-file fp) instead of the registered/canonical d1993c2c..., minting NEW topic dm:06cd...:9219671e... instead of posting to the existing canonical thread. PL-236 class (identity show vs registered fp divergence). Fix: resolve self-fp via the T-1857 chain (be-reachable.state / registered session fp), or at minimum prefer an EXISTING dm topic containing peer-fp before minting a new one.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-04T12:00:35Z
-last_update: 2026-07-04T12:58:47Z
-date_finished: null
+last_update: 2026-07-04T13:02:28Z
+date_finished: 2026-07-04T13:02:28Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -190,3 +190,15 @@ out=$(TERMLINK_SELF_FP=06cd308242ef95bc bash scripts/agent-send.sh --to-session 
 
 ### 2026-07-04T12:58:47Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-043c2b16
+- **Timestamp:** 2026-07-04T13:02:29Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-04T13:02:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

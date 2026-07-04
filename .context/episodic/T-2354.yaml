@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2354: channel info/unread hang indefinitely over --hub <tcp> (list works)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-04T13:30:49Z
+# ============================================================================
+
+task_id: T-2354
+task_name: "channel info/unread hang indefinitely over --hub <tcp> (list works)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-04T13:08:58Z
+completed: 2026-07-04T13:29:31Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-04T15:27:41+02:00
+last_commit: 2026-07-04T15:29:31+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  bound TCP RPC reads — Client::call_with_timeout + rpc_call_authed read deadline (TERMLINK_RPC_READ_TIMEOUT_SECS, default 30s); wedged channel info/unread now error at the bound instead of hanging forever. verification commands — gate suites on cargo exit code (L-387 SIGPIPE on grep -vq over full test output)
+
+# Key outcomes
+outcomes:
+  - '`termlink_session::client::Client` gains `call_with_timeout(method, id, params, timeout)` — wraps `call` in `tokio::time::timeout`, mapping expiry to `ClientError::Io(TimedOut)` with a message naming the method and the wedged-hub cause (mirror of `connect_addr_with_timeout`, T-1678)'
+  - '`rpc_call_authed` (crates/termlink-cli/src/commands/channel.rs) bounds BOTH the `hub.auth` call and the main RPC on the TCP path with a read deadline: env `TERMLINK_RPC_READ_TIMEOUT_SECS` (default 30, clamped 1..=600)'
+  - 'A hung remote read now errors bounded instead of hanging forever: `channel info <topic> --hub <tcp>` against a wedged hub returns non-zero within the deadline with the timeout message (no more indefinite hang) — LIVE-PROVEN against .122: `TERMLINK_RPC_READ_TIMEOUT_SECS=5` errored at 5.1s ("RPC ''channel.subscribe'' response timeout after 5s...") where the pre-fix binary hung >2m16s'
+  - 'Working verbs unregressed: `channel list --hub <tcp>` (exit 0 vs .122) and local-unix `channel info` (exit 0) behave exactly as before (unix path untouched)'
+  - 'Unit test covers `call_with_timeout` expiry (server that accepts but never replies → `TimedOut` within bound) and pass-through success — both pass'
+  - 'Full CLI + session test suites green (session 380+1+16+20+1; CLI `termlink` 958+3+174 — the CLI crate''s package name is `termlink`)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'bound TCP RPC reads — Client::call_with_timeout + rpc_call_authed read deadline (TERMLINK_RPC_READ_TIMEOUT_SECS, default 30s); wedged channel info/unread now error at the bound instead of hanging forever'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-07-04 — Client-side read deadline (not hub-side walk fix) as this task''s scope'
+    chose: 'bound every TCP RPC read in `rpc_call_authed` via a new `Client::call_with_timeout` (default 30s, `TERMLINK_RPC_READ_TIMEOUT_SECS` override clamped 1..=600); map expiry to `ClientError::Io(TimedOut)` so no caller error-handling changes.'
+    rationale: 'the CLI hanging FOREVER is the operator-facing defect regardless of why the hub stalls; the client must never trust a remote to reply. The hub-side record-walk starvation is a pre-documented separate concern (T-2258 note in termlink-hub channel.rs:947-960) with its own remediation path. 30s default is generous for a single ≤1000-record page while still converting a wedge into an actionable error.'
+    alternatives_rejected: ['new ClientError::Timeout variant (forces match-arm churn in every caller for zero benefit — Io(TimedOut) is idiomatic and matches connect_addr_with_timeout, T-1678); fixing the hub walk here (different subsystem, different failure domain, deserves its own task/testing); per-verb timeouts (the gap is structural in the shared helper — fixing it once covers every current and future multi-RPC verb).']
+  - decision: '2026-07-04 — Stale-binary verification trap (PL-209 replay)'
+    chose: 're-run the live probe after confirming `target/debug/termlink` mtime postdates the edit.'
+    rationale: 'the first live probe ran while `cargo test -p termlink` was still compiling — it exercised the PRE-fix binary and "disproved" a working fix (hung 2m16s). Same class as PL-209 (probing an old in-memory hub image). Check artifact freshness before interpreting a negative probe result.'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-session/src/client.rs'
+  - '.tasks/active/T-2354-channel-infounread-hang-indefinitely-ove.md'
+  - '.tasks/completed/T-2353-agent-sendsh-doorbell-inject-ignores-pee.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-04T15:27:41"
+    action: "T-2354: bound TCP RPC reads — Client::call_with_timeout + rpc_call_authed read deadline (TERMLINK_RPC_READ_TIMEOUT_SECS, default 30s); wedged channel info/unread now error at the bound instead of hanging forever"
+  - time: "2026-07-04T15:29:31"
+    action: "T-2354: verification commands — gate suites on cargo exit code (L-387 SIGPIPE on grep -vq over full test output)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 20 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 20
+  commits: 2
+  files_changed: 4
+  lines_added: 170
+  lines_removed: 19
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2354-channel-infounread-hang-indefinitely-ove.md
+generated_by: context-agent-hybrid
