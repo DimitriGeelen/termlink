@@ -33,9 +33,12 @@ concerns:
   what_works_now: "Local preflight Check 5 (T-2184) catches the local stale-hub case ad-hoc. fleet doctor shows per-hub versions + skew hint when an operator reads it. Both live prod hubs now at 0.11.296 (sha-identical fleet-wide)."
   what_remains: "(1) Fleet-tier stale-binary canary: daily cron walking hubs.toml, per reachable hub compare served version (fleet doctor Tier-A) against local VERSION (or a pinned floor) AND flag deleted-exe hubs where a session exists to probe /proc — append to .context/working/.fleet-stale-binary-canary.log (empty-log-healthy convention, /canaries auto-discovers). (2) Arc-closure semantics: 'shipped' checklists should include a capability-live check on at least the primary hub (a one-line Verification on the arc-closing task). (3) Optional: deploy scripts print a loud 'hub restart required' epilogue when they detect a running hub on the replaced binary (T-2052 install-time-gap pattern, applied to restarts)."
   mitigation_candidate: "Small build task for (1) — same skeleton as check-mirror-freshness.sh; version-compare via fleet doctor, deleted-exe probe only where a remote session exists (else version-compare alone). (2) is a one-line arc-template change."
+  mitigation_progress:
+    - date: 2026-07-05
+      detail: "what_remains (1) shipped as T-2359: scripts/check-fleet-binary-freshness.sh walks fleet doctor --json and FIRES when a reachable hub serves below its declared floor (.context/cron/fleet-version-floors.conf; per-hub floors, `-` exempt for foreign lineages — skew comparison rejected as structurally unsound since patch = commits-since-tag is not comparable across build lineages). Unknown-version on a floored reachable hub also fires; unreachable hubs informational (PL-219). Daily cron installed (/etc/cron.d/termlink-fleet-binary-canary, 06:03 UTC) + T-2175-parameterized meta-canary line; log .context/working/.fleet-binary-canary.log (empty-log-healthy, /canaries auto-discovers); 14-case hub-independent test suite. Live proof at ship time: fires on ring20-management 0.11.296 < floor 0.11.324 (the walk-deadline rails .122 still lacks) — the exact G-069 signal, now surfaced daily instead of discovered by accident. what_remains (2) arc-closure capability-live check and (3) deploy-script restart epilogue still open — keep watching until (2) lands or one full canary cycle confirms the cron fires."
   status: watching
   created: 2026-07-04
-  related_tasks: [T-2350, T-2351, T-2184, T-2154]
+  related_tasks: [T-2350, T-2351, T-2184, T-2154, T-2359]
 - id: G-068
   type: gap
   title: "Human-AC tick via Bash bulk edit bypasses the T-1731 hook and nothing detects it post-hoc — T-2276 [REVIEW] AC sat ticked 9 days with no decision recorded"

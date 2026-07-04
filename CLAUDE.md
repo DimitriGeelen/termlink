@@ -243,6 +243,40 @@ the mirror-drift, substrate-preflight, framework-pickup, frozen-husk,
 topic-growth, and task-finalization canaries above — all seven follow the same
 "empty-log = healthy" convention.
 
+### Fleet binary-freshness canary (T-2359, G-069 prevention)
+
+G-069: fleet hubs ran stale/deleted-exe binaries for weeks with nothing firing —
+.122 served a pre-arc-004 feature set for ~13 days while the push-transport arc
+was recorded closed=shipped, and .107 itself was 26 hub-side commits stale.
+`fleet doctor` prints per-hub `hub_version` + a `fleet_versions` histogram, but
+nothing FIRES on it, and preflight Check 5 (T-2184) covers only the LOCAL hub.
+A daily cron runs `scripts/check-fleet-binary-freshness.sh --quiet` (see
+`.context/cron/fleet-binary-canary.crontab`) and appends to
+`.context/working/.fleet-binary-canary.log`. Empty log = healthy.
+
+The canary walks `fleet doctor --json` and FIRES (exit 1) when any **reachable**
+hub serves a version below its **declared floor** in
+`.context/cron/fleet-version-floors.conf` (`<hub-name> <min-version|->`; `-` =
+exempt, optional `*` default row). It is deliberately NOT cross-hub skew
+detection: patch numbers are commits-since-tag and are NOT comparable across
+build lineages (ring20-dashboard serves 0.11.806 from its own fork — numerically
+"newest" while lacking our commits) — never set a floor for a hub whose binary
+you don't build. Unknown `hub_version` on a reachable floored hub DOES fire (a
+hub too old to report its version is the staleness class itself); unreachable
+hubs are informational, never firing (PL-219 — `fleet doctor`/`fleet status`
+already surface down hubs). **Bump the floor when hub-side rails ship** — that
+is the operator's declaration that "shipped" must mean "capability-live"; the
+canary then names lagging hubs daily until they restart onto the new binary.
+Ad-hoc check: `bash scripts/check-fleet-binary-freshness.sh` (exit 0 = healthy,
+1 = firing, 2 = tooling error); add `--json` for scripting, `--floors P` for an
+alternate floors file. Test hook `TERMLINK_FLEET_FRESHNESS_TEST_JSON=<file>`
+feeds canned `fleet doctor --json` for hub-independent verification (PL-213).
+Operator action on firing: restart the named hub onto the upgraded binary
+(systemd hosts: THROUGH the unit — stop any detached process, let systemd
+start; see G-070/preflight Check 6), or adjust the floor/exemption if the
+expectation changed. `/canaries` auto-discovers the log. Pair with the seven
+canaries above — all eight follow the same "empty-log = healthy" convention.
+
 ## Project-Specific Rules
 
 ### Hub Auth Rotation Protocol

@@ -1,0 +1,32 @@
+# T-2359 — fleet binary-freshness canary (G-069 prevention).
+#
+# Source of truth: /opt/termlink/.context/cron/fleet-binary-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-fleet-binary-canary (USER field syntax — do NOT load into a user crontab)
+#
+# Daily check that every reachable hub with a declared version floor
+# (.context/cron/fleet-version-floors.conf) is SERVING at/above that floor —
+# the in-memory process, not the on-disk binary. Catches the G-069 class:
+# binary upgraded on disk but the hub never restarted (deleted-exe inode
+# serving a pre-arc feature set for weeks), and "arc closed=shipped" while
+# no prod hub serves the rails.
+#
+# Exit 0 from --quiet means healthy and prints nothing; the log accumulates
+# only firing entries (framed === ts === ... ---), so an empty log is the
+# healthy state. /canaries auto-discovers the log.
+#
+# Operator action on firing: restart the named hub onto the upgraded binary
+# (systemd hosts: THROUGH the unit — stop any detached process, let systemd
+# start; see G-070), or adjust the floor/exemption in fleet-version-floors.conf
+# if the expectation changed. Bump floors when hub-side rails ship.
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 06:03 UTC — minute :03 chosen to dodge :13 mirror canary, :17
+# heartbeat, :23 substrate-preflight, :33 meta-canary, :43 rollout audit.
+# Runs as root so cwd-into the repo doesn't trip permissions on .context/.
+3 6 * * * root cd /opt/termlink && bash scripts/check-fleet-binary-freshness.sh --quiet >> .context/working/.fleet-binary-canary.log 2>&1
+
+# T-1723/T-2175 — meta-canary: fires 80 minutes later, different minute, so a
+# cron lock or load race can't take both out together. --quiet means the log
+# only grows when the canary's heartbeat is stale (canary itself broke).
+23 7 * * * root cd /opt/termlink && HEARTBEAT_FILE=.context/working/.fleet-binary-canary.heartbeat CANARY_NAME="fleet-binary canary" CANARY_PROBE_CMD="bash scripts/check-fleet-binary-freshness.sh --quiet --no-heartbeat" CANARY_CRON_PATH=/etc/cron.d/termlink-fleet-binary-canary bash scripts/check-canary-aliveness.sh --quiet >> .context/working/.canary-aliveness.log 2>&1
