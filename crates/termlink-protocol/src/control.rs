@@ -403,6 +403,18 @@ pub mod error_code {
     /// Operators see this as `hub at capacity (retry in 1000ms)` in the
     /// CLI.
     pub const HUB_AT_CAPACITY: i64 = -32019;
+    /// T-2355 — server-side record-walk deadline (`TERMLINK_WALK_DEADLINE_MS`,
+    /// default 20s) expired before `channel.subscribe` / `channel.receipts`
+    /// finished walking the topic. LOUD-refuse instead of holding a
+    /// blocking-pool thread indefinitely (the T-2258 starvation class that
+    /// `spawn_blocking` alone cannot bound). Data field:
+    /// `{deadline_ms: u64, records_scanned: u64, next_cursor: u64}` —
+    /// `next_cursor` is the first unwalked offset so callers can resume
+    /// the walk in bounded pages instead of retrying from scratch
+    /// (`next_cursor` is meaningful for `channel.subscribe`; for
+    /// `channel.receipts`, which aggregates the whole topic, resume is
+    /// not offered — a partial receipt map would be wrong data).
+    pub const WALK_DEADLINE_EXCEEDED: i64 = -32020;
 }
 
 /// Default `protocol_version` when the field is missing on the wire.
@@ -742,5 +754,12 @@ mod tests {
         // T-2048 — locks the wire value so clients can pin the code in their
         // error taxonomy. Bumping requires a coordinated client+hub release.
         assert_eq!(error_code::HUB_AT_CAPACITY, -32019);
+    }
+
+    #[test]
+    fn walk_deadline_exceeded_const_is_stable_wire_value() {
+        // T-2355 — locks the wire value so clients can pin the code in their
+        // error taxonomy. Bumping requires a coordinated client+hub release.
+        assert_eq!(error_code::WALK_DEADLINE_EXCEEDED, -32020);
     }
 }

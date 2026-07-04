@@ -835,6 +835,90 @@ pub(crate) async fn handle_channel_post_with_peer(
     }
 }
 
+/// T-2355: server-side record-walk deadline. `spawn_blocking` (T-2258)
+/// keeps the reactor alive under concurrent walks, but a slow or wedged
+/// walk still holds its blocking-pool thread indefinitely — under K such
+/// walks the pool saturates and reads wedge fleet-wide while O(1) posts
+/// stay fast (the .122 field symptom). Each walk is therefore bounded by
+/// `TERMLINK_WALK_DEADLINE_MS` (default 20_000, clamped 100..=600_000 —
+/// deliberately UNDER the T-2354 client read-timeout default of 30s so
+/// clients receive the server's structured `WALK_DEADLINE_EXCEEDED`
+/// error, not an opaque client-side timeout).
+fn walk_deadline_from_env() -> std::time::Duration {
+    let ms = std::env::var("TERMLINK_WALK_DEADLINE_MS")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .map(|v| v.clamp(100, 600_000))
+        .unwrap_or(20_000);
+    std::time::Duration::from_millis(ms)
+}
+
+/// Outcome of a deadline-bounded `channel.subscribe` record walk (T-2355).
+struct SubscribeWalk {
+    messages: Vec<Value>,
+    last_offset: Option<u64>,
+    error_msg: Option<String>,
+    deadline_hit: bool,
+    records_scanned: u64,
+}
+
+/// The `channel.subscribe` record walk, factored out of the
+/// `spawn_blocking` closure so tests can drive it with an explicit
+/// `deadline`. The deadline is checked at the top of each iteration —
+/// BEFORE the fetched record is processed — so `last_offset` only ever
+/// covers fully-processed records and the caller-computed resume cursor
+/// (`last_offset + 1`) never skips one.
+fn walk_subscribe_records(
+    iter: termlink_bus::SubscribeIter,
+    conversation_id_filter: Option<String>,
+    in_reply_to_filter: Option<String>,
+    limit: usize,
+    deadline: std::time::Duration,
+) -> SubscribeWalk {
+    let started = std::time::Instant::now();
+    let mut messages: Vec<Value> = Vec::new();
+    let mut last_offset: Option<u64> = None;
+    let mut error_msg: Option<String> = None;
+    let mut deadline_hit = false;
+    let mut records_scanned: u64 = 0;
+    for item in iter {
+        if started.elapsed() >= deadline {
+            deadline_hit = true;
+            break;
+        }
+        let (offset, env) = match item {
+            Ok(x) => x,
+            Err(e) => {
+                error_msg = Some(format!("channel.subscribe decode: {e}"));
+                break;
+            }
+        };
+        records_scanned += 1;
+        last_offset = Some(offset);
+        if let Some(ref cid) = conversation_id_filter
+            && env.metadata.get("conversation_id").map(|s| s.as_str()) != Some(cid.as_str())
+        {
+            continue;
+        }
+        if let Some(ref parent) = in_reply_to_filter
+            && env.metadata.get("in_reply_to").map(|s| s.as_str()) != Some(parent.as_str())
+        {
+            continue;
+        }
+        messages.push(envelope_to_json(offset, &env));
+        if messages.len() >= limit {
+            break;
+        }
+    }
+    SubscribeWalk {
+        messages,
+        last_offset,
+        error_msg,
+        deadline_hit,
+        records_scanned,
+    }
+}
+
 /// `channel.subscribe(topic, cursor?, limit?)` → `{messages, next_cursor}`.
 pub async fn handle_channel_subscribe(id: Value, params: &Value) -> RpcResponse {
     let bus = match bus_or_err(id.clone()) {
@@ -958,35 +1042,19 @@ pub(crate) async fn handle_channel_subscribe_with(
     // which never consumes a worker thread, so the reactor and other RPCs
     // keep progressing regardless of how many walks are in flight. The
     // owned `ReaderIter` + owned filters are moved into the closure.
-    let walk_result = match tokio::task::spawn_blocking(move || {
-        let mut messages: Vec<Value> = Vec::new();
-        let mut last_offset: Option<u64> = None;
-        let mut error_msg: Option<String> = None;
-        for item in iter {
-            let (offset, env) = match item {
-                Ok(x) => x,
-                Err(e) => {
-                    error_msg = Some(format!("channel.subscribe decode: {e}"));
-                    break;
-                }
-            };
-            last_offset = Some(offset);
-            if let Some(ref cid) = conversation_id_filter
-                && env.metadata.get("conversation_id").map(|s| s.as_str()) != Some(cid.as_str())
-            {
-                continue;
-            }
-            if let Some(ref parent) = in_reply_to_filter
-                && env.metadata.get("in_reply_to").map(|s| s.as_str()) != Some(parent.as_str())
-            {
-                continue;
-            }
-            messages.push(envelope_to_json(offset, &env));
-            if messages.len() >= limit {
-                break;
-            }
-        }
-        (messages, last_offset, error_msg)
+    // T-2355 bounds each walk with a server-side deadline (see
+    // `walk_deadline_from_env`) — a wedged walk now LOUD-refuses with
+    // `WALK_DEADLINE_EXCEEDED` + resumable `data.next_cursor` instead of
+    // holding its blocking-pool thread forever.
+    let deadline = walk_deadline_from_env();
+    let walk = match tokio::task::spawn_blocking(move || {
+        walk_subscribe_records(
+            iter,
+            conversation_id_filter,
+            in_reply_to_filter,
+            limit,
+            deadline,
+        )
     })
     .await
     {
@@ -999,11 +1067,28 @@ pub(crate) async fn handle_channel_subscribe_with(
             .into();
         }
     };
-    let (messages, last_offset, error_msg) = walk_result;
-    if let Some(msg) = error_msg {
+    if let Some(msg) = walk.error_msg {
         return ErrorResponse::internal_error(id, &msg).into();
     }
-    let next_cursor = last_offset.map(|o| o + 1).unwrap_or(cursor);
+    let next_cursor = walk.last_offset.map(|o| o + 1).unwrap_or(cursor);
+    if walk.deadline_hit {
+        return ErrorResponse::with_data(
+            id,
+            error_code::WALK_DEADLINE_EXCEEDED,
+            &format!(
+                "channel.subscribe walk deadline exceeded after {}ms on '{topic}' ({} records scanned) — resume from data.next_cursor or raise TERMLINK_WALK_DEADLINE_MS",
+                deadline.as_millis(),
+                walk.records_scanned
+            ),
+            json!({
+                "deadline_ms": deadline.as_millis() as u64,
+                "records_scanned": walk.records_scanned,
+                "next_cursor": next_cursor,
+            }),
+        )
+        .into();
+    }
+    let messages = walk.messages;
 
     // T-2027/T-2089 slice 2 — assemble the current-value prefix from the
     // cv_index. Each entry is a single O(1) seek-and-read via
@@ -1054,6 +1139,77 @@ pub(crate) async fn handle_channel_subscribe_with(
     Response::success(id, body).into()
 }
 
+/// Latest receipt seen for one sender during a `channel.receipts` walk
+/// (T-1329; hoisted to module scope by T-2355 so the factored walk fn
+/// can name it).
+struct ReceiptEntry {
+    up_to: u64,
+    ts: i64,
+}
+
+/// Outcome of a deadline-bounded `channel.receipts` record walk (T-2355).
+struct ReceiptsWalk {
+    latest: HashMap<String, ReceiptEntry>,
+    error_msg: Option<String>,
+    deadline_hit: bool,
+    records_scanned: u64,
+}
+
+/// The `channel.receipts` record walk, factored out of the
+/// `spawn_blocking` closure so tests can drive it with an explicit
+/// `deadline`. Unlike the subscribe walk, a deadline hit here yields NO
+/// usable partial result — the receipt map is a whole-topic aggregate and
+/// a partial map would silently under-report `up_to` marks — so the
+/// handler LOUD-refuses without a resume cursor.
+fn walk_receipt_records(
+    iter: termlink_bus::SubscribeIter,
+    deadline: std::time::Duration,
+) -> ReceiptsWalk {
+    let started = std::time::Instant::now();
+    let mut latest: HashMap<String, ReceiptEntry> = HashMap::new();
+    let mut error_msg: Option<String> = None;
+    let mut deadline_hit = false;
+    let mut records_scanned: u64 = 0;
+    for item in iter {
+        if started.elapsed() >= deadline {
+            deadline_hit = true;
+            break;
+        }
+        let (_offset, env) = match item {
+            Ok(x) => x,
+            Err(e) => {
+                error_msg = Some(format!("channel.receipts decode: {e}"));
+                break;
+            }
+        };
+        records_scanned += 1;
+        if env.msg_type != "receipt" {
+            continue;
+        }
+        let Some(up_to_str) = env.metadata.get("up_to") else {
+            continue;
+        };
+        let Ok(up_to) = up_to_str.parse::<u64>() else {
+            continue;
+        };
+        let ts = env.ts_unix_ms;
+        let sender = env.sender_id.clone();
+        match latest.get(&sender) {
+            Some(prev) if prev.ts > ts => {}
+            Some(prev) if prev.ts == ts && prev.up_to >= up_to => {}
+            _ => {
+                latest.insert(sender, ReceiptEntry { up_to, ts });
+            }
+        }
+    }
+    ReceiptsWalk {
+        latest,
+        error_msg,
+        deadline_hit,
+        records_scanned,
+    }
+}
+
 /// `channel.receipts(topic)` → `{topic, receipts: [{sender_id, up_to, ts_unix_ms}, ...]}`.
 /// T-1329. Server-side aggregation of `m.receipt` envelopes — walks the topic
 /// once on the hub, keeps only the latest receipt per sender (latest-wins by
@@ -1090,48 +1246,16 @@ pub(crate) async fn handle_channel_receipts_with(
             return ErrorResponse::internal_error(id, &format!("channel.receipts: {e}")).into();
         }
     };
-    struct Receipt {
-        up_to: u64,
-        ts: i64,
-    }
     // T-2013/T-2258: synchronous bus.subscribe iter walk — same root
     // cause as handle_channel_subscribe_with above. Run it on the
     // dedicated blocking pool via spawn_blocking (NOT block_in_place,
     // which pins a worker and starves the reactor under concurrent
     // large-topic reads — see the T-2258 note on the subscribe walk).
-    let walk_result = match tokio::task::spawn_blocking(move || {
-        let mut latest: HashMap<String, Receipt> = HashMap::new();
-        let mut error_msg: Option<String> = None;
-        for item in iter {
-            let (_offset, env) = match item {
-                Ok(x) => x,
-                Err(e) => {
-                    error_msg = Some(format!("channel.receipts decode: {e}"));
-                    break;
-                }
-            };
-            if env.msg_type != "receipt" {
-                continue;
-            }
-            let Some(up_to_str) = env.metadata.get("up_to") else {
-                continue;
-            };
-            let Ok(up_to) = up_to_str.parse::<u64>() else {
-                continue;
-            };
-            let ts = env.ts_unix_ms;
-            let sender = env.sender_id.clone();
-            match latest.get(&sender) {
-                Some(prev) if prev.ts > ts => {}
-                Some(prev) if prev.ts == ts && prev.up_to >= up_to => {}
-                _ => {
-                    latest.insert(sender, Receipt { up_to, ts });
-                }
-            }
-        }
-        (latest, error_msg)
-    })
-    .await
+    // T-2355 bounds the walk with the same server-side deadline as the
+    // subscribe walk — LOUD-refuse over holding a blocking thread forever.
+    let deadline = walk_deadline_from_env();
+    let walk = match tokio::task::spawn_blocking(move || walk_receipt_records(iter, deadline))
+        .await
     {
         Ok(r) => r,
         Err(e) => {
@@ -1142,11 +1266,26 @@ pub(crate) async fn handle_channel_receipts_with(
             .into();
         }
     };
-    let (latest, error_msg) = walk_result;
-    if let Some(msg) = error_msg {
+    if let Some(msg) = walk.error_msg {
         return ErrorResponse::internal_error(id, &msg).into();
     }
-    let mut entries: Vec<(String, Receipt)> = latest.into_iter().collect();
+    if walk.deadline_hit {
+        return ErrorResponse::with_data(
+            id,
+            error_code::WALK_DEADLINE_EXCEEDED,
+            &format!(
+                "channel.receipts walk deadline exceeded after {}ms on '{topic}' ({} records scanned) — receipts aggregate the whole topic, so no partial result is offered; raise TERMLINK_WALK_DEADLINE_MS or sweep the topic's retention",
+                deadline.as_millis(),
+                walk.records_scanned
+            ),
+            json!({
+                "deadline_ms": deadline.as_millis() as u64,
+                "records_scanned": walk.records_scanned,
+            }),
+        )
+        .into();
+    }
+    let mut entries: Vec<(String, ReceiptEntry)> = walk.latest.into_iter().collect();
     entries.sort_by(|a, b| a.0.cmp(&b.0));
     let arr: Vec<Value> = entries
         .iter()
@@ -1908,6 +2047,153 @@ mod tests {
     use serde_json::json;
     use tempfile::TempDir;
     use termlink_protocol::jsonrpc::RpcResponse;
+
+    // ── T-2355: deadline-bounded record walks ────────────────────────────
+
+    fn walk_test_env(n: u64, msg_type: &str, up_to: Option<u64>) -> Envelope {
+        let mut metadata = std::collections::BTreeMap::new();
+        if let Some(u) = up_to {
+            metadata.insert("up_to".to_string(), u.to_string());
+        }
+        Envelope {
+            topic: "walk-test".into(),
+            sender_id: format!("sender-{n}"),
+            msg_type: msg_type.into(),
+            payload: format!("m{n}").into_bytes(),
+            artifact_ref: None,
+            ts_unix_ms: 1000 + n as i64,
+            metadata,
+        }
+    }
+
+    /// Synthetic SubscribeIter: `count` note records at offsets 0..count.
+    /// When `sleep_from_second_ms > 0`, every fetch AFTER the first sleeps
+    /// that long — lets tests deterministically trip a small deadline
+    /// between record 1 and record 2.
+    fn walk_test_iter(count: u64, sleep_from_second_ms: u64) -> termlink_bus::SubscribeIter {
+        let mut n = 0u64;
+        Box::new(std::iter::from_fn(move || {
+            if n >= count {
+                return None;
+            }
+            if n > 0 && sleep_from_second_ms > 0 {
+                std::thread::sleep(std::time::Duration::from_millis(sleep_from_second_ms));
+            }
+            let item = Ok((n, walk_test_env(n, "note", None)));
+            n += 1;
+            Some(item)
+        }))
+    }
+
+    #[test]
+    fn subscribe_walk_zero_deadline_hits_before_any_record() {
+        let walk = walk_subscribe_records(
+            walk_test_iter(5, 0),
+            None,
+            None,
+            100,
+            std::time::Duration::ZERO,
+        );
+        assert!(walk.deadline_hit, "zero deadline must trip immediately");
+        assert_eq!(walk.records_scanned, 0);
+        assert_eq!(walk.last_offset, None, "no record processed → resume at original cursor");
+        assert!(walk.messages.is_empty());
+        assert!(walk.error_msg.is_none());
+    }
+
+    #[test]
+    fn subscribe_walk_generous_deadline_completes_full_topic() {
+        let walk = walk_subscribe_records(
+            walk_test_iter(5, 0),
+            None,
+            None,
+            100,
+            std::time::Duration::from_secs(60),
+        );
+        assert!(!walk.deadline_hit);
+        assert_eq!(walk.records_scanned, 5);
+        assert_eq!(walk.messages.len(), 5);
+        assert_eq!(walk.last_offset, Some(4));
+        assert!(walk.error_msg.is_none());
+    }
+
+    #[test]
+    fn subscribe_walk_mid_deadline_preserves_resume_cursor() {
+        // Record 0 fetches instantly and is processed inside the 5ms
+        // budget; record 1's fetch sleeps 50ms, so the top-of-loop check
+        // trips BEFORE record 1 is processed. last_offset must cover only
+        // the fully-processed record 0 → resume cursor 1 re-reads nothing
+        // and skips nothing.
+        let walk = walk_subscribe_records(
+            walk_test_iter(3, 50),
+            None,
+            None,
+            100,
+            std::time::Duration::from_millis(5),
+        );
+        assert!(walk.deadline_hit);
+        assert_eq!(walk.records_scanned, 1);
+        assert_eq!(walk.last_offset, Some(0));
+        assert_eq!(walk.messages.len(), 1);
+    }
+
+    #[test]
+    fn receipts_walk_zero_deadline_hits_before_any_record() {
+        let walk = walk_receipt_records(walk_test_iter(3, 0), std::time::Duration::ZERO);
+        assert!(walk.deadline_hit);
+        assert_eq!(walk.records_scanned, 0);
+        assert!(walk.latest.is_empty());
+        assert!(walk.error_msg.is_none());
+    }
+
+    #[test]
+    fn receipts_walk_generous_deadline_aggregates_latest_per_sender() {
+        let mut n = 0u64;
+        let iter: termlink_bus::SubscribeIter = Box::new(std::iter::from_fn(move || {
+            if n >= 3 {
+                return None;
+            }
+            // Two receipts from the same sender (up_to 5 then 9) + one note.
+            let env = match n {
+                0 => {
+                    let mut e = walk_test_env(0, "receipt", Some(5));
+                    e.sender_id = "peer-a".into();
+                    e
+                }
+                1 => walk_test_env(1, "note", None),
+                _ => {
+                    let mut e = walk_test_env(2, "receipt", Some(9));
+                    e.sender_id = "peer-a".into();
+                    e
+                }
+            };
+            let item = Ok((n, env));
+            n += 1;
+            Some(item)
+        }));
+        let walk = walk_receipt_records(iter, std::time::Duration::from_secs(60));
+        assert!(!walk.deadline_hit);
+        assert_eq!(walk.records_scanned, 3);
+        assert_eq!(walk.latest.len(), 1);
+        assert_eq!(walk.latest.get("peer-a").expect("peer-a receipt").up_to, 9);
+    }
+
+    #[test]
+    fn walk_deadline_env_default_and_clamp() {
+        // No env (or unparseable) → 20s default; clamp bounds 100..=600_000.
+        // set_var/remove_var within one test — walk_deadline_from_env is
+        // only read by handlers, whose test walks finish well inside even
+        // the clamped 100ms floor, so transient exposure is harmless.
+        unsafe { std::env::remove_var("TERMLINK_WALK_DEADLINE_MS") };
+        assert_eq!(walk_deadline_from_env().as_millis(), 20_000);
+        unsafe { std::env::set_var("TERMLINK_WALK_DEADLINE_MS", "1") };
+        assert_eq!(walk_deadline_from_env().as_millis(), 100, "clamped to floor");
+        unsafe { std::env::set_var("TERMLINK_WALK_DEADLINE_MS", "999999999") };
+        assert_eq!(walk_deadline_from_env().as_millis(), 600_000, "clamped to ceiling");
+        unsafe { std::env::set_var("TERMLINK_WALK_DEADLINE_MS", "garbage") };
+        assert_eq!(walk_deadline_from_env().as_millis(), 20_000, "unparseable → default");
+        unsafe { std::env::remove_var("TERMLINK_WALK_DEADLINE_MS") };
+    }
 
     // T-2058: high-rate-pattern matcher exhaustiveness.
     #[test]
