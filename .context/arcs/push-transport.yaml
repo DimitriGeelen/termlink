@@ -14,7 +14,7 @@ headline_mechanic: "A live agent receives a DM the instant it is posted via a hu
   \ topics, receipts, journal and offline queue stay authoritative underneath."
 demo_evidence: "docs/reports/T-2310-arc-004-ws-push-demo.md"
 # Follow-on wire evidence (past the GO(scoped) surface, both T-2311/T-2312 GO'd + built):
-#   T-2313 WS-over-Unix push:        docs/reports/T-2313-arc-004-ws-over-unix-inception.md (built; 31ms Unix push)
+#   T-2313 WS-over-Unix push:        docs/reports/T-2312-arc-004-ws-over-unix-inception.md (built; 31ms Unix push; demo scripts/demo-ws-push-unix.sh)
 #   T-2314 active reconnect-to-WS:   docs/reports/T-2314-arc-004-active-reconnect-demo.md  (built; resumes push after blip)
 #   T-2315 wake-path integration:    docs/reports/T-2315-arc-004-wake-path-integration-inception.md (inception GO/Option A)
 #   T-2316 push-waker (WP1):         docs/reports/T-2316-arc-004-pushwaker-demo.md          (built; inbox deposit rings PTY 172ms via push — WS now LOAD-BEARING)
@@ -24,8 +24,20 @@ demo_evidence: "docs/reports/T-2310-arc-004-ws-push-demo.md"
 # Post-close verification + documentation (arc already closed=shipped; these firm up + consolidate, no reopen):
 #   T-2320 latency benchmark:        docs/reports/T-2320-arc-004-pushwake-latency-benchmark.md (verified; 85-111ms median full-wake vs ~15s floor — retires the T-2303 §10 "reason to DEFER" gap; scripts/bench-pushwake-latency.sh; PL-235)
 #   T-2321 operator recipe:          docs/operations/push-transport-recipe.md                  (doc; consolidates the shipped push-wake path into one master operator recipe)
-# Decision-ready follow-on (NOT built — awaiting human inception GO):
-#   T-2322 dm-rail push-wake:        .tasks/active/T-2322-*.md                                 (captured inception; verified gap — direct dm: posts by a non-live-sender don't push-wake the receiver; channel.rs:752)
+# dm-rail push-wake lineage (T-2322 inception GO'd 2026-07-03 → built + live-E2E'd; corrects the earlier "awaiting GO" note here):
+#   T-2322 dm-rail inception:        .tasks/completed/T-2322-*.md                              (GO; verified gap — direct dm: posts by a non-live-sender didn't push-wake the receiver)
+#   T-2323 hub dm.queued emit:       .tasks/completed/T-2323-*.md                              (built; hub addresses dm.queued to the non-sender participant; channel.rs:769-806)
+#   T-2324 waker dm rail:            .tasks/completed/T-2324-*.md                              (built; pushwaker second rail — dm.queued match on self-fp rings the PTY; surfaced PL-236/PL-237)
+#   T-2325 dm-rail live E2E:         .tasks/active/T-2325-*.md                                 (verified live on the real hub — all Agent ACs evidenced; owner:human, finalize pending)
+# Reproducer/verification wave 2026-07-03..04 (E2E regression demos for every delivery path — T-2341/PL-240 coverage pattern):
+#   T-2340 WS re-probe from poll:    .tasks/completed/T-2340-*.md                              (built; poll loop periodically re-probes WS — closes the 6-strike permanent-degrade gap)
+#   T-2341 re-probe recovery demo:   docs/reports/T-2341-arc-004-ws-reprobe-recovery-demo.md   (PASS; also fixed 2 defects found by the demo)
+#   T-2342 dm-rail push-wake demo:   docs/reports/T-2342-arc-004-dm-rail-pushwake-demo.md      (PASS; 3-fingerprint isolated-hub reproducer, positive+negative+inbox-rail)
+#   T-2343 webhook fan-out demo:     docs/reports/T-2343-arc-004-webhook-fanout-demo.md        (PASS; signed POST + HMAC-over-wire + topic-filter + SSRF deny — Candidate B)
+#   T-2344 webhook retry demo:       docs/reports/T-2344-arc-004-webhook-retry-demo.md         (PASS; flaky-sink 503→retry→204, HMAC intact, governor counters move)
+# Decision-ready inceptions awaiting human decide (recommendations filed in task files):
+#   T-2338 WS reconnect-with-backoff: rec NO-GO (loop already exists via T-2314; residual closed by T-2340/41)
+#   T-2339 WS-over-Unix co-located:   rec NO-GO (already shipped by T-2312/13; waker rides Unix by default)
 created: 2026-07-02T15:47:28Z
 closed_at: 2026-07-02T23:13:52Z
 decision: "shipped"
