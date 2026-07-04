@@ -294,4 +294,21 @@ EOF
   termlink fleet doctor 2>&1 | grep -A1 "$HUB" | head -3
 fi
 
+# --- G-069 epilogue: staged-but-not-serving is a silent drift seed -----------
+# T-2361 (G-069 item 3, T-2052 install-time-gap pattern applied to restarts).
+# Staging-only mode leaves the running hub on the OLD binary — the exact seed
+# of the .122 incident (upgraded on disk ~Jun 21, never restarted, served a
+# pre-arc-004 feature set for 13 days). Say so loudly instead of "done."
+if [ "$SWAP" != "1" ] && [ -n "${RUNNING_SHA:-}" ]; then
+  echo ""
+  echo "!!! HUB RESTART REQUIRED — binary staged at $DST but the running hub still"
+  echo "!!! serves the OLD binary (G-069 class: upgraded on disk, never live —"
+  echo "!!! served-feature drift stays invisible for weeks; the .122 hub ran a"
+  echo "!!! 13-day-old deleted inode this way). To activate:"
+  echo "!!!   systemd host:   install -m755 $DST /usr/local/bin/termlink && systemctl restart termlink-hub"
+  echo "!!!   unit-less host: re-run with --swap-restart, or scripts/hub-binary-swap.sh $HUB --staged-path $DST"
+  echo "!!! Backstop: the fleet binary-freshness canary (T-2359) fires daily on any"
+  echo "!!! floored hub serving below expectation — but restart NOW, not when it fires."
+fi
+
 echo "fleet-deploy-binary: done."
