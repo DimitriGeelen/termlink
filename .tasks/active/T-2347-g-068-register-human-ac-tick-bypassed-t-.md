@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-04T09:17:46Z
-last_update: 2026-07-04T09:17:46Z
+last_update: 2026-07-04T09:20:20Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -42,10 +42,13 @@ gone through a path the hook does not see (Bash-scripted bulk edit — the same 
 the sanctioned G-008 batch-evidence pattern, here applied to a Human AC). Nothing detects
 a ticked Human AC after the fact: the invalid tick sat 9 days and was only found by manual
 review during the 2026-07-04 T-2276 recommendation alignment. Register-first (G-019): this
-task registers G-068 in concerns.yaml and corrects the T-2276 record (un-tick the Human AC
-so `fw task review` shows ground truth). The structural detector (audit check: Human AC
-ticked on an inception with empty Decision) is prevention work for a follow-up, sized in
-the gap's what_remains.
+task registers G-068 in concerns.yaml. The record correction itself turned out to be
+human-gated — T-1731 blocks BOTH toggle directions on the Edit path (verified live: the
+un-tick attempt was refused), and the FW_ALLOW_HUMAN_AC_TICK=1 override is Tier-2, not
+delegated — so G-068 carries the operator instruction instead (un-tick, or record the real
+decision via `fw inception decide T-2276 no-go`, which legitimizes the tick). The
+structural detector (audit check: Human AC ticked on an inception with empty Decision) is
+prevention work for a follow-up, sized in the gap's what_remains.
 
 ## Acceptance Criteria
 
