@@ -259,3 +259,30 @@ cargo build -p termlink
   aggravated by a concurrent write to the same topic) from an INDEPENDENT client, and hands the
   human AC a ready repro command for post-deploy verification on .107. ring20 tracks their side
   under the read-path workaround (seek-to-tail reader); root fix is this task's spawn_blocking.
+
+### 2026-07-05 — LIVE .107 re-test PASSED: fix deployed (0.11.324, T-2356/T-2357) + field repro no longer reproduces
+- **Precondition satisfied:** the Human AC's blocking step 1 (deploy fixed binary to .107) was
+  completed by T-2356 (release CLI install) + T-2357 (hub restart under systemd, 2026-07-04).
+  Deployed binary lineage 0.11.324 contains the fix commit `db7c10a5` (spawn_blocking, 2026-06-23).
+  Hub confirmed running from `/var/lib/termlink` (persistent runtime_dir, PL-021-safe).
+- **Trial A — field repro probe (framework:pickup over TCP, 3 trials):** rc=0 at 85/93/87ms.
+  NOTE: framework:pickup has since been swept to 76 rows, so it is no longer a large-topic test —
+  Trials A'/B/C below carry the large-topic load.
+- **Trial A' — large-topic cold read (agent-chat-arc, 5510 rows, over TCP, 3 trials):**
+  rc=0 at 476/523/447ms. Bounded, no hang.
+- **Trial B — exact field repro shape, read-immediately-after-write (scratch topic
+  `smoke:t2258-retest` seeded to 1600 rows ≈ the 1639-row field topic; over TCP
+  192.168.10.107:9100; 5 trials):** post → immediate `channel state` returned rc=0 at
+  150/161/152/146/150ms with row counts advancing 1601→1605. The field symptom (HANG killed at
+  12s on this exact shape) does NOT reproduce.
+- **Trial C — starvation trigger (the RCA mechanism): 8 GENUINELY-CONCURRENT full-topic TCP
+  walks + 3 concurrent writers (5 posts each), all bounded 20s:** all 8 walks returned rc=0 at
+  218–355ms; all 3 writers completed; row counts 1614→1620 consistent with interleaved appends.
+  Pre-fix, K walks > worker_threads parked every worker and starved the reactor — post-fix the
+  walks ride the blocking pool and the reactor stays live.
+- **Cleanup:** scratch topic set to `messages:1` + swept (1619 records pruned) — no cruft left.
+- **Conclusion:** the Human AC's Expected clause ("the read returns within the bound every time,
+  including immediately after a post") is now EVIDENCED live on .107. Box left for the human to
+  tick per the framework rule (agent never ticks `### Human` ACs; G-068). This was the last
+  open item on T-2258 — ready for human finalize
+  (`cd /opt/termlink && .agentic-framework/bin/fw task update T-2258 --status work-completed`).
