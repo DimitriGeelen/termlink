@@ -4,20 +4,20 @@ name: "Pre-existing: 6 mcp_integration tests fail on main (map vs sequence) — 
 description: >
   Discovered during T-2268. On clean main (verified by stashing unrelated edits), 6 tests in crates/termlink-mcp/tests/mcp_integration.rs fail with 'invalid type: map, expected a sequence' at line 97: test_list_sessions_empty/_with_session/_filtered_by_role, test_discover_by_role_and_name, test_topics_specific_session/_with_events. Likely the tool output shape changed array->object OR they need a live hub fixture absent in sandbox. Investigate env-dependence vs genuine breakage; the suite is red either way. Not caused by T-2268 (error-rendering only).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-24T08:32:00Z
-last_update: 2026-07-04T23:20:55Z
-date_finished: null
+last_update: 2026-07-04T23:23:34Z
+date_finished: 2026-07-04T23:23:34Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -214,3 +214,15 @@ consumers of the old shape in the same commit.
 ### 2026-07-04T23:20:55Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-e06ed85a
+- **Timestamp:** 2026-07-04T23:24:10Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-04T23:23:34Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

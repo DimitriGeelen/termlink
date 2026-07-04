@@ -3366,3 +3366,21 @@ scan_id: R-7afbda7d
 task_id: T-2361
 payload:
   task_file: .tasks/active/T-2361-fleet-deploy-binarysh-loud-restart-requi.md
+---
+kind: scan_emitted
+timestamp: '2026-07-04T23:24:10Z'
+scan_id: R-e06ed85a
+task_id: T-2272
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-04T23:24:10Z'
+scan_id: R-e06ed85a
+task_id: T-2272
+payload:
+  task_file: .tasks/active/T-2272-pre-existing-6-mcpintegration-tests-fail.md

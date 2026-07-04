@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2272: Pre-existing: 6 mcp_integration tests fail on main (map vs sequence) — list_sessions/discover/topics
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-04T23:24:13Z
+# ============================================================================
+
+task_id: T-2272
+task_name: "Pre-existing: 6 mcp_integration tests fail on main (map vs sequence) — list_sessions/discover/topics"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-24T08:32:00Z
+completed: 2026-07-04T23:23:34Z
+duration_days: 10
+updates_count: 2
+first_commit: 2026-07-05T01:23:23+02:00
+last_commit: 2026-07-05T01:23:23+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix 6 stale mcp_integration tests — align to T-1918/T-1919 envelope shapes (suite green 99/99)
+
+# Key outcomes
+outcomes:
+  - 'The 6 failing tests (`test_list_sessions_empty` / `_with_session` / `_filtered_by_role`,'
+  - '`cargo test -p termlink-mcp --test mcp_integration` fully green (99 passed, 0 failed, 15.07s).'
+  - 'RCA filled: why the suite sat red ~2 weeks (deliberate shape change shipped without'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix 6 stale mcp_integration tests — align to T-1918/T-1919 envelope shapes (suite green 99/99)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/learnings.yaml'
+  - 'crates/termlink-mcp/tests/mcp_integration.rs'
+  - '.tasks/active/T-2272-pre-existing-6-mcpintegration-tests-fail.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-05T01:23:23"
+    action: "T-2272: fix 6 stale mcp_integration tests — align to T-1918/T-1919 envelope shapes (suite green 99/99)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 15291 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 15291
+  commits: 2
+  files_changed: 5
+  lines_added: 448
+  lines_removed: 33
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2272-pre-existing-6-mcpintegration-tests-fail.md
+generated_by: context-agent-hybrid
