@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-04T13:08:58Z
-last_update: 2026-07-04T13:19:55Z
+last_update: 2026-07-04T13:27:41Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -113,9 +113,9 @@ Verb scope narrowed by live probing against 192.168.10.122:9100 (2026-07-04): `c
 
 # new client tests: silent-server bounded error + success pass-through
 out=$(cargo test -p termlink-session --lib client::tests::call_with_timeout 2>&1); echo "$out" | grep -q "2 passed"
-# suites green
-out=$(cargo test -p termlink-session 2>&1); echo "$out" | grep -vq "FAILED"
-out=$(cargo test -p termlink 2>&1); echo "$out" | grep -vq "FAILED"
+# suites green — gate on cargo's exit code (grep -vq on huge output SIGPIPEs, L-387/T-2090)
+cargo test -q -p termlink-session >/tmp/.t2354-session.out 2>&1
+cargo test -q -p termlink >/tmp/.t2354-cli.out 2>&1
 
 ## RCA
 
