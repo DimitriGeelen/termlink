@@ -4,10 +4,10 @@ name: "Activate T-2355 walk deadline on .107: rebuild, reinstall CLI, restart lo
 description: >
   T-2355 shipped the server-side walk deadline in code (c6e226ee) but the .107 local hub + installed CLI (0.11.321, built pre-c6e226ee) predate it. Rebuild release, reinstall via rm-then-cp (T-2356 pattern), restart the local hub (runtime_dir persists per preflight Check 1 — no rotation expected), verify hub serves the new binary and version >= 0.11.322.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-04T14:56:28Z
-last_update: 2026-07-04T14:56:28Z
-date_finished: null
+last_update: 2026-07-04T15:12:18Z
+date_finished: 2026-07-04T15:12:18Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -185,3 +185,15 @@ termlink hub fingerprint > /tmp/.t2357-fp.out 2>&1 && grep -q "d1bd50f5cb03c4fd"
 - **Action:** Rebuilt (0.11.324 at 5c171bf1), reinstalled via rm-then-cp, stopped the DETACHED hub (PID 3515069), systemd auto-restart took over from the new binary (Main PID 3475796) — T-2355 walk deadline now live on .107
 - **Bonus root-cause:** termlink-hub.service had been crash-looping every 5s for 2178 restarts ("Hub is already running") against the detached hub's pidfile. Flap resolved; hub back under proper supervision (crash-restart + reboot-survival restored). Framework blindness to the class registered as G-070; prevention task T-2358 filed (preflight Check 6)
 - **Evidence:** fingerprint unchanged pre/post (sha256:d1bd50f5…); fleet verify all reachable hubs match; agent-chat-arc walk count=5808 under the active 20s deadline
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-8ddfdffe
+- **Timestamp:** 2026-07-04T15:12:19Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-04T15:12:18Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

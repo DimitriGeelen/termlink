@@ -17,6 +17,10 @@ concerns:
     1. **Preflight Check 6 candidate** — when termlink-hub.service exists: FAIL/WARN if unit state is not `active`, or if `systemctl show -p NRestarts` exceeds a small threshold; cross-check Main PID vs the pidfile's PID (detached-ghost detection: pidfile PID alive but != unit Main PID).
     2. **Canary form** — same check on the daily cron tier (empty-log = healthy convention), so a flap that starts between sessions surfaces within a day instead of on the next manual restart attempt.
   mitigation_candidate: "Preflight Check 6 (unit-health + pidfile-vs-MainPID cross-check) is the lowest-friction insertion — the script already shells systemctl-adjacent probes and has the WARN/FAIL taxonomy."
+  mitigation_progress:
+    - date: 2026-07-04
+      task: T-2358
+      detail: "Preflight Check 6 shipped (check_hub_unit_health): WARNs on crash-looping/failed unit, detached-ghost pidfile-vs-MainPID mismatch, unsupervised live hub, and NRestarts flap residue (> TERMLINK_PREFLIGHT_NRESTARTS_MAX, default 5, acknowledged via systemctl reset-failed). Live-proven against the real 2183-restart residue then 6/6 PASS. The daily substrate-preflight canary (T-2160) runs the same script, so the check is on the cron tier with no extra wiring — both what_remains items (1) and (2) covered. Keep watching for one canary cycle before considering closure."
 - id: G-069
   type: gap
   title: "Fleet hubs run stale/deleted-exe binaries for weeks and nothing surfaces it — .122 hub served a 13-day-old deleted inode lacking the shipped arc-004 rails"

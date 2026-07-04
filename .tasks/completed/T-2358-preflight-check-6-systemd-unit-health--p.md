@@ -4,20 +4,20 @@ name: "Preflight Check 6: systemd unit health + pidfile-vs-MainPID ghost detecti
 description: >
   G-070 prevention: substrate-preflight.sh gains Check 6 — when termlink-hub.service exists, WARN/FAIL if the unit is not active, if NRestarts exceeds threshold, or if the pidfile PID is alive but differs from the unit Main PID (detached-ghost, the T-2357 finding: 2178 silent restart failures while a detached hub held the pidfile). Same WARN/FAIL taxonomy + remediation-hint pattern as Checks 4/5.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/substrate-preflight.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-04T15:11:44Z
-last_update: 2026-07-04T15:12:33Z
-date_finished: null
+last_update: 2026-07-04T21:38:15Z
+date_finished: 2026-07-04T21:38:15Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -186,3 +186,15 @@ grep -q "detached-ghost detection" CLAUDE.md
 
 ### 2026-07-04T15:12:33Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-383b3412
+- **Timestamp:** 2026-07-04T21:38:16Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-04T21:38:15Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
