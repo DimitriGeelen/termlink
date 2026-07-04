@@ -3132,3 +3132,21 @@ scan_id: R-53f4b27c
 task_id: T-2350
 payload:
   task_file: .tasks/active/T-2350-arc-004-fleet-activation-deploy-push-wak.md
+---
+kind: scan_emitted
+timestamp: '2026-07-04T11:59:34Z'
+scan_id: R-7574e73d
+task_id: T-2351
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-04T11:59:34Z'
+scan_id: R-7574e73d
+task_id: T-2351
+payload:
+  task_file: .tasks/active/T-2351-arc-004-local-parity-upgrade-107-hub-to-.md
