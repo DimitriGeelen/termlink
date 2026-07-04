@@ -1959,3 +1959,100 @@ FW_SWITCH_FOCUS=1 .agentic-framewor'
   flag: '--skip-sovereignty'
   caller: 'check_human_sovereignty'
   reason: 'Inception decision: GO'
+- timestamp: '2026-07-02T22:53:48Z'
+  task: 'T-1166'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2319'
+  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2319: arc-004 registry follow-on lines (T-2318 E2E + T-2319 leak-fix) + PL-234 process-group-reap learning" 2>&1 | tail -5'
+- timestamp: '2026-07-02T23:45:13Z'
+  task: '<filing: Inception extend push-wake to dm rail for non-live-sender dm posts>'
+  flag: 'FW_ALLOW_EMPTY_RECOMMENDATION'
+  caller: 'create-task.sh'
+  reason: 'empty-recommendation bypass (create-task.sh inception filing)'
+- timestamp: '2026-07-03T08:35:23Z'
+  task: 'T-2325'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2327'
+  command: 'cd /opt/termlink; git add .tasks/active/T-2327-pushwaker-trap-reaps-only-direct-children.md; FW_SWITCH_FOCUS=1 git commit -q -m "T-2327: capture code-review MINOR — pushwaker trap reaps only direct '
+- timestamp: '2026-07-03T09:49:01Z'
+  task: 'T-2331'
+  flag: '--skip-sovereignty'
+  caller: 'check_human_sovereignty'
+  reason: 'Inception decision: GO'
+- timestamp: '2026-07-03T13:36:00Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2333'
+  command: 'FW_SWITCH_FOCUS=1 git commit -m "T-2333: capture PL-238 — reqwest/rustls aws-lc-rs vs ring crypto-provider collision + fix
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>" 2>&1 | tail -6'
+- timestamp: '2026-07-03T13:36:09Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2333'
+  command: 'FW_SWITCH_FOCUS=1 git add .context/project/learnings.yaml && FW_SWITCH_FOCUS=1 git commit -m "T-2333: capture PL-238 — reqwest/rustls aws-lc-rs vs ring crypto-provider collision + fix
+
+Co-Authored-B'
+- timestamp: '2026-07-03T13:48:08Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2334'
+  command: 'FW_SWITCH_FOCUS=1 git add -A .tasks/completed/T-2334-webhook-fan-out-s3--retrybackoffdead-let.md .context/episodic/T-2334.yaml && FW_SWITCH_FOCUS=1 git commit -m "T-2334: finalize (work-completed) —'
+- timestamp: '2026-07-03T14:09:06Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2335'
+  command: 'FW_SWITCH_FOCUS=1 git commit -m "T-2335: finalize (work-completed) — archive + episodic; webhook S4 governor_status telemetry shipped
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>" 2>&1 |'
+- timestamp: '2026-07-03T14:09:49Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2336'
+  command: 'git add ".tasks/active/T-2336-webhook-fan-out-s5--cli-config-verbs-web.md" && FW_SWITCH_FOCUS=1 git commit -m "T-2336: capture — webhook S5 CLI config verbs (add/list/test), decomposed from S4
+
+Co-A'
+- timestamp: '2026-07-03T16:15:47Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2336'
+  command: 'cd /opt/termlink
+FW_SWITCH_FOCUS=1 git commit -m "T-2336: finalize (work-completed) — archive + episodic; webhook S5 CLI verbs shipped
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>" 2>&1 '
+- timestamp: '2026-07-03T16:21:35Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2337'
+  command: 'cd /opt/termlink
+git add -A .tasks/active/T-2337-webhook-fan-out-s6--operator-recipe-doc.md \
+        .tasks/completed/T-2337-webhook-fan-out-s6--operator-recipe-doc.md \
+        .context/episodic/T-2'
+- timestamp: '2026-07-03T16:22:05Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2337'
+  command: 'cd /opt/termlink
+git add .context/project/learnings.yaml \
+        .context/project/decisions.yaml \
+        .tasks/completed/T-2337-webhook-fan-out-s6--operator-recipe-doc.md
+FW_SWITCH_FOCUS=1 git co'
+- timestamp: '2026-07-03T19:10:34Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2339'
+  command: 'cd /opt/termlink
+git add .tasks/active/T-2338-inception--active-ws-reconnect-with-back.md \
+        .tasks/active/T-2339-inception--ws-over-unix-for-co-located-p.md 2>/dev/null
+ls .tasks/active/T-2338'

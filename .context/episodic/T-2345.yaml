@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2345: Activate R2 presence retention on live hub — topic-growth canary firing
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-04T09:03:30Z
+# ============================================================================
+
+task_id: T-2345
+task_name: "Activate R2 presence retention on live hub — topic-growth canary firing"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-04T08:57:59Z
+completed: 2026-07-04T09:03:25Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-04T11:03:17+02:00
+last_commit: 2026-07-04T11:03:17+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  activate R2 presence retention on live hub — 30,804 -> 4 records, latest-per-cv-key + daily sweep cron (topic-growth canary now healthy)
+
+# Key outcomes
+outcomes:
+  - '`agent-presence` on the live hub has `retention.kind == latest_per_cv_key` (runbook §3 step 2 applied)'
+  - 'Post-sweep `agent-presence` count is under the 5000 canary threshold (runbook §3 step 3 enforced; pre-cv_key residue handled if present) — 30,804 → 4'
+  - 'Daily sweep cron installed to /etc/cron.d + tracked copy in `.context/cron/` (runbook §4 — prevents regrowth between sweeps)'
+  - '`scripts/check-topic-growth-freshness.sh` exits 0 (canary no longer firing) — "healthy — no watched topic over 5000 records"'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-07-04 — pre-cv_key residue handling (two-pass sweep)'
+    chose: 'After the first `latest-per-cv-key` sweep left 13,461 records (heartbeats'
+    rationale: 'Per-key compaction never drops non-cv_key records (runbook §2 — deliberate'
+    alternatives_rejected: ['`messages:N` pass (guessing N; prunes by position not age); leaving the']
+  - decision: '2026-07-04 — sweep cron scheduled at 04:17, before the 05:11 canary'
+    chose: 'Daily sweep at 04:17 UTC in /etc/cron.d/termlink-presence-sweep.'
+    rationale: 'The topic-growth canary runs 05:11; sweeping first means the canary always'
+    alternatives_rejected: ['Runbook''s verbatim 04:17-with-user-crontab example (house convention is']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/presence-sweep.crontab'
+  - '.tasks/active/T-2345-activate-r2-presence-retention-on-live-h.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-04T11:03:17"
+    action: "T-2345: activate R2 presence retention on live hub — 30,804 -> 4 records, latest-per-cv-key + daily sweep cron (topic-growth canary now healthy)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 2
+  lines_added: 231
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2345-activate-r2-presence-retention-on-live-h.md
+generated_by: context-agent-hybrid

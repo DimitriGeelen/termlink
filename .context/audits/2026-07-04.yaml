@@ -1,5 +1,5 @@
-# Audit Results - 2026-07-02-2345
-timestamp: 2026-07-02T21:45:28Z
+# Audit Results - 2026-07-04-1054
+timestamp: 2026-07-04T08:54:20Z
 sections: "structure"
 summary:
   pass: 28
@@ -23,7 +23,7 @@ findings:
   - level: PASS
     check: "All 4 arc anchor_task references resolve to existing tasks"
   - level: PASS
-    check: "All 2 in-progress arc(s) had task commits within 30 days"
+    check: "All 1 in-progress arc(s) had task commits within 30 days"
   - level: PASS
     check: "No inline arc:<slug> tag-only scans outside canonical lib (T-1881)"
   - level: PASS
@@ -31,9 +31,9 @@ findings:
   - level: PASS
     check: "No GO-scope-not-propagated inception(s) (sibling to L-417)"
   - level: PASS
-    check: "Fabric: 157 registered, 0 unregistered"
+    check: "Fabric: 162 registered, 0 unregistered"
   - level: WARN
-    check: "Fabric: 35/145 cards have no edges"
+    check: "Fabric: 31/150 cards have no edges"
     mitigation: "Run: fw fabric enrich"
   - level: WARN
     check: "Fabric drift: 2 source file(s) have no fabric card"

@@ -1,0 +1,8 @@
+id: R-001
+task_id: T-2325
+agent_type: reviewer-dispatched
+timestamp: '2026-07-03T09:25:59Z'
+type: artifact
+summary: 'reviewer: ERROR (rc=0)'
+size_bytes: 69
+payload: 'ERROR: catalogue not found at /opt/termlink/policy/anti-patterns.yaml'

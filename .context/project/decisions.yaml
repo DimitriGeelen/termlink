@@ -626,3 +626,31 @@ decisions:
     date: 2026-07-03
     task: T-2336
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-069
+    decision: "Fix the two poll-loop `?`-exit defects (RPC-level + hub-level) inside T-2341 and"
+    scope: project
+    date: 2026-07-03
+    task: T-2341
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-070
+    decision: "`TERMLINK_WS_REPROBE_POLL_CYCLES` (default 30, clamp 1..=3600), mirroring"
+    scope: project
+    date: 2026-07-03
+    task: T-2341
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-071
+    decision: "After the first `latest-per-cv-key` sweep left 13,461 records (heartbeats"
+    scope: project
+    date: 2026-07-04
+    task: T-2345
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-072
+    decision: "Daily sweep at 04:17 UTC in /etc/cron.d/termlink-presence-sweep."
+    scope: project
+    date: 2026-07-04
+    task: T-2345
+    rationale: "Auto-captured from task file on completion"
