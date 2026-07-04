@@ -4,16 +4,16 @@ name: "Reviewer-agent-assisted inception decides — extend T-1885 rail to verdi
 description: >
   Inception: Reviewer-agent-assisted inception decides — extend T-1885 rail to verdict artifacts
 
-status: captured
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-07-04T09:46:53Z
-last_update: 2026-07-04T09:46:53Z
-date_finished: null
+last_update: 2026-07-04T09:55:42Z
+date_finished: 2026-07-04T09:55:42Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -100,15 +100,15 @@ items, while the recorded decision remains human?
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -165,9 +165,55 @@ Rubber-stamp-class inception decides (mechanically checkable evidence) currently
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale:
+
+Rubber-stamp-class inception decides (mechanically checkable evidence) currently cost the human full-read review; an independent reviewer agent (fresh context, read-only) can validate the recommendation's evidence and attach a verdict artifact Watchtower shows beside the recommendation, shrinking the human decide to one keystroke while the recorded decision stays human (sovereignty boundary intact). Bounded: reuses the shipped fw independent-review v0.1 rail (T-1885); G-068 shows why the decide itself must remain human-only.
+
+Evidence:
+
+**Date**: 2026-07-04T09:55:41Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-07-04T09:50Z — pickup filed [agent]
+- **Action:** Proposal relayed upstream as /opt/999-Agentic-Engineering-Framework/.pickup/073-reviewer-assisted-inception-decides.md (directory drop per PL-228 — topic bridge does not reach AEF); verified on disk (3020 bytes)
+
+### 2026-07-04T09:55:41Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale:
+
+Rubber-stamp-class inception decides (mechanically checkable evidence) currently cost the human full-read review; an independent reviewer agent (fresh context, read-only) can validate the recommendation's evidence and attach a verdict artifact Watchtower shows beside the recommendation, shrinking the human decide to one keystroke while the recorded decision stays human (sovereignty boundary intact). Bounded: reuses the shipped fw independent-review v0.1 rail (T-1885); G-068 shows why the decide itself must remain human-only.
+
+Evidence:
+
+### 2026-07-04T09:55:41Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Reason:** Inception decision in progress
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-0154d276
+- **Timestamp:** 2026-07-04T09:55:43Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-1
+     - evidence: `IW-1 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+### 2026-07-04T09:55:42Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

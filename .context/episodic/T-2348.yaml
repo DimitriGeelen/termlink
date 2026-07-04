@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2348: Reviewer-agent-assisted inception decides — extend T-1885 rail to verdict artifacts
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-04T09:55:46Z
+# ============================================================================
+
+task_id: T-2348
+task_name: "Reviewer-agent-assisted inception decides — extend T-1885 rail to verdict artifacts"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-04T09:46:53Z
+completed: 2026-07-04T09:55:42Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-07-04T11:47:45+02:00
+last_commit: 2026-07-04T11:47:45+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  inception filed (rec GO) — reviewer-agent-assisted inception decides, T-1885 rail extension to verdict artifacts
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-07-04.yaml'
+  - '.context/project/learnings.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-gate-counter'
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.prev-token-reading'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-turn-offset'
+  - '.context/working/.tool-counter'
+  - '.tasks/active/T-2348-reviewer-agent-assisted-inception-decide.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-04T11:47:45"
+    action: "T-2348: inception filed (rec GO) — reviewer-agent-assisted inception decides, T-1885 rail extension to verdict artifacts"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 8
+  commits: 1
+  files_changed: 12
+  lines_added: 251
+  lines_removed: 60
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2348-reviewer-agent-assisted-inception-decide.md
+generated_by: context-agent-hybrid
