@@ -342,14 +342,30 @@ async fn rpc_call_authed(
     }
     let secret: auth::TokenSecret = bytes;
     let token = auth::create_token(&secret, PermissionScope::Execute, "", 3600);
+    // T-2354: bound the RPC READS, not just the connect. A hub that accepts
+    // the connection but never writes a response line (wedged record-walk —
+    // the T-2258 blocking-pool starvation class; field: `channel info/unread
+    // --hub <tcp>` hung indefinitely while list/subscribe returned) would
+    // otherwise hang the CLI forever. Default 30s covers a slow-but-alive
+    // large-topic page; TERMLINK_RPC_READ_TIMEOUT_SECS overrides (clamped
+    // 1..=600).
+    let read_timeout = std::time::Duration::from_secs(
+        std::env::var("TERMLINK_RPC_READ_TIMEOUT_SECS")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok())
+            .map(|v| v.clamp(1, 600))
+            .unwrap_or(30),
+    );
     let _ = c
-        .call(
+        .call_with_timeout(
             "hub.auth",
             json!("channel-auth"),
             json!({"token": token.raw}),
+            read_timeout,
         )
         .await?;
-    c.call(method, json!("cli-1"), params).await
+    c.call_with_timeout(method, json!("cli-1"), params, read_timeout)
+        .await
 }
 
 fn hex_of(bytes: &[u8]) -> String {

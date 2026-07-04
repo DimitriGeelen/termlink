@@ -200,6 +200,32 @@ impl Client {
         Ok(resp)
     }
 
+    /// T-2354: `call` bounded by a read deadline. The plain `call` blocks
+    /// forever if the hub accepts the request but never writes a response
+    /// line (observed in the field: `channel.subscribe`/`channel.receipts`
+    /// record-walks stalling on a busy remote TCP hub — the T-2258
+    /// blocking-pool starvation class). Mirrors `connect_addr_with_timeout`:
+    /// on expiry, maps to `ClientError::Io(TimedOut)` so existing callers'
+    /// error handling works unchanged.
+    pub async fn call_with_timeout(
+        &mut self,
+        method: &str,
+        id: serde_json::Value,
+        params: serde_json::Value,
+        timeout: std::time::Duration,
+    ) -> Result<RpcResponse, ClientError> {
+        match tokio::time::timeout(timeout, self.call(method, id, params)).await {
+            Ok(inner) => inner,
+            Err(_) => Err(ClientError::Io(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                format!(
+                    "RPC '{method}' response timeout after {}s (hub accepted the connection but never replied — wedged record-walk or overloaded hub)",
+                    timeout.as_secs()
+                ),
+            ))),
+        }
+    }
+
     /// Authenticate with a capability token (auth.token RPC method).
     ///
     /// On success, the connection's scope is upgraded to the token's scope.
@@ -489,5 +515,93 @@ mod tests {
                 || kind == std::io::ErrorKind::ConnectionRefused,
             "expected timeout-related or unreachable-host error, got kind={kind:?} msg={msg}"
         );
+    }
+
+    /// T-2354: `call_with_timeout` errors bounded when the server ACCEPTS the
+    /// connection and reads the request but never writes a response line —
+    /// the wedged-record-walk field case. The plain `call` would hang forever.
+    #[tokio::test(flavor = "current_thread")]
+    async fn call_with_timeout_errors_on_silent_server() {
+        let socket_path = test_socket_path();
+        let _ = std::fs::remove_file(&socket_path);
+
+        let listener = tokio::net::UnixListener::bind(&socket_path).unwrap();
+        let handle = tokio::spawn(async move {
+            // Accept, drain the request, then go silent forever.
+            if let Ok((stream, _)) = listener.accept().await {
+                let mut reader = tokio::io::BufReader::new(stream);
+                let mut line = String::new();
+                use tokio::io::AsyncBufReadExt;
+                let _ = reader.read_line(&mut line).await;
+                tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
+            }
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        let mut client = Client::connect(&socket_path).await.unwrap();
+        let start = std::time::Instant::now();
+        let r = client
+            .call_with_timeout(
+                "termlink.ping",
+                serde_json::json!("t2354"),
+                serde_json::json!({}),
+                std::time::Duration::from_millis(500),
+            )
+            .await;
+        let elapsed = start.elapsed();
+        assert!(r.is_err(), "expected timeout error from silent server");
+        assert!(
+            elapsed < std::time::Duration::from_secs(3),
+            "expected bounded error, got {elapsed:?}"
+        );
+        let msg = match r {
+            Err(e) => e.to_string(),
+            Ok(_) => unreachable!("checked is_err above"),
+        };
+        assert!(
+            msg.contains("timeout"),
+            "expected timeout in error message, got: {msg}"
+        );
+
+        handle.abort();
+        let _ = std::fs::remove_file(&socket_path);
+    }
+
+    /// T-2354: `call_with_timeout` passes a normal fast response through
+    /// unchanged (success path parity with plain `call`).
+    #[tokio::test]
+    async fn call_with_timeout_passes_through_success() {
+        let socket_path = test_socket_path();
+        let _ = std::fs::remove_file(&socket_path);
+
+        let listener = tokio::net::UnixListener::bind(&socket_path).unwrap();
+        let id = SessionId::generate();
+        let mut reg = Registration::new(id, SessionConfig::default(), socket_path.clone());
+        reg.state = SessionState::Ready;
+        let ctx = SessionContext::new(reg);
+        let shared = Arc::new(RwLock::new(ctx));
+
+        let shared_clone = shared.clone();
+        let handle = tokio::spawn(async move {
+            server::run_accept_loop(listener, shared_clone).await;
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        let mut client = Client::connect(&socket_path).await.unwrap();
+        let resp = client
+            .call_with_timeout(
+                "termlink.ping",
+                serde_json::json!("t2354-ok"),
+                serde_json::json!({}),
+                std::time::Duration::from_secs(5),
+            )
+            .await
+            .unwrap();
+        assert!(matches!(resp, RpcResponse::Success(_)));
+
+        handle.abort();
+        let _ = std::fs::remove_file(&socket_path);
     }
 }
