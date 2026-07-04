@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-04T11:16:45Z
-last_update: 2026-07-04T11:22:59Z
+last_update: 2026-07-04T11:36:33Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -125,7 +125,7 @@ agent-presence listeners on swapped hosts need re-registration.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
-out=$(timeout 40 termlink remote exec 192.168.10.122:9100 tl-dzbcxxka 'HP=$(cat /var/lib/termlink/hub.pid); grep -a -c dm.queued /proc/$HP/exe' --json 2>&1); echo "$out" | grep -q '"stdout": "1'
+out=$(timeout 40 termlink remote exec 192.168.10.122:9100 tl-dzbcxxka 'HP=$(cat /var/lib/termlink/hub.pid); grep -a -c dm.queued /proc/$HP/exe' --json 2>&1); echo "$out" | grep -q '"stdout":"1'
 out=$(timeout 30 termlink fleet verify 2>&1); echo "$out" | grep -q "ring20-management.*match"
 
 ## RCA
