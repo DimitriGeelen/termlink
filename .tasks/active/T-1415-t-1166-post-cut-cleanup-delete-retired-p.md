@@ -467,6 +467,13 @@ verification + zero-attributable-legacy confirmation. Owner remains
 re-run. The Agent-side of the source-cleanup arc that started in May is
 now closed cleanly; T-1415 is operator-actionable.
 
+### 2026-07-04T10:22Z — G-008 fresh evidence refresh [agent autonomous]
+- **Action:** Re-ran the bake-metric Human-AC evidence (prior refresh 2026-06-13 was >2wk stale)
+- **Command:** `.agentic-framework/bin/fw metrics api-usage --cut-ready --json`
+- **Result:** exit=0 — `{"cut_ready": true, "window_days": 7, "legacy_attributable": 0, "legacy_unattributable_pre_t1409": 0}`. The residual .122 pickup-bridge caller seen 2026-06-06 is now GONE — 0 attributable legacy calls in the 7d window. AC2 evidence is now unambiguous (the earlier `cut_ready: false, legacy_attributable: 5` caveat no longer applies).
+- **Also noted this pass:** the deferred EVENT_BROADCAST scope-table arms (`auth.rs:186`, `server.rs:419`) were assessed for cleanup and deliberately RETAINED — removing them would flip old-client errors from method-not-found (the documented post-cut contract) to deny-by-default auth errors, degrading migration diagnostics. Not dead code; load-bearing for the post-cut error contract. The artifact.rs file.* fallback remains operator-gated per Inventory.
+- **Note:** Human ACs remain UNCHECKED — sovereignty; evidence ready for operator confirm.
+
 ### 2026-06-13T13:51:52Z — G-008 fresh evidence [resmoke-agent]
 - **Action:** Re-ran/assessed Human-AC Steps (>2wk since build smoke)
 - **Command(s):** `.agentic-framework/bin/fw metrics api-usage --cut-ready --json` (local bake-metric AC2; AC1 SSH+journalctl to .107/.121/.122 = operator-env, not run)
