@@ -78,9 +78,17 @@ Optional:
                                      when --to resolved a remote peer), no probe,
                                      no fallback. Use to force the pre-V6 path.
                           See docs/operations/agent-send-transport.md.
-  --dry-run               with --to, print RESOLVED line (incl. resolved hub +
+  --dry-run               print the RESOLVED line (incl. resolved topic + hub +
                           routing=local|remote + transport plan) and exit 0
                           without posting or injecting (test/preview seam).
+                          Works with BOTH routing forms (T-2352 extended it to
+                          explicit routing; agent_id/status render empty there).
+
+Env:
+  TERMLINK_SELF_FP        override own-fp resolution for the --peer-fp dm-topic
+                          mint (T-2352 test seam). Normal resolution chain:
+                          be-reachable.state .self_fp → `agent identity
+                          --resolve` → legacy senders-scan.
 
 Exit: 0 delivered (and reply printed if --await-reply, or dry-run RESOLVED,
             or POSTED if --no-await-ack)
@@ -90,7 +98,7 @@ EOF
 }
 
 to_session="" topic="" peer_fp="" message="" cid="" await_reply=""
-to_agent_id="" dry_run=0 peer_hub="" no_await_ack=0 transport="auto"
+to_agent_id="" dry_run=0 peer_hub="" no_await_ack=0 transport="auto" status=""
 
 # T-2299/V6-S2: bounded reachability probe. Wraps `termlink remote ping <addr>`
 # (cmd_remote_ping) under a short timeout so a wedged/unreachable peer hub can
@@ -206,9 +214,11 @@ if [ -n "$to_agent_id" ]; then
         || die "agent $to_agent_id heartbeat carries no identity_fingerprint (peer needs termlink with T-2270) — cannot compute dm topic"
     to_session="$resolved_session"
     peer_fp="$resolved_fp"   # topic computed by the --peer-fp block below
-elif [ "$dry_run" -eq 1 ]; then
-    die "--dry-run requires --to <agent-id>"
 fi
+# T-2352: --dry-run now also works with explicit routing (--to-session +
+# --topic/--peer-fp) — it prints the RESOLVED line (topic + hub + transport
+# plan) without posting or injecting. This is the regression seam for the
+# self-fp/topic resolution below; agent_id/status render empty on this path.
 
 [ -n "$to_session" ] || die "missing --to-session (the doorbell target) — or use --to <agent-id> for auto-discover"
 [[ "$timeout" =~ ^[0-9]+$ && "$timeout" -ge 1 ]]     || die "--timeout must be a positive integer"
@@ -227,19 +237,92 @@ fi
 if [ -n "$topic" ]; then
     :
 elif [ -n "$peer_fp" ]; then
-    # PL-195: whoami --json's session.identity_fingerprint is not the wire-level
-    # envelope sender_id (it's null on every host probed). Read sender_id from
-    # the local hub's view of any topic this host has signed instead.
-    self_fp="$("$TERMLINK" channel info agent-presence --json 2>/dev/null | jq -r '.senders[0].sender_id // empty')"
+    # T-2352: resolve OWN fp via the same precedence the signing path uses,
+    # instead of "first sender on agent-presence" — on a shared/multi-agent hub
+    # senders[0] is arbitrarily some co-resident or remote agent's fp (the field
+    # failure minted dm:06cd...:9219... instead of posting to the existing
+    # canonical thread with the peer). Chain, first hit wins:
+    #   1. $TERMLINK_SELF_FP            explicit override / test seam
+    #   2. be-reachable.state .self_fp  (T-2324 — captured at /be-reachable start)
+    #   3. termlink agent identity --resolve  (signing-path precedence: FILE >
+    #      AGENT_ID > DIR > shared host default; honors TERMLINK_AGENT_ID)
+    #   4. legacy senders-scan (PL-195) — last resort only
+    self_fp="${TERMLINK_SELF_FP:-}"
     if [ -z "$self_fp" ]; then
-        self_fp="$("$TERMLINK" channel info agent-chat-arc --json 2>/dev/null | jq -r '.senders[] | select(.posts > 0) | .sender_id' | head -1)"
+        self_fp="$(jq -r '.self_fp // empty' "${BE_REACHABLE_STATE:-$HOME/.termlink/be-reachable.state}" 2>/dev/null)" || self_fp=""
     fi
-    [ -n "$self_fp" ] || die "could not resolve own envelope sender_id from local hub (agent-presence + agent-chat-arc both empty for this host — run /be-reachable to advertise, or pass --topic explicitly)"
+    if [ -z "$self_fp" ]; then
+        self_fp="$("$TERMLINK" agent identity --resolve --json 2>/dev/null | jq -r '.fingerprint // empty')" || self_fp=""
+    fi
+    if [ -z "$self_fp" ]; then
+        # PL-195: whoami --json's session.identity_fingerprint is not the wire-level
+        # envelope sender_id (it's null on every host probed). Read sender_id from
+        # the local hub's view of any topic this host has signed instead.
+        self_fp="$("$TERMLINK" channel info agent-presence --json 2>/dev/null | jq -r '.senders[0].sender_id // empty')"
+        if [ -z "$self_fp" ]; then
+            self_fp="$("$TERMLINK" channel info agent-chat-arc --json 2>/dev/null | jq -r '.senders[] | select(.posts > 0) | .sender_id' | head -1)"
+        fi
+    fi
+    [ -n "$self_fp" ] || die "could not resolve own fp (TERMLINK_SELF_FP unset, no be-reachable.state, identity --resolve empty, and agent-presence + agent-chat-arc both empty on the local hub) — run /be-reachable to advertise, or pass --topic explicitly"
     # Mirror Rust dm_topic(): lexicographic sort, my_id <= peer.
     if [[ "$self_fp" < "$peer_fp" || "$self_fp" == "$peer_fp" ]]; then
         topic="dm:${self_fp}:${peer_fp}"
     else
         topic="dm:${peer_fp}:${self_fp}"
+    fi
+
+    # T-2352: prefer an EXISTING dm thread with the peer over a fresh mint.
+    # dm topics are per-hub state (G-060), so scan the DESTINATION hub
+    # (peer_hub when routing remote, else local). Candidates = topics with
+    # peer_fp as EXACTLY ONE component (peer self-dm dm:<peer>:<peer> excluded
+    # — a DM from us is never the peer's self-thread). Disambiguation: a
+    # candidate the PEER HAS POSTED IN is the live conversation; a wrong-fp
+    # mint only ever contains our own posts. This redirects a mis-resolved
+    # self_fp back to the canonical thread instead of fragmenting the
+    # conversation across topics.
+    scan_hub_args=()
+    [ -n "$peer_hub" ] && scan_hub_args=(--hub "$peer_hub")
+    _peer_posted() {  # $1=topic → exit 0 if peer_fp has >0 posts in it
+        "$TERMLINK" channel info "$1" --json "${scan_hub_args[@]+"${scan_hub_args[@]}"}" 2>/dev/null \
+            | jq -e --arg p "$peer_fp" '[.senders[]? | select(.sender_id == $p and ((.posts // 0) > 0))] | length > 0' >/dev/null 2>&1
+    }
+    candidates="$("$TERMLINK" channel list --prefix "dm:" --json "${scan_hub_args[@]+"${scan_hub_args[@]}"}" 2>/dev/null \
+        | jq -r --arg p "$peer_fp" '.topics[].name
+            | select(startswith("dm:"))
+            | . as $n | ($n | split(":")) as $c
+            | select(($c | length) == 3)
+            | select(($c[1] == $p or $c[2] == $p) and (($c[1] == $p and $c[2] == $p) | not))')" || candidates=""
+    if [ -n "$candidates" ]; then
+        peer_active=""
+        while IFS= read -r cand; do
+            [ -n "$cand" ] || continue
+            if _peer_posted "$cand"; then peer_active="${peer_active}${cand}"$'\n'; fi
+        done <<< "$candidates"
+        peer_active="${peer_active%$'\n'}"
+        n_active="$([ -n "$peer_active" ] && printf '%s\n' "$peer_active" | wc -l || echo 0)"
+        if [ "$n_active" -eq 1 ]; then
+            if [ "$peer_active" != "$topic" ]; then
+                echo "agent-send: NOTE using existing dm thread '$peer_active' (peer has posted there) instead of minting '$topic' — resolved self-fp is not part of the live thread" >&2
+                topic="$peer_active"
+            fi
+        elif [ "$n_active" -gt 1 ]; then
+            if ! printf '%s\n' "$peer_active" | grep -qxF "$topic"; then
+                die "ambiguous: $n_active existing dm threads with peer-fp $peer_fp have peer posts and none matches the canonical mint '$topic' — pass --topic explicitly. Candidates: $(printf '%s ' $peer_active)"
+            fi
+        else
+            # No candidate has peer posts (peer never replied anywhere yet).
+            # Trust the canonical mint if it already exists; a single existing
+            # candidate is still better than minting a second thread.
+            if ! printf '%s\n' "$candidates" | grep -qxF "$topic"; then
+                n_cand="$(printf '%s\n' "$candidates" | wc -l)"
+                if [ "$n_cand" -eq 1 ]; then
+                    echo "agent-send: NOTE using existing dm topic '$candidates' (peer-fp match, no peer posts yet) instead of minting '$topic'" >&2
+                    topic="$candidates"
+                else
+                    die "ambiguous: $n_cand existing dm topics contain peer-fp $peer_fp (none with peer posts, none matching the canonical mint '$topic') — pass --topic explicitly. Candidates: $(printf '%s ' $candidates)"
+                fi
+            fi
+        fi
     fi
 else
     die "need --topic or --peer-fp"
