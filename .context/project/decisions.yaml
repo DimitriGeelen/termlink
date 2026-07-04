@@ -724,3 +724,17 @@ decisions:
     date: 2026-07-04
     task: T-2355
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-083
+    decision: "declared per-hub version floors in a canary-owned config file (`.context/cron/fleet-version-floors.conf`), with `-` exemption for foreign lineages"
+    scope: project
+    date: 2026-07-04
+    task: T-2359
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-084
+    decision: "treat missing `hub_version` as firing, not informational"
+    scope: project
+    date: 2026-07-04
+    task: T-2359
+    rationale: "Auto-captured from task file on completion"

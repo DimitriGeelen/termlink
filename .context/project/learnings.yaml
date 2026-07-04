@@ -2458,3 +2458,10 @@ learnings:
   date: 2026-07-04
   context: Added via context agent
   application: TBD
+- id: PL-243
+  learning: "Version numbers derived from commits-since-tag (major.minor.N) are NOT comparable across build lineages — a fork's 0.11.806 is not newer than our 0.11.324, and skew-based fleet staleness detection false-positives forever on foreign-lineage hubs while missing same-lineage lag. The sound gate is a DECLARED per-hub version floor (canary-owned config, '-' exempt for hubs whose binary you don't build); bumping the floor when hub-side rails ship is the operator's structural declaration that 'shipped' must mean 'capability-live' (G-069 class)."
+  source: G-069
+  task: T-2359
+  date: 2026-07-04
+  context: Added via context agent
+  application: TBD

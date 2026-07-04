@@ -4,10 +4,10 @@ name: "Fleet binary-freshness canary — fire when a hub serves below its declar
 description: >
   Fleet binary-freshness canary — fire when a hub serves below its declared version floor (G-069 prevention)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-04T22:36:47Z
-last_update: 2026-07-04T22:36:47Z
-date_finished: null
+last_update: 2026-07-04T22:43:29Z
+date_finished: 2026-07-04T22:43:29Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -216,3 +216,20 @@ out=$(python3 -c "import yaml; d=yaml.safe_load(open('.context/project/concerns.
 - **Action:** Canary + floors config + 14-case test suite (ALL PASS) + crontab installed to /etc/cron.d/termlink-fleet-binary-canary (06:03 UTC + meta-canary line) + CLAUDE.md eighth-canary section + G-069 mitigation_progress
 - **Live proof:** ad-hoc run exits 1 naming exactly ring20-management (0.11.296 < floor 0.11.324 — the T-2355 walk-deadline rails .122 still lacks); /canaries auto-discovers and classifies FIRING with the signal line surfaced
 - **Context:** G-069 what_remains (1) closed; (2) arc-closure capability-live check + (3) deploy restart-epilogue remain open under the concern
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-cf5a6ad5
+- **Timestamp:** 2026-07-04T22:43:31Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `scripts/check-fleet-binary-freshness.sh` exists: reads `fleet doctor --json`, compares each reachable hub's `hub_version` against its declared floor from `.context/cron/fleet-version-floors.conf` (fo
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=context/cron/fleet-version-floors.conf in: `scripts/check-fleet-binary-freshness.sh` exists: reads `fleet doctor --json`, compares each reachable hub's `hub_version` against its declared floor `
+
+### 2026-07-04T22:43:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

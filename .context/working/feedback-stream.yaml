@@ -3312,3 +3312,21 @@ scan_id: R-f57490b1
 task_id: T-2339
 payload:
   task_file: .tasks/active/T-2339-inception--ws-over-unix-for-co-located-p.md
+---
+kind: scan_emitted
+timestamp: '2026-07-04T22:43:31Z'
+scan_id: R-cf5a6ad5
+task_id: T-2359
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-04T22:43:31Z'
+scan_id: R-cf5a6ad5
+task_id: T-2359
+payload:
+  task_file: .tasks/active/T-2359-fleet-binary-freshness-canary--fire-when.md

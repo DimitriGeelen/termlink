@@ -1,0 +1,95 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2359: Fleet binary-freshness canary — fire when a hub serves below its declared version floor (G-069 prevention)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-04T22:43:34Z
+# ============================================================================
+
+task_id: T-2359
+task_name: "Fleet binary-freshness canary — fire when a hub serves below its declared version floor (G-069 prevention)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-04T22:36:47Z
+completed: 2026-07-04T22:43:29Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-05T00:43:21+02:00
+last_commit: 2026-07-05T00:43:21+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet binary-freshness canary — fire on hub below declared version floor (G-069 prevention)
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-fleet-binary-freshness.sh` exists: reads `fleet doctor --json`, compares each reachable hub''s `hub_version` against its declared floor from `.context/cron/fleet-version-floors.conf` (format: `<hub-name> <min-version>`, `*` default row optional, `-` = exempt/foreign-lineage), FIRES (exit 1) when any floored hub serves below its floor; exit 0 healthy, exit 2 tooling/hubs-unreadable'
+  - 'Version compare is numeric per segment (major.minor.patch), not lexicographic — `0.11.296 < 0.11.324` and `0.9.1591 < 0.11.2` both classify correctly'
+  - 'Unreachable/down hubs and hubs with no declared floor (incl. `-` exempt) are informational lines, never firing (PL-219); unknown `hub_version` on a reachable floored hub DOES fire (a hub too old to report its version is the staleness class itself)'
+  - 'Heartbeat file `.context/working/.fleet-binary-canary.heartbeat` touched every run before network calls (T-1723 meta-canary convention, `--no-heartbeat` opt-out); firing entries append to `.context/working/.fleet-binary-canary.log` framed `=== <ts> ===\n<output>\n---` (empty log = healthy, /canaries auto-discovers)'
+  - '`--quiet` (cron mode: output only on firing) and `--json` (`{ok, firing[], hubs[]}` envelope) flags work; `TERMLINK_FLEET_FRESHNESS_TEST_JSON=<file>` feeds canned fleet-doctor JSON for hub-independent verification (PL-213 test-hook convention)'
+  - 'Test script `scripts/test-check-fleet-binary-freshness.sh` passes: covers below-floor firing, at/above-floor healthy, unreachable-hub non-firing, exempt-hub non-firing, unknown-version firing, numeric-compare edge (0.9.1591 vs 0.11.2)'
+  - 'Crontab `.context/cron/fleet-binary-canary.crontab` created AND installed to `/etc/cron.d/` (pre-push audit gate); floors file seeded with current expectations: local-test + workstation-107-public at 0.11.324 (T-2355 rails), ring20-management at 0.11.324 (fires until their restart picks up the walk-deadline fix — that firing is the G-069 signal working), ring20-dashboard `-` (foreign lineage), laptop-141 `-` (expected-transient, PL-219)'
+  - 'Live run against the real fleet exits 1 naming ring20-management (0.11.296 < 0.11.324) and no other firing hub'
+  - 'CLAUDE.md canary section documents the new canary (empty-log convention, floors file semantics, operator action on firing); G-069 gains a mitigation_progress entry'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-07-05 — firing gate: declared per-hub floor vs cross-hub skew'
+    chose: 'declared per-hub version floors in a canary-owned config file (`.context/cron/fleet-version-floors.conf`), with `-` exemption for foreign lineages'
+    rationale: 'patch numbers are commits-since-tag and are NOT comparable across build lineages — ring20-dashboard serves 0.11.806 from its own fork, numerically "newest" while lacking our commits; skew detection would false-positive on it forever AND miss same-lineage lag if the stale hub happened to be numerically close. A floor is also the semantic G-069 wants: bumping it when rails ship is the operator declaring "shipped must mean capability-live".'
+    alternatives_rejected: ['(a) cross-hub skew threshold (unsound across lineages, both directions); (b) compare-to-local-VERSION for all hubs (fires permanently on hubs we don''t deploy to); (c) hubs.toml extra keys for floors (risk of tripping the binary''s TOML parser — canary-owned file is decoupled)']
+  - decision: '2026-07-05 — unknown hub_version on a floored reachable hub fires'
+    chose: 'treat missing `hub_version` as firing, not informational'
+    rationale: 'a hub too old to report its version IS the staleness class the canary exists for; classifying it informational would let the worst offenders hide'
+    alternatives_rejected: ['informational (hides pre-version-field binaries); exit-2 tooling error (it is a data finding, not a tooling failure)']
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/cron/fleet-binary-canary.crontab'
+  - '.context/cron/fleet-version-floors.conf'
+  - '.context/project/concerns.yaml'
+  - 'scripts/check-fleet-binary-freshness.sh'
+  - 'scripts/test-check-fleet-binary-freshness.sh'
+  - '.tasks/active/T-2359-fleet-binary-freshness-canary--fire-when.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-05T00:43:21"
+    action: "T-2359: fleet binary-freshness canary — fire on hub below declared version floor (G-069 prevention)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 7
+  lines_added: 656
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2359-fleet-binary-freshness-canary--fire-when.md
+generated_by: context-agent-hybrid
