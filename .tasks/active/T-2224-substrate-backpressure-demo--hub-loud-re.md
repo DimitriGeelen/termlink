@@ -44,40 +44,18 @@ learning PL-218.
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Rate-limit trigger path assessed from source: governor buckets key on `params.from` > `peer_addr` > `peer_pid` (server.rs:756) and `channel.post` never sets `params.from` (bus_client.rs::post_to_params), so sequential CLI posts each mint a fresh pid-keyed bucket — a shell demo structurally cannot accumulate to the limit (Recommendation §1)
+- [x] HUB_AT_CAPACITY path assessed for smoke-gate fit: forceable via `TERMLINK_MAX_CONNECTIONS=N` + N+1 held subscribes, but capturing the Nth refusal in shell is timing-dependent — flaky-risk disqualifies it as a deterministic regression gate (Recommendation §2)
+- [x] Existing-coverage audit: governor behavior already asserted by `governor.rs` unit tests (`rate_hits_total`, eviction) — a shell demo adds no coverage at that layer (Recommendation §3)
+- [x] Recommendation section filled with NO-GO + three-point rationale + copy-pasteable Tier-0 decision route; no code shipped under this task
+- [x] Investigation payoff captured as learning PL-218 (peer_pid keying is the PL-209 rate-bucket-bloat mechanism; identity-fingerprint keying named as the natural follow-up inception) — present in .context/project/learnings.yaml
 
 ### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-
-     ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
-     If your Expected clause is grep-able / file-exists / structural (a deterministic
-     shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
-     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
-     verification genuinely needs human taste (tone, feel, layout rhythm).
-     See CLAUDE.md §AC Classification Guidance for the conversion rule.
-
-     [REVIEW] example (genuine human judgment):
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
-
-     [REVIEWER] example (static-scan-verifiable — convert to Agent AC + Verification):
-       - [ ] [REVIEWER] Block message names both bypass mechanisms
-         **Steps:**
-         1. Run `bin/fw reviewer T-XXX`
-         **Expected:** Verdict: PASS; no findings on `block-message-completeness`
-         **If not:** Inspect hook block-message string and add missing mechanism
-       Conversion: this AC should be moved to ### Agent and
-       `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` added to ## Verification.
--->
+- [ ] [RUBBER-STAMP] Record the inception decision (Tier-0, sovereignty-gated)
+  **Steps:**
+  1. `cd /opt/termlink && .agentic-framework/bin/fw inception decide T-2224 no-go --rationale "demo not LC; governor covered by unit tests; root-cause captured as PL-218"`
+  **Expected:** Decision section populated with no-go + rationale; task ready for work-completed
+  **If not:** Paste the command output — the gate message names the blocking section
 
 ## Recommendation
 
@@ -149,6 +127,9 @@ No new code was shipped under this task.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+grep -q "PL-218" /opt/termlink/.context/project/learnings.yaml
+grep -q "NO-GO on a backpressure/governor smoke-gate demo" /opt/termlink/.tasks/active/T-2224-substrate-backpressure-demo--hub-loud-re.md || grep -q "NO-GO on a backpressure/governor smoke-gate demo" /opt/termlink/.tasks/completed/T-2224-substrate-backpressure-demo--hub-loud-re.md
 
 ## RCA
 
