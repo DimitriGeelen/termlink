@@ -3348,3 +3348,21 @@ scan_id: R-1b4925f4
 task_id: T-2360
 payload:
   task_file: .tasks/active/T-2360-deploy-scripts-refuse-setsid-nohup-hub-r.md
+---
+kind: scan_emitted
+timestamp: '2026-07-04T22:52:29Z'
+scan_id: R-7afbda7d
+task_id: T-2361
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-04T22:52:29Z'
+scan_id: R-7afbda7d
+task_id: T-2361
+payload:
+  task_file: .tasks/active/T-2361-fleet-deploy-binarysh-loud-restart-requi.md
