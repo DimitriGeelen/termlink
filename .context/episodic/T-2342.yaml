@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2342: arc-004 dm-rail push-wake isolated-hub regression demo
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-04T00:21:46Z
+# ============================================================================
+
+task_id: T-2342
+task_name: "arc-004 dm-rail push-wake isolated-hub regression demo"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-04T00:11:03Z
+completed: 2026-07-04T00:21:41Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-04T02:21:31+02:00
+last_commit: 2026-07-04T02:21:31+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  arc-004 dm-rail push-wake isolated-hub regression demo (proves T-2323/T-2324; closes the reproducer gap T-2325 left)
+
+# Key outcomes
+outcomes:
+  - '`scripts/demo-dm-rail-pushwake.sh` exists, is executable, and is'
+  - 'POSITIVE proven E2E: against the isolated fresh-binary hub, a `dm:<poster>:<self>`'
+  - 'NEGATIVE + no-regression proven: a `dm:` post addressed to a DIFFERENT'
+  - 'The demo runs green end-to-end (exit 0) on the current tree; the PASS'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-2342-arc-004-dm-rail-pushwake-demo.md'
+  - '.fabric/components/scripts-demo-dm-rail-pushwake.yaml'
+  - 'scripts/demo-dm-rail-pushwake.sh'
+  - '.tasks/active/T-2342-arc-004-dm-rail-push-wake-isolated-hub-r.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-04T02:21:31"
+    action: "T-2342: arc-004 dm-rail push-wake isolated-hub regression demo (proves T-2323/T-2324; closes the reproducer gap T-2325 left)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 10 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 10
+  commits: 1
+  files_changed: 4
+  lines_added: 533
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2342-arc-004-dm-rail-push-wake-isolated-hub-r.md
+generated_by: context-agent-hybrid
