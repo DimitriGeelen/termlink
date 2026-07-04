@@ -2,6 +2,21 @@
 # Type: gap (spec-reality) | risk (forward-looking)
 # Status: watching | decided-build | decided-simplify | decided-defer | closed
 concerns:
+- id: G-068
+  type: gap
+  title: "Human-AC tick via Bash bulk edit bypasses the T-1731 hook and nothing detects it post-hoc — T-2276 [REVIEW] AC sat ticked 9 days with no decision recorded"
+  description: "Commit 91b646ec (2026-06-25, agent-session bulk edit during a T-1452 finalize sweep) flipped ALL FOUR ACs on inception T-2276 to [x] — including the ### Human [REVIEW] 'approve go/no-go decision' AC — while no fw inception decide was ever recorded (the task's Decision section still read 'awaiting human confirmation'; status never left the active lifecycle). The T-1731 PreToolUse hook correctly blocks agent Edit/Write ticks on Human ACs, so the tick necessarily went through a path the hook does not observe — a Bash-scripted bulk edit, the same mechanism as the sanctioned G-008 batch-evidence pattern but here applied to a Human AC. Once the invalid tick landed, the framework was blind: no audit section, canary, or review gate scans for 'Human AC ticked on an inception with an empty Decision section'. Detection took 9 days and was accidental (2026-07-04 manual review while aligning T-2276's stale DEFER recommendation to its disposed IW evidence, T-2347). Cost class: a false 'human approved' signal on a sovereignty-boundary checkbox — the exact state T-1731 exists to make unrepresentable. Correction is itself human-gated: T-1731 blocks BOTH toggle directions on the Edit path (verified live 2026-07-04 — the T-2347 un-tick attempt was correctly refused), and the FW_ALLOW_HUMAN_AC_TICK=1 override is Tier-2 human authorization, not delegated to autonomous mode. Operator action: un-tick the T-2276 [REVIEW] AC (one-line edit or FW_ALLOW_HUMAN_AC_TICK=1) — or simply record the real decision via fw inception decide T-2276 no-go, which makes the tick retroactively legitimate."
+  spec_reference: "CLAUDE.md §Agent/Human AC Split ('NEVER check a ### Human AC'); T-1731 (hook that blocks agent tick on Human ACs — Edit/Write path only); G-008 batch-evidence pattern (the sanctioned use of the same bypass mechanism); T-2276 (the affected inception); commit 91b646ec (the bulk edit that carried the tick)"
+  severity: medium
+  trigger_fired: true
+  trigger_event: "2026-07-04 T-2276 recommendation-alignment review found the [REVIEW] AC ticked in commit 91b646ec (2026-06-25) with no fw inception decide recorded"
+  detection_lag_days: 9
+  what_works_now: "T-1731 blocks the Edit/Write tick path (verified still active). The @auto-tick-on-decide mechanism ticks legitimately on a real decide. T-2276's record is corrected (T-2347)."
+  what_remains: "(1) Post-hoc detector: an audit check (or canary) that scans .tasks/active/ inceptions for a ticked ### Human [REVIEW] AC whose Decision section is empty/awaiting — fires as FAIL; cheap grep-level scan, one loop. (2) Optional deeper guard: extend the T-1731 class to a pre-commit inspection of staged task-file diffs (catches Bash-path ticks at commit time, closing the bypass rather than detecting it). (3) Audit the corpus once for other Human ACs ticked without a matching decide/human action (same scan as (1) over completed/ too)."
+  mitigation_candidate: "Short-term: (1) as a small build task — grep-level audit check, fires on 'ticked [REVIEW] + empty Decision'. Structural: (2) staged-diff pre-commit guard, needs care to not false-positive on the legitimate @auto-tick-on-decide flow (which runs inside fw inception decide, so allow when the commit also writes a Decision entry)."
+  status: watching
+  created: 2026-07-04
+  related_tasks: [T-2347, T-2276, T-1731]
 - id: G-067
   type: gap
   title: "Pre-push audit T-2067 frontmatter check spawns one python per task (1937+) — ~80-100s, intermittently blocks every push as completed/ grows"
