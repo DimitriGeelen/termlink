@@ -4,16 +4,16 @@ name: "Inception — WS-over-Unix for co-located push consumers"
 description: >
   arc-004 follow-on. Question (one, go/no-go): should co-located agents get WS push over a Unix socket instead of TCP+TLS-to-localhost? connect_tls_stream rejects Unix today. Explore only if a same-host workload demonstrates the localhost TLS path is a bottleneck. See docs/operations/push-transport-recipe.md + docs/reports/T-2309 scope finding.
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-07-03T19:10:07Z
-last_update: 2026-07-04T09:08:54Z
-date_finished: null
+last_update: 2026-07-04T22:03:10Z
+date_finished: 2026-07-04T22:03:10Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -102,15 +102,15 @@ trust model.
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -176,7 +176,30 @@ review form).
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: NO-GO
+
+**Rationale**: Recommendation: NO-GO (dissolved — already shipped by T-2312/T-2313)
+
+Rationale (revised 2026-07-04 after artifact verification): The question this inception
+poses was answered and BUILT before it was filed. T-2312 ran the WS-over-Unix inception
+(GO), T-2313 built it, and `scripts/demo-ws-push-unix.sh` is standing regression evidence:
+a live consumer subscribed with `channel subscribe <topic> --push` over the hub's Unix
+socket receives a DM push in ~31 ms — no TLS, no hubs.toml profile, no token (Unix
+connections are peer-cred-trusted and pre-granted Execute scope, satisfying
+`hub.ws_subscribe`). Co-located consumers get this path BY DEFAULT: the push-waker passes
+no `--hub`, and local-hub address resolution selects the runtime_dir Unix socket. There is
+nothing left to decide or build; a GO here would authorise duplicate work.
+
+Original DEFER draft (retained for audit — premise was stale): ~~connect_tls_stream
+currently rejects Unix sockets, so a co-located agent gets WS push over TCP+TLS to
+127.0.0.1 … DEFER until a same-host workload shows the TLS path is a bottleneck.~~ — this
+described the pre-T-2313 state; the "explore only if bottleneck" trigger is moot because
+the Unix path already exists and is the default.
+
+Human records the final no-go via `fw inception decide T-2339 no-go` (or the Watchtower
+review form).
+
+**Date**: 2026-07-04T22:03:10Z
 
 ## Updates
 
@@ -186,3 +209,45 @@ review form).
 ### 2026-07-04T09:07:22Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+### 2026-07-04T22:03:10Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** NO-GO
+- **Rationale:** Recommendation: NO-GO (dissolved — already shipped by T-2312/T-2313)
+
+Rationale (revised 2026-07-04 after artifact verification): The question this inception
+poses was answered and BUILT before it was filed. T-2312 ran the WS-over-Unix inception
+(GO), T-2313 built it, and `scripts/demo-ws-push-unix.sh` is standing regression evidence:
+a live consumer subscribed with `channel subscribe <topic> --push` over the hub's Unix
+socket receives a DM push in ~31 ms — no TLS, no hubs.toml profile, no token (Unix
+connections are peer-cred-trusted and pre-granted Execute scope, satisfying
+`hub.ws_subscribe`). Co-located consumers get this path BY DEFAULT: the push-waker passes
+no `--hub`, and local-hub address resolution selects the runtime_dir Unix socket. There is
+nothing left to decide or build; a GO here would authorise duplicate work.
+
+Original DEFER draft (retained for audit — premise was stale): ~~connect_tls_stream
+currently rejects Unix sockets, so a co-located agent gets WS push over TCP+TLS to
+127.0.0.1 … DEFER until a same-host workload shows the TLS path is a bottleneck.~~ — this
+described the pre-T-2313 state; the "explore only if bottleneck" trigger is moot because
+the Unix path already exists and is the default.
+
+Human records the final no-go via `fw inception decide T-2339 no-go` (or the Watchtower
+review form).
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-f57490b1
+- **Timestamp:** 2026-07-04T22:03:11Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-1
+     - evidence: `IW-1 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+### 2026-07-04T22:03:10Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: NO-GO

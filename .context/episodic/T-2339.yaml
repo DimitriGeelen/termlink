@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2339: Inception — WS-over-Unix for co-located push consumers
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-04T22:03:14Z
+# ============================================================================
+
+task_id: T-2339
+task_name: "Inception — WS-over-Unix for co-located push consumers"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-03T19:10:07Z
+completed: 2026-07-04T22:03:10Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-07-04T11:08:54+02:00
+last_commit: 2026-07-04T11:08:54+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  decision-ready — rec corrected DEFER->NO-GO (WS-over-Unix already shipped T-2312/13, waker rides Unix by default); T-2338 sections filled (NO-GO rec, loop exists via T-2314, residual closed by T-2340/41)
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2338-inception--active-ws-reconnect-with-back.md'
+  - '.tasks/active/T-2339-inception--ws-over-unix-for-co-located-p.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-04T11:08:54"
+    action: "T-2339: decision-ready — rec corrected DEFER->NO-GO (WS-over-Unix already shipped T-2312/13, waker rides Unix by default); T-2338 sections filled (NO-GO rec, loop exists via T-2314, residual closed by T-2340/41)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 1613 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1613
+  commits: 2
+  files_changed: 2
+  lines_added: 361
+  lines_removed: 18
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2339-inception--ws-over-unix-for-co-located-p.md
+generated_by: context-agent-hybrid
