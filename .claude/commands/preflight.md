@@ -27,7 +27,7 @@ before anyone notices (PL-021 / G-058 class).
 
 | Form | Action |
 |------|--------|
-| `/preflight` | Run all five checks (human-format render) |
+| `/preflight` | Run all six checks (human-format render) |
 | `/preflight --json` | Machine-readable envelope (passes through) |
 
 ## What it checks
@@ -39,6 +39,7 @@ before anyone notices (PL-021 / G-058 class).
 | 3 | `~/.termlink/be-reachable.state` PID alive | MEDIUM | If pid is dead, pickup loops, agent contact, and DM receipts all look healthy at registration time but the listener is gone. Catches the "I forgot to `/be-reachable` again after reboot" footgun. |
 | 4 | `termlink --version` >= project root `VERSION` | MEDIUM | T-2181: catches stale-CLIENT footgun where catalog promises flags like `--only-stuck` (T-2076) or subcommands like `fleet governor-status` (T-2062) that an older binary refuses with `unknown flag`. WARN-only — substrate still works for primitives the binary has. Skipped silently outside the project tree (no `VERSION` file). Remediation: `cargo build --release && install -m 755 target/release/termlink ~/.cargo/bin/`. |
 | 5 | local hub serves T-2139 `rate_buckets_evicted_total` field | MEDIUM | T-2184: symmetric companion to Check 4. Probes running hub via `termlink hub status --governor --json` for field presence. Absence ⇒ pre-T-2139 hub (typically: operator ran `cargo install` but never restarted hub — `/proc/<pid>/exe` shows `...(deleted)`, in-memory binary keeps serving old envelopes). The CLI loyally renders absent fields as `n/a` and the operator infers missing-feature when the actual gap is missing-restart. Skipped when hub down (Check 1 territory). Remediation: restart hub to pick up new binary; verify runtime_dir persistence per Check 1 first. Origin: PL-209 spent ~30min chasing "missing telemetry" that was a missing restart. |
+| 6 | systemd `termlink-hub` unit healthy + no detached-ghost hub | MEDIUM | T-2358 / G-070: unit crash-looped every 5s for 2178 restarts ("Hub is already running") while a DETACHED hub (PPID 1) held the pidfile — hub worked so Checks 1-5 stayed green, but supervision was silently lost (no crash-restart, reboot-race, unit-driven upgrades absorbed by the flap). WARNs on: crash-looping/failed unit; pidfile PID alive but != unit MainPID (ghost); hub running with unit inactive (unsupervised); NRestarts > `TERMLINK_PREFLIGHT_NRESTARTS_MAX` (default 5, flap residue — acknowledge with `systemctl reset-failed termlink-hub`). Skips silently on non-systemd / watchdog-launched hosts. |
 
 Exit codes:
 - `0` — all PASS, substrate-ready

@@ -46,6 +46,15 @@
 #              with restart remediation. Origin: T-2183 PL-209
 #              misdiagnosis loop, ~30min wasted investigation.
 #
+#   Check 6: systemd unit health + pidfile-vs-MainPID ghost detection (T-2358)
+#            → G-070: termlink-hub.service crash-looped 2178 times while a
+#              detached hub held the pidfile — supervision silently lost,
+#              hub still "worked" so Checks 1-5 stayed green. WARNs on
+#              crash-looping/failed units, detached-ghost PIDs, hubs
+#              running with no supervision, and flap residue
+#              (NRestarts > TERMLINK_PREFLIGHT_NRESTARTS_MAX, default 5).
+#              Skips silently on non-systemd / watchdog-launched hosts.
+#
 # Read-only, no network, no auth, no state mutation. Safe in any context.
 #
 # Exit codes:
@@ -87,6 +96,9 @@ Checks:
   5. local hub serves T-2139 field (`rate_buckets_evicted_total`) — catches
      stale-HUB footgun where a `(deleted)` in-memory binary keeps serving
      pre-T-2139 envelopes (T-2184, symmetric to Check 4)
+  6. systemd termlink-hub unit healthy + no detached-ghost hub (T-2358, G-070)
+     — catches crash-looping units, hubs running outside supervision, and
+     flap residue (NRestarts > TERMLINK_PREFLIGHT_NRESTARTS_MAX, default 5)
 
 Options:
   --json           Emit a machine-readable envelope instead of human-format output
@@ -463,6 +475,83 @@ check_hub_binary_freshness() {
     fi
 }
 
+# T-2358: Check 6 — systemd unit health + pidfile-vs-MainPID ghost detection.
+# G-070: termlink-hub.service crash-looped every 5s for 2178 restarts ("Hub
+# is already running") while a DETACHED hub (PPID 1, started outside
+# systemd) held the pidfile. The hub worked, so Checks 1-5 stayed green —
+# but supervision was silently lost (no crash-restart, reboot would race
+# the ghost, unit-driven binary upgrades were absorbed by the flap) and
+# the journal ate ~17k failed starts/day. Nothing in the framework asks
+# systemd; this check does.
+#
+# States surfaced (all WARN — supervision loss degrades, doesn't break,
+# the running substrate; same medium tier as Checks 4/5):
+#   activating/failed          → unit crash-looping or dead (G-070 live form)
+#   active but pidfile != MainPID and pidfile PID alive
+#                              → detached ghost serving while unit thinks
+#                                it owns a different process
+#   inactive but pidfile PID alive
+#                              → hub running with NO supervision at all
+#   active + NRestarts > TERMLINK_PREFLIGHT_NRESTARTS_MAX (default 5)
+#                              → flap residue: NRestarts persists after
+#                                recovery until `systemctl reset-failed`;
+#                                the counter IS the incident evidence and
+#                                clearing it is the operator's acknowledge.
+# Graceful skip: no systemctl, or no termlink-hub unit installed (watchdog-
+# launched hosts are legitimate), or unit inactive with no live hub (plain
+# hub-down is other verbs' domain — one check, one question).
+check_hub_unit_health() {
+    command -v systemctl >/dev/null 2>&1 || return
+    # Unit installed at all? (list-unit-files exits 0 with no rows when absent)
+    if ! systemctl list-unit-files termlink-hub.service 2>/dev/null | grep -q '^termlink-hub.service'; then
+        return
+    fi
+    local state main_pid n_restarts
+    state=$(systemctl is-active termlink-hub 2>/dev/null)
+    main_pid=$(systemctl show -p MainPID --value termlink-hub 2>/dev/null)
+    n_restarts=$(systemctl show -p NRestarts --value termlink-hub 2>/dev/null)
+    local nrestarts_max="${TERMLINK_PREFLIGHT_NRESTARTS_MAX:-5}"
+    # Resolve the hub pidfile: env-declared runtime_dir first, then the
+    # canonical migrated path (T-935), then the legacy default.
+    local pidfile="" pf pid_from_file=""
+    for pf in "${TERMLINK_RUNTIME_DIR:-}/hub.pid" /var/lib/termlink/hub.pid /tmp/termlink-0/hub.pid; do
+        [ -n "$pf" ] && [ "$pf" != "/hub.pid" ] && [ -f "$pf" ] && { pidfile="$pf"; break; }
+    done
+    [ -n "$pidfile" ] && pid_from_file=$(tr -cd '0-9' < "$pidfile")
+    local pidfile_alive=0
+    [ -n "$pid_from_file" ] && kill -0 "$pid_from_file" 2>/dev/null && pidfile_alive=1
+
+    case "$state" in
+        activating|failed)
+            emit_check "hub-unit" "medium" "warn" \
+                "termlink-hub.service is $state (NRestarts=$n_restarts) — crash-looping or dead while $([ "$pidfile_alive" -eq 1 ] && echo "a detached hub (pidfile PID $pid_from_file) holds the pidfile" || echo "no live hub holds the pidfile") (G-070)" \
+                "If a healthy detached hub is serving: TERMLINK_RUNTIME_DIR=\$(dirname $pidfile) termlink hub stop — systemd's auto-restart takes over within seconds under proper supervision. Then: journalctl -u termlink-hub -n 20"
+            ;;
+        active)
+            if [ "$pidfile_alive" -eq 1 ] && [ -n "$main_pid" ] && [ "$pid_from_file" != "$main_pid" ]; then
+                emit_check "hub-unit" "medium" "warn" \
+                    "termlink-hub.service active (MainPID $main_pid) but pidfile $pidfile names a DIFFERENT live PID $pid_from_file — detached ghost serving outside supervision (G-070)" \
+                    "Inspect both: ps -o pid,ppid,lstart,cmd -p $main_pid,$pid_from_file — stop the detached one with termlink hub stop, keep the supervised one"
+            elif [ -n "$n_restarts" ] && [ "$n_restarts" -gt "$nrestarts_max" ] 2>/dev/null; then
+                emit_check "hub-unit" "medium" "warn" \
+                    "termlink-hub.service active (MainPID $main_pid) but NRestarts=$n_restarts exceeds $nrestarts_max — flap residue from a past G-070 incident awaiting acknowledgment" \
+                    "Review journalctl -u termlink-hub, then acknowledge: systemctl reset-failed termlink-hub (clears the counter)"
+            else
+                emit_check "hub-unit" "medium" "pass" \
+                    "termlink-hub.service active (MainPID $main_pid, NRestarts=${n_restarts:-0}) — hub under systemd supervision"
+            fi
+            ;;
+        *)
+            # inactive / unknown: only interesting if a hub runs UNsupervised.
+            if [ "$pidfile_alive" -eq 1 ]; then
+                emit_check "hub-unit" "medium" "warn" \
+                    "termlink-hub.service is $state but a live hub (PID $pid_from_file) holds $pidfile — running with NO supervision (no crash-restart, no reboot-survival) (G-070)" \
+                    "TERMLINK_RUNTIME_DIR=\$(dirname $pidfile) termlink hub stop && systemctl start termlink-hub"
+            fi
+            ;;
+    esac
+}
+
 # ---- Run all checks ----------------------------------------------------
 
 if [ "$JSON" -eq 0 ]; then
@@ -475,6 +564,7 @@ check_hubs_toml
 check_be_reachable_state
 check_binary_freshness
 check_hub_binary_freshness
+check_hub_unit_health
 
 # ---- Summary -----------------------------------------------------------
 

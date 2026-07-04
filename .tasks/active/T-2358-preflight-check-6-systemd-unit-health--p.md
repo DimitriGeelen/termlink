@@ -4,7 +4,7 @@ name: "Preflight Check 6: systemd unit health + pidfile-vs-MainPID ghost detecti
 description: >
   G-070 prevention: substrate-preflight.sh gains Check 6 — when termlink-hub.service exists, WARN/FAIL if the unit is not active, if NRestarts exceeds threshold, or if the pidfile PID is alive but differs from the unit Main PID (detached-ghost, the T-2357 finding: 2178 silent restart failures while a detached hub held the pidfile). Same WARN/FAIL taxonomy + remediation-hint pattern as Checks 4/5.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-04T15:11:44Z
-last_update: 2026-07-04T15:11:44Z
+last_update: 2026-07-04T15:12:33Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,17 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+G-070 prevention. T-2357 found termlink-hub.service crash-looping every 5s for 2178 restarts ("Hub is already running") while a DETACHED hub (PPID 1, started outside systemd) held the pidfile — supervision silently lost, journal spammed, unit-driven upgrades impossible, and NO framework surface observes supervisor-unit health (preflight Checks 1-5 probe runtime_dir/hubs.toml/be-reachable/CLI-binary/hub-binary; none ask systemd). Check 6 asks it. Design notes from the live incident: `NRestarts` persists after recovery (2183 on the now-healthy unit) until `systemctl reset-failed`, so a high counter on an active unit is a WARN with reset-failed as the acknowledge remediation — the counter IS the incident evidence, clearing it is operator acknowledgment.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `check_hub_unit_health` (Check 6) added to scripts/substrate-preflight.sh with the existing emit_check taxonomy; graceful skip when systemctl or the termlink-hub unit is absent (non-systemd / watchdog-launched hosts stay silent) — `bash -n` clean
+- [x] Crash-loop state (`is-active` = activating/failed) → WARN naming the G-070 class with remediation (identify pidfile holder; if a healthy detached hub: `termlink hub stop` then let systemd take over)
+- [x] Detached-ghost detection: pidfile PID alive AND != unit MainPID → WARN "detached ghost serving outside supervision"; unit-inactive-with-live-hub → WARN "running with NO supervision" (both arms implemented; pidfile resolved from TERMLINK_RUNTIME_DIR → /var/lib/termlink → /tmp/termlink-0)
+- [x] Flap-history: unit active but NRestarts > threshold (TERMLINK_PREFLIGHT_NRESTARTS_MAX, default 5) → WARN with `systemctl reset-failed termlink-hub` acknowledge remediation
+- [x] Healthy path → PASS naming MainPID; live proof on .107: first run WARNed on the real NRestarts=2183 residue (exit 1, "flap residue from a past G-070 incident awaiting acknowledgment"); after `systemctl reset-failed` (NRestarts→0) the run PASSes 6/6 ("Summary: 6 pass, 0 warn, 0 fail — substrate-ready"); `--json` envelope carries the hub-unit row
+- [x] Docs updated: script header check-list (Check 6 block), usage text (item 6 + five→six), `/preflight` skill table (row 6, table-split blank line fixed), CLAUDE.md preflight catalog entry (Six checks + clause 6)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -106,6 +109,12 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+bash -n scripts/substrate-preflight.sh
+grep -q "check_hub_unit_health" scripts/substrate-preflight.sh
+bash scripts/substrate-preflight.sh > /tmp/.t2358-preflight.out 2>&1 && grep -q "hub-unit" /tmp/.t2358-preflight.out
+grep -q "systemd \`termlink-hub\` unit healthy" .claude/commands/preflight.md
+grep -q "detached-ghost detection" CLAUDE.md
 
 ## RCA
 
@@ -174,3 +183,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2358-preflight-check-6-systemd-unit-health--p.md
 - **Context:** Initial task creation
+
+### 2026-07-04T15:12:33Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
