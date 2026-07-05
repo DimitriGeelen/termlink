@@ -43,7 +43,7 @@ together form the canonical pickup pattern when landing on a host:
 
 | Verb | Tier | Answers |
 |---|---|---|
-| `/preflight` (T-2158) | Deploy-time | Is the substrate environment set up correctly? Five checks: runtime_dir (PL-021 volatile /tmp), hubs.toml, be-reachable state, CLI binary freshness (T-2181), hub binary freshness (T-2184) |
+| `/preflight` (T-2158) | Deploy-time | Is the substrate environment set up correctly? Six checks: runtime_dir (PL-021 volatile /tmp), hubs.toml, be-reachable state, CLI binary freshness (T-2181), hub binary freshness (T-2184), systemd unit health / detached-ghost (T-2358) |
 | `/substrate` (T-2096) | Runtime | Is the substrate healthy right now? (composes /find-idle + /claims + /queue-status + /governor) |
 | `/canaries` (T-2172/T-2178) | Cron-tier protection | Are my daily watchers firing AND clean? (auto-discovers `.*-canary.log` AND `.heartbeat`) |
 
@@ -65,7 +65,8 @@ scripts/substrate-preflight.sh
 # → [PASS] be-reachable       alive | absent
 # → [PASS] binary             termlink X.Y.Z matches project VERSION (catalog features available)
 # → [PASS] hub-binary         local hub serves T-2139 rate_buckets_evicted_total field — fresh binary
-# → Summary: 5 pass, 0 warn, 0 fail — substrate-ready.
+# → [PASS] hub-unit           termlink-hub.service active (MainPID …, NRestarts=0) — hub under systemd supervision
+# → Summary: 6 pass, 0 warn, 0 fail — substrate-ready.
 ```
 
 Exit 2 means **stop**: the single largest production failure mode is
