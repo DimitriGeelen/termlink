@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2367: Relay AEF pickup-cron 'fw not on PATH' task-create bug to AEF
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-05T20:24:00Z
+# ============================================================================
+
+task_id: T-2367
+task_name: "Relay AEF pickup-cron 'fw not on PATH' task-create bug to AEF"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-05T20:22:12Z
+completed: 2026-07-05T20:23:56Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-05T22:23:50+02:00
+last_commit: 2026-07-05T22:23:50+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  relay AEF pickup-cron 'fw not on PATH' task-create bug to AEF (T-100249)
+
+# Key outcomes
+outcomes:
+  - 'AEF bug-report task created (via `termlink_run`, fw on PATH + `env -u CLAUDECODE`) describing the `pickup_create_inception` bare-`fw` cron failure, with RCA + fix options + evidence — **AEF T-100249**'
+  - 'Created AEF task verified present + well-formed in AEF `.tasks/active/T-100249-*` (status captured, type build, owner agent, horizon next, tags [pickup, bug-report]; description carries the RCA, `pickup_create_inception` ×3), attributed to termlink source (T-2367)'
+  - 'termlink T-2367 RCA block filled (bug-class gate G-019)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'relay AEF pickup-cron ''fw not on PATH'' task-create bug to AEF (T-100249)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2367-relay-aef-pickup-cron-fw-not-on-path-tas.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-05T22:23:50"
+    action: "T-2367: relay AEF pickup-cron 'fw not on PATH' task-create bug to AEF (T-100249)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 1
+  lines_added: 211
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2367-relay-aef-pickup-cron-fw-not-on-path-tas.md
+generated_by: context-agent-hybrid
