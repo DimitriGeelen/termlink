@@ -3384,3 +3384,21 @@ scan_id: R-e06ed85a
 task_id: T-2272
 payload:
   task_file: .tasks/active/T-2272-pre-existing-6-mcpintegration-tests-fail.md
+---
+kind: scan_emitted
+timestamp: '2026-07-05T09:13:43Z'
+scan_id: R-ec1b7af1
+task_id: T-2330
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-05T09:13:43Z'
+scan_id: R-ec1b7af1
+task_id: T-2330
+payload:
+  task_file: .tasks/active/T-2330-reviewer-fails-open-rc0-on-catalogue-not.md

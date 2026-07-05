@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2330: Reviewer fails-open (rc=0) on catalogue-not-found — missing catalogue is undetectable
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-05T09:13:46Z
+# ============================================================================
+
+task_id: T-2330
+task_name: "Reviewer fails-open (rc=0) on catalogue-not-found — missing catalogue is undetectable"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-03T09:31:36Z
+completed: 2026-07-05T09:13:42Z
+duration_days: 2
+updates_count: 2
+first_commit: 2026-07-05T11:13:41+02:00
+last_commit: 2026-07-05T11:13:41+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  reviewer dispatch fail-open fixed — bash RC-inversion in worker template; upstream AEF b2f29c1c3 + local vendored repair
+
+# Key outcomes
+outcomes:
+  - 'Upstream `/opt/999-AEF/lib/reviewer/dispatch_cli.py` worker-script template captures'
+  - 'Same patch applied to the local vendored copy'
+  - 'Inversion demonstrated + fix verified by bash simulation: old shape yields RC=0 on'
+  - 'Upstream pushed to OneDev origin/master and landing verified'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'reviewer dispatch fail-open fixed — bash RC-inversion in worker template; upstream AEF b2f29c1c3 + local vendored repair'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2330-reviewer-fails-open-rc0-on-catalogue-not.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-05T11:13:41"
+    action: "T-2330: reviewer dispatch fail-open fixed — bash RC-inversion in worker template; upstream AEF b2f29c1c3 + local vendored repair"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2862 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2862
+  commits: 1
+  files_changed: 1
+  lines_added: 58
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2330-reviewer-fails-open-rc0-on-catalogue-not.md
+generated_by: context-agent-hybrid

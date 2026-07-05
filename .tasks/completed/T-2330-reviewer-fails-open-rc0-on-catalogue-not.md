@@ -4,10 +4,10 @@ name: "Reviewer fails-open (rc=0) on catalogue-not-found — missing catalogue i
 description: >
   static_scan.py prints 'ERROR: catalogue not found at <path>' but the process exits rc=0 (observed via fw reviewer T-2325 --dispatch: bus artifact 'reviewer: ERROR (rc=0)'). Because update-task.sh runs the completion-time auto-review as '... ) || true' (line ~1499, measurement-only), a rc=0 on a hard error is swallowed — the reviewer silently no-ops on every completed task and nothing surfaces the failure (G-019 'framework was blind' pattern). Fix: exit non-zero (e.g. 2) on catalogue-not-found so callers/monitors can detect a broken reviewer. This is AEF code (upstream /opt/999-Agentic-Engineering-Framework/lib/reviewer/static_scan.py) — relay to AEF via .pickup. Discovered alongside T-2329 (the missing-catalogue vendoring gap that triggered this error path).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-03T09:31:36Z
-last_update: 2026-07-05T09:09:25Z
-date_finished: null
+last_update: 2026-07-05T09:13:42Z
+date_finished: 2026-07-05T09:13:42Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -226,3 +226,20 @@ T-2329 (vendor policy/ into consumer installs) removes the trigger that exposed 
 
 ### 2026-07-05T09:09:25Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-ec1b7af1
+- **Timestamp:** 2026-07-05T09:13:43Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — Upstream `/opt/999-AEF/lib/reviewer/dispatch_cli.py` worker-script template captures
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=opt/999-AEF/lib/reviewer/dispatch_cli.py in: Upstream `/opt/999-AEF/lib/reviewer/dispatch_cli.py` worker-script template captures`
+
+### 2026-07-05T09:13:42Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
