@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2366: Relay stranded framework:pickup filings P-050/P-051 to AEF inbox
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-05T20:01:58Z
+# ============================================================================
+
+task_id: T-2366
+task_name: "Relay stranded framework:pickup filings P-050/P-051 to AEF inbox"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-05T19:46:02Z
+completed: 2026-07-05T20:01:54Z
+duration_days: 0
+updates_count: 4
+first_commit: 2026-07-05T22:01:44+02:00
+last_commit: 2026-07-05T22:01:44+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  relay card-redirect P-050/P-051 to AEF (T-100247/T-100248); G-067 skipped (fixed upstream T-2297/T-2298); found AEF pickup cron 'fw not on PATH' task-create bug
+
+# Key outcomes
+outcomes:
+  - 'P-050 + P-051 envelopes decoded from the bus payloads, YAML-valid, `pickup_id`/`type` preserved verbatim (attribution to card-redirect intact)'
+  - 'Both envelopes written into AEF `/opt/999-Agentic-Engineering-Framework/.context/pickup/inbox/` via `termlink_run`'
+  - 'Delivery verified: AEF per-minute `fw pickup process` cron drained both to `processed/` within ~10s (dedup.log 2026-07-05T19:55:01/02Z; inbox emptied) — confirmed by direct `ls`/`grep`'
+  - 'G-067 relay skip documented with upstream-fix evidence (T-2297/T-2298 commit shas) — no G-067 envelope written'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'relay card-redirect P-050/P-051 to AEF (T-100247/T-100248); G-067 skipped (fixed upstream T-2297/T-2298); found AEF pickup cron ''fw not on PATH'' task-create bug'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2366-relay-stranded-frameworkpickup-filings-p.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-05T22:01:44"
+    action: "T-2366: relay card-redirect P-050/P-051 to AEF (T-100247/T-100248); G-067 skipped (fixed upstream T-2297/T-2298); found AEF pickup cron 'fw not on PATH' task-create bug"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 15 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 15
+  commits: 1
+  files_changed: 1
+  lines_added: 235
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2366-relay-stranded-frameworkpickup-filings-p.md
+generated_by: context-agent-hybrid
