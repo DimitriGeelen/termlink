@@ -3402,3 +3402,21 @@ scan_id: R-ec1b7af1
 task_id: T-2330
 payload:
   task_file: .tasks/active/T-2330-reviewer-fails-open-rc0-on-catalogue-not.md
+---
+kind: scan_emitted
+timestamp: '2026-07-05T09:27:06Z'
+scan_id: R-bc679116
+task_id: T-2329
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-05T09:27:06Z'
+scan_id: R-bc679116
+task_id: T-2329
+payload:
+  task_file: .tasks/active/T-2329-vendor-policyanti-patternsyaml-into-cons.md

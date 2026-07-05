@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2329: Vendor policy/anti-patterns.yaml into consumer .agentic-framework — reviewer non-functional without it
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-05T09:27:09Z
+# ============================================================================
+
+task_id: T-2329
+task_name: "Vendor policy/anti-patterns.yaml into consumer .agentic-framework — reviewer non-functional without it"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-03T09:31:15Z
+completed: 2026-07-05T09:27:05Z
+duration_days: 2
+updates_count: 2
+first_commit: 2026-07-03T11:32:51+02:00
+last_commit: 2026-07-05T11:27:05+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  reviewer catalogue vendoring gap + T-2330 fails-open — verdict PASS on T-2325, relayed AEF .pickup/072. policy/ now ships to consumers — fw vendor includes + _self_vendor_policy catalogues; upstream AEF e595be048
+
+# Key outcomes
+outcomes:
+  - '`policy` added to the `fw vendor` includes array (bin/fw) so consumer vendoring ships'
+  - '`anti-patterns.yaml` + `escalation-patterns.yaml` added to `_self_vendor_policy`''s'
+  - 'Upstream commit pushed to OneDev origin/master (`b2f29c1c3..e595be048`), landing'
+  - 'Consumer-side: `.agentic-framework/policy/anti-patterns.yaml` present locally'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2325-arc-004-s3-live-e2e--dm-rail-push-wake-b.md'
+  - '.tasks/active/T-2329-vendor-policyanti-patternsyaml-into-cons.md'
+  - '.tasks/active/T-2330-reviewer-fails-open-rc0-on-catalogue-not.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-03T11:32:51"
+    action: "T-2329: reviewer catalogue vendoring gap + T-2330 fails-open — verdict PASS on T-2325, relayed AEF .pickup/072"
+  - time: "2026-07-05T11:27:05"
+    action: "T-2329: policy/ now ships to consumers — fw vendor includes + _self_vendor_policy catalogues; upstream AEF e595be048"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 2875 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2875
+  commits: 2
+  files_changed: 3
+  lines_added: 411
+  lines_removed: 7
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2329-vendor-policyanti-patternsyaml-into-cons.md
+generated_by: context-agent-hybrid

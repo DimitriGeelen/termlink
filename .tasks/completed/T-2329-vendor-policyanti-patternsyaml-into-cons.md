@@ -4,10 +4,10 @@ name: "Vendor policy/anti-patterns.yaml into consumer .agentic-framework — rev
 description: >
   The static-scan reviewer (fw reviewer) resolves its catalogue to framework_root/policy/anti-patterns.yaml then project_root/policy/anti-patterns.yaml (static_scan.py:2452-2457). Neither exists in /opt/termlink: the vendored .agentic-framework/ ships no policy/ dir. Result: every reviewer inline+dispatch here returned 'ERROR: catalogue not found' — the governance reviewer has been silently disabled for the whole project. Local repair applied 2026-07-03 (copied 514-line catalogue from upstream AEF into .agentic-framework/policy/, gitignored so it will vanish on next vendor refresh). Systemic fix: the AEF vendor/update process must include policy/ in consumer installs.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-03T09:31:15Z
-last_update: 2026-07-05T09:24:56Z
-date_finished: null
+last_update: 2026-07-05T09:27:05Z
+date_finished: 2026-07-05T09:27:05Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -217,3 +217,15 @@ vendor includes) would be the deeper Level-D fix — noted for upstream, not fil
 
 ### 2026-07-05T09:24:56Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-bc679116
+- **Timestamp:** 2026-07-05T09:27:06Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-05T09:27:05Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
