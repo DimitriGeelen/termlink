@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2364: arc-004 push-wake capability-live re-verification on running .107 hub
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-05T16:51:41Z
+# ============================================================================
+
+task_id: T-2364
+task_name: "arc-004 push-wake capability-live re-verification on running .107 hub"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-05T16:48:43Z
+completed: 2026-07-05T16:51:29Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-05T18:51:16+02:00
+last_commit: 2026-07-05T18:51:16+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  arc-004 push-wake capability-live re-verified on running .107 hub (median 0.107s)
+
+# Key outcomes
+outcomes:
+  - 'Running hub confirmed capability-complete for arc-004: systemd MainPID match, ActiveState=active, and `hub.governor_status` carries the post-arc telemetry fields (`rate_buckets_evicted_total`, `webhook_*`, `cv_index_*`)'
+  - 'Live WS-over-Unix push smoke against the running hub (subscribe `inbox.queued --push`, post to `inbox:*`) observes push frames for every post, measured over ≥5 timed trials'
+  - 'Median post→push latency is sub-second (target from T-2303 inception; T-2320 measured 85–111ms) — actual median 0.107s recorded'
+  - 'Verification report committed at `docs/reports/T-2364-arc-004-pushwake-liveverify.md` with the raw per-trial numbers and the transport-evidence frame'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/reports/T-2364-arc-004-pushwake-liveverify.md'
+  - '.tasks/active/T-2364-arc-004-push-wake-capability-live-re-ver.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-05T18:51:16"
+    action: "T-2364: arc-004 push-wake capability-live re-verified on running .107 hub (median 0.107s)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 2
+  lines_added: 233
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2364-arc-004-push-wake-capability-live-re-ver.md
+generated_by: context-agent-hybrid
