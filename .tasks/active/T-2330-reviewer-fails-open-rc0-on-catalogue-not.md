@@ -4,7 +4,7 @@ name: "Reviewer fails-open (rc=0) on catalogue-not-found — missing catalogue i
 description: >
   static_scan.py prints 'ERROR: catalogue not found at <path>' but the process exits rc=0 (observed via fw reviewer T-2325 --dispatch: bus artifact 'reviewer: ERROR (rc=0)'). Because update-task.sh runs the completion-time auto-review as '... ) || true' (line ~1499, measurement-only), a rc=0 on a hard error is swallowed — the reviewer silently no-ops on every completed task and nothing surfaces the failure (G-019 'framework was blind' pattern). Fix: exit non-zero (e.g. 2) on catalogue-not-found so callers/monitors can detect a broken reviewer. This is AEF code (upstream /opt/999-Agentic-Engineering-Framework/lib/reviewer/static_scan.py) — relay to AEF via .pickup. Discovered alongside T-2329 (the missing-catalogue vendoring gap that triggered this error path).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-03T09:31:36Z
-last_update: 2026-07-03T09:31:36Z
+last_update: 2026-07-05T09:09:25Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,38 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Investigated 2026-07-05: the filing's hypothesis (static_scan.py exits rc=0 on
+catalogue-not-found) is WRONG — static_scan.py already returns 3 on catalogue-not-found
+(line ~2458) and `sys.exit(main())` propagates it; the inline path is correct. The rc=0
+comes from the DISPATCH wrapper: `_write_worker_script` in `lib/reviewer/dispatch_cli.py`
+generates a worker script with
+
+    if ! "$FW" reviewer "$TASK" --json > "$TMP" 2>&1; then
+        RC=$?
+
+Inside the then-branch, `$?` is the status of the NEGATED conditional (`! cmd` → 0 when
+cmd failed), so RC is always 0 for any reviewer failure — the bus artifact reads
+"reviewer: ERROR (rc=0)" and `exit "$RC"` makes the worker exit 0, so the failure looks
+like success to anything watching. Fix: capture RC before the test
+(`cmd; RC=$?; if [ "$RC" -ne 0 ]`). AEF upstream code — patch via the authorized
+channel-1 upstream pattern (termlink_run → /opt/999-AEF, commit, push OneDev), plus the
+same patch to the local vendored copy (gitignored, immediate benefit).
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Upstream `/opt/999-AEF/lib/reviewer/dispatch_cli.py` worker-script template captures
+      the real exit code (`RC=$?` immediately after the command, before any test) — no
+      `if ! cmd; then RC=$?` inversion left in the file. (Commit `18cda0235` cherry-picked
+      to master as part of `b2f29c1c3`; also left on the checkout's live branch
+      `t2416-fw-safe-mode-hook-timing` so the shared worktree benefits immediately.)
+- [x] Same patch applied to the local vendored copy
+      `.agentic-framework/lib/reviewer/dispatch_cli.py` (untracked local repair; syntax OK).
+- [x] Inversion demonstrated + fix verified by bash simulation: old shape yields RC=0 on
+      an exit-3 inner command; new shape yields RC=3.
+- [x] Upstream pushed to OneDev origin/master and landing verified
+      (`c90636dd6..b2f29c1c3`; AEF's self-vendor pre-push gate required + got a
+      `fw vendor self` refresh commit; `git show origin/master:...` greps 0 inversions).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -107,7 +131,32 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+out=$(grep -c 'if ! "$FW"' .agentic-framework/lib/reviewer/dispatch_cli.py); [ "$out" = "0" ]
+python3 -c "import ast; ast.parse(open('.agentic-framework/lib/reviewer/dispatch_cli.py').read())"
+
 ## RCA
+
+**Symptom:** every dispatched reviewer failure surfaced as bus artifact
+`reviewer: ERROR (rc=0)` and the worker exited 0 — combined with update-task.sh's
+measurement-only `|| true`, a completely broken reviewer (e.g. T-2329's missing
+catalogue) was undetectable from every surface.
+
+**Root cause:** NOT static_scan.py (its exit codes are correct — returns 3 on
+catalogue-not-found, propagated by `sys.exit(main())`). The generated dispatch worker
+script used `if ! "$FW" reviewer ...; then RC=$?` — in bash, `$?` inside the then-branch
+holds the status of the negated conditional (`! cmd` → 0 when cmd failed), so RC was
+always 0 on failure and `exit "$RC"` turned every failure into success (shellcheck
+SC2319 class).
+
+**Why structurally allowed:** the worker script exists only as a string inside a Python
+f-string (`_write_worker_script`) — it is never a standalone .sh file, so no shellcheck
+pass ever sees it, and no test asserted the error path's exit code (only the happy path
+was exercised in T-1951's dispatch-mode verification).
+
+**Prevention:** (1) fix + in-template comment naming the footgun so the next editor of
+the template doesn't reintroduce it; (2) the error path now carries the real rc, so the
+existing bus artifact + worker exit code become trustworthy detectors; (3) sibling
+T-2329 (vendor policy/ into consumer installs) removes the trigger that exposed this.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -174,3 +223,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2330-reviewer-fails-open-rc0-on-catalogue-not.md
 - **Context:** Initial task creation
+
+### 2026-07-05T09:09:25Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
