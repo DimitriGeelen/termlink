@@ -4,7 +4,7 @@ name: "Vendor policy/anti-patterns.yaml into consumer .agentic-framework — rev
 description: >
   The static-scan reviewer (fw reviewer) resolves its catalogue to framework_root/policy/anti-patterns.yaml then project_root/policy/anti-patterns.yaml (static_scan.py:2452-2457). Neither exists in /opt/termlink: the vendored .agentic-framework/ ships no policy/ dir. Result: every reviewer inline+dispatch here returned 'ERROR: catalogue not found' — the governance reviewer has been silently disabled for the whole project. Local repair applied 2026-07-03 (copied 514-line catalogue from upstream AEF into .agentic-framework/policy/, gitignored so it will vanish on next vendor refresh). Systemic fix: the AEF vendor/update process must include policy/ in consumer installs.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-03T09:31:15Z
-last_update: 2026-07-03T09:32:51Z
+last_update: 2026-07-05T09:24:56Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,31 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Investigated 2026-07-05 — two distinct gaps in the AEF vendor chain:
+1. `fw vendor` (bin/fw ~line 297) copies a fixed `includes` array (bin lib agents web docs
+   .tasks/templates FRAMEWORK.md metrics.sh) that omits `policy` entirely — consumers never
+   receive policy/ at vendor time.
+2. `_self_vendor_policy` (lib/upgrade.sh:258) syncs only a fixed file list (value-drivers.yaml,
+   bvp-scoring-rubric.md, capability-overlay/tool-set.yaml) — it omits `anti-patterns.yaml`
+   and `escalation-patterns.yaml`, the two catalogues static_scan.py actually loads, so even
+   the framework repo's own vendored mirror drifts for the reviewer's inputs.
+Result here: reviewer silently disabled for the whole project until the 2026-07-03 manual
+copy (gitignored). Fix both upstream via the channel-1 pattern.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `policy` added to the `fw vendor` includes array (bin/fw) so consumer vendoring ships
+      the whole policy/ dir (catalogues + templates).
+- [x] `anti-patterns.yaml` + `escalation-patterns.yaml` added to `_self_vendor_policy`'s
+      fixed list (lib/upgrade.sh) — proven live at commit time: `fw vendor self` in the
+      worktree immediately synced both catalogues into AEF's own `.agentic-framework/policy/`.
+- [x] Upstream commit pushed to OneDev origin/master (`b2f29c1c3..e595be048`), landing
+      verified: `git show origin/master:bin/fw` lists `policy` in includes;
+      `origin/master:lib/upgrade.sh` greps the extended list.
+- [x] Consumer-side: `.agentic-framework/policy/anti-patterns.yaml` present locally
+      (514 lines, 2026-07-03 manual repair) — reviewer functional here today; next
+      vendor refresh from upstream now ships it durably instead of erasing it.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -107,7 +124,30 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+test -f .agentic-framework/policy/anti-patterns.yaml
+
 ## RCA
+
+**Symptom:** every `fw reviewer` run in this consumer project (inline and dispatch)
+returned `ERROR: catalogue not found` — the governance reviewer was silently disabled
+project-wide, only noticed 2026-07-03.
+
+**Root cause:** two independent omissions in the AEF vendor chain — `fw vendor`'s
+`includes` array never listed `policy/` (consumers never received the dir at all), and
+`_self_vendor_policy`'s fixed file list omitted the two catalogues static_scan.py loads
+(`anti-patterns.yaml`, `escalation-patterns.yaml`), so even the framework's own vendored
+mirror lacked them.
+
+**Why structurally allowed:** the vendor manifest is a hand-maintained allowlist with no
+completeness check — nothing compares "files framework code reads at runtime" against
+"files the vendor step ships", so a new runtime dependency (the reviewer catalogue,
+added later) silently missed the manifest. Compounded by T-2330's fail-open rc, which
+hid the resulting error from every surface.
+
+**Prevention:** upstream fix ships the dir + catalogues on both vendor paths; T-2330
+(fixed 2026-07-05) makes any future catalogue-not-found loud (real rc propagates to the
+bus artifact and worker exit). A manifest-completeness gate (diff runtime-opened paths vs
+vendor includes) would be the deeper Level-D fix — noted for upstream, not filed here.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -174,3 +214,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2329-vendor-policyanti-patternsyaml-into-cons.md
 - **Context:** Initial task creation
+
+### 2026-07-05T09:24:56Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
