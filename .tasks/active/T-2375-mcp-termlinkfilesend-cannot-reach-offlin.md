@@ -4,10 +4,10 @@ name: "MCP termlink_file_send cannot reach offline targets — early find_sessio
 description: >
   T-2363 follow-up (noted in that task's RCA). termlink_file_send MCP tool (crates/termlink-mcp/src/tools.rs:13423) bails at an up-front manager::find_session(&p.target) guard, returning 'session not found' for a genuinely offline target BEFORE the T-1249 hub artifact path (tools.rs:13454+) — which routes via the local hub and could spool to an offline target's inbox + fire inbox.queued — is ever reached. Net effect: MCP file-send cannot deliver to an offline target at all, unlike the CLI (file.rs/remote.rs, fixed in T-2363). Fix: restructure the fallback tiers so the hub artifact/spool path runs first (it only needs p.target, not a local reg), and defer the find_session guard to only the legacy 3-phase direct-to-socket path that genuinely needs the target's socket. Verify send_artifact_via_client's offline-target spool behavior before relying on it. Moderate refactor of the ~150-line tool + termlink-mcp compile.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: [bug, inbox-queued, mcp, T-2363-followup]
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-06T13:17:54Z
-last_update: 2026-07-06T13:17:54Z
+last_update: 2026-07-06T13:26:48Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,25 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+`termlink_file_send` MCP tool (crates/termlink-mcp/src/tools.rs) resolves the target with an
+up-front `manager::find_session(&p.target)` guard that returns "session not found" for a
+genuinely OFFLINE target — **before** the T-1249 hub artifact path (which routes via the local
+hub and spools to an offline target's inbox) is ever attempted. Sibling to the CLI gap fixed in
+T-2363. On investigation the fix is **minimal, no-regression**: `reg` (the resolved session) is
+used ONLY by the legacy 3-phase direct-to-socket path (event.emit to the session's own socket,
+which genuinely needs the target online); the hub artifact path uses `p.target` and never
+touches `reg`. So relocating the `find_session` guard down to just before the legacy Phase 1
+lets the hub path attempt offline delivery first — if it spools, MCP now reaches offline
+targets; if the hub path is unavailable, behavior is unchanged (bails later with the same
+error). Not a moderate refactor after all.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The `manager::find_session(&p.target)` guard is relocated from the top of `termlink_file_send` to immediately before the legacy 3-phase path (Phase 1 file.init), so the hub artifact path runs first for offline targets. `reg` is still resolved before its first use. — guard moved; compiles with no unused-`reg` warning (still used at the three legacy `reg.socket_path()` calls).
+- [x] The hub artifact path is unchanged and still returns success on `SendOutcome::Sent` (including hub-spool to an offline target); no early return remains that blocks reaching it for an offline `p.target`. — hub block untouched; the only early return before it (the find_session guard) is removed.
+- [x] `cargo check -p termlink-mcp` passes and `cargo test -p termlink-mcp` stays green (no regression to file-send/file-receive tests). — check clean (25.66s); suite 24 passed / 0 failed.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -106,22 +117,37 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+grep -q 'T-2375' crates/termlink-mcp/src/tools.rs
+cargo check -p termlink-mcp
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** The `termlink_file_send` MCP tool returns `session '<t>' not found` for a
+genuinely offline target and never delivers the file, even though the CLI (`termlink file send`
+/ `remote send-file`) can spool the same transfer to the target's inbox. MCP file-send was
+structurally incapable of reaching an offline target.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** `termlink_file_send` opened with an up-front `manager::find_session(&p.target)`
+guard that returned early on failure. `find_session` only resolves a LOCAL online session, so
+an offline target short-circuited the whole function — before the T-1249 hub artifact path
+(which routes through the local hub and spools to an offline target's inbox) could run. The
+guard was positioned as if `reg` were needed by every delivery path, but `reg` is used only by
+the legacy 3-phase direct-to-socket fallback.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** The hub artifact path (T-1249) was retrofitted ABOVE a
+pre-existing legacy path that had the find_session guard at the top. The retrofit added the
+offline-capable route but left the online-only guard in front of it, so the new capability was
+dead for the exact case (offline target) it would have helped. No MCP integration test
+exercises file-send against an offline target (the CLI-surface equivalent was also untested
+until T-2363).
+
+**Prevention:** The fix relocates the guard to just before the legacy path (its only real
+consumer). Structural regression guard: the `## Verification` block asserts the `T-2375` marker
+comment is present at the relocation site and `cargo check`/`cargo test -p termlink-mcp` stay
+green. A full offline-target MCP integration test is impractical here for the same
+global-harness reasons noted in T-2372 and is deferred; the guard relocation is safe by
+construction (no-regression — if the hub path can't spool, the function bails later with the
+identical error).
 
 ## Evolution
 
@@ -174,3 +200,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2375-mcp-termlinkfilesend-cannot-reach-offlin.md
 - **Context:** Initial task creation
+
+### 2026-07-06T13:26:48Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

@@ -13420,11 +13420,6 @@ impl TermLinkTools {
         use sha2::{Digest, Sha256};
         use termlink_protocol::events::{file_topic, FileInit, FileChunk, FileComplete, SCHEMA_VERSION};
 
-        let reg = match manager::find_session(&p.target) {
-            Ok(r) => r,
-            Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
-        };
-
         let file_path = std::path::Path::new(&p.path);
         let file_data = match std::fs::read(file_path) {
             Ok(d) => d,
@@ -13546,6 +13541,17 @@ impl TermLinkTools {
                 }
             }
         }
+
+        // T-2375: resolve the target's local session ONLY for the legacy direct
+        // 3-phase path below (event.emit to the session's own socket, which needs
+        // the target online). Deferred from the top of the function so the hub
+        // artifact path above can spool to an OFFLINE target's inbox first — MCP
+        // file-send previously bailed at this find_session before ever attempting
+        // hub delivery (sibling to the CLI-side gap fixed in T-2363).
+        let reg = match manager::find_session(&p.target) {
+            Ok(r) => r,
+            Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
+        };
 
         // Phase 1: file.init
         let init = FileInit {
