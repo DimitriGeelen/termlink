@@ -896,7 +896,7 @@ async fn handle_ws_connection<S>(
                         // the per-connection topic filter; everything else goes to the
                         // shared dispatch (identical to the line path).
                         if let Some(reply) = maybe_handle_ws_subscribe(
-                            txt.as_str(), &granted_scope, &mut topic_filter,
+                            txt.as_str(), &granted_scope, &mut topic_filter, peer_pid, &peer_addr,
                         ) {
                             if sink.send(Message::Text(reply.into())).await.is_err() { break; }
                         } else if let Some(json) = process_request_message(
@@ -909,7 +909,7 @@ async fn handle_ws_connection<S>(
                         // Permissive: accept JSON-RPC in a binary frame too.
                         if let Ok(txt) = String::from_utf8(bin.to_vec()) {
                             if let Some(reply) = maybe_handle_ws_subscribe(
-                                &txt, &granted_scope, &mut topic_filter,
+                                &txt, &granted_scope, &mut topic_filter, peer_pid, &peer_addr,
                             ) {
                                 if sink.send(Message::Text(reply.into())).await.is_err() { break; }
                             } else if let Some(json) = process_request_message(
@@ -988,12 +988,58 @@ fn maybe_handle_ws_subscribe(
     text: &str,
     granted_scope: &Option<PermissionScope>,
     topic_filter: &mut Vec<String>,
+    peer_pid: Option<u32>,
+    peer_addr: &Option<String>,
 ) -> Option<String> {
     let v: serde_json::Value = serde_json::from_str(text).ok()?;
     if v.get("method").and_then(|m| m.as_str()) != Some("hub.ws_subscribe") {
         return None;
     }
     let id = v.get("id").cloned().unwrap_or(serde_json::Value::Null);
+
+    // T-2372: ws_subscribe is intercepted before process_request_message, so it
+    // must charge the same per-sender rate governor and record the same rpc_audit
+    // entry as every other authed RPC — otherwise a client can spam ws_subscribe
+    // frames un-throttled and with no audit trail (arc-004 review finding #3). The
+    // sender-key precedence (params.from → peer_addr → peer_pid → anonymous) mirrors
+    // process_request_message so the audit log and rate buckets stay coherent across
+    // both intercept paths.
+    let from = v
+        .get("params")
+        .and_then(|p| p.get("from"))
+        .and_then(|f| f.as_str());
+    let peer_addr_ref = peer_addr.as_deref();
+    let sender_key = from
+        .map(str::to_string)
+        .or_else(|| peer_addr_ref.map(str::to_string))
+        .or_else(|| peer_pid.map(|p| p.to_string()))
+        .unwrap_or_else(|| "anonymous".to_string());
+    if let Err(hint) = crate::governor::rate_governor()
+        .try_acquire(&sender_key, crate::governor::now_ms())
+    {
+        tracing::warn!(
+            method = "hub.ws_subscribe",
+            sender = %sender_key,
+            retry_after_ms = hint.retry_after_ms,
+            "Hub: rate-limited ws_subscribe"
+        );
+        return Some(
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "error": {
+                    "code": control::error_code::RATE_LIMITED,
+                    "message": format!(
+                        "Rate limit exceeded for sender '{sender_key}' (retry in {}ms)",
+                        hint.retry_after_ms
+                    ),
+                    "data": { "retry_after_ms": hint.retry_after_ms, "sender": sender_key }
+                }
+            })
+            .to_string(),
+        );
+    }
+    crate::rpc_audit::record("hub.ws_subscribe", from, peer_pid, peer_addr_ref, None);
 
     // Require an authenticated connection with at least Observe scope.
     match *granted_scope {

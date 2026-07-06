@@ -4,10 +4,10 @@ name: "hub.ws_subscribe bypasses rate-limit governor + rpc audit (arc-004 review
 description: >
   arc-004 retrospective review finding #3 (LOW, CONFIRMED): S3 intercepts hub.ws_subscribe BEFORE process_request_message (server.rs ~883, ~899), so the per-sender rate governor never throttles it and rpc_audit::record never logs it. A client can spam ws_subscribe frames un-throttled (cheap — replaces a Vec) with no audit trail. Independent, bounded fix: route ws_subscribe through the same rate-limit + audit path as other authed RPCs (or add explicit governor.try_charge + audit record at the intercept site). Agent-actionable — no protocol change.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-06T11:14:35Z
-last_update: 2026-07-06T11:14:35Z
+last_update: 2026-07-06T13:07:53Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,23 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+arc-004 review finding #3 (LOW, CONFIRMED). `handle_ws_connection` intercepts
+`hub.ws_subscribe` via `maybe_handle_ws_subscribe` **before** `process_request_message`
+(server.rs), so ws_subscribe frames never hit the per-sender rate governor
+(`governor::rate_governor().try_acquire`) nor `rpc_audit::record`. A client can spam
+ws_subscribe frames un-throttled and with no audit trail. Fix: charge the same governor +
+audit at the intercept site, threading `peer_pid` + `peer_addr` in so the sender-key
+precedence matches `process_request_message` (params.from → peer_addr → peer_pid → anonymous).
+No protocol change.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `maybe_handle_ws_subscribe` charges the per-sender rate governor for every `hub.ws_subscribe` frame (sender-key precedence identical to `process_request_message`) and returns a `RATE_LIMITED` error carrying `retry_after_ms` + `sender` when the bucket is exhausted. — server.rs:1017 `rate_governor().try_acquire(&sender_key, now_ms())`; sender_key precedence params.from→peer_addr→peer_pid→anonymous (1012-1016).
+- [x] `maybe_handle_ws_subscribe` records the dispatch via `rpc_audit::record("hub.ws_subscribe", …)` once the rate check passes, so ws_subscribe appears in the audit log like every other authed RPC. — server.rs:`rpc_audit::record("hub.ws_subscribe", from, peer_pid, peer_addr_ref, None)` after the rate check.
+- [x] Both `handle_ws_connection` WS-frame call sites (Text + Binary) pass `peer_pid` + `peer_addr` into `maybe_handle_ws_subscribe`; ws_subscribe frames are NOT double-charged (process_request_message is not reached for them — the `else if` skips it when ws_subscribe returns Some).
+- [x] `cargo check -p termlink-hub` passes; `cargo test -p termlink-hub` ws_subscribe/governor/rpc_audit tests stay green. — check clean (1.58s); full hub suite 407 passed / 0 failed.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -106,6 +115,10 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+grep -q 'T-2372' crates/termlink-hub/src/server.rs
+out=$(awk '/fn maybe_handle_ws_subscribe/,/^}/' crates/termlink-hub/src/server.rs); echo "$out" | grep -q 'rate_governor'
+out=$(awk '/fn maybe_handle_ws_subscribe/,/^}/' crates/termlink-hub/src/server.rs); echo "$out" | grep -q 'rpc_audit::record'
+cargo check -p termlink-hub
 
 ## RCA
 
@@ -174,3 +187,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2372-hubwssubscribe-bypasses-rate-limit-gover.md
 - **Context:** Initial task creation
+
+### 2026-07-06T13:07:53Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

@@ -2479,3 +2479,10 @@ learnings:
   date: 2026-07-06
   context: Added via context agent
   application: TBD
+- id: PL-246
+  learning: "Divergent send-file code paths can use different hub RPC verbs: the legacy 3-phase fallback in remote.rs called broadcast 'event.emit' (ignores target) while file.rs used unicast 'event.emit_to' (spools file events to an offline target's inbox + fires inbox.queued via T-988). Symptom: send-file to an offline target returns SESSION_NOT_FOUND and silently drops the transfer. When two paths implement the same delivery, assert they call the SAME hub verb; unicast+offline-spool is event.emit_to, never event.emit."
+  source: P-001
+  task: T-2363
+  date: 2026-07-06
+  context: Added via context agent
+  application: TBD
