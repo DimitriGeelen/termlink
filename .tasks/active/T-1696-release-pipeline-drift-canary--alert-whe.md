@@ -183,3 +183,8 @@ The 126-commit drift is the underlying G-058 / T-1695 mirror failure (separate t
 
 ### 2026-05-18T10:50:15Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-07-06T16:20:10Z — human-AC evidence gathered [autonomous session]
+- **AC:** `[RUBBER-STAMP] Cron entry installed in /etc/cron.d on .107`
+- **Dispositive evidence:** `/etc/cron.d/termlink-release-mirror-canary` present (installed 2026-06-06, 1575 bytes); confirmed PASS in today's audit (`cron(release-mirror-canary): USER-field syntax installed`). Canary log `.context/working/.release-mirror-canary.log` is 0 lines = firing and finding no drift.
+- **Suggested close (human, one command):** `.agentic-framework/bin/fw task update T-1696 --status work-completed` after ticking the [RUBBER-STAMP] box — evidence above satisfies it. (Agent did NOT tick the Human AC per governance.)
