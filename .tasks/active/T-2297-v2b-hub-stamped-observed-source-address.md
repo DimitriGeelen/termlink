@@ -277,3 +277,9 @@ confirmation, not a blocker (V6 direct transport already ships on the self-repor
 
 ### 2026-07-02T08:15:05Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
+
+### 2026-07-06 — Human [RUBBER-STAMP] AC evidence gathered (agent-assisted, NOT ticked — operator verifies + closes)
+- **Feature is LIVE on the running .107 hub:** commit fcf18a44 is an ancestor of HEAD; running hub binary (pid 3475796, /root/.cargo/bin/termlink, installed 2026-07-04) contains the `observed_addr` symbol. So the AC's rebuild+restart steps (1–2) are already satisfied — no restart needed.
+- **Genuine remote-host TCP post verified** (AC step 3, using the .122 termlink session as the "another host"): `.122` posted to `agent-presence` on `192.168.10.107:9100`; the .107 hub stamped `observed_addr=192.168.10.122:45408` at offset 30806 (sender fp `9219671e…`, payload `t2297-from-122`). This is the attestation invariant proven end-to-end: the hub-observed remote peer_addr is stamped, not client-supplied.
+- **Local/Unix post backward-compat confirmed** (AC step 4 / AC4): a local post carries NO `observed_addr` (correctly stripped for non-TCP/None), unchanged behavior.
+- **Operator action to finalize:** verify the above, tick the `[RUBBER-STAMP]` Human AC box, then `cd /opt/termlink && .agentic-framework/bin/fw task update T-2297 --status work-completed`. (Agent may not check `### Human` ACs — G-068.)
