@@ -4,7 +4,7 @@ name: "Fix remote send-file legacy fallback uses wrong RPC (event.emit not event
 description: >
   Framework T-2409 (in /opt/999-Agentic-Engineering-Framework) reported that termlink file send / remote send-file to an offline target does not fire inbox.queued when exercised live. Root cause traced in docs/reports/T-2409-inbox-queued-cli-gap.md: crates/termlink-cli/src/commands/remote.rs:1750 (cmd_remote_send_file_inner legacy 3-phase fallback) calls RPC method 'event.emit' against the remote HUB connection instead of 'event.emit_to'. The hub has no 'event.emit' handler (crates/termlink-hub/src/router.rs match table) so it falls through to the generic forward_to_target() (router.rs:1599), which resolves the target session and returns SESSION_NOT_FOUND for a genuinely offline target WITHOUT ever reaching inbox::deposit/mirror_inbox_deposit_with (crates/termlink-hub/src/channel.rs:150-218) or the inbox.queued aggregator emit. Fix: change remote.rs:1750 to call event.emit_to with the same params shape used by crates/termlink-cli/src/commands/file.rs:67 (DeliveryRoute::Hub), and add an integration test exercising cmd_remote_send_file_inner's legacy fallback against an offline target on a two-node hub test harness, asserting inbox.queued is observed via the hub aggregator (mirroring crates/termlink-hub/src/channel.rs:3345 mirror_inbox_deposit_lands_envelope_in_target_topic-style tests but through the CLI surface). Also separately note (non-blocking, may warrant its own task): termlink_file_send MCP tool (crates/termlink-mcp/src/tools.rs:13423) requires manager::find_session() to succeed up front and has no offline/hub-spool fallback at all -- MCP file-send cannot reach an offline target's inbox. And: generic channel.post to a non-inbox:/non-dm: topic never fires an addressee wakeup event by design (no channel-membership registry exists in termlink-hub) -- if AEF's channel-post-to-a-killed-member scenario expects wakeup, the fix is on the producer side (route through inbox:<target> or dm:<a>:<b> naming), not a hub bug.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-05T09:56:01Z
-last_update: 2026-07-05T09:56:01Z
+last_update: 2026-07-06T12:59:04Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,24 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+`termlink remote send-file` to an **offline** target silently fails to deposit into the
+target's inbox: the legacy 3-phase event-emit fallback in `cmd_remote_send_file_inner`
+(crates/termlink-cli/src/commands/remote.rs) uses RPC `event.emit` with a `target` param,
+but the hub's `event.emit` handler is a topic-broadcast that ignores `target` and falls
+through to `forward_to_target()` → `SESSION_NOT_FOUND` for an offline target, never
+reaching `inbox::deposit` / the `inbox.queued` aggregator. The correct verb is
+`event.emit_to` (unicast; spools to inbox for offline targets), exactly as
+`file.rs` DeliveryRoute::Hub already uses. Reported by AEF T-2409
+(docs/reports/T-2409-inbox-queued-cli-gap.md).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The three legacy 3-phase send calls in `cmd_remote_send_file_inner` (file.init, file.chunk, file.complete) call RPC `event.emit_to` (unicast) instead of `event.emit`, keeping the `{target, topic, payload}` param shape used by `file.rs` DeliveryRoute::Hub. — remote.rs:1750/1785/1820 now `event.emit_to` (3 sites; grep: 3 emit_to, 0 broadcast emit).
+- [x] No `client.call("event.emit", …)` (broadcast) call carrying a `target` param remains in the legacy send-file fallback in remote.rs. — `grep -q 'client.call("event.emit"'` returns none.
+- [x] `cargo check -p termlink` passes (the CLI crate's package name is `termlink`; dir is crates/termlink-cli). — clean, 17.55s.
+- [x] Affected-crate tests pass (`cargo test -p termlink`), and the hub-side unicast→inbox path retains coverage (existing `mirror_inbox_deposit`/`inbox_queued`/`event.emit_to` tests in crates/termlink-hub still green). — CLI 0 failed (4 ignored live-PTY); hub `emit_to` 4/4, `inbox_queued` 3/3 passed.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -106,22 +116,41 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+out=$(grep -c 'client.call("event.emit_to"' crates/termlink-cli/src/commands/remote.rs); [ "$out" -ge 3 ]
+! grep -q 'client.call("event.emit"' crates/termlink-cli/src/commands/remote.rs
+cargo check -p termlink
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** `termlink remote send-file` (and `termlink file send` via the remote/hub route)
+to a genuinely **offline** target returns `SESSION_NOT_FOUND` and never deposits the file into
+the target's inbox — the `inbox.queued` aggregator doorbell never fires, so the target agent
+gets no wakeup and the transfer is silently lost. Reported live by AEF T-2409.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** The legacy 3-phase event-emit fallback in `cmd_remote_send_file_inner`
+(crates/termlink-cli/src/commands/remote.rs) issues its file.init / file.chunk / file.complete
+frames via RPC `event.emit` with a top-level `target` param. But `event.emit` is the hub's
+**topic-broadcast** verb (crates/termlink-hub/src/router.rs) — it ignores `target`. The hub has
+no `event.emit`-with-target route, so the request falls through to the generic
+`forward_to_target()`, which resolves the target session and returns `SESSION_NOT_FOUND` for an
+offline target **without ever reaching** `inbox::deposit` / `mirror_inbox_deposit_with`
+(channel.rs) or the `inbox.queued` aggregator emit. The correct verb is `event.emit_to`
+(router.rs:302 — unicast, spools to the target's inbox when offline), which the sibling
+`file.rs` DeliveryRoute::Hub already uses correctly.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** Two send-file code paths (file.rs new path and remote.rs legacy
+3-phase fallback) diverged. The new artifact.put path (T-1249) is preferred, so the legacy
+fallback only executes against a hub that does not advertise `artifact.put` — an increasingly
+rare configuration that no integration test exercised against an *offline* target. The
+offline-deposit assertion existed only at the hub layer (`event.emit_to` tests), never through
+the CLI send-file surface, so the CLI's use of the wrong verb was invisible.
+
+**Prevention:** The fix aligns remote.rs onto `event.emit_to`. Regression coverage: the
+hub-side `event.emit_to → inbox deposit` tests remain green (they assert the verb the CLI now
+calls actually reaches the inbox path); the divergence is closed by making both CLI send paths
+use the same unicast verb name. Follow-up (noted in task description, not this task): the
+`termlink_file_send` MCP tool has no offline/hub-spool fallback at all — separate task if that
+gap needs closing.
 
 ## Evolution
 
@@ -174,3 +203,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2363-fix-remote-send-file-legacy-fallback-use.md
 - **Context:** Initial task creation
+
+### 2026-07-06T12:59:04Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

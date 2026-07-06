@@ -1747,7 +1747,7 @@ async fn cmd_remote_send_file_inner(
         "topic": file_topic::INIT,
         "payload": init_payload,
     });
-    match client.call("event.emit", serde_json::json!("emit"), emit_params).await {
+    match client.call("event.emit_to", serde_json::json!("emit"), emit_params).await {
         Ok(termlink_protocol::jsonrpc::RpcResponse::Success(_)) => {}
         Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
             let msg = if e.error.message.contains("not found") || e.error.message.contains("No route") {
@@ -1782,7 +1782,7 @@ async fn cmd_remote_send_file_inner(
             "topic": file_topic::CHUNK,
             "payload": chunk_payload,
         });
-        match client.call("event.emit", serde_json::json!("emit"), emit_params).await {
+        match client.call("event.emit_to", serde_json::json!("emit"), emit_params).await {
             Ok(termlink_protocol::jsonrpc::RpcResponse::Success(_)) => {}
             Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
                 let msg = format!("Failed to emit chunk {}/{}: {} {}", i + 1, total_chunks, e.error.code, e.error.message);
@@ -1817,7 +1817,7 @@ async fn cmd_remote_send_file_inner(
         "topic": file_topic::COMPLETE,
         "payload": complete_payload,
     });
-    match client.call("event.emit", serde_json::json!("emit"), emit_params).await {
+    match client.call("event.emit_to", serde_json::json!("emit"), emit_params).await {
         Ok(termlink_protocol::jsonrpc::RpcResponse::Success(_)) => {}
         Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
             let msg = format!("Failed to emit file.complete: {} {}", e.error.code, e.error.message);
