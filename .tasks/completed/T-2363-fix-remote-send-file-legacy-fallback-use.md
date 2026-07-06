@@ -4,20 +4,20 @@ name: "Fix remote send-file legacy fallback uses wrong RPC (event.emit not event
 description: >
   Framework T-2409 (in /opt/999-Agentic-Engineering-Framework) reported that termlink file send / remote send-file to an offline target does not fire inbox.queued when exercised live. Root cause traced in docs/reports/T-2409-inbox-queued-cli-gap.md: crates/termlink-cli/src/commands/remote.rs:1750 (cmd_remote_send_file_inner legacy 3-phase fallback) calls RPC method 'event.emit' against the remote HUB connection instead of 'event.emit_to'. The hub has no 'event.emit' handler (crates/termlink-hub/src/router.rs match table) so it falls through to the generic forward_to_target() (router.rs:1599), which resolves the target session and returns SESSION_NOT_FOUND for a genuinely offline target WITHOUT ever reaching inbox::deposit/mirror_inbox_deposit_with (crates/termlink-hub/src/channel.rs:150-218) or the inbox.queued aggregator emit. Fix: change remote.rs:1750 to call event.emit_to with the same params shape used by crates/termlink-cli/src/commands/file.rs:67 (DeliveryRoute::Hub), and add an integration test exercising cmd_remote_send_file_inner's legacy fallback against an offline target on a two-node hub test harness, asserting inbox.queued is observed via the hub aggregator (mirroring crates/termlink-hub/src/channel.rs:3345 mirror_inbox_deposit_lands_envelope_in_target_topic-style tests but through the CLI surface). Also separately note (non-blocking, may warrant its own task): termlink_file_send MCP tool (crates/termlink-mcp/src/tools.rs:13423) requires manager::find_session() to succeed up front and has no offline/hub-spool fallback at all -- MCP file-send cannot reach an offline target's inbox. And: generic channel.post to a non-inbox:/non-dm: topic never fires an addressee wakeup event by design (no channel-membership registry exists in termlink-hub) -- if AEF's channel-post-to-a-killed-member scenario expects wakeup, the fix is on the producer side (route through inbox:<target> or dm:<a>:<b> naming), not a hub bug.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug, inbox-queued, T-2409]
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-05T09:56:01Z
-last_update: 2026-07-06T12:59:04Z
-date_finished: null
+last_update: 2026-07-06T13:06:39Z
+date_finished: 2026-07-06T13:06:39Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -206,3 +206,15 @@ gap needs closing.
 
 ### 2026-07-06T12:59:04Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-54933654
+- **Timestamp:** 2026-07-06T13:06:55Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-06T13:06:39Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

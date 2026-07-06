@@ -4,20 +4,20 @@ name: "MCP termlink_file_send cannot reach offline targets — early find_sessio
 description: >
   T-2363 follow-up (noted in that task's RCA). termlink_file_send MCP tool (crates/termlink-mcp/src/tools.rs:13423) bails at an up-front manager::find_session(&p.target) guard, returning 'session not found' for a genuinely offline target BEFORE the T-1249 hub artifact path (tools.rs:13454+) — which routes via the local hub and could spool to an offline target's inbox + fire inbox.queued — is ever reached. Net effect: MCP file-send cannot deliver to an offline target at all, unlike the CLI (file.rs/remote.rs, fixed in T-2363). Fix: restructure the fallback tiers so the hub artifact/spool path runs first (it only needs p.target, not a local reg), and defer the find_session guard to only the legacy 3-phase direct-to-socket path that genuinely needs the target's socket. Verify send_artifact_via_client's offline-target spool behavior before relying on it. Moderate refactor of the ~150-line tool + termlink-mcp compile.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug, inbox-queued, mcp, T-2363-followup]
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-06T13:17:54Z
-last_update: 2026-07-06T13:26:48Z
-date_finished: null
+last_update: 2026-07-06T13:41:02Z
+date_finished: 2026-07-06T13:41:02Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -204,3 +204,15 @@ identical error).
 ### 2026-07-06T13:26:48Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-1442b9fd
+- **Timestamp:** 2026-07-06T13:41:12Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-06T13:41:02Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2372: hub.ws_subscribe bypasses rate-limit governor + rpc audit (arc-004 review)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-06T13:14:24Z
+# ============================================================================
+
+task_id: T-2372
+task_name: "hub.ws_subscribe bypasses rate-limit governor + rpc audit (arc-004 review)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-06T11:14:35Z
+completed: 2026-07-06T13:14:19Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-06T15:14:08+02:00
+last_commit: 2026-07-06T15:14:08+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  route hub.ws_subscribe through rate governor + rpc_audit (arc-004 review #3)
+
+# Key outcomes
+outcomes:
+  - '`maybe_handle_ws_subscribe` charges the per-sender rate governor for every `hub.ws_subscribe` frame (sender-key precedence identical to `process_request_message`) and returns a `RATE_LIMITED` error carrying `retry_after_ms` + `sender` when the bucket is exhausted. — server.rs:1017 `rate_governor().try_acquire(&sender_key, now_ms())`; sender_key precedence params.from→peer_addr→peer_pid→anonymous (1012-1016).'
+  - '`maybe_handle_ws_subscribe` records the dispatch via `rpc_audit::record("hub.ws_subscribe", …)` once the rate check passes, so ws_subscribe appears in the audit log like every other authed RPC. — server.rs:`rpc_audit::record("hub.ws_subscribe", from, peer_pid, peer_addr_ref, None)` after the rate check.'
+  - 'Both `handle_ws_connection` WS-frame call sites (Text + Binary) pass `peer_pid` + `peer_addr` into `maybe_handle_ws_subscribe`; ws_subscribe frames are NOT double-charged (process_request_message is not reached for them — the `else if` skips it when ws_subscribe returns Some).'
+  - '`cargo check -p termlink-hub` passes; `cargo test -p termlink-hub` ws_subscribe/governor/rpc_audit tests stay green. — check clean (1.58s); full hub suite 407 passed / 0 failed.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/learnings.yaml'
+  - 'crates/termlink-hub/src/server.rs'
+  - '.tasks/active/T-2372-hubwssubscribe-bypasses-rate-limit-gover.md'
+  - '.tasks/completed/T-2363-fix-remote-send-file-legacy-fallback-use.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-06T15:14:08"
+    action: "T-2372: route hub.ws_subscribe through rate governor + rpc_audit (arc-004 review #3)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 119 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 119
+  commits: 1
+  files_changed: 4
+  lines_added: 78
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2372-hubwssubscribe-bypasses-rate-limit-gover.md
+generated_by: context-agent-hybrid
