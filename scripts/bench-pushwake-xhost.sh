@@ -60,7 +60,8 @@ SUBPID=$!
 sleep 4   # WS connect + hub.auth + hub.ws_subscribe over the wire
 if ! kill -0 "$SUBPID" 2>/dev/null; then echo "FAIL: subscriber died before ready:"; sed 's/^/  /' "$OUT"; exit 3; fi
 
-declare -a LAT
+LAT=()   # must be assigned (not just `declare -a`): under `set -u`, ${#LAT[@]} on a
+         # declared-but-never-assigned array trips "unbound variable" (bash < 4.4).
 for i in $(seq 1 "$TRIALS"); do
   t0=$(date +%s.%N)
   "$BIN" channel post "$POSTTOPIC" --hub "$HUB" --ensure-topic --payload "xhost-ping-$i" >/dev/null 2>&1 \
