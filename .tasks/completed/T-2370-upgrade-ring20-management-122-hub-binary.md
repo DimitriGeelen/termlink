@@ -4,10 +4,10 @@ name: "Upgrade ring20-management (.122) hub binary 0.11.296 -> >=0.11.324 and re
 description: >
   Upgrade ring20-management (.122) hub binary 0.11.296 -> >=0.11.324 and restart through supervision (clears fleet-binary canary)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-06T07:32:44Z
-last_update: 2026-07-06T07:32:44Z
-date_finished: null
+last_update: 2026-07-06T07:54:08Z
+date_finished: 2026-07-06T07:54:08Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -184,3 +184,20 @@ ring20-watchdog.sh with an explicit runtime_dir off /tmp).
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2370-upgrade-ring20-management-122-hub-binary.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-5fbf1e35
+- **Timestamp:** 2026-07-06T07:54:09Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#4 (Agent)** — `bash scripts/check-fleet-binary-freshness.sh` exits 0 — `✓ ring20-management: served=0.11.377 >= floor=0.11.324`; canary log reset
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/check-fleet-binary-freshness.sh in: `bash scripts/check-fleet-binary-freshness.sh` exits 0 — `✓ ring20-management: served=0.11.377 >= floor=0.11.324`; canary log reset`
+
+### 2026-07-06T07:54:08Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

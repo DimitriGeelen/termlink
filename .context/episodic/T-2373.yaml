@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2373: arc-004 cross-host push-wake verification — reusable xhost bench + report (loopback-only verification gap)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-06T11:53:46Z
+# ============================================================================
+
+task_id: T-2373
+task_name: "arc-004 cross-host push-wake verification — reusable xhost bench + report (loopback-only verification gap)"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-06T11:50:46Z
+completed: 2026-07-06T11:53:42Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-06T13:53:26+02:00
+last_commit: 2026-07-06T13:53:26+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  cross-host push-wake verification — reusable xhost bench + report (arc-004 closed on loopback-only evidence; first real multi-host proof: 181ms median .107<->.122 over LAN)
+
+# Key outcomes
+outcomes:
+  - '`scripts/bench-pushwake-xhost.sh` exists, is executable, parameterized by hub profile + trial count, and is exit-coded (0 PASS / non-zero on subscriber-died / no-frames / post-fail)'
+  - 'Run against a reachable remote hub (ring20-management/.122) rings N/N and reports a **sub-second median** cross-host post→push latency — 5/5, median 181ms (163–199) over the LAN'
+  - '`docs/reports/T-2373-arc-004-xhost-pushwake.md` records the method, the measured numbers (loopback 76ms vs cross-host 181ms median), and the **honest scope** (both network legs measured; final local PTY inject not in the cross-host number)'
+  - 'The report explicitly names the verification gap: arc-004 closed=shipped on loopback-only evidence; cross-host never measured until this task'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/learnings.yaml'
+  - 'docs/reports/T-2373-arc-004-xhost-pushwake.md'
+  - 'scripts/bench-pushwake-xhost.sh'
+  - '.tasks/active/T-2373-arc-004-cross-host-push-wake-verificatio.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-06T13:53:26"
+    action: "T-2373: cross-host push-wake verification — reusable xhost bench + report (arc-004 closed on loopback-only evidence; first real multi-host proof: 181ms median .107<->.122 over LAN)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 4
+  lines_added: 378
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2373-arc-004-cross-host-push-wake-verificatio.md
+generated_by: context-agent-hybrid

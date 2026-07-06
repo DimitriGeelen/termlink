@@ -2095,3 +2095,44 @@ ls .tasks/active/T-2338'
   caller: 'check-active-task focus-drift'
   target: 'T-2224'
   command: 'rm -f .context/working/T-2224-artifact-draft.md && git add docs/reports/T-2224-backpressure-demo-inception.md .tasks/active/T-2224-substrate-backpressure-demo--hub-loud-re.md && FW_SWITCH_FOCUS=1 .age'
+- timestamp: '2026-07-05T16:52:40Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2364'
+  command: 'cd /opt/termlink
+git reset -q
+git add .tasks/active/T-2364-arc-004-push-wake-capability-live-re-ver.md .tasks/completed/T-2364-arc-004-push-wake-capability-live-re-ver.md .context/episodic/T-2364.yaml'
+- timestamp: '2026-07-05T19:16:46Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2365'
+  command: 'cd /opt/termlink
+git add .tasks/active/T-2365-fix-g-067-audit-per-file-python-fork--ba.md .tasks/completed/T-2365-fix-g-067-audit-per-file-python-fork--ba.md .context/episodic/T-2365.yaml
+git status -'
+- timestamp: '2026-07-05T19:17:00Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2365'
+  command: 'cd /opt/termlink
+git add .context/episodic/T-2365.yaml
+git status --short | grep -E "T-2365|episodic" | head
+FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2365: episodic summary (G-067 '
+- timestamp: '2026-07-05T19:17:10Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2365'
+  command: 'cd /opt/termlink
+git add .tasks/completed/T-2365-fix-g-067-audit-per-file-python-fork--ba.md
+FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2365: finalize metadata (status=work-completed'
+- timestamp: '2026-07-06T10:11:38Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2297'
+  command: 'cd /opt/termlink
+git add .tasks/active/T-2297-v2b-hub-stamped-observed-source-address.md
+FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2297: capture Human RUBBER-STAMP evidence — obse'

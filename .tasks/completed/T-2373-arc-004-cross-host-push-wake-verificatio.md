@@ -4,10 +4,10 @@ name: "arc-004 cross-host push-wake verification — reusable xhost bench + repo
 description: >
   arc-004 cross-host push-wake verification — reusable xhost bench + report (loopback-only verification gap)
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-06T11:50:46Z
-last_update: 2026-07-06T11:50:46Z
-date_finished: null
+last_update: 2026-07-06T11:53:42Z
+date_finished: 2026-07-06T11:53:42Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -188,3 +188,15 @@ out=$(cat docs/reports/T-2373-arc-004-xhost-pushwake.md); echo "$out" | grep -qi
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2373-arc-004-cross-host-push-wake-verificatio.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-df1f1bfe
+- **Timestamp:** 2026-07-06T11:53:43Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-06T11:53:42Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

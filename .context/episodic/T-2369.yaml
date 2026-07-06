@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2369: Fix stale shadow termlink binaries on .107 + agent-presence retention-reset (clears substrate-preflight/unconfirmed-delivery/topic-growth canaries)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-05T21:53:01Z
+# ============================================================================
+
+task_id: T-2369
+task_name: "Fix stale shadow termlink binaries on .107 + agent-presence retention-reset (clears substrate-preflight/unconfirmed-delivery/topic-growth canaries)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-05T21:46:26Z
+completed: 2026-07-05T21:52:56Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-05T23:52:31+02:00
+last_commit: 2026-07-05T23:52:31+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  eliminate stale 0.9.x termlink shadows on .107 PATH — clears topic-growth + unconfirmed-delivery canaries (both were 0.9.x cron-binary misreads), removes stale-shadow from substrate-preflight
+
+# Key outcomes
+outcomes:
+  - 'No 0.9.x `termlink` shadow remains on PATH (`which -a termlink` + `--version` on each shows only 0.11.x). Stale copies backed up as `*.bak`. (Residual substrate-preflight WARN of "binary < project VERSION" is expected dev-tree version-lag, not the shadow bug — the installed 0.11.x understands all current verbs.)'
+  - 'Current-PATH `termlink channel awaiting-ack --json` returns a readable tracker (no exit=2); unconfirmed-delivery canary healthy on re-run under cron PATH'
+  - 'agent-presence on the local hub is bounded (count=4, retention=latest_per_cv_key); topic-growth canary healthy on re-run under cron PATH — the prior 30804/forever reading was the stale 0.9.x binary misreading the topic'
+  - 'substrate-preflight binary check no longer resolves a 0.9.x binary (now 0.11.x; only benign version-lag WARN remains)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2369-fix-stale-shadow-termlink-binaries-on-10.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-05T23:52:31"
+    action: "T-2369: eliminate stale 0.9.x termlink shadows on .107 PATH — clears topic-growth + unconfirmed-delivery canaries (both were 0.9.x cron-binary misreads), removes stale-shadow from substrate-preflight"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 1
+  lines_added: 205
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2369-fix-stale-shadow-termlink-binaries-on-10.md
+generated_by: context-agent-hybrid

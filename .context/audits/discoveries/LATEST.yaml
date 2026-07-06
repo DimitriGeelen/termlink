@@ -1,25 +1,26 @@
-timestamp: 2026-07-05T09:00:01Z
+timestamp: 2026-07-06T11:00:01Z
 findings:
   - id: D4
     level: PASS
     check: "D4: Audit trend — insufficient history (<3 entries)"
   - id: D5
     level: WARN
-    check: "D5: Task lifecycle — 41 anomaly(s): T-1137(77d-active) T-1291(69d-active) T-1294(69d-active) T-1296(69d-active) T-1420(65d-active) T-1423(65d-active) T-1426(65d-active) T-1427(65d-active) T-1428(65d-active) T-1430(65d-active) (+31 more)"
+    check: "D5: Task lifecycle — 41 anomaly(s): T-1137(78d-active) T-1291(70d-active) T-1294(70d-active) T-1296(70d-active) T-1420(67d-active) T-1423(66d-active) T-1426(66d-active) T-1427(66d-active) T-1428(66d-active) T-1430(66d-active) (+31 more)"
     mitigation: "Review flagged tasks for process issues"
   - id: D13
     level: WARN
     check: "D13: Inception limbo — 2 task(s): A=1/B=1 T-1635(A:1hu) T-2276(B)"
     mitigation: "Recover both classes with: bin/fw inception sweep (T-1514)"
   - id: D3
-    level: PASS
-    check: "D3: Commit velocity — normal (PASS today=21 avg=39 ratio=0.5x)"
+    level: WARN
+    check: "D3: Commit velocity — WARN drop today=5 avg=43 ratio=0.1x"
+    mitigation: "Check if velocity reflects budget pressure or unusual activity"
   - id: D7
     level: PASS
-    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 74_commits_24h)"
+    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 24_commits_24h)"
   - id: D6
     level: PASS
-    check: "D6: Completion velocity — normal (PASS recent=12.7 earlier=4.7)"
+    check: "D6: Completion velocity — normal (PASS recent=11.0 earlier=6.4)"
   - id: D12
     level: PASS
     check: "D12: Bypass log — no log file"
@@ -34,7 +35,7 @@ findings:
     check: "D15: Inception limbo state — none (PASS no_limbo)"
 
 summary:
-  pass: 8
-  warn: 2
+  pass: 7
+  warn: 3
   fail: 0
   total: 10
