@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2374: fix set -u crash in bench-pushwake-xhost.sh empty-results path (exit 4 cleanly when 0 frames)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-06T12:35:10Z
+# ============================================================================
+
+task_id: T-2374
+task_name: "fix set -u crash in bench-pushwake-xhost.sh empty-results path (exit 4 cleanly when 0 frames)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-06T12:32:22Z
+completed: 2026-07-06T12:35:06Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-06T14:35:06+02:00
+last_commit: 2026-07-06T14:35:06+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix set -u crash in bench-pushwake-xhost.sh empty-results path — LAT=() so zero-frame targets (e.g. .121, no WS/aggregator) exit 4 cleanly
+
+# Key outcomes
+outcomes:
+  - '`scripts/bench-pushwake-xhost.sh` uses `LAT=()` (assigned empty array), not bare `declare -a LAT`'
+  - 'Running it against a hub with no WS push + no aggregator (ring20-dashboard) exits **4** with `no push frames delivered` and **no** `LAT: unbound variable` in output'
+  - '`bash -n scripts/bench-pushwake-xhost.sh` parses clean'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix set -u crash in bench-pushwake-xhost.sh empty-results path — LAT=() so zero-frame targets (e.g. .121, no WS/aggregator) exit 4 cleanly'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/bench-pushwake-xhost.sh'
+  - '.tasks/active/T-2374-fix-set--u-crash-in-bench-pushwake-xhost.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-06T14:35:06"
+    action: "T-2374: fix set -u crash in bench-pushwake-xhost.sh empty-results path — LAT=() so zero-frame targets (e.g. .121, no WS/aggregator) exit 4 cleanly"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 2
+  lines_added: 189
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2374-fix-set--u-crash-in-bench-pushwake-xhost.md
+generated_by: context-agent-hybrid
