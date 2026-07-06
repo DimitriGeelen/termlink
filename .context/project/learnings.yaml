@@ -2472,3 +2472,10 @@ learnings:
   date: 2026-07-04
   context: Added via context agent
   application: TBD
+- id: PL-245
+  learning: "arc-004 push-transport was closed=shipped and 'live-verified' on loopback-only evidence — every latency proof (bench 76ms, demos, T-2364 0.107s, T-2313 31ms) bound 127.0.0.1 or a co-located Unix socket. An inherently cross-host mechanic ('agent woken the instant a DM posts') must have at least one measurement crossing a real host boundary before 'verified' is truthful. T-2373 supplied it: 181ms median over the LAN (.107 subscriber -> .122 hub). Reusable: scripts/bench-pushwake-xhost.sh."
+  source: P-011
+  task: T-2373
+  date: 2026-07-06
+  context: Added via context agent
+  application: TBD
