@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-07-07T17:16:20Z
-last_update: 2026-07-07T17:17:32Z
+last_update: 2026-07-07T17:19:51Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -82,10 +82,10 @@ multiple sessions of phantom waiting and a wrong "message lost" conclusion.
   disposition: deferred
   rationale: <filled at decide — candidate C3, high cost>
 
-- **IW-4: Are the adjacent guard-rails (agent-vs-shell signal in `remote list`, inject off-rail warning, durable `/be-reachable`) part of THIS fix or separate follow-on tasks (F1/F2/F3)?**
+- **IW-4: Are the adjacent guard-rails part of THIS fix or separate follow-on tasks — specifically: agent-vs-shell signal in `remote list` (F1), inject off-rail warning (F2), and the arc-004 finding that the push-waker is SHIPPED BUT NOT RUNNING on any host (E4/F3) — needing both auto-arm AND a "waker-liveness" canary ("host claims reachable but no waker process")?**
   confidence: 2
   disposition: deferred
-  rationale: <filled at decide — candidates C4/C5, likely separate>
+  rationale: <filled at decide — candidates C4/C5; E4 shows arc-004 is dark-in-field (G-069 shipped≠live class), fix is arm+liveness-check NOT reopen>
 
 ## Exploration Plan
 

@@ -60,6 +60,22 @@ ring20-management):
   the observed **phantom "waiting 2 hours for an ack."** A third session hit this
   verbatim on an unrelated T-010 Cloudron-deploy coordination request.
 
+### E4 — arc-004's push-waker is "shipped" but not running (dark in the field)
+- Empirical process scan on .107 (2026-07-07): **zero** push-waker / subscribe /
+  be-reachable / listener-heartbeat processes alive. Only 5 bare
+  `termlink register --shell` sessions + 1 `hub start`.
+- The push-waker (T-2316) is only instantiated when `/be-reachable` spawns its
+  subscribe child (T-2319 reaps it on stop). Nobody armed it, and it does not
+  survive reboots (F3). So **all 8 live `claude --resume` sessions on this host
+  are NOT push-reachable** — a DM to any of them wakes nobody until a human runs
+  `/check-arc`. The 85–111 ms wake proven in T-2320 requires a waker that isn't
+  running.
+- This is the **comms-layer instance of the G-069 "shipped ≠ capability-live"
+  class** (the fleet-binary canary problem). arc-004's *code* is correct and
+  E2E-proven; its *runtime footprint* on real hosts is currently zero. The arc
+  should NOT be reopened (mechanism is sound) — the gap is **arming + a
+  liveness check**, which folds into IW-4 / candidate C5.
+
 ### E3 — the arc's own guarantee has a hidden precondition
 arc-003 headline: *"confirmed delivery receipt … no silent loss."* That holds
 **only if** (a) the reader targets the same hub the writer wrote to, and (b) that
