@@ -738,3 +738,10 @@ decisions:
     date: 2026-07-04
     task: T-2359
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-085
+    decision: "Do NOT deploy 0.11.400 to .121; surface a decision to the operator instead."
+    scope: project
+    date: 2026-07-07
+    task: T-2377
+    rationale: "Auto-captured from task file on completion"

@@ -4,10 +4,10 @@ name: "Upgrade all .107 termlink processes to latest (0.11.399) — hub + MCP + 
 description: >
   Upgrade all .107 termlink processes to latest (0.11.399) — hub + MCP + registrations off stale 0.11.324
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-07T09:44:46Z
-last_update: 2026-07-07T09:44:46Z
-date_finished: null
+last_update: 2026-07-07T09:59:23Z
+date_finished: 2026-07-07T09:59:23Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -200,3 +200,20 @@ test -f /var/lib/termlink/hub.secret && test -f /var/lib/termlink/hub.cert.pem
 - **MCP `serve` servers (4×) — DOCUMENTED:** all show `exe=/root/.cargo/bin/termlink (deleted)` (holding old 0.11.324 in memory). They are per-Claude-session subprocesses (one is this session's own). On-disk binary is upgraded; each picks up 0.11.399 when its Claude session next reconnects/respawns its MCP server. Not force-killed — would break other live agents' MCP tools.
 - **Verification:** `substrate-preflight.sh` → **6 pass, 0 warn, 0 fail** (was 5 pass / 1 warn — the stale-binary WARN). `--quiet` cron form appended nothing + bumped heartbeat; `/canaries` now clean.
 - **Net:** hub + both core agent units + all 3 CLI binaries on 0.11.399; email-archive + 4 MCP servers on-disk-upgraded, pick up on next natural restart (documented, non-disruptive-by-design).
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-d3ff1730
+- **Timestamp:** 2026-07-07T09:59:24Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **l387-sigpipe-risk** (partial, heuristic) @ Verification:line 1
+     - evidence: `termlink --version 2>&1 | grep -q "0.11.399"`
+
+### 2026-07-07T09:59:23Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

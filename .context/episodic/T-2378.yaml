@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2378: Correct misleading .121 'own fork' claim in termlink CLAUDE.md + fleet-version-floors.conf (version-scheme artifact, not divergence — T-2377 finding)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-07T11:13:41Z
+# ============================================================================
+
+task_id: T-2378
+task_name: "Correct misleading .121 'own fork' claim in termlink CLAUDE.md + fleet-version-floors.conf (version-scheme artifact, not divergence — T-2377 finding)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-07T11:11:14Z
+completed: 2026-07-07T11:13:34Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-07T13:13:28+02:00
+last_commit: 2026-07-07T13:13:28+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  correct misleading .121 'own fork' claim in CLAUDE.md + floors.conf — 0.11.806 is a git-describe tag-base artifact (likely stale mainline, not divergence); exempt kept pending shell-confirmation (T-2377 finding)
+
+# Key outcomes
+outcomes:
+  - 'CLAUDE.md fleet-version-floors paragraph no longer asserts .121 is "its own fork" (grep "its own fork" → 0); now states 0.11.806 is a `git describe` tag-base artifact + likely stale mainline, pending shell-confirmation (session on .121, ring20-manager scope)'
+  - '`.context/cron/fleet-version-floors.conf` `ring20-dashboard -` line keeps exempt; comment corrected to "exempt pending confirmation; likely stale mainline, not divergence"'
+  - 'No functional change to exempt flag (`ring20-dashboard -` unchanged); fleet-binary-canary still healthy, .121 still exempt (not firing) — verified'
+  - 'Cross-references T-2377 in both files'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/cron/fleet-version-floors.conf'
+  - '.tasks/active/T-2378-correct-misleading-121-own-fork-claim-in.md'
+  - '.tasks/completed/T-2377-upgrade-field-hub-122-ring20-management-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-07T13:13:28"
+    action: "T-2378: correct misleading .121 'own fork' claim in CLAUDE.md + floors.conf — 0.11.806 is a git-describe tag-base artifact (likely stale mainline, not divergence); exempt kept pending shell-confirmation (T-2377 finding)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 4
+  lines_added: 209
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2378-correct-misleading-121-own-fork-claim-in.md
+generated_by: context-agent-hybrid

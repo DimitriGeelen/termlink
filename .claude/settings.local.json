@@ -536,7 +536,10 @@
       "Bash(rm /root/.cargo/bin/termlink)",
       "Bash(cp target/x86_64-unknown-linux-musl/release/termlink /root/.cargo/bin/termlink)",
       "Read(//root/.cargo/bin/**)",
-      "mcp__termlink__termlink_channel_unread"
+      "mcp__termlink__termlink_channel_unread",
+      "mcp__termlink__termlink_channel_subscribe",
+      "mcp__termlink__termlink_agent_listeners",
+      "mcp__termlink__termlink_agent_contact"
     ]
   },
   "enabledMcpjsonServers": [

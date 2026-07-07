@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2377: Upgrade field hub .122 ring20-management to 0.11.399 via musl fleet-deploy; assess .121 fork-lineage before any action
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-07T10:26:42Z
+# ============================================================================
+
+task_id: T-2377
+task_name: "Upgrade field hub .122 ring20-management to 0.11.399 via musl fleet-deploy; assess .121 fork-lineage before any action"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-07T10:10:46Z
+completed: 2026-07-07T10:26:38Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-07T12:26:30+02:00
+last_commit: 2026-07-07T12:26:30+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  upgrade field hub .122 ring20-management 0.11.377->0.11.400 via musl fleet-deploy (probe+swap-restart, auth preserved); .121 HELD (divergent 0.11.806 own lineage, identity drifted, needs operator decision)
+
+# Key outcomes
+outcomes:
+  - 'musl-static binary rebuilt to 0.11.400 (restamped from stale 0.11.377; 400 = current HEAD after T-2376 docs commit)'
+  - '`scripts/fleet-deploy-binary.sh ring20-management --probe --swap-restart` completes: 730/730 chunks, sha verified, `--probe` OK (0.11.400 executes on target), swap+restart done, hub UP at t=15s'
+  - 'Post-deploy `fleet doctor` shows .122 (192.168.10.122:9100) serving **0.11.400**, conn=ok'
+  - 'PL-021 check: .122 auth valid after restart — deploy verify [PASS] connected in 42ms (client authenticated w/ existing profile secret → secret preserved)'
+  - '.121 NOT modified — only read-only probed (tofu verify + hub probe); held for operator decision (see Decisions)'
+  - 'fleet-binary-canary re-checked: healthy — `ring20-management served=0.11.400 >= floor=0.11.324`; `.121 exempt (not firing)`'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-07-07 — .121 ring20-dashboard: HELD, not upgraded'
+    chose: 'Do NOT deploy 0.11.400 to .121; surface a decision to the operator instead.'
+    rationale: '.121 serves **0.11.806** — genealogically divergent from our mainline (our HEAD is 400 commits past v0.11.0; .121 is 806 past the same tag, so it carries ~400 commits we don''t have and cannot be a fast-forward of ours). It is marked **exempt** in `fleet-version-floors.conf` (`ring20-dashboard -`) per the documented rule "never set a floor / deploy to a hub whose binary you don''t build". Overwriting it with our binary would be a numeric downgrade AND a lineage replacement (destroys its fork commits). Additionally, its live TLS fingerprint `sha256:1389a831…` differs from the recorded `53de15ec` (memory reference_ring20_dashboard), so the inherited "own fork" characterization is anchored to a stale identity — I cannot even confirm the current lineage from here (no session registered on .121 → git history not RPC-inspectable).'
+    alternatives_rejected: ['(a) blind `fleet-deploy-binary.sh ring20-dashboard` — destructive, would replace an uncharacterized lineage; (b) asserting it''s a fork without evidence — the identity anchor drifted, so this needs a shell session on the dashboard project (cross-project, T-559) to answer "what are those 806 commits".']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2377-upgrade-field-hub-122-ring20-management-.md'
+  - '.tasks/completed/T-2376-upgrade-all-107-termlink-processes-to-la.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-07T12:26:30"
+    action: "T-2377: upgrade field hub .122 ring20-management 0.11.377->0.11.400 via musl fleet-deploy (probe+swap-restart, auth preserved); .121 HELD (divergent 0.11.806 own lineage, identity drifted, needs operator decision)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 15 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 15
+  commits: 1
+  files_changed: 2
+  lines_added: 195
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2377-upgrade-field-hub-122-ring20-management-.md
+generated_by: context-agent-hybrid

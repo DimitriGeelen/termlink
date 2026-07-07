@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2376: Upgrade all .107 termlink processes to latest (0.11.399) — hub + MCP + registrations off stale 0.11.324
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-07T09:59:27Z
+# ============================================================================
+
+task_id: T-2376
+task_name: "Upgrade all .107 termlink processes to latest (0.11.399) — hub + MCP + registrations off stale 0.11.324"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-07T09:44:46Z
+completed: 2026-07-07T09:59:23Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-07T11:59:16+02:00
+last_commit: 2026-07-07T11:59:16+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  upgrade all .107 termlink to 0.11.399 — hub + 2 core agent units + 3 CLI binaries restarted; email-archive + MCP deferred (documented); substrate-preflight WARN cleared (6 pass 0 warn)
+
+# Key outcomes
+outcomes:
+  - '`cargo build --release -p termlink` in /opt/termlink produces a binary reporting `0.11.399` (matches VERSION)'
+  - 'Fresh binary installed (mode 755) over all 3 shadow paths; `termlink --version` on PATH now reports 0.11.399'
+  - 'PL-021 safety confirmed BEFORE hub restart: `/var/lib/termlink/{hub.secret,hub.cert.pem,hub.key.pem}` exist + `TERMLINK_RUNTIME_DIR=/var/lib/termlink` on the hub launch, so restart preserves secret/cert (no client re-pin storm)'
+  - 'Hub restarted onto 0.11.399 (verified via `/proc/<newpid>/exe` version + `hub status`); serves RPC'
+  - 'Post-restart: local `fleet doctor` / auth still valid (no auth-mismatch introduced by the restart) — PL-021 persistence held'
+  - 'Register processes (framework-agent, termlink-agent, email-archive) re-registered onto 0.11.399, OR documented why deferred  <!-- framework-agent + termlink-agent restarted via systemd → 0.11.399; email-archive DEFERRED (see Updates) -->'
+  - 'MCP `serve` servers: state captured — restarted onto 0.11.399 OR documented as picking up new binary on next session reconnect (they are per-Claude-session subprocesses)  <!-- documented: per-session, on-disk upgraded, pick up on reconnect -->'
+  - 'substrate-preflight canary re-run: the stale-binary WARN clears (5+ pass, binary-freshness check now PASS)  <!-- 6 pass, 0 warn, 0 fail -->'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2376-upgrade-all-107-termlink-processes-to-la.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-07T11:59:16"
+    action: "T-2376: upgrade all .107 termlink to 0.11.399 — hub + 2 core agent units + 3 CLI binaries restarted; email-archive + MCP deferred (documented); substrate-preflight WARN cleared (6 pass 0 warn)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 14 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14
+  commits: 1
+  files_changed: 1
+  lines_added: 202
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2376-upgrade-all-107-termlink-processes-to-la.md
+generated_by: context-agent-hybrid

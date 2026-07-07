@@ -2136,3 +2136,9 @@ FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2365: finalize meta
   command: 'cd /opt/termlink
 git add .tasks/active/T-2297-v2b-hub-stamped-observed-source-address.md
 FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2297: capture Human RUBBER-STAMP evidence — obse'
+- timestamp: '2026-07-06T13:18:52Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2375'
+  command: 'git add .tasks/active/T-2375-mcp-termlinkfilesend-cannot-reach-offlin.md && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2375: capture MCP termlink_file_send offline-target gap (T-2363'

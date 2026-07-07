@@ -1,13 +1,13 @@
 ---
-id: T-2377
-name: "Upgrade field hub .122 ring20-management to 0.11.399 via musl fleet-deploy; assess .121 fork-lineage before any action"
+id: T-2379
+name: "Delegate .121 ring20-dashboard termlink upgrade to ring20-manager (needs session on .121; I deploy 0.11.400 from .107 once up)"
 description: >
-  Upgrade field hub .122 ring20-management to 0.11.399 via musl fleet-deploy; assess .121 fork-lineage before any action
+  Delegate .121 ring20-dashboard termlink upgrade to ring20-manager (needs session on .121; I deploy 0.11.400 from .107 once up)
 
-status: work-completed
+status: started-work
 workflow_type: build
 owner: agent
-horizon: null
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -15,9 +15,9 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-07-07T10:10:46Z
-last_update: 2026-07-07T10:26:38Z
-date_finished: 2026-07-07T10:26:38Z
+created: 2026-07-07T11:24:37Z
+last_update: 2026-07-07T11:24:37Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -30,29 +30,20 @@ date_finished: 2026-07-07T10:26:38Z
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2377: Upgrade field hub .122 ring20-management to 0.11.399 via musl fleet-deploy; assess .121 fork-lineage before any action
+# T-2379: Delegate .121 ring20-dashboard termlink upgrade to ring20-manager (needs session on .121; I deploy 0.11.400 from .107 once up)
 
 ## Context
 
-Follow-on to T-2376 (.107 upgrade). `fleet doctor` shows the field: .122
-(ring20-management) serves **0.11.377** (same lineage, 22 commits behind our
-0.11.399) — a genuine upgrade. .121 (ring20-dashboard) serves **0.11.806** from
-its OWN FORK (per CLAUDE.md fleet-version-floors: "numerically newest while
-lacking our commits") — pushing our 0.11.399 would be a numeric DOWNGRADE and a
-lineage replacement, destroying its fork commits. .141 is unreachable (conn=error).
-This task upgrades ONLY .122 via `scripts/fleet-deploy-binary.sh --probe
---swap-restart` (musl-static, base64-over-remote-exec, no SSH). .121 is
-explicitly HELD for an operator decision (see Decisions) — not touched.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] musl-static binary rebuilt to 0.11.400 (restamped from stale 0.11.377; 400 = current HEAD after T-2376 docs commit)
-- [x] `scripts/fleet-deploy-binary.sh ring20-management --probe --swap-restart` completes: 730/730 chunks, sha verified, `--probe` OK (0.11.400 executes on target), swap+restart done, hub UP at t=15s
-- [x] Post-deploy `fleet doctor` shows .122 (192.168.10.122:9100) serving **0.11.400**, conn=ok
-- [x] PL-021 check: .122 auth valid after restart — deploy verify [PASS] connected in 42ms (client authenticated w/ existing profile secret → secret preserved)
-- [x] .121 NOT modified — only read-only probed (tofu verify + hub probe); held for operator decision (see Decisions)
-- [x] fleet-binary-canary re-checked: healthy — `ring20-management served=0.11.400 >= floor=0.11.324`; `.121 exempt (not firing)`
+- [x] Handoff to ring20-manager DRAFTED + operator-approved ("go") — staged verbatim + send command in `.context/working/T-2379-ring20-manager-handoff-READY.md`
+- [x] Handoff SENT to ring20-manager session on .122 — sent 2026-07-07T15:28Z to fp 9219671e28054458 (session tl-dzbcxxka, project=proxmox-ring20-management, state=ready) via `agent contact --target-fp --hub 192.168.10.122:9100 --thread T-2379`; landed dm:9219671e28054458:d1993c2c3ec44c94 offset 52
+- [ ] ring20-manager confirms a termlink session registered on .121 (awaiting reply on thread T-2379)
+- [ ] Deploy 0.11.400 to .121 from .107 (`fleet-deploy-binary.sh ring20-dashboard --probe --swap-restart`) once session exists; PL-021 secret/cert preserved
+- [ ] `fleet doctor` shows .121 = 0.11.400
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -86,9 +77,6 @@ explicitly HELD for an operator decision (see Decisions) — not touched.
 -->
 
 ## Verification
-
-# Target is current HEAD = 0.11.400 (0.11.399 VERSION + the T-2376 docs-only commit 5832d7ae → git bumped commits-since-tag 399→400)
-test -x target/x86_64-unknown-linux-musl/release/termlink && target/x86_64-unknown-linux-musl/release/termlink --version 2>&1 | grep -q "0.11.400"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -163,11 +151,14 @@ test -x target/x86_64-unknown-linux-musl/release/termlink && target/x86_64-unkno
 
 ## Decisions
 
-### 2026-07-07 — .121 ring20-dashboard: HELD, not upgraded
-- **Chose:** Do NOT deploy 0.11.400 to .121; surface a decision to the operator instead.
-- **Why:** .121 serves **0.11.806** — genealogically divergent from our mainline (our HEAD is 400 commits past v0.11.0; .121 is 806 past the same tag, so it carries ~400 commits we don't have and cannot be a fast-forward of ours). It is marked **exempt** in `fleet-version-floors.conf` (`ring20-dashboard -`) per the documented rule "never set a floor / deploy to a hub whose binary you don't build". Overwriting it with our binary would be a numeric downgrade AND a lineage replacement (destroys its fork commits). Additionally, its live TLS fingerprint `sha256:1389a831…` differs from the recorded `53de15ec` (memory reference_ring20_dashboard), so the inherited "own fork" characterization is anchored to a stale identity — I cannot even confirm the current lineage from here (no session registered on .121 → git history not RPC-inspectable).
-- **Rejected:** (a) blind `fleet-deploy-binary.sh ring20-dashboard` — destructive, would replace an uncharacterized lineage; (b) asserting it's a fork without evidence — the identity anchor drifted, so this needs a shell session on the dashboard project (cross-project, T-559) to answer "what are those 806 commits".
-- **Operator options:** SKIP (leave .121 on its own lineage), or file a separate reconcile-then-deploy task if .121 is meant to be on mainline. Requires operator input.
+<!-- Record decisions ONLY when choosing between alternatives.
+     Skip for tasks with no meaningful choices.
+     Format:
+     ### [date] — [topic]
+     - **Chose:** [what was decided]
+     - **Why:** [rationale]
+     - **Rejected:** [alternatives and why not]
+-->
 
 ## Decision
 
@@ -181,37 +172,15 @@ test -x target/x86_64-unknown-linux-musl/release/termlink && target/x86_64-unkno
 
 ## Updates
 
-### 2026-07-07T10:10:46Z — task-created [task-create-agent]
+### 2026-07-07T11:24:37Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2377-upgrade-field-hub-122-ring20-management-.md
+- **Output:** /opt/termlink/.tasks/active/T-2379-delegate-121-ring20-dashboard-termlink-u.md
 - **Context:** Initial task creation
 
-### 2026-07-07T~10:20Z — .122 upgraded, .121 held [agent]
-- **Fleet baseline (pre):** fleet doctor → .122=0.11.377, .121=0.11.806, .107/localhost=0.11.399, .141=error.
-- **musl build:** `cargo clean -p termlink --release --target x86_64-unknown-linux-musl` + rebuild → `0.11.400` static (HEAD moved 399→400 via T-2376 docs commit 5832d7ae; functionally identical, docs-only).
-- **.122 deploy:** `scripts/fleet-deploy-binary.sh ring20-management --probe --swap-restart` → 730/730 chunks 0 failures, sha verified, probe OK (0.11.400 runs on target), G-070 guard confirmed NO systemd unit on .122 (bare-process → detached relaunch correct), swap+restart pid 306862, hub UP t=15s, verify [PASS] 42ms.
-- **.122 verify (post):** fresh fleet doctor → .122=0.11.400 conn=ok; auth held (authenticated connect = profile secret preserved across restart, PL-021 OK). fleet-binary-canary healthy (.122 0.11.400 >= floor 0.11.324).
-- **.121 read-only probe:** tofu verify OK (pin matches wire), hub probe fingerprint `sha256:1389a831…` (differs from recorded `53de15ec` → identity drift, inherited fork-claim is stale-anchored), version 0.11.806, NO sessions registered → git lineage not RPC-inspectable. HELD for operator decision (see Decisions).
-- **Fleet after:** .107=0.11.399, .122=0.11.400 (1 docs-commit skew, noise), .121=0.11.806 (untouched), .141 unreachable.
-
-## Reviewer Verdict (v1.5)
-
-- **Scan ID:** R-19e9cd23
-- **Timestamp:** 2026-07-07T10:26:39Z
-- **Catalogue:** v1.3-seed
-- **Overall:** CONCERN
-- **Needs Human:** no
-- **Findings:** 2
-
-**Per-AC findings:**
-
-- **AC#2 (Agent)** — `scripts/fleet-deploy-binary.sh ring20-management --probe --swap-restart` completes: 730/730 chunks, sha verified, `--probe` OK (0.11.400 executes on target), swap+restart done, hub UP at t=15s
-  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/fleet-deploy-binary.sh in: `scripts/fleet-deploy-binary.sh ring20-management --probe --swap-restart` completes: 730/730 chunks, sha verified, `--probe` OK (0.11.400 executes on `
-
-**Verification-level findings:**
-
-  1. **l387-sigpipe-risk** (partial, heuristic) @ Verification:line 2
-     - evidence: `test -x target/x86_64-unknown-linux-musl/release/termlink && target/x86_64-unknown-linux-musl/release/termlink --version 2>&1 | grep -q "0.11.400"`
-
-### 2026-07-07T10:26:38Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed
+### 2026-07-07T15:28Z — handoff SENT [claude]
+- **Action:** Sent operator-approved handoff to ring20-management-agent on .122
+- **Transport:** `agent contact --target-fp 9219671e28054458 --hub 192.168.10.122:9100 --thread T-2379` (bare-name resolves only locally; remote peer needs target-fp)
+- **Landed:** dm:9219671e28054458:d1993c2c3ec44c94 offset 52, ts 1783433327826
+- **Peer resolution:** authoritative via `remote list 192.168.10.122:9100` — tl-dzbcxxka (ring20-management-agent, state=ready, pid 2301664, project=proxmox-ring20-management). Co-resident skills-manager-agent shares the same fp (T-1448); body addresses @ring20-management + thread T-2379 to disambiguate.
+- **Note:** .122 agent-presence topic query timed out (>30s, likely bloated) but hub TLS-probes fine (fp 22c19fed...); DM is durable so LIVE-confirmation not required for delivery.
+- **Next:** await reply on thread T-2379 → then `fleet-deploy-binary.sh ring20-dashboard --probe --swap-restart` from .107 (musl 0.11.400 ready) → verify `fleet doctor` shows .121 = 0.11.400

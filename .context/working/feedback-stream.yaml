@@ -3600,3 +3600,111 @@ scan_id: R-ddfba23d
 task_id: T-2374
 payload:
   task_file: .tasks/active/T-2374-fix-set--u-crash-in-bench-pushwake-xhost.md
+---
+kind: scan_emitted
+timestamp: '2026-07-06T13:06:55Z'
+scan_id: R-54933654
+task_id: T-2363
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-06T13:06:55Z'
+scan_id: R-54933654
+task_id: T-2363
+payload:
+  task_file: .tasks/active/T-2363-fix-remote-send-file-legacy-fallback-use.md
+---
+kind: scan_emitted
+timestamp: '2026-07-06T13:14:21Z'
+scan_id: R-6a206c26
+task_id: T-2372
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-06T13:14:21Z'
+scan_id: R-6a206c26
+task_id: T-2372
+payload:
+  task_file: .tasks/active/T-2372-hubwssubscribe-bypasses-rate-limit-gover.md
+---
+kind: scan_emitted
+timestamp: '2026-07-06T13:41:12Z'
+scan_id: R-1442b9fd
+task_id: T-2375
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-06T13:41:12Z'
+scan_id: R-1442b9fd
+task_id: T-2375
+payload:
+  task_file: .tasks/active/T-2375-mcp-termlinkfilesend-cannot-reach-offlin.md
+---
+kind: scan_emitted
+timestamp: '2026-07-07T09:59:24Z'
+scan_id: R-d3ff1730
+task_id: T-2376
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-07T09:59:24Z'
+scan_id: R-d3ff1730
+task_id: T-2376
+payload:
+  task_file: .tasks/active/T-2376-upgrade-all-107-termlink-processes-to-la.md
+---
+kind: scan_emitted
+timestamp: '2026-07-07T10:26:39Z'
+scan_id: R-19e9cd23
+task_id: T-2377
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-07T10:26:39Z'
+scan_id: R-19e9cd23
+task_id: T-2377
+payload:
+  task_file: .tasks/active/T-2377-upgrade-field-hub-122-ring20-management-.md
+---
+kind: scan_emitted
+timestamp: '2026-07-07T11:13:38Z'
+scan_id: R-dbf58880
+task_id: T-2378
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-07T11:13:38Z'
+scan_id: R-dbf58880
+task_id: T-2378
+payload:
+  task_file: .tasks/active/T-2378-correct-misleading-121-own-fork-claim-in.md
