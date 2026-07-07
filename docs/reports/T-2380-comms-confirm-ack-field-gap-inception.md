@@ -108,6 +108,7 @@ uncertainty** — exactly the failure mode arc-003 set out to kill, relocated fr
 | C4 | **Agent-vs-shell signal** in `remote list` + inject warns/refuses when target is not agent-backed or bypasses the DM rail | F1, F2 | low |
 | C5 | **Durable/auto-armed `/be-reachable`** so wakers exist across reboots | F3 | med |
 | C6 | **Fix .122 specifically** (channel sweep / retention reset run locally on .122) | E2 instance | op-only, ring20-manager scope |
+| C7 | **Auto-allocate an injectable scratch PTY for headless agents** so arc-004 push-wake works WITHOUT tmux/screen (the true "as intended" fix — see T-2381 runbook + PL-237). Alternative to the operational "mandate tmux-launched agents" path. | E4 root (dormancy) | med (build) |
 
 C6 is an operational instance-fix (ring20-manager's host, not our code) and is
 already being folded into the live coordination message. C1+C2 look like the

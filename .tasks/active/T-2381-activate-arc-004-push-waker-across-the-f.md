@@ -1,8 +1,8 @@
 ---
-id: T-2379
-name: "Delegate .121 ring20-dashboard termlink upgrade to ring20-manager (needs session on .121; I deploy 0.11.400 from .107 once up)"
+id: T-2381
+name: "Activate arc-004 push-waker across the fleet — make shipped push-wake capability live"
 description: >
-  Delegate .121 ring20-dashboard termlink upgrade to ring20-manager (needs session on .121; I deploy 0.11.400 from .107 once up)
+  Activate arc-004 push-waker across the fleet — make shipped push-wake capability live
 
 status: started-work
 workflow_type: build
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-07-07T11:24:37Z
-last_update: 2026-07-07T14:09:46Z
+created: 2026-07-07T18:12:31Z
+last_update: 2026-07-07T18:12:31Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,20 +30,57 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2379: Delegate .121 ring20-dashboard termlink upgrade to ring20-manager (needs session on .121; I deploy 0.11.400 from .107 once up)
+# T-2381: Activate arc-004 push-waker across the fleet — make shipped push-wake capability live
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+arc-004 (push-transport) is closed=shipped but DARK in the field: T-2380 E4
+found zero push-waker processes running on .107 — all live agents are silently
+un-reachable. This task OPERATES the already-shipped capability (not new build):
+arm the waker where we can, verify push-wake E2E on the real fleet, coordinate
+arming on hosts we don't own, and record fleet activation state. Preconditions to
+respect: PL-237 (push-wake activation conditions), PL-236 (identity-resolver env).
+
+## Findings (2026-07-07, grounded — LIVE on real .107 hub)
+
+**arc-004 WORKS on the real .107 production hub — proven, both rails.** Armed a
+real PTY-backed probe (`arc004-probe`, pushwaker pid 3629693); sent messages on
+the local hub and observed `/check-arc respond` injected into its PTY:
+- **Inbox rail** via `bash scripts/agent-send.sh --to arc004-probe` — fired.
+  fp-INDEPENDENT (addressee = agent_id) → the ROBUST path.
+- **DM rail** via `agent contact --target-fp dcd44820fc12daed` — fired. Needs the
+  correct **per-agent** fp.
+
+**NEW BUG (send/receive fp mismatch on shared hosts) — the real fleet blocker:**
+the waker resolves self_fp per-agent via `agent identity --resolve`
+(`dcd44820fc12daed`), but the SENDER's `agent contact <NAME>` resolves the target
+via `session.discover` → **shared host fp `d1993c2c`** → wrong dm topic → **dm
+rail never wakes for name-based contact**. Hermetic demo hid this by hardcoding
+fps. Workaround: use inbox-rail doorbell (`agent-send.sh --to <name>`,
+fp-independent) OR `agent contact --target-fp <per-agent-fp>`. Fix (sender-side
+analog of the be-reachable `--resolve` fix) → T-2380 candidate.
+
+**Second bug (minor):** `agent contact <name>` tried to create the dm topic with
+retention `Messages(1000)` but it exists as `Forever` → `channel.create` -32603
+blocked the send. Topic-create retention should be idempotent.
+
+**Fleet constraint (PL-237):** push-wake needs an injectable PTY; plain
+`claude --resume` (no tmux) gets no waker → fix fork in runbook + T-2380 C7.
+
+**CLEANUP PENDING (budget gate blocked the kill):** probe `register --shell`
+pid 3628688 (`arc004-probe`) still registered — next session:
+`kill 3628688`, confirm `termlink list | grep arc004` empty. The pushwaker was
+reaped cleanly by `be-reachable.sh stop`.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] Handoff to ring20-manager DRAFTED + operator-approved ("go") — staged verbatim + send command in `.context/working/T-2379-ring20-manager-handoff-READY.md`
-- [x] Handoff SENT to ring20-manager session on .122 — sent 2026-07-07T15:28Z to fp 9219671e28054458 (session tl-dzbcxxka, project=proxmox-ring20-management, state=ready) via `agent contact --target-fp --hub 192.168.10.122:9100 --thread T-2379`; landed dm:9219671e28054458:d1993c2c3ec44c94 offset 52
-- [ ] ring20-manager confirms a termlink session registered on .121 (awaiting reply on thread T-2379)
-- [ ] Deploy 0.11.400 to .121 from .107 (`fleet-deploy-binary.sh ring20-dashboard --probe --swap-restart`) once session exists; PL-021 secret/cert preserved
-- [ ] `fleet doctor` shows .121 = 0.11.400
+<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
+- [x] Read + honor PL-237 / PL-236 push-wake preconditions before arming (verifier report + PL-237/236/166/200)
+- [x] Push-waker armed on **the real .107 production hub** (not hermetic) — probe session `arc004-probe`, pushwaker pid 3629693 confirmed alive via `ps`; self_fp resolved per-agent (`dcd44820fc12daed`, NOT shared host fp — PL-236 sidestep works)
+- [x] Push-wake verified END-TO-END on the real .107 hub (EXCEEDS AC — real, not hermetic): **both rails injected `/check-arc respond` into the probe PTY** — inbox rail via `agent-send.sh --to` (fp-independent) AND dm rail via `agent contact --target-fp dcd44820fc12daed`
+- [x] Fleet activation state recorded — runbook `docs/operations/arc-004-fleet-activation.md` (per-host table + 3 preconditions + recipe)
+- [ ] Coordination message sent to ring20-manager to arm their wakers per the runbook (deferred by budget gate — carry to next session)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -172,15 +209,7 @@ date_finished: null
 
 ## Updates
 
-### 2026-07-07T11:24:37Z — task-created [task-create-agent]
+### 2026-07-07T18:12:31Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2379-delegate-121-ring20-dashboard-termlink-u.md
+- **Output:** /opt/termlink/.tasks/active/T-2381-activate-arc-004-push-waker-across-the-f.md
 - **Context:** Initial task creation
-
-### 2026-07-07T15:28Z — handoff SENT [claude]
-- **Action:** Sent operator-approved handoff to ring20-management-agent on .122
-- **Transport:** `agent contact --target-fp 9219671e28054458 --hub 192.168.10.122:9100 --thread T-2379` (bare-name resolves only locally; remote peer needs target-fp)
-- **Landed:** dm:9219671e28054458:d1993c2c3ec44c94 offset 52, ts 1783433327826
-- **Peer resolution:** authoritative via `remote list 192.168.10.122:9100` — tl-dzbcxxka (ring20-management-agent, state=ready, pid 2301664, project=proxmox-ring20-management). Co-resident skills-manager-agent shares the same fp (T-1448); body addresses @ring20-management + thread T-2379 to disambiguate.
-- **Note:** .122 agent-presence topic query timed out (>30s, likely bloated) but hub TLS-probes fine (fp 22c19fed...); DM is durable so LIVE-confirmation not required for delivery.
-- **Next:** await reply on thread T-2379 → then `fleet-deploy-binary.sh ring20-dashboard --probe --swap-restart` from .107 (musl 0.11.400 ready) → verify `fleet doctor` shows .121 = 0.11.400
