@@ -259,9 +259,16 @@ hub serves a version below its **declared floor** in
 `.context/cron/fleet-version-floors.conf` (`<hub-name> <min-version|->`; `-` =
 exempt, optional `*` default row). It is deliberately NOT cross-hub skew
 detection: patch numbers are commits-since-tag and are NOT comparable across
-build lineages (ring20-dashboard serves 0.11.806 from its own fork — numerically
-"newest" while lacking our commits) — never set a floor for a hub whose binary
-you don't build. Unknown `hub_version` on a reachable floored hub DOES fire (a
+build lineages OR across tag epochs (e.g. ring20-dashboard reports 0.11.806 —
+but that is a `git describe` tag-base artifact, NOT proof of a fork: v0.11.2 was
+not tagged until 2026-06-24, so a stale ~June-6 mainline build counts from
+v0.11.1 and reads 0.11.80x while post-v0.11.2 builds count from v0.11.2 and read
+0.11.4xx. A larger patch number does NOT mean "newer" or "divergent lineage".
+T-2377 found .121 is very likely a ~1050-commit-STALE build of our OWN mainline,
+not the "own fork" this line previously asserted — confirmation needs a session
+on .121 to read its git sha, which is ring20-manager scope). Rule of thumb:
+never set a floor for a hub whose binary you genuinely don't build — but confirm
+lineage first; do NOT infer "fork" from a larger patch number. Unknown `hub_version` on a reachable floored hub DOES fire (a
 hub too old to report its version is the staleness class itself); unreachable
 hubs are informational, never firing (PL-219 — `fleet doctor`/`fleet status`
 already surface down hubs). **Bump the floor when hub-side rails ship** — that
