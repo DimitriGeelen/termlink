@@ -3708,3 +3708,21 @@ scan_id: R-dbf58880
 task_id: T-2378
 payload:
   task_file: .tasks/active/T-2378-correct-misleading-121-own-fork-claim-in.md
+---
+kind: scan_emitted
+timestamp: '2026-07-09T08:48:07Z'
+scan_id: R-73973945
+task_id: T-2381
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-09T08:48:07Z'
+scan_id: R-73973945
+task_id: T-2381
+payload:
+  task_file: .tasks/active/T-2381-activate-arc-004-push-waker-across-the-f.md

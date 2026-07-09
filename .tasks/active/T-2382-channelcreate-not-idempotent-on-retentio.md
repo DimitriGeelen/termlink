@@ -1,8 +1,8 @@
 ---
-id: T-2381
-name: "Activate arc-004 push-waker across the fleet — make shipped push-wake capability live"
+id: T-2382
+name: "channel.create not idempotent on retention — agent contact DM send aborts when dm topic exists with different retention (arc-004 fleet blocker)"
 description: >
-  Activate arc-004 push-waker across the fleet — make shipped push-wake capability live
+  agent contact posts a DM by first calling channel.create with Messages(1000); if the dm topic already exists as Forever the hub returns -32603 and the whole send aborts. Blocks arc-004 fleet DM delivery to any peer whose dm topic is Forever. Fix: make the create-before-post idempotent w.r.t. retention.
 
 status: started-work
 workflow_type: build
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-07-07T18:12:31Z
-last_update: 2026-07-07T18:26:25Z
+created: 2026-07-09T08:49:11Z
+last_update: 2026-07-09T08:49:11Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,66 +30,32 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2381: Activate arc-004 push-waker across the fleet — make shipped push-wake capability live
+# T-2382: channel.create not idempotent on retention — agent contact DM send aborts when dm topic exists with different retention (arc-004 fleet blocker)
 
 ## Context
 
-arc-004 (push-transport) is closed=shipped but DARK in the field: T-2380 E4
-found zero push-waker processes running on .107 — all live agents are silently
-un-reachable. This task OPERATES the already-shipped capability (not new build):
-arm the waker where we can, verify push-wake E2E on the real fleet, coordinate
-arming on hosts we don't own, and record fleet activation state. Preconditions to
-respect: PL-237 (push-wake activation conditions), PL-236 (identity-resolver env).
-
-## Findings (2026-07-07, grounded — LIVE on real .107 hub)
-
-**arc-004 WORKS on the real .107 production hub — proven, both rails.** Armed a
-real PTY-backed probe (`arc004-probe`, pushwaker pid 3629693); sent messages on
-the local hub and observed `/check-arc respond` injected into its PTY:
-- **Inbox rail** via `bash scripts/agent-send.sh --to arc004-probe` — fired.
-  fp-INDEPENDENT (addressee = agent_id) → the ROBUST path.
-- **DM rail** via `agent contact --target-fp dcd44820fc12daed` — fired. Needs the
-  correct **per-agent** fp.
-
-**NEW BUG (send/receive fp mismatch on shared hosts) — the real fleet blocker:**
-the waker resolves self_fp per-agent via `agent identity --resolve`
-(`dcd44820fc12daed`), but the SENDER's `agent contact <NAME>` resolves the target
-via `session.discover` → **shared host fp `d1993c2c`** → wrong dm topic → **dm
-rail never wakes for name-based contact**. Hermetic demo hid this by hardcoding
-fps. Workaround: use inbox-rail doorbell (`agent-send.sh --to <name>`,
-fp-independent) OR `agent contact --target-fp <per-agent-fp>`. Fix (sender-side
-analog of the be-reachable `--resolve` fix) → T-2380 candidate.
-
-**Second bug (NOT minor — reconfirmed 2026-07-09, blocked the real send):**
-`agent contact --target-fp 9219671e28054458` tried to create the dm topic with
-retention `Messages(1000)` but it exists as `Forever` → `channel.create` -32603
-blocked the coordination send entirely. Same topic that landed T-2379 offset 52
-via agent contact earlier — so the topic's retention was `Forever` by the time I
-re-sent, and agent contact's non-idempotent create now refuses. Topic-create
-retention MUST be idempotent (or agent contact must skip create when the topic
-exists). Workaround used: direct `termlink channel post <dm-topic> --hub .122
---metadata conversation_id=T-2381 --mention ring20-management-agent` — appends to
-the existing Forever topic (no create attempt), landed **offset 56**. This is a
-real field blocker on any peer whose dm topic is `Forever`, not cosmetic → upgrade
-to a T-2380 candidate / its own bug task.
-
-**Fleet constraint (PL-237):** push-wake needs an injectable PTY; plain
-`claude --resume` (no tmux) gets no waker → fix fork in runbook + T-2380 C7.
-
-**CLEANUP PENDING (budget gate blocked the kill):** probe `register --shell`
-pid 3628688 (`arc004-probe`) still registered — next session:
-`kill 3628688`, confirm `termlink list | grep arc004` empty. The pushwaker was
-reaped cleanly by `be-reachable.sh stop`.
+Discovered during T-2381 (arc-004 fleet activation). `termlink agent contact`
+delivers a DM by ensuring the peer's dm topic exists before posting — it calls
+`channel.create` with retention `Messages(1000)`. If the topic ALREADY exists
+with a different retention (observed: `Forever`), the hub returns JSON-RPC
+`-32603: channel.create: topic "dm:…" already exists with a different retention
+policy (existing=Forever, requested=Messages(1000))` and the ENTIRE send aborts —
+the DM is never posted. Reproduced twice: T-2379 landed offset 52 on
+`dm:9219671e28054458:d1993c2c3ec44c94` (.122) via `agent contact --target-fp`,
+then the T-2381 re-send to the same topic (now `Forever`) was refused; had to
+route around via a raw `channel post` (landed offset 56). This is a real arc-004
+fleet blocker: any peer whose dm topic is `Forever` cannot be reached via
+`agent contact`.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Read + honor PL-237 / PL-236 push-wake preconditions before arming (verifier report + PL-237/236/166/200)
-- [x] Push-waker armed on **the real .107 production hub** (not hermetic) — probe session `arc004-probe`, pushwaker pid 3629693 confirmed alive via `ps`; self_fp resolved per-agent (`dcd44820fc12daed`, NOT shared host fp — PL-236 sidestep works)
-- [x] Push-wake verified END-TO-END on the real .107 hub (EXCEEDS AC — real, not hermetic): **both rails injected `/check-arc respond` into the probe PTY** — inbox rail via `agent-send.sh --to` (fp-independent) AND dm rail via `agent contact --target-fp dcd44820fc12daed`
-- [x] Fleet activation state recorded — runbook `docs/operations/arc-004-fleet-activation.md` (per-host table + 3 preconditions + recipe)
-- [x] Coordination message sent to ring20-manager to arm their wakers per the runbook — landed **offset 56** on dm:9219671e28054458:d1993c2c3ec44c94 (.122) via direct `channel post` (agent contact was blocked by the retention-idempotency bug; routed around it). Message = full activation recipe + 3 preconditions + the send-side fp-mismatch + retention blockers + .122 read-wedge remediation. Staged verbatim in `.context/working/T-2381-ring20-manager-arc004-activation.md`. Awaiting ring20-manager ack on thread T-2381.
+- [ ] Root cause located: the `agent contact` dm-topic ensure/create call that hard-codes `Messages(1000)` retention, and the hub-side guard that raises "different retention policy". (file:line recorded in RCA)
+- [ ] Fix applied so a DM send via `agent contact` to an EXISTING dm topic does NOT abort on retention mismatch — the ensure-create is idempotent (create-if-absent; when the topic already exists, proceed to post regardless of the existing retention rather than erroring). Chosen fix layer (caller-skip-if-exists vs hub-idempotent) recorded in Decisions with rationale.
+- [ ] Genuinely-new dm topic path preserved: contacting a peer whose topic does not yet exist still creates it and posts (no regression).
+- [ ] `cargo build --release -p termlink` (crate at crates/termlink-cli/ is package `termlink`) succeeds.
+- [ ] Regression coverage: a unit/integration test (or a documented manual repro) proves a second `agent contact` to a topic created with a different retention now succeeds instead of -32603.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -155,6 +121,9 @@ reaped cleanly by `be-reachable.sh stop`.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+# NOTE: the crate at crates/termlink-cli/ is package `termlink` (not termlink-cli).
+cargo test --release -p termlink create_error 2>&1 | grep -q "test result: ok"
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -170,6 +139,37 @@ reaped cleanly by `be-reachable.sh stop`.
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** `agent contact` / `channel dm` / `/agent-handoff` / `/reply` to a
+peer whose dm topic already exists as `Forever` fails with JSON-RPC `-32603:
+… already exists with a different retention policy (existing=Forever,
+requested=Messages(1000))` and the ENTIRE DM send aborts — the message is never
+posted. Observed twice (T-2379 landed offset 52; the T-2381 re-send to the same,
+now-`Forever` topic was refused).
+
+**Root cause:** `ensure_topic()` (`crates/termlink-cli/src/commands/channel.rs`)
+picks retention from `is_high_rate_pattern`, so every `dm:*` create requests
+`Messages(1000)`. When the topic already exists with a DIFFERENT retention
+(`Forever` — created before the T-2126 dm-default landed, or via a direct
+`channel.create`), the hub's TopicPolicyMismatch guard
+(`crates/termlink-bus/src/meta.rs:38-46`) returns -32603. `ensure_topic`'s `Err`
+arm propagated ALL errors, aborting the send.
+
+**Why structurally allowed:** comment-code drift — the fn's doc comment PROMISED
+"Idempotent — if create returns 'already exists' we treat it as success," but the
+`Err` arm never implemented the already-exists special case. The T-2126 change
+that made `dm:*` default to `Messages(1000)` silently created the mismatch
+condition against pre-existing `Forever` dm topics, and no test covered "ensure
+an existing topic whose retention differs from the default." The hub guard is
+correct and intentional (protects real retention-policy edits); the defect was
+entirely in the caller trusting its own unimplemented doc comment.
+
+**Prevention:** extracted a pure `create_error_is_already_exists` helper + two
+unit tests (`create_error_already_exists_matches_retention_mismatch` locks the
+-32603 retention-mismatch → treated-as-exists; `…_rejects_genuine_failures`
+proves auth/unreachable/capacity errors still surface). The tests pin the
+idempotency contract the doc comment states, so a future retention-default change
+cannot silently re-break the ensure path.
 
 ## Evolution
 
@@ -197,14 +197,24 @@ reaped cleanly by `be-reachable.sh stop`.
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-07-09 — fix layer: caller-side (agent contact), not hub-side
+- **Chose:** Make `agent contact`'s dm-topic ensure-create non-fatal on
+  "already exists" (swallow the -32603 retention-mismatch and proceed to post),
+  rather than changing the hub's `channel.create` to be globally idempotent on
+  retention.
+- **Why:** `channel post --ensure-topic` ALREADY establishes this exact
+  caller-side precedent — its help says "Auto-create the topic via idempotent
+  channel.create before posting … Failure of channel.create is non-fatal; the
+  post proceeds." `agent contact` should follow the same contract. The
+  send only needs the topic to EXIST; the existing retention is irrelevant to
+  delivery. Surgical, one call-site, no change to hub semantics for other
+  callers.
+- **Rejected:** Hub-side idempotent create — the "different retention policy"
+  guard is deliberate (it protects operators from silently reconfiguring a
+  topic's retention via a create call). Removing/loosening it globally is a
+  larger blast radius and could mask genuine retention-config mistakes
+  elsewhere. Keep the guard; fix the one caller that shouldn't be creating in
+  the first place.
 
 ## Decision
 
@@ -218,7 +228,7 @@ reaped cleanly by `be-reachable.sh stop`.
 
 ## Updates
 
-### 2026-07-07T18:12:31Z — task-created [task-create-agent]
+### 2026-07-09T08:49:11Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2381-activate-arc-004-push-waker-across-the-f.md
+- **Output:** /opt/termlink/.tasks/active/T-2382-channelcreate-not-idempotent-on-retentio.md
 - **Context:** Initial task creation

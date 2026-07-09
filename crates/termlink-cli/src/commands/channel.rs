@@ -2344,6 +2344,17 @@ pub(crate) fn is_single_value_state_pattern(name: &str) -> bool {
     name.starts_with("state:")
 }
 
+/// T-2382: classify a `channel.create` error string as an "already exists"
+/// condition. The hub's TopicPolicyMismatch guard (termlink-bus meta.rs)
+/// returns `-32603: channel.create: topic "..." already exists with a
+/// different retention policy (existing=Forever, requested=Messages(1000))`;
+/// a plain duplicate returns "...already exists". Both mean the topic is
+/// present, which is all an ensure-before-post needs. Pure so it is unit
+/// testable without a live hub (the T-2069 pure-helper convention).
+pub(crate) fn create_error_is_already_exists(msg: &str) -> bool {
+    msg.contains("already exists")
+}
+
 /// T-1319: ensure a topic exists. Idempotent — if create returns
 /// "already exists" we treat it as success. Used by `channel dm` so the
 /// caller doesn't have to think about whether the topic was set up.
@@ -2393,10 +2404,26 @@ async fn ensure_topic(sock: &TransportAddr, name: &str) -> Result<bool> {
                 .and_then(|v| v.as_bool())
                 .unwrap_or(false))
         }
-        // T-1160 channel.create is idempotent on (name, retention) so
-        // re-creating an existing topic shouldn't error. If the hub does
-        // return an error here it's a real problem worth surfacing.
-        Err(e) => Err(anyhow!("channel.create failed: {e}")),
+        // T-1160/T-2382 channel.create is idempotent on (name, retention),
+        // but the retention here is DEFAULT-DRIVEN by is_high_rate_pattern
+        // (every `dm:*` create requests Messages(1000)). A dm topic created
+        // earlier as Forever therefore trips the hub's TopicPolicyMismatch
+        // guard (-32603 "already exists with a different retention policy")
+        // and, before T-2382, that aborted the whole send — dropping the DM.
+        // For an ensure-before-post the ONLY thing the caller needs is that
+        // the topic EXISTS; its existing retention is irrelevant to delivery
+        // (and deliberately not ours to change — the hub guard protects real
+        // policy edits, see termlink-bus/src/meta.rs). So treat any
+        // "already exists" as success (topic present, not newly created →
+        // Ok(false)), honoring the idempotency this fn's doc comment promises.
+        // Genuine failures (auth, unreachable, capacity) still surface.
+        Err(e) => {
+            if create_error_is_already_exists(&e.to_string()) {
+                Ok(false)
+            } else {
+                Err(anyhow!("channel.create failed: {e}"))
+            }
+        }
     }
 }
 
@@ -18448,6 +18475,36 @@ not json at all
     // Mirror of the hub-side tests in `crates/termlink-hub/src/channel.rs`
     // mod tests. Same T-2069 duplicated-not-shared convention as
     // is_high_rate_pattern above.
+
+    #[test]
+    fn create_error_already_exists_matches_retention_mismatch() {
+        // T-2382: the exact -32603 the hub raises when a dm:* topic was
+        // created earlier as Forever but ensure_topic now requests
+        // Messages(1000). Before the fix this aborted the whole DM send.
+        let msg = "channel.create failed: JSON-RPC error -32603: \
+            channel.create: topic \"dm:9219671e28054458:d1993c2c3ec44c94\" \
+            already exists with a different retention policy \
+            (existing=Forever, requested=Messages(1000))";
+        assert!(create_error_is_already_exists(msg));
+        // Plain duplicate-create wording is also treated as success.
+        assert!(create_error_is_already_exists("topic \"x\" already exists"));
+    }
+
+    #[test]
+    fn create_error_already_exists_rejects_genuine_failures() {
+        // Auth / unreachable / capacity errors must STILL surface — the fix
+        // only swallows "already exists", never a real problem.
+        assert!(!create_error_is_already_exists(
+            "channel.create failed: JSON-RPC error -32001: unauthorized"
+        ));
+        assert!(!create_error_is_already_exists(
+            "Hub rpc_call (channel.create) failed: connection refused"
+        ));
+        assert!(!create_error_is_already_exists(
+            "JSON-RPC error -32019: HUB_AT_CAPACITY"
+        ));
+        assert!(!create_error_is_already_exists(""));
+    }
 
     #[test]
     fn is_single_value_state_pattern_matches_state_prefix() {

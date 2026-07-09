@@ -1,0 +1,107 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2381: Activate arc-004 push-waker across the fleet — make shipped push-wake capability live
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-09T08:48:10Z
+# ============================================================================
+
+task_id: T-2381
+task_name: "Activate arc-004 push-waker across the fleet — make shipped push-wake capability live"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-07T18:12:31Z
+completed: 2026-07-09T08:48:06Z
+duration_days: 2
+updates_count: 1
+first_commit: 2026-07-07T20:26:23+02:00
+last_commit: 2026-07-09T10:47:57+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  arc-004 proven LIVE on real .107 hub (both rails wake PTY); fleet runbook + send-side fp-mismatch bug; T-2380 C7 (auto-PTY). arc-004 fleet-activation coordination sent to ring20-manager (offset 56, routed around retention-idempotency bug); all ACs complete
+
+# Key outcomes
+outcomes:
+  - 'Read + honor PL-237 / PL-236 push-wake preconditions before arming (verifier report + PL-237/236/166/200)'
+  - 'Push-waker armed on **the real .107 production hub** (not hermetic) — probe session `arc004-probe`, pushwaker pid 3629693 confirmed alive via `ps`; self_fp resolved per-agent (`dcd44820fc12daed`, NOT shared host fp — PL-236 sidestep works)'
+  - 'Push-wake verified END-TO-END on the real .107 hub (EXCEEDS AC — real, not hermetic): **both rails injected `/check-arc respond` into the probe PTY** — inbox rail via `agent-send.sh --to` (fp-independent) AND dm rail via `agent contact --target-fp dcd44820fc12daed`'
+  - 'Fleet activation state recorded — runbook `docs/operations/arc-004-fleet-activation.md` (per-host table + 3 preconditions + recipe)'
+  - 'Coordination message sent to ring20-manager to arm their wakers per the runbook — landed **offset 56** on dm:9219671e28054458:d1993c2c3ec44c94 (.122) via direct `channel post` (agent contact was blocked by the retention-idempotency bug; routed around it). Message = full activation recipe + 3 preconditions + the send-side fp-mismatch + retention blockers + .122 read-wedge remediation. Staged verbatim in `.context/working/T-2381-ring20-manager-arc004-activation.md`. Awaiting ring20-manager ack on thread T-2381.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'arc-004 fleet-activation coordination sent to ring20-manager (offset 56, routed around retention-idempotency bug); all ACs complete'
+    source: git-mined
+  - description: 'arc-004 proven LIVE on real .107 hub (both rails wake PTY); fleet runbook + send-side fp-mismatch bug; T-2380 C7 (auto-PTY)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/settings.local.json'
+  - '.context/audits/2026-07-07.yaml'
+  - '.context/audits/2026-07-09.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/audits/orchestrator-LATEST.yaml'
+  - '.context/handovers/LATEST.md'
+  - '.context/handovers/S-2026-0707-2052.md'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'docs/operations/arc-004-fleet-activation.md'
+  - 'docs/reports/T-2380-comms-confirm-ack-field-gap-inception.md'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2379-delegate-121-ring20-dashboard-termlink-u.md'
+  - '.tasks/active/T-2380-cross-agent-comms-confirm-ack-field-gap-.md'
+  - '.tasks/active/T-2381-activate-arc-004-push-waker-across-the-f.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-07T20:26:23"
+    action: "T-2381: arc-004 proven LIVE on real .107 hub (both rails wake PTY); fleet runbook + send-side fp-mismatch bug; T-2380 C7 (auto-PTY)"
+  - time: "2026-07-09T10:47:57"
+    action: "T-2381: arc-004 fleet-activation coordination sent to ring20-manager (offset 56, routed around retention-idempotency bug); all ACs complete"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 2315 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2315
+  commits: 2
+  files_changed: 26
+  lines_added: 5917
+  lines_removed: 4884
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2381-activate-arc-004-push-waker-across-the-f.md
+generated_by: context-agent-hybrid
