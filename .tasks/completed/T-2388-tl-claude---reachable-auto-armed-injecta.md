@@ -4,10 +4,10 @@ name: "tl-claude --reachable: auto-armed injectable agent launcher + @reboot re-
 description: >
   tl-claude --reachable: auto-armed injectable agent launcher + @reboot re-arm (T-2380 C7+C5, arc-004 dormancy root fix)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-09T22:56:53Z
-last_update: 2026-07-09T22:56:53Z
-date_finished: null
+last_update: 2026-07-09T23:04:28Z
+date_finished: 2026-07-09T23:04:28Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -227,3 +227,20 @@ at the point of use; (5) T-2387 (waker-liveness canary) is the standing guard.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2388-tl-claude---reachable-auto-armed-injecta.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-24a95a11
+- **Timestamp:** 2026-07-09T23:04:29Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#3 (Agent)** — New `tl-claude.sh install-boot --name N --agent-id ID [-- CLAUDE_ARGS]` writes `/etc/cron.d/termlink-agent-<ID>` (@reboot, USER-field syntax per the canary-cron convention) that re-runs `tl-claude.sh 
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=etc/cron.d in: New `tl-claude.sh install-boot --name N --agent-id ID [-- CLAUDE_ARGS]` writes `/etc/cron.d/termlink-agent-<ID>` (@reboot, USER-field syntax per the c`
+
+### 2026-07-09T23:04:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

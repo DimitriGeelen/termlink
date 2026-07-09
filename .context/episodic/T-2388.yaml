@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2388: tl-claude --reachable: auto-armed injectable agent launcher + @reboot re-arm (T-2380 C7+C5, arc-004 dormancy root fix)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-09T23:04:32Z
+# ============================================================================
+
+task_id: T-2388
+task_name: "tl-claude --reachable: auto-armed injectable agent launcher + @reboot re-arm (T-2380 C7+C5, arc-004 dormancy root fix)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-09T22:56:53Z
+completed: 2026-07-09T23:04:28Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-10T01:03:04+02:00
+last_commit: 2026-07-10T01:03:04+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  tl-claude --reachable + install-boot — one-verb push-reachable agent launcher (C7) + @reboot re-arm (C5); live E2E on .107: preflight all-green, dm ring landed in PTY
+
+# Key outcomes
+outcomes:
+  - '`tl-claude.sh` gains `--reachable` (+ optional `--agent-id ID`, default = session name): after the session PTY is up (both one-shot and persistent `start` modes), it arms `be-reachable.sh start --agent-id ID --pty-session <session-name>` with a per-agent state file (`BE_REACHABLE_STATE=~/.termlink/be-reachable-<ID>.state`) so multiple agents on one host don''t clobber each other. Arm failure is loud but does not kill the launched session.'
+  - '`tl-claude.sh stop` also stops the paired be-reachable (same per-agent state file) so no orphan heartbeat/waker outlives the session; `tl-claude.sh status` shows the reachability state (armed + waker pid vs not armed).'
+  - 'New `tl-claude.sh install-boot --name N --agent-id ID [-- CLAUDE_ARGS]` writes `/etc/cron.d/termlink-agent-<ID>` (@reboot, USER-field syntax per the canary-cron convention) that re-runs `tl-claude.sh start --reachable ...` on boot — C5: wakers survive reboots without human memory.'
+  - 'Live E2E on .107 (the "make it work" proof): launch a scratch persistent session via `tl-claude.sh start --reachable --agent-id <demo-id>` (shell PTY, no claude needed for the ring proof), then `agent contact <demo-id>` → (a) T-2385 reachability preflight reports `recipient_live=true, waker_running=true` (the positive path, first live validation), and (b) the doorbell text `/check-arc respond` arrives in the PTY (visible via `termlink pty output <session>`) within ~2s — sub-second push-wake, not the 15s poll floor.'
+  - 'Idempotence + no-regression: re-running `start --reachable` with the session already up does not double-spawn (existing tl-claude persistent-mode reuse + be-reachable idempotence hold); running WITHOUT `--reachable` behaves exactly as today (pure opt-in).'
+  - 'Operator one-liner documented in the script header + `docs/operations/arc-004-fleet-activation.md` updated: the C7 structural path is now available (`bash scripts/tl-claude.sh start --reachable --agent-id <name> -- --resume`), replacing "mandate tmux" as the default recommendation.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/operations/arc-004-fleet-activation.md'
+  - 'scripts/tl-claude.sh'
+  - '.tasks/active/T-2388-tl-claude---reachable-auto-armed-injecta.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-10T01:03:04"
+    action: "T-2388: tl-claude --reachable + install-boot — one-verb push-reachable agent launcher (C7) + @reboot re-arm (C5); live E2E on .107: preflight all-green, dm ring landed in PTY"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 3
+  lines_added: 391
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2388-tl-claude---reachable-auto-armed-injecta.md
+generated_by: context-agent-hybrid
