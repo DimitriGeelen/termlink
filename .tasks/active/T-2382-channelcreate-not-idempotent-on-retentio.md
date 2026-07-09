@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-09T08:49:11Z
-last_update: 2026-07-09T08:49:11Z
+last_update: 2026-07-09T09:06:39Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -122,7 +122,9 @@ fleet blocker: any peer whose dm topic is `Forever` cannot be reached via
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
 # NOTE: the crate at crates/termlink-cli/ is package `termlink` (not termlink-cli).
-cargo test --release -p termlink create_error 2>&1 | grep -q "test result: ok"
+# Capture-then-grep (L-387/T-2090): a bare `cargo test | grep -q` SIGPIPEs cargo
+# under `set -eo pipefail` and false-fails even on green tests.
+out=$(cargo test --release -p termlink create_error 2>&1); echo "$out" | grep -q "2 passed"
 
 ## RCA
 
