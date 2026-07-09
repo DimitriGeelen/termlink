@@ -103,14 +103,30 @@ fleet" has a fork, and it is a **decision**, not just a rollout:
   (or a `termlink spawn` PTY) and armed with `be-reachable start --pty-session
   --agent-id` at session start. Cost: change the launch convention for every
   host; retrofitting means relaunching running agents.
-- **Structural path (needs a GO):** teach `be-reachable`/the agent launcher to
-  auto-allocate an injectable scratch PTY for a headless agent so push-wake works
-  **without** tmux. This is the true "just works as intended" fix. Folded into
-  T-2380 as candidate **C7**.
+- **Structural path — SHIPPED (T-2388, 2026-07-10), now the default
+  recommendation:** the launcher composes the pieces in one verb:
 
-Recommendation: adopt the operational path now (this runbook) for hosts we can
-relaunch, and take C7 (auto-PTY) through the T-2380 go/no-go for the permanent
-"headless agents just work" fix.
+  ```
+  # Launch an agent push-reachable (no tmux needed) — one command:
+  bash scripts/tl-claude.sh start --reachable --agent-id <name> -- --resume
+
+  # Survive reboots (writes /etc/cron.d/termlink-agent-<name>, @reboot re-arm):
+  bash scripts/tl-claude.sh install-boot --name <name> --agent-id <name> -- --resume
+
+  # Verify / stop (stop also reaps the paired heartbeat + waker — no orphans):
+  bash scripts/tl-claude.sh status --name <name> --agent-id <name>
+  bash scripts/tl-claude.sh stop   --name <name> --agent-id <name>
+  ```
+
+  `--reachable` spawns claude inside a termlink-owned (injectable) PTY and arms
+  `be-reachable` against it (heartbeat + push-waker, inbox + dm rails), with a
+  per-agent state file (`~/.termlink/be-reachable-<id>.state`) so multiple armed
+  agents coexist on one host. Live-proven E2E on .107 (2026-07-10): `agent
+  contact` preflight reported `recipient_live=true, waker_running=true` (T-2385),
+  the dm landed on the per-agent topic (T-2384), and `/check-arc respond` rang
+  the PTY within seconds. **Constraint unchanged (PL-237):** a *running* headless
+  claude cannot be retrofitted — the structural path applies at (re)launch time;
+  use it the next time each agent is (re)started.
 
 ## Fleet activation state (2026-07-07)
 | Host | Agent shape | Push-wake | Action |

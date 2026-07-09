@@ -29,8 +29,64 @@ SESSION_NAME="claude-master"
 BACKEND="${TL_CLAUDE_BACKEND:-auto}"
 TAGS="master,claude"
 CLAUDE_ARGS=()
+# T-2388 (T-2380 C7+C5): --reachable arms be-reachable (heartbeat + push-waker)
+# against the spawned PTY, closing the arc-004 dormancy gap (PL-237: the waker
+# can only ring termlink-owned PTYs; this launcher creates exactly those).
+REACHABLE=0
+AGENT_ID=""
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 die() { echo "ERROR: $1" >&2; exit 1; }
+
+# T-2388: per-agent be-reachable state file so multiple armed agents on one
+# host don't clobber the singleton ~/.termlink/be-reachable.state.
+reachable_agent_id() { echo "${AGENT_ID:-$SESSION_NAME}"; }
+reachable_state_file() { echo "${HOME}/.termlink/be-reachable-$(reachable_agent_id).state"; }
+
+# Arm be-reachable for the spawned session. Loud on failure but NEVER kills the
+# launched session (the durable poll floor still works un-armed).
+arm_reachable() {
+    local agent_id state br
+    agent_id="$(reachable_agent_id)"
+    state="$(reachable_state_file)"
+    br="$SCRIPT_DIR/be-reachable.sh"
+    if [ ! -x "$br" ] && [ ! -f "$br" ]; then
+        echo "WARN: be-reachable.sh not found at $br — session is up but NOT push-reachable." >&2
+        return 1
+    fi
+    if BE_REACHABLE_STATE="$state" bash "$br" start \
+        --agent-id "$agent_id" --pty-session "$SESSION_NAME"; then
+        echo "reachable: armed (agent-id=$agent_id pty=$SESSION_NAME state=$state)"
+    else
+        echo "WARN: be-reachable arm FAILED — session '$SESSION_NAME' is up but NOT push-reachable." >&2
+        echo "  Retry manually: BE_REACHABLE_STATE=$state bash $br start --agent-id $agent_id --pty-session $SESSION_NAME" >&2
+        return 1
+    fi
+}
+
+# One-shot mode execs `termlink spawn`, so arming must happen out-of-band:
+# detach a retry loop that waits for the session to register, then arms.
+arm_reachable_async() {
+    local agent_id state br log
+    agent_id="$(reachable_agent_id)"
+    state="$(reachable_state_file)"
+    br="$SCRIPT_DIR/be-reachable.sh"
+    log="${HOME}/.termlink/tl-claude-arm-${agent_id}.log"
+    echo "reachable: arming in background once session '$SESSION_NAME' registers (log: $log)"
+    nohup setsid bash -c '
+        for i in $(seq 1 15); do
+            sleep 2
+            if termlink list 2>/dev/null | grep -q "'"$SESSION_NAME"'"; then
+                BE_REACHABLE_STATE="'"$state"'" bash "'"$br"'" start \
+                    --agent-id "'"$agent_id"'" --pty-session "'"$SESSION_NAME"'" && exit 0
+                exit 1
+            fi
+        done
+        echo "arm: session never registered — NOT armed" >&2
+        exit 1
+    ' >"$log" 2>&1 &
+    disown 2>/dev/null || true
+}
 
 show_help() {
     cat <<'HELP'
@@ -48,7 +104,21 @@ Options:
   --backend TYPE    Spawn backend: auto, terminal, tmux, background
                     (default: auto, or TL_CLAUDE_BACKEND env var)
   --tags TAGS       Comma-separated tags (default: master,claude)
+  --reachable       T-2388 (arc-004 C7): arm be-reachable against the spawned
+                    PTY — heartbeat + push-waker (inbox + dm rails), so a DM
+                    push-wakes this agent sub-second instead of the poll floor.
+                    Per-agent state: ~/.termlink/be-reachable-<agent-id>.state
+  --agent-id ID     Agent identity for --reachable (default: session name)
   --help            Show this help
+
+Subcommand install-boot (T-2388, arc-004 C5):
+  tl-claude.sh install-boot --name N --agent-id ID [-- CLAUDE_ARGS]
+                    Write /etc/cron.d/termlink-agent-<ID> (@reboot) so the
+                    armed agent re-launches after a reboot — wakers survive
+                    without human memory.
+
+THE one-liner that makes an agent push-reachable (no tmux needed):
+  bash scripts/tl-claude.sh start --reachable --agent-id <name> -- --resume
 
 Everything after -- is passed to claude:
   tl-claude.sh -- --resume           # Resume last session
@@ -84,6 +154,8 @@ cmd_oneshot() {
     echo "Starting Claude Code as TermLink session '$SESSION_NAME' (backend: $BACKEND)"
     echo "Remote access: termlink attach $SESSION_NAME"
     echo ""
+    # T-2388: exec replaces this process, so arm out-of-band via retry loop.
+    [ "$REACHABLE" -eq 1 ] && arm_reachable_async
     exec termlink spawn \
         --name "$SESSION_NAME" \
         --tags "$TAGS" \
@@ -121,6 +193,12 @@ cmd_start() {
         || die "Failed to inject claude command"
 
     echo "Claude injected into session '$SESSION_NAME'"
+
+    # T-2388 (C7): arm push-reachability against the freshly spawned PTY.
+    # Non-fatal — an un-armed session still works on the poll floor.
+    if [ "$REACHABLE" -eq 1 ]; then
+        arm_reachable || true
+    fi
 }
 
 cmd_restart() {
@@ -150,9 +228,29 @@ cmd_status() {
         echo "Session '$SESSION_NAME' not found"
         exit 1
     fi
+    # T-2388: show the paired reachability state (armed + waker vs dormant).
+    local state
+    state="$(reachable_state_file)"
+    echo ""
+    if [ -f "$state" ]; then
+        echo "Reachability (state: $state):"
+        BE_REACHABLE_STATE="$state" bash "$SCRIPT_DIR/be-reachable.sh" status 2>/dev/null \
+            || echo "  (be-reachable status unavailable)"
+    else
+        echo "Reachability: NOT armed (no state at $state) — launch with --reachable"
+    fi
 }
 
 cmd_stop() {
+    # T-2388: stop the paired be-reachable FIRST so no orphan heartbeat/waker
+    # outlives the session (heartbeat is nohup-setsid-detached by design).
+    local state
+    state="$(reachable_state_file)"
+    if [ -f "$state" ]; then
+        echo "Stopping paired be-reachable (state: $state)..."
+        BE_REACHABLE_STATE="$state" bash "$SCRIPT_DIR/be-reachable.sh" stop 2>/dev/null || true
+    fi
+
     if ! session_exists; then
         echo "Session '$SESSION_NAME' not found (already stopped?)"
         return 0
@@ -165,6 +263,39 @@ cmd_stop() {
     echo "Session '$SESSION_NAME' stopped"
 }
 
+# T-2388 (C5): write an @reboot cron so the armed agent survives reboots.
+# /etc/cron.d USER-field syntax (same convention as the canary crontabs). The
+# 45s sleep lets the hub come up first; the arm retries inside be-reachable
+# are the second line of defense.
+cmd_install_boot() {
+    local agent_id cron_file cron_user launch_args
+    agent_id="$(reachable_agent_id)"
+    cron_file="/etc/cron.d/termlink-agent-${agent_id}"
+    cron_user="$(id -un)"
+    launch_args="start --reachable --name $(printf '%q' "$SESSION_NAME") --agent-id $(printf '%q' "$agent_id") --backend background"
+    if [ ${#CLAUDE_ARGS[@]} -gt 0 ]; then
+        local a; launch_args="$launch_args --"
+        for a in "${CLAUDE_ARGS[@]}"; do launch_args="$launch_args $(printf '%q' "$a")"; done
+    fi
+    local line="@reboot ${cron_user} sleep 45 && cd $(printf '%q' "$(dirname "$SCRIPT_DIR")") && bash scripts/tl-claude.sh ${launch_args} >> ${HOME}/.termlink/tl-claude-boot-${agent_id}.log 2>&1"
+    local content="# T-2388 (T-2380 C5): re-arm push-reachable agent '${agent_id}' after reboot.
+# Managed by scripts/tl-claude.sh install-boot — edit/remove via that verb.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${HOME}/.cargo/bin
+${line}"
+    if printf '%s\n' "$content" > "$cron_file" 2>/dev/null; then
+        chmod 644 "$cron_file"
+        echo "Boot re-arm installed: $cron_file"
+        echo "  $line"
+    else
+        echo "Cannot write $cron_file (need root). Install manually:" >&2
+        echo "----------------------------------------" >&2
+        printf '%s\n' "$content" >&2
+        echo "----------------------------------------" >&2
+        exit 1
+    fi
+}
+
 # --- Parse ---
 
 # Check for subcommand first
@@ -174,6 +305,7 @@ case "${1:-}" in
     restart) SUBCOMMAND="restart"; shift ;;
     status)  SUBCOMMAND="status"; shift ;;
     stop)    SUBCOMMAND="stop"; shift ;;
+    install-boot) SUBCOMMAND="install-boot"; shift ;;
 esac
 
 # Parse remaining options
@@ -182,6 +314,8 @@ while [[ $# -gt 0 ]]; do
         --name) SESSION_NAME="$2"; shift 2 ;;
         --backend) BACKEND="$2"; shift 2 ;;
         --tags) TAGS="$2"; shift 2 ;;
+        --reachable) REACHABLE=1; shift ;;          # T-2388 (C7)
+        --agent-id) AGENT_ID="$2"; shift 2 ;;       # T-2388 (C7)
         --help|-h) show_help; exit 0 ;;
         --) shift; CLAUDE_ARGS=("$@"); break ;;
         *) CLAUDE_ARGS=("$@"); break ;;
@@ -190,7 +324,9 @@ done
 
 # Preflight
 command -v termlink >/dev/null 2>&1 || die "termlink not found on PATH"
-command -v "${TL_CLAUDE_CMD:-claude}" >/dev/null 2>&1 || die "${TL_CLAUDE_CMD:-claude} not found on PATH"
+if [ "$SUBCOMMAND" != "stop" ] && [ "$SUBCOMMAND" != "status" ] && [ "$SUBCOMMAND" != "install-boot" ]; then
+    command -v "${TL_CLAUDE_CMD:-claude}" >/dev/null 2>&1 || die "${TL_CLAUDE_CMD:-claude} not found on PATH"
+fi
 
 # Dispatch
 case "$SUBCOMMAND" in
@@ -198,5 +334,6 @@ case "$SUBCOMMAND" in
     restart) cmd_restart ;;
     status)  cmd_status ;;
     stop)    cmd_stop ;;
+    install-boot) cmd_install_boot ;;
     "")      cmd_oneshot ;;
 esac
