@@ -4,20 +4,20 @@ name: "Reply-on-sender-hub routing convention — /reply + agent contact target 
 description: >
   Sender and reader silently target different hubs for the same-named dm topic (no federation). Resolve the recipients home hub from agent-presence and route the contact/reply there; refuse or auto-route on mismatch. Attacks E1 root without full federation (C3 out of scope).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/agent.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-09T09:29:17Z
-last_update: 2026-07-09T23:37:22Z
-date_finished: null
+last_update: 2026-07-09T23:40:05Z
+date_finished: 2026-07-09T23:40:05Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -237,3 +237,15 @@ grep -q 'EXCLUDED' crates/termlink-cli/src/commands/agent.rs
 ### 2026-07-09T12:07:31Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-3f5b3a19
+- **Timestamp:** 2026-07-09T23:40:51Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-09T23:40:05Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

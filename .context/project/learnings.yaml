@@ -2500,3 +2500,10 @@ learnings:
   date: 2026-07-09
   context: Added via context agent
   application: TBD
+- id: PL-249
+  learning: "observed_addr (T-2297) is hub-attested TCP SOURCE — agent-host IP + EPHEMERAL port — authoritative for identity attestation but unpostable as a hub address; never route to it. Home-hub routing precedence: declared metadata.addr → heartbeat-source hub (safe because agent-presence does not federate, G-060 — the source hub IS the peer's local hub)"
+  source: P-001
+  task: T-2386
+  date: 2026-07-09
+  context: Added via context agent
+  application: TBD
