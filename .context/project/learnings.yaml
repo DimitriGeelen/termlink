@@ -2486,3 +2486,10 @@ learnings:
   date: 2026-07-06
   context: Added via context agent
   application: TBD
+- id: PL-247
+  learning: "Silent-delivery is the comms failure class: termlink guarantees the WRITE (durable offset N) but not the ROUND TRIP (live, correctly-addressed, awake recipient on the same readable hub), and no layer fails loud when a link breaks — so a send 'succeeds' while the message goes nowhere. Fix = compose the presence signal with the send and surface each link loud (T-2384 per-agent fp, T-2385 reachability preflight: pty_session on the agent-presence heartbeat = the waker-running signal). Before adding a durability feature, ask: does any layer verify AND surface the round trip, or only the write?"
+  source: P-001
+  task: T-2385
+  date: 2026-07-09
+  context: Added via context agent
+  application: TBD
