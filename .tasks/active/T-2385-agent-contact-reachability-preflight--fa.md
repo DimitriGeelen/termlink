@@ -4,7 +4,7 @@ name: "agent contact reachability preflight + fail-fast + structured delivery re
 description: >
   Before/around send, agent contact checks each delivery link and fails loud: (1) recipient is a LIVE agent not a bare --shell (F1), (2) recipient has a running push-waker or warn they wont be woken (E4), (3) for --ack-required probe target-hub read-health and fail fast instead of burning the timeout (E2). Return {delivered, recipient_live, waker_running, hub_targeted, hub_read_healthy, acked} + one-line diagnosis on any broken link. May slice.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-09T09:29:09Z
-last_update: 2026-07-09T09:29:09Z
+last_update: 2026-07-09T11:28:24Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,45 +34,49 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+T-2380 GO, the loud-delivery-contract **centerpiece** — attacks silent breakpoints
+#1 (recipient not agent-backed, F1) and #2 (recipient live but no push-waker →
+never woken, E4/PL-237). Depends on T-2384 (done: `agent contact` now addresses the
+per-agent presence fp). The Explore map (2026-07-09) confirmed the seams:
+
+- The dm send delegates `agent contact` → `cmd_channel_dm` → `cmd_channel_post`,
+  which prints-and-drops the offset (returns `Result<()>`). A fully-unified
+  delivery envelope with the real offset needs offset-plumbing up that chain.
+- Recipient classification lives on `PresenceMatch` (`fleet_presence.rs:44-72`):
+  `status` (Live/Stale/Offline), `pty_session` (**the waker-running signal** —
+  be-reachable's PTY-bound heartbeat sets `metadata.pty_session`, T-1834; a bare
+  `--shell` register or a waker without a bound PTY lacks it), `role`,
+  `listen_topics`.
+- `--require-online` (exit 9) today checks chat-arc *posting* activity in a window
+  — a weak proxy that MISSES "live but no waker" entirely. No hub-read-health probe
+  and no structured delivery-result type exist (both net-new).
+
+**This task ships Slice 1** — the non-breaking, highest-value core:
+a reachability preflight computed from the authoritative agent-presence heartbeat
+that surfaces `waker_running` and fails loud on demand. **Deferred to later slices:**
+hub-read-health fail-fast for `--ack-required` (#5, E2/PL-200) and the fully-unified
+single delivery envelope carrying the real posted offset (needs the offset-plumbing
+refactor). Reply-on-sender-hub is T-2386; the waker-liveness canary is T-2387.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] New pure fn `classify_reachability(presence: Option<&PresenceMatch>) -> ReachabilityReport { recipient_live, recipient_agent_backed, waker_running, presence_status, diagnosis }` in `agent.rs`, unit-tested for all four states: LIVE + `pty_session` set → all-green, no diagnosis; LIVE + no `pty_session` → `waker_running=false` + diagnosis naming the no-waker breakpoint ("recipient is live but has no push-waker — message will queue until they /check-arc"); STALE/OFFLINE → `recipient_live=false` + loud diagnosis; presence absent → `recipient_live=false` + "no agent-presence heartbeat" diagnosis. (Test `classify_reachability_all_states` → 1 passed.)
+- [x] `agent contact` runs the reachability preflight BEFORE the post, keyed on the same agent-presence heartbeat T-2384 addresses on (resolve by target name when present, else by resolved fp via `fetch_recipient_presence`). On `--json` success the output includes a `reachability` object; human mode prints a loud `WARNING:` when `waker_running=false` OR `recipient_live=false`. Non-breaking — smoke on .107: LIVE-no-pty peer → `WARNING: recipient is LIVE but has no push-waker … will queue until they run /check-arc` printed to stderr, send still proceeded.
+- [x] New opt-in `--require-reachable` flag hard-fails BEFORE the post when `recipient_live=false`: human-mode exit **11**, `--json` non-zero exit with `exit_code:11` + `reachability` in the body (mirrors the exit-9/10 `json_error_exit` convention). Smoke: `--require-reachable` to `--target-fp deadbeef…` (absent) → human exit=11, json body `exit_code:11`. Absent flag → unchanged send.
+- [x] `--dry-run` surfaces the `reachability` block (smoke: dry-run of a LIVE-no-pty peer printed `recipient_live:true, waker_running:false, presence_status:LIVE` + no-waker diagnosis); `--target-fp`-only degrades gracefully (fp-keyed scan; presence-absent → `presence_status:ABSENT` loud diagnosis, no panic).
+- [x] `cargo build --release -p termlink` succeeds (9m44s, exit 0); `classify_reachability` unit test passes (debug + release harness). `cargo check -p termlink` clean (no warnings).
 
 ### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-
-     ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
-     If your Expected clause is grep-able / file-exists / structural (a deterministic
-     shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
-     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
-     verification genuinely needs human taste (tone, feel, layout rhythm).
-     See CLAUDE.md §AC Classification Guidance for the conversion rule.
-
-     [REVIEW] example (genuine human judgment):
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
-
-     [REVIEWER] example (static-scan-verifiable — convert to Agent AC + Verification):
-       - [ ] [REVIEWER] Block message names both bypass mechanisms
-         **Steps:**
-         1. Run `bin/fw reviewer T-XXX`
-         **Expected:** Verdict: PASS; no findings on `block-message-completeness`
-         **If not:** Inspect hook block-message string and add missing mechanism
-       Conversion: this AC should be moved to ### Agent and
-       `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` added to ## Verification.
--->
+<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking. -->
+- [ ] [REVIEW] The loud WARNING wording is clear and actionable in a real send
+  **Steps:**
+  1. From a host with a peer that is registered but NOT `/be-reachable` (no waker), run:
+     `cd /opt/termlink && ./target/release/termlink agent contact <peer> --message "test" --json`
+  2. Read the `reachability` block and the printed `WARNING:` line.
+  **Expected:** The warning names the no-waker breakpoint and tells you the message will queue until the peer runs `/check-arc` — not a silent success.
+  **If not:** Note the confusing wording; the diagnosis strings live in `classify_reachability`.
 
 ## Verification
 
@@ -106,6 +110,11 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+# T-2385 Slice 1: classify_reachability unit tests live in the bin unit-test
+# binary (`-p termlink` alone runs only the integration binaries). Capture-then-
+# grep per L-387 (single pipe, no SIGPIPE).
+out=$(cargo test --release -p termlink --bin termlink classify_reachability 2>&1); echo "$out" | grep -qE "test result: ok"
 
 ## RCA
 
@@ -147,6 +156,25 @@ date_finished: null
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-07-09 — Slice 1 boundary (reachability preflight shipped)
+- **What changed:** The Explore map confirmed `pty_session` on the agent-presence
+  heartbeat is the load-bearing `waker_running` signal — this made the #2 breakpoint
+  ("live but no push-waker") cleanly detectable WITHOUT any hub-side change. It also
+  revealed the send path drops the posted offset (`cmd_channel_post` returns
+  `Result<()>`), so a *fully-unified* delivery envelope carrying the real offset
+  needs an offset-plumbing refactor up `cmd_channel_post → cmd_channel_dm →
+  cmd_agent_contact`.
+- **Plan impact:** Split the original "verify LIVE + agent-backed + waker +
+  hub-read-health + unified envelope" scope. Slice 1 (this task) ships the
+  reachability preflight (links #1/#2) as a NON-breaking annotation + opt-in
+  `--require-reachable` fail-fast, emitting a `reachability` NDJSON line rather than
+  restructuring the existing `{delivered}`/`{ack}` envelopes. Deferred: hub-read-health
+  fail-fast for `--ack-required` (#5) and the offset-plumbing unified envelope.
+- **Triggered:** Deferred slices remain under T-2385 scope (not yet re-filed as
+  separate tasks); MCP `termlink_agent_contact` parity for the preflight is a follow-up
+  (this slice is CLI-first). Chose NDJSON annotation over envelope-restructure to keep
+  the change non-breaking for existing `--json` consumers.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -174,3 +202,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2385-agent-contact-reachability-preflight--fa.md
 - **Context:** Initial task creation
+
+### 2026-07-09T11:28:24Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

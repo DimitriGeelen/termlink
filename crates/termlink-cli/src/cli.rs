@@ -4615,6 +4615,20 @@ pub(crate) enum AgentAction {
         #[arg(long = "online-window-secs", default_value_t = 300)]
         online_window_secs: u64,
 
+        /// Fail-fast (exit 11) when the recipient has no LIVE agent-presence
+        /// heartbeat (T-2385, comms loud-contract). Distinct from
+        /// `--require-online` (which checks chat-arc *posting* activity): this
+        /// reads the authoritative `agent-presence` heartbeat — the same signal
+        /// `agent contact` addresses on (T-2384) — and additionally surfaces
+        /// `waker_running` (whether the recipient's be-reachable heartbeat
+        /// carries a bound PTY, i.e. its push-waker can inject a doorbell). Even
+        /// WITHOUT this flag the send is annotated with a `reachability` block
+        /// (--json) and a loud WARNING (human) when a link is broken — turning
+        /// silent offset-N into a visible "which link is broken". This flag makes
+        /// a dead/absent recipient a hard error instead of a durable no-op.
+        #[arg(long = "require-reachable")]
+        require_reachable: bool,
+
         /// Wait for the peer to post back on the dm topic before exiting
         /// (T-1485, Q4 deferred from T-1425). Default behavior is fire-and-
         /// forget. With this flag set: after the post, poll the dm topic
