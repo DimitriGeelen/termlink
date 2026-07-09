@@ -4,20 +4,20 @@ name: "Send-side per-agent fp resolution in agent contact — resolve recipient 
 description: >
   cmd_agent_contact local Ok(reg) branch (agent.rs:1099) returns reg.metadata.identity_fingerprint verbatim = shared host fp on co-resident hosts, so name-based DMs land on the wrong dm topic and the right agent never wakes. Route the target name through the agent identity --resolve precedence (mirror be-reachable.sh:284-292) instead.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/agent.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-09T09:29:02Z
-last_update: 2026-07-09T09:41:19Z
-date_finished: null
+last_update: 2026-07-09T11:13:29Z
+date_finished: 2026-07-09T11:13:29Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -270,3 +270,15 @@ than returning a silent `offset N`.
 
 ### 2026-07-09T09:40:02Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-02eb78f4
+- **Timestamp:** 2026-07-09T11:19:37Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-09T11:13:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

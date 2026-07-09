@@ -1,0 +1,94 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2384: Send-side per-agent fp resolution in agent contact — resolve recipient per-agent identity fp, not shared host fp (comms loud-contract; fixes silent DM mis-route on shared hosts, T-2380 #4)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-09T11:19:40Z
+# ============================================================================
+
+task_id: T-2384
+task_name: "Send-side per-agent fp resolution in agent contact — resolve recipient per-agent identity fp, not shared host fp (comms loud-contract; fixes silent DM mis-route on shared hosts, T-2380 #4)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-09T09:29:02Z
+completed: 2026-07-09T11:13:29Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-09T11:41:19+02:00
+last_commit: 2026-07-09T13:13:20+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  confirm identity model (presence-fp==waker-subscribe-fp==per-agent; reg-metadata-fp==host) + exact fix spec; AC1 ticked. send-side per-agent fp resolution — prefer presence fp over host reg fp in agent contact (fixes shared-host silent no-wake)
+
+# Key outcomes
+outcomes:
+  - 'Identity model confirmed (see RCA): presence-advertised fp (Q1) == waker-subscribe fp (Q3) = per-agent resolved key; registration metadata fp (Q4) = host key. Fix premise holds.'
+  - 'Fix: name-resolved local peer''s target fp resolves to the per-agent presence-advertised identity (the fp the waker listens on), not the shared host registration fp — reusing the presence source the remote path already uses. (`Ok(reg)` branch now calls `resolve_contact_via_fleet` and `prefer_presence_fp(presence, reg)`.)'
+  - 'Verified: a name-based `agent contact <name>` to a co-resident armed agent computes the SAME `dm:<a>:<b>` topic the recipient''s be-reachable dm rail subscribes to (so it push-wakes). Manual repro on .107: A/B dry-run — TREATMENT `framework-agent-systemd` (presence heartbeat under per-agent key `3bba15e681b3a078`) → `peer_fp=3bba15e681b3a078`, `topic=dm:3bba15e681b3a078:d1993c2c3ec44c94` (the waker''s subscribe topic); CONTROL `email-archive` (co-resident, no presence) → `peer_fp=d1993c2c3ec44c94` (host fp fallback). Both share reg fp = host key `d1993c2c`; only the live presence heartbeat flips the resolution.'
+  - 'No regression: single-identity hosts (registration fp == per-agent fp) unchanged; the explicit `--target-fp` path unchanged (lines 1060-1070, not touched); a peer with no presence entry still falls back to registration metadata (control dry-run above returned the reg/host fp, not a hard failure).'
+  - '`cargo build --release -p termlink` succeeds (9m41s, exit 0); unit test `contact_tests::prefer_presence_fp_precedence` covers the precedence helper (presence-fp preferred when both differ; reg-fp fallback when presence absent; equal-fp no-op; both-absent → None). Test: `1 passed; 0 failed`.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'send-side per-agent fp resolution — prefer presence fp over host reg fp in agent contact (fixes shared-host silent no-wake)'
+    source: git-mined
+  - description: 'confirm identity model (presence-fp==waker-subscribe-fp==per-agent; reg-metadata-fp==host) + exact fix spec; AC1 ticked'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-07-09.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-cli/src/commands/agent.rs'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2384-send-side-per-agent-fp-resolution-in-age.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-09T11:41:19"
+    action: "T-2384: confirm identity model (presence-fp==waker-subscribe-fp==per-agent; reg-metadata-fp==host) + exact fix spec; AC1 ticked"
+  - time: "2026-07-09T13:13:20"
+    action: "T-2384: send-side per-agent fp resolution — prefer presence fp over host reg fp in agent contact (fixes shared-host silent no-wake)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 104 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 104
+  commits: 2
+  files_changed: 13
+  lines_added: 226
+  lines_removed: 60
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2384-send-side-per-agent-fp-resolution-in-age.md
+generated_by: context-agent-hybrid
