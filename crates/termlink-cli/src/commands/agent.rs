@@ -792,6 +792,29 @@ async fn resolve_contact_via_fleet(agent_id: &str) -> Option<FleetContactResolut
     best.map(|(r, _)| r)
 }
 
+/// T-2384: choose which fingerprint to address a *locally-registered* peer.
+///
+/// On a shared host, a local session's registration metadata carries the **host**
+/// `identity_fingerprint` — the register process runs without `TERMLINK_AGENT_ID`
+/// so `load_identity_fingerprint_best_effort()` falls back to the host key. But the
+/// peer's `agent-presence` heartbeat advertises its **per-agent** key, and that is
+/// the exact fp the peer's push-waker (`/be-reachable`'s dm rail) subscribes on.
+/// Address the presence-advertised fp so the computed `dm:<a>:<b>` topic matches
+/// the recipient's subscribe topic (else the doorbell writes to a rail nobody is
+/// listening on — the silent no-wake breakpoint #4, PL-166/236).
+///
+/// Precedence: presence-advertised fp wins when present; fall back to the
+/// registration metadata fp when the peer advertises no LIVE presence (a
+/// registered-but-not-`/be-reachable` peer still resolves, just via the host fp
+/// as before — no hard failure). `None` only when both are absent, preserving the
+/// existing "no identity_fingerprint" error path.
+pub(crate) fn prefer_presence_fp(
+    presence_fp: Option<String>,
+    reg_fp: Option<String>,
+) -> Option<String> {
+    presence_fp.or(reg_fp)
+}
+
 /// T-2293 (V2 discovery registry): a fully-resolved registry record for an
 /// `agent_id` — the `{host:port, hub, topics-read, liveness}` shape of AC1.
 pub(crate) struct FleetAgentRecord {
@@ -1096,7 +1119,19 @@ pub(crate) async fn cmd_agent_contact(
                     anyhow::bail!(msg);
                 }
             },
-            Ok(reg) => reg.metadata.identity_fingerprint.clone().ok_or_else(|| {
+            Ok(reg) => {
+            // T-2384: the local session's registration metadata fp may be the
+            // *host* key on a shared host (register runs without
+            // TERMLINK_AGENT_ID). Prefer the peer's *per-agent* presence-advertised
+            // fp — the exact fp its push-waker subscribes on — so the computed
+            // dm:<a>:<b> topic push-wakes the recipient. Falls back to the
+            // registration metadata fp when the peer advertises no LIVE presence
+            // (registered-but-not-/be-reachable → resolves via host fp as before).
+            let reg_fp = reg.metadata.identity_fingerprint.clone();
+            let presence_fp = resolve_contact_via_fleet(target_name)
+                .await
+                .map(|r| r.identity_fingerprint);
+            prefer_presence_fp(presence_fp, reg_fp).ok_or_else(|| {
             let msg = format!(
                 "Peer '{target_name}' has no identity_fingerprint in metadata — \
                  likely registered before T-1436. Three recovery paths: \
@@ -1117,7 +1152,8 @@ pub(crate) async fn cmd_agent_contact(
             }
             eprintln!("error: {msg}");
             std::process::exit(8);
-            })?,
+            })?
+            }
         }
     };
     let peer_fp = peer_fp_owned.as_str();
@@ -3614,5 +3650,35 @@ mod contact_tests {
             parse_contact_target("agent-1:002-Claude-Partner-Network").expect("hyphenated parses");
         assert_eq!(name, "agent-1");
         assert_eq!(project.as_deref(), Some("002-Claude-Partner-Network"));
+    }
+
+    /// T-2384: the send-side fp precedence helper. Presence-advertised fp (the
+    /// per-agent key the recipient's waker subscribes on) must win over the
+    /// registration metadata fp (the host key on a shared host); the reg fp is
+    /// the fallback when the peer advertises no LIVE presence; and both-absent
+    /// yields None so the existing "no identity_fingerprint" error path fires.
+    #[test]
+    fn prefer_presence_fp_precedence() {
+        use super::prefer_presence_fp;
+        let presence = "aaaa000000000001".to_string();
+        let reg = "d1993c2c3ec44c94".to_string();
+
+        // Both present & differ → presence wins (the shared-host bug fix).
+        assert_eq!(
+            prefer_presence_fp(Some(presence.clone()), Some(reg.clone())),
+            Some(presence.clone())
+        );
+        // Presence absent → fall back to registration fp (not-be-reachable peer).
+        assert_eq!(
+            prefer_presence_fp(None, Some(reg.clone())),
+            Some(reg.clone())
+        );
+        // Single-identity host: both equal → same fp either way (no regression).
+        assert_eq!(
+            prefer_presence_fp(Some(reg.clone()), Some(reg.clone())),
+            Some(reg.clone())
+        );
+        // Both absent → None (preserves the existing error path).
+        assert_eq!(prefer_presence_fp(None, None), None);
     }
 }
