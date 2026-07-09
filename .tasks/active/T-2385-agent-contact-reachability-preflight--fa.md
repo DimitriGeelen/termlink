@@ -4,20 +4,20 @@ name: "agent contact reachability preflight + fail-fast + structured delivery re
 description: >
   Before/around send, agent contact checks each delivery link and fails loud: (1) recipient is a LIVE agent not a bare --shell (F1), (2) recipient has a running push-waker or warn they wont be woken (E4), (3) for --ack-required probe target-hub read-health and fail fast instead of burning the timeout (E2). Return {delivered, recipient_live, waker_running, hub_targeted, hub_read_healthy, acked} + one-line diagnosis on any broken link. May slice.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-09T09:29:09Z
-last_update: 2026-07-09T11:52:29Z
-date_finished: null
+last_update: 2026-07-09T11:59:10Z
+date_finished: 2026-07-09T11:59:10Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -265,3 +265,20 @@ capability-live" surfaces on its own — is filed as T-2387.
 
 ### 2026-07-09T11:28:24Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-17ccb9e0
+- **Timestamp:** 2026-07-09T12:05:09Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Human)** — [REVIEW] The loud WARNING wording is clear and actionable in a real send
+  - **human-ac-mechanical-signal** (partial, heuristic) — `matched='names the n' in Expected: The warning names the no-waker breakpoint and tells you the message will queue until the peer runs `/check-arc` — not a silent success.`
+
+### 2026-07-09T11:59:10Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

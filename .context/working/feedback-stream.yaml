@@ -3762,3 +3762,39 @@ scan_id: R-66ec3618
 task_id: T-2380
 payload:
   task_file: .tasks/active/T-2380-cross-agent-comms-confirm-ack-field-gap-.md
+---
+kind: scan_emitted
+timestamp: '2026-07-09T11:19:37Z'
+scan_id: R-02eb78f4
+task_id: T-2384
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-09T11:19:37Z'
+scan_id: R-02eb78f4
+task_id: T-2384
+payload:
+  task_file: .tasks/active/T-2384-send-side-per-agent-fp-resolution-in-age.md
+---
+kind: scan_emitted
+timestamp: '2026-07-09T12:05:09Z'
+scan_id: R-17ccb9e0
+task_id: T-2385
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-09T12:05:09Z'
+scan_id: R-17ccb9e0
+task_id: T-2385
+payload:
+  task_file: .tasks/active/T-2385-agent-contact-reachability-preflight--fa.md
