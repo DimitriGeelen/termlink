@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-09T09:29:09Z
-last_update: 2026-07-09T11:45:57Z
+last_update: 2026-07-09T11:52:29Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -161,6 +161,36 @@ out=$(cargo test --release -p termlink --bin termlink classify_reachability 2>&1
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** `agent contact` (and its skill wrappers) returned a write success
+(`offset N`) even when the recipient was gone, was a bare `--shell`, or was LIVE but
+had no running push-waker — so a send "succeeded" while the message woke nobody. The
+operator got no signal distinguishing "delivered + will be read" from "durably
+written to a rail nobody is listening on." This is the E4/PL-237 field failure: 8
+live sessions on .107, zero wakers, every DM a silent no-op.
+
+**Root cause:** the send path optimised for durability (the hub append always
+succeeds) but never verified — or surfaced — the *round trip*. The authoritative
+signal for "will this recipient actually be woken" already existed on the
+`agent-presence` heartbeat (`status` for liveness, `pty_session` for a bound
+push-waker PTY), but `agent contact` never read it before posting. The only existing
+preflight, `--require-online`, checked chat-arc *posting* activity — a weak proxy
+that cannot see the "live but no waker" case at all.
+
+**Why structurally allowed:** "delivery" was defined as "the append returned an
+offset," never as "a live, awake recipient is listening on this topic." No layer
+composed the presence signal with the send, so the gap was invisible: the happy
+path and the dead-rail path produced identical output. Single-waker hosts and
+interactive testing masked it (a human ran `/check-arc` manually), so it only bit in
+the autonomous shared-host fleet — and silently.
+
+**Prevention:** (1) the reachability preflight now reads presence before every send
+and annotates the result — a broken link is loud (human `WARNING` / `--json`
+`reachability` block) instead of silent; (2) `--require-reachable` upgrades it to a
+hard fail (exit 11) for callers that want fail-fast; (3) `classify_reachability` is a
+pure, unit-tested classifier so the four-state contract can't silently regress; (4)
+the standing guard against recurrence — a waker-liveness canary so "shipped ≠
+capability-live" surfaces on its own — is filed as T-2387.
 
 ## Evolution
 
