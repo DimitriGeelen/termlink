@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-09T08:49:11Z
-last_update: 2026-07-09T09:06:39Z
+last_update: 2026-07-09T09:07:04Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -51,11 +51,11 @@ fleet blocker: any peer whose dm topic is `Forever` cannot be reached via
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Root cause located: the `agent contact` dm-topic ensure/create call that hard-codes `Messages(1000)` retention, and the hub-side guard that raises "different retention policy". (file:line recorded in RCA)
-- [ ] Fix applied so a DM send via `agent contact` to an EXISTING dm topic does NOT abort on retention mismatch — the ensure-create is idempotent (create-if-absent; when the topic already exists, proceed to post regardless of the existing retention rather than erroring). Chosen fix layer (caller-skip-if-exists vs hub-idempotent) recorded in Decisions with rationale.
-- [ ] Genuinely-new dm topic path preserved: contacting a peer whose topic does not yet exist still creates it and posts (no regression).
-- [ ] `cargo build --release -p termlink` (crate at crates/termlink-cli/ is package `termlink`) succeeds.
-- [ ] Regression coverage: a unit/integration test (or a documented manual repro) proves a second `agent contact` to a topic created with a different retention now succeeds instead of -32603.
+- [x] Root cause located: `ensure_topic()` at `crates/termlink-cli/src/commands/channel.rs:2386-2409` (Err arm propagated the -32603) + hub guard `crates/termlink-bus/src/meta.rs:38-46` (`TopicPolicyMismatch`); recorded in RCA.
+- [x] Fix applied so a DM send via `agent contact` to an EXISTING dm topic does NOT abort on retention mismatch — `ensure_topic` now treats any "already exists" (incl. retention-mismatch) as success via pure `create_error_is_already_exists`. Fix layer = caller-side; rationale in Decisions.
+- [x] Genuinely-new dm topic path preserved: the Ok arm still creates + returns `created`; only the Err/already-exists path changed. Both real callers (channel.rs:823 `--ensure-topic`, channel.rs:2467 DM) want "topic exists → proceed" (verified caller audit).
+- [x] `cargo build --release -p termlink` succeeds (crate at crates/termlink-cli/ is package `termlink`).
+- [x] Regression coverage: `create_error_already_exists_matches_retention_mismatch` + `create_error_already_exists_rejects_genuine_failures` — both `... ok`, `2 passed; 0 failed`.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
