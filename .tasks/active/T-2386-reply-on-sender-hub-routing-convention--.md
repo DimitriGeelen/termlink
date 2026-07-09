@@ -4,10 +4,10 @@ name: "Reply-on-sender-hub routing convention — /reply + agent contact target 
 description: >
   Sender and reader silently target different hubs for the same-named dm topic (no federation). Resolve the recipients home hub from agent-presence and route the contact/reply there; refuse or auto-route on mismatch. Attacks E1 root without full federation (C3 out of scope).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-09T09:29:17Z
-last_update: 2026-07-09T09:29:17Z
+last_update: 2026-07-09T12:07:37Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,33 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+T-2380 GO, loud-delivery-contract link #3 (the hub-split silent no-delivery,
+E1/G-060). A reply/contact today posts to whatever hub the tooling defaults to; if
+that is not the hub the recipient reads, the message lands durably on the wrong
+history and is never seen (there is NO inter-hub federation — G-060). The recipient's
+**home hub is already discoverable** from their agent-presence heartbeat:
+`PresenceMatch.observed_addr` (hub-attested TCP source, T-2297 — cannot be forged) or
+`PresenceMatch.addr` (self-reported `metadata.addr`, T-2293). `resolve_contact_via_fleet`
+already picks the hub it *read the heartbeat from* into `fleet_hub` (agent.rs ~1080)
+— but the skills (`/reply`, `/agent-handoff`) and the `--target-fp` path do not
+consistently route to the recipient's home hub. This task makes "route to the
+recipient's home hub, derived from presence" the default convention across the
+contact/reply surface, so a reply cannot silently land on a hub the peer doesn't read.
+
+**Scope note:** convention + routing default, NOT federation (C3, explicitly out of
+scope per T-2380). Depends on T-2384 (per-agent fp) + builds on T-2385's
+`fetch_recipient_presence` (the presence read is already wired). Slice if needed
+(agent contact routing → skill wrappers).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] `agent contact` derives the recipient's home hub from presence (prefer `observed_addr`, fall back to `addr`, then the hub the heartbeat was read from) and routes the dm post there by default when the operator did not pass an explicit `--hub`; explicit `--hub` still wins. A pure helper `resolve_home_hub(presence) -> Option<String>` (precedence encoded) + unit test.
+- [ ] When the derived home hub differs from the hub the sender would otherwise have used, the `--json` output carries a `routed_hub` field (and human mode notes it) so the routing is observable, not silent — reuses/extends the T-2385 `reachability` surfacing pattern.
+- [ ] The `/reply` and `/agent-handoff` skill wrappers inherit the home-hub routing (either by delegating to the fixed `agent contact` default, or by resolving the home hub themselves); verify a reply to a peer whose presence advertises a non-local hub targets that hub, not the local default.
+- [ ] `--target-fp`-only path also home-hub-routes when a presence heartbeat for that fp is found (fp-keyed lookup, same as T-2385); presence-absent → falls back to today's behavior (no regression, loud-degradation note).
+- [ ] `cargo build --release -p termlink` succeeds; the `resolve_home_hub` unit test passes; no regression in existing `agent contact` routing tests.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -174,3 +193,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2386-reply-on-sender-hub-routing-convention--.md
 - **Context:** Initial task creation
+
+### 2026-07-09T12:07:31Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
