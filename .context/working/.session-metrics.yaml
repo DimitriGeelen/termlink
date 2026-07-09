@@ -3,27 +3,27 @@
 # Turn offset: 18756 (session starts at turn 18756)
 
 # Cumulative (entire transcript)
-turns: 18756
-tool_calls: 7568
-commits: 465
+turns: 18990
+tool_calls: 7653
+commits: 471
 commits_per_turn: 0.0248
 first_commit_turn: 96
-failed_tool_calls: 567
-failed_tool_call_rate: 0.0749
-edit_bursts: 283
-productive_turns: 5506
-research_turns: 969
-productive_turns_ratio: 0.2936
-edit_retry_files: 204
+failed_tool_calls: 574
+failed_tool_call_rate: 0.075
+edit_bursts: 286
+productive_turns: 5573
+research_turns: 980
+productive_turns_ratio: 0.2935
+edit_retry_files: 205
 
 # Per-session (since turn 18756)
-session_turns: 0
-session_commits: 0
-session_commits_per_turn: 0
-session_first_commit_turn: 0
-session_failed_tool_calls: 0
-session_failed_tool_call_rate: 0
-session_edit_bursts: 0
-session_productive_turns: 0
-session_research_turns: 0
-session_productive_turns_ratio: 0
+session_turns: 234
+session_commits: 6
+session_commits_per_turn: 0.0256
+session_first_commit_turn: 26
+session_failed_tool_calls: 7
+session_failed_tool_call_rate: 0.0824
+session_edit_bursts: 3
+session_productive_turns: 67
+session_research_turns: 11
+session_productive_turns_ratio: 0.2863

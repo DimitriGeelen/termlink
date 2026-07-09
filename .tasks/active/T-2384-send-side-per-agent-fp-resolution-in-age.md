@@ -4,7 +4,7 @@ name: "Send-side per-agent fp resolution in agent contact — resolve recipient 
 description: >
   cmd_agent_contact local Ok(reg) branch (agent.rs:1099) returns reg.metadata.identity_fingerprint verbatim = shared host fp on co-resident hosts, so name-based DMs land on the wrong dm topic and the right agent never wakes. Route the target name through the agent identity --resolve precedence (mirror be-reachable.sh:284-292) instead.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-09T09:29:02Z
-last_update: 2026-07-09T09:29:02Z
+last_update: 2026-07-09T09:40:02Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,70 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+T-2380 GO, link #4 (the addressing prerequisite). `cmd_agent_contact`
+(`crates/termlink-cli/src/commands/agent.rs:1099`, the local `Ok(reg)` branch)
+resolves a bare peer NAME to `reg.metadata.identity_fingerprint` — the local
+session registration's fp, which on a shared host is the **shared host fp**
+(PL-166/236), NOT the per-agent identity the recipient's be-reachable dm-rail
+waker subscribes on. Result: name-based `agent contact <name>` lands on the wrong
+`dm:<a>:<b>` topic and the right agent never push-wakes. The remote path
+(`resolve_contact_via_fleet`, line 1078-1082) already uses the **presence-advertised**
+fp — the correct per-agent identity. Fix: make the local path resolve the same
+per-agent fp the recipient's waker listens on. Observed live in T-2381 (host fp
+`d1993c2c` vs correct per-agent `dcd44820`).
+
+### Identity model — CONFIRMED (2026-07-09, ready to implement)
+
+Traced end-to-end:
+- **Q1 presence-advertised fp** = the `agent-presence` heartbeat envelope's
+  top-level **`sender_id`** (signing identity). `resolve_contact_via_fleet` →
+  `resolve_agent_presence` reads it: `agent.rs:770,778,785`; parser contract
+  `crates/termlink-session/src/fleet_presence.rs:16,44-48,131-135,165`.
+- **Q2 heartbeat SIGN fp** = per-agent. `scripts/listener-heartbeat.sh:147`
+  exports `TERMLINK_AGENT_ID` before emit (:167); `be-reachable.sh:234,244`
+  feeds it → signed with `~/.termlink/identities/<agent_id>.key`.
+- **Q3 waker SUBSCRIBE fp** = per-agent. `be-reachable.sh:290-292`
+  `self_fp=$(agent identity --resolve --json | jq -r .fingerprint)` (with
+  `TERMLINK_AGENT_ID` set) → `:299 --self-fp`; pushwaker dm-rail subscribes on it
+  `be-reachable-pushwaker.sh:179-180`, matches `addressee==self_fp` (:88-90).
+- **Q4 registration metadata fp** = HOST key. `agent.rs:1099`
+  `reg.metadata.identity_fingerprint` set at
+  `crates/termlink-session/src/registration.rs:291`
+  `load_identity_fingerprint_best_effort()` — runs in the `termlink register`
+  process env WITHOUT `TERMLINK_AGENT_ID` (that export happens later, only in
+  `be-reachable.sh start`, a separate process) → falls through to
+  `$HOME/.termlink/identity.key` (host key, registration.rs:49,64-74).
+
+**CRUX (confirmed): Q1 == Q2 == Q3 = per-agent fp; Q4 = host fp.** Presence-fp and
+waker-subscribe-fp are equal *by construction* (same env, same key resolver) — they
+cannot drift. So addressing the DM to the presence fp hits the waker's subscribe
+topic; addressing to Q4 (host fp) silently misses the dm rail (only the
+`inbox.queued`/`--inbox-id <agent_id>` rail, which is fp-independent, still fires).
+
+### Fix spec (next session — one edit)
+
+In `cmd_agent_contact` (`agent.rs`), the `Ok(reg)` branch (~1099): before using
+`reg.metadata.identity_fingerprint`, consult presence for this `target_name` and
+**prefer the presence-advertised fp** when found (reuse the same
+`resolve_agent_presence`/`resolve_contact_via_fleet` source the `Err`/remote path
+uses — ideally scope the read to the LOCAL hub first for latency, since a local
+`Ok(reg)` peer is co-resident). Fall back to `reg.metadata.identity_fingerprint`
+only when presence has no live entry (don't hard-fail — a registered-but-not-
+be-reachable peer should still resolve, just via the host fp as today). Extract a
+small pure precedence helper `prefer_presence_fp(presence_fp: Option<..>,
+reg_fp: Option<..>) -> ..` and unit-test: presence-fp preferred when both present
+& differ; reg-fp used when presence absent; error when both absent. Keep
+`--target-fp` path (line 1060-1070) untouched.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Identity model confirmed (see RCA): presence-advertised fp (Q1) == waker-subscribe fp (Q3) = per-agent resolved key; registration metadata fp (Q4) = host key. Fix premise holds.
+- [ ] Fix: name-resolved local peer's target fp resolves to the per-agent presence-advertised identity (the fp the waker listens on), not the shared host registration fp — reusing the presence source the remote path already uses.
+- [ ] Verified: a name-based `agent contact <name>` to a co-resident armed agent computes the SAME `dm:<a>:<b>` topic the recipient's be-reachable dm rail subscribes to (so it push-wakes). Manual repro on .107 acceptable given shared-host identity.
+- [ ] No regression: single-identity hosts (registration fp == per-agent fp) unchanged; the explicit `--target-fp` path unchanged; a peer with no presence entry still falls back to registration metadata (not a hard failure).
+- [ ] `cargo build --release -p termlink` succeeds; a unit test covers the resolution-precedence helper (presence-fp preferred over registration-fp when they differ).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -174,3 +230,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2384-send-side-per-agent-fp-resolution-in-age.md
 - **Context:** Initial task creation
+
+### 2026-07-09T09:40:02Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
