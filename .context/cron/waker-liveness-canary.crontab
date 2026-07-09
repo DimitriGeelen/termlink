@@ -1,0 +1,29 @@
+# T-2387 — Waker-liveness canary (G-069 shipped≠live guard for the comms rail)
+# Source of truth: /opt/termlink/.context/cron/waker-liveness-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-waker-liveness-canary (USER field syntax — do NOT load into a user crontab)
+#
+# arc-004 push-wake shipped and was live-proven (T-2388), but "0 wakers
+# fleet-wide" sat dark for weeks with nothing firing (T-2380 E4/F3). This daily
+# canary fires (exit 1, log entry) when the host looks reachable but cannot be
+# push-woken:
+#   (a) a LIVE agent-presence listener WITHOUT pty_session (unwakeable — peers
+#       can DM it durably but nothing rings its PTY, T-2380 breakpoint #2);
+#   (b) a local be-reachable*.state whose pushwaker_pid is dead (waker died
+#       silently after arming — clean stop removes the state file);
+#   (c) rail-dark (--expect-armed, declared for .107 where agents ARE expected
+#       armed): ZERO LIVE listeners carry pty_session at all — the literal
+#       G-069 "0 wakers" state.
+# Empty log = healthy. /canaries auto-discovers this log + heartbeat.
+#
+# Operator action on firing: relaunch the named agent(s) through the T-2388
+# launcher — `bash scripts/tl-claude.sh start --reachable --agent-id <name> --
+# --resume` (running headless claudes cannot be retrofitted, PL-237 — arm at
+# relaunch); dead wakers re-arm via `bash scripts/be-reachable.sh start`.
+# Ad-hoc check: `bash scripts/check-waker-liveness-freshness.sh --expect-armed`.
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 07:53 UTC — offset from the :13/:17/:23/:43 canaries and the
+# :23/:53 early-morning heartbeats (nearest neighbours: 07:43 task-finalization,
+# 08:33 fleet-binary).
+53 7 * * * root cd /opt/termlink && bash scripts/check-waker-liveness-freshness.sh --expect-armed --quiet >> .context/working/.waker-liveness-canary.log 2>&1

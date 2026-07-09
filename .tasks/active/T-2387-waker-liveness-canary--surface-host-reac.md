@@ -4,10 +4,10 @@ name: "Waker-liveness canary — surface 'host reachable but no push-waker proce
 description: >
   Daily canary (empty-log=healthy convention) that fires when a host advertises presence/reachability but has zero running push-waker process — the arc-004 dark-in-field class. Prevents shipped-neq-live recurrence for the comms rail.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-09T09:29:24Z
-last_update: 2026-07-09T09:29:24Z
+last_update: 2026-07-09T23:14:11Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,28 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+G-069 class for the comms rail: arc-004 push-wake shipped and live-proven (T-2388),
+but "0 wakers fleet-wide" sat dark for weeks with nothing firing (T-2380 E4/F3 —
+the operator only found out by asking "why is there still no response?"). The
+load-bearing signal already exists: **`metadata.pty_session` on the agent-presence
+heartbeat = the waker-running signal** (T-1834/T-2385 — be-reachable's PTY-bound
+heartbeat sets it; a LIVE presence WITHOUT it is exactly "reachable but unwakeable",
+breakpoint #2). `scripts/agent-listeners.sh --json` already surfaces `pty_session`
+per listener. Second local signal: a `~/.termlink/be-reachable*.state` file whose
+pushwaker pid is dead = the waker died silently after arming. Ship the standing
+guard as the ninth empty-log=healthy daily canary (pattern: T-2359 fleet-binary /
+T-2239 frozen-husk).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `scripts/check-waker-liveness-freshness.sh` exists and classifies two firing classes: (a) **LIVE-but-unwakeable** — any LIVE agent-presence listener on the local hub lacking `metadata.pty_session` (read via `scripts/agent-listeners.sh --json`); (b) **dead-waker** — any local `~/.termlink/be-reachable*.state` whose recorded pushwaker pid is not alive (confirmed a waker process via /proc cmdline, guarding pid-recycle per the T-2239 pattern). Exit 0 = healthy / 1 = firing / 2 = tooling error (hub unreachable ≠ firing — informational, PL-219).
+- [x] Third firing class (c) **rail-dark**, opt-in via `--expect-armed` (the cron on .107 passes it): fire when ZERO LIVE listeners carry `pty_session` at all — the literal G-069 "0 wakers fleet-wide" observed state, which class (a) alone cannot see (no LIVE listeners → nothing to flag). Without the flag, an empty rail is informational only (hosts that legitimately run no agents stay quiet).
+- [x] `--quiet` prints only on firing (cron-friendly); `--json` emits a jq-friendly envelope carrying per-class entries + counts (`unwakeable[]`, `dead_wakers[]`); test hook `TERMLINK_WAKER_TEST_JSON=<file>` feeds canned listeners JSON for hub-independent verification (PL-213 convention), and a `TERMLINK_WAKER_STATE_DIR` override points the state-file scan at a fixture dir.
+- [x] Daily cron shipped: `.context/cron/waker-liveness-canary.crontab` runs the script `--quiet` appending to `.context/working/.waker-liveness-canary.log` (empty-log = healthy, `/canaries` auto-discovers) + touches the `.heartbeat` companion; crontab **installed to /etc/cron.d** on .107 (pre-push audit requirement, PL-173 class).
+- [x] Both firing classes proven via the test hooks: a canned LIVE-no-pty_session listener fires class (a); a fixture state file with a dead pid fires class (b); an all-green fixture (LIVE with pty_session, alive waker pid) exits 0.
+- [x] CLAUDE.md canary section gains the waker-liveness entry (ninth empty-log=healthy canary, paired with the existing eight); `bash -n` passes on the script.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -106,6 +120,20 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+bash -n scripts/check-waker-liveness-freshness.sh
+# class (a) LIVE-no-pty fires (exit 1) — self-contained fixture, PL-213 test hooks
+t=$(mktemp -d) && printf '{"ok":true,"listeners":[{"agent_id":"x","status":"LIVE","age_secs":5,"pty_session":null,"identity_fingerprint":"ff","host":"h"}]}' > "$t/l.json" && ! TERMLINK_WAKER_TEST_JSON="$t/l.json" TERMLINK_WAKER_STATE_DIR="$t" bash scripts/check-waker-liveness-freshness.sh --no-heartbeat >/dev/null 2>&1
+# class (b) dead-waker fires (exit 1)
+t=$(mktemp -d) && printf '{"ok":true,"listeners":[]}' > "$t/l.json" && printf '{"agent_id":"d","pid":999999,"pushwaker_pid":999999,"pty_session":"d"}' > "$t/be-reachable-d.state" && ! TERMLINK_WAKER_TEST_JSON="$t/l.json" TERMLINK_WAKER_STATE_DIR="$t" bash scripts/check-waker-liveness-freshness.sh --no-heartbeat >/dev/null 2>&1
+# class (c) rail-dark fires only WITH --expect-armed
+t=$(mktemp -d) && printf '{"ok":true,"listeners":[]}' > "$t/l.json" && ! TERMLINK_WAKER_TEST_JSON="$t/l.json" TERMLINK_WAKER_STATE_DIR="$t" bash scripts/check-waker-liveness-freshness.sh --no-heartbeat --expect-armed >/dev/null 2>&1 && TERMLINK_WAKER_TEST_JSON="$t/l.json" TERMLINK_WAKER_STATE_DIR="$t" bash scripts/check-waker-liveness-freshness.sh --no-heartbeat >/dev/null 2>&1
+# all-green healthy (exit 0) + json envelope carries ok:true
+t=$(mktemp -d) && printf '{"ok":true,"listeners":[{"agent_id":"a","status":"LIVE","age_secs":5,"pty_session":"a","identity_fingerprint":"aa","host":"h"}]}' > "$t/l.json" && out=$(TERMLINK_WAKER_TEST_JSON="$t/l.json" TERMLINK_WAKER_STATE_DIR="$t" bash scripts/check-waker-liveness-freshness.sh --no-heartbeat --json 2>&1); echo "$out" | grep -q '"ok": true'
+# cron: git-tracked source byte-identical to installed /etc/cron.d copy (PL-173 class)
+cmp .context/cron/waker-liveness-canary.crontab /etc/cron.d/termlink-waker-liveness-canary
+# CLAUDE.md documents the ninth canary
+grep -q "Waker-liveness canary (T-2387" CLAUDE.md
 
 ## RCA
 
@@ -174,3 +202,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2387-waker-liveness-canary--surface-host-reac.md
 - **Context:** Initial task creation
+
+### 2026-07-09T23:14:11Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

@@ -284,6 +284,40 @@ start; see G-070/preflight Check 6), or adjust the floor/exemption if the
 expectation changed. `/canaries` auto-discovers the log. Pair with the seven
 canaries above — all eight follow the same "empty-log = healthy" convention.
 
+### Waker-liveness canary (T-2387, G-069 shipped≠live guard for the comms rail)
+
+arc-004 push-wake shipped and was live-proven (T-2388), but "0 wakers
+fleet-wide" sat dark for weeks with nothing firing (T-2380 E4/F3) — the
+operator only found out by asking "why is there still no response?". The
+load-bearing signal is T-1834/T-2385's: **`metadata.pty_session` on the
+agent-presence heartbeat == the waker-running signal**. A daily cron runs
+`scripts/check-waker-liveness-freshness.sh --expect-armed --quiet` (see
+`.context/cron/waker-liveness-canary.crontab`) and appends to
+`.context/working/.waker-liveness-canary.log`. Empty log = healthy.
+
+Three firing classes: **(a) LIVE-but-unwakeable** — a LIVE agent-presence
+listener WITHOUT `pty_session` (peers can DM it durably but nothing rings its
+PTY — T-2380 breakpoint #2); **(b) dead-waker** — a local
+`~/.termlink/be-reachable*.state` whose `pushwaker_pid` is dead or recycled
+(/proc cmdline guard, T-2239 pattern): the waker died silently after arming
+(clean `be-reachable stop` removes the state file); **(c) rail-dark** (opt-in
+`--expect-armed`, declared for .107 where agents ARE expected armed): ZERO
+LIVE listeners carry `pty_session` at all — the literal G-069 "0 wakers"
+observed state, which class (a) alone cannot see. Without the flag an empty
+rail is quiet (hosts that legitimately run no agents). An unreachable hub is
+informational, never firing (PL-219); class (b) still runs. Ad-hoc check:
+`bash scripts/check-waker-liveness-freshness.sh [--expect-armed] [--json]
+[--hub ADDR]` (exit 0 = healthy, 1 = firing, 2 = tooling error). Test hooks
+`TERMLINK_WAKER_TEST_JSON=<file>` (canned `agent-listeners.sh --json`
+envelope) + `TERMLINK_WAKER_STATE_DIR=<dir>` (state-file fixture dir) for
+hub-independent verification (PL-213). Operator action on firing: relaunch the
+named agent(s) through the T-2388 launcher — `bash scripts/tl-claude.sh start
+--reachable --agent-id <name> -- --resume` (running headless claudes cannot be
+retrofitted, PL-237 — arm at relaunch); dead wakers re-arm via
+`bash scripts/be-reachable.sh start --agent-id <id> --pty-session <pty>`.
+`/canaries` auto-discovers the log. Pair with the eight canaries above — all
+nine follow the same "empty-log = healthy" convention.
+
 ## Project-Specific Rules
 
 ### Hub Auth Rotation Protocol
