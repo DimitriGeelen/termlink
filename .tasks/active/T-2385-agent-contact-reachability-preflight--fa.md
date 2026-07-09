@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-09T09:29:09Z
-last_update: 2026-07-09T11:28:24Z
+last_update: 2026-07-09T11:45:57Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -77,6 +77,36 @@ refactor). Reply-on-sender-hub is T-2386; the waker-liveness canary is T-2387.
   2. Read the `reachability` block and the printed `WARNING:` line.
   **Expected:** The warning names the no-waker breakpoint and tells you the message will queue until the peer runs `/check-arc` — not a silent success.
   **If not:** Note the confusing wording; the diagnosis strings live in `classify_reachability`.
+
+## Recommendation
+
+**Recommendation:** GO (Slice 1 — the single Human AC is a wording-taste review, not a blocker)
+
+**Rationale:** Slice 1 of the loud-delivery-contract centerpiece is code-complete,
+non-breaking, and verified end-to-end on the live .107 hub. It converts the #1/#2
+silent breakpoints ("recipient dead" / "recipient live but no push-waker") into a
+visible per-link `reachability` block (+ loud human `WARNING`, + opt-in
+`--require-reachable` hard-fail). Default behaviour is unchanged for existing
+callers — the send still proceeds, only now annotated — so there is no regression
+risk to merge. The only open item is subjective wording of the WARNING string,
+which is exactly a `[REVIEW]` Human AC.
+
+**Evidence:**
+- Pure classifier `classify_reachability` + 4-state unit test
+  (`crates/termlink-cli/src/commands/agent.rs`), P-011 gate PASS
+  (`cargo test --release -p termlink --bin termlink classify_reachability` → ok).
+- Live smoke on .107 (release binary): dry-run of a LIVE-no-PTY peer →
+  `recipient_live:true, waker_running:false, presence_status:LIVE` + no-waker
+  diagnosis; `--require-reachable` to an absent fp → human exit **11**, `--json`
+  body `exit_code:11`; human-mode send to a LIVE-no-waker peer printed the loud
+  `WARNING:` to stderr and still delivered.
+- `cargo check -p termlink` clean; release build exit 0 (9m44s).
+- Commit `c96e0b7c`. Non-breaking: no change to existing `{delivered}`/`{ack}`
+  envelopes (reachability is an additive NDJSON line).
+
+**Deferred (tracked in ## Evolution / ## Context):** hub-read-health fail-fast for
+`--ack-required` (#5, E2/PL-200), the offset-plumbing unified delivery envelope, and
+MCP `termlink_agent_contact` parity — later slices, out of Slice 1 scope.
 
 ## Verification
 
