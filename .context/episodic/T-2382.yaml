@@ -1,0 +1,96 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2382: channel.create not idempotent on retention — agent contact DM send aborts when dm topic exists with different retention (arc-004 fleet blocker)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-09T09:19:43Z
+# ============================================================================
+
+task_id: T-2382
+task_name: "channel.create not idempotent on retention — agent contact DM send aborts when dm topic exists with different retention (arc-004 fleet blocker)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-09T08:49:11Z
+completed: 2026-07-09T09:10:01Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-09T11:06:39+02:00
+last_commit: 2026-07-09T11:07:32+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  make ensure_topic idempotent on retention mismatch — agent contact DM no longer aborts on existing Forever dm topic (arc-004 fleet blocker); +2 regression tests. fix Verification cmd SIGPIPE footgun (capture-then-grep per L-387). tick all 5 agent ACs (fix located, applied, tested, build green)
+
+# Key outcomes
+outcomes:
+  - 'Root cause located: `ensure_topic()` at `crates/termlink-cli/src/commands/channel.rs:2386-2409` (Err arm propagated the -32603) + hub guard `crates/termlink-bus/src/meta.rs:38-46` (`TopicPolicyMismatch`); recorded in RCA.'
+  - 'Fix applied so a DM send via `agent contact` to an EXISTING dm topic does NOT abort on retention mismatch — `ensure_topic` now treats any "already exists" (incl. retention-mismatch) as success via pure `create_error_is_already_exists`. Fix layer = caller-side; rationale in Decisions.'
+  - 'Genuinely-new dm topic path preserved: the Ok arm still creates + returns `created`; only the Err/already-exists path changed. Both real callers (channel.rs:823 `--ensure-topic`, channel.rs:2467 DM) want "topic exists → proceed" (verified caller audit).'
+  - '`cargo build --release -p termlink` succeeds (crate at crates/termlink-cli/ is package `termlink`).'
+  - 'Regression coverage: `create_error_already_exists_matches_retention_mismatch` + `create_error_already_exists_rejects_genuine_failures` — both `... ok`, `2 passed; 0 failed`.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'tick all 5 agent ACs (fix located, applied, tested, build green)'
+    source: git-mined
+  - description: 'fix Verification cmd SIGPIPE footgun (capture-then-grep per L-387)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-07-09 — fix layer: caller-side (agent contact), not hub-side'
+    chose: 'Make `agent contact`''s dm-topic ensure-create non-fatal on'
+    rationale: '`channel post --ensure-topic` ALREADY establishes this exact'
+    alternatives_rejected: ['Hub-side idempotent create — the "different retention policy"']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/episodic/T-2381.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - '.tasks/active/T-2382-channelcreate-not-idempotent-on-retentio.md'
+  - '.tasks/completed/T-2381-activate-arc-004-push-waker-across-the-f.md'
+  - '.termlink-task'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-09T11:06:39"
+    action: "T-2382: make ensure_topic idempotent on retention mismatch — agent contact DM no longer aborts on existing Forever dm topic (arc-004 fleet blocker); +2 regression tests"
+  - time: "2026-07-09T11:07:04"
+    action: "T-2382: fix Verification cmd SIGPIPE footgun (capture-then-grep per L-387)"
+  - time: "2026-07-09T11:07:32"
+    action: "T-2382: tick all 5 agent ACs (fix located, applied, tested, build green)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 20 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 20
+  commits: 3
+  files_changed: 13
+  lines_added: 496
+  lines_removed: 60
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2382-channelcreate-not-idempotent-on-retentio.md
+generated_by: context-agent-hybrid

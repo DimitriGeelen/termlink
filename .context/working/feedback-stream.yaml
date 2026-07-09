@@ -3726,3 +3726,39 @@ scan_id: R-73973945
 task_id: T-2381
 payload:
   task_file: .tasks/active/T-2381-activate-arc-004-push-waker-across-the-f.md
+---
+kind: scan_emitted
+timestamp: '2026-07-09T09:19:40Z'
+scan_id: R-6af7c929
+task_id: T-2382
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-09T09:19:40Z'
+scan_id: R-6af7c929
+task_id: T-2382
+payload:
+  task_file: .tasks/active/T-2382-channelcreate-not-idempotent-on-retentio.md
+---
+kind: scan_emitted
+timestamp: '2026-07-09T09:35:29Z'
+scan_id: R-66ec3618
+task_id: T-2380
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-09T09:35:29Z'
+scan_id: R-66ec3618
+task_id: T-2380
+payload:
+  task_file: .tasks/active/T-2380-cross-agent-comms-confirm-ack-field-gap-.md

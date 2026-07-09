@@ -745,3 +745,10 @@ decisions:
     date: 2026-07-07
     task: T-2377
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-086
+    decision: "Make `agent contact`'s dm-topic ensure-create non-fatal on"
+    scope: project
+    date: 2026-07-09
+    task: T-2382
+    rationale: "Auto-captured from task file on completion"

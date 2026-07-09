@@ -132,6 +132,50 @@ secondary to C1/C2.
 - A3: no existing convention already says "reply on the sender's hub" that we're
   simply not following.
 
+## GO — the loud end-to-end delivery contract (build plan)
+
+**Decision (operator "yes", 2026-07-09):** GO on the *minimum that removes the
+silent*. Root cause restated: termlink guarantees the **write** (`offset N`) but
+no layer enforces the **round trip** — a live, correctly-addressed, awake
+recipient on the same, readable hub — and no layer **fails loud** when a link
+breaks. So a send "succeeds" while the message goes nowhere, with no signal. We
+built a reliable mail-drop and called it a conversation.
+
+**The contract:** `agent contact` / `/agent-handoff` / `/reply` must, around every
+send, verify each delivery link and return a **structured per-link result** that
+**fails fast and loud** on the first broken link — instead of returning `offset N`
+and going quiet. Result shape:
+
+```
+{ delivered, recipient_live, recipient_agent_backed, waker_running,
+  hub_targeted, hub_read_healthy, acked }  + one-line diagnosis on any false link
+```
+
+**Link → breakpoint → build task:**
+
+| Link the contract enforces | Silent breakpoint today | Build task |
+|---|---|---|
+| Resolve the **per-agent** fp (not shared host fp) | #4 name→host-fp mis-route (PL-166/236) | **T-2384** (now) |
+| Recipient is **LIVE + agent-backed** (not a bare `--shell`) | #1 shell-vs-agent invisible (F1) | **T-2385** (now) |
+| Recipient has a **running waker** (else warn: won't be woken) | #2 arc-004 dormant (PL-237, E4) | **T-2385** (now) |
+| `--ack-required` probes **hub-read-health**, fails fast | #5 degraded-read false-timeout (E2/PL-200) | **T-2385** (now) |
+| Route to the recipient's **home hub** (reply-on-sender-hub) | #3 hub-split silent no-delivery (E1/G-060) | **T-2386** (next) |
+| Structured **loud result** unifying all the above | the whole "silent offset-N" problem | **T-2385** (now) |
+| Observability: **waker-liveness canary** | shipped≠live recurrence (E4/F3, G-069) | **T-2387** (next) |
+| Retention link (send aborted on `Forever` topic) | #6 (−32603) | **T-2382 DONE** |
+
+**Sequencing:** T-2384 (fp-resolve) is the prerequisite for correct addressing;
+T-2385 (preflight + fail-fast + structured result) is the centerpiece and may
+slice (liveness → waker → hub-read-health → result envelope); T-2386
+(reply-on-sender-hub) closes the hub-split link; T-2387 (canary) is the standing
+guard so this can't silently regress. **OUT of scope:** full cross-hub federation
+(C3, high cost) and the raw-`inject` off-rail warning (F2, cosmetic vs the
+silent-delivery core).
+
+**Definition of done for the arc:** a send to an unreachable/dead/wrong-hub peer
+returns a loud, specific "which link is broken" instead of a false success — and
+a send to a healthy peer still works with a sub-second push-wake.
+
 ## Dialogue Log
 
 ### 2026-07-07 — operator-driven, live

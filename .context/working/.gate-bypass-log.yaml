@@ -2142,3 +2142,8 @@ FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2297: capture Human
   caller: 'check-active-task focus-drift'
   target: 'T-2375'
   command: 'git add .tasks/active/T-2375-mcp-termlinkfilesend-cannot-reach-offlin.md && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2375: capture MCP termlink_file_send offline-target gap (T-2363'
+- timestamp: '2026-07-09T09:35:29Z'
+  task: 'T-2380'
+  flag: '--skip-sovereignty'
+  caller: 'check_human_sovereignty'
+  reason: 'Inception decision: GO'
