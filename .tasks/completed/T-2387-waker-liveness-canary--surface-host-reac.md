@@ -4,10 +4,10 @@ name: "Waker-liveness canary — surface 'host reachable but no push-waker proce
 description: >
   Daily canary (empty-log=healthy convention) that fires when a host advertises presence/reachability but has zero running push-waker process — the arc-004 dark-in-field class. Prevents shipped-neq-live recurrence for the comms rail.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-09T09:29:24Z
-last_update: 2026-07-09T23:14:11Z
-date_finished: null
+last_update: 2026-07-09T23:21:15Z
+date_finished: 2026-07-09T23:21:15Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -206,3 +206,29 @@ grep -q "Waker-liveness canary (T-2387" CLAUDE.md
 ### 2026-07-09T23:14:11Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-96c7a4a5
+- **Timestamp:** 2026-07-09T23:21:17Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 4
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `scripts/check-waker-liveness-freshness.sh` exists and classifies two firing classes: (a) **LIVE-but-unwakeable** — any LIVE agent-presence listener on the local hub lacking `metadata.pty_session` (re
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/agent-listeners.sh in: `scripts/check-waker-liveness-freshness.sh` exists and classifies two firing classes: (a) **LIVE-but-unwakeable** — any LIVE agent-presence listener o`
+
+**Verification-level findings:**
+
+  1. **empty-output-success** (partial, heuristic) @ Verification:line 34
+     - evidence: `t=$(mktemp -d) && printf '{"ok":true,"listeners":[{"agent_id":"x","status":"LIVE","age_secs":5,"pty_session":null,"identity_fingerprint":"ff","host":"h"}]}' > "$t/l.json" && ! TERMLINK_WAKER_TEST_JSON`
+  2. **empty-output-success** (partial, heuristic) @ Verification:line 36
+     - evidence: `t=$(mktemp -d) && printf '{"ok":true,"listeners":[]}' > "$t/l.json" && printf '{"agent_id":"d","pid":999999,"pushwaker_pid":999999,"pty_session":"d"}' > "$t/be-reachable-d.state" && ! TERMLINK_WAKER_T`
+  3. **empty-output-success** (partial, heuristic) @ Verification:line 38
+     - evidence: `t=$(mktemp -d) && printf '{"ok":true,"listeners":[]}' > "$t/l.json" && ! TERMLINK_WAKER_TEST_JSON="$t/l.json" TERMLINK_WAKER_STATE_DIR="$t" bash scripts/check-waker-liveness-freshness.sh --no-heartbea`
+
+### 2026-07-09T23:21:15Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

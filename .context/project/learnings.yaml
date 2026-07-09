@@ -2493,3 +2493,10 @@ learnings:
   date: 2026-07-09
   context: Added via context agent
   application: TBD
+- id: PL-248
+  learning: "pty_session on the agent-presence heartbeat is the fleet-wide waker-running signal (T-1834/T-2385) — any shipped-vs-live question for the push-wake rail is answerable from presence metadata alone, no host access needed. The canary encodes it; rail-dark (zero LIVE armed) needs an operator-declared --expect-armed because absence-of-presence is invisible to per-listener checks (same declared-expectation pattern as fleet-version-floors.conf, T-2359)"
+  source: P-001
+  task: T-2387
+  date: 2026-07-09
+  context: Added via context agent
+  application: TBD
