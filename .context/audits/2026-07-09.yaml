@@ -1,0 +1,74 @@
+# Audit Results - 2026-07-09-1044
+timestamp: 2026-07-09T08:44:50Z
+sections: "structure"
+summary:
+  pass: 30
+  warn: 2
+  fail: 0
+findings:
+  - level: PASS
+    check: "Tasks directory exists"
+  - level: PASS
+    check: "Tasks/active directory exists"
+  - level: PASS
+    check: "Tasks/completed directory exists"
+  - level: PASS
+    check: "Tasks/templates directory exists"
+  - level: PASS
+    check: "Task template exists"
+  - level: PASS
+    check: "No duplicate task IDs across active/ and completed/"
+  - level: PASS
+    check: "All 13 project YAML files parse correctly"
+  - level: PASS
+    check: "All 4 arc anchor_task references resolve to existing tasks"
+  - level: PASS
+    check: "All 1 in-progress arc(s) had task commits within 30 days"
+  - level: PASS
+    check: "No inline arc:<slug> tag-only scans outside canonical lib (T-1881)"
+  - level: PASS
+    check: "No stale-slice-references (L-417)"
+  - level: PASS
+    check: "No GO-scope-not-propagated inception(s) (sibling to L-417)"
+  - level: PASS
+    check: "Fabric: 162 registered, 0 unregistered"
+  - level: WARN
+    check: "Fabric: 31/150 cards have no edges"
+    mitigation: "Run: fw fabric enrich"
+  - level: WARN
+    check: "Fabric drift: 2 source file(s) have no fabric card"
+    mitigation: "Run: fw fabric scan"
+  - level: PASS
+    check: "Cron registry in sync with /etc/cron.d/agentic-audit-termlink"
+  - level: PASS
+    check: "cron(fleet-adoption-snapshot): USER-field syntax installed at /etc/cron.d/termlink-fleet-adoption-snapshot"
+  - level: PASS
+    check: "cron(fleet-binary-canary): USER-field syntax installed at /etc/cron.d/termlink-fleet-binary-canary"
+  - level: PASS
+    check: "cron(fleet-doorbell-mail-canary): USER-field syntax installed at /etc/cron.d/termlink-fleet-doorbell-mail-canary"
+  - level: PASS
+    check: "cron(framework-pickup-canary): USER-field syntax installed at /etc/cron.d/termlink-framework-pickup-canary"
+  - level: PASS
+    check: "cron(frozen-husk-canary): USER-field syntax installed at /etc/cron.d/termlink-frozen-husk-canary"
+  - level: PASS
+    check: "cron(heartbeat): USER-field syntax installed at /etc/cron.d/termlink-heartbeat"
+  - level: PASS
+    check: "cron(preflight-doc-set-drift-canary): USER-field syntax installed at /etc/cron.d/termlink-preflight-doc-set-drift-canary"
+  - level: PASS
+    check: "cron(presence-sweep): USER-field syntax installed at /etc/cron.d/termlink-presence-sweep"
+  - level: PASS
+    check: "cron(release-mirror-canary): USER-field syntax installed at /etc/cron.d/termlink-release-mirror-canary"
+  - level: PASS
+    check: "cron(substrate-preflight-canary): USER-field syntax installed at /etc/cron.d/termlink-substrate-preflight-canary"
+  - level: PASS
+    check: "cron(task-finalization-canary): USER-field syntax installed at /etc/cron.d/termlink-task-finalization-canary"
+  - level: PASS
+    check: "cron(topic-growth-canary): USER-field syntax installed at /etc/cron.d/termlink-topic-growth-canary"
+  - level: PASS
+    check: "cron(unconfirmed-delivery-canary): USER-field syntax installed at /etc/cron.d/termlink-unconfirmed-delivery-canary"
+  - level: PASS
+    check: "Hook threshold: no hooks failing over threshold"
+  - level: PASS
+    check: "Secret scan: tracked tree clean"
+  - level: PASS
+    check: "Large-file gate: tracked tree clean"

@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-07T18:12:31Z
-last_update: 2026-07-07T18:12:31Z
+last_update: 2026-07-07T18:26:25Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -60,9 +60,18 @@ fps. Workaround: use inbox-rail doorbell (`agent-send.sh --to <name>`,
 fp-independent) OR `agent contact --target-fp <per-agent-fp>`. Fix (sender-side
 analog of the be-reachable `--resolve` fix) → T-2380 candidate.
 
-**Second bug (minor):** `agent contact <name>` tried to create the dm topic with
+**Second bug (NOT minor — reconfirmed 2026-07-09, blocked the real send):**
+`agent contact --target-fp 9219671e28054458` tried to create the dm topic with
 retention `Messages(1000)` but it exists as `Forever` → `channel.create` -32603
-blocked the send. Topic-create retention should be idempotent.
+blocked the coordination send entirely. Same topic that landed T-2379 offset 52
+via agent contact earlier — so the topic's retention was `Forever` by the time I
+re-sent, and agent contact's non-idempotent create now refuses. Topic-create
+retention MUST be idempotent (or agent contact must skip create when the topic
+exists). Workaround used: direct `termlink channel post <dm-topic> --hub .122
+--metadata conversation_id=T-2381 --mention ring20-management-agent` — appends to
+the existing Forever topic (no create attempt), landed **offset 56**. This is a
+real field blocker on any peer whose dm topic is `Forever`, not cosmetic → upgrade
+to a T-2380 candidate / its own bug task.
 
 **Fleet constraint (PL-237):** push-wake needs an injectable PTY; plain
 `claude --resume` (no tmux) gets no waker → fix fork in runbook + T-2380 C7.
@@ -80,7 +89,7 @@ reaped cleanly by `be-reachable.sh stop`.
 - [x] Push-waker armed on **the real .107 production hub** (not hermetic) — probe session `arc004-probe`, pushwaker pid 3629693 confirmed alive via `ps`; self_fp resolved per-agent (`dcd44820fc12daed`, NOT shared host fp — PL-236 sidestep works)
 - [x] Push-wake verified END-TO-END on the real .107 hub (EXCEEDS AC — real, not hermetic): **both rails injected `/check-arc respond` into the probe PTY** — inbox rail via `agent-send.sh --to` (fp-independent) AND dm rail via `agent contact --target-fp dcd44820fc12daed`
 - [x] Fleet activation state recorded — runbook `docs/operations/arc-004-fleet-activation.md` (per-host table + 3 preconditions + recipe)
-- [ ] Coordination message sent to ring20-manager to arm their wakers per the runbook (deferred by budget gate — carry to next session)
+- [x] Coordination message sent to ring20-manager to arm their wakers per the runbook — landed **offset 56** on dm:9219671e28054458:d1993c2c3ec44c94 (.122) via direct `channel post` (agent contact was blocked by the retention-idempotency bug; routed around it). Message = full activation recipe + 3 preconditions + the send-side fp-mismatch + retention blockers + .122 read-wedge remediation. Staged verbatim in `.context/working/T-2381-ring20-manager-arc004-activation.md`. Awaiting ring20-manager ack on thread T-2381.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
