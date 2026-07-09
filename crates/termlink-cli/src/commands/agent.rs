@@ -725,7 +725,36 @@ pub(crate) fn resolve_contact_message(
 /// T-2275: a peer resolved via fleet `agent-presence` (cross-hub contact-by-name).
 pub(crate) struct FleetContactResolution {
     pub identity_fingerprint: String,
+    /// The hub to route posts to so the peer actually reads them (T-2386):
+    /// the peer-declared `metadata.addr` when present, else the hub the
+    /// heartbeat was read from (T-2275 behavior).
     pub hub_address: String,
+    /// The peer-declared `metadata.addr` verbatim (`None` when the heartbeat
+    /// carries no self-reported home hub). Callers that must distinguish
+    /// "peer declared a home hub" from "we inferred it from the read-hub"
+    /// (e.g. the locally-registered-peer branch, which should not disturb
+    /// default local routing without a declaration) key on this.
+    pub declared_addr: Option<String>,
+}
+
+/// T-2386 (comms loud-contract, link #3 — hub-split silent no-delivery): derive
+/// the recipient's HOME HUB from its presence heartbeat.
+///
+/// Only the self-reported `metadata.addr` qualifies (T-2293 — the peer's
+/// declared "post here to reach me" address). `observed_addr` is deliberately
+/// EXCLUDED from routing: it is the hub-attested TCP *source* of the heartbeat
+/// — the agent host's IP plus an EPHEMERAL port (e.g. `192.168.10.141:51234`,
+/// T-2297). Authoritative for identity/host attestation, unpostable as a hub
+/// address. When this returns `None` the caller falls back to the hub the
+/// heartbeat was READ FROM — the next-best signal, because `agent-presence`
+/// does not federate (G-060): the source hub is where the peer's producer
+/// posts, i.e. its local hub.
+pub(crate) fn resolve_home_hub(
+    presence: Option<&termlink_session::fleet_presence::PresenceMatch>,
+) -> Option<String> {
+    presence
+        .and_then(|m| m.addr.clone())
+        .filter(|a| !a.trim().is_empty())
 }
 
 /// T-2275: resolve `<agent_id>` to `{identity_fingerprint, hub}` by walking every
@@ -775,6 +804,9 @@ async fn resolve_contact_via_fleet(agent_id: &str) -> Option<FleetContactResolut
         if m.status != PresenceStatus::Live {
             continue;
         }
+        // T-2386: home-hub routing — prefer the peer-declared metadata.addr
+        // over the hub this walk happened to read the heartbeat from.
+        let declared_addr = resolve_home_hub(Some(&m));
         let Some(fp) = m.identity_fingerprint else {
             continue;
         };
@@ -783,7 +815,77 @@ async fn resolve_contact_via_fleet(agent_id: &str) -> Option<FleetContactResolut
             best = Some((
                 FleetContactResolution {
                     identity_fingerprint: fp,
-                    hub_address: entry.address.clone(),
+                    hub_address: declared_addr
+                        .clone()
+                        .unwrap_or_else(|| entry.address.clone()),
+                    declared_addr,
+                },
+                m.last_ts_ms,
+            ));
+        }
+    }
+    best.map(|(r, _)| r)
+}
+
+/// T-2386: fp-keyed sibling of `resolve_contact_via_fleet` for the `--target-fp`
+/// path. Walks every hub in `hubs.toml`, finds the freshest LIVE heartbeat whose
+/// envelope `sender_id` matches `peer_fp` (resolved by its `metadata.agent_id`
+/// so status/age bands stay consistent with the name-keyed path), and returns
+/// the same home-hub-aware resolution. `None` when no LIVE presence for the fp
+/// exists anywhere — the caller then keeps today's behavior (local/explicit hub)
+/// with a loud degradation note, never a hard failure.
+async fn resolve_contact_fp_via_fleet(peer_fp: &str) -> Option<FleetContactResolution> {
+    use termlink_session::fleet_presence::{resolve_agent_presence, PresenceStatus};
+    let config = crate::config::load_hubs_config();
+    if config.hubs.is_empty() {
+        return None;
+    }
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0);
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut best: Option<(FleetContactResolution, i64)> = None;
+    for entry in config.hubs.values() {
+        if !seen.insert(entry.address.clone()) {
+            continue;
+        }
+        let msgs =
+            match super::channel::fetch_topic_msgs("agent-presence", Some(&entry.address), 500)
+                .await
+            {
+                Ok(m) => m,
+                Err(_) => continue,
+            };
+        // sender_id -> agent_id (same bridge as fetch_recipient_presence).
+        let Some(agent_id) = msgs.iter().rev().find_map(|m| {
+            let sid = m.get("sender_id").and_then(|v| v.as_str())?;
+            if sid != peer_fp {
+                return None;
+            }
+            m.get("metadata")
+                .and_then(|md| md.get("agent_id"))
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+        }) else {
+            continue;
+        };
+        let Some(m) = resolve_agent_presence(&msgs, &agent_id, now_ms) else {
+            continue;
+        };
+        if m.status != PresenceStatus::Live {
+            continue;
+        }
+        let declared_addr = resolve_home_hub(Some(&m));
+        let fresher = best.as_ref().map(|(_, ts)| m.last_ts_ms > *ts).unwrap_or(true);
+        if fresher {
+            best = Some((
+                FleetContactResolution {
+                    identity_fingerprint: peer_fp.to_string(),
+                    hub_address: declared_addr
+                        .clone()
+                        .unwrap_or_else(|| entry.address.clone()),
+                    declared_addr,
                 },
                 m.last_ts_ms,
             ));
@@ -1225,6 +1327,24 @@ pub(crate) async fn cmd_agent_contact(
             }
             anyhow::bail!(msg);
         }
+        // T-2386: home-hub-route the fp-only path too — an fp with a LIVE
+        // presence heartbeat somewhere in the fleet gets its dm posted to the
+        // hub it actually reads. Presence-absent falls back to today's
+        // behavior (local/explicit hub) with a loud degradation note.
+        if hub.is_none() {
+            match resolve_contact_fp_via_fleet(fp).await {
+                Some(r) => fleet_hub = Some(r.hub_address),
+                None => {
+                    if !json {
+                        eprintln!(
+                            "note: no LIVE presence for fp={fp} on any hub in hubs.toml — \
+                             posting to the local/default hub (pass --hub to target the \
+                             recipient's home hub explicitly)"
+                        );
+                    }
+                }
+            }
+        }
         fp.to_string()
     } else {
         let target_name = target_name_owned.as_deref().expect("checked above");
@@ -1263,9 +1383,17 @@ pub(crate) async fn cmd_agent_contact(
             // registration metadata fp when the peer advertises no LIVE presence
             // (registered-but-not-/be-reachable → resolves via host fp as before).
             let reg_fp = reg.metadata.identity_fingerprint.clone();
-            let presence_fp = resolve_contact_via_fleet(target_name)
-                .await
-                .map(|r| r.identity_fingerprint);
+            let presence = resolve_contact_via_fleet(target_name).await;
+            // T-2386: a locally-registered peer is on THIS host, so the local
+            // default hub is already its home hub — UNLESS its presence
+            // heartbeat DECLARES a different one (metadata.addr). Adopt only
+            // the declared address here: silently rerouting local sends to the
+            // walk's read-hub (a TCP profile address for the same physical
+            // hub) would change auth paths for zero routing gain.
+            if fleet_hub.is_none() {
+                fleet_hub = presence.as_ref().and_then(|r| r.declared_addr.clone());
+            }
+            let presence_fp = presence.map(|r| r.identity_fingerprint);
             prefer_presence_fp(presence_fp, reg_fp).ok_or_else(|| {
             let msg = format!(
                 "Peer '{target_name}' has no identity_fingerprint in metadata — \
@@ -1292,9 +1420,19 @@ pub(crate) async fn cmd_agent_contact(
         }
     };
     let peer_fp = peer_fp_owned.as_str();
-    // T-2275: route the dm post to the hub where the peer was found via fleet
-    // presence, unless the operator passed an explicit --hub (which wins).
-    let hub: Option<&str> = hub.or(fleet_hub.as_deref());
+    // T-2275 + T-2386: route the dm post to the recipient's home hub (declared
+    // metadata.addr, else the hub its presence was read from), unless the
+    // operator passed an explicit --hub (which always wins). `routed_hub` is
+    // set ONLY when the derivation actually changed the destination the sender
+    // would otherwise have used — surfaced in --json + human mode below so the
+    // routing is observable, never silent (T-2385 pattern).
+    let explicit_hub = hub;
+    let hub: Option<&str> = explicit_hub.or(fleet_hub.as_deref());
+    let routed_hub: Option<&str> = if explicit_hub.is_none() {
+        fleet_hub.as_deref()
+    } else {
+        None
+    };
 
     // T-2385 (comms loud-contract, Slice 1): reachability preflight. Read the
     // recipient's authoritative agent-presence heartbeat on the target hub and
@@ -1361,6 +1499,11 @@ pub(crate) async fn cmd_agent_contact(
         // T-2385: surface the reachability preflight in the preview too (read-
         // only, so the dry-run classification is identical to the live path).
         preview["reachability"] = reachability.to_json();
+        // T-2386: surface the derived home-hub routing in the preview.
+        preview["routed_hub"] = match routed_hub {
+            Some(h) => serde_json::json!(h),
+            None => serde_json::Value::Null,
+        };
         // T-1480: when --require-online is also set in dry-run, run the
         // presence check and surface its result. Dry-run never fails on
         // offline; the operator just sees the would-be verdict.
@@ -1414,13 +1557,26 @@ pub(crate) async fn cmd_agent_contact(
     // never silent: --json always emits a `reachability` envelope line; human
     // mode prints a loud WARNING when a link is broken (all-green stays quiet).
     if json {
+        // T-2386: `routed_hub` rides the same NDJSON annotation line — non-null
+        // only when home-hub derivation changed the destination.
         println!(
             "{}",
-            serde_json::json!({ "reachability": reachability.to_json() })
+            serde_json::json!({
+                "reachability": reachability.to_json(),
+                "routed_hub": routed_hub,
+            })
         );
-    } else if reachability.any_link_broken() {
-        if let Some(diag) = &reachability.diagnosis {
-            eprintln!("WARNING: {diag}");
+    } else {
+        if let Some(rh) = routed_hub {
+            eprintln!(
+                "routing to recipient's home hub {rh} (derived from presence — \
+                 pass --hub to override)"
+            );
+        }
+        if reachability.any_link_broken() {
+            if let Some(diag) = &reachability.diagnosis {
+                eprintln!("WARNING: {diag}");
+            }
         }
     }
 
@@ -3933,5 +4089,54 @@ mod contact_tests {
             .as_deref()
             .unwrap()
             .contains("no agent-presence heartbeat"));
+    }
+
+    /// T-2386: home-hub derivation precedence — self-reported `metadata.addr`
+    /// wins; `observed_addr` (hub-attested TCP source, ephemeral port) is
+    /// deliberately NEVER used for routing; absent/empty addr → None (caller
+    /// falls back to the heartbeat-source hub).
+    #[test]
+    fn resolve_home_hub_precedence() {
+        use super::resolve_home_hub;
+        use termlink_session::fleet_presence::{PresenceMatch, PresenceStatus};
+
+        fn pm(addr: Option<&str>, observed: Option<&str>) -> PresenceMatch {
+            PresenceMatch {
+                agent_id: "peer".to_string(),
+                identity_fingerprint: Some("abc1230000000000".to_string()),
+                pty_session: Some("tmux:0".to_string()),
+                status: PresenceStatus::Live,
+                age_secs: 5,
+                last_ts_ms: 0,
+                addr: addr.map(|s| s.to_string()),
+                observed_addr: observed.map(|s| s.to_string()),
+                host: None,
+                listen_topics: vec![],
+                role: Some("claude-code".to_string()),
+            }
+        }
+
+        // Declared addr → that is the home hub.
+        assert_eq!(
+            resolve_home_hub(Some(&pm(Some("192.168.10.122:9100"), None))),
+            Some("192.168.10.122:9100".to_string())
+        );
+        // observed_addr alone must NOT route (ephemeral source port, T-2297).
+        assert_eq!(
+            resolve_home_hub(Some(&pm(None, Some("192.168.10.141:51234")))),
+            None
+        );
+        // Declared addr wins even when observed_addr is present.
+        assert_eq!(
+            resolve_home_hub(Some(&pm(
+                Some("192.168.10.122:9100"),
+                Some("192.168.10.141:51234")
+            ))),
+            Some("192.168.10.122:9100".to_string())
+        );
+        // Empty/whitespace declared addr → None (fallback to source hub).
+        assert_eq!(resolve_home_hub(Some(&pm(Some("  "), None))), None);
+        // No presence at all → None.
+        assert_eq!(resolve_home_hub(None), None);
     }
 }

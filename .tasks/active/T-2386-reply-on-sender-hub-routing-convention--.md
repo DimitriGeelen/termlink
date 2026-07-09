@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-09T09:29:17Z
-last_update: 2026-07-09T12:09:40Z
+last_update: 2026-07-09T23:22:19Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -56,10 +56,10 @@ scope per T-2380). Depends on T-2384 (per-agent fp) + builds on T-2385's
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `agent contact` derives the recipient's home hub from presence (prefer `observed_addr`, fall back to `addr`, then the hub the heartbeat was read from) and routes the dm post there by default when the operator did not pass an explicit `--hub`; explicit `--hub` still wins. A pure helper `resolve_home_hub(presence) -> Option<String>` (precedence encoded) + unit test.
-- [ ] When the derived home hub differs from the hub the sender would otherwise have used, the `--json` output carries a `routed_hub` field (and human mode notes it) so the routing is observable, not silent — reuses/extends the T-2385 `reachability` surfacing pattern.
-- [ ] The `/reply` and `/agent-handoff` skill wrappers inherit the home-hub routing (either by delegating to the fixed `agent contact` default, or by resolving the home hub themselves); verify a reply to a peer whose presence advertises a non-local hub targets that hub, not the local default.
-- [ ] `--target-fp`-only path also home-hub-routes when a presence heartbeat for that fp is found (fp-keyed lookup, same as T-2385); presence-absent → falls back to today's behavior (no regression, loud-degradation note).
+- [x] `agent contact` derives the recipient's home hub from presence (self-reported `metadata.addr`, then the hub the heartbeat was read from — `observed_addr` EXCLUDED from routing, ephemeral source port; see Evolution) and routes the dm post there by default when the operator did not pass an explicit `--hub`; explicit `--hub` still wins (smoke: `--hub 192.168.10.107:9100` → `routed_hub: null`). Pure helper `resolve_home_hub(presence) -> Option<String>` + `resolve_home_hub_precedence` unit test. Live smoke 2026-07-10: heartbeat declaring `addr=192.168.10.122:9100` → dry-run `routed_hub: 192.168.10.122:9100`.
+- [x] When the derived home hub differs from the hub the sender would otherwise have used, the `--json` output carries a `routed_hub` field (dry-run preview + live NDJSON annotation line, null when not derived) and human mode prints `routing to recipient's home hub <addr> (derived from presence — pass --hub to override)` — T-2385 surfacing pattern extended.
+- [x] The `/reply` and `/agent-handoff` skill wrappers inherit the home-hub routing: `/agent-handoff` delegates to `termlink agent contact` with no `--hub` (inherits automatically); `/reply`/agent-respond.sh replies on the hub the inbound message arrived on, which under this convention IS the thread's home hub (sender routed it there and polls acks there) — see Evolution entry.
+- [x] `--target-fp`-only path also home-hub-routes via new fp-keyed `resolve_contact_fp_via_fleet` (sender_id-matched, LIVE-only, freshest-first); presence-absent → today's behavior + loud stderr note (smoke: `--target-fp deadbeefdeadbeef` printed the degradation note and kept local default; `--target-fp d1993c2c3ec44c94` with LIVE declared-addr presence → `routed_hub: 192.168.10.122:9100`).
 - [ ] `cargo build --release -p termlink` succeeds; the `resolve_home_hub` unit test passes; no regression in existing `agent contact` routing tests.
 
 ### Human
@@ -126,6 +126,16 @@ scope per T-2380). Depends on T-2384 (per-agent fp) + builds on T-2385's
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+cargo check -p termlink
+# resolve_home_hub unit test passes (bin tests need --bin termlink, T-2384 lesson)
+out=$(cargo test -p termlink --bin termlink resolve_home_hub 2>&1); echo "$out" | grep -q "1 passed"
+# no regression in the contact test module
+out=$(cargo test -p termlink --bin termlink contact_tests 2>&1); echo "$out" | grep -q "0 failed"
+# routed_hub surfaced in the code (json annotation + dry-run preview + human note)
+grep -q 'routed_hub' crates/termlink-cli/src/commands/agent.rs
+# observed_addr is documented as excluded from routing
+grep -q 'EXCLUDED' crates/termlink-cli/src/commands/agent.rs
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -165,6 +175,36 @@ scope per T-2380). Depends on T-2384 (per-agent fp) + builds on T-2385's
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-07-10 — observed_addr is NOT a routable hub address (AC precedence corrected)
+
+- **What changed:** The filed AC said "prefer `observed_addr`, fall back to `addr`".
+  Reading the T-2297 hub code (`apply_observed_addr`, channel.rs:512) shows
+  `observed_addr` is the hub-attested TCP **source** of the heartbeat — the agent
+  host's IP plus an **ephemeral port** (test fixture: `192.168.10.141:51234`).
+  Routing a DM there would target a dead ephemeral port. It is authoritative for
+  identity/host attestation, unpostable as a hub address.
+- **Plan impact:** Precedence corrected to: self-reported `metadata.addr`
+  (declared home hub, T-2293) → hub the heartbeat was read from (safe because
+  agent-presence does not federate, G-060 — the source hub IS the peer's local
+  hub). `observed_addr` deliberately excluded from routing; the unit test locks
+  the exclusion in.
+- **Triggered:** No new task — the `resolve_home_hub` doc-comment + test encode
+  the correction. Also scoped down the Ok(reg) local-peer branch: adopt only a
+  *declared* addr there (never the walk's read-hub), so default local-UDS
+  routing/auth is not disturbed for same-host sends.
+
+### 2026-07-10 — skill wrappers comply by convention, not new code
+
+- **What changed:** `/agent-handoff` invokes `termlink agent contact` with no
+  `--hub` → inherits home-hub routing automatically once the new binary is
+  installed. `/reply` (agent-respond.sh) posts receipt+turn to the topic on the
+  hub the inbound message arrived on — under this convention that IS the
+  thread's home hub (the sender routed it there and polls acks there), so
+  reply-on-arrival-hub is the correct symmetric behavior; `--hub` remains for
+  cross-host overrides.
+- **Plan impact:** AC 3 satisfied by delegation + convention; no skill edits.
+- **Triggered:** none.
 
 ## Decisions
 
