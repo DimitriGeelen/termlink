@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-09T09:29:17Z
-last_update: 2026-07-09T23:22:19Z
+last_update: 2026-07-09T23:37:22Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -60,7 +60,7 @@ scope per T-2380). Depends on T-2384 (per-agent fp) + builds on T-2385's
 - [x] When the derived home hub differs from the hub the sender would otherwise have used, the `--json` output carries a `routed_hub` field (dry-run preview + live NDJSON annotation line, null when not derived) and human mode prints `routing to recipient's home hub <addr> (derived from presence — pass --hub to override)` — T-2385 surfacing pattern extended.
 - [x] The `/reply` and `/agent-handoff` skill wrappers inherit the home-hub routing: `/agent-handoff` delegates to `termlink agent contact` with no `--hub` (inherits automatically); `/reply`/agent-respond.sh replies on the hub the inbound message arrived on, which under this convention IS the thread's home hub (sender routed it there and polls acks there) — see Evolution entry.
 - [x] `--target-fp`-only path also home-hub-routes via new fp-keyed `resolve_contact_fp_via_fleet` (sender_id-matched, LIVE-only, freshest-first); presence-absent → today's behavior + loud stderr note (smoke: `--target-fp deadbeefdeadbeef` printed the degradation note and kept local default; `--target-fp d1993c2c3ec44c94` with LIVE declared-addr presence → `routed_hub: 192.168.10.122:9100`).
-- [ ] `cargo build --release -p termlink` succeeds; the `resolve_home_hub` unit test passes; no regression in existing `agent contact` routing tests.
+- [x] `cargo build --release -p termlink` succeeds (0.11.437, exit 0, 2026-07-10); the `resolve_home_hub` unit test passes (`1 passed`); no regression in the contact test module (`25 passed; 0 failed` incl. the new test).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
