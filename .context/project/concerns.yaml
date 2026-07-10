@@ -1,4 +1,45 @@
 concerns:
+- id: G-083
+  type: gap
+  title: WAKE layer has no consumption-confirmation — a rung recipient that never consumes the wake (busy
+    or manual-accept session) fails SILENTLY; heartbeat proves process-alive, not session-listening
+  description: 'The doorbell/relay design assumes a PTY-inject wake becomes a turn. Field evidence
+    (2026-07-10, aef<->workflow-designer T-175 thread) shows it does NOT when the recipient session is
+    busy on its own task or in manual-accept mode: the injected text lands in the input box UNSUBMITTED
+    and is discarded on the next `claude --continue`. The message is durably written (offset 21) but
+    never read — "sitting unread" — which the operator experiences as "comms does not flow without
+    manual nudging". The agent-presence heartbeat comes from a background script (listener-heartbeat.sh)
+    fully decoupled from the claude session''s actual availability, so `LIVE + armed (pty set)` is true
+    while the session consumes nothing. The framework checks reachable-BEFORE (T-2385 classify_reachability
+    + --require-reachable) but has NO check that the recipient actually consumed-AFTER (read-cursor /
+    receipt advances within a bounded window). Relay loop B1/B2/B3 (T-2394/2395) steer the reply and
+    bound the loop but cannot make a busy/manual session consume a wake — necessary, not sufficient.
+    This is the sibling of G-069 (shipped != live): here LIVE != listening. Blind since the doorbell
+    shipped (T-1800, months).'
+  spec_reference: scripts/agent-send.sh (ring + await-receipt loop — only fires if agent-send is used,
+    not raw inject; does not diagnose manual-mode); scripts/listener-heartbeat.sh (heartbeat decoupled
+    from session availability); crates/*/agent.rs classify_reachability (T-2385, reachable-BEFORE only);
+    PL-253 (the root-cause learning); T-2388/PL-237 (armed-launcher precondition)
+  severity: high
+  trigger_fired: true
+  trigger_event: '2026-07-10 operator: "why does communication between the two not flow, stops, not
+    progresses without manual nudging" — designer confirmed aef proposal at T-175 offset 21 sits unread;
+    injected wake landed unsubmitted in manual-mode aef session and was discarded on --continue'
+  detection_lag_days: months (undetected since doorbell T-1800; surfaced only by operator frustration +
+    designer manual reasoning, never by any framework surface)
+  status: watching
+  what_works_now: WAKE fires (pushwaker rings), DISCOVERY reads LIVE (T-2390/91/92), and agent-send.sh
+    re-rings + waits for a receipt up to max_rings — so a wake that IS consumed is confirmed. The gap is
+    the silent case- rung-but-not-consumed (busy/manual session, or a raw `termlink inject` that bypasses
+    the receipt wait) produces no loud signal. Proposed fix- consumption-confirmation as the next
+    loud-contract link (poll recipient read-cursor/receipt post-ring; if no advance within N secs, fail
+    LOUD with the "busy/manual-mode, message unread at offset X" diagnosis + remediation). Not yet built-
+    pending operator direction (do not build blindly — prove against the live thread first).
+  related_tasks:
+  - T-2385
+  - T-2388
+  - T-2394
+  - T-2395
 - id: G-070
   type: gap
   title: systemd termlink-hub unit crash-looped 2178 times ('Hub is already running') while a detached

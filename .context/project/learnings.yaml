@@ -2528,3 +2528,10 @@ learnings:
   date: 2026-07-10
   context: Added via context agent
   application: TBD
+- id: PL-253
+  learning: "WAKE layer: a heartbeat proves the PROCESS is alive, not that the SESSION is listening. The agent-presence heartbeat comes from a background script (listener-heartbeat.sh) decoupled from the claude session's actual availability. A PTY-inject wake into a session that is (a) busy on its own task or (b) in manual-accept mode lands in the input box UNSUBMITTED and is discarded on the next --continue — so the message is durably written (offset N) but never becomes a turn. This is the real 'comms doesn't flow without nudging' root cause: rung-but-not-consumed fails SILENTLY. Relay loop B1/B2/B3 (T-2394/2395) steer the reply + bound the loop but CANNOT make a busy/manual session consume a wake — necessary not sufficient. Two preconditions for a wake to become a turn: responder launched under tl-claude.sh --reachable (auto-accept injectable PTY, T-2388/PL-237) AND the post lands on a rail the recipient's waker fires on (DM rail, not a thread). Missing mechanism link: WAKE has no CONSUMPTION confirmation — after ringing, nothing verifies the recipient's read-cursor/receipt advanced within N secs; T-2385 checks reachable-BEFORE, nothing checks consumed-AFTER. That is the next loud-contract link."
+  source: P-001
+  task: unknown
+  date: 2026-07-10
+  context: Added via context agent
+  application: TBD
