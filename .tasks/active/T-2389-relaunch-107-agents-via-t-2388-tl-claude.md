@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-09T23:44:26Z
-last_update: 2026-07-09T23:44:26Z
+last_update: 2026-07-09T23:54:13Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -221,6 +221,25 @@ per-project cwd (T-559 boundary-compliant) →
   projects/-opt-3011-…; suspected cause: 93d51627 held by the live bg-pty-host,
   index quirk for a837a4f2) — recovered by injecting explicit
   `claude --resume a837a4f2-17a9-4727-b64f-a19565550c8b`; confirmed running.
+
+### 2026-07-10T00:40Z — live round-trip test: delivery OK, RESPONSE still open [agent]
+
+Operator re-raised "wait and no response". Live test: DM to workshop-designer
+(fp b4619245…) with ack_required, 180s. Result: message DELIVERED to the
+correct per-agent topic (dm:b4619245…:d1993c2c…) but NO reply in 180s.
+Two findings:
+1. `channel unread` on that topic: **total=6733, unread_count=3441** — the
+   workshop-designer rail has thousands of historically-unread inbound posts
+   (the G-063 write-only-sink class, pre-dating today's arming).
+2. Prime suspect for no-response: the relaunched claude sessions run in
+   default **manual permission mode** (workshop-designer PTY showed "⏸ manual
+   mode on") — an injected `/check-arc respond` cannot execute tools without
+   a human approving prompts. WAKE (ring) ≠ RESPOND (act): the rail rings,
+   but the recipient cannot act autonomously. NEXT: decide + apply per-agent
+   permission/mode flags at relaunch (operator policy: e.g.
+   `--permission-mode acceptEdits` or project-trusted settings), then re-test
+   round-trip. Also verify the injection actually landed (PTY dump was
+   unreadable under the budget gate).
 
 **Open (AC 4 blocker — budget gate hit critical mid-fix):**
 `cmd_install_boot` in scripts/tl-claude.sh hardcodes
