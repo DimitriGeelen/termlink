@@ -1,0 +1,97 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2386: Reply-on-sender-hub routing convention — /reply + agent contact target recipient home hub derived from presence (comms loud-contract; fixes hub-split silent no-delivery, T-2380 C1/E1/G-060)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-09T23:40:54Z
+# ============================================================================
+
+task_id: T-2386
+task_name: "Reply-on-sender-hub routing convention — /reply + agent contact target recipient home hub derived from presence (comms loud-contract; fixes hub-split silent no-delivery, T-2380 C1/E1/G-060)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-09T09:29:17Z
+completed: 2026-07-09T23:40:05Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-09T14:07:36+02:00
+last_commit: 2026-07-10T01:40:05+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  record PL-247 (silent-delivery is the comms failure class) — write guaranteed, round-trip not, no loud fail [from T-2385 arc]. real ACs (home-hub routing from presence, scoped for next session) + session-state churn. home-hub routing for agent contact — resolve_home_hub (declared metadata.addr; observed_addr excluded, ephemeral port) + fp-keyed fleet walk + routed_hub observability; explicit --hub wins; live-smoked all 4 paths. tick final AC — release 0.11.437 built + installed to ~/.cargo/bin (send-side home-hub routing live on .107)
+
+# Key outcomes
+outcomes:
+  - '`agent contact` derives the recipient''s home hub from presence (self-reported `metadata.addr`, then the hub the heartbeat was read from — `observed_addr` EXCLUDED from routing, ephemeral source port; see Evolution) and routes the dm post there by default when the operator did not pass an explicit `--hub`; explicit `--hub` still wins (smoke: `--hub 192.168.10.107:9100` → `routed_hub: null`). Pure helper `resolve_home_hub(presence) -> Option<String>` + `resolve_home_hub_precedence` unit test. Live smoke 2026-07-10: heartbeat declaring `addr=192.168.10.122:9100` → dry-run `routed_hub: 192.168.10.122:9100`.'
+  - 'When the derived home hub differs from the hub the sender would otherwise have used, the `--json` output carries a `routed_hub` field (dry-run preview + live NDJSON annotation line, null when not derived) and human mode prints `routing to recipient''s home hub <addr> (derived from presence — pass --hub to override)` — T-2385 surfacing pattern extended.'
+  - 'The `/reply` and `/agent-handoff` skill wrappers inherit the home-hub routing: `/agent-handoff` delegates to `termlink agent contact` with no `--hub` (inherits automatically); `/reply`/agent-respond.sh replies on the hub the inbound message arrived on, which under this convention IS the thread''s home hub (sender routed it there and polls acks there) — see Evolution entry.'
+  - '`--target-fp`-only path also home-hub-routes via new fp-keyed `resolve_contact_fp_via_fleet` (sender_id-matched, LIVE-only, freshest-first); presence-absent → today''s behavior + loud stderr note (smoke: `--target-fp deadbeefdeadbeef` printed the degradation note and kept local default; `--target-fp d1993c2c3ec44c94` with LIVE declared-addr presence → `routed_hub: 192.168.10.122:9100`).'
+  - '`cargo build --release -p termlink` succeeds (0.11.437, exit 0, 2026-07-10); the `resolve_home_hub` unit test passes (`1 passed`); no regression in the contact test module (`25 passed; 0 failed` incl. the new test).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-07-09.yaml'
+  - '.context/project/learnings.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-cli/src/commands/agent.rs'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2385-agent-contact-reachability-preflight--fa.md'
+  - '.tasks/active/T-2386-reply-on-sender-hub-routing-convention--.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-09T14:07:36"
+    action: "T-2386: record PL-247 (silent-delivery is the comms failure class) — write guaranteed, round-trip not, no loud fail [from T-2385 arc]"
+  - time: "2026-07-09T14:09:39"
+    action: "T-2386: real ACs (home-hub routing from presence, scoped for next session) + session-state churn"
+  - time: "2026-07-10T01:37:21"
+    action: "T-2386: home-hub routing for agent contact — resolve_home_hub (declared metadata.addr; observed_addr excluded, ephemeral port) + fp-keyed fleet walk + routed_hub observability; explicit --hub wins; live-smoked all 4 paths"
+  - time: "2026-07-10T01:40:05"
+    action: "T-2386: tick final AC — release 0.11.437 built + installed to ~/.cargo/bin (send-side home-hub routing live on .107)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 850 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 850
+  commits: 4
+  files_changed: 15
+  lines_added: 354
+  lines_removed: 77
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2386-reply-on-sender-hub-routing-convention--.md
+generated_by: context-agent-hybrid

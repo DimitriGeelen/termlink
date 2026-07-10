@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2387: Waker-liveness canary — surface 'host reachable but no push-waker process' (comms loud-contract observability; arc-004 shipped-neq-live guard, T-2380 E4/F3, G-069)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-09T23:21:20Z
+# ============================================================================
+
+task_id: T-2387
+task_name: "Waker-liveness canary — surface 'host reachable but no push-waker process' (comms loud-contract observability; arc-004 shipped-neq-live guard, T-2380 E4/F3, G-069)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-09T09:29:24Z
+completed: 2026-07-09T23:21:15Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-10T01:21:08+02:00
+last_commit: 2026-07-10T01:21:08+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  waker-liveness canary — daily guard for arc-004 shipped≠live (LIVE-no-pty / dead-waker / rail-dark classes); cron installed to /etc/cron.d; ninth empty-log=healthy canary
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-waker-liveness-freshness.sh` exists and classifies two firing classes: (a) **LIVE-but-unwakeable** — any LIVE agent-presence listener on the local hub lacking `metadata.pty_session` (read via `scripts/agent-listeners.sh --json`); (b) **dead-waker** — any local `~/.termlink/be-reachable*.state` whose recorded pushwaker pid is not alive (confirmed a waker process via /proc cmdline, guarding pid-recycle per the T-2239 pattern). Exit 0 = healthy / 1 = firing / 2 = tooling error (hub unreachable ≠ firing — informational, PL-219).'
+  - 'Third firing class (c) **rail-dark**, opt-in via `--expect-armed` (the cron on .107 passes it): fire when ZERO LIVE listeners carry `pty_session` at all — the literal G-069 "0 wakers fleet-wide" observed state, which class (a) alone cannot see (no LIVE listeners → nothing to flag). Without the flag, an empty rail is informational only (hosts that legitimately run no agents stay quiet).'
+  - '`--quiet` prints only on firing (cron-friendly); `--json` emits a jq-friendly envelope carrying per-class entries + counts (`unwakeable[]`, `dead_wakers[]`); test hook `TERMLINK_WAKER_TEST_JSON=<file>` feeds canned listeners JSON for hub-independent verification (PL-213 convention), and a `TERMLINK_WAKER_STATE_DIR` override points the state-file scan at a fixture dir.'
+  - 'Daily cron shipped: `.context/cron/waker-liveness-canary.crontab` runs the script `--quiet` appending to `.context/working/.waker-liveness-canary.log` (empty-log = healthy, `/canaries` auto-discovers) + touches the `.heartbeat` companion; crontab **installed to /etc/cron.d** on .107 (pre-push audit requirement, PL-173 class).'
+  - 'Both firing classes proven via the test hooks: a canned LIVE-no-pty_session listener fires class (a); a fixture state file with a dead pid fires class (b); an all-green fixture (LIVE with pty_session, alive waker pid) exits 0.'
+  - 'CLAUDE.md canary section gains the waker-liveness entry (ninth empty-log=healthy canary, paired with the existing eight); `bash -n` passes on the script.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/cron/waker-liveness-canary.crontab'
+  - 'scripts/check-waker-liveness-freshness.sh'
+  - '.tasks/active/T-2387-waker-liveness-canary--surface-host-reac.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-10T01:21:08"
+    action: "T-2387: waker-liveness canary — daily guard for arc-004 shipped≠live (LIVE-no-pty / dead-waker / rail-dark classes); cron installed to /etc/cron.d; ninth empty-log=healthy canary"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 831 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 831
+  commits: 1
+  files_changed: 4
+  lines_added: 360
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2387-waker-liveness-canary--surface-host-reac.md
+generated_by: context-agent-hybrid

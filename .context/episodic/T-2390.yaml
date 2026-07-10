@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2390: Fix agent-listeners presence read: count-based seek-to-tail blind to live heartbeats under latest-per-cv-key retention
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-10T05:19:49Z
+# ============================================================================
+
+task_id: T-2390
+task_name: "Fix agent-listeners presence read: count-based seek-to-tail blind to live heartbeats under latest-per-cv-key retention"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-10T05:13:42Z
+completed: 2026-07-10T05:19:45Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-10T07:19:13+02:00
+last_commit: 2026-07-10T07:19:44+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix agent-listeners presence read — cv_index instead of count-based seek-to-tail (blind under latest_per_cv_key). tick agent ACs + register PL-250 (count-seek invalid under latest_per_cv_key)
+
+# Key outcomes
+outcomes:
+  - '`agent-listeners.sh` reads presence via `channel subscribe --include-current-value` (extracting `.current_values[].msg`) as the primary path, independent of `channel info.count`'
+  - 'Legacy `count`-based tail-walk retained as a FALLBACK only when the cv path yields no envelopes (backward-compat for non-cv-tagged topics)'
+  - 'Hub-independent test seam `TERMLINK_LISTENERS_CV_TEST_JSON` (mirror of `TERMLINK_LISTENERS_TEST_JSON`, PL-213) feeds canned `--include-current-value` output; a test asserts 4 agents parse LIVE from a fixture whose live offsets sit far above a small count'
+  - 'LIVE proof on this hub: `bash scripts/agent-listeners.sh --no-cache --json` reads the 4 .107 agents LIVE even when agent-presence `count > limit` (i.e. WITHOUT a fresh sweep masking the bug) — counterfactual: old-path 0 live, cv-path 4 LIVE at limit 5 / count 82'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix agent-listeners presence read — cv_index instead of count-based seek-to-tail (blind under latest_per_cv_key)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/learnings.yaml'
+  - 'scripts/agent-listeners.sh'
+  - '.tasks/active/T-2390-fix-agent-listeners-presence-read-count-.md'
+  - 'tests/agent-listeners-cv-read.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-10T07:19:13"
+    action: "T-2390: fix agent-listeners presence read — cv_index instead of count-based seek-to-tail (blind under latest_per_cv_key)"
+  - time: "2026-07-10T07:19:44"
+    action: "T-2390: tick agent ACs + register PL-250 (count-seek invalid under latest_per_cv_key)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 2
+  files_changed: 4
+  lines_added: 397
+  lines_removed: 48
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2390-fix-agent-listeners-presence-read-count-.md
+generated_by: context-agent-hybrid

@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-09T23:44:26Z
-last_update: 2026-07-10T05:25:20Z
+last_update: 2026-07-10T05:49:45Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -369,3 +369,30 @@ modify their checkouts). .141 recovery is a network/operator action.
 **Whole-fleet status:** DISCOVERY layer FIXED + durable on .107 (the host I
 control); fix + heal handed to ring20 for .122/.121; .141 down. All four comms
 layers (WRITE/WAKE/RESPOND/DISCOVERY) now verified working on .107.
+
+### 2026-07-10 — WAKE layer is dark for the 4 production agents (correction + operator authorization) [agent]
+
+**Correction to the 2026-07-10T05:45Z note ("agents ARE armed + reachable
+NOW").** That referred to the transient T-2388 scratch demo agent, which has
+since stopped. A fresh read of the (now-correct, post-T-2390) presence rail
+shows the FOUR production agents — `aef`, `workflow-designer`, `workshop-designer`,
+`sonnenstall` — are **LIVE but every one carries `pty_session=<<absent>>`**:
+4 LIVE, **0 armed**. This is the literal G-069 "0 wakers fleet-wide" state the
+T-2387 canary fires RAIL DARK on. Discovery reads them fine (T-2390); nothing
+rings their PTY when a DM/reply lands, so any requester must poll ("say check").
+Confirmed no retrofit is possible — they are bare `claude --continue` sessions,
+NOT tl-claude-managed, so their PTY is not termlink-injectable (PL-237).
+
+**Operator authorization (2026-07-10):** operator directed "arm both agents at
+next relaunch." This is AC-4 exactly. Arming a running unarmed session requires
+relaunching it through the T-2388 launcher (PL-237 — cannot attach a waker to a
+live headless claude), which interrupts that agent's live work — so it must NOT
+happen mid-task (e.g. aef is mid-reasoning on T-173). The ready relaunch path
+(launcher cwd bug already fixed this arc):
+
+    cd /opt/termlink && bash scripts/tl-claude.sh start --reachable --agent-id <id> -- --resume
+
+(run per id: `aef`, `workflow-designer`, and the other two as they cycle). The
+T-2387 waker-liveness canary continues to nag RAIL DARK daily until each is
+relaunched armed — that nag IS the reminder, so this needs no separate tracking.
+AC-4 stays open pending those relaunches (operator-timing).

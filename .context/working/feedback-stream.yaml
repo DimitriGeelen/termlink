@@ -3798,3 +3798,75 @@ scan_id: R-17ccb9e0
 task_id: T-2385
 payload:
   task_file: .tasks/active/T-2385-agent-contact-reachability-preflight--fa.md
+---
+kind: scan_emitted
+timestamp: '2026-07-09T23:04:29Z'
+scan_id: R-24a95a11
+task_id: T-2388
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-09T23:04:29Z'
+scan_id: R-24a95a11
+task_id: T-2388
+payload:
+  task_file: .tasks/active/T-2388-tl-claude---reachable-auto-armed-injecta.md
+---
+kind: scan_emitted
+timestamp: '2026-07-09T23:21:17Z'
+scan_id: R-96c7a4a5
+task_id: T-2387
+payload:
+  overall: CONCERN
+  finding_count: 4
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-09T23:21:17Z'
+scan_id: R-96c7a4a5
+task_id: T-2387
+payload:
+  task_file: .tasks/active/T-2387-waker-liveness-canary--surface-host-reac.md
+---
+kind: scan_emitted
+timestamp: '2026-07-09T23:40:51Z'
+scan_id: R-3f5b3a19
+task_id: T-2386
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-09T23:40:51Z'
+scan_id: R-3f5b3a19
+task_id: T-2386
+payload:
+  task_file: .tasks/active/T-2386-reply-on-sender-hub-routing-convention--.md
+---
+kind: scan_emitted
+timestamp: '2026-07-10T05:19:46Z'
+scan_id: R-1fd00f81
+task_id: T-2390
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-10T05:19:46Z'
+scan_id: R-1fd00f81
+task_id: T-2390
+payload:
+  task_file: .tasks/active/T-2390-fix-agent-listeners-presence-read-count-.md
