@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-09T23:44:26Z
-last_update: 2026-07-10T04:43:29Z
+last_update: 2026-07-10T04:50:05Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -300,3 +300,28 @@ change to `cd $(printf '%q' "$PWD") && bash $(printf '%q'
 "${SCRIPT_DIR}/tl-claude.sh")` and run install-boot FROM each project dir
 (via termlink_run, per-agent) for all four agents. NEXT SESSION: apply patch,
 install 4 cron files, tick AC 4, close.
+
+### 2026-07-10T05:35Z — presence-stale finding ROOT-CAUSED + FIXED (T-2390); NOT a frozen heartbeat [agent]
+
+**The "presence stale despite live heartbeats" hypothesis above (frozen
+heartbeat / hub-connectivity / re-arm) was WRONG.** Fresh-budget session
+diagnosed the real root cause and shipped the fix as **T-2390** (closed).
+
+- **Heartbeats were healthy the whole time** — all 4 loops posting every 30s,
+  landing at fresh offsets (cv-keys index: aef@33409 ts≈now). No re-arm needed.
+- **Real root cause:** READ-side bug in `agent-listeners.sh`. Under
+  `latest_per_cv_key` retention, `channel info.count` (retained count ~1400) is
+  decoupled from the monotonic tail offset (~33400), so the T-1844
+  `cursor=count-limit` seek clamped to the oldest offset (30810, pinned by dead
+  cv_keys) and read days-stale envelopes. Presence read OFFLINE while agents
+  were live. `hub status running:None` last session was a transient read glitch,
+  NOT a restart (hub pid 113338 up since Jul 7, 2d19h).
+- **Fixed:** agent-listeners.sh now reads the cv_index via
+  `channel subscribe --include-current-value` (correct regardless of sweep
+  cadence). Counterfactual proof: old-path 0 live, cv-path 4 LIVE. Also did the
+  immediate heal (`channel sweep agent-presence`, pruned 1388). Learning PL-250.
+- **Impact on this task:** the SENDER-side reachability blindness that made the
+  fleet look dark is now REPAIRED for every agent-listeners consumer (/peers,
+  agent-listeners-fleet, waker-liveness canary). Round-trip re-test can now
+  proceed on a fleet that reads correctly. install-boot cwd fix (AC 4) still
+  open — that's independent of the presence bug.
