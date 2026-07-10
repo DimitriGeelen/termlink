@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-10T15:06:14Z
-last_update: 2026-07-10T15:06:14Z
+last_update: 2026-07-10T15:49:30Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -70,11 +70,11 @@ closing the return leg. See `docs/reports/T-2393-poll-free-self-advancing-agent-
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `agent-send.sh` appends `--rail "$topic" --cid "$cid"` to the DEFAULT injected doorbell text (making it `/check-arc respond --rail <dm-topic> --cid <cid>`) when both `topic` and `cid` are resolved — so the woken peer receives the exact reply-rail
-- [ ] Backward-compat preserved: an operator-supplied custom `--doorbell-text` is NOT augmented (used verbatim); and if `topic`/`cid` are somehow empty the injected text falls back to bare `/check-arc respond` (never emits a dangling `--rail`/`--cid` with an empty value)
-- [ ] `.claude/commands/check-arc.md` respond-mode (Step 6) documents `--rail <topic>`/`--cid <cid>`: when present, respond DETERMINISTICALLY to that single rail+cid via `agent-respond.sh --topic --conversation-id`, bypassing the unread-scan + multi-match refusal (reply goes back on the ringing rail)
-- [ ] A shell test (`tests/relay-b1-doorbell-rail.sh`) stubs `$TERMLINK` to capture the injected argv and asserts the constructed doorbell text contains `--rail dm:...` and `--cid ...` for a resolved topic+cid, AND falls back to bare `/check-arc respond` when the custom-doorbell path is used
-- [ ] `bash -n scripts/agent-send.sh` passes (syntax) and the new test passes
+- [x] `agent-send.sh` appends `--rail "$topic" --cid "$cid"` to the DEFAULT injected doorbell text (making it `/check-arc respond --rail <dm-topic> --cid <cid>`) when both `topic` and `cid` are resolved — so the woken peer receives the exact reply-rail
+- [x] Backward-compat preserved: an operator-supplied custom `--doorbell-text` is NOT augmented (used verbatim); and if `topic`/`cid` are somehow empty the injected text falls back to bare `/check-arc respond` (never emits a dangling `--rail`/`--cid` with an empty value)
+- [x] `.claude/commands/check-arc.md` respond-mode (Step 6) documents `--rail <topic>`/`--cid <cid>`: when present, respond DETERMINISTICALLY to that single rail+cid via `agent-respond.sh --topic --conversation-id`, bypassing the unread-scan + multi-match refusal (reply goes back on the ringing rail)
+- [x] A shell test (`tests/relay-b1-doorbell-rail.sh`) stubs `$TERMLINK` to capture the injected argv and asserts the constructed doorbell text contains `--rail dm:...` and `--cid ...` for a resolved topic+cid, AND falls back to bare `/check-arc respond` when the custom-doorbell path is used
+- [x] `bash -n scripts/agent-send.sh` passes (syntax) and the new test passes
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
