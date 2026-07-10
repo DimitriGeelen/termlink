@@ -39,12 +39,16 @@ Optional:
   --reply <text>          also post a turn (the answer) on the same conversation
   --up-to <offset>        receipt's up_to metadata (default: highest offset seen
                           for this cid on the topic, else 0)
+  --relay-hops <N>        (relay-loop B3) stamp relay_hops=<N> on the --reply turn
+                          so the far side's circuit-breaker can bound the loop;
+                          pass the incoming hop count + 1 (relay-hop-check's
+                          next_hops). Omit for a normal (non-relay) reply.
 
 Exit: 0 acked (receipt posted) | 2 usage/precondition
 EOF
 }
 
-topic="" peer_fp="" cid="" reply="" up_to=""
+topic="" peer_fp="" cid="" reply="" up_to="" relay_hops=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -53,12 +57,19 @@ while [ $# -gt 0 ]; do
         --conversation-id) cid="${2:-}"; shift 2 ;;
         --reply)           reply="${2:-}"; shift 2 ;;
         --up-to)           up_to="${2:-}"; shift 2 ;;
+        # T-2395 (relay-loop B3): when the reply continues a relay, stamp the
+        # incremented hop counter (caller passes incoming+1, from relay-hop-check
+        # next_hops) so the loop stays bounded on the far side too.
+        --relay-hops)      relay_hops="${2:-}"; shift 2 ;;
         -h|--help)         usage; exit 0 ;;
         *)                 die "unknown arg: $1 (try --help)" ;;
     esac
 done
 
 [ -n "$cid" ] || die "missing --conversation-id"
+if [ -n "$relay_hops" ]; then
+    [[ "$relay_hops" =~ ^[0-9]+$ ]] || die "--relay-hops must be a non-negative integer (got '$relay_hops')"
+fi
 
 # Resolve the destination topic (mirror agent-send.sh dm_topic semantics).
 if [ -n "$topic" ]; then
@@ -99,8 +110,14 @@ echo "agent-respond: receipt posted to '$topic' (cid=$cid, up_to=$up_to)"
 
 # 2. Optionally post the reply turn (the content).
 if [ -n "$reply" ]; then
+    # T-2395 (B3): carry the incremented relay_hops when this reply continues a
+    # relay loop; absent → no metadata (back-compat with plain ack+reply).
+    relay_meta_args=()
+    [ -n "$relay_hops" ] && relay_meta_args=(--metadata relay_hops="$relay_hops")
     reply_json="$("$TERMLINK" channel post "$topic" --msg-type turn --payload "$reply" \
-                    --metadata conversation_id="$cid" --ensure-topic --json)" \
+                    --metadata conversation_id="$cid" \
+                    "${relay_meta_args[@]+"${relay_meta_args[@]}"}" \
+                    --ensure-topic --json)" \
         || die "reply post failed for topic '$topic'"
     reply_offset="$(printf '%s' "$reply_json" | jq -r '.delivered.offset // empty')"
     echo "agent-respond: reply posted to '$topic' (cid=$cid, offset=${reply_offset:-?})"

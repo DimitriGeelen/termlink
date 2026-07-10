@@ -266,11 +266,39 @@ that single conversation and **skip Steps 3–4 discovery entirely**:
    termlink channel subscribe <rail> --limit <count> --json
    ```
 
-2. Ack + reply on the EXACT rail that rang you — the reply goes back on the
-   ringing DM rail, so it wakes the sender's push-waker (closing the return leg):
+2. **Check the hop budget BEFORE replying** (relay-loop B3 circuit-breaker,
+   T-2395). The relay loop self-advances hop-by-hop; the circuit-breaker stops
+   it ping-ponging forever:
 
    ```
-   scripts/agent-respond.sh --topic <rail> --conversation-id <cid> --reply "<your answer>"
+   scripts/relay-hop-check.sh --topic <rail> --cid <cid>
+   ```
+
+   - `verdict=continue ... next_hops=<K>` → proceed to step 3, passing
+     `--relay-hops <K>` on the reply.
+   - `verdict=stop ... reason=hop-budget-exhausted` (exit 10) → **STOP. Do NOT
+     auto-reply.** Surface the blocker LOUDLY to the human: this thread has run
+     its budget of autonomous hops (`TERMLINK_RELAY_MAX_HOPS`, default 4) and
+     needs a human to review before it continues. Silence here is a *declared
+     blocker*, never a silent idle.
+
+3. **The continuation contract (relay-loop B2, advance-or-declare).** Being woken
+   buys one turn — spend it advancing the actual work, not just acknowledging:
+   - **Advance** to your next REAL blocker on this task (do the mechanical /
+     agent-resolvable middle — that is the part manual nudging was wasting).
+   - Then **either** reply on this rail with your progress + the next question
+     (rings the sender, continues the loop), **or if you hit a real blocker**
+     (a human decision, a GO gate, another agent's input, an external dep)
+     **declare it explicitly and stop.** Do **not** idle silently — *advance or
+     declare*. A human GO gate is a correct stop (sovereignty), not a failure.
+
+4. Ack + reply on the EXACT rail that rang you — the reply goes back on the
+   ringing DM rail, so it wakes the sender's push-waker (closing the return leg).
+   Carry the incremented hop count from step 2 so the far side stays bounded:
+
+   ```
+   scripts/agent-respond.sh --topic <rail> --conversation-id <cid> \
+       --reply "<your answer>" --relay-hops <next_hops-from-step-2>
    ```
 
 This path is unambiguous by construction: the sender already resolved the
@@ -278,6 +306,11 @@ canonical `dm:` topic + `cid`, so there is **no substring scan and no
 multi-match refusal** (contrast `/reply`, which must rediscover the rail and
 refuses on >1 candidate). Use `--rail`/`--cid` verbatim; do NOT re-derive them.
 Only fall through to Step 6b (below) if the flags are absent or malformed.
+
+The continuation contract + hop check are **framework-owned and non-spoofable**
+(IW-3): they live in the RECEIVER's own skill, so a sender cannot inject
+continuation instructions into the woken agent — the sender's message stays pure
+data, the relay policy is the receiver's local rule.
 
 ### Step 6b — Discovery path (no rail hint)
 

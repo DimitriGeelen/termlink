@@ -106,6 +106,12 @@ EOF
 to_session="" topic="" peer_fp="" message="" cid="" await_reply=""
 to_agent_id="" dry_run=0 peer_hub="" no_await_ack=0 transport="auto" status=""
 hub_flag=""
+# T-2395 (relay-loop B3): relay_hops counter carried in turn metadata so the
+# hop-budget circuit-breaker (scripts/relay-hop-check.sh) can stop a runaway
+# loop. Empty = not a relay turn (no metadata stamped); set explicitly via
+# --relay-hops, or defaulted to 1 when the doorbell is rail-augmented (a relay
+# initiation). See docs/reports/T-2393-...-inception.md.
+relay_hops=""
 
 # T-2299/V6-S2: bounded reachability probe. Wraps `termlink remote ping <addr>`
 # (cmd_remote_ping) under a short timeout so a wedged/unreachable peer hub can
@@ -146,6 +152,7 @@ while [ $# -gt 0 ]; do
         --timeout)        timeout="${2:-}"; shift 2 ;;
         --max-rings)      max_rings="${2:-}"; shift 2 ;;
         --doorbell-text)  doorbell_text="${2:-}"; doorbell_text_default=0; shift 2 ;;
+        --relay-hops)     relay_hops="${2:-}"; shift 2 ;;
         --await-reply)    await_reply="${2:-}"; shift 2 ;;
         --no-await-ack)   no_await_ack=1; shift ;;
         --transport)      transport="${2:-}"; shift 2 ;;
@@ -386,6 +393,14 @@ fi
 # unread-scan + multi-match refusal.
 if [ "${doorbell_text_default:-0}" -eq 1 ] && [ -n "$topic" ] && [ -n "$cid" ]; then
     doorbell_text="/check-arc respond --rail $topic --cid $cid"
+    # T-2395 (B3): a rail-augmented doorbell IS a relay initiation — start the
+    # hop counter at 1 unless the caller set it explicitly. A custom
+    # --doorbell-text (not a relay turn) leaves relay_hops empty → no metadata.
+    [ -n "$relay_hops" ] || relay_hops=1
+fi
+# Validate an explicit --relay-hops (if any) before it reaches the post/dry-run.
+if [ -n "$relay_hops" ]; then
+    [[ "$relay_hops" =~ ^[0-9]+$ ]] || die "--relay-hops must be a non-negative integer (got '$relay_hops')"
 fi
 
 # T-2273: with --to + --dry-run, print the fully resolved routing (incl. hub) and
@@ -394,7 +409,7 @@ fi
 # T-2394 appends the (possibly rail-augmented) doorbell_text so the B1 seam test
 # can assert the reply-rail is carried without needing a live hub.
 if [ "$dry_run" -eq 1 ]; then
-    echo "RESOLVED: agent_id=$to_agent_id status=$status to_session=$to_session topic=$topic peer_fp=$peer_fp hub=${peer_hub:-<local>} routing=$([ -n "$peer_hub" ] && echo remote || echo local) transport=$transport direct_addr=$direct_addr reachable=$reachable doorbell_text=[$doorbell_text]"
+    echo "RESOLVED: agent_id=$to_agent_id status=$status to_session=$to_session topic=$topic peer_fp=$peer_fp hub=${peer_hub:-<local>} routing=$([ -n "$peer_hub" ] && echo remote || echo local) transport=$transport direct_addr=$direct_addr reachable=$reachable doorbell_text=[$doorbell_text] relay_hops=${relay_hops:-<none>}"
     exit 0
 fi
 
@@ -456,8 +471,15 @@ elif [ -n "$peer_hub" ]; then
 fi
 
 # 1. Post the turn (mail) once.
+# T-2395 (B3): stamp relay_hops onto the turn when this is a relay initiation, so
+# the recipient's circuit-breaker (relay-hop-check.sh) can read + bound the loop.
+# A non-relay send leaves relay_hops empty → no extra metadata (back-compat).
+relay_meta_args=()
+[ -n "$relay_hops" ] && relay_meta_args=(--metadata relay_hops="$relay_hops")
 post_json="$("$TERMLINK" channel post "$topic" --msg-type turn --payload "$message" \
-                --metadata conversation_id="$cid" --ensure-topic --json \
+                --metadata conversation_id="$cid" \
+                "${relay_meta_args[@]+"${relay_meta_args[@]}"}" \
+                --ensure-topic --json \
                 "${hub_args[@]+"${hub_args[@]}"}")" \
     || die "channel post failed for topic '$topic'${peer_hub:+ on hub $peer_hub}"
 post_offset="$(printf '%s' "$post_json" | jq -r '.delivered.offset // empty')"
