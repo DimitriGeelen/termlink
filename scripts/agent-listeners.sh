@@ -166,62 +166,99 @@ if [ -z "$rollup" ]; then
 # without a running hub.
 if [ -n "${TERMLINK_LISTENERS_TEST_JSON:-}" ]; then
     raw="$(cat "$TERMLINK_LISTENERS_TEST_JSON" 2>/dev/null || true)"
+elif [ -n "${TERMLINK_LISTENERS_CV_TEST_JSON:-}" ]; then
+    # T-2390 test seam (mirror of TERMLINK_LISTENERS_TEST_JSON, PL-213): feed
+    # canned `channel subscribe --include-current-value` output. Extract the
+    # per-cv_key current-value envelopes the rollup jq below slurps.
+    cv_raw="$(cat "$TERMLINK_LISTENERS_CV_TEST_JSON" 2>/dev/null || true)"
+    raw="$(printf '%s' "$cv_raw" | jq -c 'select(has("current_values")) | .current_values[].msg' 2>/dev/null || true)"
 else
 
-# T-1844: seek to tail before scanning. Default subscribe is cursor=0
-# which returns the OLDEST `--limit` envelopes; on busy topics the most-
-# recent heartbeats are NEVER scanned and total_listeners reads 0
-# spuriously. Probe topic post count via `channel info --json`, then
-# subscribe with `--cursor max(0, count - limit)`.
-info_args=("$topic" --json)
-[ -n "$hub" ] && info_args+=(--hub "$hub")
-
-post_count=0
-info_raw="$("$TERMLINK" channel info "${info_args[@]}" 2>"$stderr_file")"
-info_rc=$?
-if [ "$info_rc" -ne 0 ]; then
-    # G-060 degradation: hub healthy but topic absent. Match the JSON-RPC
-    # code, the textual variants ("unknown topic"), and the human-readable
-    # form ("Topic 'X' not found") that `channel info` emits.
-    if grep -qE '\-32013|unknown topic|[Nn]ot found' "$stderr_file"; then
-        raw=""
-        info_skip=1
-    else
-        cat "$stderr_file" >&2
-        echo "agent-listeners: channel info failed (exit=$info_rc)" >&2
-        exit 3
-    fi
-else
-    # `channel info --json` payload contains `.count` (T-1324). Accept
-    # legacy field names defensively in case the binary is older.
-    post_count="$(printf '%s' "$info_raw" | jq -r '(.count // .posts // .post_count // 0)' 2>/dev/null || echo 0)"
-    info_skip=0
+# T-2390: PRIMARY read path — the cv_index (T-2103) via
+# `channel subscribe --include-current-value`. Returns exactly one
+# current-value envelope per cv_key (agent-presence tags cv_key=agent_id since
+# T-2107), each at its LATEST offset — O(K) and correct regardless of retention
+# sweep cadence. This replaces the T-1844 count-based seek-to-tail, which is
+# INVALID under `latest_per_cv_key` retention: there `channel info.count` is the
+# retained-message count, DECOUPLED from the monotonic tail offset, so
+# `cursor = count - limit` lands far below the live heartbeats and reads
+# days-stale envelopes (T-2390 RCA). The legacy seek survives below as a
+# fallback for topics whose producers post without cv_key.
+cv_sub_args=("$topic" --include-current-value --limit 1 --json)
+[ -n "$hub" ] && cv_sub_args+=(--hub "$hub")
+: > "$stderr_file"
+cv_raw="$("$TERMLINK" channel subscribe "${cv_sub_args[@]}" 2>"$stderr_file")"
+cv_rc=$?
+raw=""
+info_skip=0
+if [ "$cv_rc" -eq 0 ]; then
+    raw="$(printf '%s' "$cv_raw" | jq -c 'select(has("current_values")) | .current_values[].msg' 2>/dev/null || true)"
+elif grep -qE '\-32013|unknown topic|[Nn]ot found' "$stderr_file"; then
+    # G-060 degradation: hub healthy but topic absent. Treat as empty and skip
+    # the legacy fallback too (nothing to read).
+    raw=""
+    info_skip=1
 fi
+# else: cv_rc != 0 for another reason (e.g. a binary predating
+# --include-current-value) — leave raw empty so the legacy fallback runs.
 
-if [ "${info_skip:-0}" -ne 1 ]; then
-    cursor=0
-    if [ "$post_count" -gt "$limit" ]; then
-        cursor=$((post_count - limit))
-    fi
-    sub_args=("$topic" --cursor "$cursor" --limit "$limit" --json)
-    [ -n "$hub" ] && sub_args+=(--hub "$hub")
+# T-2390 FALLBACK: legacy count-based seek-to-tail (T-1844). Runs ONLY when the
+# cv path produced no envelopes AND the topic was not reported absent — covers
+# --no-cv-key producers, pre-T-2107 heartbeats, and binaries lacking
+# --include-current-value. On a `latest_per_cv_key` topic with a live cv_index
+# this branch never executes.
+if [ -z "$raw" ] && [ "${info_skip:-0}" -ne 1 ]; then
+    info_args=("$topic" --json)
+    [ -n "$hub" ] && info_args+=(--hub "$hub")
 
+    post_count=0
     : > "$stderr_file"
-    raw="$("$TERMLINK" channel subscribe "${sub_args[@]}" 2>"$stderr_file")"
-    rc=$?
-    if [ "$rc" -ne 0 ]; then
-        if grep -qE '\-32013|unknown topic' "$stderr_file"; then
-            # Topic existed at info-time, disappeared by subscribe-time. Rare
-            # but possible (operator deleted between probes); treat as empty.
+    info_raw="$("$TERMLINK" channel info "${info_args[@]}" 2>"$stderr_file")"
+    info_rc=$?
+    if [ "$info_rc" -ne 0 ]; then
+        # G-060 degradation: hub healthy but topic absent. Match the JSON-RPC
+        # code, the textual variants ("unknown topic"), and the human-readable
+        # form ("Topic 'X' not found") that `channel info` emits.
+        if grep -qE '\-32013|unknown topic|[Nn]ot found' "$stderr_file"; then
             raw=""
+            info_skip=1
         else
             cat "$stderr_file" >&2
-            echo "agent-listeners: channel subscribe failed (exit=$rc)" >&2
+            echo "agent-listeners: channel info failed (exit=$info_rc)" >&2
             exit 3
+        fi
+    else
+        # `channel info --json` payload contains `.count` (T-1324). Accept
+        # legacy field names defensively in case the binary is older.
+        post_count="$(printf '%s' "$info_raw" | jq -r '(.count // .posts // .post_count // 0)' 2>/dev/null || echo 0)"
+        info_skip=0
+    fi
+
+    if [ "${info_skip:-0}" -ne 1 ]; then
+        cursor=0
+        if [ "$post_count" -gt "$limit" ]; then
+            cursor=$((post_count - limit))
+        fi
+        sub_args=("$topic" --cursor "$cursor" --limit "$limit" --json)
+        [ -n "$hub" ] && sub_args+=(--hub "$hub")
+
+        : > "$stderr_file"
+        raw="$("$TERMLINK" channel subscribe "${sub_args[@]}" 2>"$stderr_file")"
+        rc=$?
+        if [ "$rc" -ne 0 ]; then
+            if grep -qE '\-32013|unknown topic' "$stderr_file"; then
+                # Topic existed at info-time, disappeared by subscribe-time.
+                # Rare but possible (operator deleted between probes); empty.
+                raw=""
+            else
+                cat "$stderr_file" >&2
+                echo "agent-listeners: channel subscribe failed (exit=$rc)" >&2
+                exit 3
+            fi
         fi
     fi
 fi
-fi  # T-2270: close TERMLINK_LISTENERS_TEST_JSON else-branch (probe path)
+fi  # T-2270/T-2390: close TEST_JSON / CV-test / live-probe branch
 
 # Now compute the rollup via jq. Steps:
 # 1. Take all heartbeat envelopes from --limit-most-recent scan.
