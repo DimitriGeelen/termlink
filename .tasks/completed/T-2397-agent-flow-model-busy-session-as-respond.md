@@ -4,16 +4,16 @@ name: "Agent flow model: busy-session-as-responder vs dedicated responder"
 description: >
   Inception: Agent flow model: busy-session-as-responder vs dedicated responder
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-07-10T18:33:23Z
-last_update: 2026-07-10T18:33:46Z
-date_finished: null
+last_update: 2026-07-10T19:20:48Z
+date_finished: 2026-07-10T19:20:48Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -97,15 +97,15 @@ D poll-within-turn, E human-in-the-loop). Full analysis:
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -162,7 +162,11 @@ Provisional GO on Model B (single armed auto-accept session, interrupt-and-resum
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Provisional GO on Model B (single armed auto-accept session, interrupt-and-resume) — already built via T-2388, just not deployed; validate live before building dedicated responders (Model A). The comms saga bottoms out here: an interactive claude session is turn-based and cannot be both busy-on-own-work AND an instant peer responder.
+
+**Date**: 2026-07-10T19:20:47Z
 
 ## Updates
 
@@ -171,3 +175,26 @@ Provisional GO on Model B (single armed auto-accept session, interrupt-and-resum
 
 ### 2026-07-10T18:33:46Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-07-10T19:20:47Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Provisional GO on Model B (single armed auto-accept session, interrupt-and-resume) — already built via T-2388, just not deployed; validate live before building dedicated responders (Model A). The comms saga bottoms out here: an interactive claude session is turn-based and cannot be both busy-on-own-work AND an instant peer responder.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-067cbdc6
+- **Timestamp:** 2026-07-10T19:20:48Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-1
+     - evidence: `IW-1 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+### 2026-07-10T19:20:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
