@@ -107,3 +107,33 @@ plus, on GO, a build task for whatever step-2 reveals is missing.
   live validation; the one unknown (interruption-coherence, IW-1) needs two armed
   agents, not more code.
 - **Outcome:** awaiting human go/no-go on the model + IW-1..IW-4.
+
+### 2026-07-10 — step-2 live validation ran (T-2398)
+
+Two scratch agents (relay-test-a/-b) launched armed + `IS_SANDBOX=1 claude
+--dangerously-skip-permissions` (auto-accept) on .107. Full evidence:
+`docs/reports/T-2398-findings.md`.
+
+- **Model B premise PROVEN:** an armed auto-accept session **consumes an injected
+  wake and replies** — relay-test-b acked at rail offset 1 (+47s); in the two-hop
+  test B answered "17×23=391" **and advanced with a follow-up question** at
+  offset 3 (+41s). Two autonomous hops, no manual nudge. Contrast with T-2396
+  manual-mode silent-fail: manual claude never submits the doorbell.
+- **IW-1 PASSED (no derail):** relay-test-a, rung mid-task, **completed its own
+  task** (counted `.sh` files → 22,470 total lines) **and** answered the peer
+  interrupt ("5+5=10"), correctly treating peer content as a G-020 *proposal*.
+  The injected wake was handled as queued input after the running turn — coherent.
+- **Dominant finding — the blocker is NOT the model, it's identity (T-1693):**
+  `agent-send.sh` reported `FAILED — receiver never acked` on BOTH the premise and
+  two-hop sends even though the rail shows the replies landed. Cause: all
+  co-resident .107 sessions sign envelopes with the shared host key `d1993c2c`, so
+  receipt/`--await-reply` cannot tell sender from receiver → false negatives. This
+  false negative is what made A *abandon* the thread instead of taking hop 3. So
+  the autonomous chain stalls at 2 hops on the **confirmation layer**, not the
+  execution model.
+- **A-vs-B recommendation: keep GO on Model B (it passed its trial), but it is
+  necessary-not-sufficient.** The highest-priority build item is **per-agent
+  envelope identity (T-1693)**, then making `tl-claude.sh --reachable` actually
+  arm auto-accept (`IS_SANDBOX=1 …`, + fix launch/teardown bugs F1/F2/F4) and
+  pre-arming a relay agent's active task (F5). **Model A not needed** to make B's
+  worker advance a thread — B advanced it here.
