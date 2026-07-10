@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-10T05:13:42Z
-last_update: 2026-07-10T05:13:42Z
+last_update: 2026-07-10T05:19:15Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -51,10 +51,10 @@ cadence); fall back to the legacy tail-walk only when no cv_index exists.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `agent-listeners.sh` reads presence via `channel subscribe --include-current-value` (extracting `.current_values[].msg`) as the primary path, independent of `channel info.count`
-- [ ] Legacy `count`-based tail-walk retained as a FALLBACK only when the cv path yields no envelopes (backward-compat for non-cv-tagged topics)
-- [ ] Hub-independent test seam `TERMLINK_LISTENERS_CV_TEST_JSON` (mirror of `TERMLINK_LISTENERS_TEST_JSON`, PL-213) feeds canned `--include-current-value` output; a test asserts 4 agents parse LIVE from a fixture whose live offsets sit far above a small count
-- [ ] LIVE proof on this hub: `bash scripts/agent-listeners.sh --no-cache --json` reads the 4 .107 agents LIVE even when agent-presence `count > limit` (i.e. WITHOUT a fresh sweep masking the bug)
+- [x] `agent-listeners.sh` reads presence via `channel subscribe --include-current-value` (extracting `.current_values[].msg`) as the primary path, independent of `channel info.count`
+- [x] Legacy `count`-based tail-walk retained as a FALLBACK only when the cv path yields no envelopes (backward-compat for non-cv-tagged topics)
+- [x] Hub-independent test seam `TERMLINK_LISTENERS_CV_TEST_JSON` (mirror of `TERMLINK_LISTENERS_TEST_JSON`, PL-213) feeds canned `--include-current-value` output; a test asserts 4 agents parse LIVE from a fixture whose live offsets sit far above a small count
+- [x] LIVE proof on this hub: `bash scripts/agent-listeners.sh --no-cache --json` reads the 4 .107 agents LIVE even when agent-presence `count > limit` (i.e. WITHOUT a fresh sweep masking the bug) — counterfactual: old-path 0 live, cv-path 4 LIVE at limit 5 / count 82
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

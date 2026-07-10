@@ -2507,3 +2507,10 @@ learnings:
   date: 2026-07-09
   context: Added via context agent
   application: TBD
+- id: PL-250
+  learning: "Count-based seek-to-tail (cursor = channel-info.count - limit) is INVALID on a latest_per_cv_key topic: count is the retained-message count, decoupled from the monotonic tail offset, so the cursor clamps to the oldest offset (pinned by never-superseded dead-agent cv_keys) and reads days-stale envelopes. Read the cv_index via 'channel subscribe --include-current-value' instead — O(K), correct regardless of sweep cadence. Symptom class: presence/discovery reads OFFLINE while heartbeats are demonstrably landing at fresh offsets."
+  source: P-001
+  task: T-2390
+  date: 2026-07-10
+  context: Added via context agent
+  application: TBD
