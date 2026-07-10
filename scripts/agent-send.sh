@@ -132,7 +132,7 @@ _probe_reachable() {
 # Default doorbell SIGNALS respond mode (T-1809): a bare `/check-arc` wakes the
 # listener in read-only browse mode and it never acks; `/check-arc respond` tells
 # it to enter respond mode and post a receipt+reply. Override with --doorbell-text.
-timeout=10 max_rings=3 doorbell_text="/check-arc respond"
+timeout=10 max_rings=3 doorbell_text="/check-arc respond" doorbell_text_default=1
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -145,7 +145,7 @@ while [ $# -gt 0 ]; do
         --conversation-id) cid="${2:-}"; shift 2 ;;
         --timeout)        timeout="${2:-}"; shift 2 ;;
         --max-rings)      max_rings="${2:-}"; shift 2 ;;
-        --doorbell-text)  doorbell_text="${2:-}"; shift 2 ;;
+        --doorbell-text)  doorbell_text="${2:-}"; doorbell_text_default=0; shift 2 ;;
         --await-reply)    await_reply="${2:-}"; shift 2 ;;
         --no-await-ack)   no_await_ack=1; shift ;;
         --transport)      transport="${2:-}"; shift 2 ;;
@@ -372,15 +372,31 @@ if [ "$transport" != "hub" ] && [ -n "$peer_hub" ]; then
     reachable="$(_probe_reachable "$peer_hub")"
 fi
 
+[ -n "$cid" ] || cid="cid-$(date +%s)-${RANDOM}"
+
+# T-2394 (relay-loop B1): make the doorbell carry the reply-rail so the woken
+# peer replies on the EXACT dm topic + conversation_id that rang it — closing the
+# return leg — instead of rediscovering the rail by scanning (and possibly
+# replying on a broadcast thread that never rings us back). `topic` is resolved
+# above and `cid` is defaulted just above; both are available at inject time.
+# Only the DEFAULT doorbell text is augmented (a custom --doorbell-text is used
+# verbatim), and only when both values are non-empty (never emit a dangling
+# --rail/--cid). The receive side (/check-arc respond, .claude/commands/check-arc.md
+# Step 6) parses --rail/--cid and forwards them to agent-respond.sh, bypassing the
+# unread-scan + multi-match refusal.
+if [ "${doorbell_text_default:-0}" -eq 1 ] && [ -n "$topic" ] && [ -n "$cid" ]; then
+    doorbell_text="/check-arc respond --rail $topic --cid $cid"
+fi
+
 # T-2273: with --to + --dry-run, print the fully resolved routing (incl. hub) and
 # stop before any post/inject — the seam tests assert against for cross-hub.
 # T-2299/V6-S2 extends the line with the transport plan.
+# T-2394 appends the (possibly rail-augmented) doorbell_text so the B1 seam test
+# can assert the reply-rail is carried without needing a live hub.
 if [ "$dry_run" -eq 1 ]; then
-    echo "RESOLVED: agent_id=$to_agent_id status=$status to_session=$to_session topic=$topic peer_fp=$peer_fp hub=${peer_hub:-<local>} routing=$([ -n "$peer_hub" ] && echo remote || echo local) transport=$transport direct_addr=$direct_addr reachable=$reachable"
+    echo "RESOLVED: agent_id=$to_agent_id status=$status to_session=$to_session topic=$topic peer_fp=$peer_fp hub=${peer_hub:-<local>} routing=$([ -n "$peer_hub" ] && echo remote || echo local) transport=$transport direct_addr=$direct_addr reachable=$reachable doorbell_text=[$doorbell_text]"
     exit 0
 fi
-
-[ -n "$cid" ] || cid="cid-$(date +%s)-${RANDOM}"
 
 # ── Transport branch (T-2301/V6-S4). ─────────────────────────────────────────
 # S2 laid the seam (flag + bounded probe → $reachable); S4 turns it into the

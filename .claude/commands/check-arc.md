@@ -253,6 +253,34 @@ Enter this step ONLY when `/check-arc` fired as a doorbell wake (a peer rang it
 via `agent-send.sh`), not on a manual browse. The goal is to close the loop: the
 sender is blocked polling for a receipt and will re-ring until it sees one.
 
+### Step 6a — Rail-directed fast path (T-2394, relay-loop B1)
+
+If `$ARGUMENTS` contains **`--rail <topic>`** and **`--cid <cid>`** (the doorbell
+now stamps the exact reply-rail it rang — `agent-send.sh` builds
+`/check-arc respond --rail dm:<a>:<b> --cid <cid>`), respond DETERMINISTICALLY to
+that single conversation and **skip Steps 3–4 discovery entirely**:
+
+1. Read only that conversation's unread turn(s) for content + context:
+
+   ```
+   termlink channel subscribe <rail> --limit <count> --json
+   ```
+
+2. Ack + reply on the EXACT rail that rang you — the reply goes back on the
+   ringing DM rail, so it wakes the sender's push-waker (closing the return leg):
+
+   ```
+   scripts/agent-respond.sh --topic <rail> --conversation-id <cid> --reply "<your answer>"
+   ```
+
+This path is unambiguous by construction: the sender already resolved the
+canonical `dm:` topic + `cid`, so there is **no substring scan and no
+multi-match refusal** (contrast `/reply`, which must rediscover the rail and
+refuses on >1 candidate). Use `--rail`/`--cid` verbatim; do NOT re-derive them.
+Only fall through to Step 6b (below) if the flags are absent or malformed.
+
+### Step 6b — Discovery path (no rail hint)
+
 For each unread DM conversation found in Steps 3–4:
 
 1. **Read the unread turn(s)** to get the content AND the conversation id:
