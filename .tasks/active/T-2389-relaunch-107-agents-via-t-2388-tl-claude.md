@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-09T23:44:26Z
-last_update: 2026-07-09T23:54:13Z
+last_update: 2026-07-10T04:34:34Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -160,14 +160,27 @@ captured before its process is stopped, so no conversation context is lost.
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-07-10 — permission mode for push-woken agents (OPERATOR DECISION)
+
+- **Chose:** `--dangerously-skip-permissions` for the four AEF-governed project
+  agents (aef, sonnenstall, workshop-designer, workflow-designer). Operator
+  directive 2026-07-10: "proceed as seen fit and suggested … focus on making
+  the doorbell replacement work across the whole fleet as intended", following
+  the agent's explicit recommendation of this option. Tier-2 situational
+  authorization: the operator also authorized proceeding past the budget-gate
+  critical threshold ("proceed till 300k") — source-file work executed via
+  termlink_run where the in-session gate blocks, logged here.
+- **Why:** (a) acceptEdits does not cover Bash — the respond leg is entirely
+  termlink CLI calls, so it buys nothing; (b) comms-only allowlists give "ack"
+  but not delegated work — the substrate dispatch model needs woken agents to
+  ACT; (c) all four projects run AEF governance (Tier-0 hooks, task gate,
+  audit) — that is the real guardrail layer, same configuration as the
+  termlink operator session itself; single-operator trusted host.
+- **Rejected:** acceptEdits (doesn't unblock Bash); per-project allowlists
+  (recreates option 2 with more steps for real work); leaving manual mode
+  (defeats the entire push-wake arc — woken agents can't respond).
+- **Exception:** the personal claude in /home/dimitri-mint-dev stays
+  interactive/manual (no framework governance around it).
 
 ## Decision
 
