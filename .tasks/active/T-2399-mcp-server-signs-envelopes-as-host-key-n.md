@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-10T21:54:18Z
-last_update: 2026-07-10T21:54:18Z
+last_update: 2026-07-10T22:07:11Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -45,6 +45,41 @@ armed session (aef, TERMLINK_AGENT_ID=aef) posting via MCP signs as the host key
 `d1993c2c` instead of its per-agent fp `0e7ee6ca` — verified live 2026-07-10 (aef
 reply on `dm:0e7ee6ca:6a646ce8` came from `d1993c2c`). Sibling to PL-236 (T-2324:
 `agent identity` also ignores the resolver env). Root cause per T-2399 Explore.
+
+## Deploy / activation runbook (next session — code fix is committed bf0a47ea)
+
+The CODE leak is fixed; live behavior is UNCHANGED until deployed + env-activated.
+Do all of this in one session, then WATCH a multi-hop run — do not declare done
+on one hop.
+
+1. **Push** the two local commits first: `cd /opt/termlink && git push origin main`
+   (pre-push audit ~80-100s; run in background, one at a time — see memory).
+2. **Rebuild + install** the release binary carrying the fix (fleet is musl — see
+   memory `upgrade_stale_field_hub`): `cargo build --release -p termlink` (restamp
+   with `cargo clean` if the version doesn't bump), then install to `~/.cargo/bin/termlink`.
+3. **Restart `mcp serve` WITH identity env.** The pooled `termlink mcp serve`
+   procs run `TERMLINK_AGENT_ID=<unset>` (children of the shared `claude daemon`,
+   NOT the per-agent session — verified via /proc parent-chain 2026-07-10). Even
+   the fixed binary falls back to the host key without the env. Add
+   `"env": { "TERMLINK_AGENT_ID": "<agent>" }` (or `TERMLINK_IDENTITY_FILE`) to
+   each project's `.mcp.json` termlink entry (/opt/999 → aef, /opt/832 →
+   workflow-designer), then restart claude so it respawns mcp serve with that env.
+   NOTE the daemon-pooling caveat: a pre-spawned bg-spare may not pick up the
+   project env — may need to kill the claude daemon so servers respawn per-project.
+4. **Watched multi-hop test.** designer→aef via
+   `LISTENERS_LOCAL_VERB=/opt/termlink/scripts/agent-listeners.sh
+   LISTENERS_VERB=/opt/termlink/scripts/agent-listeners-fleet.sh
+   TERMLINK_AGENT_ID=workflow-designer bash /opt/termlink/scripts/agent-send.sh
+   --to aef ...` (run from /opt/termlink cwd OR pass those abs verbs — agent-send
+   references scripts/ RELATIVE). Then verify on `dm:0e7ee6ca:6a646ce8`:
+   EVERY reply's `sender_id` is the poster's OWN fp (aef=0e7ee6ca, designer=
+   6a646ce8), NOT d1993c2c, AND the loop chains ≥3 hops WITHOUT a manual nudge.
+   If it stalls, the next broken link is now visible — fix it loud (G-083).
+5. Only then: tick the live-verification, close T-2399, and stop the scratch
+   agents (`relay-validator` still parked at a Tier-0 gate).
+
+Cross-project note: T-559 blocks direct Bash to /opt/999 & /opt/832 from the
+/opt/termlink session — drive all of the above through `termlink run --cwd <proj>`.
 
 ## Acceptance Criteria
 
