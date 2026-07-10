@@ -11969,7 +11969,7 @@ impl TermLinkTools {
             .map_err(|e| format!("payload serialize: {e}"))?;
         let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = termlink_session::agent_identity::Identity::load_or_create(&identity_dir)
+        let identity = termlink_session::agent_identity::resolve_signing_identity(&identity_dir)
             .map_err(|e| format!("identity load: {e}"))?;
         let ts_unix_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -17611,7 +17611,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -17690,7 +17690,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -17834,7 +17834,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -18221,7 +18221,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -18351,7 +18351,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -18576,7 +18576,7 @@ impl TermLinkTools {
                 };
                 let identity_dir = std::path::PathBuf::from(home).join(".termlink");
                 let identity =
-                    match termlink_session::agent_identity::Identity::load_or_create(&identity_dir)
+                    match termlink_session::agent_identity::resolve_signing_identity(&identity_dir)
                     {
                         Ok(i) => i,
                         Err(e) => return json_err(format!("identity load: {e}")),
@@ -18622,7 +18622,7 @@ impl TermLinkTools {
                 };
                 let identity_dir = std::path::PathBuf::from(home).join(".termlink");
                 let identity =
-                    match termlink_session::agent_identity::Identity::load_or_create(&identity_dir)
+                    match termlink_session::agent_identity::resolve_signing_identity(&identity_dir)
                     {
                         Ok(i) => i,
                         Err(e) => return json_err(format!("identity load: {e}")),
@@ -18668,7 +18668,7 @@ impl TermLinkTools {
                 };
                 let identity_dir = std::path::PathBuf::from(home).join(".termlink");
                 let identity =
-                    match termlink_session::agent_identity::Identity::load_or_create(&identity_dir)
+                    match termlink_session::agent_identity::resolve_signing_identity(&identity_dir)
                     {
                         Ok(i) => i,
                         Err(e) => return json_err(format!("identity load: {e}")),
@@ -19021,7 +19021,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -19057,7 +19057,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -19128,7 +19128,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -19198,7 +19198,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -19276,7 +19276,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -19348,7 +19348,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -19420,7 +19420,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -19493,7 +19493,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -19564,7 +19564,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -19634,7 +19634,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -19704,7 +19704,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -19945,7 +19945,7 @@ impl TermLinkTools {
                     Err(_) => return json_err("HOME not set"),
                 };
                 let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-                match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+                match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
                     Ok(i) => i.fingerprint().to_string(),
                     Err(e) => return json_err(format!("identity load: {e}")),
                 }
@@ -20116,7 +20116,7 @@ impl TermLinkTools {
                 };
                 let identity_dir = std::path::PathBuf::from(home).join(".termlink");
                 let identity =
-                    match termlink_session::agent_identity::Identity::load_or_create(&identity_dir)
+                    match termlink_session::agent_identity::resolve_signing_identity(&identity_dir)
                     {
                         Ok(i) => i,
                         Err(e) => return json_err(format!("identity load: {e}")),
@@ -20163,7 +20163,7 @@ impl TermLinkTools {
                 };
                 let identity_dir = std::path::PathBuf::from(home).join(".termlink");
                 let identity =
-                    match termlink_session::agent_identity::Identity::load_or_create(&identity_dir)
+                    match termlink_session::agent_identity::resolve_signing_identity(&identity_dir)
                     {
                         Ok(i) => i,
                         Err(e) => return json_err(format!("identity load: {e}")),
@@ -20248,7 +20248,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -20386,7 +20386,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -20456,7 +20456,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -20525,7 +20525,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -20695,7 +20695,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -20882,7 +20882,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -20954,7 +20954,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -21030,7 +21030,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -21283,7 +21283,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -21355,7 +21355,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -21426,7 +21426,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -21835,7 +21835,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -21905,7 +21905,7 @@ impl TermLinkTools {
                 };
                 let identity_dir = std::path::PathBuf::from(home).join(".termlink");
                 let identity =
-                    match termlink_session::agent_identity::Identity::load_or_create(&identity_dir)
+                    match termlink_session::agent_identity::resolve_signing_identity(&identity_dir)
                     {
                         Ok(i) => i,
                         Err(e) => return json_err(format!("identity load: {e}")),
@@ -22104,7 +22104,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -22175,7 +22175,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -22246,7 +22246,7 @@ impl TermLinkTools {
             Err(_) => return json_err("HOME not set"),
         };
         let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-        let identity = match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+        let identity = match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
             Ok(i) => i,
             Err(e) => return json_err(format!("identity load: {e}")),
         };
@@ -22619,7 +22619,7 @@ impl TermLinkTools {
                     Err(_) => return json_err("HOME not set"),
                 };
                 let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-                match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+                match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
                     Ok(i) => i.fingerprint().to_string(),
                     Err(e) => return json_err(format!("identity load: {e}")),
                 }
@@ -23018,7 +23018,7 @@ impl TermLinkTools {
                     Err(_) => return json_err("HOME not set"),
                 };
                 let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-                match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+                match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
                     Ok(i) => i.fingerprint().to_string(),
                     Err(e) => return json_err(format!("identity load: {e}")),
                 }
@@ -23338,7 +23338,7 @@ impl TermLinkTools {
                     Err(_) => return json_err("HOME not set"),
                 };
                 let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-                match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+                match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
                     Ok(i) => i.fingerprint().to_string(),
                     Err(e) => return json_err(format!("identity load: {e}")),
                 }
@@ -23690,7 +23690,7 @@ impl TermLinkTools {
                     Err(_) => return json_err("HOME not set"),
                 };
                 let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-                match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+                match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
                     Ok(i) => i.fingerprint().to_string(),
                     Err(e) => return json_err(format!("identity load: {e}")),
                 }
@@ -23776,7 +23776,7 @@ impl TermLinkTools {
                     Err(_) => return json_err("HOME not set"),
                 };
                 let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-                match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+                match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
                     Ok(i) => i.fingerprint().to_string(),
                     Err(e) => return json_err(format!("identity load: {e}")),
                 }
@@ -23863,7 +23863,7 @@ impl TermLinkTools {
                     Err(_) => return json_err("HOME not set"),
                 };
                 let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-                match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+                match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
                     Ok(i) => i.fingerprint().to_string(),
                     Err(e) => return json_err(format!("identity load: {e}")),
                 }
@@ -24087,7 +24087,7 @@ impl TermLinkTools {
                     Err(_) => return json_err("HOME not set"),
                 };
                 let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-                match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+                match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
                     Ok(i) => i.fingerprint().to_string(),
                     Err(e) => return json_err(format!("identity load: {e}")),
                 }
@@ -24251,7 +24251,7 @@ impl TermLinkTools {
                     Err(_) => return json_err("HOME not set"),
                 };
                 let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-                match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+                match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
                     Ok(i) => i.fingerprint().to_string(),
                     Err(e) => return json_err(format!("identity load: {e}")),
                 }
@@ -29829,7 +29829,7 @@ impl TermLinkTools {
                     Err(_) => return json_err("HOME not set; cannot resolve identity dir"),
                 };
                 let identity_dir = std::path::PathBuf::from(home).join(".termlink");
-                match termlink_session::agent_identity::Identity::load_or_create(&identity_dir) {
+                match termlink_session::agent_identity::resolve_signing_identity(&identity_dir) {
                     Ok(i) => i.fingerprint().to_string(),
                     Err(e) => return json_err(format!("identity load: {e}")),
                 }

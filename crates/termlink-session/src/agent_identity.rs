@@ -197,6 +197,53 @@ pub fn per_agent_identity_path(base: &Path, agent_id: &str) -> PathBuf {
         .join(format!("{}.key", sanitize_agent_id(agent_id)))
 }
 
+/// T-2399: resolve the SIGNING identity honoring the same env precedence as the
+/// CLI post path (`termlink-cli/src/commands/channel.rs::load_identity_or_create`)
+/// and `registration::resolve_identity_key_path`:
+///
+///   1. `TERMLINK_IDENTITY_FILE` — explicit key file (T-1700).
+///   2. `TERMLINK_IDENTITY_DIR/identity.key` — base-dir override (T-1159).
+///   3. `TERMLINK_AGENT_ID` → `$HOME/.termlink/identities/<id>.key` — per-agent (T-2292).
+///   4. `fallback_base/identity.key` — shared host default (backward compatible).
+///
+/// The MCP tool handlers historically hardcoded `load_or_create($HOME/.termlink)`
+/// (rule 4 only), so a per-agent armed session (`TERMLINK_AGENT_ID=aef`) posting
+/// via MCP signed as the shared host key instead of its per-agent fingerprint —
+/// collapsing every co-resident agent's OUTBOUND envelopes onto one identity and
+/// breaking `dm:` routing/attribution (the T-2399 leak; sibling to PL-236).
+/// Routing them through this keeps the MCP wire `sender_id` in lockstep with the
+/// registration fingerprint. `fallback_base` is the handler's existing
+/// `$HOME/.termlink` dir, used only when no env override applies.
+pub fn resolve_signing_identity(fallback_base: &Path) -> Result<Identity> {
+    let path = resolve_signing_identity_path(fallback_base, |k| std::env::var(k).ok());
+    Identity::load_or_create_from_file(&path)
+}
+
+/// Pure path-resolution core for [`resolve_signing_identity`], parameterized over
+/// an env accessor so the precedence is hermetically testable without mutating
+/// global process env (mirrors `registration::resolve_identity_key_path`). All
+/// four branches resolve to a concrete key file; `load_or_create_from_file`
+/// (no suffix) is then applied uniformly by the caller — equivalent to the
+/// previous `load_or_create(base)` for rules 2 and 4 since `identity_path`
+/// appends `identity.key`.
+fn resolve_signing_identity_path<F>(fallback_base: &Path, get_env: F) -> PathBuf
+where
+    F: Fn(&str) -> Option<String>,
+{
+    if let Some(file) = get_env("TERMLINK_IDENTITY_FILE") {
+        return PathBuf::from(file);
+    }
+    if let Some(dir) = get_env("TERMLINK_IDENTITY_DIR") {
+        return identity_path(Path::new(&dir));
+    }
+    if let Some(agent_id) = get_env("TERMLINK_AGENT_ID").filter(|s| !s.trim().is_empty()) {
+        if let Some(home) = get_env("HOME") {
+            return per_agent_identity_path(&PathBuf::from(home).join(".termlink"), &agent_id);
+        }
+    }
+    identity_path(fallback_base)
+}
+
 /// Sanitize a logical agent id into a single filesystem-safe filename
 /// component: any character that is not ASCII alphanumeric, '-', '_', or '.'
 /// is replaced with '_'. An empty result (or one that would be a bare '.'/'..'
@@ -306,6 +353,60 @@ mod tests {
         // Load again — should return the same key.
         let ident2 = Identity::load_or_create(tmp.path()).unwrap();
         assert_eq!(ident.public_key_hex(), ident2.public_key_hex());
+    }
+
+    // T-2399: the MCP-signing resolver must honor FILE > DIR > AGENT_ID > shared,
+    // so a per-agent armed session posting via MCP signs with its OWN key (distinct
+    // fingerprint) instead of collapsing onto the shared host key.
+    #[test]
+    fn resolve_signing_identity_path_precedence() {
+        fn env_from(pairs: &[(&str, &str)]) -> impl Fn(&str) -> Option<String> {
+            let m: std::collections::HashMap<String, String> = pairs
+                .iter()
+                .map(|(k, v)| (k.to_string(), v.to_string()))
+                .collect();
+            move |k: &str| m.get(k).cloned()
+        }
+        let base = Path::new("/home/u/.termlink");
+
+        // Rule 1: explicit FILE wins over agent-id.
+        assert_eq!(
+            resolve_signing_identity_path(
+                base,
+                env_from(&[
+                    ("TERMLINK_IDENTITY_FILE", "/keys/x.key"),
+                    ("TERMLINK_AGENT_ID", "aef"),
+                    ("HOME", "/home/u"),
+                ])
+            ),
+            PathBuf::from("/keys/x.key")
+        );
+        // Rule 2: DIR override → <dir>/identity.key.
+        assert_eq!(
+            resolve_signing_identity_path(base, env_from(&[("TERMLINK_IDENTITY_DIR", "/d")])),
+            identity_path(Path::new("/d"))
+        );
+        // Rule 3: per-agent key when TERMLINK_AGENT_ID is set — the leak fix.
+        assert_eq!(
+            resolve_signing_identity_path(
+                base,
+                env_from(&[("TERMLINK_AGENT_ID", "aef"), ("HOME", "/home/u")])
+            ),
+            per_agent_identity_path(&PathBuf::from("/home/u/.termlink"), "aef")
+        );
+        // Blank agent id is treated as absent → shared default (no identities/_.key).
+        assert_eq!(
+            resolve_signing_identity_path(
+                base,
+                env_from(&[("TERMLINK_AGENT_ID", "  "), ("HOME", "/home/u")])
+            ),
+            identity_path(base)
+        );
+        // Rule 4: nothing set → shared host default (backward compatible).
+        assert_eq!(
+            resolve_signing_identity_path(base, env_from(&[])),
+            identity_path(base)
+        );
     }
 
     #[test]
