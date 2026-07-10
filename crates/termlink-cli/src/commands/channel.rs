@@ -1379,6 +1379,69 @@ pub(crate) async fn fetch_topic_msgs(
     Ok(result["messages"].as_array().cloned().unwrap_or_default())
 }
 
+/// T-2391: read a topic's current-value-per-cv_key snapshot via the hub's
+/// cv_index (`channel.subscribe {include_current_value:true}`) and return one
+/// `msg` envelope per cv_key at its LATEST offset.
+///
+/// This is the correct read for `latest_per_cv_key` topics (agent-presence).
+/// `fetch_topic_msgs` anchors its cursor at `channel.list` count via
+/// `tail_slice_cursor(count, …)` = `count - slice`; under `latest_per_cv_key`
+/// retention the retained `count` is DECOUPLED from the monotonic tail offset
+/// (retained count << tail offset), so the cursor saturates to the oldest
+/// retained page and returns days-stale envelopes — the T-2390 defect, whose
+/// Rust twin lived on the send/preflight path (agent-presence reachability +
+/// fleet resolution). The cv_index snapshot is correct regardless of sweep
+/// cadence and O(K) in the number of live keys.
+pub(crate) async fn fetch_topic_current_values(
+    topic: &str,
+    hub: Option<&str>,
+) -> Result<Vec<Value>> {
+    let sock = hub_socket(hub)?;
+    let resp = rpc_call_authed(
+        &sock,
+        method::CHANNEL_SUBSCRIBE,
+        json!({"topic": topic, "cursor": 0, "limit": 1, "include_current_value": true}),
+    )
+    .await
+    .with_context(|| format!("Hub rpc_call (channel.subscribe {topic} +cv) failed"))?;
+    let result = client::unwrap_result(resp)
+        .map_err(|e| anyhow!("Hub returned error for channel.subscribe: {e}"))?;
+    Ok(current_value_msgs(&result))
+}
+
+/// T-2391: pure extraction of the `msg` envelope per cv_key from a
+/// `channel.subscribe {include_current_value:true}` response. Each
+/// `current_values[]` entry is `{cv_key, offset, msg}`; we keep the `msg`,
+/// which is the same envelope shape `fetch_topic_msgs` yields, so downstream
+/// `resolve_agent_presence` parsing is unchanged. Pure so the "cv snapshot
+/// beats count-seek" behaviour is unit-testable without a hub round-trip.
+pub(crate) fn current_value_msgs(result: &Value) -> Vec<Value> {
+    result["current_values"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|e| e.get("msg").cloned())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// T-2391: authoritative agent-presence read. Primary path is the cv_index
+/// snapshot (`fetch_topic_current_values`) — correct under `latest_per_cv_key`.
+/// Falls back to the legacy count-seek slice only when the cv_index is empty
+/// (cold hub with no cv-tagged heartbeats yet, or producers that opted out via
+/// `--no-cv-key`); in that case the count-seek staleness is the pre-existing
+/// behaviour and there is no fresher source to read. Callers previously used
+/// `fetch_topic_msgs("agent-presence", hub, 500)` directly.
+pub(crate) async fn fetch_presence_msgs(hub: Option<&str>) -> Result<Vec<Value>> {
+    if let Ok(cv) = fetch_topic_current_values("agent-presence", hub).await
+        && !cv.is_empty()
+    {
+        return Ok(cv);
+    }
+    fetch_topic_msgs("agent-presence", hub, 500).await
+}
+
 /// T-1796: fetch the most-recent `slice_size` envelopes of `topic` via
 /// **bounded multi-page** pagination. Closes the gap between
 /// `fetch_topic_msgs` (single round-trip, capped at HUB_SUBSCRIBE_PAGE_CAP)
@@ -11799,6 +11862,56 @@ fn render_claims_summary_text_with_annotation(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ---- T-2391 cv_index presence-read extraction --------------------------
+
+    #[test]
+    fn current_value_msgs_surfaces_live_agent_at_high_offset() {
+        // Reproduces the T-2390/T-2391 bug shape: a LIVE agent's heartbeat sits
+        // at a HIGH offset (33412) while dead-agent cv_keys are pinned at LOW
+        // offsets (30810). The count-seek path anchors cursor at (retained
+        // count - slice) and clamps to the LOW offsets, missing the live tail.
+        // The cv_index snapshot returns the CURRENT value per key regardless of
+        // offset, so `current_value_msgs` must surface the live agent. Mirror of
+        // tests/agent-listeners-cv-read.sh (shell), in Rust.
+        let resp = json!({
+            "current_values": [
+                {"cv_key": "arc004-probe", "offset": 30810,
+                 "msg": {"msg_type": "heartbeat", "sender_id": "fp-dead",
+                         "metadata": {"agent_id": "arc004-probe"}}},
+                {"cv_key": "workflow-designer", "offset": 33412,
+                 "msg": {"msg_type": "heartbeat", "sender_id": "6a646ce8b1bc6560",
+                         "metadata": {"agent_id": "workflow-designer",
+                                      "pty_session": "workflow-designer"}}},
+            ]
+        });
+        let msgs = current_value_msgs(&resp);
+        assert_eq!(msgs.len(), 2, "one msg per cv_key");
+        let live: Vec<&str> = msgs
+            .iter()
+            .filter_map(|m| m["metadata"]["agent_id"].as_str())
+            .collect();
+        assert!(
+            live.contains(&"workflow-designer"),
+            "live agent at high offset must be surfaced by cv_index read"
+        );
+        // The envelope shape must match fetch_topic_msgs output (raw msg with
+        // metadata) so downstream resolve_agent_presence parses it unchanged.
+        assert_eq!(
+            msgs.iter()
+                .find(|m| m["metadata"]["agent_id"] == json!("workflow-designer"))
+                .and_then(|m| m["metadata"]["pty_session"].as_str()),
+            Some("workflow-designer"),
+        );
+    }
+
+    #[test]
+    fn current_value_msgs_empty_when_no_snapshot() {
+        // Cold hub / non-cv topic: no `current_values` key -> empty, which
+        // triggers the count-seek fallback in fetch_presence_msgs.
+        assert!(current_value_msgs(&json!({"messages": []})).is_empty());
+        assert!(current_value_msgs(&json!({"current_values": []})).is_empty());
+    }
 
     // ---- T-2072 claims-summary --notify diff helper tests ---------------
 

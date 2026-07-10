@@ -790,7 +790,7 @@ async fn resolve_contact_via_fleet(agent_id: &str) -> Option<FleetContactResolut
         // agent-presence heartbeats are small + frequent; a 500-envelope slice
         // covers a generous window for any reasonably-sized fleet.
         let msgs =
-            match super::channel::fetch_topic_msgs("agent-presence", Some(&entry.address), 500)
+            match super::channel::fetch_presence_msgs(Some(&entry.address))
                 .await
             {
                 Ok(m) => m,
@@ -851,7 +851,7 @@ async fn resolve_contact_fp_via_fleet(peer_fp: &str) -> Option<FleetContactResol
             continue;
         }
         let msgs =
-            match super::channel::fetch_topic_msgs("agent-presence", Some(&entry.address), 500)
+            match super::channel::fetch_presence_msgs(Some(&entry.address))
                 .await
             {
                 Ok(m) => m,
@@ -1030,9 +1030,7 @@ async fn fetch_recipient_presence(
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as i64)
         .unwrap_or(0);
-    let msgs = super::channel::fetch_topic_msgs("agent-presence", hub, 500)
-        .await
-        .ok()?;
+    let msgs = super::channel::fetch_presence_msgs(hub).await.ok()?;
     if let Some(name) = target_name {
         return resolve_agent_presence(&msgs, name, now_ms);
     }
@@ -1115,7 +1113,7 @@ pub(crate) async fn resolve_agent_registry_via_fleet(
         // is skipped — it never hangs the whole walk (the symptom that surfaced
         // in live testing: one unreachable hub in hubs.toml stalled `resolve`).
         let fetch =
-            super::channel::fetch_topic_msgs("agent-presence", Some(&entry.address), 500);
+            super::channel::fetch_presence_msgs(Some(&entry.address));
         let msgs = match tokio::time::timeout(std::time::Duration::from_secs(8), fetch).await {
             Ok(Ok(m)) => m,
             Ok(Err(_)) => continue, // down / auth-fail hub

@@ -2521,3 +2521,10 @@ learnings:
   date: 2026-07-10
   context: Added via context agent
   application: TBD
+- id: PL-252
+  learning: "T-2390's count-seek presence-read defect had a Rust TWIN on the doorbell SEND path: fetch_topic_msgs anchors cursor at channel.list count via tail_slice_cursor(count,slice); under latest_per_cv_key retention count is decoupled from the tail offset so the cursor clamps to the oldest page -> LIVE peers read as OFFLINE (agent contact preflight, --require-online exit 9 would abort real sends). Fix: read cv_index via subscribe include_current_value. Both shell AND binary presence readers must use cv_index under latest_per_cv_key. MCP fetch_recent has the same twin (follow-up)."
+  source: P-001
+  task: T-2391
+  date: 2026-07-10
+  context: Added via context agent
+  application: TBD

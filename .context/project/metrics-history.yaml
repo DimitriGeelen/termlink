@@ -2,16 +2,6 @@
 # Auto-appended by audit.sh on each run
 # 30-day rolling retention
 entries:
-- timestamp: '2026-06-10T09:32:41Z'
-  pass: 28
-  warn: 148
-  fail: 1692
-  active_tasks: 104
-  completed_tasks: 1777
-  velocity: 74
-  traceability_pct: 100
-  episodic_quality_pct: 6
-  open_gaps: 12
 - timestamp: '2026-06-11T00:01:08Z'
   pass: 12
   warn: 5
@@ -239,36 +229,6 @@ entries:
   active_tasks: 115
   completed_tasks: 1970
   velocity: 81
-  traceability_pct: 100
-  episodic_quality_pct: 6
-  open_gaps: 15
-- timestamp: '2026-07-03T09:34:08Z'
-  pass: 37
-  warn: 32
-  fail: 8
-  active_tasks: 117
-  completed_tasks: 1976
-  velocity: 91
-  traceability_pct: 100
-  episodic_quality_pct: 6
-  open_gaps: 15
-- timestamp: '2026-07-03T09:44:57Z'
-  pass: 28
-  warn: 2
-  fail: 0
-  active_tasks: 118
-  completed_tasks: 1976
-  velocity: 92
-  traceability_pct: 100
-  episodic_quality_pct: 6
-  open_gaps: 15
-- timestamp: '2026-07-03T09:45:04Z'
-  pass: 7
-  warn: 2
-  fail: 0
-  active_tasks: 118
-  completed_tasks: 1976
-  velocity: 92
   traceability_pct: 100
   episodic_quality_pct: 6
   open_gaps: 15
@@ -7729,6 +7689,36 @@ entries:
   active_tasks: 119
   completed_tasks: 2034
   velocity: 46
+  traceability_pct: 100
+  episodic_quality_pct: 6
+  open_gaps: 18
+- timestamp: '2026-07-10T09:33:34Z'
+  pass: 31
+  warn: 2
+  fail: 0
+  active_tasks: 119
+  completed_tasks: 2034
+  velocity: 47
+  traceability_pct: 100
+  episodic_quality_pct: 6
+  open_gaps: 18
+- timestamp: '2026-07-10T09:45:04Z'
+  pass: 8
+  warn: 2
+  fail: 0
+  active_tasks: 119
+  completed_tasks: 2034
+  velocity: 43
+  traceability_pct: 100
+  episodic_quality_pct: 6
+  open_gaps: 18
+- timestamp: '2026-07-10T10:01:59Z'
+  pass: 12
+  warn: 7
+  fail: 0
+  active_tasks: 120
+  completed_tasks: 2034
+  velocity: 42
   traceability_pct: 100
   episodic_quality_pct: 6
   open_gaps: 18
