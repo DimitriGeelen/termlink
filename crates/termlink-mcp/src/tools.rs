@@ -6339,6 +6339,19 @@ async fn fetch_topic_msgs_mcp(
         .unwrap_or_default())
 }
 
+/// T-2392: extract the `msg` envelopes from a `channel.subscribe` response's
+/// `current_values` array (the cv_index snapshot returned when the RPC carries
+/// `include_current_value:true`, T-2104/T-2105). One entry per cv_key at its
+/// LATEST offset — O(K), correct regardless of retention policy or sweep cadence.
+/// Mirror of CLI `commands::channel::current_value_msgs` (T-2391); duplicated
+/// rather than cross-crate-shared per the T-2069 convention for tiny pure helpers.
+fn current_value_msgs_mcp(result: &serde_json::Value) -> Vec<serde_json::Value> {
+    result["current_values"]
+        .as_array()
+        .map(|arr| arr.iter().filter_map(|e| e.get("msg").cloned()).collect())
+        .unwrap_or_default()
+}
+
 /// T-1707: 5-minute active-traffic threshold for cut-readiness verdict.
 /// Mirrors `ACTIVE_TRAFFIC_THRESHOLD_SECS` in termlink-cli's remote.rs.
 const ACTIVE_TRAFFIC_THRESHOLD_SECS: u64 = 300;
@@ -6972,6 +6985,39 @@ impl ContactHub {
             .cloned()
             .unwrap_or_default())
     }
+
+    /// T-2392: fetch `agent-presence` correctly under `latest_per_cv_key`
+    /// retention. Reads the cv_index snapshot via `channel.subscribe`
+    /// `include_current_value:true` (one heartbeat per agent at its latest
+    /// offset — see T-2107) instead of the count-seek `fetch_recent`, whose
+    /// `count.saturating_sub(slice)` cursor lands in a stale retained window
+    /// when `count` (retained) is decoupled from the monotonic tail offset.
+    /// Falls back to `fetch_recent` only when the snapshot is empty (pre-cv_index
+    /// hub, or producers that opt out of `metadata.cv_key`). Twin of CLI
+    /// `commands::channel::fetch_presence_msgs` (T-2391).
+    async fn fetch_presence_recent(
+        &mut self,
+        slice_size: u64,
+    ) -> Result<Vec<serde_json::Value>, String> {
+        if let Ok(sub_result) = self
+            .rpc(
+                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                serde_json::json!({
+                    "topic": "agent-presence",
+                    "cursor": 0,
+                    "limit": 1,
+                    "include_current_value": true
+                }),
+            )
+            .await
+        {
+            let cv = current_value_msgs_mcp(&sub_result);
+            if !cv.is_empty() {
+                return Ok(cv);
+            }
+        }
+        self.fetch_recent("agent-presence", slice_size).await
+    }
 }
 
 /// T-2274: MCP parity of the CLI `resolve_contact_via_fleet` (T-2275). Walks
@@ -7002,7 +7048,7 @@ async fn resolve_contact_via_fleet_mcp(agent_id: &str) -> Option<(String, String
             Err(_) => continue, // down / auth-fail hub never aborts the walk
         };
         let mut conn = ContactHub::Remote(Box::new(client));
-        let msgs = match conn.fetch_recent("agent-presence", 500).await {
+        let msgs = match conn.fetch_presence_recent(500).await {
             Ok(m) => m,
             Err(_) => continue,
         };
@@ -30440,6 +30486,60 @@ impl TermLinkTools {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // === T-2392: cv_index presence read (count-seek staleness twin) ===
+
+    #[test]
+    fn current_value_msgs_mcp_surfaces_live_agent_at_high_offset() {
+        // Under latest_per_cv_key retention, channel info.count is the RETAINED
+        // count (small) while the LIVE heartbeat sits at the monotonic tail
+        // offset (~33k). The count-seek cursor (count - slice) would miss it;
+        // the cv_index snapshot surfaces it directly, pty_session preserved.
+        let result = serde_json::json!({
+            "current_values": [
+                {
+                    "cv_key": "arc004-probe",
+                    "offset": 30810,
+                    "msg": {
+                        "sender_id": "arc004-probe",
+                        "metadata": { "agent_id": "arc004-probe" }
+                    }
+                },
+                {
+                    "cv_key": "workflow-designer",
+                    "offset": 33412,
+                    "msg": {
+                        "sender_id": "workflow-designer",
+                        "metadata": {
+                            "agent_id": "workflow-designer",
+                            "pty_session": "workflow-designer"
+                        }
+                    }
+                }
+            ]
+        });
+        let msgs = current_value_msgs_mcp(&result);
+        assert_eq!(msgs.len(), 2, "both cv entries yield a msg envelope");
+        let live = msgs
+            .iter()
+            .find(|m| m["metadata"]["agent_id"] == serde_json::json!("workflow-designer"))
+            .expect("LIVE agent at high offset must surface from the cv snapshot");
+        assert_eq!(
+            live["metadata"]["pty_session"],
+            serde_json::json!("workflow-designer"),
+            "pty_session (the waker-armed signal) must be preserved through the extraction"
+        );
+    }
+
+    #[test]
+    fn current_value_msgs_mcp_empty_when_no_snapshot() {
+        // A hub with no cv_index (pre-T-2103) omits current_values entirely;
+        // fetch_presence_recent then falls back to the count-seek path.
+        let no_field = serde_json::json!({ "messages": [] });
+        assert!(current_value_msgs_mcp(&no_field).is_empty());
+        let empty_arr = serde_json::json!({ "current_values": [] });
+        assert!(current_value_msgs_mcp(&empty_arr).is_empty());
+    }
 
     // === T-2268: cross-hub diagnostics honesty ===
 
