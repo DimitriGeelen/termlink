@@ -2157,3 +2157,14 @@ git add -A
 FW_SWITCH_FOCUS=1 git commit -q -m "T-2391: finalize move to completed/ + episodic (work-completed)
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>" && '
+- timestamp: '2026-07-10T11:44:30Z'
+  task: 'T-2389'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2392'
+  command: 'git add -A .tasks/completed/T-2392-fix-mcp-agent-presence-read-stale-under-.md .context/episodic/T-2392.yaml && git rm --cached --ignore-unmatch .tasks/active/T-2392-fix-mcp-agent-presence-read-stale-'
+- timestamp: '2026-07-10T15:05:30Z'
+  task: 'T-2393'
+  flag: '--skip-sovereignty'
+  caller: 'check_human_sovereignty'
+  reason: 'Inception decision: GO'
