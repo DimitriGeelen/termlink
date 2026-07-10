@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-10T10:08:08Z
-last_update: 2026-07-10T11:27:43Z
+last_update: 2026-07-10T11:42:41Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -50,12 +50,12 @@ this task's scope is the single send-path read. See PL-250.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `current_value_msgs_mcp` pure helper added to termlink-mcp/src/tools.rs — extracts `msg` envelopes from a `channel.subscribe` response's `current_values` array (cv_index snapshot); mirror of CLI `current_value_msgs` (T-2391, per T-2069 duplicate-don't-share convention)
-- [ ] `ContactHub::fetch_presence_recent` method added — reads `agent-presence` via `channel.subscribe include_current_value:true` and returns cv snapshot; falls back to the count-seek `fetch_recent("agent-presence", …)` only when the snapshot is empty (pre-cv_index hub / non-cv-tagged producers)
-- [ ] `resolve_contact_via_fleet_mcp` (the MCP `agent_contact` / send-auto-discover fleet-resolution path, line ~7005) routed through `fetch_presence_recent` — no raw count-seek `fetch_recent` remains on `agent-presence`
-- [ ] Unit test `current_value_msgs_mcp_surfaces_live_agent_at_high_offset` proves the cv snapshot surfaces a LIVE agent whose offset is far past the retained `count` (the case count-seek misses under latest_per_cv_key), preserving `pty_session`; plus an empty-snapshot test
-- [ ] `cargo test -p termlink-mcp current_value_msgs_mcp` passes (both tests)
-- [ ] Rebuild + reinstall the binary; the MCP presence-discovery send path resolves LIVE peers under latest_per_cv_key retention
+- [x] `current_value_msgs_mcp` pure helper added to termlink-mcp/src/tools.rs — extracts `msg` envelopes from a `channel.subscribe` response's `current_values` array (cv_index snapshot); mirror of CLI `current_value_msgs` (T-2391, per T-2069 duplicate-don't-share convention)
+- [x] `ContactHub::fetch_presence_recent` method added — reads `agent-presence` via `channel.subscribe include_current_value:true` and returns cv snapshot; falls back to the count-seek `fetch_recent("agent-presence", …)` only when the snapshot is empty (pre-cv_index hub / non-cv-tagged producers)
+- [x] `resolve_contact_via_fleet_mcp` (the MCP `agent_contact` / send-auto-discover fleet-resolution path, line ~7005) routed through `fetch_presence_recent` — no raw count-seek `fetch_recent` remains on `agent-presence` (the one remaining call is the intended fallback inside `fetch_presence_recent`)
+- [x] Unit test `current_value_msgs_mcp_surfaces_live_agent_at_high_offset` proves the cv snapshot surfaces a LIVE agent whose offset is far past the retained `count` (the case count-seek misses under latest_per_cv_key), preserving `pty_session`; plus an empty-snapshot test
+- [x] `cargo test -p termlink-mcp current_value_msgs_mcp` passes (both tests) — verified: `2 passed; 0 failed`
+- [x] Rebuild + reinstall the binary (0.11.467) — the MCP presence-discovery send path resolves LIVE peers under latest_per_cv_key retention
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
