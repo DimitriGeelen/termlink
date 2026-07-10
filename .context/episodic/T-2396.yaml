@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2396: Prove + close the WAKE consumption-confirmation bypass (G-083)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-10T18:29:24Z
+# ============================================================================
+
+task_id: T-2396
+task_name: "Prove + close the WAKE consumption-confirmation bypass (G-083)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-10T18:22:07Z
+completed: 2026-07-10T18:29:20Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-10T20:29:13+02:00
+last_commit: 2026-07-10T20:29:13+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  extract wake-confirm.sh — close the consumption-confirmation bypass (G-083)
+
+# Key outcomes
+outcomes:
+  - '**PROOF (prove-first, per operator):** a documented live demonstration on the local hub that (a) `agent-send.sh` to a target that does NOT consume (no `/check-arc respond` runs) FAILS LOUD (`exit 3`, "receiver never acked"), and (b) a raw `termlink inject` to the same target returns success with NO consumption signal — proving the detector exists in agent-send but is bypassed by raw delivery. Captured in the task Updates / a `docs/reports/T-2396-*.md`.'
+  - '**Standalone wake-confirm verb:** new `scripts/wake-confirm.sh --topic <t> --cid <c> --since-offset <N> [--timeout S]` that polls for a receipt acking `>= N` and exits 0 (CONSUMED, prints receipt offset+stage) or a distinct non-zero (NOT-CONSUMED, prints the loud "rung but not consumed — recipient busy/manual-mode; message unread at offset N" diagnosis). Extracted from agent-send''s receipt-wait so raw-inject / thread-nudge paths can reuse it. Hub-independent test seam (`TERMLINK_WAKECONFIRM_TEST_JSON`).'
+  - '**agent-send reuses it (no behavior change):** `agent-send.sh` delegates its receipt-wait to `wake-confirm.sh` (or shares the helper) so there is ONE consumption-confirmation implementation; its existing DELIVERED/FAILED output + exit codes are preserved (B1/existing tests still green).'
+  - '**Guidance:** `.claude/commands/check-arc.md` (or agent-handoff/reply docs) note that a bare `termlink inject` / thread post has NO consumption confirmation — deliver via `agent-send.sh` or follow a raw ring with `wake-confirm.sh` to avoid the silent rung-but-not-consumed class.'
+  - '**Tests:** `tests/relay-wake-confirm.sh` asserts CONSUMED (receipt present ≥ offset) vs NOT-CONSUMED (no/old receipt) via the seam; `bash -n` clean on `wake-confirm.sh` + `agent-send.sh`; existing `tests/relay-b1-doorbell-rail.sh` + `tests/relay-b2-send-hops.sh` still pass.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/commands/check-arc.md'
+  - 'docs/reports/T-2396-wake-consumption-confirmation-proof.md'
+  - 'scripts/agent-send.sh'
+  - 'scripts/wake-confirm.sh'
+  - '.tasks/active/T-2396-prove--close-the-wake-consumption-confir.md'
+  - 'tests/relay-wake-confirm.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-10T20:29:13"
+    action: "T-2396: extract wake-confirm.sh — close the consumption-confirmation bypass (G-083)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 1
+  files_changed: 6
+  lines_added: 512
+  lines_removed: 24
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2396-prove--close-the-wake-consumption-confir.md
+generated_by: context-agent-hybrid
