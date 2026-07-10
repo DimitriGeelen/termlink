@@ -428,3 +428,23 @@ happen mid-task (e.g. aef is mid-reasoning on T-173). The ready relaunch path
 T-2387 waker-liveness canary continues to nag RAIL DARK daily until each is
 relaunched armed — that nag IS the reminder, so this needs no separate tracking.
 AC-4 stays open pending those relaunches (operator-timing).
+
+### 2026-07-10 — operator-authorized remote heal of .122/.121 agent-presence (Tier-2) [agent]
+
+Operator authorized (option 2) a non-destructive remote heal (set-retention +
+sweep, NO restart) on ring20's hubs. Outcome:
+- **.122** — `channel set-retention agent-presence --retention latest-per-cv-key`
+  SUCCEEDED (rc=0, hub applied it) → future growth now bounded (durable). Follow-up
+  `channel sweep` TIMED OUT at the hub-internal 30s RPC limit ("wedged record-walk
+  or overloaded hub") → existing bloat not yet pruned; needs a faster/upgraded hub
+  to complete the walk. Discovery reads on .122 likely still slow until the prune
+  lands, but the topic will no longer grow unbounded.
+- **.121** — set-retention AND sweep both rejected: `-32001 Missing 'target' in
+  params`. Confirmed OLD hub binary (RPC schema predates current set_retention/sweep
+  param shape). Cannot heal via RPC — needs a binary UPGRADE first (ring20 scope),
+  then set-retention + sweep.
+
+Net: .122 got a durable retention fix; .121 is blocked on a binary upgrade. Both
+diagnoses handed to ring20. Whole-fleet doorbell now: .107 fully live; .122
+retention-bounded (existing-bloat prune pending faster hub); .121 needs binary
+upgrade; .141 down (no route).

@@ -1,12 +1,12 @@
-error-watchdog=4
+error-watchdog=11
 
 pre-compact=1
-check-tier0=4
-budget-gate=5
-check-project-boundary=5
-check-active-task=5
-loop-detect=4
-checkpoint=4
-audit-task-tools=4
-check-human-ac-tick=1
-commit-cadence=1
+check-tier0=11
+budget-gate=13
+check-project-boundary=13
+check-active-task=13
+loop-detect=12
+checkpoint=12
+audit-task-tools=12
+check-human-ac-tick=2
+commit-cadence=2
