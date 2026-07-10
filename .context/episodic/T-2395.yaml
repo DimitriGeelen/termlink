@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2395: Relay-loop B2+B3: continuation preamble + hop-budget circuit-breaker
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-10T16:59:00Z
+# ============================================================================
+
+task_id: T-2395
+task_name: "Relay-loop B2+B3: continuation preamble + hop-budget circuit-breaker"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-10T16:53:02Z
+completed: 2026-07-10T16:58:53Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-10T18:58:36+02:00
+last_commit: 2026-07-10T18:58:36+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  relay-loop B2+B3 — continuation contract + hop-budget circuit-breaker
+
+# Key outcomes
+outcomes:
+  - '**B3 hop plumbing (send):** `agent-send.sh` accepts `--relay-hops N` and, when set (or when the doorbell is rail-augmented = a relay initiation, defaulting to 1), stamps `--metadata relay_hops=<N>` onto the posted turn. The `--dry-run` RESOLVED line surfaces `relay_hops=<N>` so it is assertable without a hub. A non-relay send (custom `--doorbell-text`, no `--relay-hops`) stamps NO relay_hops (back-compat).'
+  - '**B3 hop plumbing (reply):** `agent-respond.sh` accepts `--relay-hops N` and stamps `--metadata relay_hops=<N>` onto the `--reply` turn when set (the caller passes incoming+1). Absent the flag, no relay_hops is stamped (back-compat with existing receipt/reply callers).'
+  - '**B3 circuit-breaker helper:** new `scripts/relay-hop-check.sh --topic <t> --cid <c>` reads the latest turn on (topic, cid), extracts `relay_hops` metadata, compares to `TERMLINK_RELAY_MAX_HOPS` (default 4). Emits `verdict=continue hops=<N> cap=<M> next_hops=<N+1>` (exit 0) when under cap, or `verdict=stop hops=<N> cap=<M> reason=hop-budget-exhausted` (exit 10) at/over cap. A hub-independent test seam (`TERMLINK_RELAY_HOPCHECK_TEST_JSON=<file>`) feeds canned turn JSON. Missing/absent relay_hops treated as hops=0 (continue).'
+  - '**B2 continuation contract + B3 gate (receive):** `.claude/commands/check-arc.md` Step 6a documents the advance-or-declare contract (woken agent: advance to next REAL blocker → reply on this rail via `agent-respond.sh --reply --relay-hops <next_hops>`, OR declare the blocker + STOP; never idle silently) AND instructs running `scripts/relay-hop-check.sh` BEFORE auto-replying: on `verdict=stop`, surface the hop-budget-exhausted blocker LOUDLY and halt (do not reply); on `verdict=continue`, pass `--relay-hops <next_hops>` to the reply.'
+  - '**Tests:** `tests/relay-b3-hop-budget.sh` asserts the helper emits `continue`/`next_hops` below cap and `stop`/`hop-budget-exhausted` at cap (via the test seam); `tests/relay-b2-send-hops.sh` (or extend the B1 test) asserts `agent-send.sh --relay-hops 2 --dry-run` surfaces `relay_hops=2` and a bare relay initiation defaults to `relay_hops=1`. `bash -n` clean on all three edited/new scripts.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/commands/check-arc.md'
+  - 'scripts/agent-respond.sh'
+  - 'scripts/agent-send.sh'
+  - 'scripts/relay-hop-check.sh'
+  - '.tasks/active/T-2395-relay-loop-b2b3-continuation-preamble--h.md'
+  - 'tests/relay-b2-send-hops.sh'
+  - 'tests/relay-b3-hop-budget.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-10T18:58:36"
+    action: "T-2395: relay-loop B2+B3 — continuation contract + hop-budget circuit-breaker"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 7
+  lines_added: 464
+  lines_removed: 7
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2395-relay-loop-b2b3-continuation-preamble--h.md
+generated_by: context-agent-hybrid
