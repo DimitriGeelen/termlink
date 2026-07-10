@@ -18,6 +18,9 @@
 set -euo pipefail
 
 TERMLINK="${TERMLINK_BIN:-termlink}"
+# T-2396: directory of this script, so the receipt-wait can delegate to the
+# extracted wake-confirm.sh (the single consumption-confirmation implementation).
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 die() { echo "agent-send: $*" >&2; exit 2; }
 
@@ -520,30 +523,23 @@ for (( ring=1; ring<=max_rings; ring++ )); do
             echo "agent-send: WARN ring $ring — inject into '$to_session'${peer_hub:+ @ $peer_hub} failed (session missing?); turn already posted, still awaiting receipt" >&2
         fi
     fi
-    waited=0
-    while (( waited < timeout )); do
-        # Offset-aware: only a receipt that acks THIS turn counts (up_to >= the
-        # offset we just posted). A stale receipt from an earlier turn on the
-        # same conversation_id must NOT satisfy this wait — that was the T-1808
-        # multi-turn false-DELIVERED bug.
-        # T-2300/V6-S3: capture the whole receipt (not just its offset) so we can
-        # surface its `stage` (delivered|read) when present. A pre-S3/V3b receipt
-        # carries no stage — deliver_stage stays empty and the DELIVERED line reads
-        # exactly as before (backward compatible).
-        recv_json="$( { "$TERMLINK" channel subscribe "$topic" --conversation-id "$cid" \
-                       --cursor 0 --limit 1000 --json "${hub_args[@]+"${hub_args[@]}"}" 2>/dev/null \
-                   | jq -c -s --argjson po "$post_offset" \
-                       '[ .[] | select(.msg_type=="receipt")
-                              | select((.metadata.up_to|tonumber? // -1) >= $po) ]
-                        | (.[0] // empty)' ; } || true )"
-        if [ -n "$recv_json" ] && [ "$recv_json" != "null" ]; then
-            deliver_offset="$(printf '%s' "$recv_json" | jq -r '.offset // empty')"
-            deliver_stage="$(printf '%s' "$recv_json" | jq -r '.metadata.stage // empty')"
-            [ "$deliver_stage" = "null" ] && deliver_stage=""
-            break
-        fi
-        sleep 1; waited=$((waited+1))
-    done
+    # T-2396: delegate the per-ring receipt-wait to the extracted wake-confirm
+    # verb — the SINGLE consumption-confirmation implementation (G-083). It polls
+    # up to $timeout for a receipt acking up_to >= $post_offset (offset-aware, so
+    # a stale receipt from an earlier turn on the same cid does NOT count — the
+    # T-1808 guard lives inside wake-confirm now). `stage` (delivered|read) is
+    # surfaced when present; a pre-S3/V3b receipt carries none and the DELIVERED
+    # line reads exactly as before (backward compatible). Passing hub_args (which
+    # is `--hub <peer_hub>` on the remote path, empty locally) straight through —
+    # wake-confirm accepts the same `--hub <addr>`.
+    wc_json="$( bash "$SELF_DIR/wake-confirm.sh" --topic "$topic" --cid "$cid" \
+                    --since-offset "$post_offset" --timeout "$timeout" \
+                    "${hub_args[@]+"${hub_args[@]}"}" --json 2>/dev/null || true )"
+    if printf '%s' "$wc_json" | jq -e '.consumed==true' >/dev/null 2>&1; then
+        deliver_offset="$(printf '%s' "$wc_json" | jq -r '.receipt_offset // empty')"
+        deliver_stage="$(printf '%s' "$wc_json" | jq -r '.stage // empty')"
+        [ "$deliver_stage" = "null" ] && deliver_stage=""
+    fi
     [ -n "$deliver_offset" ] && break
 done
 

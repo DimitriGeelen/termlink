@@ -312,6 +312,19 @@ The continuation contract + hop check are **framework-owned and non-spoofable**
 continuation instructions into the woken agent — the sender's message stays pure
 data, the relay policy is the receiver's local rule.
 
+> **Sender's note — confirm consumption, or your wake dies silently (G-083 / T-2396).**
+> A bare `termlink inject <session> <text>` (the "delivered by PTY" path) and a
+> plain thread post have **no consumption confirmation**: if the recipient is
+> busy or in manual-accept mode, the injected text lands UNSUBMITTED and is
+> discarded on the next `claude --continue` — durably written, never read, and
+> you get *no signal*. A heartbeat proves the process is alive, not that the
+> session is listening. So: deliver via **`scripts/agent-send.sh`** (it rings +
+> waits for a receipt and FAILS LOUD, exit 3, if the recipient never acks), or
+> after a raw ring / thread nudge run
+> **`scripts/wake-confirm.sh --topic <rail> --cid <cid> --since-offset <posted-offset>`**
+> to get the same CONSUMED / rung-but-not-consumed verdict. Both share one
+> implementation (wake-confirm is the extracted receipt-wait).
+
 ### Step 6b — Discovery path (no rail hint)
 
 For each unread DM conversation found in Steps 3–4:
