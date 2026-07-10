@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2394: Relay-loop B1: reply-on-ringing-rail default
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-10T16:42:21Z
+# ============================================================================
+
+task_id: T-2394
+task_name: "Relay-loop B1: reply-on-ringing-rail default"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-10T15:06:14Z
+completed: 2026-07-10T16:42:17Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-10T17:49:29+02:00
+last_commit: 2026-07-10T18:42:09+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  relay-loop B1 SEND+RECEIVE (WIP) — doorbell stamps --rail/--cid; check-arc Step 6a fast path. relay-loop B1 test + AC verification (doorbell rail-stamp)
+
+# Key outcomes
+outcomes:
+  - '`agent-send.sh` appends `--rail "$topic" --cid "$cid"` to the DEFAULT injected doorbell text (making it `/check-arc respond --rail <dm-topic> --cid <cid>`) when both `topic` and `cid` are resolved — so the woken peer receives the exact reply-rail'
+  - 'Backward-compat preserved: an operator-supplied custom `--doorbell-text` is NOT augmented (used verbatim); and if `topic`/`cid` are somehow empty the injected text falls back to bare `/check-arc respond` (never emits a dangling `--rail`/`--cid` with an empty value)'
+  - '`.claude/commands/check-arc.md` respond-mode (Step 6) documents `--rail <topic>`/`--cid <cid>`: when present, respond DETERMINISTICALLY to that single rail+cid via `agent-respond.sh --topic --conversation-id`, bypassing the unread-scan + multi-match refusal (reply goes back on the ringing rail)'
+  - 'A shell test (`tests/relay-b1-doorbell-rail.sh`) stubs `$TERMLINK` to capture the injected argv and asserts the constructed doorbell text contains `--rail dm:...` and `--cid ...` for a resolved topic+cid, AND falls back to bare `/check-arc respond` when the custom-doorbell path is used'
+  - '`bash -n scripts/agent-send.sh` passes (syntax) and the new test passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/commands/check-arc.md'
+  - 'scripts/agent-send.sh'
+  - '.tasks/active/T-2394-relay-loop-b1-reply-on-ringing-rail-defa.md'
+  - 'tests/relay-b1-doorbell-rail.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-10T17:49:29"
+    action: "T-2394: relay-loop B1 SEND+RECEIVE (WIP) — doorbell stamps --rail/--cid; check-arc Step 6a fast path"
+  - time: "2026-07-10T18:42:09"
+    action: "T-2394: relay-loop B1 test + AC verification (doorbell rail-stamp)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 96 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 96
+  commits: 2
+  files_changed: 4
+  lines_added: 311
+  lines_removed: 11
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2394-relay-loop-b1-reply-on-ringing-rail-defa.md
+generated_by: context-agent-hybrid
