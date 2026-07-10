@@ -2514,3 +2514,10 @@ learnings:
   date: 2026-07-10
   context: Added via context agent
   application: TBD
+- id: PL-251
+  learning: "agent-listeners.sh flattens pty_session to top-level (no .metadata sub-object); querying .metadata.pty_session returns null and falsely reads as '0 armed'. Verify presence/waker state against RAW cv_index heartbeat envelopes before concluding."
+  source: P-001
+  task: T-2389
+  date: 2026-07-10
+  context: Added via context agent
+  application: TBD

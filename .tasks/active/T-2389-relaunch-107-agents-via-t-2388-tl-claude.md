@@ -370,7 +370,39 @@ modify their checkouts). .141 recovery is a network/operator action.
 control); fix + heal handed to ring20 for .122/.121; .141 down. All four comms
 layers (WRITE/WAKE/RESPOND/DISCOVERY) now verified working on .107.
 
-### 2026-07-10 — WAKE layer is dark for the 4 production agents (correction + operator authorization) [agent]
+### 2026-07-10 — CORRECTION RETRACTED: the "0 armed" finding below was a jq-path MEASUREMENT ERROR [agent]
+
+**The immediately-following update ("WAKE layer is dark ... 4 LIVE, 0 armed") is
+WRONG and is retracted.** Root cause of the error: I queried
+`.listeners[].metadata.pty_session`, but `agent-listeners.sh` FLATTENS
+`pty_session` to the TOP LEVEL of each listener object — there is no `.metadata`
+sub-object — so the path returned null for every agent and I falsely concluded
+0 armed. **Ground truth (verified against the RAW cv_index heartbeat envelopes
+on agent-presence, not the script's output):** all four production agents —
+`aef`, `workflow-designer`, `workshop-designer`, `sonnenstall` — carry
+`metadata.pty_session == agent_id` with 12–22s-fresh heartbeats. **4 LIVE,
+4 ARMED.** The T-2387 waker-liveness canary reads **HEALTHY** (`--expect-armed`:
+no unwakeable LIVE agents, no dead wakers). The WAKE layer is LIVE, not dark.
+
+**Consequences of the correction:**
+- The doorbell WAKE layer works for all 4 agents NOW. A per-fp DM to any of them
+  rings its PTY. No relaunch is needed to make them wakeable.
+- "Arm both agents at next relaunch" (recorded below) is therefore NOT needed for
+  the WAKE layer — they are already armed. The ONLY residual value of a
+  launcher-managed relaunch is **reboot survival** (AC-4 / `install-boot` cron):
+  a bare `claude --continue` + separately-attached be-reachable heartbeat will NOT
+  re-arm automatically after a reboot. That is the real (and only) remaining
+  AC-4 gap — reboot-durability, not current-runtime arming.
+- Last session's canary "RAIL DARK" firing was a symptom of the pre-T-2390
+  DISCOVERY read bug (presence read returned 0 LIVE, so "0 armed" trivially),
+  NOT a real 0-wakers state. Post-T-2390 + sweep, the canary reads correctly.
+
+Lesson (PL): when a read contradicts a prior read, verify against the SOURCE
+envelope (raw cv_index) before committing a conclusion — do not trust a
+convenience script's field path. I committed+pushed the false finding before
+re-checking; corrected within the same arc.
+
+### 2026-07-10 — [RETRACTED — see correction above] WAKE layer is dark for the 4 production agents (jq-path error) [agent]
 
 **Correction to the 2026-07-10T05:45Z note ("agents ARE armed + reachable
 NOW").** That referred to the transient T-2388 scratch demo agent, which has
