@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-09T23:44:26Z
-last_update: 2026-07-10T05:24:21Z
+last_update: 2026-07-10T05:25:20Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -347,3 +347,25 @@ project work. That is an operator-timing decision — not an autonomous action.
 The agents ARE armed + reachable NOW; AC 4 hardens against reboot only, and no
 reboot is imminent. Recommend the operator schedule the re-home + install-boot as
 a single maintenance window, or split AC 4 into its own task.
+
+### 2026-07-10T06:05Z — fleet-wide propagation + durability proof [agent]
+
+**Durability proof (.107):** agent-presence count regrew to **318** (>200 break
+point) ~30min after the sweep with NO further sweep — and the fixed
+agent-listeners still reads all 4 agents LIVE. Old code at count=318 would read
+0 live. Discovery correctness is now sweep-independent, confirmed under natural
+regrowth. This is the exact condition that had the fleet dark ~23.5h/day.
+
+**Fleet propagation (T-2390 fix → other hubs):** fleet status = 4 up
+(.107/.122/.121/local), 1 down (.141 no-route — network/operator). Remote READS
+of .122/.121 agent-presence TIME OUT (bloated un-swept topics — same class .107
+had), but POSTS to them succeed instantly. Broadcast the T-2390 fix + heal
+(`channel sweep agent-presence`) + durable-fix (re-vendor agent-listeners.sh)
+to the fleet via chat-arc-broadcast — delivered 3/4 (.121 offset 4203, .122
+offset 2766, .107 6742; .141 failed no-route). ring20-manager now has the exact
+remediation for .122/.121; applying it on those hosts is ring20 scope (I cannot
+modify their checkouts). .141 recovery is a network/operator action.
+
+**Whole-fleet status:** DISCOVERY layer FIXED + durable on .107 (the host I
+control); fix + heal handed to ring20 for .122/.121; .141 down. All four comms
+layers (WRITE/WAKE/RESPOND/DISCOVERY) now verified working on .107.
