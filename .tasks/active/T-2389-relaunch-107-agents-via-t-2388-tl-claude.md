@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-09T23:44:26Z
-last_update: 2026-07-10T04:50:05Z
+last_update: 2026-07-10T05:24:21Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -52,7 +52,7 @@ captured before its process is stopped, so no conversation context is lost.
 - [x] Survey recorded in Updates: every running `claude` process on .107 classified (relaunch-candidate / self / interactive / desktop / bg-pty-host / other) with pid, cwd, and resume identity; own session tree explicitly excluded.
 - [x] Each relaunch candidate stopped and relaunched via the T-2388 launcher from its original cwd (`--continue`; sonnenstall needed explicit `--resume <id>` — see Updates), resuming its prior conversation.
 - [x] Post-relaunch: `agent-listeners.sh --json` shows all four relaunched agents LIVE with non-null `pty_session` (four distinct per-agent fps), and `check-waker-liveness-freshness.sh --expect-armed` exits 0 — RAIL DARK cleared.
-- [ ] Boot re-arm installed for each relaunched agent (`tl-claude.sh install-boot`) so a reboot does not silently return the host to rail-dark (C5). BLOCKED at budget gate: install-boot has a cwd bug (hardcodes /opt/termlink — wrong resume dir for project agents); one-line fix + 4 installs queued for next session, see Updates.
+- [ ] Boot re-arm installed for each relaunched agent (`tl-claude.sh install-boot`) so a reboot does not silently return the host to rail-dark (C5). Launcher cwd bug now FIXED (commit below — verified: `@reboot … cd $PWD && bash <abs>/tl-claude.sh …`). REMAINING scope realization (see Updates 05:45Z): the 4 production agents are bare `claude --continue` PTY sessions with separately-attached heartbeats, NOT tl-claude-managed sessions — so `install-boot` (which boots `tl-claude.sh start`) requires first re-homing each agent under tl-claude management (a relaunch), which interrupts live project work. That is an operator-timing decision, not an autonomous action.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -325,3 +325,25 @@ diagnosed the real root cause and shipped the fix as **T-2390** (closed).
   agent-listeners-fleet, waker-liveness canary). Round-trip re-test can now
   proceed on a fleet that reads correctly. install-boot cwd fix (AC 4) still
   open — that's independent of the presence bug.
+
+### 2026-07-10T05:45Z — install-boot cwd bug FIXED; AC 4 scope realization [agent]
+
+**Launcher fix shipped (commit below).** `cmd_install_boot` in scripts/tl-claude.sh
+no longer hardcodes `cd $(dirname SCRIPT_DIR)` (= /opt/termlink). It now emits
+`@reboot … cd $(printf %q "$PWD") && bash <abs>/tl-claude.sh …` — capturing the
+project dir at install time and invoking the launcher by absolute path (verified
+by generating a throwaway cron and inspecting the line). `start` spawns the shell
++ claude in $PWD, and claude keys --continue/--resume on cwd, so this is required
+for a project agent to boot back into its own conversation.
+
+**AC 4 is NOT just "install 4 crons" (scope realization).** Last session's
+relaunch restarted the 4 agents as bare `IS_SANDBOX=1 claude --continue
+--dangerously-skip-permissions` PTY injects with heartbeat + pushwaker attached
+SEPARATELY — they are NOT `tl-claude.sh start`-managed sessions. `install-boot`
+writes a cron that runs `tl-claude.sh start`, which would spawn a NEW managed
+session. So a clean boot re-arm requires first RE-HOMING each of the 4 production
+agents under tl-claude management (another relaunch), which interrupts their live
+project work. That is an operator-timing decision — not an autonomous action.
+The agents ARE armed + reachable NOW; AC 4 hardens against reboot only, and no
+reboot is imminent. Recommend the operator schedule the re-home + install-boot as
+a single maintenance window, or split AC 4 into its own task.
