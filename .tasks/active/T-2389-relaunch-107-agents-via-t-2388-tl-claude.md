@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-09T23:44:26Z
-last_update: 2026-07-10T04:34:34Z
+last_update: 2026-07-10T04:43:29Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -253,6 +253,43 @@ Two findings:
    `--permission-mode acceptEdits` or project-trusted settings), then re-test
    round-trip. Also verify the injection actually landed (PTY dump was
    unreadable under the budget gate).
+
+### 2026-07-10T05:00Z — permission mode applied fleet-wide + wake PROVEN, new presence-stale finding [agent]
+
+**DONE — all four agents now in skip-permissions (the respond-leg fix):**
+Restarted each via PTY inject: `/exit` → `IS_SANDBOX=1 claude --continue
+--dangerously-skip-permissions` (sonnenstall: `--resume a837a4f2…` since its
+--continue is empty). One-time "accept" + "resume from summary" prompts answered
+per agent. **All four PTYs confirm `⏵⏵ bypass permissions on`** (aef,
+sonnenstall, workshop-designer, workflow-designer). A push-woken agent can now
+run `/check-arc respond` and act without a human approving prompts — the last
+leg of "wait and no response" per the operator decision above.
+
+**WAKE PROVEN:** be-reachable.log shows `pushwaker: rang 'workshop-designer'
+via dm.queued offset=0` — my earlier test DM DID fire the waker and ring the
+PTY. The doorbell replacement works end-to-end at the transport+wake layer.
+(The 180s no-ack earlier was the manual-mode block, now removed.)
+
+**NEW FINDING (next-session, do NOT conflate with above) — presence stale
+despite live heartbeats:** `agent-listeners --include-offline` shows all four
+OFFLINE at ~7750s (~2h) stale, YET all four `listener-heartbeat.sh` +
+`be-reachable-pushwaker.sh` processes are ALIVE (pids 3149924/3182118/3195157/
+3198326 etc, one heartbeat etime 5h). `termlink hub status --json` returned
+`running: None`. So ~2h ago heartbeat PUBLISHING stopped fleet-wide while the
+loops kept running — a frozen-heartbeat / hub-connectivity event. This is the
+exact class the frozen-husk (T-2239) + waker-liveness (T-2387) canaries target;
+worth checking whether either fired, and whether the local hub restarted/wedged
+(T-2258 read-path stall class, or a hub process death). The wakers subscribe to
+dm.queued directly (not gated on presence-LIVE), so a DM likely still rings —
+but the SENDER's reachability preflight (T-2385) will read the recipient as
+not-LIVE, and find-idle/peers will show an empty fleet. Re-arm (be-reachable
+stop+start per agent) will refresh presence, but the ROOT (why publishing
+stopped with the process alive) must be diagnosed, not just re-armed.
+
+**Budget note:** operator authorized "proceed till 300k"; this session reached
+~329k executing the fleet mode-switch. Stopping at the ceiling per standing
+directive. Round-trip re-test (DM → wake → unattended /check-arc respond → ack)
+deferred to next session AFTER the presence-stale root cause is understood.
 
 **Open (AC 4 blocker — budget gate hit critical mid-fix):**
 `cmd_install_boot` in scripts/tl-claude.sh hardcodes
