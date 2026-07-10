@@ -132,6 +132,39 @@ grep -q "fetch_topic_current_values" /opt/termlink/crates/termlink-cli/src/comma
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** `termlink agent contact <live-peer>` warned "recipient presence is
+OFFLINE — last heartbeat 13204s ago; they are likely gone" for a peer that
+`agent-listeners.sh` showed LIVE with a 4–22s-fresh heartbeat. With
+`--require-online` (exit 9) the same misread would abort a real send to a live
+recipient — the doorbell breaking on its own send path.
+
+**Root cause:** the Rust agent-presence read (`fetch_topic_msgs`) anchors its
+subscribe cursor at `channel.list`'s `count` via
+`tail_slice_cursor(count, slice) = count.saturating_sub(slice)`. Under
+`latest_per_cv_key` retention (agent-presence, T-2245/T-2107) `count` is the
+RETAINED-message count, DECOUPLED from the monotonic tail offset (retained
+count ≪ tail offset). So the cursor saturates to the oldest retained page and
+the read returns days-stale envelopes. Identical defect to T-2390 (fixed in the
+shell consumer `agent-listeners.sh`), unfixed in the compiled binary on the
+send/preflight + fleet-resolution paths.
+
+**Why structurally allowed:** T-2390 fixed only the shell script; the Rust
+`fetch_topic_msgs` helper (and its MCP sibling `fetch_recent`) were never audited
+for the same count-vs-offset assumption. No test or gate asserts a presence read
+surfaces a LIVE-at-high-offset agent when dead keys sit at low offsets, and
+nothing cross-checks the CLI preflight's LIVE/OFFLINE verdict against
+`agent-listeners.sh` for the same peer — so the binary path stayed dark.
+
+**Prevention:** (1) cv_index read (`fetch_topic_current_values`/
+`fetch_presence_msgs`) replaces count-seek for all agent-presence callers, with
+count-seek only as an empty-cv_index fallback; (2) Rust unit tests
+`current_value_msgs_surfaces_live_agent_at_high_offset` +
+`_empty_when_no_snapshot` lock the behaviour (mirror of
+`tests/agent-listeners-cv-read.sh`); (3) learning registered (both shell AND
+binary presence reads must use cv_index under latest_per_cv_key); (4) MCP twin
+(`fetch_recent`) filed as T-2392 so the same class is closed on the
+agent-callable surface too.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
