@@ -277,7 +277,13 @@ cmd_install_boot() {
         local a; launch_args="$launch_args --"
         for a in "${CLAUDE_ARGS[@]}"; do launch_args="$launch_args $(printf '%q' "$a")"; done
     fi
-    local line="@reboot ${cron_user} sleep 45 && cd $(printf '%q' "$(dirname "$SCRIPT_DIR")") && bash scripts/tl-claude.sh ${launch_args} >> ${HOME}/.termlink/tl-claude-boot-${agent_id}.log 2>&1"
+    # T-2389: resume from the agent's OWN project dir, not the termlink repo.
+    # `start` spawns the shell (and thus claude) in $PWD, and claude keys
+    # --continue/--resume on cwd — so a project agent MUST boot back into its
+    # project dir. Capture $PWD at install time and invoke tl-claude.sh by its
+    # absolute path (the earlier `cd $(dirname SCRIPT_DIR) && bash scripts/…`
+    # hardcoded /opt/termlink and would resume every agent in the wrong cwd).
+    local line="@reboot ${cron_user} sleep 45 && cd $(printf '%q' "$PWD") && bash $(printf '%q' "${SCRIPT_DIR}/tl-claude.sh") ${launch_args} >> ${HOME}/.termlink/tl-claude-boot-${agent_id}.log 2>&1"
     local content="# T-2388 (T-2380 C5): re-arm push-reachable agent '${agent_id}' after reboot.
 # Managed by scripts/tl-claude.sh install-boot — edit/remove via that verb.
 SHELL=/bin/bash
