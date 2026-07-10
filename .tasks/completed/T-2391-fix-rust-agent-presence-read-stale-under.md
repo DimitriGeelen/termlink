@@ -4,20 +4,20 @@ name: "Fix Rust agent-presence read stale under latest-per-cv-key (T-2390 twin o
 description: >
   Fix Rust agent-presence read stale under latest-per-cv-key (T-2390 twin on send path)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/commands/channel.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-10T09:51:52Z
-last_update: 2026-07-10T09:51:52Z
-date_finished: null
+last_update: 2026-07-10T10:11:29Z
+date_finished: 2026-07-10T10:11:29Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -216,3 +216,20 @@ agent-callable surface too.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2391-fix-rust-agent-presence-read-stale-under.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-bbdf2aa8
+- **Timestamp:** 2026-07-10T10:11:59Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#4 (Agent)** — Unit test proves the cv-index extraction surfaces a LIVE agent whose heartbeat is at a HIGH offset (33412) while dead-agent cv_keys sit at LOW offsets (30810) — `current_value_msgs_surfaces_live_agent
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=tests/agent-listeners-cv-read.sh in: Unit test proves the cv-index extraction surfaces a LIVE agent whose heartbeat is at a HIGH offset (33412) while dead-agent cv_keys sit at LOW offsets`
+
+### 2026-07-10T10:11:29Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

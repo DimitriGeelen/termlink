@@ -3870,3 +3870,21 @@ scan_id: R-1fd00f81
 task_id: T-2390
 payload:
   task_file: .tasks/active/T-2390-fix-agent-listeners-presence-read-count-.md
+---
+kind: scan_emitted
+timestamp: '2026-07-10T10:11:59Z'
+scan_id: R-bbdf2aa8
+task_id: T-2391
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-10T10:11:59Z'
+scan_id: R-bbdf2aa8
+task_id: T-2391
+payload:
+  task_file: .tasks/active/T-2391-fix-rust-agent-presence-read-stale-under.md

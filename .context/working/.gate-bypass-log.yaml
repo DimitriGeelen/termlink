@@ -2147,3 +2147,13 @@ FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2297: capture Human
   flag: '--skip-sovereignty'
   caller: 'check_human_sovereignty'
   reason: 'Inception decision: GO'
+- timestamp: '2026-07-10T10:15:35Z'
+  task: 'T-2389'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2391'
+  command: 'cd /opt/termlink 2>/dev/null
+git add -A
+FW_SWITCH_FOCUS=1 git commit -q -m "T-2391: finalize move to completed/ + episodic (work-completed)
+
+Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>" && '

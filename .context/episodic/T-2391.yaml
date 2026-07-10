@@ -1,0 +1,95 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2391: Fix Rust agent-presence read stale under latest-per-cv-key (T-2390 twin on send path)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-10T10:12:02Z
+# ============================================================================
+
+task_id: T-2391
+task_name: "Fix Rust agent-presence read stale under latest-per-cv-key (T-2390 twin on send path)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-10T09:51:52Z
+completed: 2026-07-10T10:11:29Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-10T12:09:06+02:00
+last_commit: 2026-07-10T12:11:29+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix Rust agent-presence read stale under latest-per-cv-key (T-2390 twin on doorbell send path). tick ACs, add verification gate + RCA (G-019)
+
+# Key outcomes
+outcomes:
+  - 'Root cause confirmed in code: the Rust agent-presence read path (`fetch_topic_msgs("agent-presence", …)` via `tail_slice_cursor(count, …)` = `count.saturating_sub(slice)`) uses `channel.list` count as the seek anchor, which is decoupled from the monotonic tail offset under `latest_per_cv_key` retention — the exact T-2390 defect, in the compiled binary on the send/preflight path.'
+  - 'A presence-specific read helper (`fetch_topic_current_values` + `fetch_presence_msgs`, channel.rs) reads via `channel.subscribe {include_current_value:true}` (cv_index) and returns one current-value envelope per cv_key, correct regardless of retention/sweep cadence. Non-cv topics are unaffected (helper is scoped to agent-presence callers).'
+  - 'All 4 agent-presence read call sites in `agent.rs` (reachability preflight `resolve_recipient_presence` line 1033, two fleet contact-resolution walks, fp-keyed fleet resolve) route through `fetch_presence_msgs`; count-seek retained only as a fallback when cv_index is empty (cold hub / `--no-cv-key`).'
+  - 'Unit test proves the cv-index extraction surfaces a LIVE agent whose heartbeat is at a HIGH offset (33412) while dead-agent cv_keys sit at LOW offsets (30810) — `current_value_msgs_surfaces_live_agent_at_high_offset` + `_empty_when_no_snapshot`; both pass (mirror of `tests/agent-listeners-cv-read.sh`, in Rust).'
+  - 'Rebuilt binary (0.11.463) installed to `~/.cargo/bin`; `termlink agent contact --target-fp 6a646ce8b1bc6560 --dry-run` reads the LIVE peer as `presence_status:LIVE, recipient_live:true` (no false "OFFLINE / likely gone" — pre-fix it read 13204s-stale), cross-checked against `agent-listeners.sh` (LIVE, 4s).'
+  - 'Learning registered (PL) that the T-2390 count-seek defect had a Rust twin on the send path; both shell and binary presence reads must use cv_index under latest_per_cv_key. MCP twin filed as T-2392.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix Rust agent-presence read stale under latest-per-cv-key (T-2390 twin on doorbell send path)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-07-10.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/project/learnings.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-cli/src/commands/agent.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - '.tasks/active/T-2391-fix-rust-agent-presence-read-stale-under.md'
+  - '.tasks/active/T-2392-fix-mcp-agent-presence-read-stale-under-.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-10T12:09:06"
+    action: "T-2391: fix Rust agent-presence read stale under latest-per-cv-key (T-2390 twin on doorbell send path)"
+  - time: "2026-07-10T12:11:29"
+    action: "T-2391: tick ACs, add verification gate + RCA (G-019)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 19 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 19
+  commits: 2
+  files_changed: 15
+  lines_added: 613
+  lines_removed: 94
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2391-fix-rust-agent-presence-read-stale-under.md
+generated_by: context-agent-hybrid
