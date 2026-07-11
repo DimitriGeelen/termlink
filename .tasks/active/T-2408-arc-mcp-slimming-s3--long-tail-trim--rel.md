@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-11T14:16:26Z
-last_update: 2026-07-11T16:53:29Z
+last_update: 2026-07-11T17:09:19Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -45,27 +45,24 @@ and close the arc.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] **Sub-600 archaeology swept.** The ~65 descriptions under 600 chars still carrying
-  `T-XXXX` / `PL-NNN` / "MCP parity for" / "arc Slice N" / "NO new RPC surface" prose are
-  trimmed per policy (drop ID soup + pure cross-refs; keep purpose + non-obvious param
-  semantics + safety + return-shape). `cargo build -p termlink-mcp` passes; **tool count 273
-  (unchanged)**; `cargo test -p termlink-mcp` green. Report bytes reclaimed.
-  **STAGED, NOT YET APPLIED (2026-07-11):** a subagent authored + DRY-RUN-VERIFIED the full
-  73-fragment replacement set (65 tools, 8 need two edits) — every old fragment matches
-  `tools.rs` exactly once, none touch escaped-quote regions, all literals stay valid. It
-  could not apply because this session hit the framework budget gate (critical, ~289k) which
-  blocks source edits + general Bash. Self-contained apply script staged at
-  **`.context/working/mcp-s3-apply.py`** (73 pairs embedded inline; asserts count stays 273;
-  auto-patches guard `TOTAL_DESC_CEILING` → `ceil((new_total+500)/500)*500`, `MAX` stays 1560
-  since the 1546-char `termlink_help` is out of band; appends S3 ceiling-history + Env-doc
-  lines; prints final count/total/max). **ONE-STEP FINISH (fresh session):**
-  `cd /opt/termlink && python3 .context/working/mcp-s3-apply.py && cargo build -p termlink-mcp 2>&1 | tail -3 && cargo test -p termlink-mcp 2>&1 | tail -5 && bash scripts/test-mcp-desc-budget.sh`
-  then review the diff + commit.
-- [ ] **Guard tightened to final ceiling.** `MAX_DESC_CEILING` / `TOTAL_DESC_CEILING` in
-  `scripts/test-mcp-desc-budget.sh` lowered to just above the new max/total (final arc ceiling);
-  guard PASSES. Ceiling-history comment gains an S3 line.
-- [ ] **Arc closed.** `fw arc close mcp-slimming` with a before/after demo (156,525 → final
-  bytes, ~tokens/agent reclaimed). Memory + arc yaml reflect completion.
+- [x] **Sub-600 archaeology swept.** APPLIED 2026-07-11 (fresh session, budget ok). Ran the
+  staged `.context/working/mcp-s3-apply.py`: 73 fragment-pairs applied, tool **count 273
+  (unchanged)**, `cargo build -p termlink-mcp` clean, `cargo test -p termlink-mcp` green
+  (879 + 99 + 24 passed, incl. the rewritten `help_macro_description_documents_post_t1953_fields`
+  drift-guard). **112,319 → 108,051 bytes = 4,268 reclaimed** (~1,067 more tokens/agent).
+  Diff character verified policy-correct: drops "MCP-side equivalent of `agent X` (CLI T-NNNN)",
+  "T-15xx" archaeology, "arc Slice N" / "NO new RPC" prose; keeps purpose + return-shape
+  (`Returns {ok, ...}`) + non-obvious param semantics. Safety words on the claim-lifecycle
+  tools (`ack=true advances cursor, ack=false reopens slot`) were preserved in S2 and untouched
+  by S3.
+- [x] **Guard tightened to final ceiling.** `scripts/test-mcp-desc-budget.sh` auto-patched by
+  the apply script: `TOTAL_DESC_CEILING` 113000 → 109000, `MAX_DESC_CEILING` stays 1560
+  (the 1546-char `termlink_help` is out of band). Guard PASSES (273 tools / 108,051 bytes /
+  max 1546). Ceiling-history comment gained the S3 line.
+- [x] **Arc closed.** `fw arc close mcp-slimming` — before/after demo below.
+  **Arc total: 156,525 → 108,051 bytes = 48,474 reclaimed (~12,100 tokens/agent/session,
+  ~31% of the original tool-catalog tax).** Tool count unchanged (273) across all three slices.
+  Memory + arc yaml updated.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -131,6 +128,9 @@ and close the arc.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+bash scripts/test-mcp-desc-budget.sh
+test $(python3 -c "import re;print(len(re.findall(r'description\s*=\s*\"', open('crates/termlink-mcp/src/tools.rs').read())))") -eq 273
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -170,6 +170,19 @@ and close the arc.
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-07-11 — S3 applied a session late; the staging pattern paid off
+- **What changed:** S3 was authored + dry-run-verified in the prior session but blocked from
+  applying by the framework budget gate (source edits forbidden at critical). Staging the
+  entire trim as a self-contained apply script (`.context/working/mcp-s3-apply.py`, fragment
+  pairs + count assertion + guard auto-patch) meant the fresh session applied it in ONE command
+  with zero re-derivation — build+test+guard all green on first run.
+- **Plan impact:** Confirms the per-slice discipline scales across a session boundary: the guard
+  is the objective success signal, so an interrupted slice resumes as a mechanical replay, not a
+  re-think. No plan change.
+- **Triggered:** Arc close. The head-heavy shape held — S3's sub-600 long tail yielded 4.3KB vs
+  S1's 23.3KB (one meta-tool) and S2's 20.9KB (86 tools). Diminishing returns past the 600-char
+  band; no S4 warranted. Guard now locks the win at 109,000 bytes so it can't creep back.
 
 ## Decisions
 

@@ -14,7 +14,7 @@
 # tighten the ceiling has not locked its win.
 #
 # Usage: test-mcp-desc-budget.sh [--report-only]
-# Env:   MAX_DESC_CEILING (default 1560), TOTAL_DESC_CEILING (default 113000),
+# Env:   MAX_DESC_CEILING (default 1560), TOTAL_DESC_CEILING (default 109000),
 #        MCP_TOOLS_FILE (default crates/termlink-mcp/src/tools.rs)
 #
 # Ceiling history (each slice tightens after its trims land):
@@ -23,12 +23,15 @@
 #   S2 (T-2407):       max  1546, total 112319  → ceilings  1560 / 113000
 #                      (max unchanged — the 1546-char termlink_help tool is out of
 #                       band; S2 trimmed the 600–999 band, reclaiming ~20.9KB total)
+#   S3 (T-2408):       max  1546, total 108051  → ceilings  1560 / 109000
+#                      (max unchanged — termlink_help out of band; S3 trimmed the
+#                       sub-600 archaeology long-tail across ~65 tool descriptions)
 
 set -u
 SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 FILE="${MCP_TOOLS_FILE:-${SELF_DIR}/../crates/termlink-mcp/src/tools.rs}"
 MAX_CEIL="${MAX_DESC_CEILING:-1560}"
-TOTAL_CEIL="${TOTAL_DESC_CEILING:-113000}"
+TOTAL_CEIL="${TOTAL_DESC_CEILING:-109000}"
 report_only=0; [ "${1:-}" = "--report-only" ] && report_only=1
 
 [ -f "$FILE" ] || { echo "FATAL: MCP tools file not found: $FILE"; exit 2; }
