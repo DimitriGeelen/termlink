@@ -4,10 +4,10 @@ name: "Durable launch-path-independent auto-accept for reachable agents"
 description: >
   Make a reachable agent's auto-accept survive ANY relaunch (incl. plain claude --resume), not just tl-claude launches — the settings-based twin of the .mcp.json identity fix (T-2399). Closes the T-2400 residual: a manual relaunch reintroduces reachable-but-mute.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-11T07:28:11Z
-last_update: 2026-07-11T07:28:11Z
-date_finished: null
+last_update: 2026-07-11T07:34:30Z
+date_finished: 2026-07-11T07:34:30Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -224,3 +224,22 @@ out=$(cat docs/operations/durable-reachable-auto-accept.md); echo "$out" | grep 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2401-durable-launch-path-independent-auto-acc.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-9950379d
+- **Timestamp:** 2026-07-11T07:34:31Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — The durable mechanism is confirmed: verified (via claude-code-guide + a live check) whether `.claude/settings.local.json` `permissions.allow` for the comms Bash/MCP surface (and/or `defaultMode`) is h
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=claude/settings.local in: The durable mechanism is confirmed: verified (via claude-code-guide + a live check) whether `.claude/settings.local.json` `permissions.allow` for the `
+- **AC#2 (Agent)** — Each of the 4 live .107 agent projects (/opt/999 aef, /opt/832 workflow-designer, /opt/025 workshop-designer, /opt/3011 sonnenstall) has its `.claude/settings.local.json` updated (via termlink_run, T-
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=claude/settings.local in: Each of the 4 live .107 agent projects (/opt/999 aef, /opt/832 workflow-designer, /opt/025 workshop-designer, /opt/3011 sonnenstall) has its `.claude/`
+
+### 2026-07-11T07:34:30Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

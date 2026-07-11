@@ -4,16 +4,16 @@ name: "Woken-but-silent: make a rung-yet-unanswered agent loud + self-healing"
 description: >
   Push-waker rings PTY once on dm.queued; a rung agent that does not reply is invisible (no re-ring, no operator signal). Demo T-2400: rang wfd offset=7, silent 15min. Explore re-ring-on-no-receipt / awaiting-ack registration / woken-but-silent surface.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-07-11T07:37:06Z
-last_update: 2026-07-11T09:40:40Z
-date_finished: null
+last_update: 2026-07-11T12:08:32Z
+date_finished: 2026-07-11T12:08:32Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -179,3 +179,15 @@ notified — see T-2403).
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-9dd17caf
+- **Timestamp:** 2026-07-11T12:08:51Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-11T12:08:32Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

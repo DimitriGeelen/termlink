@@ -4,7 +4,7 @@ name: "Model-B live validation: two armed scratch agents, observe interruption-c
 description: >
   T-2397 GO step 2 (prove-first). Launch two scratch agents armed via tl-claude.sh --reachable on .107, run one real exchange, observe whether interrupt-and-resume produces coherent autonomous flow for >=2 hops (IW-1). Do NOT run on urgent budget — needs a fresh session.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-10T18:43:32Z
-last_update: 2026-07-10T18:43:32Z
+last_update: 2026-07-10T20:48:10Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -219,3 +219,6 @@ to T-2397's dialogue log.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2398-model-b-live-validation-two-armed-scratc.md
 - **Context:** Initial task creation
+
+### 2026-07-10T20:48:10Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

@@ -4,10 +4,10 @@ name: "Relay-loop B1: reply-on-ringing-rail default"
 description: >
   T-2393 GO build 1/3. When the doorbell wakes an agent, its reply must default to the DM rail + conversation_id that rang it (not a thread/broadcast post) so the RETURN leg rings the sender. Stamp reply-rail metadata into the injected payload so /reply + agent-respond.sh have zero ambiguity. B1 alone kills the 'say check' symptom (IW-4).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-10T15:06:14Z
-last_update: 2026-07-10T15:49:30Z
-date_finished: null
+last_update: 2026-07-10T16:42:17Z
+date_finished: 2026-07-10T16:42:17Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -210,3 +210,15 @@ grep -q 'rail' .claude/commands/check-arc.md
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2394-relay-loop-b1-reply-on-ringing-rail-defa.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-2d5d7c04
+- **Timestamp:** 2026-07-10T16:42:18Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-10T16:42:17Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

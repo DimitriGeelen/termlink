@@ -4,10 +4,10 @@ name: "reachable agents launch mute — tl-claude --reachable must enable auto-a
 description: >
   reachable agents launch mute — tl-claude --reachable must enable auto-accept so woken agents can post replies
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-11T06:41:37Z
-last_update: 2026-07-11T06:55:39Z
-date_finished: null
+last_update: 2026-07-11T06:56:12Z
+date_finished: 2026-07-11T06:56:12Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -236,3 +236,15 @@ out=$(source <(sed -n '/^build_claude_cmd/,/^}/p' scripts/tl-claude.sh); CLAUDE_
   accept by default, so a woken reachable agent posts its reply hands-free — the
   "reachable-but-mute" link that killed the comms loop after one hop is closed at
   the launcher. Closes the second silent blocker found deploying T-2399.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-07c9199c
+- **Timestamp:** 2026-07-11T06:56:14Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-11T06:56:12Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

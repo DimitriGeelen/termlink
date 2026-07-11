@@ -4,20 +4,20 @@ name: "MCP server signs envelopes as host key not per-agent identity (outbound i
 description: >
   MCP server signs envelopes as host key not per-agent identity (outbound identity leak)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs, crates/termlink-session/src/agent_identity.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-10T21:54:18Z
-last_update: 2026-07-11T06:39:18Z
-date_finished: null
+last_update: 2026-07-11T06:56:35Z
+date_finished: 2026-07-11T06:56:35Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -249,3 +249,20 @@ Cross-project note: T-559 blocks direct Bash to /opt/999 & /opt/832 from the
   launch auto-accept, else discoverable+wakeable but cannot answer).
 - Full >=3-hop hands-free volley is gated only by wf-designer being busy on an
   unrelated resumed high-effort turn (agent attention, not a comms defect).
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-80cd3649
+- **Timestamp:** 2026-07-11T06:56:36Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — Every hardcoded `Identity::load_or_create(&identity_dir)` *signing* site in `crates/termlink-mcp/src/tools.rs` routes through that resolver (grep shows 0 remaining `Identity::load_or_create(&identity_
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-mcp/src/tools.rs in: Every hardcoded `Identity::load_or_create(&identity_dir)` *signing* site in `crates/termlink-mcp/src/tools.rs` routes through that resolver (grep show`
+
+### 2026-07-11T06:56:35Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
