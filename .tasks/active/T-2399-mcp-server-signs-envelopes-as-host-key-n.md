@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-10T21:54:18Z
-last_update: 2026-07-10T22:07:11Z
+last_update: 2026-07-10T22:46:57Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -220,3 +220,10 @@ Cross-project note: T-559 blocks direct Bash to /opt/999 & /opt/832 from the
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2399-mcp-server-signs-envelopes-as-host-key-n.md
 - **Context:** Initial task creation
+
+### 2026-07-11 — deploy in progress (autonomous session)
+- **Pushed** bf0a47ea (resolver fix) + 556ee553 (runbook) to OneDev — `b16ac5ca..97f1ac70 main -> main`, 0 unpushed.
+- **Root-cause confirmed live:** all 8 running `termlink mcp serve` procs carry `TERMLINK_AGENT_ID=<unset>`; aef's mcp serve is a DIRECT child of `claude --resume` (tty 34826, sudo su) with no identity env — so even the fixed binary resolves to the shared host key without the env supplied. Several binaries show `(deleted)` (PL-209 installed-but-not-restarted).
+- **Durable fix applied** — added `env.TERMLINK_AGENT_ID` to the `termlink` mcpServer block of all 4 live .107 agents' `.mcp.json`: aef (/opt/999), workflow-designer (/opt/832), workshop-designer (/opt/025), sonnenstall (/opt/3011). Claude Code injects this env into the mcp serve it spawns → session signs as its own per-agent key, matching the be-reachable heartbeat identity. Takes effect on next mcp-serve respawn (session restart / `/mcp` reconnect).
+- **Binary:** rebuilding `-p termlink` (0.11.502) to install the resolver fix over stale 0.11.467 on all 3 PATH locations (.cargo/bin, .local/bin, /usr/local/bin).
+- **Remaining:** install binary; migrate live sessions (respawn mcp serve); watched >=3-hop autonomous test on `dm:0e7ee6cad65137fc:6a646ce8b1bc6560` verifying every reply's sender_id == poster's own fp; then close.
