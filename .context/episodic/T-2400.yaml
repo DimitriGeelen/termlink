@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2400: reachable agents launch mute — tl-claude --reachable must enable auto-accept so woken agents can post replies
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-11T06:56:17Z
+# ============================================================================
+
+task_id: T-2400
+task_name: "reachable agents launch mute — tl-claude --reachable must enable auto-accept so woken agents can post replies"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-11T06:41:37Z
+completed: 2026-07-11T06:56:12Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-11T08:43:56+02:00
+last_commit: 2026-07-11T08:56:03+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file reachable-but-mute gap + ready-to-apply tl-claude auto-accept patch (found deploying T-2399). tl-claude --reachable now launches auto-accept (IS_SANDBOX=1 + --dangerously-skip-permissions) so woken agents post replies hands-free; both start/restart and oneshot paths; all 3 ACs verified. add P-011 verification commands (syntax + reachable auto-accept + no-op-when-not-reachable)
+
+# Key outcomes
+outcomes:
+  - '`build_claude_cmd` in `scripts/tl-claude.sh` prepends `IS_SANDBOX=1` and appends `--dangerously-skip-permissions` to the injected claude command when `REACHABLE=1`, so a woken reachable agent can auto-post replies (no manual permission prompt). Verify: `REACHABLE=1 bash -c ''source <(sed -n "/^build_claude_cmd/,/^}/p" scripts/tl-claude.sh); CLAUDE_ARGS=(--resume); REACHABLE=1; TL_CLAUDE_CMD=claude; build_claude_cmd''` prints a command containing both `IS_SANDBOX=1` and `--dangerously-skip-permissions`. VERIFIED 2026-07-11: `-> IS_SANDBOX=1 claude --resume --dangerously-skip-permissions`. `cmd_oneshot` covered symmetrically (exports IS_SANDBOX=1 + appends flag before its `exec`).'
+  - 'It is a no-op when `REACHABLE=0` (non-reachable one-shot sessions keep default permission prompting) AND idempotent when the caller already passed `--dangerously-skip-permissions` (no duplicate flag). Opt-out honored via `TL_NO_AUTO_ACCEPT=1`. VERIFIED 2026-07-11: REACHABLE=0 → `claude --resume` (clean); pre-passed flag → exactly 1 occurrence; TL_NO_AUTO_ACCEPT=1 → `claude --resume` (clean).'
+  - '`bash -n scripts/tl-claude.sh` passes (syntax clean). VERIFIED 2026-07-11: OK.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/tl-claude.sh'
+  - '.tasks/active/T-2399-mcp-server-signs-envelopes-as-host-key-n.md'
+  - '.tasks/active/T-2400-reachable-agents-launch-mute--tl-claude-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-11T08:43:56"
+    action: "T-2400: file reachable-but-mute gap + ready-to-apply tl-claude auto-accept patch (found deploying T-2399)"
+  - time: "2026-07-11T08:55:38"
+    action: "T-2400: tl-claude --reachable now launches auto-accept (IS_SANDBOX=1 + --dangerously-skip-permissions) so woken agents post replies hands-free; both start/restart and oneshot paths; all 3 ACs verified"
+  - time: "2026-07-11T08:56:03"
+    action: "T-2400: add P-011 verification commands (syntax + reachable auto-accept + no-op-when-not-reachable)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 14 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14
+  commits: 3
+  files_changed: 3
+  lines_added: 274
+  lines_removed: 7
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2400-reachable-agents-launch-mute--tl-claude-.md
+generated_by: context-agent-hybrid
