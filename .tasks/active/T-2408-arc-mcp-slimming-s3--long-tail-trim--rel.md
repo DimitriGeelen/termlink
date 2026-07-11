@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-11T14:16:26Z
-last_update: 2026-07-11T21:30:56Z
+last_update: 2026-07-11T21:32:03Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -158,6 +158,26 @@ test $(python3 -c "import re;print(len(re.findall(r'description\s*=\s*\"', open(
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+## Recommendation
+
+**Recommendation:** GO — close arc mcp-slimming.
+
+**Rationale:** All three slices shipped and are guard-locked. The refactor is done, verified,
+and reversible-proof (the anti-regrowth guard fails CI if descriptions creep back). The only
+remaining action is the human-authority arc-close stamp — there is no engineering risk left to
+weigh, only the sovereignty formality that arc closure belongs to the human.
+
+**Evidence:**
+- Arc total: **156,525 → 108,051 bytes = 48,474 reclaimed (~12,100 tokens/agent/session, ~31%
+  of the original tool-catalog tax)**. Per slice: S1 23.3KB (1 meta-tool) · S2 20.9KB (86 tools)
+  · S3 4.3KB (65 tools).
+- Tool count unchanged (273) across all three slices — trims were text-only, no tool removed.
+- `cargo test -p termlink-mcp` green: 879 + 99 + 24 passed, including the rewritten
+  `help_macro_description_documents_post_t1953_fields` drift-guard.
+- Anti-regrowth guard `scripts/test-mcp-desc-budget.sh` PASS at ceiling 109,000 (max 1560);
+  ratcheted at every slice so the win can't silently regrow.
+- Commits: cb5d74ca (S1) · ebdd5f5f + 612a8d84 (S2) · a833a127 + e24e1e19 (S3), all on OneDev.
 
 ## Evolution
 
