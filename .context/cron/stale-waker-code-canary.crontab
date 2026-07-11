@@ -1,0 +1,29 @@
+# T-2405 — Stale-waker-code detection canary (G-019 detection for T-2404)
+# Source of truth: /opt/termlink/.context/cron/stale-waker-code-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-stale-waker-code-canary (USER field syntax — do NOT load into a user crontab)
+#
+# T-2404 shipped the REMEDIATION (fleet-rearm-wakers.sh) for agents running
+# stale push-waker code; this canary is the DETECTION sibling (G-019: fix the
+# symptom, then close the blindness). A running push-waker is a long-lived
+# detached process — when be-reachable-pushwaker.sh is patched (e.g. a T-2402
+# idle-gating fix) already-running wakers keep executing the OLD code until
+# re-armed, and nothing surfaced that drift (found only by a manual /proc mtime
+# compare). This daily canary FIRES (exit 1, log entry) when any local
+# be-reachable-<id>.state has a LIVE pushwaker_pid whose process start-time
+# predates the current waker-script mtime. Dead pids are the not-running class
+# (informational, non-firing — that is T-2387's waker-liveness territory).
+#
+# Layer map: T-2359 = stale HUB BINARY, T-2387 = DEAD/unwakeable waker,
+#            T-2405 (this) = ALIVE waker on OLD CODE.
+# Empty log = healthy. /canaries auto-discovers this log + heartbeat.
+#
+# Operator action on firing: re-arm the named agent(s) with
+# `bash scripts/fleet-rearm-wakers.sh <agent>` (or `--all` for the whole fleet) —
+# a zero-outage waker-only respawn (heartbeat/presence never drops, T-2404).
+# Ad-hoc check: `bash scripts/check-stale-waker-code-freshness.sh`.
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 08:13 UTC — offset from the :13/:17/:23/:43 canaries and the
+# 07:43 task-finalization / 07:53 waker-liveness / 08:33 fleet-binary neighbours.
+13 8 * * * root cd /opt/termlink && bash scripts/check-stale-waker-code-freshness.sh --quiet >> .context/working/.stale-waker-code-canary.log 2>&1

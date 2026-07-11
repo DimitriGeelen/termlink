@@ -318,6 +318,36 @@ retrofitted, PL-237 — arm at relaunch); dead wakers re-arm via
 `/canaries` auto-discovers the log. Pair with the eight canaries above — all
 nine follow the same "empty-log = healthy" convention.
 
+### Stale-waker-code canary (T-2405, G-019 detection for T-2404)
+
+T-2404 shipped the REMEDIATION (`scripts/fleet-rearm-wakers.sh`) for a push-waker
+process still executing pre-current code after `scripts/be-reachable-pushwaker.sh`
+was patched (e.g. a T-2402 idle-gating fix) — a running waker is a long-lived
+detached process and keeps executing the OLD code until re-armed. But the framework
+had no DETECTION: the drift was found only by a manual `/proc/<pid>` mtime compare.
+G-019: fix the symptom, then close the blindness. A daily cron runs
+`scripts/check-stale-waker-code-freshness.sh --quiet` (see
+`.context/cron/stale-waker-code-canary.crontab`) and appends to
+`.context/working/.stale-waker-code-canary.log`. Empty log = healthy.
+
+The canary walks `$HOME/.termlink/be-reachable-<id>.state` (the same per-agent state
+files T-2404 re-arms) and classifies each `pushwaker_pid`: **STALE** (pid alive AND
+`/proc/<pid>` start-mtime < current waker-script mtime — the firing class), **current**
+(alive and not older — healthy), **not-running** (dead/absent pid — informational
+cleanup class, non-firing; that is T-2387's waker-liveness territory). It reuses
+T-2404's exact staleness primitives (`code_mtime` / `proc_start_mtime` / `is_stale`)
+so detection and remediation cannot drift apart. Three staleness canaries at distinct
+layers: **T-2359** = stale HUB BINARY, **T-2387** = DEAD/unwakeable waker, **T-2405**
+(this) = ALIVE waker on OLD CODE. Ad-hoc check:
+`bash scripts/check-stale-waker-code-freshness.sh` (exit 0 = healthy, 1 = firing,
+2 = tooling error); add `--json` for scripting. Test hooks `STALE_WAKER_STATE_DIR` +
+`STALE_WAKER_PW_SCRIPT` feed a fixture state dir + controlled-mtime waker script for
+host-independent verification. Operator action on firing: re-arm the named agent(s)
+with `bash scripts/fleet-rearm-wakers.sh <agent>` (or `--all` for the whole fleet) —
+a zero-outage waker-only respawn (heartbeat/presence never drops, T-2404). `/canaries`
+auto-discovers the log. Pair with the nine canaries above — all ten follow the same
+"empty-log = healthy" convention.
+
 ## Project-Specific Rules
 
 ### Hub Auth Rotation Protocol

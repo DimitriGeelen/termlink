@@ -4,7 +4,7 @@ name: "Stale-waker-code detection canary — surface agents on pre-current push-
 description: >
   Detection counterpart to T-2404 fleet-rearm-wakers.sh (remediation). The framework is currently BLIND to agents running stale push-waker code — this session found the fleet on pre-Stage-3 wakers only via manual /proc mtime comparison. Build a check-waker-code-freshness.sh canary (same empty-log=healthy + cron pattern as the 9 existing canaries; sibling to T-2359 fleet-binary but at the waker-process layer): walk be-reachable-*.state, compare each running pushwaker_pid /proc mtime vs the live be-reachable-pushwaker.sh mtime, FIRE on any stale waker. Auto-discovered by /canaries. Remediation on fire: bash scripts/fleet-rearm-wakers.sh --all.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-11T13:30:25Z
-last_update: 2026-07-11T13:30:25Z
+last_update: 2026-07-11T21:38:16Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,45 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+T-2404 shipped the REMEDIATION (`scripts/fleet-rearm-wakers.sh`) for agents running
+stale push-waker code, but the framework has no DETECTION — the stale-waker-code class was
+found only by a manual `/proc/<pid>` mtime compare. G-019 says: fix the symptom (T-2404), then
+ask "why was the framework blind?" and close the blindness. This task adds the read-only canary
+sibling: it walks the same per-agent `be-reachable-<id>.state` files T-2404 re-arms, classifies
+each live push-waker by process-start-time vs the current waker-script mtime, and FIRES
+(empty-log = healthy) when any running waker predates the current code. Sibling to T-2359
+(fleet-binary-freshness, at the hub-binary layer) and T-2387 (waker-liveness, at the
+waker-*running* layer) — this one is at the waker-*code-version* layer. Remediation-on-fire is
+exactly `fleet-rearm-wakers.sh --all`. Reuses T-2404's staleness primitives verbatim
+(`code_mtime` / `proc_start_mtime` / `is_stale`) so detection and remediation cannot drift apart.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] **Canary script.** `scripts/check-stale-waker-code-freshness.sh` walks
+  `$STATE_DIR/be-reachable-*.state` (STATE_DIR = `$HOME/.termlink`, override
+  `STALE_WAKER_STATE_DIR`), and for each state file with a `pushwaker_pid`, classifies the
+  running waker: **STALE** (pid alive AND `/proc/<pid>` start-mtime < current waker-script
+  mtime — the firing class), **current** (alive AND not older — healthy), **not-running**
+  (dead/absent pid — informational cleanup class, non-firing, mirrors T-2387/T-2239 dead-pid
+  handling). FIRES (exit 1) on ANY stale waker; exit 0 when none stale; exit 2 on tooling error.
+  Waker-script ref path overridable via `STALE_WAKER_PW_SCRIPT` (mirrors T-2404's
+  `FLEET_REARM_PW_SCRIPT`). Each firing line names the agent + running-pid + proc-mtime vs
+  code-mtime + the `fleet-rearm-wakers.sh <agent>` remediation.
+- [x] **Canary conventions.** `--quiet` (print only on firing, cron form), `--json` (envelope
+  `{ok, stale[], current[], not_running[], summary}`), `--no-heartbeat`, and a `.heartbeat`
+  touch at `.context/working/.stale-waker-code-canary.heartbeat` — all matching the nine
+  existing empty-log=healthy canaries so `/canaries` auto-discovers it. Pure helpers factored
+  for unit test via a `STALE_WAKER_LIB=1` source-without-run guard.
+- [x] **Cron + registry.** `.context/cron/stale-waker-code-canary.crontab` (daily, `--quiet`,
+  USER-field syntax) authored AND installed to `/etc/cron.d/termlink-stale-waker-code-canary`
+  (pre-push audit FAILs on an uninstalled `*-canary.crontab`); cron registry in sync (audit
+  PASS for the new cron entry).
+- [x] **Tests + doc.** Hermetic test `tests/stale-waker-code-canary.sh` — fixture state dir +
+  fake waker script with controlled mtimes proving STALE fires, current is healthy, not-running
+  is informational, and the JSON envelope shape. `cargo` untouched (pure shell). Doc
+  `docs/operations/stale-waker-code-canary.md` + a CLAUDE.md canary §. Live `--json` on the
+  real .107 fleet reported (expected: all current after T-2404 convergence).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -174,3 +205,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2405-stale-waker-code-detection-canary--surfa.md
 - **Context:** Initial task creation
+
+### 2026-07-11T21:38:16Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
