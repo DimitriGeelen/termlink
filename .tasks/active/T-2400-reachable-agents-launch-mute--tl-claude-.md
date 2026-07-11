@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-11T06:41:37Z
-last_update: 2026-07-11T06:41:37Z
+last_update: 2026-07-11T06:43:56Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -79,9 +79,9 @@ also bypasses `build_claude_cmd`.) Then `bash -n scripts/tl-claude.sh`, run the
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `build_claude_cmd` in `scripts/tl-claude.sh` prepends `IS_SANDBOX=1` and appends `--dangerously-skip-permissions` to the injected claude command when `REACHABLE=1`, so a woken reachable agent can auto-post replies (no manual permission prompt). Verify: `REACHABLE=1 bash -c 'source <(sed -n "/^build_claude_cmd/,/^}/p" scripts/tl-claude.sh); CLAUDE_ARGS=(--resume); REACHABLE=1; TL_CLAUDE_CMD=claude; build_claude_cmd'` prints a command containing both `IS_SANDBOX=1` and `--dangerously-skip-permissions`.
-- [ ] It is a no-op when `REACHABLE=0` (non-reachable one-shot sessions keep default permission prompting) AND idempotent when the caller already passed `--dangerously-skip-permissions` (no duplicate flag). Opt-out honored via `TL_NO_AUTO_ACCEPT=1`.
-- [ ] `bash -n scripts/tl-claude.sh` passes (syntax clean).
+- [x] `build_claude_cmd` in `scripts/tl-claude.sh` prepends `IS_SANDBOX=1` and appends `--dangerously-skip-permissions` to the injected claude command when `REACHABLE=1`, so a woken reachable agent can auto-post replies (no manual permission prompt). Verify: `REACHABLE=1 bash -c 'source <(sed -n "/^build_claude_cmd/,/^}/p" scripts/tl-claude.sh); CLAUDE_ARGS=(--resume); REACHABLE=1; TL_CLAUDE_CMD=claude; build_claude_cmd'` prints a command containing both `IS_SANDBOX=1` and `--dangerously-skip-permissions`. VERIFIED 2026-07-11: `-> IS_SANDBOX=1 claude --resume --dangerously-skip-permissions`. `cmd_oneshot` covered symmetrically (exports IS_SANDBOX=1 + appends flag before its `exec`).
+- [x] It is a no-op when `REACHABLE=0` (non-reachable one-shot sessions keep default permission prompting) AND idempotent when the caller already passed `--dangerously-skip-permissions` (no duplicate flag). Opt-out honored via `TL_NO_AUTO_ACCEPT=1`. VERIFIED 2026-07-11: REACHABLE=0 → `claude --resume` (clean); pre-passed flag → exactly 1 occurrence; TL_NO_AUTO_ACCEPT=1 → `claude --resume` (clean).
+- [x] `bash -n scripts/tl-claude.sh` passes (syntax clean). VERIFIED 2026-07-11: OK.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -214,3 +214,21 @@ also bypasses `build_claude_cmd`.) Then `bash -n scripts/tl-claude.sh`, run the
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2400-reachable-agents-launch-mute--tl-claude-.md
 - **Context:** Initial task creation
+
+### 2026-07-11 — patch applied + all ACs verified
+- **Action:** Applied the ready-to-apply auto-accept patch to `scripts/tl-claude.sh`.
+  Two sites (the start/restart path builds a shell string injected into the PTY;
+  the one-shot path uses `exec`, so it needs the env exported in-process):
+  - `build_claude_cmd()`: when `REACHABLE=1` (and not opted out, and flag not
+    already present) prepends `IS_SANDBOX=1 ` to the returned string and appends
+    `--dangerously-skip-permissions` to `CLAUDE_ARGS`.
+  - `cmd_oneshot()`: symmetric — `export IS_SANDBOX=1` + append the flag before
+    the `exec termlink spawn ... -- claude ...` (build_claude_cmd is not on this
+    path; the summary flagged this as a follow-up and it's now covered).
+- **Verified:** all 3 Agent ACs pass — AC1 `-> IS_SANDBOX=1 claude --resume
+  --dangerously-skip-permissions`; AC2 no-op on REACHABLE=0, exactly-1 on
+  pre-passed flag, opt-out honored on TL_NO_AUTO_ACCEPT=1; AC3 `bash -n` clean.
+- **Impact:** future `tl-claude start/restart/oneshot --reachable` launches auto-
+  accept by default, so a woken reachable agent posts its reply hands-free — the
+  "reachable-but-mute" link that killed the comms loop after one hop is closed at
+  the launcher. Closes the second silent blocker found deploying T-2399.

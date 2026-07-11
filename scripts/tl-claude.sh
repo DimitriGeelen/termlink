@@ -140,12 +140,28 @@ session_exists() {
     termlink list 2>/dev/null | grep -q "$SESSION_NAME"
 }
 
+# T-2400: a --reachable agent must launch with auto-accept so that when a peer's
+# doorbell wakes it, it can post its reply through channel_post WITHOUT a human
+# at the PTY to approve the "Do you want to proceed?" prompt. Without this a
+# reachable agent is discoverable + wakeable but MUTE (the comms loop dies after
+# one hop). IS_SANDBOX=1 + --dangerously-skip-permissions is the root
+# auto-accept combo (see reference_is_sandbox_root_bypass). No-op when not
+# reachable; opt out with TL_NO_AUTO_ACCEPT=1; idempotent if caller already
+# passed the flag.
 build_claude_cmd() {
     local cmd="${TL_CLAUDE_CMD:-claude}"
+    local env_prefix="" has_skip=0 arg
+    for arg in "${CLAUDE_ARGS[@]}"; do
+        [ "$arg" = "--dangerously-skip-permissions" ] && has_skip=1
+    done
+    if [ "$REACHABLE" -eq 1 ] && [ "${TL_NO_AUTO_ACCEPT:-0}" != "1" ] && [ "$has_skip" -eq 0 ]; then
+        env_prefix="IS_SANDBOX=1 "
+        CLAUDE_ARGS+=("--dangerously-skip-permissions")
+    fi
     for arg in "${CLAUDE_ARGS[@]}"; do
         cmd="$cmd $(printf '%q' "$arg")"
     done
-    echo "$cmd"
+    echo "${env_prefix}${cmd}"
 }
 
 # --- Subcommands ---
@@ -156,6 +172,19 @@ cmd_oneshot() {
     echo ""
     # T-2388: exec replaces this process, so arm out-of-band via retry loop.
     [ "$REACHABLE" -eq 1 ] && arm_reachable_async
+    # T-2400: same auto-accept guarantee as build_claude_cmd, but this path uses
+    # exec (not PTY-string injection), so export IS_SANDBOX into the inherited
+    # env and append the flag to the argv rather than prefixing a shell string.
+    if [ "$REACHABLE" -eq 1 ] && [ "${TL_NO_AUTO_ACCEPT:-0}" != "1" ]; then
+        local has_skip=0 arg
+        for arg in "${CLAUDE_ARGS[@]}"; do
+            [ "$arg" = "--dangerously-skip-permissions" ] && has_skip=1
+        done
+        if [ "$has_skip" -eq 0 ]; then
+            export IS_SANDBOX=1
+            CLAUDE_ARGS+=("--dangerously-skip-permissions")
+        fi
+    fi
     exec termlink spawn \
         --name "$SESSION_NAME" \
         --tags "$TAGS" \
