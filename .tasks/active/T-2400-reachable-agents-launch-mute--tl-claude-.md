@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-11T06:41:37Z
-last_update: 2026-07-11T06:43:56Z
+last_update: 2026-07-11T06:55:39Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -146,6 +146,10 @@ also bypasses `build_claude_cmd`.) Then `bash -n scripts/tl-claude.sh`, run the
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+bash -n scripts/tl-claude.sh
+out=$(source <(sed -n '/^build_claude_cmd/,/^}/p' scripts/tl-claude.sh); CLAUDE_ARGS=(--resume); REACHABLE=1; TL_CLAUDE_CMD=claude; build_claude_cmd); echo "$out" | grep -q 'IS_SANDBOX=1'
+out=$(source <(sed -n '/^build_claude_cmd/,/^}/p' scripts/tl-claude.sh); CLAUDE_ARGS=(--resume); REACHABLE=1; TL_CLAUDE_CMD=claude; build_claude_cmd); echo "$out" | grep -q -- '--dangerously-skip-permissions'
+out=$(source <(sed -n '/^build_claude_cmd/,/^}/p' scripts/tl-claude.sh); CLAUDE_ARGS=(--resume); REACHABLE=0; TL_CLAUDE_CMD=claude; build_claude_cmd); echo "$out" | grep -qv 'IS_SANDBOX'
 
 ## RCA
 
