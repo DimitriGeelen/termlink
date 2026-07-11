@@ -151,11 +151,21 @@ session_exists() {
 build_claude_cmd() {
     local cmd="${TL_CLAUDE_CMD:-claude}"
     local env_prefix="" has_skip=0 arg
+    # T-2403: sanitize a leaked PROJECT_ROOT so a cwd-scoped agent resolves its
+    # OWN project. A stale value inherited from the launcher env (observed:
+    # /opt/023 on workflow-designer while PWD=/opt/832) misroutes framework
+    # project resolution and gates ALL of the agent's fw/Bash/Edit in the wrong
+    # project. `env -u PROJECT_ROOT` drops it so the framework falls back to the
+    # cwd's .framework.yaml / git-toplevel (the normal unset path). Unconditional
+    # (independent of REACHABLE); opt out with TL_KEEP_PROJECT_ROOT=1.
+    [ "${TL_KEEP_PROJECT_ROOT:-0}" != "1" ] && env_prefix="env -u PROJECT_ROOT "
     for arg in "${CLAUDE_ARGS[@]}"; do
         [ "$arg" = "--dangerously-skip-permissions" ] && has_skip=1
     done
     if [ "$REACHABLE" -eq 1 ] && [ "${TL_NO_AUTO_ACCEPT:-0}" != "1" ] && [ "$has_skip" -eq 0 ]; then
-        env_prefix="IS_SANDBOX=1 "
+        # Compose with the sanitizer: `env -u PROJECT_ROOT IS_SANDBOX=1 claude …`
+        # (env accepts -u NAME then VAR=val assignments then the command).
+        env_prefix="${env_prefix}IS_SANDBOX=1 "
         CLAUDE_ARGS+=("--dangerously-skip-permissions")
     fi
     for arg in "${CLAUDE_ARGS[@]}"; do
@@ -172,6 +182,10 @@ cmd_oneshot() {
     echo ""
     # T-2388: exec replaces this process, so arm out-of-band via retry loop.
     [ "$REACHABLE" -eq 1 ] && arm_reachable_async
+    # T-2403: sanitize a leaked PROJECT_ROOT before the exec so the spawned
+    # register/claude resolves its OWN project (see build_claude_cmd note).
+    # This path uses exec (inherited env), so unset in-shell rather than prefix.
+    [ "${TL_KEEP_PROJECT_ROOT:-0}" != "1" ] && unset PROJECT_ROOT
     # T-2400: same auto-accept guarantee as build_claude_cmd, but this path uses
     # exec (not PTY-string injection), so export IS_SANDBOX into the inherited
     # env and append the flag to the argv rather than prefixing a shell string.
@@ -357,18 +371,23 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Preflight
-command -v termlink >/dev/null 2>&1 || die "termlink not found on PATH"
-if [ "$SUBCOMMAND" != "stop" ] && [ "$SUBCOMMAND" != "status" ] && [ "$SUBCOMMAND" != "install-boot" ]; then
-    command -v "${TL_CLAUDE_CMD:-claude}" >/dev/null 2>&1 || die "${TL_CLAUDE_CMD:-claude} not found on PATH"
-fi
+# T-2403: lib mode — sourcing with TL_CLAUDE_LIB=1 exposes the pure helpers
+# (build_claude_cmd, …) WITHOUT running preflight/dispatch, so unit tests can
+# exercise the command-builder in isolation.
+if [ "${TL_CLAUDE_LIB:-0}" != "1" ]; then
+    # Preflight
+    command -v termlink >/dev/null 2>&1 || die "termlink not found on PATH"
+    if [ "$SUBCOMMAND" != "stop" ] && [ "$SUBCOMMAND" != "status" ] && [ "$SUBCOMMAND" != "install-boot" ]; then
+        command -v "${TL_CLAUDE_CMD:-claude}" >/dev/null 2>&1 || die "${TL_CLAUDE_CMD:-claude} not found on PATH"
+    fi
 
-# Dispatch
-case "$SUBCOMMAND" in
-    start)   cmd_start ;;
-    restart) cmd_restart ;;
-    status)  cmd_status ;;
-    stop)    cmd_stop ;;
-    install-boot) cmd_install_boot ;;
-    "")      cmd_oneshot ;;
-esac
+    # Dispatch
+    case "$SUBCOMMAND" in
+        start)   cmd_start ;;
+        restart) cmd_restart ;;
+        status)  cmd_status ;;
+        stop)    cmd_stop ;;
+        install-boot) cmd_install_boot ;;
+        "")      cmd_oneshot ;;
+    esac
+fi
