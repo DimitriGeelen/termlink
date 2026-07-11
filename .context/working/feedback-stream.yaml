@@ -4104,3 +4104,57 @@ scan_id: R-7a42b317
 task_id: T-2404
 payload:
   task_file: .tasks/active/T-2404-promote-rearm-waker-to-scripts--roll-new.md
+---
+kind: scan_emitted
+timestamp: '2026-07-11T15:30:40Z'
+scan_id: R-b5432679
+task_id: T-2406
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-11T15:30:40Z'
+scan_id: R-b5432679
+task_id: T-2406
+payload:
+  task_file: .tasks/active/T-2406-arc-mcp-slimming-s1--trimming-policy--an.md
+---
+kind: scan_emitted
+timestamp: '2026-07-11T16:51:42Z'
+scan_id: R-23ffba90
+task_id: T-2407
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-11T16:51:42Z'
+scan_id: R-23ffba90
+task_id: T-2407
+payload:
+  task_file: .tasks/active/T-2407-arc-mcp-slimming-s2--trim-the-600-1000-c.md
+---
+kind: scan_emitted
+timestamp: '2026-07-11T21:32:37Z'
+scan_id: R-6d0d51d4
+task_id: T-2408
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-11T21:32:37Z'
+scan_id: R-6d0d51d4
+task_id: T-2408
+payload:
+  task_file: .tasks/active/T-2408-arc-mcp-slimming-s3--long-tail-trim--rel.md

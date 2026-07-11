@@ -4,20 +4,20 @@ name: "arc mcp-slimming S2 — trim the 600-1000 char MCP description band (~70 
 description: >
   Second slice of arc-005 mcp-slimming. Trim the ~70 tool descriptions in the 600-1000 char band per the S1 policy (keep purpose + non-obvious param gotchas + safety notes; cut T-XXXX archaeology, PL cross-refs, schema-restatement). cargo build -p termlink-mcp passes, tool count unchanged, anti-regrowth guard ceiling tightened toward target. Report bytes reclaimed.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [arc:mcp-slimming]
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-11T14:16:18Z
-last_update: 2026-07-11T16:51:02Z
-date_finished: null
+last_update: 2026-07-11T16:51:24Z
+date_finished: 2026-07-11T16:51:24Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -209,3 +209,20 @@ cargo build -p termlink-mcp 2>&1 | tail -1 | grep -q Finished
 
 ### 2026-07-11T16:51:02Z — status-update [task-update-agent]
 - **Change:** tags: +arc:mcp-slimming
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-23ffba90
+- **Timestamp:** 2026-07-11T16:51:42Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **l387-sigpipe-risk** (partial, heuristic) @ Verification:line 32
+     - evidence: `cargo build -p termlink-mcp 2>&1 | tail -1 | grep -q Finished`
+
+### 2026-07-11T16:51:24Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

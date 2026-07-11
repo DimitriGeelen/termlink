@@ -1,0 +1,72 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2406: arc mcp-slimming S1 — trimming policy + anti-regrowth length guard + trim worst-offender MCP descriptions
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-11T15:30:44Z
+# ============================================================================
+
+task_id: T-2406
+task_name: "arc mcp-slimming S1 — trimming policy + anti-regrowth length guard + trim worst-offender MCP descriptions"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-11T14:14:55Z
+completed: 2026-07-11T15:30:22Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - '**Trimming policy documented.** A short policy (in the arc doc or task) states what'
+  - '**Anti-regrowth guard exists + passes.** A test (e.g. `scripts/test-mcp-desc-budget.sh`'
+  - '**Worst offenders trimmed + still compiles.** DONE (fresh session 2026-07-11): trimmed'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 75 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: ["arc:mcp-slimming"]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 75
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2406-arc-mcp-slimming-s1--trimming-policy--an.md
+generated_by: context-agent-hybrid

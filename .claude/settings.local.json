@@ -541,7 +541,8 @@
       "mcp__termlink__termlink_agent_listeners",
       "mcp__termlink__termlink_agent_contact",
       "mcp__termlink__termlink_recent_dm",
-      "mcp__termlink__termlink_agent_unread"
+      "mcp__termlink__termlink_agent_unread",
+      "mcp__termlink__termlink_agent_inbox"
     ]
   },
   "enabledMcpjsonServers": [
