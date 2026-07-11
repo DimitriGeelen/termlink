@@ -14164,7 +14164,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_help",
-        description = "List available TermLink MCP tools organized by category. Use this to discover what operations are available. Six modes: (1) default returns full per-category listings; (2) `name_filter` does case-insensitive multi-token AND search across names AND descriptions (combine with `category` to scope); (3) `list_categories=true` returns just category names + tool counts + per-category description for cold-start two-step discovery — drill in via `category=<name>` (T-1948); (4) `tool_detail=<tool_name>` returns one tool's category + short registry description + FULL macro description + parameters + related_tools + verb_cognates in one round-trip, closing the 3-step pattern (T-1952); (5) `summary=true` returns aggregate registry stats `{total_tools, total_categories, total_deprecated, deprecated_by_category, largest_categories, smallest_categories}` for an O(1) API-surface snapshot — use it on first connect to size the server before drilling in (T-1963); (6) `essentials=true` returns the canonical entry-point tool of each category (first non-deprecated row in registry order) as `{essentials:[{name,category,category_description,description,parameter_count}], total}` — a focused ~27-tool starter set for cold-start learning where each row carries its category's purpose alongside the tool name (T-1969) and its arity (T-1974) for at-a-glance complexity ranking; auto-derived from the registry so it cannot drift (T-1968). Categories: session, execution, events, kv, files, hub, tofu, fleet, remote, batch, dispatch, tokens, channel (create/post/subscribe), channel_threading, channel_moderation, channel_engagement, channel_admin (members/queue/typing), channel_poll, agent_chat (post/reply/edit/typing), agent_read (recent/threads/timeline), agent_presence (listeners/peers/ping/listen), agent_inbox (unread/dms/ack), agent_thread, agent_poll, agent_engagement_metrics (emoji/reactions/pin/star analytics), agent_rankings (top_*/first_* leaderboards), agent_stats (counters/distributions/growth/activity-rhythm), agent_thread_health (thread-quality, busiest/idle/orphan), diagnostics. Default returns `{<cat>: [{name, description, deprecated, parameter_count}, ...], ..., total_tools}` — the `deprecated` flag (T-1960/T-1961) signals retirement-WIP tools (T-1166 inbox primitives) so the LLM ranks live alternatives higher; `parameter_count` (T-1972) carries arity for cost-aware ranking without per-tool drill-in. `parameter_required_count` (T-1995) carries the count of `optional==false` params alongside — pairs with `parameter_count` for the true cost signal: a tool with `(parameter_count=12, parameter_required_count=2)` is cheap to call (only 2 args mandatory) where one with `(parameter_count=4, parameter_required_count=4)` is not. LLM clients ranking matches should prefer LOW `parameter_required_count` for first-call ergonomics. When called with a `category` filter, the envelope additionally embeds a top-level `category_meta` block (T-1981) `{name, description, tool_count, deprecated_count, live_tool_count}` — closes the round-trip on the list_categories → category drill so LLMs see the namespace metadata at the same response as the row enumeration. `name_filter` returns `{matches:[{category,category_tool_count,name,description,deprecated,parameter_count}], total_matches}` plus a `hint` when zero results — `category_tool_count` (T-1966) lets the LLM prefer matches in tighter namespaces; `parameter_count` (T-1972) lets it prefer lower-arity matches. `max_parameters` (T-1975) is an integer arity filter: combined with `name_filter` it answers 'find me simple tools matching X'; standalone (no name_filter) it walks the registry and returns every tool with `parameter_count<=N` — `max_parameters=0` lists every zero-arg primitive in one call. `min_parameters` (T-1976) is the symmetric lower-bound — composes with `max_parameters` for arity-range queries (e.g. `min_parameters=2, max_parameters=4` returns only mid-arity tools); standalone, `min_parameters=K` walks the registry surfacing every rich-API tool with arity >= K. `exclude_deprecated` (T-1977) is a server-side retirement-WIP filter: when true, drops `deprecated==true` rows from `name_filter` and standalone-arity-filter responses — composes with the arity bounds for clean discovery queries (e.g. `name_filter='inbox', exclude_deprecated=true` returns only the live channel-based alternatives). `limit` (T-1984) is a deterministic pagination cap for `name_filter` (and standalone-arity-filter) mode — when set, `matches[]` is truncated to the first N (category × registry order is stable across calls), and the envelope gains `total_matched` (pre-cap count) and `limit_applied` (bool, true iff truncation actually happened) so LLM clients can detect overflow and decide whether to widen filters or paginate. `limit=0` returns an empty `matches[]` but still surfaces `total_matched` and `limit_applied=true` when matches existed pre-cap, so a calling agent can size the result before pulling it. Without `limit`, the envelope shape is unchanged for backward compat. `offset` (T-1994) is the pagination cursor that pairs with `limit` to complete the paging API — `offset=10, limit=10` returns rows 10..20 of the deterministic-order filtered set; filters (arity, deprecated, category) run BEFORE offset so the window slices the filtered universe. The envelope echoes `offset` and emits `next_offset` (== offset + matches.len()) when more results lie beyond the current page; `next_offset` is absent when exhausted (the LLM-client stop condition). `offset` past the end returns an empty `matches[]` with `total_matched` still set so the caller sees the overshoot. Without `offset` the envelope shape is unchanged for backward compat. `sort_by` (T-1996) is a deterministic sort axis for `name_filter` mode that pairs with `limit`/`offset` to give a server-side ranked-page API — values `name` (alphabetical ASC), `arity` (parameter_count ASC), `required_arity` (parameter_required_count ASC), and `category` (category alphabetical, registry-walk tiebreak). Sort runs AFTER filters and BEFORE pagination so the offset/limit window slices the sorted sequence; the sort is stable so registry order survives as the tiebreak (pagination invariants hold). The envelope emits `sort_by_applied` echoing the axis on success; unrecognized values emit `sort_by_unknown` (and the response stays in registry order) so the LLM client sees its preferred ranking was dropped instead of misreading the result. Pairs especially well with `parameter_required_count` — `sort_by='required_arity', limit=10` returns the ten cheapest-to-call matches. `fields` (T-1998) is a strict row projection for `name_filter` and bulk-flat-listing modes: when set to a non-empty list, every row in `matches[]` is filtered to retain ONLY the requested keys from the allowed set {name, category, category_tool_count, description, deprecated, parameter_count, parameter_required_count, replacement_hint}. No implicit `name` retention — the caller includes it if they want it. The envelope emits `fields_applied` echoing the recognized fields and `fields_unknown` listing dropped invalid names so the LLM client sees its silently-ignored input rather than misreading the row shape. Pairs with `limit`/`sort_by` to shrink paged responses by ~80% when prose descriptions aren't needed: `fields=['name','parameter_required_count'], sort_by='required_arity', limit=20` returns 20 cheap-to-call name+arity rows for a downstream ranking pass without paying the description payload. `categories` (T-1999) is a multi-namespace scope filter for `name_filter` and bulk-flat-listing modes — when set to a non-empty array, takes precedence over single `category` and filters to rows whose category is in the set. Unknown category names dropped from the filter AND surfaced via envelope `categories_unknown`; recognized ones echoed via `categories_applied`. Use it for messaging-arc tools via `categories=['channel','agent_chat','agent_inbox']` in one round-trip instead of three separate calls. `exclude_categories` (T-2000) is the negative twin — drops rows whose category is in the array, useful for excluding noise namespaces from registry-wide queries. Exclusion wins on overlap with `categories`/`category` (intersection-minus-exclusion). Unknown names dropped from the filter AND surfaced via envelope `exclude_categories_unknown`; recognized ones echoed via `exclude_categories_applied`. `deprecated_only` (T-1982) is the symmetric inverse: when true, suppresses LIVE rows, surfacing only the retirement-WIP set — composes with `name_filter` + arity + `category` for migration-planning queries (e.g. `name_filter='inbox', deprecated_only=true` lists every retirement-WIP inbox tool). If both `exclude_deprecated` and `deprecated_only` are true the intersection is empty and the response carries a hint explaining the conflict. `list_categories` returns `{categories:[{name,tool_count,description,deprecated_count,live_tool_count}], total_categories, total_tools}` — the per-category `description` (T-1957) lets you route at category-discovery time; `deprecated_count` (T-1967) completes the shape signal so retirement debt is visible at the first round-trip; `live_tool_count` (T-1979) carries the effective post-retirement namespace size (== tool_count - deprecated_count) so LLMs see the live surface at the same round-trip. `tool_detail` returns `{tool, name, category, category_description, category_tool_count, short_description, full_description, parameters, parameter_count, related_tools, deprecated, verb_cognates?, replacement_hint?}` — `parameters` (T-1953) is `[{name, type, optional, doc}]`, `parameter_count` (T-1971) is the integer arity (== parameters.len()) for O(1) complexity comparison, `related_tools` (T-1956) lists same-domain verb-family siblings, `verb_cognates` (T-1959) lists cross-domain tools sharing the trailing verb (omitted when noisy), `category_description` + `category_tool_count` (T-1965) carry the target category's one-liner + sibling count so the LLM knows when to browse beyond `related_tools` (which caps at 10), `category_deprecated_count` + `category_live_tool_count` (T-1983) complete the namespace-metadata picture (post-retirement effective size of the tool's category), `replacement_hint` (T-1970) is the replacement tool name parsed from a `(use NAME instead)` marker on deprecated tools — omitted on live tools so its presence is itself a signal. `is_replacement_for` (T-1980) is the reverse — the alphabetically-sorted list of deprecated tools whose descriptions point at this name (empty array when none); together with `replacement_hint` it forms a bidirectional retirement-graph navigator. `summary` (T-1963) returns aggregate counts plus `largest_categories` / `smallest_categories` (top/bottom 5 by tool_count, `{name, tool_count}` rows) and `deprecated_by_category` (only categories with ≥1 deprecated tool). `summary` (T-1973) also returns `total_parameters` (sum across registry), `zero_arity_tools` (count of no-arg tools — the canonical zero-config primitives), and `highest_arity_tools` (top 5 by arity, `{name, parameter_count}` rows) for at-a-glance complexity landscape. `summary` (T-1978) further returns `total_live_tools` (== total_tools - total_deprecated — effective post-retirement size), `total_live_categories` (count of categories with ≥1 live tool), and `largest_live_categories` (top-5 by LIVE tool count, `{name, live_tool_count}` rows — the post-T-1166-retirement complement to `largest_categories`). Unknown-tool errors carry `did_you_mean` (T-1954, Levenshtein-nearest tool names) OR `category_hint` (T-1958, when the passed value is actually a category name). Unknown-category errors carry `did_you_mean` over category names."
+        description = "Discover available TermLink MCP tools by category. Modes (pick one): default → full per-category listings; `name_filter=<str>` → case-insensitive multi-token AND search across names AND descriptions; `list_categories=true` → category names + counts + one-line descriptions (cold-start routing); `tool_detail=<tool_name>` → one tool's category, full description, parameters, and related_tools in a single round-trip; `summary=true` → aggregate registry stats (counts, largest/smallest categories, arity landscape); `essentials=true` → the canonical entry-point tool of each category (~27-tool starter set). `name_filter` mode composes with these filters, applied BEFORE pagination: `category` / `categories[]` / `exclude_categories[]` (namespace scope; exclusion wins on overlap), `max_parameters` / `min_parameters` (arity bounds; either works standalone to walk the whole registry), `exclude_deprecated` / `deprecated_only` (retirement-WIP filter; both-true yields an empty set + conflict hint), `sort_by` ∈ {name, arity, required_arity, category} (stable, registry-order tiebreak), `limit` + `offset` (deterministic paging; envelope emits `total_matched` and `next_offset`, absent when exhausted), and `fields[]` (row projection — retains only the requested keys, no implicit `name`; shrinks paged responses when prose isn't needed). Rows carry `deprecated` and `parameter_count` / `parameter_required_count` so clients can rank live, low-arity tools first. Unknown tool/category inputs return `did_you_mean` (nearest names) or `category_hint`."
     )]
     async fn termlink_help(&self, Parameters(p): Parameters<HelpParams>) -> String {
         // T-1941: registry extracted to `help_categories()` free fn so the
@@ -16212,7 +16212,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_fleet_doctor",
-        description = "Health check all configured hubs in ~/.termlink/hubs.toml. Returns per-hub connectivity status, latency, and diagnostic hints for failures. Pass `legacy_usage: true` (T-1707, MCP parity for CLI `--legacy-usage`/T-1432) to also probe each hub's `hub.legacy_usage` Tier-A RPC and aggregate a fleet-wide T-1166 cut-readiness verdict (CUT-READY / CUT-READY-DECAYING / WAIT / UNCERTAIN) in `legacy_summary`. `legacy_window_days` (default 7, clamped 1..=90) sets the lookback. Pass `include_pin_check: true` (T-1708, MCP parity for CLI `--include-pin-check`/T-1666) to also TLS-probe every hub in parallel and report per-profile pin status (match / drift / no-pin / probe-failed) in `pin_check` per hub plus a fleet rollup in `pin_check_summary` — single-call answer to 'auth-mismatch OR cert-drift OR both?'. Pass `topic_durability: true` (T-1709, MCP parity for CLI `--topic-durability`/T-1446) to also probe each hub's `hub.bus_state` and aggregate the G-050 durability verdict (DURABLE / VOLATILE / UNCERTAIN) in `bus_state_summary` — VOLATILE means the hub's runtime_dir lives on a wipe-on-boot mount (the structural cause of PL-021 identity rotation)."
+        description = "Health check all configured hubs in ~/.termlink/hubs.toml. Returns per-hub connectivity, latency, and failure hints. Optional add-on probes: `legacy_usage=true` aggregates a fleet-wide legacy-primitive cut-readiness verdict (CUT-READY / CUT-READY-DECAYING / WAIT / UNCERTAIN) in `legacy_summary` (`legacy_window_days` default 7, 1..=90); `include_pin_check=true` TLS-probes every hub and reports per-profile pin status (match/drift/no-pin/probe-failed) + rollup — single-call 'auth-mismatch OR cert-drift OR both?'; `topic_durability=true` aggregates a DURABLE/VOLATILE/UNCERTAIN verdict in `bus_state_summary` — VOLATILE means the hub's runtime_dir is on a wipe-on-boot mount (the structural cause of PL-021 identity rotation)."
     )]
     async fn termlink_fleet_doctor(&self, Parameters(p): Parameters<FleetDoctorParams>) -> String {
         let profiles = list_all_hub_profiles();
@@ -16742,7 +16742,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_fleet_governor_history",
-        description = "T-2069 / T-2068 / T-2028 §6 #10 closure: retrospective read of the governor.log NDJSON audit trail produced by `fleet governor-status --watch --log <path>` (Track G). Walks `~/.termlink/governor.log` (or `log_path` override matching the watch loop's destination), filters by `since_days` window and optional `hub` name, and returns `{ok, entries[], summary{total, per_hub:{<hub>:{events, cap_hits_total, rate_hits_total, dedupe_hits_total}}, since_days, hub_filter, malformed_lines_skipped, log_path}}`. Per-hub aggregates sum the Track G `cap_hits_delta` / `rate_hits_delta` / `dedupe_hits_delta` fields so a caller can answer 'has this hub been refused / rate-limited / had retries absorbed in the window?' in one call. Empty/missing log returns `{ok: true, entries: [], summary: ..., hint: 'no governor history yet — run `fleet governor-status --watch --log <path>` to start capturing'}`. Pure read; no auth; no network; no log mutation. Mirror of `termlink_fleet_history` (T-1687) but pointed at the substrate-governor audit trail. CLI parity: `termlink fleet governor-history`. See `docs/operations/substrate-governor.md`."
+        description = "Retrospective read of the governor.log NDJSON audit trail written by `fleet governor-status --watch --log <path>`. Walks `~/.termlink/governor.log` (or `log_path`), filters by `since_days` and optional `hub`. Returns `{ok, entries[], summary{total, per_hub:{<hub>:{events, cap_hits_total, rate_hits_total, dedupe_hits_total}}, since_days, hub_filter, malformed_lines_skipped, log_path}}` — answers 'has this hub been refused / rate-limited / had retries absorbed in the window?'. Empty/missing log returns `{ok:true, entries:[], hint}`. Pure read; no auth/network/mutation. See `docs/operations/substrate-governor.md`."
     )]
     async fn termlink_fleet_governor_history(
         &self,
@@ -16839,7 +16839,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_claims_history",
-        description = "T-2075 / T-2074 — retrospective read of the claims.log NDJSON audit trail produced by `channel claims-summary --watch --log <path>`. Walks `~/.termlink/claims.log` (or `log_path` override matching the watch loop's destination), filters by `since_days` window and optional `topic` exact-match, and returns `{ok, entries[], summary{total, per_topic:{<topic>:{transitions, new_events, removed_events}}, since_days, topic_filter, malformed_lines_skipped, log_path}}`. Per-topic aggregates count each change-event kind independently so a caller can answer 'has this topic been flapping (high transitions)?' / 'churning (high new+removed)?' / 'merely transitioned once?' in one call. Empty/missing log returns `{ok: true, entries: [], summary: ..., hint: 'no claim history yet — run `channel claims-summary --watch --log <path>` to start capturing'}`. Pure read; no auth; no network; no log mutation. Mirror of `termlink_fleet_governor_history` (T-2069) but pointed at the substrate claim-primitive observability audit trail. CLI parity: `termlink channel claims-history`."
+        description = "Retrospective read of the claims.log NDJSON audit trail written by `channel claims-summary --watch --log <path>`. Walks `~/.termlink/claims.log` (or `log_path`), filters by `since_days` and optional exact-match `topic`. Returns `{ok, entries[], summary{total, per_topic:{<topic>:{transitions, new_events, removed_events}}, since_days, topic_filter, malformed_lines_skipped, log_path}}` — answers 'has this topic been flapping (high transitions) / churning (high new+removed)?'. Empty/missing log returns `{ok:true, entries:[], hint}`. Pure read; no auth/network/mutation."
     )]
     async fn termlink_channel_claims_history(
         &self,
@@ -17021,7 +17021,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_substrate_status",
-        description = "T-2116 / T-2111 arc Slice 6 (T-2018 §6 observability roll-up): MCP parity for `substrate status` one-shot CLI verb. Agent-callable companion that returns the cross-primitive substrate-health rollup composed from 4 substrate-read sub-fetches in parallel. Subprocess-self pattern (mirror of `termlink_fleet_bootstrap_check`, T-1689): spawns own binary with `substrate status --json` under `tokio::time::timeout` + `kill_on_drop(true)` + null stdin. Returns the merged envelope `{ok, ts, only_pressured, dispatch:{ok,data}, claim:{ok,data}, resilience:{ok,data}, backpressure:{ok,data}, exit_code}` — each sub-section either `{ok:true, data}` (passthrough of its underlying verb's `--json` shape) or `{ok:false, error}` (graceful degradation: a failed sub-read does NOT poison the whole call). Sections: DISPATCH (agent.find_idle on local hub — substrate #2), CLAIM (channel.claims_summary per topic on local hub — substrate #1), RESILIENCE (OfflineQueue::open local SQLite — substrate #5), BACKPRESSURE (hub.governor_status per hub from hubs.toml — substrate #10). `only_pressured` (default false, mirror of T-2070 / T-2076): filter CLAIM to potentially-stuck topics and BACKPRESSURE to hubs needing attention. `timeout_secs` (default 12, clamped 1..=120): bounds the subprocess; tune up for high-latency multi-hub fleets. Read-only — no auth side-effects, no state mutation. Sibling slash-command (operator-facing): `/substrate` (T-2096). Sibling Slice 7 (also MCP-tier): `termlink_substrate_history` (retrospective read of T-2114's --watch --log audit trail)."
+        description = "Cross-primitive substrate-health rollup — one call composing 4 substrate reads in parallel. Returns `{ok, ts, only_pressured, dispatch, claim, resilience, backpressure, exit_code}` where each section is `{ok:true, data}` (passthrough of its verb's --json shape) or `{ok:false, error}` (graceful degradation — a failed sub-read does NOT poison the call). Sections: DISPATCH (find_idle, substrate #2), CLAIM (claims_summary, #1), RESILIENCE (offline queue, #5), BACKPRESSURE (governor_status per hub, #10). `only_pressured` (default false): filter CLAIM to potentially-stuck topics and BACKPRESSURE to hubs needing attention. `timeout_secs` (default 12, 1..=120). Read-only. Operator-facing sibling: `/substrate`."
     )]
     async fn termlink_substrate_status(
         &self,
@@ -17093,7 +17093,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_substrate_history",
-        description = "T-2117 / T-2111 arc Slice 7 (T-2018 §6 closure): MCP parity for the `substrate history` retrospective CLI verb (T-2115). Walks the audit log written by T-2114's `substrate status --watch --log <PATH>`. Answers 'when did substrate health flip?' without keeping the watch terminal still attached — forensic retrospective in a JSON-friendly aggregate. Default log: `~/.termlink/substrate.log`. Params: `since_days` (default 7, clamped 1..=365), `field` (exact-match filter on the `field` column, e.g. `claim_topic_count`), `log_path` (override). Returns `{ok, entries[], summary{total, per_field:{<f>:{count}}, since_days, field_filter, malformed_lines_skipped, log_path}}`. Per-field counts answer 'has this rollup field been churning?'. Empty/missing log returns `{ok:true, entries:[], summary:..., hint:'no substrate history yet — run `substrate status --watch --log <path>` to start capturing'}`. Pure read; no auth; no network; no log mutation. Mirror of `termlink_channel_queue_history` (T-2087) and `termlink_fleet_governor_history` (T-2069) but pointed at the substrate-status cross-primitive observability audit trail. CLI parity: `termlink substrate history`. After this slice ships the entire substrate-status observability arc is complete at both CLI + MCP tiers — closes T-2018 §6 #11 observability roll-up arc end-to-end."
+        description = "Retrospective read of the substrate.log audit trail written by `substrate status --watch --log <path>` — answers 'when did substrate health flip?' without keeping the watch attached. Default log `~/.termlink/substrate.log`. Params: `since_days` (default 7, 1..=365), `field` (exact-match on the `field` column, e.g. `claim_topic_count`), `log_path` (override). Returns `{ok, entries[], summary{total, per_field:{<f>:{count}}, since_days, field_filter, malformed_lines_skipped, log_path}}`. Empty/missing log returns `{ok:true, entries:[], hint}`. Pure read; no auth/network/mutation."
     )]
     async fn termlink_substrate_history(
         &self,
@@ -17173,7 +17173,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_fleet_secrets_audit",
-        description = "Audit local secrets cache (`~/.termlink/secrets/*.hex` by default) for security hygiene. Per-file taxonomy: ok / ok-mirror (matches authoritative) / warn-perms (mode > 0o600 — G-011 incident proxmox4.hex@0o644) / warn-format (not 64 hex chars) / warn-drift (T-1822: content differs from authoritative hub.secret) / info-orphan (not referenced by any hubs.toml profile). Read-only — no auth, no network, no writes. `dir` overrides the default scan path. `check_drift` (T-1823) names the authoritative `<runtime_dir>/hub.secret` for content-comparison; when set, the envelope gains an `authoritative` block. `target_cache` (T-1825) narrows drift comparison to ONE named cache file — non-target rows skip drift and fall back to plain perms/format/orphan verdict; eliminates broad-mode false positives when the scan dir has caches for multiple hubs. `timeout_secs` (default 10, clamped 1..=120) caps the subprocess. Returns the CLI's JSON envelope decorated with `exit_code`: `{ok, dir, target_cache, files: [{path, mode, size, status, reasons}], summary: {total, ok, ok_mirror, warn_perms, warn_format, warn_drift, info_orphan}, authoritative?: {...}, authoritative_error?: \"...\", target_cache_error?: \"...\", exit_code}`. `ok: true` means zero warn-perms AND zero warn-format AND zero warn-drift (orphan is informational)."
+        description = "Audit local secrets cache (`~/.termlink/secrets/*.hex` by default) for hygiene. Per-file status: ok / ok-mirror / warn-perms (mode > 0o600) / warn-format (not 64 hex) / warn-drift (differs from authoritative hub.secret) / info-orphan (unreferenced by any hubs.toml profile). Read-only. `dir` overrides the scan path. `check_drift` names the authoritative `<runtime_dir>/hub.secret` for content comparison (adds an `authoritative` block). `target_cache` narrows drift comparison to ONE named file (avoids false positives when the dir holds caches for multiple hubs). `timeout_secs` (default 10, 1..=120). Returns `{ok, dir, target_cache, files:[{path, mode, size, status, reasons}], summary:{...}, exit_code}`. `ok:true` means zero warn-perms/format/drift (orphan is informational)."
     )]
     async fn termlink_fleet_secrets_audit(
         &self,
@@ -17750,7 +17750,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_contact",
-        description = "Contact a peer agent on its canonical `dm:<sorted_a>:<sorted_b>` topic — MCP parity for the `termlink agent contact` CLI verb (T-1429 Phase-2). Resolves `target` (display name) via local `session.discover` to read `identity_fingerprint` (T-1436), OR uses `target_fp` (hex) directly for cross-host peers. Auto-creates the dm topic with `retention=forever` (idempotent), signs the envelope with local ed25519 identity, and posts with `msg_type=chat`. Optional `thread` stamps `metadata._thread` for agent-chat-arc protocol canon routing. `:project` suffix on `target` stamps `metadata.to_project` (T-1448 (b)). `dry_run=true` returns the resolved topic + metadata preview without posting. Mutually exclusive: exactly one of `target` / `target_fp` required. **Body sources (T-1717):** exactly one of `message` (inline string) / `body_file` (path read at the MCP server's cwd — mirror of CLI `--file PATH`, T-1646). Empty file rejected. **Synchronous-engagement flags (T-1716):** `require_online=true` probes agent-chat-arc within `online_window_secs` (default 300, clamped [10, 86400]) before posting — fail-fast with `{ok: false, online_check, error}` if peer has zero posts in window (CLI exit-9 semantic). `ack_required=true` polls the dm topic at ~1s cadence up to `ack_timeout_secs` (default 60, clamped [5, 600]) for a non-meta peer reply — returns `ack: {received, ts_ms?, wait_secs}` on the success envelope (CLI exit-10 semantic mapped to `received=false`)."
+        description = "Contact a peer agent on its canonical `dm:<sorted_a>:<sorted_b>` topic. Resolves `target` (display name) via local `session.discover`, OR uses `target_fp` (hex) directly for cross-host peers — exactly one required. Auto-creates the dm topic (retention=forever, idempotent), signs with local ed25519 identity, posts msg_type=chat. Body: exactly one of `message` (inline) or `body_file` (path read at the server cwd; empty rejected). Optional `thread` stamps `metadata._thread`; a `:project` suffix on `target` stamps `metadata.to_project`. `dry_run=true` previews the resolved topic + metadata without posting. Synchronous engagement: `require_online=true` fail-fasts if the peer has no agent-chat-arc posts within `online_window_secs` (default 300, [10,86400]); `ack_required=true` polls the dm topic up to `ack_timeout_secs` (default 60, [5,600]) for a peer reply and returns `ack:{received, ts_ms?, wait_secs}`."
     )]
     async fn termlink_agent_contact(
         &self,
@@ -18776,7 +18776,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_timeline",
-        description = "Fleet-wide chronological log of recent posts on `agent-chat-arc` — MCP parity for the `termlink agent timeline` CLI verb (T-1500). Returns up to `n` (default 50, clamped 1..=500) content envelopes from within the last `window_secs` (default 3600, clamped 60..=604800) sorted chronologically ascending (oldest first; natural reading flow). Meta types (reaction/edit/redaction/topic_metadata/receipt) are always excluded. Optional filters AND-compose: `filter_thread` (matches `metadata.thread` or `metadata._thread`), `filter_project` (matches `metadata.from_project`), `filter_msg_types` (allowlist applied after meta exclusion), `filter_grep` (case-insensitive substring against rendered content). Content is truncated at 200 chars with `…` suffix. Use this when you want a 'tail -f for the fleet' view — companion to `termlink_agent_recent_window` (single-peer) and `termlink_agent_on_thread` (single-thread). Returns `{ok, verb, window_secs, n, filter_*, posts: [{offset, ts_ms, peer_fp, msg_type, content, thread, project}, ...]}`. NO new RPC surface — uses `channel.list` + `channel.subscribe` only."
+        description = "Chronological timeline of recent posts on `agent-chat-arc` — a 'tail -f for the fleet' view (vs `termlink_agent_recent_window` single-peer / `termlink_agent_on_thread` single-thread). Up to `n` (default 50, 1..=500) content envelopes from the last `window_secs` (default 3600, 60..=604800), oldest-first. Meta types (reaction/edit/redaction/topic_metadata/receipt) always excluded. Optional AND-composing filters: `filter_thread`, `filter_project`, `filter_msg_types` (allowlist), `filter_grep` (case-insensitive substring). Content truncated at 200 chars. Returns `{ok, verb, window_secs, n, filter_*, posts:[{offset, ts_ms, peer_fp, msg_type, content, thread, project}]}`."
     )]
     async fn termlink_agent_timeline(
         &self,
@@ -20097,7 +20097,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_forwards_of",
-        description = "List every active (non-redacted) forward envelope posted by a given sender on an arbitrary topic — MCP parity for `termlink channel forwards-of <topic> [SENDER]` CLI verb (T-1772 of T-1166). Topic-flexible variant of `termlink_agent_forwards_of` (hardcoded chat-arc). Reuses the same `compute_forwards_of_mcp` helper — semantics identical: a forward is identified by the metadata pair `forwarded_from = \"<origin-topic>:<origin-offset>\"` + `forwarded_sender = <fingerprint>`; both must be present and `forwarded_from` parses on the LAST colon (topics may contain colons, e.g. `dm:a:b`). When `sender_id` is omitted, defaults to caller's local Identity fingerprint. Use case: cross-topic propagation tracing scoped to a sender on any topic — answers 'which posts have I forwarded out of this DM channel?'. Returns `{ok, topic, sender, forwards: [{forward_offset, origin_topic, origin_offset, origin_sender, payload, ts}, ...], count}` sorted by `forward_offset` descending. NO new RPC surface — uses `channel.subscribe` only."
+        description = "List every active (non-redacted) forward by a sender on an arbitrary topic (topic-flexible variant of `termlink_agent_forwards_of`, which is chat-arc-only). A forward carries the metadata pair `forwarded_from=\"<origin-topic>:<origin-offset>\"` + `forwarded_sender=<fp>`; `forwarded_from` parses on the LAST colon (topics may contain colons, e.g. `dm:a:b`). `sender_id` defaults to the caller's local Identity fingerprint. Returns `{ok, topic, sender, forwards:[{forward_offset, origin_topic, origin_offset, origin_sender, payload, ts}], count}` sorted by forward_offset descending."
     )]
     async fn termlink_channel_forwards_of(
         &self,
@@ -20144,7 +20144,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_replies_of",
-        description = "List every reply by a given sender on an arbitrary topic — MCP parity for `termlink channel replies-of <topic> [SENDER]` CLI verb (T-1774 of T-1166). Topic-flexible variant of `termlink_agent_replies_of` (hardcoded chat-arc). Reuses `compute_replies_of_mcp` — semantics identical: a 'reply' is an envelope whose `metadata.in_reply_to` parses as u64 AND whose `msg_type != \"reaction\"` (reactions also carry in_reply_to but are a different aggregate). Filters: sender_id match, drop redacted reply offsets, require parent offset. Parent context (`parent_sender`, `parent_payload`) is best-effort — empty strings when the parent is absent or itself redacted. When `sender_id` is omitted, defaults to caller's local Identity fingerprint. Use case: 'show me everything I've replied to in this DM channel.' Returns `{ok, topic, sender, replies: [{reply_offset, parent_offset, parent_sender, parent_payload, reply_payload, ts_ms}, ...]}` sorted by `reply_offset` descending. NO new RPC surface — uses `channel.subscribe` only."
+        description = "List every reply by a sender on an arbitrary topic (topic-flexible variant of `termlink_agent_replies_of`, which is chat-arc-only). A 'reply' has `metadata.in_reply_to` parsing as u64 AND `msg_type != \"reaction\"` (reactions carry in_reply_to too but are a separate aggregate). Redacted replies dropped. Parent context (`parent_sender`, `parent_payload`) is best-effort — empty when the parent is absent or redacted. `sender_id` defaults to the caller's local Identity fingerprint. Returns `{ok, topic, sender, replies:[{reply_offset, parent_offset, parent_sender, parent_payload, reply_payload, ts_ms}]}` sorted by reply_offset descending."
     )]
     async fn termlink_channel_replies_of(
         &self,
@@ -21545,7 +21545,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_claim_force_release",
-        description = "Operator-Tier-0 force release of a held claim — MCP parity for `termlink channel claim-force-release --claim-id <id> [--reason <text>]` CLI verb (T-2044, arc-parallel-substrate Slice 11). Bypasses the `claimed_by == claimer` ownership check that `termlink_channel_release` enforces — for when an operator must clear a stuck claim faster than the natural TTL expiry path. Semantics match `release(ack=false)`: cursor unchanged, slot freed for the next worker, work returns for retry (not silently consumed). The optional `reason` is echoed in the response for downstream audit-log forwarding. Returns `{ok, claim_id, topic, offset, forced_from, forced_reason}` on success — `forced_from` is the original claimer (audit anchor); `forced_reason` echoes the input or is null. Hub error codes: CLAIM_NOT_FOUND (-32016) for unknown/already-released claim_id. Does NOT return CLAIM_NOT_OWNED — bypassing that check is the whole point. Use this after `termlink_channel_claims_summary_all` flags a topic `potentially_stuck`: detection (Slice 9 fleet sweep) → diagnosis (Slice 4 per-claim) → intervention (this verb). Authorization model: the hub trusts any authenticated caller equally (transport-level auth, ADR §6 #6); per-user authorization is out of §6 scope and tracked separately (G-064)."
+        description = "Operator-Tier-0 force release of a held claim. BYPASSES the ownership check that `termlink_channel_release` enforces — for clearing a stuck claim faster than TTL expiry. Semantics match `release(ack=false)`: cursor unchanged, slot freed for retry (not consumed). Optional `reason` is echoed for audit. Returns `{ok, claim_id, topic, offset, forced_from, forced_reason}` — `forced_from` is the original claimer. Errors: CLAIM_NOT_FOUND (-32016) for unknown/already-released id; never CLAIM_NOT_OWNED (bypassing that is the point). Use after a claims-summary flags a topic `potentially_stuck`."
     )]
     async fn termlink_channel_claim_force_release(
         &self,
@@ -21577,7 +21577,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_claim_transfer",
-        description = "Atomic ownership transfer of an existing claim — MCP parity for `termlink channel claim-transfer --claim-id <id> --to-owner <new> --by <current> [--reason <text>]` CLI verb (T-2046, arc-parallel-substrate primitive #3, T-2021 GO). Cooperative + owner-checked: `by` MUST equal the row's current `claimed_by` (returns CLAIM_NOT_OWNED -32017 otherwise) — this is the orchestrator-to-worker handoff path, NOT the operator-Tier-0 bypass (use `termlink_channel_claim_force_release` for that). Lease timestamps (`claimed_at`, `claimed_until`) survive the transfer; only `claimed_by` mutates. Use case: orchestrator claims an offset on a worker's behalf, posts a DM with the claim_id to the worker via `termlink_channel_post` on `dm:orch:worker`, worker reads the envelope and calls `termlink_channel_claim_transfer(by=orch, to_owner=worker)` to take ownership atomically — no release-then-claim race window. Returns `{ok, claim_id, topic, offset, from_owner, to_owner, claimed_at, claimed_until, reason}` on success. Hub error codes: CLAIM_NOT_FOUND (-32016), CLAIM_NOT_OWNED (-32017) when `by` mismatches, CLAIM_EXPIRED (-32018) when lease lapsed before transfer (stale row lazily evicted). Use after `termlink_agent_find_idle` (T-2045) returns a chosen worker; pair with `termlink_channel_release` for the terminal step in the assign workflow."
+        description = "Atomic ownership transfer of an existing claim — the cooperative orchestrator-to-worker handoff (NOT the operator bypass; use `termlink_channel_claim_force_release` for that). Owner-checked: `by` MUST equal the row's current `claimed_by` (else CLAIM_NOT_OWNED -32017). Lease timestamps survive; only `claimed_by` mutates — so there's no release-then-claim race window. Params: `claim_id`, `to_owner` (new owner), `by` (current owner), optional `reason`. Returns `{ok, claim_id, topic, offset, from_owner, to_owner, claimed_at, claimed_until, reason}`. Errors: CLAIM_NOT_FOUND (-32016), CLAIM_NOT_OWNED (-32017) on `by` mismatch, CLAIM_EXPIRED (-32018) if the lease lapsed first."
     )]
     async fn termlink_channel_claim_transfer(
         &self,
@@ -21644,7 +21644,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_claims",
-        description = "List current claim rows for a topic — MCP parity for `termlink channel claims <topic> [--include-expired]` CLI verb (T-2037, arc-parallel-substrate Slice 4). Read-only introspection: answers \"what is currently claimed on this topic?\" without forcing a `termlink_channel_claim` attempt that would consume a CLAIM_CONFLICT error. Default surfaces only live leases (rows where `claimed_until > now`). Set `include_expired=true` for operator forensics — e.g. \"which worker held this stuck offset before its lease lapsed?\". Returns `{ok, topic, claims: [{claim_id, offset, claimer, claimed_at, claimed_until}, ...]}` sorted by offset ASC. Hub error: CHANNEL_TOPIC_UNKNOWN (-32013) when the topic was never registered (same contract as `termlink_channel_claim`). No state mutation, no ownership check, no lazy eviction — pure read."
+        description = "List current claim rows for a topic — read-only: answers \"what is currently claimed here?\" without a `termlink_channel_claim` attempt. Default shows only live leases (`claimed_until > now`); set `include_expired=true` for forensics (who held a stuck offset before the lease lapsed). Returns `{ok, topic, claims:[{claim_id, offset, claimer, claimed_at, claimed_until}]}` sorted by offset ASC. Error: CHANNEL_TOPIC_UNKNOWN (-32013) when the topic was never registered. Pure read — no mutation, no eviction."
     )]
     async fn termlink_channel_claims(
         &self,
@@ -21676,7 +21676,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_claims_summary",
-        description = "Aggregate claim state for a topic — MCP parity for `termlink channel claims-summary <topic>` CLI verb (T-2039, arc-parallel-substrate Slice 6). Read-only observability companion to `termlink_channel_claims`: answers \"how busy is this topic, is anything stuck?\" in one O(1) call (single SQL aggregate over `idx_claims_topic_until`) instead of paying full-list transfer cost. Returns `{ok, topic, active_count, expired_count, oldest_active_at_ms?, oldest_active_age_ms?, next_active_expiry_ms?}`. Three operator signals: (a) `active` vs `expired` counts surface load shape and worker-death — a growing expired count with low active means workers are dying without releasing; (b) `oldest_active_age_ms` is the leaked-lease detector — compare to the worker's `ttl_ms`, and if approaching it, the worker is either stuck or about to renew; (c) `next_active_expiry_ms` is when the next slot frees up without operator intervention. All three `*_ms` fields are null when `active_count == 0`. Hub error: CHANNEL_TOPIC_UNKNOWN (-32013) when the topic was never registered. No state mutation, no ownership check, no lazy eviction — pure read; safe for hot paths and monitoring cron."
+        description = "Aggregate claim state for a topic — answers 'how busy is this topic, is anything stuck?' in one O(1) call (vs `termlink_channel_claims` full-list). Returns `{ok, topic, active_count, expired_count, oldest_active_at_ms?, oldest_active_age_ms?, next_active_expiry_ms?}`. Signals: growing `expired_count` with low active = workers dying without releasing; `oldest_active_age_ms` near a worker's ttl = stuck or about to renew; `next_active_expiry_ms` = when the next slot frees without intervention. All `*_ms` fields null when `active_count==0`. Error: CHANNEL_TOPIC_UNKNOWN (-32013). Pure read; cron-safe."
     )]
     async fn termlink_channel_claims_summary(
         &self,
@@ -21704,7 +21704,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_claims_summary_all",
-        description = "Fleet-wide claim-state sweep — MCP parity for `termlink channel claims-summary --all` CLI verb (T-2042, arc-parallel-substrate Slice 9; T-2043 is the MCP wrapping = Slice 10). The cold-start investigator verb: when you don't yet know which topic has the stuck worker, this returns one row per topic on the hub with the same Slice 6 aggregate shape PLUS a `potentially_stuck: bool` annotation. Heuristic: `expired_count > 0` OR `oldest_active_age_ms > 60_000` (60s, conservative — picked above the runbook's 30s default TTL so a healthy near-TTL worker doesn't trip the flag). Returns `{ok, topic_count, stuck_count, shown, only_stuck, topics: [{ok, topic, active_count, expired_count, oldest_active_at_ms?, oldest_active_age_ms?, next_active_expiry_ms?, potentially_stuck}, ...]}`. Per-topic fetch errors during the sweep are non-fatal — captured as `{ok: false, topic, error}` entries, sweep continues. Use this first to identify which topic is misbehaving, then drill in with `termlink_channel_claims` for the per-claim breakdown. T-2077 added the `only_stuck` param (default false): when true, drop non-stuck `ok:true` entries from `topics[]` (fetch errors always retained); the envelope's `stuck_count` keeps fleet-wide truth, and `shown` reports how many entries actually came back. Mirror of T-2076's CLI `--only-stuck` and T-2071's `termlink_fleet_governor_status` `only_pressured`. Agent's 'show me what needs attention' affordance for fleets with many topics. No state mutation; safe for cron + investigator agents."
+        description = "Fleet-wide claim-state sweep — the cold-start investigator verb when you don't yet know which topic has the stuck worker. One row per topic PLUS a `potentially_stuck` flag (heuristic: `expired_count > 0` OR `oldest_active_age_ms > 60_000`). Returns `{ok, topic_count, stuck_count, shown, only_stuck, topics:[{ok, topic, active_count, expired_count, oldest_active_age_ms?, next_active_expiry_ms?, potentially_stuck}]}`. Per-topic fetch errors are non-fatal (`{ok:false, topic, error}` entries; sweep continues). `only_stuck` (default false): drop non-stuck rows (fetch errors always kept); `stuck_count` stays fleet-wide truth, `shown` reports what came back. Use first to find the misbehaving topic, then drill in with `termlink_channel_claims`. Read-only; cron-safe."
     )]
     async fn termlink_channel_claims_summary_all(
         &self,
@@ -21886,7 +21886,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_mentions",
-        description = "Cross-topic mentions search — find every envelope mentioning `target` across ALL topics (optionally prefix-filtered). MCP parity for `termlink channel mentions` CLI verb (T-1777 of T-1166). **Distinct from `termlink_channel_mentions_of`**: that walks ONE topic; this walks the FLEET. Value-add: lets an MCP agent answer 'where am I mentioned anywhere?' — including DM topics it has not yet subscribed to. Defaults `target` to caller's local Identity fingerprint when omitted. Mention matching uses T-1333 rules (`*` wildcard on either side, literal-equality on parts). Skips META msg-types (receipt/reaction/redaction/edit/topic_metadata). Iterates topics from `channel.list` (optional `prefix` filter — e.g. `dm:` to scope to DMs); `limit` default 100, `0` = unlimited, short-circuits across topics once reached. Returns `{ok, target, prefix, hits: [{topic, offset, sender_id, ts, msg_type, payload, mentions}, ...], count}` — each hit carries its source topic. NO new RPC surface — uses `channel.list` + `channel.subscribe` only."
+        description = "Cross-topic mentions search — find every envelope mentioning `target` across ALL topics (vs `termlink_channel_mentions_of`, which walks ONE topic). Answers 'where am I mentioned anywhere?', including DM topics not yet subscribed. `target` defaults to the caller's local Identity fingerprint. Matching supports `*` wildcards; skips META msg-types (receipt/reaction/redaction/edit/topic_metadata). Optional `prefix` scopes topics (e.g. `dm:`); `limit` default 100, `0` = unlimited. Returns `{ok, target, prefix, hits:[{topic, offset, sender_id, ts, msg_type, payload, mentions}], count}` — each hit carries its source topic."
     )]
     async fn termlink_channel_mentions(
         &self,
@@ -29165,7 +29165,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_find_idle_history",
-        description = "T-2082 / T-2081 — retrospective read of the find-idle.log NDJSON audit trail produced by `agent find-idle --watch --log <path>`. Walks `~/.termlink/find-idle.log` (or `log_path` override matching the watch loop's destination), filters by `since_days` window and optional `agent_id` exact-match, and returns `{ok, entries[], summary{total, per_agent:{<agent_id>:{new_events, removed_events}}, since_days, agent_id_filter, malformed_lines_skipped, log_path}}`. Per-agent aggregates count each change-event kind independently so a caller can answer 'has this worker been flapping (high new+removed)?' / 'merely transitioned once?' in one call. Idle is binary (no `transition` kind — re-heartbeat is not a state change). Empty/missing log returns `{ok: true, entries: [], summary: ..., hint: 'no find-idle history yet — run `agent find-idle --watch --log <path>` to start capturing'}`. Pure read; no auth; no network; no log mutation. Mirror of `termlink_channel_claims_history` (T-2075) but pointed at the substrate find-idle (DISPATCH) observability audit trail. CLI parity: `termlink agent find-idle-history`."
+        description = "Retrospective read of the find-idle.log audit trail written by `agent find-idle --watch --log <path>`. Walks `~/.termlink/find-idle.log` (or `log_path`), filters by `since_days` and optional exact-match `agent_id`. Returns `{ok, entries[], summary{total, per_agent:{<id>:{new_events, removed_events}}, since_days, agent_id_filter, malformed_lines_skipped, log_path}}` — answers 'has this worker been flapping?'. Idle is binary (no `transition` kind — re-heartbeat is not a state change). Empty/missing log returns `{ok:true, entries:[], hint}`. Pure read; no auth/network/mutation."
     )]
     async fn termlink_agent_find_idle_history(
         &self,
@@ -29252,7 +29252,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_queue_history",
-        description = "T-2087 / T-2086 — retrospective read of the queue.log NDJSON audit trail produced by `channel queue-status --watch --log <path>`. Walks `~/.termlink/queue.log` (or `log_path` override matching the watch loop's destination), filters by `since_days` window and optional `kind` exact-match (`pending`/`drained`), and returns `{ok, entries[], summary{total, pending_events, drained_events, since_days, kind_filter, malformed_lines_skipped, log_path}}`. Closes the substrate primitive #5 RESILIENCE observability arc end-to-end. Queue state is binary (no `transition` kind — see T-2083 design note), so the summary tracks per-kind event totals only — no per-key aggregate (queue is per-host, single instance). Empty/missing log returns `{ok:true, entries:[], summary:…, hint:'no queue history yet — run `channel queue-status --watch --log <path>` to start capturing'}`. Pure read; no auth; no network; no log mutation. Mirror of `termlink_agent_find_idle_history` (T-2082) but pointed at the substrate offline-queue (RESILIENCE) audit trail. CLI parity: `termlink channel queue-history`."
+        description = "Retrospective read of the queue.log audit trail written by `channel queue-status --watch --log <path>`. Walks `~/.termlink/queue.log` (or `log_path`), filters by `since_days` and optional exact-match `kind` (`pending`/`drained`). Returns `{ok, entries[], summary{total, pending_events, drained_events, since_days, kind_filter, malformed_lines_skipped, log_path}}`. Queue state is binary (no `transition` kind). Empty/missing log returns `{ok:true, entries:[], hint}`. Pure read; no auth/network/mutation."
     )]
     async fn termlink_channel_queue_history(
         &self,
@@ -29771,7 +29771,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_relations",
-        description = "Unified per-target relations report on an arbitrary topic — MCP parity for the `termlink channel relations <TOPIC> <OFFSET>` CLI verb (T-1378, channel.rs:6181). Topic-flexible variant of `termlink_agent_relations` (which is hardcoded to agent-chat-arc). Matrix Client API `/relations/{eventId}` analogue: consolidates replies, reactions, edits, and redactions for a single target offset. Forwards are excluded (cross-topic, see `termlink_agent_forwards_of` per-sender). Each list filters out relation envelopes whose own offset is in the redaction set, and is sorted ts_ms ascending with offset ascending tiebreak. `target_sender` / `target_payload` come from the target envelope if present. Errors when target is absent from the topic (matches CLI bail + agent_relations parity). Returns `{ok, topic, target_offset, target_sender, target_payload, replies, reactions, edits, redactions}` where each list contains `{offset, sender_id, ts_ms, payload}` entries (redaction payload = `metadata.reason`). Pure read."
+        description = "Unified per-target relations report on an arbitrary topic (topic-flexible variant of `termlink_agent_relations`, which is chat-arc-only). Consolidates replies, reactions, edits, and redactions for a single target offset (forwards excluded — they're cross-topic; see `termlink_agent_forwards_of`). Each list drops redacted relation envelopes, sorted ts_ms then offset ascending. `target_sender`/`target_payload` come from the target envelope. Errors when the target offset is absent from the topic. Returns `{ok, topic, target_offset, target_sender, target_payload, replies, reactions, edits, redactions}`, each list `{offset, sender_id, ts_ms, payload}` (redaction payload = `metadata.reason`). Pure read."
     )]
     async fn termlink_channel_relations(
         &self,
@@ -30289,7 +30289,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_fleet_adoption_snapshot",
-        description = "Fleet doorbell+mail adoption snapshot (T-1843 / T-1846, MCP wrapper from T-1847). Distinct from `termlink_fleet_doctor` (which checks HEALTH) — this gauges REAL adoption: per-hub live_listeners (via agent-presence heartbeats), chat_arc_posts in the window, and dm_topics_active. Each hub is classified HOT (live listener + recent chat_arc posts), WARM (live listener but quiet arc), or COLD (no listeners). The whole fleet rolls up to one of HOT/WARM/COLD. Read-only sweep — no posts, no mutations. Params: `since_hours` (default 24, clamped 1..=720), `hubs_file` (override default `~/.termlink/hubs.toml`), `timeout_secs` (default 30, clamped 1..=120; each internal RPC is bounded by `timeout 8` per PL-189). Returns the T-1836 envelope `{ok, exit_code, stdout, stderr, parsed: {ok, window_hours, summary:{hubs, reachable_hubs, live_listeners, chat_arc_posts, dm_topics_active, adoption_state}, profiles:[...]}}`. Use when an agent investigating fleet activity wants to answer 'is anyone actually talking?' without shelling out."
+        description = "Fleet doorbell+mail adoption snapshot — gauges REAL adoption (vs `termlink_fleet_doctor` HEALTH): per-hub live_listeners (agent-presence heartbeats), chat_arc_posts in window, dm_topics_active. Each hub classified HOT (live listener + recent posts) / WARM (live but quiet) / COLD (no listeners); fleet rolls up to one of the three. Read-only sweep. Params: `since_hours` (default 24, 1..=720), `hubs_file` (override), `timeout_secs` (default 30, 1..=120). Returns `{ok, exit_code, parsed:{ok, window_hours, summary:{hubs, reachable_hubs, live_listeners, chat_arc_posts, dm_topics_active, adoption_state}, profiles}}`. Answers 'is anyone actually talking?'."
     )]
     async fn termlink_fleet_adoption_snapshot(
         &self,
@@ -30317,7 +30317,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_chat_arc_recent",
-        description = "Fleet-wide 'what's been said?' verb on agent-chat-arc (T-1849, MCP wrapper from T-1852). Closes the discovery triangle at the MCP layer alongside termlink_agent_listeners_fleet (who's there?) and termlink_fleet_doctor (is rail healthy?). Walks every hub in `~/.termlink/hubs.toml`, scans recent agent-chat-arc envelopes with seek-to-tail (PL-188) + per-RPC timeout 8s (PL-189), merges chronologically, and surfaces ts/hub/sender/msg_type/payload_preview per post. Sender resolution priority (PL-191): metadata.agent_id → metadata._from → sender_id — any consumer that reads one field undercounts. Read-only; no posts, no mutations. Params: `limit` (1..=200, default 20), `since_hours` (1..=720, default 24), `hub` (single-hub override), `hubs_file` (override default), `filter_sender`, `filter_msg_type` (default 'chat'), `all_msg_types` (default false), `timeout_secs` (default 30, clamp 1..=120). Returns the T-1836 envelope `{ok, exit_code, stdout, stderr, parsed: {ok, window_hours, limit, summary: {total_posts, hubs_scanned, hubs_failed, unique_speakers}, posts: [...]}}`. Use when an agent needs conversation context before responding."
+        description = "Fleet-wide 'what's been said?' on agent-chat-arc. Walks every hub in `~/.termlink/hubs.toml`, scans recent envelopes, merges chronologically, surfaces ts/hub/sender/msg_type/payload_preview per post. Sender resolution priority: metadata.agent_id → metadata._from → sender_id (reading one field alone undercounts). Read-only. Params: `limit` (1..=200, default 20), `since_hours` (1..=720, default 24), `hub`/`hubs_file` (overrides), `filter_sender`, `filter_msg_type` (default 'chat'), `all_msg_types` (default false), `timeout_secs` (default 30, 1..=120). Returns `{ok, exit_code, parsed:{ok, window_hours, summary:{total_posts, hubs_scanned, hubs_failed, unique_speakers}, posts}}`. Use to load conversation context before responding."
     )]
     async fn termlink_agent_chat_arc_recent(
         &self,
@@ -30365,7 +30365,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_recent_dm",
-        description = "Per-peer DM conversation history (T-1862 wrapper from T-1863). Read-side asymmetric to `termlink_agent_chat_arc_recent` (broadcasts) — completes the conversation-arc read trio at the MCP layer alongside `termlink_check_fleet_doorbell_mail_health` (rail healthy?) and `termlink_agent_listeners_fleet` (who's there?). Wraps `scripts/recent-dm.sh`: discovers `dm:*` topics by SUBSTRING match against the `peer` param across every hub in `~/.termlink/hubs.toml`, optionally further-filtered by self-identity, dedups federated copies by (ts, sender, payload_preview), and reads each matched topic via the same engine that powers chat_arc_recent (PL-188 seek-to-tail + PL-189 timeout + PL-191 sender priority). Read-only — no posts, no mutations. Live dm:* naming is MIXED (fp-pairs, name-pairs, mixed; plus shared-host fingerprint patterns) so substring discovery is more robust than canonical-derivation. PL-176 caveat: DM topics may not federate either — the per-hub walk surfaces visibility fragmentation rather than hiding it. Params: `peer` (substring, mutex with `topic`), `topic` (explicit dm:* name, mutex with `peer`), `self_id` (override self-filter — default from `~/.termlink/be-reachable.state`), `limit` (1..=200, default 20), `since_hours` (1..=720, default 24), `hub` (single-hub override), `hubs_file` (override default), `filter_msg_type` (default: all msg_types since DMs use both `chat` and `turn`), `all_msg_types` (redundant with default; kept for symmetry), `timeout_secs` (default 30, clamp 1..=120). Returns T-1836 envelope `{ok, exit_code, stdout, stderr, parsed: {ok, window_hours, summary:{topics_matched, total_posts, peer, self}, topics:[...], posts:[...]}}`. Use when an autonomous agent needs prior DM context with a peer before deciding whether/how to engage."
+        description = "Per-peer DM conversation history. Discovers `dm:*` topics by SUBSTRING match on `peer` across every hub in `~/.termlink/hubs.toml` (so generic strings match many topics — the response lists all matched), dedups federated copies, and reads each. `peer` XOR `topic` required. Read-only. DM topics may not federate; the per-hub walk surfaces that fragmentation rather than hiding it. Params: `peer` (substring, mutex with `topic`), `topic` (explicit dm:* name), `self_id` (self-filter override, default from `~/.termlink/be-reachable.state`), `limit` (1..=200, default 20), `since_hours` (1..=720, default 24), `hub`/`hubs_file` (overrides), `timeout_secs` (1..=120, default 30). Returns `{ok, exit_code, parsed:{summary:{topics_matched, total_posts, peer, self}, topics, posts}}`. Use to load prior DM context with a peer before engaging."
     )]
     async fn termlink_recent_dm(
         &self,
@@ -30430,7 +30430,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_check_fleet_doorbell_mail_health",
-        description = "Fleet-wide doorbell+mail LOOPBACK canary (T-1831, T-1845 timeout-wrap, MCP wrapper from T-1853). Closes the 'is rail healthy?' axis of the discovery triangle at the MCP layer alongside `termlink_fleet_doctor` (rotation/auth/TLS) and `termlink_fleet_adoption_snapshot` (real-use gauge). Distinct from doctor: doctor checks secrets+TLS+auth; this runs the T-1829 end-to-end selftest against EVERY profile in `~/.termlink/hubs.toml` — proves the rail can actually carry a turn (channel.create + post + read) right now. Read-only against your own hubs (selftest uses ephemeral throwaway topics). Per-hub bounded by `timeout 30` internally (T-1845 / PL-189). Params: `hubs_file` (override default), `no_heartbeat` (skip `.context/working/.fleet-doorbell-mail-canary.heartbeat` touch — leave default for the meta-canary T-1723), `timeout_secs` (default 60, clamped 1..=300 — 60s covers 5-hub fleet). Returns the T-1836 envelope `{ok, exit_code, stdout, stderr, parsed: {ok, summary: {total, pass, fail, unreachable}, profiles: [{name, address, verdict, elapsed_ms}]}}`. Verdict per hub is one of `pass` / `fail` / `unreachable`. Use when an agent investigating a flap needs to answer 'would a real doorbell+mail turn work right now?' without shelling out."
+        description = "Fleet-wide doorbell+mail LOOPBACK canary — runs an end-to-end selftest (channel.create + post + read, using ephemeral throwaway topics) against EVERY profile in `~/.termlink/hubs.toml`, proving the rail can actually carry a turn right now. Distinct from `termlink_fleet_doctor` (which checks secrets/TLS/auth, not live delivery). Read-only against your own hubs. Params: `hubs_file` (override), `no_heartbeat` (skip the canary heartbeat touch), `timeout_secs` (default 60, 1..=300). Returns `{ok, exit_code, parsed:{ok, summary:{total, pass, fail, unreachable}, profiles:[{name, address, verdict, elapsed_ms}]}}`. Answers 'would a real doorbell+mail turn work right now?'."
     )]
     async fn termlink_check_fleet_doorbell_mail_health(
         &self,
@@ -30456,7 +30456,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_chat_arc_broadcast",
-        description = "Fan a chat-arc post to every hub in the fleet (T-1856, MCP wrapper from T-1858). FIRST mutating chat-arc MCP tool — writes one real envelope per hub on every call; no undo. Distinct from the four read-only discovery wrappers (termlink_agent_listeners_fleet T-1839, termlink_fleet_adoption_snapshot T-1847, termlink_agent_chat_arc_recent T-1852, termlink_check_fleet_doorbell_mail_health T-1853). Wraps scripts/chat-arc-broadcast.sh: walks `~/.termlink/hubs.toml`, posts to each unique address with `--ensure-topic` + `--metadata agent_id=<from>` + `--metadata _from=<from>` (PL-191 attribution), per-hub bounded by `timeout 8` (PL-189). G-060 mitigation: agent-chat-arc does NOT federate so cross-hub broadcast is client-driven. Sender resolution: `from` param → `$TERMLINK_AGENT_ID` env → `~/.termlink/be-reachable.state` → subprocess exit 2 with hint. Params: `payload` (required), `from` (optional sender override), `hubs_file` (override default), `timeout_secs` (default 60, clamped 1..=300). Returns T-1836 envelope `{ok, exit_code, stdout, stderr, parsed: {ok, hubs_attempted, hubs_delivered, hubs_failed, sender, results:[{hub, ok, offset, error}]}}`. Best practice: call termlink_agent_chat_arc_recent FIRST to read context, then broadcast informed."
+        description = "Fan a chat-arc post to every hub in the fleet. MUTATING — writes one real envelope per hub per call; no undo. agent-chat-arc does NOT federate, so cross-hub broadcast is client-driven (that's why this walks every hub). Sender resolution: `from` param → `$TERMLINK_AGENT_ID` → `~/.termlink/be-reachable.state` → error with hint. Params: `payload` (required), `from` (sender override), `hubs_file` (override), `timeout_secs` (default 60, 1..=300). Returns `{ok, exit_code, parsed:{ok, hubs_attempted, hubs_delivered, hubs_failed, sender, results:[{hub, ok, offset, error}]}}`. Read context via `termlink_agent_chat_arc_recent` first, then broadcast informed."
     )]
     async fn termlink_chat_arc_broadcast(
         &self,
@@ -39060,11 +39060,18 @@ YW\tJ
 
     #[test]
     fn help_macro_description_documents_post_t1953_fields() {
-        // T-1962: drift-detection — the termlink_help #[tool(description=...)]
-        // macro string is the schema documentation LLMs see at discovery time.
-        // T-1953..T-1961 added fields to return envelopes; the description must
-        // mention each one so consumers can rely on the schema. Sweep the
-        // source for the macro string and assert all expected field names appear.
+        // Drift-detection — the termlink_help #[tool(description=...)] macro
+        // string is what LLMs read at discovery time. It must document the
+        // MODES and the INPUT PARAMS a caller needs to drive the tool.
+        //
+        // arc-005 (T-2406) narrowed this contract: the description no longer
+        // restates every ENVELOPE field name (verb_cognates, total_deprecated,
+        // largest_categories, sort_by_applied, categories_unknown, …). Those
+        // fields stay discoverable at RUNTIME via `tool_detail`/`summary` modes
+        // and the JSON schema — cramming ~30 field names into one prose blob
+        // was the exact per-agent context bloat the arc removed (11.7KB → 1.5KB
+        // for this one tool). What stays documented here is the actionable
+        // surface: the mode selectors and the filter/pagination params.
         let src = include_str!("./tools.rs");
         // Locate the termlink_help #[tool(...)] block. Anchor on the unique
         // `name = "termlink_help"` literal, then walk to the closing `)]`.
@@ -39077,129 +39084,47 @@ YW\tJ
             .expect("termlink_help #[tool(...)] must close with )]");
         let macro_block = &tail[..close];
 
-        let required_fields: &[(&str, &str)] = &[
-            ("parameters", "T-1953"),
-            ("verb_cognates", "T-1959"),
-            ("category_hint", "T-1958"),
-            ("deprecated", "T-1960/T-1961"),
-            ("description", "T-1957 (per-category)"),
-            // T-1964: lock T-1963 summary-mode return fields into the
-            // schema-doc contract. If a future change removes/renames any
-            // of these from the macro string, the test fires before LLMs
-            // see a broken self-description.
-            ("summary", "T-1963 (mode name)"),
-            ("total_deprecated", "T-1963"),
-            ("largest_categories", "T-1963"),
-            ("smallest_categories", "T-1963"),
-            ("deprecated_by_category", "T-1963"),
-            // T-1965: lock tool_detail's category-context enrichment into
-            // the schema-doc contract. A future change removing either
-            // field from the macro string trips this test before LLMs see
-            // a broken self-description.
-            ("category_description", "T-1965"),
-            ("category_tool_count", "T-1965"),
-            // T-1967: per-row deprecated_count in list_categories. The
-            // bare `deprecated` token is already in the required list for
-            // T-1960/T-1961 (deprecated flag); adding the suffixed form
-            // catches the case where someone replaces only the bare flag
-            // and leaves the per-row count documentation broken.
-            ("deprecated_count", "T-1967"),
-            // T-1968: essentials mode — canonical entry-point per category.
-            ("essentials", "T-1968 (mode name)"),
-            // T-1970: replacement_hint on deprecated tools — parsed from
-            // `(use NAME instead)` marker in the description. Surfaced in
-            // tool_detail, name_filter matches, and default-mode rows.
-            ("replacement_hint", "T-1970"),
-            // T-1971: parameter_count on tool_detail — O(1) arity signal
-            // for cost-aware routing without walking parameters[].
-            ("parameter_count", "T-1971"),
-            // T-1973: summary-mode arity aggregates composing T-1971/T-1972.
-            ("total_parameters", "T-1973"),
-            ("zero_arity_tools", "T-1973"),
-            ("highest_arity_tools", "T-1973"),
-            // T-1975: max_parameters filter param.
-            ("max_parameters", "T-1975"),
-            // T-1976: min_parameters lower-bound — composes with max for range.
-            ("min_parameters", "T-1976"),
-            // T-1977: exclude_deprecated server-side filter — suppresses
-            // retirement-WIP rows from name_filter / standalone-arity searches.
-            ("exclude_deprecated", "T-1977"),
-            // T-1978: summary-mode live-count aggregates — post-retirement
-            // namespace sizing without client-side arithmetic.
-            ("total_live_tools", "T-1978"),
-            ("total_live_categories", "T-1978"),
-            ("largest_live_categories", "T-1978"),
-            // T-1979: list_categories rows carry per-category live_tool_count
-            // (mirror of T-1978's summary additions into the enumeration).
-            ("live_tool_count", "T-1979"),
-            // T-1980: tool_detail is_replacement_for[] — reverse of T-1970's
-            // forward replacement_hint, forming a bidirectional retirement graph.
-            ("is_replacement_for", "T-1980"),
-            // T-1981: category=X envelope embeds category_meta block — closes
-            // the round-trip on the list_categories → category drill flow.
-            ("category_meta", "T-1981"),
-            // T-1982: deprecated_only filter — symmetric inverse of T-1977's
-            // exclude_deprecated. Together they bracket the retirement axis.
-            ("deprecated_only", "T-1982"),
-            // T-1983: tool_detail also carries the namespace retirement counts.
-            ("category_deprecated_count", "T-1983"),
-            ("category_live_tool_count", "T-1983"),
-            // T-1984: deterministic pagination cap for name_filter mode —
-            // envelope gains `total_matched` (pre-cap count) and
-            // `limit_applied` (bool truncation flag) when `limit` is set.
-            ("total_matched", "T-1984"),
-            ("limit_applied", "T-1984"),
-            // T-1994: pagination cursor — pairs with `limit` to enable
-            // real paging. Param is `offset`; envelope gains `next_offset`
-            // when more matches lie beyond the current window.
-            ("offset", "T-1994"),
-            ("next_offset", "T-1994"),
-            // T-1995: parameter_required_count — required-arity signal on
-            // every row shape (default, name_filter, tool_detail, essentials).
-            // Pairs with T-1971/T-1972's parameter_count for cost-aware
-            // LLM tool ranking.
-            ("parameter_required_count", "T-1995"),
-            // T-1996: deterministic sort axis on name_filter mode. `sort_by`
-            // param ∈ {name, arity, required_arity, category}; envelope
-            // emits `sort_by_applied` echoing the value on success and
-            // `sort_by_unknown` on unrecognized input. Pairs with limit/
-            // offset to complete the paging API (sort → offset → limit).
-            ("sort_by_applied", "T-1996"),
-            ("sort_by_unknown", "T-1996"),
-            // T-1998: row projection on `matches[]`. `fields` param accepts
-            // a subset of allowed keys; rows are filtered AFTER pagination
-            // so the window is determined by full-row data, then trimmed.
-            // Envelope emits `fields_applied` (validated subset) and
-            // `fields_unknown` (silently-dropped invalid names) so LLM
-            // clients can detect mis-typed projection keys.
-            ("fields_applied", "T-1998"),
-            ("fields_unknown", "T-1998"),
-            // T-1999: multi-namespace scope filter. `categories` param
-            // takes precedence over single `category` when non-empty.
-            // Envelope emits `categories_applied` (recognized subset
-            // against the live registry) and `categories_unknown`
-            // (silently-dropped names) so LLM clients can detect mis-typed
-            // category names.
-            ("categories_applied", "T-1999"),
-            ("categories_unknown", "T-1999"),
-            // T-2000: negative multi-namespace filter. `exclude_categories`
-            // drops rows whose category is in the array. Exclusion wins on
-            // overlap with `categories`/`category`. Envelope emits
-            // exclude_categories_applied (recognized) and
-            // exclude_categories_unknown (dropped) for input validation.
-            ("exclude_categories_applied", "T-2000"),
-            ("exclude_categories_unknown", "T-2000"),
+        // Modes + input params + the row-signal fields + error hints that a
+        // caller genuinely needs at discovery time to drive the tool.
+        let required_tokens: &[&str] = &[
+            // mode selectors
+            "name_filter",
+            "list_categories",
+            "tool_detail",
+            "summary",
+            "essentials",
+            // scope/filter params
+            "category",
+            "categories",
+            "exclude_categories",
+            "max_parameters",
+            "min_parameters",
+            "exclude_deprecated",
+            "deprecated_only",
+            // sort + pagination
+            "sort_by",
+            "limit",
+            "offset",
+            "fields",
+            // row cost signals worth ranking on
+            "deprecated",
+            "parameter_count",
+            "parameter_required_count",
+            // error-path hints
+            "did_you_mean",
+            "category_hint",
         ];
         let mut missing: Vec<&str> = Vec::new();
-        for (field, _ticket) in required_fields {
-            if !macro_block.contains(field) {
-                missing.push(field);
+        for token in required_tokens {
+            if !macro_block.contains(token) {
+                missing.push(token);
             }
         }
         assert!(
             missing.is_empty(),
-            "termlink_help macro description missing field references: {missing:?}\n\
-             Each entry is a field LLMs should see documented at schema-discovery time."
+            "termlink_help macro description missing mode/param references: {missing:?}\n\
+             Each is part of the actionable discovery surface (modes + input params).\n\
+             Per arc-005 the description documents modes+params, not every envelope field."
         );
     }
 

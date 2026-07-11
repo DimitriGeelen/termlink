@@ -14,14 +14,18 @@
 # tighten the ceiling has not locked its win.
 #
 # Usage: test-mcp-desc-budget.sh [--report-only]
-# Env:   MAX_DESC_CEILING (default 12000), TOTAL_DESC_CEILING (default 160000),
+# Env:   MAX_DESC_CEILING (default 1600), TOTAL_DESC_CEILING (default 135000),
 #        MCP_TOOLS_FILE (default crates/termlink-mcp/src/tools.rs)
+#
+# Ceiling history (each slice tightens after its trims land):
+#   baseline (pre-S1): max 11751, total 156525  → ceilings 12000 / 160000
+#   S1 (T-2406):       max  1546, total 133220  → ceilings  1600 / 135000
 
 set -u
 SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 FILE="${MCP_TOOLS_FILE:-${SELF_DIR}/../crates/termlink-mcp/src/tools.rs}"
-MAX_CEIL="${MAX_DESC_CEILING:-12000}"
-TOTAL_CEIL="${TOTAL_DESC_CEILING:-160000}"
+MAX_CEIL="${MAX_DESC_CEILING:-1600}"
+TOTAL_CEIL="${TOTAL_DESC_CEILING:-135000}"
 report_only=0; [ "${1:-}" = "--report-only" ] && report_only=1
 
 [ -f "$FILE" ] || { echo "FATAL: MCP tools file not found: $FILE"; exit 2; }

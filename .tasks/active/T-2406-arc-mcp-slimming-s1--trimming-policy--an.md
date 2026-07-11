@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-11T14:14:55Z
-last_update: 2026-07-11T14:14:55Z
+last_update: 2026-07-11T14:18:33Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -55,11 +55,16 @@ non-obvious param gotchas, critical safety notes stay).
   (initial ceiling generous enough to pass after this slice's trims; tightened in later
   slices). Wired so `cargo test`/CI catches a regrowth. The guard reports the current max +
   total bytes for visibility. **DONE:** `scripts/test-mcp-desc-budget.sh` — reports count/total-bytes/~tokens/max, FAILs if max>MAX_DESC_CEILING (12000) or total>TOTAL_DESC_CEILING (160000); PASSes at baseline (273 tools, 156525 bytes, max 11751). `--report-only` mode. Ceilings tighten per slice.
-- [ ] **Worst offenders trimmed + still compiles.** The largest descriptions (the 11,751-char
-  monster + the 24 over 1000 chars, or a proven subset if budget-bound — the rest handed to
-  S2) are trimmed per policy; `cargo build -p termlink-mcp` (or `cargo check`) passes and the
-  MCP tool set still registers (tool count unchanged — trimming text, not removing tools).
-  Report bytes-before/after reclaimed. **DEFERRED to fresh session:** the `tools.rs` edit + Rust compile-iterate loop is unsafe to start at ~83% budget on a load-bearing file (risking half-done edits to the MCP server every agent depends on). Guard + policy are in place so this is now mechanical; the 11,751-char tool-catalog meta-tool is target #1.
+- [x] **Worst offenders trimmed + still compiles.** DONE (fresh session 2026-07-11): trimmed
+  the 11,751-char tool-catalog meta-tool → 1,546 AND all 24 descriptions over 1000 chars per
+  policy. `cargo build -p termlink-mcp` passes; **tool count unchanged (273)** — text trimmed,
+  no tools removed. **Bytes reclaimed: 156,525 → 133,220 = 23,305 (~5,800 tokens/agent/session,
+  ~15% of the tool-catalog tax).** Max single 11,751 → 1,546. Guard ceilings tightened in
+  lockstep: MAX 12000→1600, TOTAL 160000→135000; `bash scripts/test-mcp-desc-budget.sh` PASSES.
+  Updated the T-1962 drift-guard test (`help_macro_description_documents_post_t1953_fields`) to
+  the arc-005 contract — description documents modes+input-params, not every envelope field
+  (fields stay discoverable via `tool_detail`/`summary` + JSON schema). `cargo test -p termlink-mcp`
+  green.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -124,6 +129,9 @@ non-obvious param gotchas, critical safety notes stay).
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+test -f docs/operations/mcp-description-policy.md
+bash scripts/test-mcp-desc-budget.sh
+cargo build -p termlink-mcp 2>&1 | tail -1 | grep -q Finished
 
 ## RCA
 
@@ -164,6 +172,21 @@ non-obvious param gotchas, critical safety notes stay).
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-07-11 — worst-offender trim + the drift-guard tension
+- **What changed:** The single 11,751-char `termlink_help` meta-tool was ~7.5% of the
+  entire tool-catalog tax by itself. Trimming it + the 24 over-1000 descriptions reclaimed
+  23,305 bytes (~5,800 tokens/agent) — more than the naive "trim the long tail" framing
+  predicted, because the head is so heavy (Pareto: a handful of tools carry most of the bytes).
+- **Plan impact:** S1 alone already banks the majority of the achievable win. S2/S3 (the
+  600-1000 and long-tail bands) are real but each yields far less than this head trim — the
+  arc's value is front-loaded, which is the right shape for a "born-in-progress" arc.
+- **Triggered:** The T-1962 drift-guard test (`help_macro_description_documents_post_t1953_fields`)
+  FAILED on the trim — it asserted the meta-tool description restate ~30 envelope field names,
+  i.e. it *enforced the exact bloat the arc removes*. Rewrote it to the arc-005 contract
+  (document modes+input-params; envelope fields stay discoverable via `tool_detail`/`summary`
+  + JSON schema at runtime). This is the structural-flaw pattern: the fix surfaced a test that
+  codified the anti-pattern. No new sub-task needed — handled in-slice.
 
 ## Decisions
 
