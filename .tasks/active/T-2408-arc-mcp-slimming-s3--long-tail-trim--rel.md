@@ -4,7 +4,7 @@ name: "arc mcp-slimming S3 — long-tail trim + relocate archaeology to docs + t
 description: >
   Closing slice of arc-005 mcp-slimming. Trim the remaining 400-600 char descriptions, relocate any genuinely-useful T-XXXX/PL lineage from descriptions into docs/ or task files (not lost, just moved), and tighten the anti-regrowth guard ceiling to the final target. Arc close demo: before/after total-bytes + a diff showing a representative slimmed tool + guard test green.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-11T14:16:26Z
-last_update: 2026-07-11T14:16:26Z
+last_update: 2026-07-11T16:53:29Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,38 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Final slice of arc `mcp-slimming`. S1 (T-2406) + S2 (T-2407) took the tool-description total
+from 156,525 → 112,319 bytes (~44KB / ~11k tokens/agent reclaimed) by trimming the >1000 and
+600–999 bands. This slice sweeps the sub-600 long tail: **65 descriptions under 600 chars still
+carry task-ID archaeology, "MCP parity for CLI verb" cross-refs, or "arc Slice N" provenance**
+(~28KB across them). Trim those per `docs/operations/mcp-description-policy.md`, relocate any
+genuinely-useful rationale (not ID soup) to docs, then tighten the guard to its final ceiling
+and close the arc.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] **Sub-600 archaeology swept.** The ~65 descriptions under 600 chars still carrying
+  `T-XXXX` / `PL-NNN` / "MCP parity for" / "arc Slice N" / "NO new RPC surface" prose are
+  trimmed per policy (drop ID soup + pure cross-refs; keep purpose + non-obvious param
+  semantics + safety + return-shape). `cargo build -p termlink-mcp` passes; **tool count 273
+  (unchanged)**; `cargo test -p termlink-mcp` green. Report bytes reclaimed.
+  **STAGED, NOT YET APPLIED (2026-07-11):** a subagent authored + DRY-RUN-VERIFIED the full
+  73-fragment replacement set (65 tools, 8 need two edits) — every old fragment matches
+  `tools.rs` exactly once, none touch escaped-quote regions, all literals stay valid. It
+  could not apply because this session hit the framework budget gate (critical, ~289k) which
+  blocks source edits + general Bash. Self-contained apply script staged at
+  **`.context/working/mcp-s3-apply.py`** (73 pairs embedded inline; asserts count stays 273;
+  auto-patches guard `TOTAL_DESC_CEILING` → `ceil((new_total+500)/500)*500`, `MAX` stays 1560
+  since the 1546-char `termlink_help` is out of band; appends S3 ceiling-history + Env-doc
+  lines; prints final count/total/max). **ONE-STEP FINISH (fresh session):**
+  `cd /opt/termlink && python3 .context/working/mcp-s3-apply.py && cargo build -p termlink-mcp 2>&1 | tail -3 && cargo test -p termlink-mcp 2>&1 | tail -5 && bash scripts/test-mcp-desc-budget.sh`
+  then review the diff + commit.
+- [ ] **Guard tightened to final ceiling.** `MAX_DESC_CEILING` / `TOTAL_DESC_CEILING` in
+  `scripts/test-mcp-desc-budget.sh` lowered to just above the new max/total (final arc ceiling);
+  guard PASSES. Ceiling-history comment gains an S3 line.
+- [ ] **Arc closed.** `fw arc close mcp-slimming` with a before/after demo (156,525 → final
+  bytes, ~tokens/agent reclaimed). Memory + arc yaml reflect completion.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -174,3 +198,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2408-arc-mcp-slimming-s3--long-tail-trim--rel.md
 - **Context:** Initial task creation
+
+### 2026-07-11T16:53:29Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
