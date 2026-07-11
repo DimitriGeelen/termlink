@@ -8,7 +8,7 @@ status: started-work
 workflow_type: build
 owner: agent
 horizon: now
-tags: []
+tags: [arc:mcp-slimming]
 components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-11T14:16:18Z
-last_update: 2026-07-11T15:31:36Z
+last_update: 2026-07-11T16:51:02Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -44,14 +44,16 @@ schema-restatement. No tools removed (trim text only).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] **600–1000 band trimmed per policy.** The descriptions currently in the 600–999 char
-  band are trimmed per `docs/operations/mcp-description-policy.md`; agent-critical guidance
-  (purpose, non-obvious param gotchas, safety notes, return-shape hints) preserved.
-  `cargo build -p termlink-mcp` passes; **tool count unchanged (273)**; `cargo test -p termlink-mcp`
-  green (including the T-1962 modes+params drift-guard). Report bytes-before/after reclaimed.
-- [ ] **Guard ceiling tightened in lockstep.** `MAX_DESC_CEILING` / `TOTAL_DESC_CEILING` in
-  `scripts/test-mcp-desc-budget.sh` lowered to just above the new max/total; the guard PASSES
-  at the new ceilings (locks the win — a slice that trims but doesn't tighten hasn't locked it).
+- [x] **600–1000 band trimmed per policy.** DONE: all 86 descriptions in the 600–999 band
+  trimmed per `docs/operations/mcp-description-policy.md` (cut T-XXXX/PL archaeology, CLI-parity
+  prose, sibling cross-refs, schema-restatement). Agent-critical guidance preserved — verified
+  by spot-check that `release`'s ack=true/false cursor-advance pivot and `renew`'s "absolute
+  NOT relative add" gotcha survived. `cargo build -p termlink-mcp` passes; **tool count 273
+  (unchanged)**; `cargo test -p termlink-mcp` green (879 passed, T-1962 drift-guard green).
+  **Bytes reclaimed: 133,220 → 112,319 = 20,901 (~5.2k more tokens/agent/session).**
+- [x] **Guard ceiling tightened in lockstep.** DONE: `MAX_DESC_CEILING` 1600→1560,
+  `TOTAL_DESC_CEILING` 135000→113000 in `scripts/test-mcp-desc-budget.sh` (+ S2 ceiling-history
+  comment line). `bash scripts/test-mcp-desc-budget.sh` → RESULT: PASS.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -116,6 +118,23 @@ schema-restatement. No tools removed (trim text only).
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+bash scripts/test-mcp-desc-budget.sh
+cargo build -p termlink-mcp 2>&1 | tail -1 | grep -q Finished
+
+## Evolution
+
+### 2026-07-11 — delegated batch trim; diminishing-returns confirmed
+- **What changed:** S2 reclaimed 20,901 bytes across 86 descriptions — roughly the same
+  magnitude as S1's 23,305, but spread over 86 tools instead of concentrated in ~25. Confirms
+  the front-loaded shape: per-tool yield is much lower here (~240 bytes/tool vs S1's head trim).
+- **Plan impact:** The 86-tool batch was mechanical enough to delegate to a subagent (policy +
+  guard already in place from S1 made it safe — the guard is the objective success signal, so
+  the orchestrator could verify without reading all 86 edits). S3's long tail (<600 chars) will
+  yield even less per tool; S3 is more about relocating any genuine archaeology to docs +
+  final guard tightening than about big byte wins.
+- **Triggered:** No new sub-tasks. A few tools (e.g. `poll_start`) retain minor CLI-parity
+  prose after the batch — acceptable within policy tolerance ("one short see-also at most"),
+  S3 can sweep stragglers.
 
 ## RCA
 
@@ -187,3 +206,6 @@ schema-restatement. No tools removed (trim text only).
 
 ### 2026-07-11T15:31:36Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-07-11T16:51:02Z — status-update [task-update-agent]
+- **Change:** tags: +arc:mcp-slimming
