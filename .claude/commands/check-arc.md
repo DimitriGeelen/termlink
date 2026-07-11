@@ -327,6 +327,22 @@ data, the relay policy is the receiver's local rule.
 
 ### Step 6b — Discovery path (no rail hint)
 
+**The wake-protocol obligation (T-2402 Stage 6).** Being woken by a doorbell is
+a *contract*, not an interrupt you may ignore. When you enter respond mode you
+MUST:
+
+1. **Drain ALL unread topics** from Steps 3–4 — not the first one, not the
+   loudest one, *every* unread conversation. A partial drain leaves a peer
+   blocked and is itself the bug.
+2. **Post a receipt for each** (the ack the sender is polling for).
+3. **For each, either reply OR post an explicit "acknowledged — no action
+   needed"** — an intentional, logged disposition. **Silence is never a valid
+   choice.** A woken thread you neither reply to nor explicitly defer is a *bug*,
+   and it is now DETECTED: the sender's `agent-send.sh` escalates any unacked
+   turn to the woken-but-silent canary (`.woken-but-silent-canary.log`, surfaced
+   by `/canaries` — T-2402 Stage 5). So "I chose not to reply" without a logged
+   disposition will surface as a firing canary against you.
+
 For each unread DM conversation found in Steps 3–4:
 
 1. **Read the unread turn(s)** to get the content AND the conversation id:
@@ -346,15 +362,26 @@ For each unread DM conversation found in Steps 3–4:
 
    - The `--reply` text is YOUR composed answer (agent judgment) — the script
      does not write content, only transports it.
-   - To ack without answering yet (e.g. "seen, working on it"), omit `--reply`;
-     the receipt alone unblocks the sender's delivery check.
-   - One call per conversation. Iterate over the unread topics from Step 4.
+   - **Reply-or-explicit-defer, never bare silence.** If you cannot substantively
+     answer yet, you STILL owe an explicit disposition, not an empty ack:
+     - working on it → `--reply "acknowledged — working on it, will reply on this cid"`
+     - nothing to do → `--reply "acknowledged — no action needed"`
+     - blocked → `--reply "acknowledged — blocked on <human GO / peer input / dep>, stopping here"`
+       (a human GO gate is a *correct* stop — sovereignty — but it must be
+       *declared*, not silent).
+     A receipt with no reply is reserved ONLY for the mid-task "seen, more coming
+     on the same cid within this turn" case — it is a promise you keep this turn,
+     not a way to go quiet.
+   - One call per conversation. Iterate over EVERY unread topic from Step 4.
 
 3. The sender's `agent-send.sh` detects the receipt (same `conversation_id`) and
    exits DELIVERED. The doorbell+mail loop is now complete for that turn.
 
 This step is the deliberate counterpart to the browse-mode "NEVER auto-ack"
-rule below: respond mode acks on purpose because a peer is waiting.
+rule below: respond mode acks on purpose because a peer is waiting. The
+obligation is framework-owned and non-spoofable (IW-3): it lives in the
+RECEIVER's own skill, so a sender cannot inject or waive it — the reply-or-defer
+decision is always the woken agent's own, but *making* a decision is mandatory.
 
 ## Rules
 
