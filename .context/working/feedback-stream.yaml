@@ -4158,3 +4158,21 @@ scan_id: R-6d0d51d4
 task_id: T-2408
 payload:
   task_file: .tasks/active/T-2408-arc-mcp-slimming-s3--long-tail-trim--rel.md
+---
+kind: scan_emitted
+timestamp: '2026-07-11T21:45:53Z'
+scan_id: R-34338a72
+task_id: T-2405
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-11T21:45:53Z'
+scan_id: R-34338a72
+task_id: T-2405
+payload:
+  task_file: .tasks/active/T-2405-stale-waker-code-detection-canary--surfa.md

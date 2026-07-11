@@ -4,10 +4,10 @@ name: "Stale-waker-code detection canary — surface agents on pre-current push-
 description: >
   Detection counterpart to T-2404 fleet-rearm-wakers.sh (remediation). The framework is currently BLIND to agents running stale push-waker code — this session found the fleet on pre-Stage-3 wakers only via manual /proc mtime comparison. Build a check-waker-code-freshness.sh canary (same empty-log=healthy + cron pattern as the 9 existing canaries; sibling to T-2359 fleet-binary but at the waker-process layer): walk be-reachable-*.state, compare each running pushwaker_pid /proc mtime vs the live be-reachable-pushwaker.sh mtime, FIRE on any stale waker. Auto-discovered by /canaries. Remediation on fire: bash scripts/fleet-rearm-wakers.sh --all.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-11T13:30:25Z
-last_update: 2026-07-11T21:38:16Z
-date_finished: null
+last_update: 2026-07-11T21:45:52Z
+date_finished: 2026-07-11T21:45:52Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -208,3 +208,22 @@ exactly `fleet-rearm-wakers.sh --all`. Reuses T-2404's staleness primitives verb
 
 ### 2026-07-11T21:38:16Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-34338a72
+- **Timestamp:** 2026-07-11T21:45:53Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — **Canary script.** `scripts/check-stale-waker-code-freshness.sh` walks
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/check-stale-waker-code-freshness.sh in: **Canary script.** `scripts/check-stale-waker-code-freshness.sh` walks`
+- **AC#4 (Agent)** — **Tests + doc.** Hermetic test `tests/stale-waker-code-canary.sh` — fixture state dir +
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=tests/stale-waker-code-canary.sh in: **Tests + doc.** Hermetic test `tests/stale-waker-code-canary.sh` — fixture state dir +`
+
+### 2026-07-11T21:45:52Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2405: Stale-waker-code detection canary — surface agents on pre-current push-waker code (G-019 detection for T-2404)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-11T21:45:56Z
+# ============================================================================
+
+task_id: T-2405
+task_name: "Stale-waker-code detection canary — surface agents on pre-current push-waker code (G-019 detection for T-2404)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-11T13:30:25Z
+completed: 2026-07-11T21:45:52Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-11T23:45:46+02:00
+last_commit: 2026-07-11T23:45:46+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  stale-waker-code detection canary (G-019 detection for T-2404) — walks be-reachable-*.state, fires on any LIVE waker running pre-current code; cron + 7-case hermetic test + doc + CLAUDE.md §; tenth empty-log=healthy canary
+
+# Key outcomes
+outcomes:
+  - '**Canary script.** `scripts/check-stale-waker-code-freshness.sh` walks'
+  - '**Canary conventions.** `--quiet` (print only on firing, cron form), `--json` (envelope'
+  - '**Cron + registry.** `.context/cron/stale-waker-code-canary.crontab` (daily, `--quiet`,'
+  - '**Tests + doc.** Hermetic test `tests/stale-waker-code-canary.sh` — fixture state dir +'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/cron/stale-waker-code-canary.crontab'
+  - 'docs/operations/stale-waker-code-canary.md'
+  - 'scripts/check-stale-waker-code-freshness.sh'
+  - '.tasks/active/T-2405-stale-waker-code-detection-canary--surfa.md'
+  - 'tests/stale-waker-code-canary.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-11T23:45:46"
+    action: "T-2405: stale-waker-code detection canary (G-019 detection for T-2404) — walks be-reachable-*.state, fires on any LIVE waker running pre-current code; cron + 7-case hermetic test + doc + CLAUDE.md §; tenth empty-log=healthy canary"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 495 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 495
+  commits: 1
+  files_changed: 6
+  lines_added: 492
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2405-stale-waker-code-detection-canary--surfa.md
+generated_by: context-agent-hybrid
