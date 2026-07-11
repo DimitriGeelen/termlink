@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-07-11T07:37:06Z
-last_update: 2026-07-11T09:31:38Z
+last_update: 2026-07-11T09:36:40Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -54,7 +54,7 @@ The six-stage control loop (1,2 already deterministic; this task builds 3,5,6):
 
 ### Agent
 - [x] **Stage 3 — idle-gated injection.** `scripts/be-reachable-pushwaker.sh` (and/or the inject step in `agent-send.sh`) rings the PTY only when it is at a READY prompt; if the REPL is busy (mid-turn, resume-picker, tool-call) it defers and re-injects (bounded retry + backoff) until the input is accepted — instead of injecting blind. Verify: an injection issued while the REPL is busy is NOT swallowed (integration test or documented manual test showing the doorbell lands after the REPL returns to idle). Detection mechanism (PTY-state probe) documented. **DONE 2026-07-11:** blind inject at rail-loop replaced by `pushwaker_ring_when_ready` (probe→defer→inject-at-idle, rc=3 loud give-up, never blind). Pure `pushwaker_pty_state` (7 unit fixtures) + hermetic BUSY→READY integration test (`test-pushwaker-ready-loop.sh`: inject fires only after READY, 0 blind injects) + live-probe validated vs wfd/aef/claude-master. Mechanism doc: `docs/operations/pushwaker-idle-gating.md`. Commits 340a03df + integration test.
-- [ ] **Stage 5 — escalating re-ring, no silent stop.** The send/receipt loop re-rings on a schedule until a receipt is observed; after N attempts it ESCALATES to a loud, operator-visible signal (a `*-canary.log` entry AND/OR a registered `awaiting-ack` obligation) instead of exiting silently at `--max-rings`. Verify: against a deliberately non-responding recipient, the loop produces a surfaced artifact (canary log line or awaiting-ack row visible to `/canaries` or `channel awaiting-ack`) rather than a silent non-zero exit.
+- [x] **Stage 5 — escalating re-ring, no silent stop.** The send/receipt loop re-rings on a schedule until a receipt is observed; after N attempts it ESCALATES to a loud, operator-visible signal (a `*-canary.log` entry AND/OR a registered `awaiting-ack` obligation) instead of exiting silently at `--max-rings`. Verify: against a deliberately non-responding recipient, the loop produces a surfaced artifact (canary log line or awaiting-ack row visible to `/canaries` or `channel awaiting-ack`) rather than a silent non-zero exit. **DONE 2026-07-11:** `escalate_woken_but_silent` in `agent-send.sh` appends a framed entry to `.context/working/.woken-but-silent-canary.log` (auto-discovered by `/canaries`) on BOTH give-up paths — also fixed a latent bug where the fallback path falsely claimed T-2295 tracked it (no `--await-ack` obligation was ever registered). test-agent-send.sh Path B2 asserts the ESCALATED line + well-formed log entry against a non-responding recipient (live hub). Doc: `docs/operations/woken-but-silent-escalation.md`. Commit 07bf6b0c.
 - [ ] **Stage 6 — wake-protocol obligation.** The `/check-arc respond` skill mandates that a woken agent drains ALL unread topics, posts a receipt per topic, and for each either replies OR posts an explicit "acknowledged, no action needed" — so silence always means a bug (caught by stage 5), never a valid unlogged choice. Verify: the skill text encodes the always-ack + reply-or-explicit-defer obligation (grep-able), AND the T-2295 unconfirmed-delivery canary is confirmed to fire on a woken-but-silent thread (i.e. `/check-arc respond` registers or leaves an awaiting-ack obligation the canary reads).
 
 ## Assumptions
@@ -132,6 +132,9 @@ The six-stage control loop (1,2 already deterministic; this task builds 3,5,6):
 bash -n scripts/be-reachable-pushwaker.sh
 bash scripts/test-pushwaker-filter.sh
 bash scripts/test-pushwaker-ready-loop.sh
+# Stage 5 (escalating re-ring): syntax + smoke (Path B2 asserts loud escalation).
+bash -n scripts/agent-send.sh
+bash scripts/test-agent-send.sh
 
 ## Recommendation
 
