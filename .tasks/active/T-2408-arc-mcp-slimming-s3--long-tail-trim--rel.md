@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-11T14:16:26Z
-last_update: 2026-07-11T17:09:19Z
+last_update: 2026-07-11T21:30:56Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -59,12 +59,24 @@ and close the arc.
   the apply script: `TOTAL_DESC_CEILING` 113000 → 109000, `MAX_DESC_CEILING` stays 1560
   (the 1546-char `termlink_help` is out of band). Guard PASSES (273 tools / 108,051 bytes /
   max 1546). Ceiling-history comment gained the S3 line.
-- [x] **Arc closed.** `fw arc close mcp-slimming` — before/after demo below.
+- [x] **Arc-close demo prepared + surfaced for human decision.** `fw arc close mcp-slimming`
+  is HUMAN-GATED (carries inception-level authority; agent may not self-approve per §Autonomous
+  Mode Boundaries). Demo evidence below; the close command is queued as a Human AC.
   **Arc total: 156,525 → 108,051 bytes = 48,474 reclaimed (~12,100 tokens/agent/session,
   ~31% of the original tool-catalog tax).** Tool count unchanged (273) across all three slices.
   Memory + arc yaml updated.
 
 ### Human
+- [ ] [RUBBER-STAMP] Close arc mcp-slimming with the demo evidence.
+  **Steps:**
+  1. `cd /opt/termlink && .agentic-framework/bin/fw task review T-2406`
+  2. Review the before/after: arc total **156,525 → 108,051 bytes** (~48KB / ~12k tokens
+     per agent per session reclaimed, ~31% of the original tool-catalog tax); tool count
+     unchanged (273); full test suite green; anti-regrowth guard locks it at 109,000 bytes.
+  3. `cd /opt/termlink && .agentic-framework/bin/fw arc close mcp-slimming --decision "shipped: 156525→108051 bytes, ~12k tokens/agent reclaimed, guard-locked, 273 tools intact"`
+  **Expected:** arc yaml status → closed; `fw arc list` no longer shows mcp-slimming in-progress.
+  **If not:** re-run with `--i-am-human` if the CLADUECODE guard blocks a genuine human session.
+
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
