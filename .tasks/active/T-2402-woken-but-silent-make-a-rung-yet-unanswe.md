@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-07-11T07:37:06Z
-last_update: 2026-07-11T09:37:51Z
+last_update: 2026-07-11T09:40:40Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -141,15 +141,24 @@ grep -q 'Reply-or-explicit-defer' .claude/commands/check-arc.md
 
 ## Recommendation
 
-<!-- REQUIRED before fw inception decide. Write your recommendation here (T-974).
-     Watchtower reads this section — if it's empty, the human sees nothing.
-     Format:
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence from exploration)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
--->
+**Recommendation:** GO — shipped. (Promoted inception→build on 2026-07-11; the three
+deterministic-attention stages are the real deliverable and are all complete.)
+
+**Rationale:** The comms mechanism was already proven end-to-end; the only
+non-deterministic node was the agent's cognition. You cannot make LLM cognition
+deterministic, so this task made the ENVELOPE deterministic: idle-gated delivery
+(no more blind-inject swallow — the off=7 failure), loud escalation on no-receipt,
+and a wake-protocol obligation that makes silence always a detectable bug. All three
+stages are built, unit- + integration-tested, live-probe-validated, documented, and
+committed. Fleet rollout of Stage 3 is underway (wfd armed; aef/workshop/sonnenstall
+notified — see T-2403).
+
+**Evidence:**
+- Stage 3: `scripts/be-reachable-pushwaker.sh` `pushwaker_ring_when_ready` (probe→defer→inject-at-idle, rc=3 loud give-up); `test-pushwaker-filter.sh` (7 fixtures) + `test-pushwaker-ready-loop.sh` (hermetic BUSY→READY) PASS; doc `docs/operations/pushwaker-idle-gating.md`. Commit 340a03df.
+- Stage 5: `escalate_woken_but_silent` in `agent-send.sh` → `.woken-but-silent-canary.log` (auto-discovered by `/canaries`); `test-agent-send.sh` Path B2 asserts the ESCALATED line; also fixed a latent false-"T-2295-tracks-it" claim. Commit 07bf6b0c.
+- Stage 6: `.claude/commands/check-arc.md` Step 6b wake-protocol obligation block (strings present at lines 330, 365; grep-verified).
+- Verification: all 6 commands green by hand (2× RESULT: PASS, test-agent-send ALL PASS, 2 syntax OK, 2 grep OK).
+- Live: idle-gated probe dogfooded to notify aef/workshop/sonnenstall this session — all three injects landed at READY prompts and were received.
 
 ## Decisions
 
