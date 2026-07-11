@@ -13431,7 +13431,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_hub_governor_status",
-        description = "T-2048 / T-2028 Track B: read the local hub's connection-cap + per-sender rate-limit governor state via `hub.governor_status`. Returns `{ok, connections_active, connections_max, capacity_hits_total, rate_buckets_active, rate_hits_total, max_rate_per_sec}`. Pure read, scope=Observe. Pair with `termlink_hub_status` (lifecycle) and `termlink_doctor` (bus state) for full hub-health rollup. `capacity_hits_total > 0` means at least one connection was refused with HUB_AT_CAPACITY (-32019); `rate_hits_total > 0` means at least one RPC was refused with RATE_LIMITED (-32008). Operators tune via `TERMLINK_MAX_CONNECTIONS` (default 256) + `TERMLINK_RATE_LIMIT_PER_SEC` (default 1000) env vars at hub start. Returns `{ok: false, error}` if the hub isn't running."
+        description = "Read the local hub's connection-cap + per-sender rate-limit governor state (pure read, scope=Observe). Returns `{ok, connections_active, connections_max, capacity_hits_total, rate_buckets_active, rate_hits_total, max_rate_per_sec}`. `capacity_hits_total > 0` = a connection was refused (HUB_AT_CAPACITY -32019); `rate_hits_total > 0` = an RPC was refused (RATE_LIMITED -32008). Tune via TERMLINK_MAX_CONNECTIONS (default 256) + TERMLINK_RATE_LIMIT_PER_SEC (default 1000) at hub start. Returns `{ok:false, error}` if the hub isn't running."
     )]
     async fn termlink_hub_governor_status(&self) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
@@ -15599,7 +15599,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_fleet_governor_status",
-        description = "T-2063 / T-2028 Track D: fleet-wide aggregation of `hub.governor_status`. Walks every hub in ~/.termlink/hubs.toml, probes the substrate connection-cap + per-sender rate-limit + post-dedupe counters that T-2048 Track B exposed via RPC, and returns a per-hub + fleet-rollup envelope. Each hub is bounded by per-hub `tokio::time::timeout` (default 8s) — a wedged hub cannot hang the fleet view. Pure read (Observe scope), no mutation. Returns `{ok, total, reachable, hubs:[{hub, ok, governor|error}], summary{total_connections_active, total_capacity_hits_total, total_rate_hits_total, total_dedupe_entries_active, total_dedupe_hits_total, hubs_at_capacity, hubs_rate_limited}}`. Use to answer 'which hub is wedged / hitting capacity / rate-limited?' in one call without iterating profiles. CLI parity: `termlink fleet governor-status [--json] [--timeout SECS]` (T-2062). Single-hub MCP parity: `termlink_hub_governor_status`. See `docs/operations/substrate-governor.md`."
+        description = "Fleet-wide aggregation of hub governor state. Walks every hub in ~/.termlink/hubs.toml, probes connection-cap + per-sender rate-limit + post-dedupe counters, returns per-hub + fleet-rollup. Each hub is bounded by a per-hub timeout (default 8s) so a wedged hub can't hang the fleet view. Pure read. Returns `{ok, total, reachable, hubs:[{hub, ok, governor|error}], summary{total_connections_active, total_capacity_hits_total, total_rate_hits_total, total_dedupe_entries_active, total_dedupe_hits_total, hubs_at_capacity, hubs_rate_limited}}`. Answers 'which hub is wedged / at capacity / rate-limited?' in one call."
     )]
     async fn termlink_fleet_governor_status(
         &self,
@@ -15899,7 +15899,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_hub_export_secret",
-        description = "Read the LOCAL hub's HMAC secret from the AUTHORITATIVE live file — MCP parity for the `termlink hub export-secret` CLI verb (T-1656). Reads `<runtime_dir>/hub.secret` directly (R3 — NEVER the IP-keyed `~/.termlink/secrets/<ip>.hex` cache, which goes stale across hub restarts). Returns `{ok, path, hex, bytes}` where `hex` is the trimmed 64-char hex secret. Use as the authoritative source when sharing your hub's secret with a peer during heal-after-rotation handoff. Caller is responsible for chmod 600 and out-of-band transport — this verb does not write any file. Returns `{ok: false, error, path}` if the hub isn't running (no secret file)."
+        description = "Read the LOCAL hub's HMAC secret from the authoritative live file `<runtime_dir>/hub.secret` (R3 — NEVER the IP-keyed `~/.termlink/secrets/<ip>.hex` cache, which goes stale across restarts). Returns `{ok, path, hex, bytes}` with the trimmed 64-char hex secret. Authoritative source when sharing your hub's secret with a peer during heal-after-rotation. Does NOT write any file — caller handles chmod 600 + out-of-band transport. Returns `{ok:false, error, path}` if the hub isn't running."
     )]
     async fn termlink_hub_export_secret(&self) -> String {
         let live_path = termlink_hub::server::hub_secret_path();
@@ -16212,7 +16212,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_fleet_doctor",
-        description = "Health check all configured hubs in ~/.termlink/hubs.toml. Returns per-hub connectivity, latency, and failure hints. Optional add-on probes: `legacy_usage=true` aggregates a fleet-wide legacy-primitive cut-readiness verdict (CUT-READY / CUT-READY-DECAYING / WAIT / UNCERTAIN) in `legacy_summary` (`legacy_window_days` default 7, 1..=90); `include_pin_check=true` TLS-probes every hub and reports per-profile pin status (match/drift/no-pin/probe-failed) + rollup — single-call 'auth-mismatch OR cert-drift OR both?'; `topic_durability=true` aggregates a DURABLE/VOLATILE/UNCERTAIN verdict in `bus_state_summary` — VOLATILE means the hub's runtime_dir is on a wipe-on-boot mount (the structural cause of PL-021 identity rotation)."
+        description = "Health-check all hubs in ~/.termlink/hubs.toml — per-hub connectivity, latency, failure hints. Optional add-on probes: `legacy_usage=true` adds a fleet-wide legacy-primitive cut-readiness verdict (CUT-READY / CUT-READY-DECAYING / WAIT / UNCERTAIN) in `legacy_summary` (window `legacy_window_days`, 1..=90); `include_pin_check=true` TLS-probes every hub for per-profile pin status (match/drift/no-pin/probe-failed) + rollup — single-call 'auth-mismatch OR cert-drift OR both?'; `topic_durability=true` adds a DURABLE/VOLATILE/UNCERTAIN verdict in `bus_state_summary` (VOLATILE = runtime_dir on a wipe-on-boot mount, the structural cause of PL-021 identity rotation)."
     )]
     async fn termlink_fleet_doctor(&self, Parameters(p): Parameters<FleetDoctorParams>) -> String {
         let profiles = list_all_hub_profiles();
@@ -16546,7 +16546,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_fleet_history",
-        description = "Read-only retrospective over hub rotation events. Reads ~/.termlink/rotation.log (populated by `fleet doctor --watch`) and optionally ~/.termlink/heal.log (populated by `--auto-heal`). Answers 'is this hub's drift the first or Nth time, and what did we do about it?' Returns merged entries sorted chronologically with per-hub counts. No auth, no network. T-1710: pass `analyze: true` to short-circuit the chronological listing and return a per-hub PL-021 flap classification (CLI T-1690 parity) — verdicts: clean / cert-only / secret-only / single-double-rotation / pl021-candidate (≥2 simultaneous cert+secret rotations = volatile runtime_dir signature)."
+        description = "Read-only retrospective over hub rotation events. Reads ~/.termlink/rotation.log (from `fleet doctor --watch`) and optionally ~/.termlink/heal.log (from `--auto-heal`). Answers 'is this hub's drift the first or Nth time, and what did we do?' Returns merged entries sorted chronologically with per-hub counts. No auth, no network. `analyze:true` short-circuits the listing and returns a per-hub PL-021 flap classification: clean / cert-only / secret-only / single-double-rotation / pl021-candidate (>=2 simultaneous cert+secret rotations = volatile runtime_dir)."
     )]
     async fn termlink_fleet_history(
         &self,
@@ -16742,7 +16742,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_fleet_governor_history",
-        description = "Retrospective read of the governor.log NDJSON audit trail written by `fleet governor-status --watch --log <path>`. Walks `~/.termlink/governor.log` (or `log_path`), filters by `since_days` and optional `hub`. Returns `{ok, entries[], summary{total, per_hub:{<hub>:{events, cap_hits_total, rate_hits_total, dedupe_hits_total}}, since_days, hub_filter, malformed_lines_skipped, log_path}}` — answers 'has this hub been refused / rate-limited / had retries absorbed in the window?'. Empty/missing log returns `{ok:true, entries:[], hint}`. Pure read; no auth/network/mutation. See `docs/operations/substrate-governor.md`."
+        description = "Retrospective read of the governor.log NDJSON audit trail (from `fleet governor-status --watch --log`). Walks `~/.termlink/governor.log` (or `log_path`), filters by `since_days` + optional `hub`. Returns `{ok, entries[], summary{total, per_hub:{<hub>:{events, cap_hits_total, rate_hits_total, dedupe_hits_total}}, since_days, hub_filter, malformed_lines_skipped, log_path}}` — answers 'has this hub been refused / rate-limited / had retries absorbed?'. Empty/missing log returns `{ok:true, entries:[], hint}`. Pure read."
     )]
     async fn termlink_fleet_governor_history(
         &self,
@@ -17021,7 +17021,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_substrate_status",
-        description = "Cross-primitive substrate-health rollup — one call composing 4 substrate reads in parallel. Returns `{ok, ts, only_pressured, dispatch, claim, resilience, backpressure, exit_code}` where each section is `{ok:true, data}` (passthrough of its verb's --json shape) or `{ok:false, error}` (graceful degradation — a failed sub-read does NOT poison the call). Sections: DISPATCH (find_idle, substrate #2), CLAIM (claims_summary, #1), RESILIENCE (offline queue, #5), BACKPRESSURE (governor_status per hub, #10). `only_pressured` (default false): filter CLAIM to potentially-stuck topics and BACKPRESSURE to hubs needing attention. `timeout_secs` (default 12, 1..=120). Read-only. Operator-facing sibling: `/substrate`."
+        description = "Cross-primitive substrate-health rollup — one call composing 4 substrate reads in parallel. Returns `{ok, ts, only_pressured, dispatch, claim, resilience, backpressure, exit_code}` where each section is `{ok:true, data}` (passthrough of its verb's --json) or `{ok:false, error}` (a failed sub-read does NOT poison the call). Sections: DISPATCH (find_idle), CLAIM (claims_summary), RESILIENCE (offline queue), BACKPRESSURE (governor_status per hub). `only_pressured` (default false) filters CLAIM to potentially-stuck topics and BACKPRESSURE to hubs needing attention. Read-only."
     )]
     async fn termlink_substrate_status(
         &self,
@@ -17173,7 +17173,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_fleet_secrets_audit",
-        description = "Audit local secrets cache (`~/.termlink/secrets/*.hex` by default) for hygiene. Per-file status: ok / ok-mirror / warn-perms (mode > 0o600) / warn-format (not 64 hex) / warn-drift (differs from authoritative hub.secret) / info-orphan (unreferenced by any hubs.toml profile). Read-only. `dir` overrides the scan path. `check_drift` names the authoritative `<runtime_dir>/hub.secret` for content comparison (adds an `authoritative` block). `target_cache` narrows drift comparison to ONE named file (avoids false positives when the dir holds caches for multiple hubs). `timeout_secs` (default 10, 1..=120). Returns `{ok, dir, target_cache, files:[{path, mode, size, status, reasons}], summary:{...}, exit_code}`. `ok:true` means zero warn-perms/format/drift (orphan is informational)."
+        description = "Audit local secrets cache (`~/.termlink/secrets/*.hex` by default) for hygiene. Per-file status: ok / ok-mirror / warn-perms (mode > 0o600) / warn-format (not 64 hex) / warn-drift (differs from authoritative hub.secret) / info-orphan (unreferenced by any hubs.toml profile). Read-only. `dir` overrides the scan path. `check_drift` names the authoritative `<runtime_dir>/hub.secret` for content comparison. `target_cache` narrows drift comparison to ONE named file (avoids false positives when the dir holds multiple hubs' caches). Returns `{ok, dir, target_cache, files:[{path, mode, size, status, reasons}], summary, exit_code}`. `ok:true` means zero warn-perms/format/drift (orphan is informational)."
     )]
     async fn termlink_fleet_secrets_audit(
         &self,
@@ -17251,7 +17251,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_fleet_reauth",
-        description = "Single-profile rotation heal RPC — MCP parity for `termlink fleet reauth <profile>` (T-1054/T-1055/T-1291). Modes: omit `bootstrap_from` for Tier-1 plan-only (returns the SSH-read → file-write incantation as `plan_text`, no writes); pass `\"auto\"` to use the profile's declared `bootstrap_from` in hubs.toml; pass `file:<path>` or `ssh:<host>` for an explicit Tier-2 heal. The Tier-2 path fetches the new secret out-of-band, validates 64-char hex, backs up the existing secret_file to `.hex.bak`, atomically writes the new file at chmod 600, and returns a 12-char fingerprint preview. R2: `command:<shell>` scheme rejected (security review pending). Refuses profiles with inline `secret = ...` (must convert to `secret_file` first). Returns: `{ok, profile, mode, source, secret_file, fingerprint_preview, plan_text, error, exit_code}`."
+        description = "Single-profile rotation heal. Modes: omit `bootstrap_from` for Tier-1 plan-only (returns the SSH-read → file-write incantation as `plan_text`, no writes); 'auto' uses the profile's declared `bootstrap_from` in hubs.toml; `file:<path>` or `ssh:<host>` for an explicit Tier-2 heal. Tier-2 fetches the new secret out-of-band, validates 64-char hex, backs up the existing secret_file to `.hex.bak`, atomically writes at chmod 600, returns a 12-char fingerprint preview. `command:<shell>` scheme rejected (R2, security review pending). Refuses profiles with inline `secret = ...` (must convert to `secret_file`). Returns `{ok, profile, mode, source, secret_file, fingerprint_preview, plan_text, error, exit_code}`. WRITES the secret_file on the Tier-2 path."
     )]
     async fn termlink_fleet_reauth(
         &self,
@@ -17750,7 +17750,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_contact",
-        description = "Contact a peer agent on its canonical `dm:<sorted_a>:<sorted_b>` topic. Resolves `target` (display name) via local `session.discover`, OR uses `target_fp` (hex) directly for cross-host peers — exactly one required. Auto-creates the dm topic (retention=forever, idempotent), signs with local ed25519 identity, posts msg_type=chat. Body: exactly one of `message` (inline) or `body_file` (path read at the server cwd; empty rejected). Optional `thread` stamps `metadata._thread`; a `:project` suffix on `target` stamps `metadata.to_project`. `dry_run=true` previews the resolved topic + metadata without posting. Synchronous engagement: `require_online=true` fail-fasts if the peer has no agent-chat-arc posts within `online_window_secs` (default 300, [10,86400]); `ack_required=true` polls the dm topic up to `ack_timeout_secs` (default 60, [5,600]) for a peer reply and returns `ack:{received, ts_ms?, wait_secs}`."
+        description = "Contact a peer agent on its canonical `dm:<sorted_a>:<sorted_b>` topic. Resolve via `target` (display name, local session.discover) OR `target_fp` (hex, cross-host) — exactly one required. Auto-creates the dm topic (retention=forever, idempotent), signs with local ed25519, posts msg_type=chat. Body: exactly one of `message` (inline) or `body_file` (path read at server cwd; empty rejected). Optional `thread` stamps `metadata._thread`; a `:project` suffix on `target` stamps `metadata.to_project`. `dry_run=true` previews resolved topic+metadata without posting. `require_online=true` fail-fasts if the peer has no chat-arc posts within `online_window_secs` (default 300); `ack_required=true` polls the dm topic up to `ack_timeout_secs` (default 60) for a reply, returning `ack:{received, ts_ms?, wait_secs}`. WRITES state."
     )]
     async fn termlink_agent_contact(
         &self,
@@ -18069,7 +18069,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_ping",
-        description = "Single-peer liveness probe — MCP parity for the `termlink agent ping` CLI verb (T-1487). Walks `agent-chat-arc` for the peer's recent activity over `window_secs` (default 300, clamped [10, 86_400]); returns a presence envelope `{ok, target_or_fp, peer_fp, online, last_seen_ms, last_seen, window_secs, posts_in_window}`. NEVER posts — pure read. Companion to fleet-wide `termlink_agent_presence_now` / `termlink_agent_active_now`: those answer 'who's around?'; ping answers 'is THIS peer around?'. Mutually exclusive: exactly one of `target` (display name, resolved via local session.discover) / `target_fp` (hex, cross-host bypass). Reuses the T-1716 `fetch_topic_msgs_mcp` + `evaluate_presence_msgs` helpers — no new RPC surface."
+        description = "Single-peer liveness probe. Walks `agent-chat-arc` for the peer's activity over `window_secs` (default 300, [10,86400]); returns `{ok, target_or_fp, peer_fp, online, last_seen_ms, last_seen, window_secs, posts_in_window}`. NEVER posts — pure read. Answers 'is THIS peer around?' (vs presence_now / active_now = 'who's around?'). Exactly one of `target` (display name) / `target_fp` (hex, cross-host bypass) required."
     )]
     async fn termlink_agent_ping(
         &self,
@@ -18151,7 +18151,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_listen",
-        description = "One-shot polling wrapper around `event.subscribe(topic=agent.request)` — MCP parity for the `termlink agent listen --json` CLI verb. Closes the agent.rs CLI surface gap (S-2026-0521 handover). Streaming-style loops don't fit MCP's request/response model; instead each call performs ONE subscribe iteration: pass optional `since` cursor + `timeout_ms`, get back `{ok, target, agent_topic, events, next_seq}` where `events` is a list of `{ok, seq, from, action, request_id, params, timeout_secs}` shapes matching CLI `--json` output. Iterate by passing the returned `next_seq` as the next `since`. Empty `events` array is normal (no requests in the timeout window). Target resolution: session ID or display name via `manager::find_session`."
+        description = "One-shot polling wrapper around `event.subscribe(topic=agent.request)`. Streaming loops don't fit MCP, so each call does ONE subscribe iteration: pass optional `since` cursor + `timeout_ms`, get `{ok, target, agent_topic, events, next_seq}` where `events` is a list of `{ok, seq, from, action, request_id, params, timeout_secs}`. Iterate by passing the returned `next_seq` as the next `since`. Empty `events` is normal (no requests in the window). Target resolution: session ID or display name."
     )]
     async fn termlink_agent_listen(
         &self,
@@ -18204,7 +18204,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_dms",
-        description = "List DM topics for the local identity — MCP parity for the `termlink agent dms` CLI verb (T-1552). Calls `channel.list`, filters to topics of shape `dm:<sorted_a>:<sorted_b>` where one side is the caller's identity_fingerprint. Returns `{ok, my_id, dms: [{topic, peer}, ...]}`. With `unread=true`, additionally computes per-DM unread + first_unread offset via `channel.receipts` (ack frontier) + `channel.subscribe` (paged walk for content envelopes); results sorted unread-first (stable). Operator-style answer to 'what conversations am I in?'. No new RPC surface — uses channel.list / channel.receipts / channel.subscribe only."
+        description = "List DM topics for the local identity. Filters `channel.list` to topics shaped `dm:<sorted_a>:<sorted_b>` where one side is the caller's identity_fingerprint. Returns `{ok, my_id, dms:[{topic, peer}, ...]}`. With `unread=true`, also computes per-DM unread + first_unread offset (via receipts ack-frontier + a paged content walk); results sorted unread-first. Answers 'what conversations am I in?'."
     )]
     async fn termlink_agent_dms(
         &self,
@@ -18334,7 +18334,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_inbox",
-        description = "Cross-topic unread digest for the local identity — MCP parity for the `termlink agent inbox` CLI verb (T-1553). Walks the local cursor store (`${TERMLINK_IDENTITY_DIR:-${HOME}/.termlink}/cursors.json`, recorded by `subscribe --resume` on prior CLI sessions) and joins with hub-side topic counts from `channel.list`. Returns `{ok, my_id, unread_topics: [{topic, cursor, latest, unread}, ...]}` sorted by descending unread (ties break by topic ascending for determinism). The operator's first-command-of-session — answers 'what needs my attention?' across every subscribed topic, not just `agent-chat-arc` (T-1512 `agent_unread`) or DMs (T-1719 `agent_dms`). When the cursor store is empty (operator has never run `subscribe --resume`) returns `unread_topics: []` with `ok: true` — same conservative early-out as CLI. No new RPC surface — uses `channel.list` only."
+        description = "Cross-topic unread digest for the local identity. Walks the local cursor store (`${TERMLINK_IDENTITY_DIR:-~/.termlink}/cursors.json`, recorded by `subscribe --resume` on prior sessions) and joins with hub-side topic counts. Returns `{ok, my_id, unread_topics:[{topic, cursor, latest, unread}, ...]}` sorted by descending unread (topic asc tiebreak). Answers 'what needs my attention?' across every subscribed topic. When the cursor store is empty (never ran `subscribe --resume`) returns `unread_topics:[]` with `ok:true`."
     )]
     async fn termlink_agent_inbox(
         &self,
@@ -18417,7 +18417,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_typers",
-        description = "List active typers on `agent-chat-arc` — MCP parity for the `termlink agent typers` CLI verb (T-1551). Read companion to `termlink_agent_typing` (T-1550, write side): MCP agents can now both EMIT and READ typing indicators. Walks `agent-chat-arc`, runs `compute_active_typers_mcp` (latest typing envelope per sender, filtered by `metadata.expires_at_ms > now`), and returns rows sorted by `ts` descending (most-recently-active first) with `sender_id` alpha tie-break for determinism. Distinct from `termlink_agent_presence_now` (which infers presence from any-msg-type recency, not a TTL-honoring composition signal). Default typing TTL is 5s; expired indicators are dropped. Returns `{ok, topic: \"agent-chat-arc\", now_ms, typers: [{sender_id, expires_at_ms, ts}, ...]}`. NO new RPC surface — uses `channel.subscribe` only."
+        description = "List active typers on `agent-chat-arc`. Keeps the latest typing envelope per sender, filtered by `metadata.expires_at_ms > now`; rows sorted by `ts` descending (sender_id tiebreak). Distinct from presence_now (which infers presence from any-msg recency, not a TTL signal). Default typing TTL is 5s; expired indicators dropped. Returns `{ok, topic:'agent-chat-arc', now_ms, typers:[{sender_id, expires_at_ms, ts}, ...]}`. Read-only."
     )]
     async fn termlink_agent_typers(
         &self,
@@ -18456,7 +18456,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_threads",
-        description = "List every thread root on `agent-chat-arc` — MCP parity for the `termlink agent threads` CLI verb (T-1533/T-1365). Returns one row per envelope that has at least one non-redacted reply, with `root_offset`, `reply_count` (transitive non-redacted descendants), `participants` (distinct sender_ids in the thread including root sender), `last_ts_ms` (max ts across the thread), and `root_payload` (lossy-decoded base64 preview of the root). Rows sorted by `last_ts_ms` descending (most recently active first); ties break on `root_offset` ascending for determinism. Redacted roots are dropped entirely; redacted replies don't count toward reply_count or participants. Optional `top` truncates to the N most recently active threads (clamped 1..=500). Use this as the operator's first command of a session to answer 'what conversations are alive on the fleet?'. NO new RPC surface — uses `channel.subscribe` only."
+        description = "List every thread root on `agent-chat-arc`. One row per envelope with >=1 non-redacted reply: `root_offset`, `reply_count` (transitive non-redacted descendants), `participants` (distinct sender_ids incl. root), `last_ts_ms` (max ts in thread), `root_payload` (lossy base64 preview). Sorted by `last_ts_ms` desc (root_offset asc tiebreak). Redacted roots dropped; redacted replies don't count. `top` truncates to the N most-recently-active threads (1..=500). Answers 'what conversations are alive?'. Read-only."
     )]
     async fn termlink_agent_threads(
         &self,
@@ -18488,7 +18488,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_thread",
-        description = "Read the full conversation tree rooted at a specific offset on `agent-chat-arc` — MCP parity for the `termlink agent thread <ROOT>` CLI verb (T-1328). Companion read tool to `termlink_agent_threads` (T-1732, lists all roots): once an interesting root surfaces, fetch its tree. Walks the topic, indexes by offset, builds the parent→children map from `metadata.in_reply_to`, and runs a pre-order DFS rooted at the requested offset. Children are visited in ascending offset order for deterministic output. Returns `{ok, topic, root, thread: [{offset, depth, sender_id, msg_type, payload}, ...]}` with payload base64-decoded lossy. Errors if `root` does not exist in the topic. NO new RPC surface — uses `channel.subscribe` only."
+        description = "Read the full conversation tree rooted at a specific offset on `agent-chat-arc`. Builds the parent->children map from `metadata.in_reply_to` and runs a pre-order DFS from `root` (children in ascending offset order for determinism). Returns `{ok, topic, root, thread:[{offset, depth, sender_id, msg_type, payload}, ...]}`, payload base64-decoded lossy. Errors if `root` is absent. Read-only."
     )]
     async fn termlink_agent_thread(
         &self,
@@ -18555,7 +18555,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_replies_of",
-        description = "List every reply by a given sender on `agent-chat-arc` — MCP parity for the `termlink agent replies-of [SENDER]` CLI verb (T-1370). A 'reply' is an envelope whose `metadata.in_reply_to` parses as a u64 AND whose `msg_type != \"reaction\"` (reactions also carry in_reply_to but are a different aggregate). Filters: sender_id match, drop redacted reply offsets, require parent offset. Parent context (`parent_sender`, `parent_payload`) is best-effort — empty strings when the parent is absent from the topic snapshot or itself redacted. When `sender` is omitted, defaults to the caller's local Identity fingerprint (answers 'show me everything I've replied to'). Returns `{ok, topic, sender, replies: [{reply_offset, parent_offset, parent_sender, parent_payload, reply_payload, ts_ms}, ...]}` sorted by `reply_offset` descending (most recent first). NO new RPC surface — uses `channel.subscribe` only."
+        description = "List every reply by a sender on `agent-chat-arc`. A 'reply' has `metadata.in_reply_to` parsing as u64 AND `msg_type != reaction` (reactions carry in_reply_to but are a separate aggregate). Drops redacted replies. Parent context (`parent_sender`, `parent_payload`) is best-effort — empty when the parent is absent or redacted. `sender` defaults to the caller's local fingerprint ('everything I've replied to'). Returns `{ok, topic, sender, replies:[{reply_offset, parent_offset, parent_sender, parent_payload, reply_payload, ts_ms}, ...]}` sorted by reply_offset descending. Read-only."
     )]
     async fn termlink_agent_replies_of(
         &self,
@@ -18603,7 +18603,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_reactions_of",
-        description = "List every active (non-redacted) reaction posted by a given sender on `agent-chat-arc` — MCP parity for the `termlink agent reactions-of [SENDER]` CLI verb (T-1362). Filters: msg_type==reaction, sender match, drop redacted reaction offsets, require parent offset, drop empty emoji. Each row carries the reaction's offset, its parent's offset, the emoji string (lossy-decoded), an optional `parent_payload` preview (`None` when parent absent from the topic snapshot, `Some(...)` otherwise), and `ts`. When `sender` is omitted, defaults to the caller's local Identity fingerprint — answers 'what have I reacted to?'. Returns `{ok, topic, sender, reactions: [{reaction_offset, parent_offset, emoji, parent_payload, ts}, ...]}` sorted by `reaction_offset` descending. NO new RPC surface — uses `channel.subscribe` only."
+        description = "List every active (non-redacted) reaction by a sender on `agent-chat-arc`. Filters: msg_type=reaction, sender match, drop redacted, require parent offset, drop empty emoji. `sender` defaults to the caller's local fingerprint ('what have I reacted to?'). Returns `{ok, topic, sender, reactions:[{reaction_offset, parent_offset, emoji, parent_payload, ts}, ...]}` sorted by reaction_offset descending — `parent_payload` is None when the parent is absent. Read-only."
     )]
     async fn termlink_agent_reactions_of(
         &self,
@@ -18649,7 +18649,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_forwards_of",
-        description = "List every active (non-redacted) forward envelope posted by a given sender on `agent-chat-arc` — MCP parity for the `termlink agent forwards-of [SENDER]` CLI verb (T-1367). A forward is identified by the metadata pair `forwarded_from = \"<origin-topic>:<origin-offset>\"` + `forwarded_sender = <fingerprint>`; both must be present and `forwarded_from` must parse on the LAST colon (topics may contain colons, e.g. `dm:a:b`). When `sender` is omitted, defaults to the caller's local Identity fingerprint. Returns `{ok, topic, sender, forwards: [{forward_offset, origin_topic, origin_offset, origin_sender, payload, ts}, ...]}` sorted by `forward_offset` descending. NO new RPC surface — uses `channel.subscribe` only."
+        description = "List every active (non-redacted) forward by a sender on `agent-chat-arc`. A forward carries `forwarded_from='<origin-topic>:<origin-offset>'` + `forwarded_sender=<fingerprint>`; `forwarded_from` parses on the LAST colon (topics may contain colons, e.g. `dm:a:b`). `sender` defaults to the caller's local fingerprint. Returns `{ok, topic, sender, forwards:[{forward_offset, origin_topic, origin_offset, origin_sender, payload, ts}, ...]}` sorted by forward_offset descending. Read-only."
     )]
     async fn termlink_agent_forwards_of(
         &self,
@@ -18695,7 +18695,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_relations",
-        description = "Unified per-target relations report on `agent-chat-arc` — MCP parity for the `termlink agent relations <OFFSET>` CLI verb (T-1381). Matrix Client API `/relations/{eventId}` analogue: consolidates the four canonical relation types (replies, reactions, edits, redactions) for a single target offset. Forwards are excluded (cross-topic, requires multi-topic walk — see `termlink_agent_forwards_of` for per-sender listing). Each list filters out relation envelopes whose own offset is in the redaction set, and is sorted ts_ms ascending with offset ascending tiebreak. `target_sender` / `target_payload` come from the target envelope if present (otherwise empty strings). Errors when `target` is not present in the topic snapshot. Returns `{ok, topic, target_offset, target_sender, target_payload, replies, reactions, edits, redactions}` where each list contains `{offset, sender_id, ts_ms, payload}` entries (redaction payload = `metadata.reason`). NO new RPC surface — uses `channel.subscribe` only."
+        description = "Unified per-target relations report on `agent-chat-arc` — consolidates replies, reactions, edits, redactions for one target offset. Forwards excluded (cross-topic; see `termlink_agent_forwards_of`). Each list drops relation envelopes whose own offset is redacted, sorted ts_ms asc (offset asc tiebreak). `target_sender`/`target_payload` from the target envelope (empty if absent). Errors when `target` is absent. Returns `{ok, topic, target_offset, target_sender, target_payload, replies, reactions, edits, redactions}`, each list `{offset, sender_id, ts_ms, payload}` (redaction payload = `metadata.reason`). Read-only."
     )]
     async fn termlink_agent_relations(
         &self,
@@ -18738,7 +18738,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_snippet",
-        description = "Windowed content preview on `agent-chat-arc` — MCP parity for the `termlink agent snippet <OFFSET> [--lines N]` CLI verb (T-1363). Returns up to `lines` content envelopes on each side of the target (defaults to 3, clamped 1..=50), filtered to msg_types `post`/`chat`/`note` (skips meta types: reaction/edit/redaction/receipt/topic_metadata). Use this when you have an offset (e.g. from `termlink_agent_search` or `termlink_agent_mentions`) and want a small surrounding context block to read inline without dumping the whole topic. Errors when the target offset is absent OR is a meta msg-type. Returns `{ok, topic, target_offset, lines: [{offset, sender, payload, is_target}, ...]}` — `is_target=true` marks the target row. NO new RPC surface — uses `channel.subscribe` only."
+        description = "Windowed content preview on `agent-chat-arc`. Returns up to `lines` content envelopes each side of the target (default 3, clamped 1..=50), filtered to msg_types post/chat/note (skips meta types). Use when you have an offset (from search/mentions) and want a small surrounding context block. Errors when the target offset is absent OR is a meta msg-type. Returns `{ok, topic, target_offset, lines:[{offset, sender, payload, is_target}, ...]}` — `is_target=true` marks the target. Read-only."
     )]
     async fn termlink_agent_snippet(
         &self,
@@ -18776,7 +18776,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_timeline",
-        description = "Chronological timeline of recent posts on `agent-chat-arc` — a 'tail -f for the fleet' view (vs `termlink_agent_recent_window` single-peer / `termlink_agent_on_thread` single-thread). Up to `n` (default 50, 1..=500) content envelopes from the last `window_secs` (default 3600, 60..=604800), oldest-first. Meta types (reaction/edit/redaction/topic_metadata/receipt) always excluded. Optional AND-composing filters: `filter_thread`, `filter_project`, `filter_msg_types` (allowlist), `filter_grep` (case-insensitive substring). Content truncated at 200 chars. Returns `{ok, verb, window_secs, n, filter_*, posts:[{offset, ts_ms, peer_fp, msg_type, content, thread, project}]}`."
+        description = "Chronological timeline of recent posts on `agent-chat-arc` — a 'tail -f for the fleet' view. Up to `n` (default 50, 1..=500) content envelopes from the last `window_secs` (default 3600, 60..=604800), oldest-first. Meta types always excluded. Optional AND-composing filters: `filter_thread`, `filter_project`, `filter_msg_types` (allowlist), `filter_grep` (case-insensitive substring). Content truncated at 200 chars. Returns `{ok, verb, window_secs, n, filter_*, posts:[{offset, ts_ms, peer_fp, msg_type, content, thread, project}]}`."
     )]
     async fn termlink_agent_timeline(
         &self,
@@ -18867,7 +18867,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_stats",
-        description = "Chat-arc activity stats over a time window — MCP parity for the `termlink agent stats` CLI verb (T-1504). Returns counts grouped four ways: by_msg_type (post/chat/note/...), by_peer (sender_id), by_project (metadata.from_project), by_thread (metadata.thread, accepts legacy _thread). Each bucket sorted desc by count + asc by key (stable tie-break) and truncated to `top`. Excludes META msg_types (reaction/edit/redaction/topic_metadata/receipt) and envelopes lacking sender_id; window cutoff drops `ts < now - window_secs` and future-clock `ts > now_ms`. Use this for 'who's talking, about what, where' digests — feeds dashboards or quick health checks. Returns `{ok, verb, window_secs, top, total, by_msg_type, by_peer, by_project, by_thread}` where each bucket is `[{key, count}, ...]`. NO new RPC surface — uses `channel.list` + `channel.subscribe` only."
+        description = "Chat-arc activity stats over a time window. Counts grouped four ways: by_msg_type, by_peer (sender_id), by_project (metadata.from_project), by_thread (metadata.thread, accepts legacy _thread). Each bucket sorted count desc / key asc and truncated to `top`. Excludes META msg_types and envelopes lacking sender_id; drops `ts` outside [now-window_secs, now]. Answers 'who's talking, about what, where'. Returns `{ok, verb, window_secs, top, total, by_msg_type, by_peer, by_project, by_thread}`, each bucket `[{key, count}, ...]`. Read-only."
     )]
     async fn termlink_agent_stats(
         &self,
@@ -18914,7 +18914,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_overview",
-        description = "Composite fleet digest on `agent-chat-arc` — MCP parity for the `termlink agent overview` CLI verb (T-1495). One round-trip; three sections in one envelope: (1) `peers` — fleet presence sorted by in-window posts desc, with `top_project` per peer; (2) `projects` — by-project aggregation with `top_peer_fp` and `distinct_peers`; (3) `recent_posts` — last N content posts chronologically. Use this as a single-shot 'first look' at the fleet: who's active, what they're working on, what was just said. Defaults: window=3600s (1h, clamped 60..=604800), top=5 (clamped 1..=50). META msg_types (reaction/edit/redaction/topic_metadata/receipt) excluded throughout. Untagged posts excluded from `projects` (project IS the key) but counted in `peers` and `recent_posts`. Returns `{ok, verb, window_secs, top, peers, projects, recent_posts, total_peers, total_projects}`. NO new RPC surface — uses `channel.list` + `channel.subscribe` only, with a wider 2000-envelope slice for fleet coverage."
+        description = "Composite fleet digest on `agent-chat-arc` — three sections in one envelope: (1) `peers` — presence sorted by in-window posts desc, with `top_project` per peer; (2) `projects` — by-project aggregation with `top_peer_fp` + `distinct_peers`; (3) `recent_posts` — last N content posts chronologically. Single-shot 'first look' at the fleet. Defaults: window=3600s (60..=604800), top=5 (1..=50). META msg_types excluded. Untagged posts excluded from `projects` but counted in `peers`/`recent_posts`. Returns `{ok, verb, window_secs, top, peers, projects, recent_posts, total_peers, total_projects}`."
     )]
     async fn termlink_agent_overview(
         &self,
@@ -18970,7 +18970,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_mentions",
-        description = "Find every envelope on `agent-chat-arc` whose `metadata.mentions` CSV matches the named user — MCP parity for the `termlink agent mentions <USER>` CLI verb (T-1513). Distinct from `termlink_agent_search` (substring grep across payload): this verb filters on the structured `metadata.mentions` array — finds rows that *explicitly* tagged the user, regardless of body content. Pass `\"*\"` as user to match any non-empty mentions CSV (the 'anyone tagged at all?' query). Returns `{ok, topic: \"agent-chat-arc\", user, mentions: [{mention_offset, sender_id, payload, mentions_csv, ts_ms}, ...]}` sorted by descending offset (newest first). Skips redacted envelopes and meta msg-types (reaction/edit/redaction/topic_metadata/receipt). NO new RPC surface — walks the topic via `channel.subscribe` only."
+        description = "Find every envelope on `agent-chat-arc` whose `metadata.mentions` CSV matches `user`. Distinct from search (payload grep): this filters the structured mentions array — rows that explicitly tagged the user, regardless of body. Pass '*' to match any non-empty mentions CSV. Returns `{ok, topic:'agent-chat-arc', user, mentions:[{mention_offset, sender_id, payload, mentions_csv, ts_ms}, ...]}` sorted by descending offset. Skips redacted + meta msg-types. Read-only."
     )]
     async fn termlink_agent_mentions(
         &self,
@@ -19755,7 +19755,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_ancestors",
-        description = "Walk up the reply chain from an offset on any topic (not just agent-chat-arc) — MCP parity for the `termlink channel ancestors <topic> <offset>` CLI verb (T-1762 of T-1166). Builds an offset→envelope map by walking the topic, then chains via `metadata.in_reply_to` until reaching a root (no parent) or a missing-parent break. Returns `{ok, topic, leaf, ancestors: [{offset, sender_id, msg_type, ts, payload}, ...]}` ordered root-first → leaf-last. Cycle-safe (visited set) and depth-capped (`max_depth` default 100, clamped 1..=1024). Errors when the leaf offset is absent from the topic. Topic-flexible companion to `termlink_agent_ancestors` (chat-arc only). NO new RPC surface — uses `channel.subscribe` only."
+        description = "Walk up the reply chain from an offset on any topic. Chains via `metadata.in_reply_to` until a root (no parent) or a missing-parent break. Returns `{ok, topic, leaf, ancestors:[{offset, sender_id, msg_type, ts, payload}, ...]}` ordered root-first -> leaf-last. Cycle-safe and depth-capped (`max_depth` default 100, 1..=1024). Errors when the leaf offset is absent. Topic-flexible companion to `termlink_agent_ancestors` (chat-arc only). Read-only."
     )]
     async fn termlink_channel_ancestors(
         &self,
@@ -19813,7 +19813,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_emoji_stats",
-        description = "Per-emoji + per-sender reaction breakdown on any topic — MCP parity for `termlink channel emoji-stats <topic>` CLI verb (T-1763 of T-1166). Walks the topic, filters `msg_type=reaction`, SKIPS redacted reactions (`redacted_offsets_mcp`), groups by emoji AND by sender, then sorts rows by total count desc / emoji asc and reactors within each row by per-sender count desc / sender asc. Three value-adds over `termlink_agent_emoji_stats`: (1) topic-flexible (any DM/topic, not just chat-arc); (2) per-sender reactor breakdown (the `--by-sender` CLI flag baked in); (3) respects redactions — agent_emoji_stats silently counts retracted reactions. Returns `{ok, topic, total_distinct_emojis, rows: [{emoji, count, distinct_reactors, reactors: [{sender_id, count}, ...]}, ...]}`. Optional `top` truncates after the sort. NO new RPC surface — uses `channel.subscribe` only."
+        description = "Per-emoji + per-sender reaction breakdown on any topic. Filters msg_type=reaction, SKIPS redacted reactions, groups by emoji AND sender; rows sorted total count desc / emoji asc, reactors within each row by count desc / sender asc. Unlike `agent_emoji_stats`: topic-flexible, per-sender reactor breakdown, and respects redactions. `top` truncates after sort. Returns `{ok, topic, total_distinct_emojis, rows:[{emoji, count, distinct_reactors, reactors:[{sender_id, count}, ...]}, ...]}`. Read-only."
     )]
     async fn termlink_channel_emoji_stats(
         &self,
@@ -19844,7 +19844,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_digest",
-        description = "Period summary for any topic — MCP parity for `termlink channel digest <topic>` (T-1764 of T-1166). Walks the topic, filters envelopes whose `ts >= since_ms` (or last 60 minutes by default), and computes seven counts plus rendered recent chats. Strict superset of `termlink_agent_digest` (chat-arc only, missing 5 of the 7 metrics). Returns `{ok, topic, since_ms, posts, distinct_senders, top_senders: [{sender_id, count}, ...], top_reactions: [{emoji, count}, ...], pins_added, pins_removed, forwards_in, recent_chats: [{offset, sender_id, ts, payload}, ...]}`. `posts` counts content msg_types only (post/chat/note); `distinct_senders` covers all in-window envelopes. Top-3 cap on senders and reactions, recent_chats shows last 3 by offset. `since_ms` (absolute unix ms) wins over `since_mins` (window from now). NO new RPC surface — uses `channel.subscribe` only."
+        description = "Period summary for any topic. Filters envelopes whose `ts >= since_ms` (default last 60 min) and computes seven counts plus recent chats. Returns `{ok, topic, since_ms, posts, distinct_senders, top_senders:[{sender_id, count}], top_reactions:[{emoji, count}], pins_added, pins_removed, forwards_in, recent_chats:[{offset, sender_id, ts, payload}]}`. `posts` counts content msg_types only (post/chat/note); `distinct_senders` covers all in-window envelopes. Top-3 cap on senders/reactions; recent_chats = last 3 by offset. `since_ms` (absolute unix ms) wins over `since_mins` (window from now). Read-only."
     )]
     async fn termlink_channel_digest(
         &self,
@@ -19890,7 +19890,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_snippet",
-        description = "Windowed content preview around an offset on any topic — MCP parity for `termlink channel snippet <topic> <OFFSET> [--lines N]` CLI verb (T-1765 of T-1166). Topic-flexible companion to `termlink_agent_snippet` (chat-arc only). Walks the topic, filters to content msg_types (post/chat/note), locates the target, returns up to `lines` envelopes on each side. `lines` defaults to 3, clamped 1..=50. Errors when the target offset is absent OR is a meta msg-type (reaction/edit/redaction/receipt/topic_metadata). Use this when you have an offset from a search/mention result on an arbitrary topic and want a small surrounding context block without dumping the whole topic. Returns `{ok, topic, target_offset, lines: [{offset, sender, payload, is_target}, ...]}` — `is_target=true` marks the target row. NO new RPC surface — uses `channel.subscribe` only."
+        description = "Windowed content preview around an offset on any topic (topic-flexible `agent_snippet`). Filters to content msg_types (post/chat/note), locates the target, returns up to `lines` envelopes each side (default 3, clamped 1..=50). Errors when the target is absent OR a meta msg-type. Use with an offset from a search/mention result to read surrounding context without dumping the topic. Returns `{ok, topic, target_offset, lines:[{offset, sender, payload, is_target}, ...]}` — `is_target=true` marks the target. Read-only."
     )]
     async fn termlink_channel_snippet(
         &self,
@@ -19927,7 +19927,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_reactions_of",
-        description = "Per-sender reaction history with parent-post preview on any topic — MCP parity for `termlink channel reactions-of <topic> [--sender ID]` CLI verb (T-1766 of T-1166). Walks the topic, filters `msg_type=reaction` by `sender_id`, skips redacted reactions, attaches parent_payload preview. Three value-adds over `termlink_agent_reactions_by` (chat-arc only): (1) topic-flexible (any DM/topic); (2) richer row shape with `parent_payload` — agent_reactions_by has none; (3) respects redactions — agent_reactions_by silently includes retracted reactions. `sender_id` defaults to caller's local Identity fingerprint when omitted (most common 'my reactions' query). Returns `{ok, topic, sender_id, rows: [{reaction_offset, parent_offset, emoji, parent_payload, ts}, ...]}` sorted newest-first. NO new RPC surface — uses `channel.subscribe` only."
+        description = "Per-sender reaction history with parent-post preview on any topic. Filters msg_type=reaction by `sender_id`, skips redacted, attaches `parent_payload` preview. `sender_id` defaults to the caller's local fingerprint ('my reactions'). Returns `{ok, topic, sender_id, rows:[{reaction_offset, parent_offset, emoji, parent_payload, ts}, ...]}` sorted newest-first. Topic-flexible + redaction-respecting variant of `agent_reactions_by`. Read-only."
     )]
     async fn termlink_channel_reactions_of(
         &self,
@@ -19968,7 +19968,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_reactions_on",
-        description = "Per-target reaction rollup on any topic — MCP parity for `termlink channel reactions-on <topic> <OFFSET>` CLI verb (T-1767 of T-1166). Walks the topic, filters `msg_type=reaction` whose `metadata.in_reply_to==target` and that are not redacted, groups by emoji. `count` is the total reactions (repeat-tap counts — alice 👍 twice = 2). `senders` is deduplicated, sorted ascending. Sort: count desc, emoji asc. Three value-adds over `termlink_agent_reaction_summary`: (1) topic-flexible (any DM/topic); (2) respects redactions — agent_reaction_summary silently counts retracted reactions; (3) CLI-parity count semantics — agent_reaction_summary's count=distinct-senders, this one's count=total-reactions (preserves repeat-tap signal). Returns `{ok, topic, target, total_count, rows: [{emoji, count, senders: [sender_id, ...]}, ...]}`. NO new RPC surface — uses `channel.subscribe` only."
+        description = "Per-target reaction rollup on any topic. Filters msg_type=reaction whose `metadata.in_reply_to==target` and not redacted, groups by emoji. `count` = total reactions (repeat-taps count — alice reacting twice = 2); `senders` is deduplicated, ascending. Sort: count desc, emoji asc. Note vs `agent_reaction_summary`: this respects redactions and counts total reactions (not distinct senders), preserving repeat-tap signal. Returns `{ok, topic, target, total_count, rows:[{emoji, count, senders:[sender_id, ...]}, ...]}`. Read-only."
     )]
     async fn termlink_channel_reactions_on(
         &self,
@@ -19997,7 +19997,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_edit_stats",
-        description = "Topic-wide edit count summary for an arbitrary topic — MCP parity for `termlink channel edit-stats <topic>` CLI verb (T-1768 of T-1166). Completes the audit-trio at MCP layer: pin_history (T-1372) + redactions (T-1373) + edit_stats (T-1375). One row per target offset that has at least one non-redacted edit. Filters: edits with non-numeric `metadata.replaces` ignored; edits whose own offset is redacted not counted; targets that are themselves redacted dropped entirely. `latest_editor` / `latest_ts_ms` reflect the most recent surviving edit (max ts; offset asc tiebreak). Sort: edit_count desc, target_offset asc tiebreak. Use case: forensic queries — which posts churned the most, who's editing what. Returns `{ok, topic, rows: [{target_offset, target_sender, target_payload, edit_count, latest_editor, latest_ts_ms}, ...], count}`. NO new RPC surface — uses `channel.subscribe` only."
+        description = "Topic-wide edit count summary for any topic. One row per target offset with >=1 non-redacted edit. Filters: edits with non-numeric `metadata.replaces` ignored; edits whose own offset is redacted not counted; redacted targets dropped. `latest_editor`/`latest_ts_ms` reflect the most recent surviving edit (max ts, offset asc tiebreak). Sort: edit_count desc, target_offset asc. Forensic use — which posts churned most, who edits what. Returns `{ok, topic, rows:[{target_offset, target_sender, target_payload, edit_count, latest_editor, latest_ts_ms}, ...], count}`. Read-only."
     )]
     async fn termlink_channel_edit_stats(
         &self,
@@ -20026,7 +20026,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_quote_stats",
-        description = "Per-target reply rollup for an arbitrary topic — MCP parity for `termlink channel quote-stats <topic>` CLI verb (T-1769 of T-1166). One row per target offset that has at least one surviving reply. Filters: reactions (`msg_type=reaction`) are not replies and skipped; replies with no parseable `metadata.in_reply_to` ignored; redacted reply offsets excluded; redacted targets drop their row entirely. `distinct_repliers` is sorted ascending (BTreeSet dedup). Sort: reply_count desc, target_offset asc tiebreak. Companion to `termlink_channel_edit_stats` (T-1768): edit_stats answers 'which posts churned most', quote_stats answers 'which posts started conversations'. Returns `{ok, topic, rows: [{target_offset, target_sender, target_payload, reply_count, distinct_repliers: [sender_id, ...], latest_reply_ts_ms}, ...], count}`. NO new RPC surface — uses `channel.subscribe` only."
+        description = "Per-target reply rollup for any topic. One row per target offset with >=1 surviving reply. Filters: reactions skipped; replies with no parseable `metadata.in_reply_to` ignored; redacted reply offsets excluded; redacted targets drop their row. `distinct_repliers` sorted ascending. Sort: reply_count desc, target_offset asc. Answers 'which posts started conversations' (companion to edit_stats' 'which churned most'). Returns `{ok, topic, rows:[{target_offset, target_sender, target_payload, reply_count, distinct_repliers:[sender_id, ...], latest_reply_ts_ms}, ...], count}`. Read-only."
     )]
     async fn termlink_channel_quote_stats(
         &self,
@@ -20055,7 +20055,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_mentions_of",
-        description = "Find every envelope on an arbitrary topic whose `metadata.mentions` CSV matches the named user — MCP parity for `termlink channel mentions-of <topic> <USER>` CLI verb (T-1770 of T-1166). Topic-flexible variant of `termlink_agent_mentions` (hardcoded chat-arc). Reuses the same `compute_mentions_of_mcp` helper — semantics are identical (T-1333 matching rules: empty target rejected; literal-equality on parts; `target == \"*\"` matches any non-empty csv; csv containing `*` matches any specific target). Skips redacted envelopes and meta msg-types (reaction/edit/redaction/topic_metadata/receipt). Use case: per-user mention queries on `dm:*` topics or project-specific topics — answers 'where did Bob tag me on this DM channel?'. Returns `{ok, topic, user, mentions: [{mention_offset, sender_id, payload, mentions_csv, ts_ms}, ...], count}` sorted by descending offset (newest first). NO new RPC surface — uses `channel.subscribe` only."
+        description = "Find every envelope on any topic whose `metadata.mentions` CSV matches `user` (topic-flexible `agent_mentions`). Matching rules: empty target rejected; literal-equality on parts; user=='*' matches any non-empty csv; a csv containing '*' matches any specific target. Skips redacted + meta msg-types. Use on `dm:*` or project topics — 'where did Bob tag me here?'. Returns `{ok, topic, user, mentions:[{mention_offset, sender_id, payload, mentions_csv, ts_ms}, ...], count}` sorted by descending offset. Read-only."
     )]
     async fn termlink_channel_mentions_of(
         &self,
@@ -20144,7 +20144,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_replies_of",
-        description = "List every reply by a sender on an arbitrary topic (topic-flexible variant of `termlink_agent_replies_of`, which is chat-arc-only). A 'reply' has `metadata.in_reply_to` parsing as u64 AND `msg_type != \"reaction\"` (reactions carry in_reply_to too but are a separate aggregate). Redacted replies dropped. Parent context (`parent_sender`, `parent_payload`) is best-effort — empty when the parent is absent or redacted. `sender_id` defaults to the caller's local Identity fingerprint. Returns `{ok, topic, sender, replies:[{reply_offset, parent_offset, parent_sender, parent_payload, reply_payload, ts_ms}]}` sorted by reply_offset descending."
+        description = "List every reply by a sender on any topic (topic-flexible `agent_replies_of`). A 'reply' has `metadata.in_reply_to` parsing as u64 AND `msg_type != reaction`. Redacted replies dropped. Parent context (`parent_sender`, `parent_payload`) is best-effort — empty when the parent is absent or redacted. `sender_id` defaults to the caller's local fingerprint. Returns `{ok, topic, sender, replies:[{reply_offset, parent_offset, parent_sender, parent_payload, reply_payload, ts_ms}]}` sorted by reply_offset descending. Read-only."
     )]
     async fn termlink_channel_replies_of(
         &self,
@@ -20189,7 +20189,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_typing_list",
-        description = "List active typers on an arbitrary topic — MCP parity for `termlink channel typing <topic>` CLI verb (T-1773 of T-1166). Topic-flexible variant of `termlink_agent_typers` (hardcoded chat-arc). Reuses `compute_active_typers_mcp`: keeps the LATEST `msg_type=typing` envelope per sender, drops entries whose `metadata.expires_at_ms <= now_ms`. Use case: typing-presence dashboards for DM channels (`dm:*`) or project topics — answers 'is anyone typing in this DM right now?'. Sort: `ts` descending (most-recently-active first); `sender_id` alpha tiebreak. Default typing TTL is 5s; expired indicators are dropped. Returns `{ok, topic, now_ms, typers: [{sender_id, expires_at_ms, ts}, ...], count}`. NO new RPC surface — uses `channel.subscribe` only."
+        description = "List active typers on any topic (topic-flexible `agent_typers`). Keeps the latest msg_type=typing envelope per sender, drops entries whose `metadata.expires_at_ms <= now_ms`. Sort: `ts` desc (sender_id tiebreak). Default typing TTL is 5s. Use for typing-presence on DM (`dm:*`) or project topics. Returns `{ok, topic, now_ms, typers:[{sender_id, expires_at_ms, ts}, ...], count}`. Read-only."
     )]
     async fn termlink_channel_typing_list(
         &self,
@@ -20229,7 +20229,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_typing_emit",
-        description = "Emit a typing indicator on an arbitrary topic — MCP parity for `termlink channel typing --emit <topic>` CLI verb (T-1775 of T-1166). Topic-flexible variant of `termlink_agent_typing` (hardcoded chat-arc). Write companion to T-1773 (`termlink_channel_typing_list` read side) — closes the typing read+write loop at the channel-flex layer. Use case: signal 'I'm composing' to peers in a DM channel (`dm:a:b`) or project topic. Builds a `msg_type=typing` envelope with empty payload, `metadata.expires_at_ms = now_ms + ttl_ms` (default 5000ms), signs via local identity, POSTs via `channel.post` RPC. Peers reading `channel typing` filter expired indicators automatically. Returns the raw `channel.post` result envelope on success."
+        description = "Emit a typing indicator on any topic (topic-flexible `agent_typing`; write side). Builds a msg_type=typing envelope with empty payload and `metadata.expires_at_ms = now + ttl_ms` (default 5000ms), signs via local identity, POSTs. Peers reading typing filter expired indicators automatically. Returns the raw `channel.post` result envelope on success. WRITES state."
     )]
     async fn termlink_channel_typing_emit(
         &self,
@@ -20300,7 +20300,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_thread",
-        description = "Read the full conversation tree rooted at a specific offset on an arbitrary topic — MCP parity for `termlink channel thread <topic> <ROOT>` CLI verb (T-1776 of T-1166). Topic-flexible variant of `termlink_agent_thread` (hardcoded chat-arc). Use case: read a reply tree on a DM channel (`dm:a:b`) or project topic. Walks the topic, indexes envelopes by offset, builds parent→children map from `metadata.in_reply_to`, runs pre-order DFS rooted at the requested offset (children visited in ascending offset order for deterministic output). Reuses `build_thread_mcp`, `parent_offset_of_mcp`, `decode_payload_lossy_mcp`. Errors with CLI-parity message when `root` is absent from the topic. Returns `{ok, topic, root, thread: [{offset, depth, sender_id, msg_type, payload}, ...]}` with payload base64-decoded lossy. NO new RPC surface — uses `channel.subscribe` only."
+        description = "Read the full conversation tree rooted at an offset on any topic (topic-flexible `agent_thread`). Indexes envelopes by offset, builds parent->children from `metadata.in_reply_to`, runs pre-order DFS from `root` (children in ascending offset order). Errors when `root` is absent. Returns `{ok, topic, root, thread:[{offset, depth, sender_id, msg_type, payload}, ...]}`, payload base64-decoded lossy. Read-only."
     )]
     async fn termlink_channel_thread(
         &self,
@@ -20368,7 +20368,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_edit",
-        description = "Edit a post by offset on an arbitrary topic — MCP parity for `termlink channel edit <topic> <offset> <text>` CLI verb (T-1782 of T-1166). Topic-flexible variant of `termlink_agent_edit` (hardcoded chat-arc). Use case: revise a post in a DM channel (`dm:a:b`) or project topic. Posts a `msg_type=edit` envelope with payload=`text.into_bytes()` (the new content) and `metadata.replaces=<offset>`. Append-only — the original envelope stays in the topic; reader-side aggregators (e.g. `agent edits-of` / future `channel edits-of`) decide whether to render the collapsed view. Returns the raw `channel.post` result envelope on success."
+        description = "Edit a post by offset on any topic (topic-flexible `agent_edit`). Posts a msg_type=edit envelope with payload = new content and `metadata.replaces=<offset>`. Append-only — the original stays in the topic; reader-side aggregators decide whether to render the collapsed view. Returns the raw `channel.post` result envelope on success. WRITES state."
     )]
     async fn termlink_channel_edit(
         &self,
@@ -20437,7 +20437,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_ack",
-        description = "Emit a read-receipt envelope on an arbitrary topic declaring the caller has read up through `up_to` — MCP parity for `termlink channel ack <topic> --up-to N` CLI verb (T-1783 of T-1166). Topic-flexible variant of `termlink_agent_ack` (hardcoded chat-arc). Use case: receipt aggregation on a DM channel (`dm:a:b`) or project topic. Posts a `msg_type=receipt` envelope with payload `up_to=N` and `metadata.up_to=N`, so read-side aggregators (`agent ack-status`, `agent ack-history`, T-1538/T-1539) and future topic-flex equivalents can compute per-sender frontiers. Note: requires explicit `up_to` — the CLI's auto-resolve via topic walk is not exposed here to keep this tool a pure thin write."
+        description = "Emit a read-receipt on any topic declaring the caller read through `up_to` (topic-flexible `agent_ack`). Posts a msg_type=receipt envelope with payload `up_to=N` + `metadata.up_to=N` so read-side aggregators compute per-sender frontiers. Requires explicit `up_to` — the CLI's auto-resolve via topic walk is not exposed here (pure thin write). Returns the raw `channel.post` result envelope. WRITES state."
     )]
     async fn termlink_channel_ack(
         &self,
@@ -20507,7 +20507,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_reply",
-        description = "Reply to a post by offset on an arbitrary topic with new content tied to a parent offset — MCP parity for `termlink channel reply <topic> <text>` CLI verb (T-1784 of T-1166). Topic-flexible variant of `termlink_agent_reply` (hardcoded chat-arc). Use case: threaded replies in a DM channel (`dm:a:b`) or project topic. Posts a `msg_type=chat` envelope (matching CLI `cmd_channel_reply` hardcoded choice — note: agent_reply MCP uses `note`, but channel_reply CLI uses `chat`) with payload=`text.into_bytes()` and `metadata.in_reply_to=<offset>` so reader-side aggregators join the reply under that root. Optional `mentions` join as `metadata.mentions=name1,name2`. Pure thin write: explicit parent offset, no topic-walk auto-resolve."
+        description = "Reply to a post by offset on any topic (topic-flexible `agent_reply`). Posts a msg_type=chat envelope (note: agent_reply uses `note`; this uses `chat`) with payload = `text` and `metadata.in_reply_to=<offset>` so reader-side aggregators join the reply under that root. Optional `mentions` join as `metadata.mentions=name1,name2`. Pure thin write: explicit parent offset, no auto-resolve. WRITES state."
     )]
     async fn termlink_channel_reply(
         &self,
@@ -20584,7 +20584,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_quote",
-        description = "Fetch an envelope by offset on an arbitrary topic AND resolve its parent (via `metadata.in_reply_to`) — MCP parity for `termlink channel quote <topic> <offset>` CLI verb (T-1785 of T-1166). Topic-flexible read helper. Note: diverges from `termlink_agent_quote` (tools.rs:23242) which returns only the single envelope — channel_quote mirrors the CLI's quote-with-parent semantics (more useful for rendering quote-in-context views). Returns JSON `{topic, child, parent}` where child has `{offset, sender_id, msg_type, ts, payload}` and parent is the same shape or null. Walks the topic via `channel.subscribe` paginated by 1000 — read-side, no auth, no emit. Pairs with `termlink_channel_reply` (T-1784) for full thread-mutation surface."
+        description = "Fetch an envelope by offset on any topic AND resolve its parent via `metadata.in_reply_to`. Unlike `agent_quote` (single envelope only), this returns quote-with-parent (better for rendering quote-in-context). Returns `{topic, child, parent}` where child = `{offset, sender_id, msg_type, ts, payload}` and parent is the same shape or null. Read-side, no auth, no emit."
     )]
     async fn termlink_channel_quote(
         &self,
@@ -20646,7 +20646,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_forward",
-        description = "Re-post an envelope from one topic to another — MCP parity for `termlink channel forward <src> <offset> <dst>` CLI verb (T-1786 of T-1166). NEW MCP verb (no `termlink_agent_forward` sister — forward inherently requires a destination topic, so it's topic-flex by nature). Walks `src_topic` via channel.subscribe, finds the envelope at `offset`, then posts a new envelope on `dst_topic` with the same msg_type and payload, signed by the forwarder's identity (NOT a faithful relay — the forwarder becomes the sender on record). Metadata records `forwarded_from=<src_topic>:<offset>` and `forwarded_sender=<original_sender_id>` for trace-back. Especially relevant post-G-060 (agent-chat-arc federation gap) — operators can forward chat-arc posts to project/DM topics that DO federate."
+        description = "Re-post an envelope from one topic to another. Finds the envelope at `offset` in `src_topic`, posts a new envelope on `dst_topic` with the same msg_type + payload, signed by the forwarder's identity (NOT a faithful relay — the forwarder becomes sender on record). Metadata records `forwarded_from=<src_topic>:<offset>` + `forwarded_sender=<original_sender_id>` for trace-back. Useful post-G-060: forward chat-arc posts (which don't federate) to project/DM topics that DO. WRITES state."
     )]
     async fn termlink_channel_forward(
         &self,
@@ -20753,7 +20753,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_receipts",
-        description = "Aggregate read-receipt frontiers (latest `up_to` per sender) on an arbitrary topic — MCP parity for `termlink channel receipts <topic>` CLI verb (T-1787 of T-1166). Natural read-side pair to `termlink_channel_ack` (T-1783, write-side). Prefers hub's `channel.receipts` RPC fast-path (T-1329 server-side aggregator); falls back to walker (channel.subscribe paginated + filter msg_type=receipt + latest-wins-by-ts dedup) when hub returns -32601 method-not-found. Returns `{receipts: [{sender_id, up_to, ts_unix_ms}, ...]}` sorted by sender_id. Topic-flex by construction — works on agent-chat-arc, DM channels, project topics."
+        description = "Aggregate read-receipt frontiers (latest `up_to` per sender) on any topic (read-side pair to `termlink_channel_ack`). Prefers the hub's `channel.receipts` fast-path; falls back to a walker (filter msg_type=receipt + latest-wins-by-ts) when the hub returns -32601 method-not-found. Returns `{receipts:[{sender_id, up_to, ts_unix_ms}, ...]}` sorted by sender_id. Read-only."
     )]
     async fn termlink_channel_receipts(
         &self,
@@ -21084,7 +21084,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_poll_results",
-        description = "Aggregate poll tallies on an arbitrary topic — MCP parity for `termlink channel poll results <topic> <poll_id>` CLI verb (T-1789 of T-1166). Read-side completion of the poll lifecycle triad shipped in T-1788 (`channel_poll_start` / `_vote` / `_end`). Topic-flexible variant of `termlink_agent_poll_results` (hardcoded chat-arc). Walks the topic, locates `poll_start` at `poll_id`, replays `poll_vote` envelopes in offset order (latest vote per sender wins; out-of-range choices and votes whose ts > `poll_end` ts are dropped). Returns `{poll_id, question, options:[{label, count, voters[]}], closed, total_votes}` JSON — shape is byte-identical with the CLI's `--json` mode. Errors when no `poll_start` at the given offset (or when it's malformed: <2 options). Especially useful in DM channels (`dm:a:b`) or project topics where the hardcoded `agent_poll_results` cannot reach."
+        description = "Aggregate poll tallies on any topic (topic-flexible `agent_poll_results`). Locates `poll_start` at `poll_id`, replays `poll_vote` envelopes in offset order (latest vote per sender wins; out-of-range choices and votes with ts > `poll_end` ts dropped). Returns `{poll_id, question, options:[{label, count, voters[]}], closed, total_votes}`. Errors when no `poll_start` at the offset (or malformed: <2 options). Read-only."
     )]
     async fn termlink_channel_poll_results(
         &self,
@@ -21130,7 +21130,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_info",
-        description = "Synthesized topic view for an arbitrary topic — MCP parity for `termlink channel info <topic> [--since <ms>]` CLI verb (T-1790 of T-1166, T-1324). Single-shot summary: retention, count, latest description, top senders, latest read-receipt per sender. Topic-flexible by construction — no hardcoded `agent_info` sister exists. Use case: get a quick overview of a DM channel (`dm:a:b`), project topic, or any non-chat-arc room without composing CHANNEL_LIST + walk + filter manually. With `since` (unix-ms), description/senders/receipts are computed only over messages whose `ts >= since` (count stays unbounded — operator sees \"12 of 23 in last hour\"). Returns `{topic, retention:{kind, value}, count, description, senders:[{sender_id, posts}], receipts:[{sender_id, up_to, ts_unix_ms}]}` plus `{since, posts_since}` when bounded. Shape byte-identical with CLI `--json` mode."
+        description = "Synthesized single-shot topic view: retention, count, latest description, top senders, latest read-receipt per sender. Quick overview of a DM (`dm:a:b`), project topic, or any room without composing list+walk+filter. With `since` (unix-ms), description/senders/receipts are computed only over messages `ts >= since` (count stays unbounded — '12 of 23 in last hour'). Returns `{topic, retention:{kind, value}, count, description, senders:[{sender_id, posts}], receipts:[{sender_id, up_to, ts_unix_ms}]}` plus `{since, posts_since}` when bounded. Read-only."
     )]
     async fn termlink_channel_info(
         &self,
@@ -21265,7 +21265,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_redact",
-        description = "Retract a post by offset on an arbitrary topic — MCP parity for `termlink channel redact <topic> <offset> [--reason <text>]` CLI verb (T-1781 of T-1166). Topic-flexible variant of `termlink_agent_redact` (hardcoded chat-arc). Use case: retract a post in a DM channel (`dm:a:b`) or project topic. Posts a `msg_type=redaction` envelope with empty payload, `metadata.redacts=<offset>` + optional `metadata.reason`. Append-only — the original envelope stays in the topic; reader-side aggregators (e.g. `agent redactions` / future `channel redactions`) decide whether to filter or render struck-through. Returns the raw `channel.post` result envelope on success."
+        description = "Retract a post by offset on any topic (topic-flexible `agent_redact`). Posts a msg_type=redaction envelope with empty payload, `metadata.redacts=<offset>` + optional `metadata.reason`. Append-only — the original stays in the topic; reader-side aggregators decide whether to filter or render struck-through. Returns the raw `channel.post` result envelope. WRITES state."
     )]
     async fn termlink_channel_redact(
         &self,
@@ -21337,7 +21337,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_star",
-        description = "Star (or unstar) a post by offset on an arbitrary topic — MCP parity for `termlink channel star <topic> <offset>` / `--unstar` CLI verb (T-1780 of T-1166). Topic-flexible variant of `termlink_agent_star` (hardcoded chat-arc). Personal bookmark companion to `termlink_channel_pin` (fleet-wide curation). Use case: bookmark important posts in a DM channel or project topic. Posts a `msg_type=star` envelope with empty payload, `metadata.star_target=<offset>` + `metadata.star=true|false` so the per-sender bookmark set rendered by `agent starred` / future `channel starred` updates accordingly. Returns the raw `channel.post` result envelope on success."
+        description = "Star (or unstar) a post by offset on any topic (topic-flexible `agent_star`; personal bookmark, vs fleet-wide pin). Posts a msg_type=star envelope with empty payload, `metadata.star_target=<offset>` + `metadata.star=true|false` so the per-sender bookmark set updates. Returns the raw `channel.post` result envelope. WRITES state."
     )]
     async fn termlink_channel_star(
         &self,
@@ -21479,7 +21479,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_claim",
-        description = "Reserve a (topic, offset) for exclusive processing — MCP parity for `termlink channel claim <topic> <offset> --claimer <id> [--ttl-ms <ms>]` CLI verb (T-2032). First primitive of the arc-parallel-substrate (ADR T-2018, GO T-2019); pairs with `termlink_channel_renew` and `termlink_channel_release`. Returns `{ok, claim_id, topic, offset, claimer, claimed_at, claimed_until}` on success. On conflict the hub returns CLAIM_CONFLICT (-32015) with data `{topic, offset}` — surfaced as `json_err`. Use case: build a parallel worker pool where each worker pulls a topic offset, processes it, and acks (release ack=true) or returns it (release ack=false). For long-running work, use `termlink_channel_renew` periodically to extend the lease; the Rust `LeasedClaim` helper (termlink-session) auto-renews at ttl/2 and is the recommended in-process shape. Control-plane RPC — no signed envelope, no identity required."
+        description = "Reserve a (topic, offset) for exclusive processing. Pairs with `termlink_channel_renew` + `termlink_channel_release`. Returns `{ok, claim_id, topic, offset, claimer, claimed_at, claimed_until}`. On conflict the hub returns CLAIM_CONFLICT (-32015) with data `{topic, offset}` (surfaced as `json_err`). For long-running work, `renew` periodically to extend the lease (the Rust `LeasedClaim` helper auto-renews at ttl/2). Control-plane RPC — no signed envelope, no identity required. WRITES state."
     )]
     async fn termlink_channel_claim(
         &self,
@@ -21513,7 +21513,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_release",
-        description = "Release a claim acquired via `termlink_channel_claim` — MCP parity for `termlink channel release --claim-id <id> --claimer <id> [--ack]` CLI verb (T-2032). Cursor-advance pivot: `ack=true` advances the claimer's persisted cursor past this offset (work done correctly — won't be redelivered) via a MAX-monotonic UPDATE; `ack=false` (default) leaves the cursor unchanged and reopens the slot immediately for another worker. Returns `{ok, claim_id, topic, offset, ack}` on success. Hub error codes: CLAIM_NOT_FOUND (-32016) for unknown/already-released claim_id; CLAIM_NOT_OWNED (-32017) if `claimer` differs from the original. There is no force-release-by-other-worker verb by design — operator override would break the ownership invariant workers depend on."
+        description = "Release a claim from `termlink_channel_claim`. Cursor-advance pivot: `ack=true` advances the claimer's persisted cursor past this offset (work done — won't be redelivered); `ack=false` (default) leaves the cursor and reopens the slot immediately. Returns `{ok, claim_id, topic, offset, ack}`. Errors: CLAIM_NOT_FOUND (-32016) unknown/already-released; CLAIM_NOT_OWNED (-32017) if `claimer` differs from the original. No force-release-by-other-worker verb by design (would break the ownership invariant). WRITES state."
     )]
     async fn termlink_channel_release(
         &self,
@@ -21577,7 +21577,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_claim_transfer",
-        description = "Atomic ownership transfer of an existing claim — the cooperative orchestrator-to-worker handoff (NOT the operator bypass; use `termlink_channel_claim_force_release` for that). Owner-checked: `by` MUST equal the row's current `claimed_by` (else CLAIM_NOT_OWNED -32017). Lease timestamps survive; only `claimed_by` mutates — so there's no release-then-claim race window. Params: `claim_id`, `to_owner` (new owner), `by` (current owner), optional `reason`. Returns `{ok, claim_id, topic, offset, from_owner, to_owner, claimed_at, claimed_until, reason}`. Errors: CLAIM_NOT_FOUND (-32016), CLAIM_NOT_OWNED (-32017) on `by` mismatch, CLAIM_EXPIRED (-32018) if the lease lapsed first."
+        description = "Atomic ownership transfer of an existing claim — the cooperative orchestrator-to-worker handoff (NOT the operator bypass; use `termlink_channel_claim_force_release` for that). Owner-checked: `by` MUST equal the row's current `claimed_by` (else CLAIM_NOT_OWNED -32017). Lease timestamps survive; only `claimed_by` mutates — no release-then-claim race. Params: `claim_id`, `to_owner`, `by`, optional `reason`. Returns `{ok, claim_id, topic, offset, from_owner, to_owner, claimed_at, claimed_until, reason}`. Errors: CLAIM_NOT_FOUND (-32016), CLAIM_NOT_OWNED (-32017), CLAIM_EXPIRED (-32018). WRITES state."
     )]
     async fn termlink_channel_claim_transfer(
         &self,
@@ -21611,7 +21611,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_renew",
-        description = "Extend the lease on a held claim — MCP parity for `termlink channel renew --claim-id <id> --claimer <id> [--additional-ttl-ms <ms>]` CLI verb (T-2032). Overwrites `claimed_until = now + additional_ttl_ms` (NOT a relative add). Returns `{ok, claim_id, topic, offset, claimer, claimed_at, claimed_until}` on success. Hub error codes: CLAIM_NOT_FOUND (-32016) if claim_id unknown; CLAIM_NOT_OWNED (-32017) if `claimer` mismatch; CLAIM_EXPIRED (-32018) if lease has already lapsed past `claimed_until` (lazy-evicted by a competing claim attempt) — at that point either the original claim is already returned to the pool or a fresh `channel.claim` is needed. For long-running work, call `renew` at ttl/2 cadence; the Rust `LeasedClaim` helper does this automatically in-process."
+        description = "Extend the lease on a held claim. Sets `claimed_until = now + additional_ttl_ms` (absolute, NOT a relative add). Returns `{ok, claim_id, topic, offset, claimer, claimed_at, claimed_until}`. Errors: CLAIM_NOT_FOUND (-32016); CLAIM_NOT_OWNED (-32017) on `claimer` mismatch; CLAIM_EXPIRED (-32018) if the lease already lapsed (then re-`claim` fresh). For long-running work call `renew` at ttl/2 cadence (the Rust `LeasedClaim` helper does this automatically). WRITES state."
     )]
     async fn termlink_channel_renew(
         &self,
@@ -21676,7 +21676,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_claims_summary",
-        description = "Aggregate claim state for a topic — answers 'how busy is this topic, is anything stuck?' in one O(1) call (vs `termlink_channel_claims` full-list). Returns `{ok, topic, active_count, expired_count, oldest_active_at_ms?, oldest_active_age_ms?, next_active_expiry_ms?}`. Signals: growing `expired_count` with low active = workers dying without releasing; `oldest_active_age_ms` near a worker's ttl = stuck or about to renew; `next_active_expiry_ms` = when the next slot frees without intervention. All `*_ms` fields null when `active_count==0`. Error: CHANNEL_TOPIC_UNKNOWN (-32013). Pure read; cron-safe."
+        description = "Aggregate claim state for a topic — 'how busy is this topic, is anything stuck?' in one O(1) call (vs `termlink_channel_claims` full-list). Returns `{ok, topic, active_count, expired_count, oldest_active_at_ms?, oldest_active_age_ms?, next_active_expiry_ms?}`. Signals: growing `expired_count` with low active = workers dying without releasing; `oldest_active_age_ms` near a worker's ttl = stuck or about to renew; `next_active_expiry_ms` = when the next slot frees. All `*_ms` null when `active_count==0`. Error: CHANNEL_TOPIC_UNKNOWN (-32013). Pure read."
     )]
     async fn termlink_channel_claims_summary(
         &self,
@@ -21704,7 +21704,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_claims_summary_all",
-        description = "Fleet-wide claim-state sweep — the cold-start investigator verb when you don't yet know which topic has the stuck worker. One row per topic PLUS a `potentially_stuck` flag (heuristic: `expired_count > 0` OR `oldest_active_age_ms > 60_000`). Returns `{ok, topic_count, stuck_count, shown, only_stuck, topics:[{ok, topic, active_count, expired_count, oldest_active_age_ms?, next_active_expiry_ms?, potentially_stuck}]}`. Per-topic fetch errors are non-fatal (`{ok:false, topic, error}` entries; sweep continues). `only_stuck` (default false): drop non-stuck rows (fetch errors always kept); `stuck_count` stays fleet-wide truth, `shown` reports what came back. Use first to find the misbehaving topic, then drill in with `termlink_channel_claims`. Read-only; cron-safe."
+        description = "Fleet-wide claim-state sweep — the cold-start investigator when you don't yet know which topic has the stuck worker. One row per topic plus a `potentially_stuck` flag (heuristic: `expired_count > 0` OR `oldest_active_age_ms > 60_000`). Returns `{ok, topic_count, stuck_count, shown, only_stuck, topics:[{ok, topic, active_count, expired_count, oldest_active_age_ms?, next_active_expiry_ms?, potentially_stuck}]}`. Per-topic fetch errors non-fatal (`{ok:false, topic, error}`; sweep continues). `only_stuck` (default false) drops non-stuck rows (errors always kept); `stuck_count` stays fleet-wide truth. Read-only."
     )]
     async fn termlink_channel_claims_summary_all(
         &self,
@@ -21817,7 +21817,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_react",
-        description = "Emit a reaction envelope on an arbitrary topic, tied to a parent post offset — MCP parity for `termlink channel react <topic> <offset> <emoji>` (add path) CLI verb (T-1778 of T-1166). Topic-flexible variant of `termlink_agent_react` (hardcoded chat-arc). Use case: react to a post in a DM channel (`dm:a:b`) or project topic. Posts a `msg_type=reaction` envelope with payload=emoji (UTF-8 bytes) and `metadata.in_reply_to=<offset>`. **Add-only scope** (matches `agent_react`); reaction removal (walk topic → find matching reaction → emit redaction) is a separate follow-up. Returns the raw `channel.post` result envelope on success."
+        description = "Emit a reaction on any topic tied to a parent offset (topic-flexible `agent_react`). Posts a msg_type=reaction envelope with payload=emoji (UTF-8) and `metadata.in_reply_to=<offset>`. Add-only scope (reaction removal via redaction is a separate follow-up). Returns the raw `channel.post` result envelope. WRITES state."
     )]
     async fn termlink_channel_react(
         &self,
@@ -21886,7 +21886,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_mentions",
-        description = "Cross-topic mentions search — find every envelope mentioning `target` across ALL topics (vs `termlink_channel_mentions_of`, which walks ONE topic). Answers 'where am I mentioned anywhere?', including DM topics not yet subscribed. `target` defaults to the caller's local Identity fingerprint. Matching supports `*` wildcards; skips META msg-types (receipt/reaction/redaction/edit/topic_metadata). Optional `prefix` scopes topics (e.g. `dm:`); `limit` default 100, `0` = unlimited. Returns `{ok, target, prefix, hits:[{topic, offset, sender_id, ts, msg_type, payload, mentions}], count}` — each hit carries its source topic."
+        description = "Cross-topic mentions search — every envelope mentioning `target` across ALL topics (vs `termlink_channel_mentions_of`, one topic). Answers 'where am I mentioned anywhere?', including DM topics not yet subscribed. `target` defaults to the caller's local fingerprint. Supports '*' wildcards; skips META msg-types. Optional `prefix` scopes topics (e.g. `dm:`); `limit` default 100, `0`=unlimited. Returns `{ok, target, prefix, hits:[{topic, offset, sender_id, ts, msg_type, payload, mentions}], count}` — each hit carries its source topic. Read-only."
     )]
     async fn termlink_channel_mentions(
         &self,
@@ -21997,7 +21997,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_search",
-        description = "Pattern-search any topic for envelopes whose payload matches — MCP parity for `termlink channel search <topic> <pattern>` CLI verb (T-1771 of T-1166). Four value-adds over `termlink_agent_search`: (1) topic-flexibility (any topic, not just agent-chat-arc); (2) regex support — set `regex=true` to compile `pattern` as a regular expression (with `(?i)` prefix when `case_sensitive=false`); (3) `all=true` includes meta msg-types (receipt/reaction/redaction/edit/topic_metadata) which are normally skipped; (4) richer row shape with `msg_type` exposed. Fail-fast: invalid regex returns error before any topic walk. Limit: `0` = unlimited, default 100, max 1000. Iterates envelopes in offset order; stops once `limit` is reached. Returns `{ok, topic, pattern, regex, case_sensitive, all, hits: [{offset, sender_id, ts, msg_type, payload}, ...], count}`. Empty payloads (missing or undecodable `payload_b64`) are always filtered. NO new RPC surface — uses `channel.subscribe` only."
+        description = "Pattern-search any topic for envelopes whose payload matches. `regex=true` compiles `pattern` as a regex (with `(?i)` prefix when `case_sensitive=false`); `all=true` includes meta msg-types (normally skipped); rows expose `msg_type`. Fail-fast: invalid regex errors before any walk. `limit`: `0`=unlimited, default 100, max 1000; iterates in offset order, stops at limit. Returns `{ok, topic, pattern, regex, case_sensitive, all, hits:[{offset, sender_id, ts, msg_type, payload}, ...], count}`. Empty/undecodable payloads filtered. Read-only."
     )]
     async fn termlink_channel_search(
         &self,
@@ -23407,7 +23407,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_followups",
-        description = "Reverse-link aggregator for a chat-arc envelope. Given an offset, walks the topic and finds EVERY envelope that references it: replies (msg_type=post + metadata.in_reply_to), edits (msg_type=edit + metadata.replaces), redactions (msg_type=redaction + metadata.redacts), pins (msg_type=pin + metadata.pin_target), stars (msg_type=star + metadata.star_target), reactions (msg_type=reaction + metadata.in_reply_to). Returns `{target_offset, replies: [...], edits: [...], redactions: [...], pins: [...], stars: [...], reactions: [...], total}` — single-call answer to \"what happened to this post?\". No CLI mirror — purely MCP-side composite read."
+        description = "Reverse-link aggregator for a chat-arc envelope. Given an offset, walks the topic and finds EVERY envelope referencing it: replies (in_reply_to), edits (replaces), redactions (redacts), pins (pin_target), stars (star_target), reactions (in_reply_to). Returns `{target_offset, replies, edits, redactions, pins, stars, reactions, total}` — single-call 'what happened to this post?'. Read-only."
     )]
     async fn termlink_agent_followups(
         &self,
@@ -23500,7 +23500,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_state",
-        description = "Full reduced state snapshot of agent-chat-arc — the curated state right now. Walks the topic and applies the latest-wins reduce-pattern across THREE state targets simultaneously: current pins (pin_target where most recent action=pin), current stars (star_target where most recent star=true), latest topic_metadata description. Returns `{description, pinned: [...], starred: [...], pin_count, star_count, last_update_ts}`. Single-call orientation snapshot — composite of `termlink_agent_pinned` + `termlink_agent_starred` + `termlink_agent_info`(description). For MCP-aware agents that want one read-call to know \"what's the curated state right now?\" without 3 separate calls."
+        description = "Full reduced-state snapshot of agent-chat-arc — the curated state right now. Applies latest-wins across three targets simultaneously: current pins (latest action=pin), current stars (latest star=true), latest topic_metadata description. Returns `{description, pinned, starred, pin_count, star_count, last_update_ts}`. One read-call to know 'what's the curated state right now?' (composite of pinned + starred + info). Read-only."
     )]
     async fn termlink_agent_state(
         &self,
@@ -26165,7 +26165,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_user_summary",
-        description = "Composite peer profile on agent-chat-arc. Given a `sender_id`, walks topic once and returns `{sender_id, display_name, posts_authored, replies_authored, threads_started, reactions_emitted, first_seen_ts, last_seen_ts, days_active, top_reaction_emoji}`. Distinguishes: posts_authored=any post; replies_authored=post WITH in_reply_to; threads_started=post WITHOUT in_reply_to; reactions_emitted=msg_type=reaction. Highest-value single peer-introduction tool — collapses 6+ prior tools (T-1583, T-1593, T-1521, T-1582, T-1590) into one orientation call. Useful for \"who is this peer?\" / first-meet briefings."
+        description = "Composite peer profile on agent-chat-arc. Given `sender_id`, walks the topic once and returns `{sender_id, display_name, posts_authored, replies_authored, threads_started, reactions_emitted, first_seen_ts, last_seen_ts, days_active, top_reaction_emoji}`. Distinguishes posts_authored=any post; replies_authored=post WITH in_reply_to; threads_started=post WITHOUT in_reply_to; reactions_emitted=msg_type=reaction. Single peer-introduction tool for 'who is this peer?' briefings. Read-only."
     )]
     async fn termlink_agent_user_summary(
         &self,
@@ -29137,7 +29137,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_cv_keys",
-        description = "T-2106 — operator inspection of the hub-side cv_index for a topic (substrate primitive #9, broadcast-with-replay). Read-only — returns the per-cv_key latest-offset mapping recorded by the hub on every post carrying `metadata.cv_key` (T-2103). Companion to `termlink_channel_subscribe` with `include_current_value=true` (T-2105): subscribe fetches the cv-indexed envelopes for replay; cv_keys returns just the KEYS + offsets for diagnosis ('who's currently advertising on this topic?', 'are stale keys still pinned?'). Returns `{ok, topic, count, entries: [{cv_key, offset}, ...]}` sorted by cv_key. Empty cv_index is NOT an error — `count: 0, entries: []` is a valid healthy state for a topic with no cv-tagged posts. Missing topic → CHANNEL_TOPIC_UNKNOWN (-32013)."
+        description = "Operator inspection of the hub-side cv_index for a topic (substrate broadcast-with-replay). Returns the per-cv_key latest-offset mapping the hub records on every post carrying `metadata.cv_key`. Companion to `termlink_channel_subscribe` with `include_current_value=true` (which fetches the envelopes for replay); cv_keys returns just the KEYS + offsets for diagnosis ('who's advertising?', 'are stale keys still pinned?'). Returns `{ok, topic, count, entries:[{cv_key, offset}, ...]}` sorted by cv_key. Empty cv_index is NOT an error (healthy). Missing topic → CHANNEL_TOPIC_UNKNOWN (-32013). Read-only."
     )]
     async fn termlink_channel_cv_keys(
         &self,
@@ -29431,7 +29431,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_members",
-        description = "Per-sender activity summary for an arbitrary topic — MCP parity for the `termlink channel members` CLI verb (T-1341, channel.rs:2544). Groups envelopes by `sender_id`, accumulates post count + first/last timestamps. Returns rows sorted last_ts-desc (None last_ts sorts last). Sister to `termlink_agent_peers` (which is hardcoded to agent-chat-arc and has a 3-field row); this works on ANY topic and returns the 4-field MemberRow including first_ts. Supports `include_meta` (count meta envelopes too, default false) and `as_of_ms` (historical cutoff). Returns `{ok, topic, include_meta, as_of_ms, members: [{sender_id, posts, first_ts, last_ts}], count}`. Pure read — no posts."
+        description = "Per-sender activity summary for any topic. Groups envelopes by `sender_id`, accumulates post count + first/last timestamps. Rows sorted last_ts desc (None last). Unlike `agent_peers` (chat-arc only, 3-field), this works on ANY topic with a 4-field row including first_ts. `include_meta` (default false) counts meta envelopes too; `as_of_ms` sets a historical cutoff. Returns `{ok, topic, include_meta, as_of_ms, members:[{sender_id, posts, first_ts, last_ts}], count}`. Read-only."
     )]
     async fn termlink_channel_members(
         &self,
@@ -29493,7 +29493,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_state",
-        description = "Canonical content-row state of an arbitrary topic — MCP parity for the `termlink channel state` CLI verb (T-1376, channel.rs:5971). One row per content envelope (meta types skipped), edits collapsed to latest-wins by (ts_ms, offset), redactions either dropped (default) or surfaced as `[REDACTED]` (when `include_redacted=true`). Sister to `termlink_agent_state` but for ANY topic, and with row-level granularity (one StateRow per content message) rather than the curated digest. Returns `{ok, topic, include_redacted, rows: [{offset, sender_id, payload, is_edited, edit_count, latest_edit_ts_ms, ts_ms, is_redacted}], count}`. Pure read — no posts."
+        description = "Canonical content-row state of any topic. One row per content envelope (meta skipped), edits collapsed latest-wins by (ts_ms, offset), redactions either dropped (default) or surfaced as `[REDACTED]` (when `include_redacted=true`). Row-level granularity (one StateRow per content message) vs the curated `agent_state` digest. Returns `{ok, topic, include_redacted, rows:[{offset, sender_id, payload, is_edited, edit_count, latest_edit_ts_ms, ts_ms, is_redacted}], count}`. Read-only."
     )]
     async fn termlink_channel_state(
         &self,
@@ -29523,7 +29523,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_state_since",
-        description = "Incremental canonical state of an arbitrary topic since a wall-clock cursor — MCP parity for the `termlink channel state-since` CLI verb (T-1382, channel.rs:6530). Returns only rows whose last-change ts (max of original ts, latest edit ts, latest redaction ts) is >= `since_ms`. Enables agents to fetch state deltas — pass the largest `ts_ms`/`latest_edit_ts_ms` from a previous response as next `since_ms` for cursor sync. Sister to `termlink_channel_state` (full state) and `termlink_channel_snapshot` (point-in-time). Returns `{ok, topic, since_ms, include_redacted, rows, count}` with the same row shape as channel_state. Pure read — no posts."
+        description = "Incremental canonical state of any topic since a wall-clock cursor. Returns only rows whose last-change ts (max of original ts, latest edit ts, latest redaction ts) is >= `since_ms`. For cursor sync, pass the largest `ts_ms`/`latest_edit_ts_ms` from a prior response as the next `since_ms`. Returns `{ok, topic, since_ms, include_redacted, rows, count}` with the same row shape as channel_state. Read-only."
     )]
     async fn termlink_channel_state_since(
         &self,
@@ -29554,7 +29554,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_snapshot_diff",
-        description = "Typed snapshot diff for an arbitrary topic — MCP parity for the `termlink channel snapshot-diff` CLI verb (T-1383, channel.rs:6672). Computes two snapshots (`from_ms`, `to_ms`) and classifies each offset as `added`/`removed`/`edited`/`unchanged`. Completes the incremental-state triplet: `channel_snapshot` (point-in-time) + `channel_state_since` (cursor delta) + `channel_snapshot_diff` (two-snapshot diff). Use case: change-log generation, audit, regression diagnosis. `include_unchanged` defaults false (matches CLI) — pass true to surface identical rows too. Returns `{ok, topic, from_ms, to_ms, include_redacted, include_unchanged, rows: [{offset, change_kind, sender_id, from_payload, to_payload}], count}`. Pure read."
+        description = "Typed snapshot diff for any topic. Computes two snapshots (`from_ms`, `to_ms`) and classifies each offset as added/removed/edited/unchanged. Use for change-log generation, audit, regression diagnosis. `include_unchanged` (default false) surfaces identical rows too. Returns `{ok, topic, from_ms, to_ms, include_redacted, include_unchanged, rows:[{offset, change_kind, sender_id, from_payload, to_payload}], count}`. Read-only."
     )]
     async fn termlink_channel_snapshot_diff(
         &self,
@@ -29591,7 +29591,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_ack_history",
-        description = "Chronological receipt audit log for an arbitrary topic — MCP parity for the `termlink channel ack-history` CLI verb (T-1377, channel.rs:6825). One row per `msg_type=receipt` envelope with parseable `metadata.up_to`, sorted ts_ms asc with receipt_offset tiebreak. Distinct from a current-state receipts snapshot (LWW): this is the full append-log of every ack ever posted. Use case: forensic audit of read-receipt timing, sync verification, conversation reconstruction. Optional `user` filter scopes to one sender's acks. Returns `{ok, topic, user, rows: [{receipt_offset, sender_id, up_to, ts_ms}], count}`. Pure read."
+        description = "Chronological receipt audit log for any topic. One row per msg_type=receipt envelope with parseable `metadata.up_to`, sorted ts_ms asc (receipt_offset tiebreak). The full append-log of every ack ever posted (vs a current-state LWW snapshot). Forensic use: receipt timing, sync verification. Optional `user` filter scopes to one sender. Returns `{ok, topic, user, rows:[{receipt_offset, sender_id, up_to, ts_ms}], count}`. Read-only."
     )]
     async fn termlink_channel_ack_history(
         &self,
@@ -29620,7 +29620,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_edits_of",
-        description = "Chronological edit history for one target offset on an arbitrary topic — MCP parity for the `termlink channel edits-of` CLI verb (T-1366, channel.rs:6964). Returns the ORIGINAL post plus the full list of `msg_type=edit` envelopes that replace it, sorted ts_ms asc (offset tiebreak). Distinct from `channel_state` (which collapses to latest-wins) — this exposes the full evolution. Use case: audit how a message changed over time, regression diagnosis, conversation forensics. Returns `{ok, topic, target, found: true, report: {original, edits}}` when target exists and is not redacted; `{ok, topic, target, found: false}` otherwise (matches CLI's `None` result). Pure read."
+        description = "Chronological edit history for one target offset on any topic. Returns the ORIGINAL post plus every msg_type=edit envelope replacing it, sorted ts_ms asc (offset tiebreak). Exposes the full evolution (vs `channel_state`'s latest-wins collapse). Returns `{ok, topic, target, found:true, report:{original, edits}}` when target exists and is not redacted; `{ok, topic, target, found:false}` otherwise. Read-only."
     )]
     async fn termlink_channel_edits_of(
         &self,
@@ -29654,7 +29654,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_pin_history",
-        description = "Chronological pin/unpin event log for an arbitrary topic — MCP parity for the `termlink channel pin-history` CLI verb (T-1372, channel.rs:5422). Returns every pin/unpin event in offset order — distinct from a pinned-set snapshot (LWW collapse). Each row carries the event offset, action (`pin`/`unpin`), target offset, actor sender, timestamp, and (when target is in the envelope set) the target's decoded payload preview. Use case: forensic queries — who pinned what when, was it ever undone, by whom. Returns `{ok, topic, rows: [{event_offset, action, target_offset, actor_sender, ts_ms, target_payload}], count}`. Pure read."
+        description = "Chronological pin/unpin event log for any topic (vs a pinned-set LWW snapshot). Each row carries the event offset, action (pin/unpin), target offset, actor sender, timestamp, and (when target is in the set) a decoded payload preview. Forensic use: who pinned what when, was it undone, by whom. Returns `{ok, topic, rows:[{event_offset, action, target_offset, actor_sender, ts_ms, target_payload}], count}`. Read-only."
     )]
     async fn termlink_channel_pin_history(
         &self,
@@ -29682,7 +29682,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_redactions",
-        description = "Chronological redaction audit log for an arbitrary topic — MCP parity for the `termlink channel redactions` CLI verb (T-1373, channel.rs:5529). One row per `msg_type=redaction` envelope with parseable `metadata.redacts`, sorted event_offset asc. Each row carries event offset, target offset, redactor, optional reason, timestamp, and (when target is in the envelope set) a preview of the redacted payload. Use case: moderation audit — what was retracted, by whom, when, and why. Returns `{ok, topic, rows: [{event_offset, target_offset, redactor_sender, reason, ts_ms, target_payload}], count}`. Pure read."
+        description = "Chronological redaction audit log for any topic. One row per msg_type=redaction envelope with parseable `metadata.redacts`, sorted event_offset asc. Each row carries event offset, target offset, redactor, optional reason, timestamp, and (when target is in the set) a preview of the redacted payload. Moderation audit: what was retracted, by whom, when, why. Returns `{ok, topic, rows:[{event_offset, target_offset, redactor_sender, reason, ts_ms, target_payload}], count}`. Read-only."
     )]
     async fn termlink_channel_redactions(
         &self,
@@ -29710,7 +29710,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_threads",
-        description = "Thread roots index for an arbitrary topic — MCP parity for the `termlink channel threads` CLI verb (T-1365, channel.rs:7138). Returns one row per thread root (any envelope that another envelope replies to via `metadata.in_reply_to`) with reply_count (non-redacted descendants, transitive), distinct participants, last_ts (max ts across thread), and root payload preview. Filters: redacted roots dropped, redacted replies don't count, threads with zero non-redacted replies dropped, non-numeric `in_reply_to` ignored. Sort: last_ts desc (most-recently-active first), root_offset asc tiebreak. Optional `top` truncates to the N most-recent threads. Use case: agent navigation, thread digest, conversation discovery. Returns `{ok, topic, top, rows, count}`. Pure read."
+        description = "Thread-roots index for any topic. One row per thread root (any envelope another replies to via `metadata.in_reply_to`) with reply_count (non-redacted transitive descendants), distinct participants, last_ts (max ts in thread), and root payload preview. Filters: redacted roots dropped, redacted replies don't count, zero-reply threads dropped, non-numeric `in_reply_to` ignored. Sort: last_ts desc (root_offset asc tiebreak). `top` truncates to the N most-recent. Returns `{ok, topic, top, rows, count}`. Read-only."
     )]
     async fn termlink_channel_threads(
         &self,
@@ -29742,7 +29742,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_topic_stats",
-        description = "Full aggregate stats dashboard for an arbitrary topic — MCP parity for the `termlink channel topic-stats` CLI verb (T-1368, channel.rs:4898). Returns total non-redacted envelopes, distinct senders, by_msg_type breakdown, top-5 senders, distinct emojis, top-5 emojis, thread roots, active pins (LWW), forwards in, edits, redactions, and time span (first_ts_ms..last_ts_ms). Counters exclude redacted offsets except `redactions` (which counts redaction envelopes themselves). Sister to `termlink_agent_topic_stats` (daily activity buckets) — different view, both useful. Use case: agent dashboard, topic health overview, conversation analytics. Returns `{ok, topic, ...stats}`. Pure read."
+        description = "Full aggregate stats dashboard for any topic: total non-redacted envelopes, distinct senders, by_msg_type breakdown, top-5 senders, distinct emojis, top-5 emojis, thread roots, active pins (LWW), forwards in, edits, redactions, and time span (first_ts_ms..last_ts_ms). Counters exclude redacted offsets except `redactions` (which counts redaction envelopes). Topic health overview / analytics. Returns `{ok, topic, ...stats}`. Read-only."
     )]
     async fn termlink_channel_topic_stats(
         &self,
@@ -29771,7 +29771,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_relations",
-        description = "Unified per-target relations report on an arbitrary topic (topic-flexible variant of `termlink_agent_relations`, which is chat-arc-only). Consolidates replies, reactions, edits, and redactions for a single target offset (forwards excluded — they're cross-topic; see `termlink_agent_forwards_of`). Each list drops redacted relation envelopes, sorted ts_ms then offset ascending. `target_sender`/`target_payload` come from the target envelope. Errors when the target offset is absent from the topic. Returns `{ok, topic, target_offset, target_sender, target_payload, replies, reactions, edits, redactions}`, each list `{offset, sender_id, ts_ms, payload}` (redaction payload = `metadata.reason`). Pure read."
+        description = "Unified per-target relations report on any topic (topic-flexible `agent_relations`). Consolidates replies, reactions, edits, redactions for one target offset (forwards excluded — cross-topic; see `termlink_agent_forwards_of`). Each list drops redacted relation envelopes, sorted ts_ms then offset ascending. `target_sender`/`target_payload` from the target envelope. Errors when the target offset is absent. Returns `{ok, topic, target_offset, target_sender, target_payload, replies, reactions, edits, redactions}`, each list `{offset, sender_id, ts_ms, payload}` (redaction payload = `metadata.reason`). Read-only."
     )]
     async fn termlink_channel_relations(
         &self,
@@ -29811,7 +29811,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_unread",
-        description = "Unread-envelope count on an arbitrary topic — MCP parity for `termlink channel unread <TOPIC> [--sender]` CLI verb (T-1329, channel.rs:3063). Topic-flexible variant of `termlink_agent_unread` (hardcoded chat-arc). Walks the full topic, derives `ack_up_to` as the largest `metadata.up_to` of any `msg_type=receipt` envelope filtered by sender_id (LWW max), then counts non-receipt offsets > ack_up_to. Defaults `sender_id` to caller's local identity fingerprint (`~/.termlink/identity.json`) — answers 'am I caught up on this DM/channel'. Returns `{ok, topic, sender_id, ack_up_to, total, unread_count, first_unread, last_offset}`. `first_unread` is the smallest offset > ack_up_to; `last_offset` is the topic's max offset. Useful for inbox-style status checks per-topic. Pure read."
+        description = "Unread-envelope count on any topic (topic-flexible `agent_unread`). Derives `ack_up_to` as the largest `metadata.up_to` of any msg_type=receipt envelope filtered by sender_id (LWW max), then counts non-receipt offsets > ack_up_to. `sender_id` defaults to the caller's local fingerprint — 'am I caught up on this DM/channel?'. Returns `{ok, topic, sender_id, ack_up_to, total, unread_count, first_unread, last_offset}` where `first_unread` is the smallest offset > ack_up_to and `last_offset` the topic max. Read-only."
     )]
     async fn termlink_channel_unread(
         &self,
@@ -29889,7 +29889,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_pinned",
-        description = "Currently-pinned set on an arbitrary topic with payload preview — MCP parity for the `termlink channel pinned <TOPIC>` CLI verb (T-1345, channel.rs:3643). Topic-flexible richer variant of `termlink_agent_pinned` (T-1517, chat-arc only, no payload). Walks pin envelopes in input order applying last-write-wins per `metadata.pin_target` (action=pin records, action=unpin removes), then enriches each row with `payload` from the original target envelope (Some(text) if target present, None if out-of-range). Sorted by `pinned_ts` desc, target asc tiebreak. Returns `{ok, topic, rows: [{target, pinned_by, pinned_ts, payload}, ...], count}`. Use case: agent navigation to high-signal posts. Pure read."
+        description = "Currently-pinned set on any topic with payload preview (topic-flexible richer `agent_pinned`). Applies last-write-wins per `metadata.pin_target` (action=pin records, unpin removes), then enriches each row with `payload` from the target envelope (Some if present, None if out-of-range). Sorted by `pinned_ts` desc (target asc tiebreak). Returns `{ok, topic, rows:[{target, pinned_by, pinned_ts, payload}, ...], count}`. Read-only."
     )]
     async fn termlink_channel_pinned(
         &self,
@@ -29917,7 +29917,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_starred",
-        description = "Currently-starred set on an arbitrary topic with payload preview — MCP parity for the `termlink channel starred <TOPIC> [--all]` CLI verb (T-1354, channel.rs:3817). Topic-flexible richer variant of `termlink_agent_starred` (chat-arc only, no payload). Stars are personal bookmarks keyed by `(sender_id, star_target)` — each user can star a post independently. Default scope is 'all users' (cross-room view); pass `caller_fp` to scope to one fingerprint (personal bookmark view). LWW per (sender, target): star=true records, star=false removes. Payload filled from original target envelope (Some if present, None if out-of-range). Sorted by starred_ts desc, target asc, starred_by asc tiebreak. Returns `{ok, topic, scope, rows: [{target, starred_by, starred_ts, payload}, ...], count}`. Pure read."
+        description = "Currently-starred set on any topic with payload preview (topic-flexible richer `agent_starred`). Stars are personal bookmarks keyed by (sender_id, star_target). Default scope is all users (cross-room); pass `caller_fp` to scope to one fingerprint. LWW per (sender, target): star=true records, star=false removes. Payload from the target envelope (Some if present, None if out-of-range). Sorted by starred_ts desc (target asc, starred_by asc tiebreak). Returns `{ok, topic, scope, rows:[{target, starred_by, starred_ts, payload}, ...], count}`. Read-only."
     )]
     async fn termlink_channel_starred(
         &self,
@@ -29947,7 +29947,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_ack_status",
-        description = "Per-sender ack-status dashboard on an arbitrary topic — MCP parity for the `termlink channel ack-status <TOPIC> [--pending]` CLI verb (T-1361, channel.rs:7266). Value-add over `termlink_agent_ack_status` (chat-arc only, ackers only): surfaces ghost lurkers (members who posted but never acked) with `up_to=None` and `lag=latest+1`, includes a `lag` field per sender, and supports `pending_only` filter to focus on members who aren't caught up. Members = union of envelope senders + receipt-only senders. Sort: lag desc, sender_id asc tiebreak. Returns `{ok, topic, latest_offset, rows: [{sender_id, up_to, latest, lag, ts}, ...], count}`. Use case: coordination ('who do I need to wait for'), staleness audits. Pure read."
+        description = "Per-sender ack-status dashboard on any topic. Surfaces ghost lurkers (members who posted but never acked) with `up_to=None` and `lag=latest+1`, adds a per-sender `lag`, and supports `pending_only` to focus on members not caught up. Members = union of envelope senders + receipt-only senders. Sort: lag desc (sender_id asc tiebreak). Returns `{ok, topic, latest_offset, rows:[{sender_id, up_to, latest, lag, ts}, ...], count}`. Use for coordination ('who do I wait for') + staleness audits. Read-only."
     )]
     async fn termlink_channel_ack_status(
         &self,
@@ -30105,7 +30105,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_listener_heartbeat",
-        description = "Emit ONE agent-presence heartbeat (T-1830/T-1832, MCP wrapper from T-1836). MCP path always passes `--once` — never spawns a loop. Required: `agent_id`. Optional: `role` (default 'listener'), `listen_topics` (Vec<String> — for `--to <agent-id>` auto-discover include at least one `dm:*` entry), `pty_session` (required for doorbell auto-discover from T-1834), `topic` (default 'agent-presence', auto-created on first post), `interval_secs` (advertised cadence, drives TTL classification — default 30, min 5), `hub` (default local), `timeout_secs` (default 15, clamped 1..=120). Returns `{ok, exit_code, stdout, stderr, parsed?}`. PL-185 decision: shell-out option (b)."
+        description = "Emit ONE agent-presence heartbeat (always `--once` — never spawns a loop). Required: `agent_id`. Optional: `role` (default 'listener'), `listen_topics` (for `--to <agent-id>` auto-discover, include at least one `dm:*`), `pty_session` (required for doorbell auto-discover), `topic` (default 'agent-presence', auto-created), `interval_secs` (advertised cadence, drives TTL classification — default 30, min 5), `hub` (default local), `timeout_secs` (default 15). Returns `{ok, exit_code, stdout, stderr, parsed?}`. WRITES state."
     )]
     async fn termlink_listener_heartbeat(
         &self,
@@ -30155,7 +30155,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_listeners",
-        description = "Discover active agent-presence listeners (T-1830/T-1833, MCP wrapper from T-1836). Reads heartbeat topic, dedups per agent_id (keeps most recent), classifies each as LIVE/STALE/OFFLINE using the listener's own advertised interval (2x/5x rule). Optional params: `topic` (default 'agent-presence'), `hub` (default local), `limit` (envelopes scanned, default 200 max 1000), `include_offline` (default false), `filter_role`, `filter_listen_topic`, `filter_agent_id`, `timeout_secs` (default 15, clamped 1..=120). Returns `{ok, exit_code, stdout, stderr, parsed: {topic, hub, total_listeners, live, stale, offline, listeners: [{agent_id, role, status, age_secs, last_seen_ts, listen_topics, host, interval_secs, pty_session}]}}`. Read-only; never auths, never writes. PL-185 decision: shell-out option (b)."
+        description = "Discover active agent-presence listeners. Reads the heartbeat topic, dedups per agent_id (keeps most recent), classifies each LIVE/STALE/OFFLINE using the listener's own advertised interval (2x/5x rule). Optional: `topic` (default 'agent-presence'), `hub` (default local), `limit` (envelopes scanned, default 200 max 1000), `include_offline` (default false), `filter_role`, `filter_listen_topic`, `filter_agent_id`, `timeout_secs` (default 15). Returns `{ok, exit_code, stdout, stderr, parsed:{topic, hub, total_listeners, live, stale, offline, listeners:[{agent_id, role, status, age_secs, last_seen_ts, listen_topics, host, interval_secs, pty_session}]}}`. Read-only."
     )]
     async fn termlink_agent_listeners(
         &self,
@@ -30201,7 +30201,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_send_auto_discover",
-        description = "Send a turn to a listener by `agent_id` — auto-discovers the destination PTY session + dm:* topic from agent-presence heartbeat metadata (T-1830/T-1834, MCP wrapper from T-1836). Required: `to_agent_id`, `message`. Optional: `dry_run` (when true, prints `RESOLVED:` line and exits 0 without posting/injecting — for preview), `hub` (default local), `conversation_id` (default auto-generated thread id), `timeout_secs` (default 60, clamped 1..=120 — higher than the discovery tools because non-dry-run includes up to 3 doorbell rings). Returns `{ok, exit_code, stdout, stderr}`. Exit codes mirror the script: 0 delivered (or dry-run RESOLVED), 2 usage/resolution-failure, 3 not acked, 4 delivered-but-no-reply. Resolution failures (no listener / OFFLINE / no pty_session declared / no dm:* topic) surface in stderr with a hint. PL-185 decision: shell-out option (b)."
+        description = "Send a turn to a listener by `agent_id` — auto-discovers the destination PTY session + dm:* topic from agent-presence heartbeat metadata. Required: `to_agent_id`, `message`. Optional: `dry_run` (prints `RESOLVED:` line and exits 0 without posting — preview), `hub` (default local), `conversation_id` (default auto-generated thread id), `timeout_secs` (default 60 — higher because non-dry-run includes up to 3 doorbell rings). Returns `{ok, exit_code, stdout, stderr}`. Exit codes: 0 delivered (or dry-run RESOLVED), 2 usage/resolution-failure, 3 not acked, 4 delivered-but-no-reply. Resolution failures (no listener / OFFLINE / no pty_session / no dm:* topic) surface in stderr with a hint. WRITES state."
     )]
     async fn termlink_agent_send_auto_discover(
         &self,
@@ -30243,7 +30243,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_listeners_fleet",
-        description = "Cross-hub agent-presence discovery (T-1837, MCP wrapper from T-1839). Walks every profile in `~/.termlink/hubs.toml` in parallel, calls `agent-listeners.sh --hub <addr>` per hub, and merges by `agent_id` with deterministic preference: LIVE > STALE > OFFLINE; ties broken by most-recent `last_seen_ts`. Surviving rows carry `hub` so the caller can route a doorbell ring (T-1834) to the correct host. Partial-failure is OK — `hubs_failed[]` surfaces per-hub errors; exit code 3 only when EVERY hub is unreachable. Params: `topic` (default `agent-presence`), `limit`, `include_offline`, `filter_role`, `filter_listen_topic`, `filter_agent_id`, `hubs_file` (override default), `timeout_secs` (default 30, clamped 1..=120 — higher than single-hub because fan-out dominates). Returns the T-1836 envelope `{ok, exit_code, stdout, stderr, parsed: {ok, hubs_scanned, hubs_failed, total_listeners, live, stale, offline, listeners}}`. Closes G-060 client-side."
+        description = "Cross-hub agent-presence discovery. Walks every profile in `~/.termlink/hubs.toml` in parallel, calls `agent-listeners.sh --hub <addr>` per hub, merges by `agent_id` with LIVE > STALE > OFFLINE preference (ties broken by most-recent `last_seen_ts`). Surviving rows carry `hub` so the caller can route a doorbell ring to the right host. Partial failure OK — `hubs_failed[]` surfaces per-hub errors; exit code 3 only when EVERY hub is unreachable. Params: `topic` (default `agent-presence`), `limit`, `include_offline`, `filter_role`, `filter_listen_topic`, `filter_agent_id`, `hubs_file`, `timeout_secs` (default 30). Returns `{ok, exit_code, stdout, stderr, parsed:{ok, hubs_scanned, hubs_failed, total_listeners, live, stale, offline, listeners}}`. Read-only."
     )]
     async fn termlink_agent_listeners_fleet(
         &self,
@@ -30289,7 +30289,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_fleet_adoption_snapshot",
-        description = "Fleet doorbell+mail adoption snapshot — gauges REAL adoption (vs `termlink_fleet_doctor` HEALTH): per-hub live_listeners (agent-presence heartbeats), chat_arc_posts in window, dm_topics_active. Each hub classified HOT (live listener + recent posts) / WARM (live but quiet) / COLD (no listeners); fleet rolls up to one of the three. Read-only sweep. Params: `since_hours` (default 24, 1..=720), `hubs_file` (override), `timeout_secs` (default 30, 1..=120). Returns `{ok, exit_code, parsed:{ok, window_hours, summary:{hubs, reachable_hubs, live_listeners, chat_arc_posts, dm_topics_active, adoption_state}, profiles}}`. Answers 'is anyone actually talking?'."
+        description = "Fleet doorbell+mail adoption snapshot — gauges REAL adoption (vs `termlink_fleet_doctor` HEALTH): per-hub live_listeners (agent-presence heartbeats), chat_arc_posts in window, dm_topics_active. Each hub classified HOT (live listener + recent posts) / WARM (live but quiet) / COLD (no listeners); fleet rolls up to one. Read-only sweep. Params: `since_hours` (default 24, 1..=720), `hubs_file`, `timeout_secs` (default 30). Returns `{ok, exit_code, parsed:{ok, window_hours, summary:{hubs, reachable_hubs, live_listeners, chat_arc_posts, dm_topics_active, adoption_state}, profiles}}`. Answers 'is anyone actually talking?'."
     )]
     async fn termlink_fleet_adoption_snapshot(
         &self,
@@ -30317,7 +30317,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_chat_arc_recent",
-        description = "Fleet-wide 'what's been said?' on agent-chat-arc. Walks every hub in `~/.termlink/hubs.toml`, scans recent envelopes, merges chronologically, surfaces ts/hub/sender/msg_type/payload_preview per post. Sender resolution priority: metadata.agent_id → metadata._from → sender_id (reading one field alone undercounts). Read-only. Params: `limit` (1..=200, default 20), `since_hours` (1..=720, default 24), `hub`/`hubs_file` (overrides), `filter_sender`, `filter_msg_type` (default 'chat'), `all_msg_types` (default false), `timeout_secs` (default 30, 1..=120). Returns `{ok, exit_code, parsed:{ok, window_hours, summary:{total_posts, hubs_scanned, hubs_failed, unique_speakers}, posts}}`. Use to load conversation context before responding."
+        description = "Fleet-wide 'what's been said?' on agent-chat-arc. Walks every hub in `~/.termlink/hubs.toml`, merges recent envelopes chronologically, surfaces ts/hub/sender/msg_type/payload_preview per post. Sender resolution priority: metadata.agent_id -> metadata._from -> sender_id (any one alone undercounts). Read-only. Params: `limit` (1..=200, default 20), `since_hours` (1..=720, default 24), `hub`/`hubs_file`, `filter_sender`, `filter_msg_type` (default 'chat'), `all_msg_types` (default false), `timeout_secs` (default 30). Returns `{ok, exit_code, parsed:{ok, window_hours, summary:{total_posts, hubs_scanned, hubs_failed, unique_speakers}, posts}}`. Load conversation context before responding."
     )]
     async fn termlink_agent_chat_arc_recent(
         &self,
@@ -30365,7 +30365,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_recent_dm",
-        description = "Per-peer DM conversation history. Discovers `dm:*` topics by SUBSTRING match on `peer` across every hub in `~/.termlink/hubs.toml` (so generic strings match many topics — the response lists all matched), dedups federated copies, and reads each. `peer` XOR `topic` required. Read-only. DM topics may not federate; the per-hub walk surfaces that fragmentation rather than hiding it. Params: `peer` (substring, mutex with `topic`), `topic` (explicit dm:* name), `self_id` (self-filter override, default from `~/.termlink/be-reachable.state`), `limit` (1..=200, default 20), `since_hours` (1..=720, default 24), `hub`/`hubs_file` (overrides), `timeout_secs` (1..=120, default 30). Returns `{ok, exit_code, parsed:{summary:{topics_matched, total_posts, peer, self}, topics, posts}}`. Use to load prior DM context with a peer before engaging."
+        description = "Per-peer DM conversation history. Discovers `dm:*` topics by SUBSTRING match on `peer` across every hub in `~/.termlink/hubs.toml` (so generic strings match many topics — the response lists all matched), dedups federated copies, reads each. `peer` XOR `topic` required. Read-only. DM topics may not federate; the per-hub walk surfaces that fragmentation rather than hiding it. Params: `peer` (substring, mutex with `topic`), `topic` (explicit dm:* name), `self_id` (self-filter override, default from `~/.termlink/be-reachable.state`), `limit` (1..=200, default 20), `since_hours` (1..=720, default 24), `hub`/`hubs_file`, `timeout_secs` (default 30). Returns `{ok, exit_code, parsed:{summary:{topics_matched, total_posts, peer, self}, topics, posts}}`."
     )]
     async fn termlink_recent_dm(
         &self,
@@ -30430,7 +30430,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_check_fleet_doorbell_mail_health",
-        description = "Fleet-wide doorbell+mail LOOPBACK canary — runs an end-to-end selftest (channel.create + post + read, using ephemeral throwaway topics) against EVERY profile in `~/.termlink/hubs.toml`, proving the rail can actually carry a turn right now. Distinct from `termlink_fleet_doctor` (which checks secrets/TLS/auth, not live delivery). Read-only against your own hubs. Params: `hubs_file` (override), `no_heartbeat` (skip the canary heartbeat touch), `timeout_secs` (default 60, 1..=300). Returns `{ok, exit_code, parsed:{ok, summary:{total, pass, fail, unreachable}, profiles:[{name, address, verdict, elapsed_ms}]}}`. Answers 'would a real doorbell+mail turn work right now?'."
+        description = "Fleet-wide doorbell+mail LOOPBACK canary — runs an end-to-end selftest (channel.create + post + read via ephemeral throwaway topics) against EVERY profile in `~/.termlink/hubs.toml`, proving the rail can carry a turn right now. Distinct from `termlink_fleet_doctor` (secrets/TLS/auth, not live delivery). Read-only against your own hubs. Params: `hubs_file`, `no_heartbeat` (skip the canary heartbeat touch), `timeout_secs` (default 60, 1..=300). Returns `{ok, exit_code, parsed:{ok, summary:{total, pass, fail, unreachable}, profiles:[{name, address, verdict, elapsed_ms}]}}`. Answers 'would a real turn work right now?'."
     )]
     async fn termlink_check_fleet_doorbell_mail_health(
         &self,
@@ -30456,7 +30456,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_chat_arc_broadcast",
-        description = "Fan a chat-arc post to every hub in the fleet. MUTATING — writes one real envelope per hub per call; no undo. agent-chat-arc does NOT federate, so cross-hub broadcast is client-driven (that's why this walks every hub). Sender resolution: `from` param → `$TERMLINK_AGENT_ID` → `~/.termlink/be-reachable.state` → error with hint. Params: `payload` (required), `from` (sender override), `hubs_file` (override), `timeout_secs` (default 60, 1..=300). Returns `{ok, exit_code, parsed:{ok, hubs_attempted, hubs_delivered, hubs_failed, sender, results:[{hub, ok, offset, error}]}}`. Read context via `termlink_agent_chat_arc_recent` first, then broadcast informed."
+        description = "Fan a chat-arc post to every hub in the fleet. MUTATING — writes one real envelope per hub per call; no undo. agent-chat-arc does NOT federate, so cross-hub broadcast is client-driven (why this walks every hub). Sender resolution: `from` -> `$TERMLINK_AGENT_ID` -> `~/.termlink/be-reachable.state` -> error with hint. Params: `payload` (required), `from` (sender override), `hubs_file`, `timeout_secs` (default 60, 1..=300). Returns `{ok, exit_code, parsed:{ok, hubs_attempted, hubs_delivered, hubs_failed, sender, results:[{hub, ok, offset, error}]}}`. WRITES state."
     )]
     async fn termlink_chat_arc_broadcast(
         &self,

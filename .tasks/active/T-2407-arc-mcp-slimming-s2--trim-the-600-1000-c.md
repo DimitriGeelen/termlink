@@ -4,7 +4,7 @@ name: "arc mcp-slimming S2 — trim the 600-1000 char MCP description band (~70 
 description: >
   Second slice of arc-005 mcp-slimming. Trim the ~70 tool descriptions in the 600-1000 char band per the S1 policy (keep purpose + non-obvious param gotchas + safety notes; cut T-XXXX archaeology, PL cross-refs, schema-restatement). cargo build -p termlink-mcp passes, tool count unchanged, anti-regrowth guard ceiling tightened toward target. Report bytes reclaimed.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-11T14:16:18Z
-last_update: 2026-07-11T14:16:18Z
+last_update: 2026-07-11T15:31:36Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,24 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Slice 2 of arc `mcp-slimming`. S1 (T-2406) trimmed the 11,751-char meta-tool + all 24
+descriptions over 1000 chars (156,525 → 133,220 bytes, ~5,800 tokens/agent reclaimed). This
+slice trims the next band — the ~70 tool descriptions between 600 and 1000 chars — applying
+the same policy (`docs/operations/mcp-description-policy.md`): keep purpose + non-obvious
+param semantics + safety/return-shape notes; cut T-XXXX archaeology, PL cross-refs, and
+schema-restatement. No tools removed (trim text only).
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] **600–1000 band trimmed per policy.** The descriptions currently in the 600–999 char
+  band are trimmed per `docs/operations/mcp-description-policy.md`; agent-critical guidance
+  (purpose, non-obvious param gotchas, safety notes, return-shape hints) preserved.
+  `cargo build -p termlink-mcp` passes; **tool count unchanged (273)**; `cargo test -p termlink-mcp`
+  green (including the T-1962 modes+params drift-guard). Report bytes-before/after reclaimed.
+- [ ] **Guard ceiling tightened in lockstep.** `MAX_DESC_CEILING` / `TOTAL_DESC_CEILING` in
+  `scripts/test-mcp-desc-budget.sh` lowered to just above the new max/total; the guard PASSES
+  at the new ceilings (locks the win — a slice that trims but doesn't tighten hasn't locked it).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -174,3 +184,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2407-arc-mcp-slimming-s2--trim-the-600-1000-c.md
 - **Context:** Initial task creation
+
+### 2026-07-11T15:31:36Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
