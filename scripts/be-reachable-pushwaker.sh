@@ -82,7 +82,87 @@ pushwaker_dedup_ok() {
     return 1
 }
 
+# Classify the CURRENT state of a Claude Code REPL from a byte-tail snapshot of
+# its PTY (T-2402 Stage 3 — idle-gated injection). Echoes READY | BUSY | UNKNOWN.
+# Pure: caller supplies the already-captured, strip-ansi'd tail text.
+#
+# Why a byte-TAIL (not --lines): the PTY is an append-only stream of cursor-
+# addressed redraws, so the MOST-RECENT writes are at the END. A running turn
+# repaints the spinner + "(esc to interrupt)" continuously, so it dominates the
+# last KB; an idle prompt repaints its status bar / footer instead. A whole-blob
+# search is contaminated by a stale "esc to interrupt" still sitting in scrollback
+# from the last turn — hence classify from the tail only (the live wrapper reads
+# --bytes N, small enough to be current, large enough to hold the footer).
+#
+# FAIL-SAFE bias: only READY on a POSITIVE idle marker; BUSY on the interrupt
+# hint; everything else (resume-picker, loading dialog, raw shell prompt, empty
+# read) is UNKNOWN → the caller DEFERS. A wrong READY = a bad blind inject (the
+# exact failure this stage kills), so ambiguity must never resolve to READY.
+#
+# Whitespace-insensitive: strip-ansi mashes cells together, so we lowercase and
+# delete all whitespace before matching (e.g. "? for shortcuts" -> "?forshortcuts",
+# "(esc to interrupt)" -> "(esctointerrupt)").
+pushwaker_pty_state() {
+    local text="$1" blob
+    blob="$(printf '%s' "$text" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+    case "$blob" in
+        # A live turn: the spinner keeps "(esc to interrupt)" in the recent tail.
+        *esctointerrupt*) echo BUSY ;;
+        # Modal surfaces that would EAT an injected line (picker search box,
+        # conversation loader) — never inject into these.
+        *esctocancel*|*resumesession*|*selectaconversation*|*loadingconversations*) echo UNKNOWN ;;
+        # Positive idle markers of the ready prompt / idle status bar.
+        *'?forshortcuts'*|*'newtask?'*|*checkingforupdate*|*'/cleartosave'*) echo READY ;;
+        *) echo UNKNOWN ;;
+    esac
+}
+
 # ---- main loop -----------------------------------------------------------
+
+# Probe the live PTY and classify its state (thin, impure wrapper over the pure
+# pushwaker_pty_state — reads a small byte-tail so the snapshot is CURRENT).
+# Echoes READY | BUSY | UNKNOWN; a failed/empty read classifies UNKNOWN (defer).
+pushwaker_probe_pty() {
+    local pty_session="$1"
+    local probe_bytes="${PUSHWAKER_PTY_PROBE_BYTES:-2500}"
+    local text
+    text="$("$TERMLINK" pty output "$pty_session" --bytes "$probe_bytes" --strip-ansi --timeout 5 2>/dev/null)"
+    pushwaker_pty_state "$text"
+}
+
+# Ring the PTY, but ONLY once it is at a READY prompt (T-2402 Stage 3). Probes
+# the PTY state and, while the REPL is BUSY (mid-turn / tool-call) or in an
+# UNKNOWN surface (resume-picker / loading / raw shell), DEFERS and re-probes on
+# a bounded backoff instead of injecting blind. Injects the instant the REPL
+# returns to idle. Returns:
+#   0  rung at a READY prompt (the doorbell landed at idle)
+#   3  gave up — never reached READY within the attempt budget, OR the inject
+#      call itself failed (session gone). This is the loud hand-off point for
+#      Stage 5 (escalating re-ring / awaiting-ack) — it does NOT inject blind.
+# Env knobs: PUSHWAKER_READY_ATTEMPTS (default 30), PUSHWAKER_READY_BACKOFF_SECS
+# (default 3), PUSHWAKER_PTY_PROBE_BYTES (default 2500). 30×3s ≈ 90s of patience
+# covers a normal turn; a genuinely stuck/absent REPL falls through to rc=3.
+pushwaker_ring_when_ready() {
+    local pty_session="$1" doorbell_text="$2" hub="$3"   # hub reserved for parity
+    local attempts="${PUSHWAKER_READY_ATTEMPTS:-30}"
+    local backoff="${PUSHWAKER_READY_BACKOFF_SECS:-3}"
+    local i state
+    for (( i=1; i<=attempts; i++ )); do
+        state="$(pushwaker_probe_pty "$pty_session")"
+        if [ "$state" = "READY" ]; then
+            if "$TERMLINK" inject "$pty_session" "$doorbell_text" --enter >/dev/null 2>&1; then
+                echo "pushwaker: rang '$pty_session' at READY prompt (attempt $i/$attempts)" >&2
+                return 0
+            fi
+            echo "pushwaker: WARN inject into '$pty_session' failed (session gone?)" >&2
+            return 3
+        fi
+        echo "pushwaker: '$pty_session' not ready (state=$state, attempt $i/$attempts) — deferring ${backoff}s" >&2
+        sleep "$backoff"
+    done
+    echo "pushwaker: '$pty_session' never reached READY in $attempts attempts — NOT injecting blind (Stage 5 escalation point)" >&2
+    return 3
+}
 
 # One "rail" = one (push_topic, expected_addressee) subscribe→decide→ring loop.
 # The inbox rail matches addressee == inbox_id; the dm rail (T-2324, arc-004 S2)
@@ -125,10 +205,14 @@ pushwaker_rail_loop() {
             for k in "${!seen[@]}"; do
                 [ $(( now - seen[$k] )) -ge "$ttl" ] && unset 'seen[$k]'
             done
-            if "$TERMLINK" inject "$pty_session" "$doorbell_text" --enter >/dev/null 2>&1; then
+            # T-2402 Stage 3: idle-gate the ring. Instead of injecting blind
+            # (which the REPL swallows mid-turn — the off=7 demo failure), defer
+            # + re-probe until the prompt is READY, then inject. rc=3 = never
+            # became ready within budget → loud, un-injected (Stage 5 hooks here).
+            if pushwaker_ring_when_ready "$pty_session" "$doorbell_text" "$hub"; then
                 echo "pushwaker: rang '$pty_session' via $push_topic offset=$offset" >&2
             else
-                echo "pushwaker: WARN inject into '$pty_session' failed (session gone?); $push_topic offset=$offset" >&2
+                echo "pushwaker: WARN could not ring '$pty_session' at idle; $push_topic offset=$offset (deferred/un-injected)" >&2
             fi
         done < <("$TERMLINK" "${sub_args[@]}" 2>/dev/null)
         # subscribe exited (crash or degrade-exit); re-subscribe after a pause.

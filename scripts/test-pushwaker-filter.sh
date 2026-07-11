@@ -61,6 +61,40 @@ pushwaker_dedup_ok 100 "" 120; check_exit "first sighting rings (no last)" 0 $?
 pushwaker_dedup_ok 100 90 120; check_exit "duplicate offset within ttl skips" 1 $?
 pushwaker_dedup_ok 300 90 120; check_exit "same offset after ttl rings again" 0 $?
 
+# --- pushwaker_pty_state (T-2402 Stage 3, idle-gated injection) ---
+# Fixtures mirror the real strip-ansi'd Claude Code footer tails captured from
+# live sessions (workflow-designer / aef): idle prompt, running turn, resume
+# picker, and a degenerate empty read. Whitespace-mashed exactly as strip-ansi
+# leaves them.
+
+# Idle ready prompt — footer hint present, no interrupt hint.
+s="$(pushwaker_pty_state '────── **workflow designer*** ──> ⏸ manual mode on · ? for shortcuts')"
+check "idle footer '? for shortcuts' -> READY" "READY" "$s"
+
+# Idle status-bar refresh (what the true byte-tail actually holds while idle).
+s="$(pushwaker_pty_state '> No response requested. current: 2.1.207 · latest: 2.1.207  new task? /clear to save 219.2k tokens')"
+check "idle status bar 'new task? /clear' -> READY" "READY" "$s"
+
+# Running turn — the spinner keeps "(esc to interrupt)" in the recent tail.
+s="$(pushwaker_pty_state '✻ Baking… (12s · ↑ 1.2k tokens · esc to interrupt)')"
+check "running turn 'esc to interrupt' -> BUSY" "BUSY" "$s"
+
+# BUSY dominates even when an idle marker is also in the (contaminated) window.
+s="$(pushwaker_pty_state '? for shortcuts ... ✻ Working (esc to interrupt)')"
+check "busy wins over stale idle marker -> BUSY" "BUSY" "$s"
+
+# Resume picker — would EAT an injected line into its search box. Never inject.
+s="$(pushwaker_pty_state 'Resume session ╭ ⌕ Search… ╯ Ctrl+A to show all projects · Esc to cancel')"
+check "resume picker -> UNKNOWN (defer, never inject)" "UNKNOWN" "$s"
+
+# Empty / failed PTY read — classify UNKNOWN so the caller defers, never rings.
+s="$(pushwaker_pty_state '')"
+check "empty read -> UNKNOWN (fail-safe defer)" "UNKNOWN" "$s"
+
+# Raw shell prompt (REPL exited) — no idle marker -> UNKNOWN, not a bad inject.
+s="$(pushwaker_pty_state 'root@host:/opt/832-Workflow-designer# ')"
+check "raw shell prompt -> UNKNOWN (no blind inject)" "UNKNOWN" "$s"
+
 if [ "$fail" -eq 0 ]; then
     echo "RESULT: PASS"
 else
