@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2401: Durable launch-path-independent auto-accept for reachable agents
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-11T07:34:34Z
+# ============================================================================
+
+task_id: T-2401
+task_name: "Durable launch-path-independent auto-accept for reachable agents"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-11T07:28:11Z
+completed: 2026-07-11T07:34:30Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-11T09:34:25+02:00
+last_commit: 2026-07-11T09:34:25+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  durable launch-path-independent auto-accept — scoped permissions.allow (channel_* + agent_*) merged into all 4 .107 agent projects' settings.local.json + operator runbook; closes reachable-but-mute recurrence across manual claude --resume
+
+# Key outcomes
+outcomes:
+  - 'The durable mechanism is confirmed: verified (via claude-code-guide + a live check) whether `.claude/settings.local.json` `permissions.allow` for the comms Bash/MCP surface (and/or `defaultMode`) is honored by Claude Code from settings ALONE — no CLI `--dangerously-skip-permissions` / `IS_SANDBOX` dependency. The confirmed mechanism + exact settings block is recorded in this task''s Updates. CONFIRMED: scoped `permissions.allow` honored from settings alone; `defaultMode: bypassPermissions` IGNORED from project settings (guard since v2.1.142). Block recorded in Updates.'
+  - 'Each of the 4 live .107 agent projects (/opt/999 aef, /opt/832 workflow-designer, /opt/025 workshop-designer, /opt/3011 sonnenstall) has its `.claude/settings.local.json` updated (via termlink_run, T-559-safe) so the doorbell reply path (`termlink channel post`/`ack`/`subscribe`/`unread` Bash + the MCP equivalents) auto-approves without a prompt. Verify: each file parses as JSON and contains the comms-allow entries (evidence captured in Updates via termlink_run read-back). APPLIED 2026-07-11: all 4 present=4/4 (aef allow_total=350, wfd=38, workshop=85, sonnenstall=7); backed up to `*.pre-t2401`.'
+  - 'An operator runbook `docs/operations/durable-reachable-auto-accept.md` records the requirement + the exact settings block + the three-part deploy (binary + .mcp.json identity + settings auto-accept), so future onboarding of a reachable agent includes it. Mirrors docs/migrations/T-1700 (identity). Verify: file exists and names all three parts. WRITTEN: names all three legs (binary / identity / auto-accept) + onboarding checklist.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/operations/durable-reachable-auto-accept.md'
+  - '.tasks/active/T-2401-durable-launch-path-independent-auto-acc.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-11T09:34:25"
+    action: "T-2401: durable launch-path-independent auto-accept — scoped permissions.allow (channel_* + agent_*) merged into all 4 .107 agent projects' settings.local.json + operator runbook; closes reachable-but-mute recurrence across manual claude --resume"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 2
+  lines_added: 339
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2401-durable-launch-path-independent-auto-acc.md
+generated_by: context-agent-hybrid
