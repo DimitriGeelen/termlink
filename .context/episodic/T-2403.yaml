@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2403: tl-claude PROJECT_ROOT launch-hygiene: sanitize leaked env that misroutes agent project
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-11T12:05:27Z
+# ============================================================================
+
+task_id: T-2403
+task_name: "tl-claude PROJECT_ROOT launch-hygiene: sanitize leaked env that misroutes agent project"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-11T09:47:01Z
+completed: 2026-07-11T12:05:23Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-11T11:49:57+02:00
+last_commit: 2026-07-11T14:05:07+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  sanitize leaked PROJECT_ROOT in tl-claude launch (misroutes agent project). all 3 ACs met — sanitize verified + wfd relaunched clean + P-011 commands. fleet PROJECT_ROOT check RESOLVED — only aef misrouted, notified non-destructively; Stage-3 waker rolled fleet-wide
+
+# Key outcomes
+outcomes:
+  - '**Sanitize in build_claude_cmd (start/restart PTY-string path).** The'
+  - '**Sanitize in cmd_oneshot (exec path).** The one-shot exec unsets'
+  - '**Live proof on the fleet.** After relaunching workflow-designer via the'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/test-tl-claude-cmd.sh'
+  - 'scripts/tl-claude.sh'
+  - '.tasks/active/T-2403-tl-claude-projectroot-launch-hygiene-san.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-11T11:49:57"
+    action: "T-2403: sanitize leaked PROJECT_ROOT in tl-claude launch (misroutes agent project)"
+  - time: "2026-07-11T11:56:31"
+    action: "T-2403: all 3 ACs met — sanitize verified + wfd relaunched clean + P-011 commands"
+  - time: "2026-07-11T14:05:07"
+    action: "T-2403: fleet PROJECT_ROOT check RESOLVED — only aef misrouted, notified non-destructively; Stage-3 waker rolled fleet-wide"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 138 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 138
+  commits: 3
+  files_changed: 3
+  lines_added: 287
+  lines_removed: 17
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2403-tl-claude-projectroot-launch-hygiene-san.md
+generated_by: context-agent-hybrid

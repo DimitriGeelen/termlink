@@ -3978,3 +3978,129 @@ scan_id: R-8357c484
 task_id: T-2396
 payload:
   task_file: .tasks/active/T-2396-prove--close-the-wake-consumption-confir.md
+---
+kind: scan_emitted
+timestamp: '2026-07-10T19:20:48Z'
+scan_id: R-067cbdc6
+task_id: T-2397
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-10T19:20:48Z'
+scan_id: R-067cbdc6
+task_id: T-2397
+payload:
+  task_file: .tasks/active/T-2397-agent-flow-model-busy-session-as-respond.md
+---
+kind: scan_emitted
+timestamp: '2026-07-11T06:56:14Z'
+scan_id: R-07c9199c
+task_id: T-2400
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-11T06:56:14Z'
+scan_id: R-07c9199c
+task_id: T-2400
+payload:
+  task_file: .tasks/active/T-2400-reachable-agents-launch-mute--tl-claude-.md
+---
+kind: scan_emitted
+timestamp: '2026-07-11T06:56:36Z'
+scan_id: R-80cd3649
+task_id: T-2399
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-11T06:56:36Z'
+scan_id: R-80cd3649
+task_id: T-2399
+payload:
+  task_file: .tasks/active/T-2399-mcp-server-signs-envelopes-as-host-key-n.md
+---
+kind: scan_emitted
+timestamp: '2026-07-11T07:34:31Z'
+scan_id: R-9950379d
+task_id: T-2401
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-11T07:34:31Z'
+scan_id: R-9950379d
+task_id: T-2401
+payload:
+  task_file: .tasks/active/T-2401-durable-launch-path-independent-auto-acc.md
+---
+kind: scan_emitted
+timestamp: '2026-07-11T12:05:24Z'
+scan_id: R-407d67ba
+task_id: T-2403
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-11T12:05:24Z'
+scan_id: R-407d67ba
+task_id: T-2403
+payload:
+  task_file: .tasks/active/T-2403-tl-claude-projectroot-launch-hygiene-san.md
+---
+kind: scan_emitted
+timestamp: '2026-07-11T12:08:51Z'
+scan_id: R-9dd17caf
+task_id: T-2402
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-11T12:08:51Z'
+scan_id: R-9dd17caf
+task_id: T-2402
+payload:
+  task_file: .tasks/active/T-2402-woken-but-silent-make-a-rung-yet-unanswe.md
+---
+kind: scan_emitted
+timestamp: '2026-07-11T13:29:25Z'
+scan_id: R-7a42b317
+task_id: T-2404
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-11T13:29:25Z'
+scan_id: R-7a42b317
+task_id: T-2404
+payload:
+  task_file: .tasks/active/T-2404-promote-rearm-waker-to-scripts--roll-new.md
