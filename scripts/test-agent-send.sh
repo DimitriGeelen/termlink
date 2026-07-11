@@ -24,6 +24,10 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 fail=0
 
+# T-2402 Stage 5: redirect the woken-but-silent escalation to a temp canary log
+# so Path B can assert the give-up path is LOUD (not a silent exit 3).
+export TERMLINK_WOKEN_SILENT_LOG="$tmp/woken-silent-canary.log"
+
 # --- Path A: a receipt arrives during the wait -> DELIVERED, exit 0 ---
 cidA="cidA-$$"
 (
@@ -56,6 +60,21 @@ if [ "$rcB" != "0" ] && grep -q "FAILED" "$tmp/B.out" && [ "$rings" = "3" ]; the
     echo "PASS B: not acked -> rc=$rcB after $rings rings"
 else
     echo "FAIL B: expected non-zero + FAILED + 3 rings (got rc=$rcB, rings=$rings)"; sed 's/^/  B| /' "$tmp/B.out"; fail=1
+fi
+
+# --- Path B2 (T-2402 Stage 5): exhaustion ESCALATES loudly, not silently ---
+# The give-up must (a) print an ESCALATED line and (b) append a framed entry to
+# the woken-but-silent canary log that /canaries auto-discovers.
+if grep -q "ESCALATED woken-but-silent" "$tmp/B.out" \
+   && [ -s "$TERMLINK_WOKEN_SILENT_LOG" ] \
+   && grep -q "cid=$cidB" "$TERMLINK_WOKEN_SILENT_LOG" \
+   && grep -q "remediation:" "$TERMLINK_WOKEN_SILENT_LOG"; then
+    echo "PASS B2: woken-but-silent escalated to canary log (loud, not silent)"
+else
+    echo "FAIL B2: expected ESCALATED line + canary-log entry naming cid=$cidB"
+    sed 's/^/  B2-out| /' "$tmp/B.out"
+    sed 's/^/  B2-log| /' "$TERMLINK_WOKEN_SILENT_LOG" 2>/dev/null || echo "  B2-log| (log missing)"
+    fail=1
 fi
 
 # --- Path C (T-1808): a STALE receipt from an earlier turn on the same cid must

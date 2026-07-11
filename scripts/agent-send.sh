@@ -576,9 +576,40 @@ if [ -n "$deliver_offset" ]; then
     exit 4
 fi
 
+# T-2402 Stage 5: escalate a never-acked send to a LOUD, operator-visible signal
+# instead of a silent `exit 3`. This closes the off=7-class hole where a rung
+# recipient that never replied left NOTHING behind but this process's stderr —
+# and the pre-existing claim that "the T-2295 canary tracks it" was FALSE on this
+# path: step-1 posts WITHOUT --await-ack, so no awaiting-ack obligation was ever
+# registered. We append a framed entry to a *-canary.log that /canaries (T-2172)
+# auto-discovers. The path resolves to THIS repo's working dir (relative to the
+# script, not the caller's cwd) so the escalation lands in the same checkout
+# whose /canaries surfaces it; override with TERMLINK_WOKEN_SILENT_LOG. Empty
+# log = healthy (append-only, written only on genuine give-up).
+escalate_woken_but_silent() {
+    local reason="$1"
+    local log="${TERMLINK_WOKEN_SILENT_LOG:-$SELF_DIR/../.context/working/.woken-but-silent-canary.log}"
+    local ts; ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    mkdir -p "$(dirname "$log")" 2>/dev/null || true
+    if {
+        printf '=== %s ===\n' "$ts"
+        printf 'woken-but-silent: no receipt for cid=%s on topic=%s\n' "$cid" "$topic"
+        printf '  recipient=%s session=%s%s\n' "$to_agent_id" "$to_session" "${peer_hub:+ hub=$peer_hub}"
+        printf '  turn posted at offset=%s; rings=%s; reason=%s\n' "$post_offset" "$max_rings" "$reason"
+        printf '  remediation: confirm peer LIVE (/peers --all); re-send (/agent-handoff <peer> <task> "..."); or drop the thread if dead\n'
+        printf -- '---\n'
+    } >> "$log" 2>/dev/null; then
+        echo "agent-send: ESCALATED woken-but-silent -> $log (operator-visible via /canaries)" >&2
+    else
+        echo "agent-send: WARN could not write woken-but-silent canary log at $log" >&2
+    fi
+}
+
 if [ "$eff_transport" = "fallback" ]; then
-    echo "agent-send: FAILED — stored to the local hub (store-and-forward, offset=$post_offset) but no receipt for cid=$cid within $((max_rings*timeout))s; the turn will federate to $peer_hub and the unconfirmed-delivery canary (T-2295) tracks it until acked" >&2
+    echo "agent-send: FAILED — stored to the local hub (store-and-forward, offset=$post_offset) but no receipt for cid=$cid within $((max_rings*timeout))s; the turn will federate to $peer_hub" >&2
+    escalate_woken_but_silent "fallback-store-and-forward (host $peer_hub down)"
 else
     echo "agent-send: FAILED — no receipt for cid=$cid after $max_rings ring(s) (turn posted at offset=$post_offset; receiver never acked)" >&2
+    escalate_woken_but_silent "direct-path: rung $max_rings x, receiver never acked"
 fi
 exit 3
