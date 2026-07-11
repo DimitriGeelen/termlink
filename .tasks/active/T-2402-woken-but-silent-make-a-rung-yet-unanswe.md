@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-07-11T07:37:06Z
-last_update: 2026-07-11T07:37:06Z
+last_update: 2026-07-11T08:57:06Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -95,15 +95,14 @@ The six-stage control loop (1,2 already deterministic; this task builds 3,5,6):
 
 <!-- What's IN scope for this exploration? What's explicitly OUT? -->
 
-## Acceptance Criteria
+## Acceptance Criteria (inception template — SUPERSEDED by the three stage ACs above)
 
-### Agent
-<!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
-<!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
-<!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+<!-- Vestigial inception ACs removed on promotion to build (T-2402, 2026-07-11)
+     so they do not trip the P-010 unchecked-AC gate. The authoritative ACs are
+     the three deterministic-attention stages under the FIRST ### Agent above. -->
+
+### Agent (superseded)
+<!-- intentionally empty — see stage ACs above -->
 
 ### Human
 <!-- @auto-tick-on-decide -->
