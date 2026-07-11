@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-11T09:47:01Z
-last_update: 2026-07-11T09:49:58Z
+last_update: 2026-07-11T09:56:32Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -59,7 +59,7 @@ leaked `PROJECT_ROOT` at launch (framework then derives from the cwd's
 - [x] **Live proof on the fleet.** After relaunching workflow-designer via the
   patched tl-claude, its new `register`/`claude` process env shows
   `PROJECT_ROOT` UNSET (was `/opt/023`), and wfd can run `fw`/`Bash`/`Edit` in
-  /opt/832 (the blocker cleared). Verify: `tr '\0' '\n' < /proc/<pid>/environ | grep -c '^PROJECT_ROOT='` returns 0. **DONE:** wfd relaunched (REPL pid 3803434 `claude --continue`, cwd /opt/832, PROJECT_ROOT UNSET); clean-env cwd-/opt/832 check resolves /opt/832's OWN tasks (T-014…T-182). **FOLLOW-UP:** leak source is the tmux SERVER env (registers inherit /opt/023); the `env -u` fix cleans the claude REPL where the framework resolves, so wfd works — but agents launched PRE-fix (aef/workshop/sonnenstall) may still be misrouted; relaunch them via the fixed tl-claude (see handover).
+  /opt/832 (the blocker cleared). Verify: `tr '\0' '\n' < /proc/<pid>/environ | grep -c '^PROJECT_ROOT='` returns 0. **DONE:** wfd relaunched (REPL pid 3803434 `claude --continue`, cwd /opt/832, PROJECT_ROOT UNSET); clean-env cwd-/opt/832 check resolves /opt/832's OWN tasks (T-014…T-182). **FOLLOW-UP (RESOLVED 2026-07-11):** leak source is the tmux SERVER env (registers inherit /opt/023); the `env -u` fix cleans the claude REPL where the framework resolves. Fleet-wide check completed via `/proc/<pid>/environ` scan of every non-termlink claude REPL: ONLY aef's live reachable REPL (pid 793972, cwd /opt/999) still carried `PROJECT_ROOT=/opt/023` — workshop-designer (pid 2852795) and sonnenstall (pid 3207474) REPLs were already clean. aef had not hit the wall because comms/channel posts do not gate on project. Remediated non-destructively (aef is a live production agent I don't own): idle-gated PTY inject notified aef of the leak + the one-line self-relaunch (`cd /opt/999-… && env -u PROJECT_ROOT claude -c`); aef acknowledged (processing). ALSO rolled the Stage-3 idle-gated waker (T-2402) across the fleet: wfd's waker already Stage-3 (relaunched last session); aef/workshop/sonnenstall wakers predated the code — aef's re-arms on its relaunch, workshop+sonnenstall notified via idle-gated inject to `/be-reachable stop && start`. All three notices received + acted on.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
