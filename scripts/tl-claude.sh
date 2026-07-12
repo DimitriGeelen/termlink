@@ -159,6 +159,17 @@ build_claude_cmd() {
     # cwd's .framework.yaml / git-toplevel (the normal unset path). Unconditional
     # (independent of REACHABLE); opt out with TL_KEEP_PROJECT_ROOT=1.
     [ "${TL_KEEP_PROJECT_ROOT:-0}" != "1" ] && env_prefix="env -u PROJECT_ROOT "
+    # T-2411: bind the per-agent identity into the claude process so the woken
+    # REPL resolves its OWN agent-id fp (via `termlink agent identity --resolve`)
+    # instead of the shared host session key. Without this the doorbell RESPOND
+    # half fails: `/check-arc respond` sees the rail keyed to the agent-id fp but
+    # the REPL identifies as the host key -> mismatch -> refuse (shared-host leak,
+    # T-1693/PL-166/PL-195). The waker gets --agent-id separately; this threads
+    # the same identity into the claude process the waker rings.
+    if [ "$REACHABLE" -eq 1 ] && [ -n "${AGENT_ID:-}" ]; then
+        [ -z "$env_prefix" ] && env_prefix="env "
+        env_prefix="${env_prefix}TERMLINK_AGENT_ID=$(printf '%q' "$AGENT_ID") "
+    fi
     for arg in "${CLAUDE_ARGS[@]}"; do
         [ "$arg" = "--dangerously-skip-permissions" ] && has_skip=1
     done
@@ -186,6 +197,10 @@ cmd_oneshot() {
     # register/claude resolves its OWN project (see build_claude_cmd note).
     # This path uses exec (inherited env), so unset in-shell rather than prefix.
     [ "${TL_KEEP_PROJECT_ROOT:-0}" != "1" ] && unset PROJECT_ROOT
+    # T-2411: bind per-agent identity into the exec'd claude env (exec path
+    # analog of the build_claude_cmd prefix) so the woken REPL resolves its own
+    # agent-id fp, not the shared host key. See build_claude_cmd T-2411 note.
+    [ "$REACHABLE" -eq 1 ] && [ -n "${AGENT_ID:-}" ] && export TERMLINK_AGENT_ID="$AGENT_ID"
     # T-2400: same auto-accept guarantee as build_claude_cmd, but this path uses
     # exec (not PTY-string injection), so export IS_SANDBOX into the inherited
     # env and append the flag to the argv rather than prefixing a shell string.

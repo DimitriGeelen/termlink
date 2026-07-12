@@ -75,10 +75,22 @@ fi
 if [ -n "$topic" ]; then
     :
 elif [ -n "$peer_fp" ]; then
-    # PL-195: whoami --json's session.identity_fingerprint is not the wire-level
-    # envelope sender_id (it's null on every host probed). Read sender_id from
-    # the local hub's view of any topic this host has signed instead.
-    self_fp="$("$TERMLINK" channel info agent-presence --json 2>/dev/null | jq -r '.senders[0].sender_id // empty')"
+    self_fp=""
+    # T-2411: on a shared host, `channel info agent-presence .senders[0]` returns
+    # the FIRST/host sender, not this agent's own fp — so the responder builds a
+    # dm topic keyed to the wrong identity and its ack never matches the rail the
+    # sender addressed. When TERMLINK_AGENT_ID is set (reachable claude launched
+    # via tl-claude), prefer the deterministic env-respecting resolver, which
+    # returns THIS agent-id's fp regardless of shared-host presence ordering.
+    if [ -n "${TERMLINK_AGENT_ID:-}" ]; then
+        self_fp="$("$TERMLINK" agent identity --resolve --json 2>/dev/null | jq -r '.fingerprint // empty')"
+    fi
+    # PL-195 fallback: whoami --json's session.identity_fingerprint is not the
+    # wire-level envelope sender_id (it's null on every host probed). Read
+    # sender_id from the local hub's view of any topic this host has signed.
+    if [ -z "$self_fp" ]; then
+        self_fp="$("$TERMLINK" channel info agent-presence --json 2>/dev/null | jq -r '.senders[0].sender_id // empty')"
+    fi
     if [ -z "$self_fp" ]; then
         self_fp="$("$TERMLINK" channel info agent-chat-arc --json 2>/dev/null | jq -r '.senders[] | select(.posts > 0) | .sender_id' | head -1)"
     fi
