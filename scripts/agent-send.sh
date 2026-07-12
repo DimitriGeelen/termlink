@@ -578,8 +578,32 @@ for (( ring=1; ring<=max_rings; ring++ )); do
     [ -n "$deliver_offset" ] && break
 done
 
+# T-2412: post-ring GRACE poll. A cold-start / slow peer's reply can land AFTER
+# the ring cadence closes (observed live: a fresh claude's first turn ran ~82s
+# vs ~40s of rings), which would spuriously escalate a GENUINELY-answered
+# doorbell to woken-but-silent. Give the confirmation one final extended window
+# before giving up. Uses the SAME broadened wake-confirm matcher (receipt OR an
+# in_reply_to reply), so a late reply counts and is identity-agnostic. Tunable
+# via AGENT_SEND_GRACE_SECS (default 60; 0 disables → pre-T-2412 give-up timing).
+# Skipped on the fallback path (host down — nothing was rung to answer late).
+if [ -z "$deliver_offset" ] && [ "$eff_transport" != "fallback" ]; then
+    grace="${AGENT_SEND_GRACE_SECS:-60}"
+    if [ "$grace" -gt 0 ] 2>/dev/null; then
+        echo "agent-send: rings exhausted, no confirmation yet — grace poll ${grace}s for a cold-start/slow peer (cid=$cid)" >&2
+        wc_json="$( bash "$SELF_DIR/wake-confirm.sh" --topic "$topic" --cid "$cid" \
+                        --since-offset "$post_offset" --timeout "$grace" \
+                        "${hub_args[@]+"${hub_args[@]}"}" --json 2>/dev/null || true )"
+        if printf '%s' "$wc_json" | jq -e '.consumed==true' >/dev/null 2>&1; then
+            deliver_offset="$(printf '%s' "$wc_json" | jq -r '.receipt_offset // empty')"
+            deliver_stage="$(printf '%s' "$wc_json" | jq -r '.stage // empty')"
+            [ "$deliver_stage" = "null" ] && deliver_stage=""
+            [ -n "$deliver_offset" ] && echo "agent-send: grace poll caught confirmation for cid=$cid at offset=$deliver_offset" >&2
+        fi
+    fi
+fi
+
 if [ -n "$deliver_offset" ]; then
-    echo "agent-send: DELIVERED${deliver_stage:+ (stage=$deliver_stage)} — receipt for cid=$cid at offset=$deliver_offset"
+    echo "agent-send: DELIVERED${deliver_stage:+ (stage=$deliver_stage)} — confirmation for cid=$cid at offset=$deliver_offset"
     [ -n "$await_reply" ] || exit 0
 
     # --await-reply: poll for the peer's reply turn — the first msg_type=turn on

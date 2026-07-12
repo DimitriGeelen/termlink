@@ -58,15 +58,32 @@ done
 hub_args=()
 [ -n "$hub_addr" ] && hub_args=(--hub "$hub_addr")
 
-# THE canonical receipt selector (identical to agent-send.sh's inline wait,
-# lines ~533-538): a receipt on this cid whose up_to acks the turn we posted.
-# A stale receipt from an earlier turn (up_to < since_offset) does NOT count —
-# that was the T-1808 multi-turn false-DELIVERED bug.
-receipt_from_json() { # stdin: subscribe json ; stdout: receipt json or empty
+# THE canonical confirmation selector (identical to agent-send.sh's inline wait,
+# lines ~533-538). A wake is CONSUMED if EITHER:
+#   (a) a receipt on this cid whose up_to acks the turn we posted. A stale
+#       receipt from an earlier turn (up_to < since_offset) does NOT count —
+#       that was the T-1808 multi-turn false-DELIVERED bug.
+#   (b) T-2412: a substantive REPLY on this cid that references our posted turn
+#       (metadata.in_reply_to == since_offset). A reply is just as definitive a
+#       proof of consumption as a receipt — the recipient read the turn and
+#       answered it — but a fresh/non-framework responder posts msg_type=note
+#       (via /agent-handoff or agent-respond's reply path) WITHOUT the separate
+#       msg_type=receipt, so the receipt-only filter (a) misses a genuinely
+#       answered doorbell and reports a false "woken-but-silent" (observed live,
+#       T-2409/.122 concierge proof: reply landed at offset 3 with in_reply_to=2
+#       but no receipt). Matching on in_reply_to is IDENTITY-AGNOSTIC: it works
+#       even when the peer signs its reply as a shared-host key (the .107 case),
+#       because our OWN original post carries no in_reply_to — so this can never
+#       self-match the sender's turn.
+receipt_from_json() { # stdin: subscribe json ; stdout: confirming envelope json or empty
     jq -c -s --argjson po "$since_offset" '
         [ .[] | if type=="array" then .[] else . end ]
-        | map(select((.msg_type // "") == "receipt"
-                     and ((.metadata.up_to | tonumber? // -1) >= $po)))
+        | map(select(
+                ((.msg_type // "") == "receipt"
+                     and ((.metadata.up_to | tonumber? // -1) >= $po))
+              or (((.msg_type // "") == "note" or (.msg_type // "") == "chat")
+                     and ((.metadata.in_reply_to | tonumber? // -1) == $po))
+            ))
         | (.[0] // empty)' 2>/dev/null || true
 }
 
@@ -90,11 +107,15 @@ if [ -n "$receipt_json" ] && [ "$receipt_json" != "null" ]; then
     off="$(printf '%s' "$receipt_json" | jq -r '.offset // empty')"
     stage="$(printf '%s' "$receipt_json" | jq -r '.metadata.stage // empty')"
     [ "$stage" = "null" ] && stage=""
+    mtype="$(printf '%s' "$receipt_json" | jq -r '.msg_type // empty')"
+    # T-2412: distinguish a receipt-ack from a substantive reply — both are
+    # CONSUMED, but the operator wants to know which arrived.
+    kind="receipt"; [ "$mtype" = "note" ] || [ "$mtype" = "chat" ] && kind="reply"
     if [ "$json" -eq 1 ]; then
-        jq -cn --arg cid "$cid" --argjson off "${off:-null}" --arg stage "$stage" \
-            '{consumed:true, cid:$cid, receipt_offset:$off, stage:(if $stage=="" then null else $stage end)}'
+        jq -cn --arg cid "$cid" --argjson off "${off:-null}" --arg stage "$stage" --arg kind "$kind" \
+            '{consumed:true, cid:$cid, receipt_offset:$off, kind:$kind, stage:(if $stage=="" then null else $stage end)}'
     else
-        echo "wake-confirm: CONSUMED${stage:+ (stage=$stage)} — receipt for cid=$cid at offset=${off:-?}"
+        echo "wake-confirm: CONSUMED${stage:+ (stage=$stage)} — $kind for cid=$cid at offset=${off:-?}"
     fi
     exit 0
 fi
