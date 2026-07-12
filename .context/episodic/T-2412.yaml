@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2412: Harden doorbell consumption-confirmation — count cid-matched reply (in_reply_to) as CONSUMED + grace poll for cold-start peers
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-12T21:10:21Z
+# ============================================================================
+
+task_id: T-2412
+task_name: "Harden doorbell consumption-confirmation — count cid-matched reply (in_reply_to) as CONSUMED + grace poll for cold-start peers"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-12T21:04:31Z
+completed: 2026-07-12T21:10:17Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-12T23:09:50+02:00
+last_commit: 2026-07-12T23:10:16+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  harden doorbell consumption-confirmation — count cid-matched reply (in_reply_to) as CONSUMED + post-ring grace poll for cold-start peers. check ACs — all 4 met + live real-data proof (concierge reply now CONSUMED)
+
+# Key outcomes
+outcomes:
+  - '`wake-confirm.sh` matcher counts a cid-matched REPLY as CONSUMED: an'
+  - '`agent-send.sh` inline consumption-wait mirrors the same broadened matcher'
+  - 'A post-ring GRACE poll: after the final ring, `agent-send.sh` keeps polling'
+  - 'Hermetic test (`tests/wake-confirm-reply-match.sh`) via the'
+  - '**LIVE real-data proof:** ran the fixed `wake-confirm.sh` against the actual'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/agent-send.sh'
+  - 'scripts/wake-confirm.sh'
+  - '.tasks/active/T-2412-harden-doorbell-consumption-confirmation.md'
+  - 'tests/wake-confirm-reply-match.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-12T23:09:50"
+    action: "T-2412: harden doorbell consumption-confirmation — count cid-matched reply (in_reply_to) as CONSUMED + post-ring grace poll for cold-start peers"
+  - time: "2026-07-12T23:10:16"
+    action: "T-2412: check ACs — all 4 met + live real-data proof (concierge reply now CONSUMED)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 2
+  files_changed: 4
+  lines_added: 351
+  lines_removed: 19
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2412-harden-doorbell-consumption-confirmation.md
+generated_by: context-agent-hybrid
