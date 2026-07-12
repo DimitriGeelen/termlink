@@ -22,6 +22,20 @@ TERMLINK="${TERMLINK_BIN:-termlink}"
 # extracted wake-confirm.sh (the single consumption-confirmation implementation).
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# T-2410: sender-side doorbell idle-gate. Source (a) the pure decision helper and
+# (b) the T-2402 PTY-state probe primitive (BE_REACHABLE_PUSHWAKER_LIB=1 defines the
+# helpers without running pushwaker main — only `set -u` + a TERMLINK assignment run
+# at source time, both harmless here). Best-effort: if either lib is missing the
+# gate silently disables and the ring falls back to the legacy blind inject.
+_idle_gate_available=0
+if [ -r "$SELF_DIR/lib-idle-gate.sh" ] && [ -r "$SELF_DIR/be-reachable-pushwaker.sh" ]; then
+    # shellcheck disable=SC1091
+    if . "$SELF_DIR/lib-idle-gate.sh" 2>/dev/null \
+       && BE_REACHABLE_PUSHWAKER_LIB=1 . "$SELF_DIR/be-reachable-pushwaker.sh" 2>/dev/null; then
+        _idle_gate_available=1
+    fi
+fi
+
 die() { echo "agent-send: $*" >&2; exit 2; }
 
 usage() {
@@ -515,12 +529,33 @@ for (( ring=1; ring<=max_rings; ring++ )); do
     else
         echo "agent-send: ring $ring/$max_rings -> inject '$doorbell_text' into '$to_session'${peer_hub:+ @ $peer_hub}"
         if [ "$ring_remote" -eq 1 ]; then
-            ring_cmd=( "$TERMLINK" remote inject "$peer_hub" "$to_session" "$doorbell_text" --enter )
+            # REMOTE path: cross-hub PTY probe is not available (`pty output` is
+            # local-hub-only), so the doorbell stays a best-effort blind remote
+            # inject — unchanged from pre-T-2410.
+            if ! "$TERMLINK" remote inject "$peer_hub" "$to_session" "$doorbell_text" --enter >/dev/null 2>&1; then
+                echo "agent-send: WARN ring $ring — remote inject into '$to_session' @ $peer_hub failed (session missing?); turn already posted, still awaiting receipt" >&2
+            fi
         else
-            ring_cmd=( "$TERMLINK" inject "$to_session" "$doorbell_text" --enter )
-        fi
-        if ! "${ring_cmd[@]}" >/dev/null 2>&1; then
-            echo "agent-send: WARN ring $ring — inject into '$to_session'${peer_hub:+ @ $peer_hub} failed (session missing?); turn already posted, still awaiting receipt" >&2
+            # LOCAL path: T-2410 sender-side idle-gate — symmetric with the recipient
+            # waker (T-2402). Probe the PTY and inject only at a READY prompt so a
+            # blind inject never lands in a BUSY peer's in-progress input. On BUSY/
+            # UNKNOWN we DEFER this ring (the loop re-rings after the wake-confirm
+            # wait); on the FINAL ring a non-READY state falls back to a blind inject
+            # so an unclassifiable session is never worse off than pre-T-2410. Opt out
+            # entirely with AGENT_SEND_IDLE_GATE=0.
+            _gate_on=0
+            [ "${AGENT_SEND_IDLE_GATE:-1}" != "0" ] && [ "${_idle_gate_available:-0}" -eq 1 ] && _gate_on=1
+            _pty_state=READY
+            [ "$_gate_on" -eq 1 ] && _pty_state="$(pushwaker_probe_pty "$to_session" 2>/dev/null || echo UNKNOWN)"
+            if [ "$(agent_send_idle_gate_decide "$_pty_state" "$ring" "$max_rings" "$_gate_on")" = "defer" ]; then
+                echo "agent-send: ring $ring — peer '$to_session' not idle (state=$_pty_state); DEFERRING inject to next ring (T-2410 idle-gate)" >&2
+            else
+                [ "$_gate_on" -eq 1 ] && [ "$_pty_state" != "READY" ] \
+                    && echo "agent-send: ring $ring — peer '$to_session' state=$_pty_state on final ring; blind inject fallback (T-2410)" >&2
+                if ! "$TERMLINK" inject "$to_session" "$doorbell_text" --enter >/dev/null 2>&1; then
+                    echo "agent-send: WARN ring $ring — inject into '$to_session' failed (session missing?); turn already posted, still awaiting receipt" >&2
+                fi
+            fi
         fi
     fi
     # T-2396: delegate the per-ring receipt-wait to the extracted wake-confirm
