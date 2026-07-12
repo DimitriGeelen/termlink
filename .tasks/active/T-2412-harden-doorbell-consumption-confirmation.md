@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-12T21:04:31Z
-last_update: 2026-07-12T21:04:31Z
+last_update: 2026-07-12T21:09:51Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -52,23 +52,29 @@ self-match).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `wake-confirm.sh` matcher counts a cid-matched REPLY as CONSUMED: an
+- [x] `wake-confirm.sh` matcher counts a cid-matched REPLY as CONSUMED: an
       envelope with `msg_type in {note,chat}` AND
       `metadata.in_reply_to == since_offset`, in addition to the existing
       `msg_type=receipt` + `up_to >= since_offset` path. Backward compatible (the
       receipt path is unchanged; T-1808 stale-receipt guard preserved).
-- [ ] `agent-send.sh` inline consumption-wait mirrors the same broadened matcher
+- [x] `agent-send.sh` inline consumption-wait mirrors the same broadened matcher
       (or delegates to wake-confirm.sh) so the primary ring loop benefits, not
-      just the standalone verb.
-- [ ] A post-ring GRACE poll: after the final ring, `agent-send.sh` keeps polling
+      just the standalone verb. (Delegates to wake-confirm.sh at line ~570 — it
+      inherits the fix automatically.)
+- [x] A post-ring GRACE poll: after the final ring, `agent-send.sh` keeps polling
       for confirmation for an extended window (default ≥60s, tunable via env) so a
       cold-start / slow peer whose reply lands after the ring cadence is caught
-      before declaring woken-but-silent.
-- [ ] Hermetic test (`tests/wake-confirm-reply-match.sh`) via the
+      before declaring woken-but-silent. (`AGENT_SEND_GRACE_SECS`, default 60.)
+- [x] Hermetic test (`tests/wake-confirm-reply-match.sh`) via the
       `TERMLINK_WAKECONFIRM_TEST_JSON` seam proves: a note-reply with matching
       in_reply_to → CONSUMED; a receipt (up_to>=so) → CONSUMED (unchanged); an
       original post (no in_reply_to) → NOT self-matched; unrelated traffic →
-      NOT CONSUMED. `bash -n` clean on both edited scripts.
+      NOT CONSUMED. `bash -n` clean on both edited scripts. (12/12 PASS.)
+- [x] **LIVE real-data proof:** ran the fixed `wake-confirm.sh` against the actual
+      .122 concierge reply that the OLD matcher missed (topic
+      `dm:88743a9a:d1993c2c`, cid `cid-1783885903-21757`, since-offset 2) →
+      `{"consumed":true,"receipt_offset":3,"kind":"reply"}`. The exact
+      woken-but-silent case now correctly reports CONSUMED.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
