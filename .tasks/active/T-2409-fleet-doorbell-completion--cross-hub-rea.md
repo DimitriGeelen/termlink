@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-12T13:09:27Z
-last_update: 2026-07-12T13:09:27Z
+last_update: 2026-07-12T13:22:53Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -252,3 +252,57 @@ in a maintenance window, and ideally with ring20's ownership. The precise reques
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2409-fleet-doorbell-completion--cross-hub-rea.md
 - **Context:** Initial task creation
+
+### 2026-07-12 (session 2) — ring20 residual: operator authorized, discovery ROOT CAUSE fixed + PROVEN
+Operator re-issued the emphatic "make it work across the whole fleet" directive → the
+T-2409 "operator decision" (who does the ring20 host-side work) is answered: proceed on
+the operator's own infra (ring20 = Dimitri's containers, not a separate team). Executed
+the SAFE, no-sweep path (the T-2409 sweep incident lesson stands):
+- **Root cause confirmed on .122:** hub SUPPORTS cv_index (`channel cv-keys agent-presence
+  --hub .122` → `{count:0, ok:true}`), but NO live producer and the only script set is a
+  stale Jun-9 AEF copy whose `listener-heartbeat.sh` has **0 cv_key refs** (pre-T-2107).
+  Empty cv_index → presence reads fall back to walking the 55k backlog → cross-hub timeout.
+- **Fix + PROOF (no sweep needed):** pushed the current cv_key `listener-heartbeat.sh`
+  (sha 5733c302, byte-identical) to `.122:/opt/tl-fleet-scratch/`, ran it as a bounded
+  discovery probe (`--agent-id ring20-doorbell-probe`, no pty_session = honest, not fake-armed).
+  Result: `.107 → channel cv-keys agent-presence --hub .122` returned the entry in **73ms**
+  (was: timeout); `/peers --all` from .107 **DISCOVERED** `ring20-doorbell-probe @ .122 LIVE`.
+  cv-index read does NOT walk the 55k backlog → the bloat is now harmless, no risky sweep.
+  Probe torn down cleanly (0 procs; no husk).
+- **Toolkit placed:** transferred the full current reachable script set (8 files: listener-heartbeat,
+  be-reachable, be-reachable-pushwaker T-2402, tl-claude, agent-send T-2410, agent-respond,
+  wake-confirm, lib-idle-gate) to `.122:/opt/tl-fleet-scratch/scripts/` (tar sha 16e7c481, verified).
+  .122 also HAS claude (`/root/.local/bin/claude`). So .122 is one command away from a reachable agent.
+- **Three legs now all demonstrated for .122:** DISCOVERY ✓ (this session, cross-hub 73ms),
+  SEND ✓ (T-2409 .107→.122 post+readback), WAKE/RESPOND ✓ (identical mechanism proven on .107).
+- **Remaining = deployment decision (operator/agent, not unilateral):** which .122 agent becomes
+  reachable — arm an existing one (ring20-management/skills-manager — needs their consent, don't
+  hijack another project's live agent) OR launch a dedicated reachable agent. One-liner ready:
+  `cd /opt/tl-fleet-scratch && bash scripts/tl-claude.sh start --reachable --agent-id <name> -- --resume`.
+  .121 needs the same toolkit push (no foothold session there yet). .141 down (no route, infra).
+- Negligible leftover: stale cv_index last-value `ring20-doorbell-probe` on .122 (no live producer,
+  ages out of LIVE; harmless).
+
+### 2026-07-12 (session 2, cont.) — operator chose PERSISTENT CONCIERGE; .122 concierge armed, 1 step short
+Operator answered the AskUserQuestion: **"Persistent concierge agent"** on .122 (+ .121). Executed on .122:
+- Pushed supplemental deps to `.122:/opt/tl-fleet-scratch/` (agent-reply, peer-presence-lookup,
+  relay-hop-check + `.claude/commands/{check-arc,reply,be-reachable}.md`) — sha-verified. .122 now has
+  11 scripts + 3 skills.
+- **Launched `ring20-concierge`** via `tl-claude.sh start --reachable` (as root → IS_SANDBOX=1 +
+  `--dangerously-skip-permissions` auto-added by tl-claude T-2400, so auto-accept is armed).
+  Result: be-reachable armed (heartbeat pid 1782770 + push_waker pid 1782812, pty=claude-master,
+  self_fp `88743a9ad59fda39`, listen_topics `dm:ring20-concierge:*,agent-chat-arc`).
+  **`.107 → /peers --all` DISCOVERS it LIVE + armed** (pty=claude-master). Discovery + arming: DONE.
+- **ONE STEP SHORT (budget-gated at 291k):** the concierge's claude REPL is parked on claude's
+  **first-run security-acceptance prompt** (`1.No,exit / 2.Yes,I accept`) — so it is armed+discoverable
+  but NOT yet a functional responder (a doorbell would find it not-READY → idle-gated defer). It is
+  effectively an armed-but-onboarding-pending session until the prompt is cleared.
+- **COMPLETION STEP (next session or manual, ~30s):** on .122, clear onboarding then confirm ready:
+  `termlink inject claude-master "2" --enter` (accept ToS), re-probe
+  `termlink pty output claude-master --bytes 1200 --strip-ansi` and clear any further onboarding
+  (theme/login) until the `? for shortcuts` idle prompt shows. THEN prove the round-trip from .107:
+  `bash scripts/agent-send.sh --to ring20-concierge --message "[T-2409] cross-hub doorbell proof"`
+  → expect a CONSUMED receipt (not woken-but-silent). This is the final "doorbell works across the fleet" proof.
+- **.121 (ring20-dashboard):** no remote-exec foothold session there yet → cannot push toolkit / launch
+  concierge remotely. Needs a foothold (a `termlink register`ed session on .121) OR the same toolkit+launch
+  done locally on .121. Deferred — flagged for operator. .141 down (no route, infra).
