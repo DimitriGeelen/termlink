@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-12T19:39:08Z
-last_update: 2026-07-12T19:39:08Z
+last_update: 2026-07-12T19:42:04Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -57,19 +57,28 @@ heartbeat/waker but never exports it into the claude process itself.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `tl-claude.sh` exports `TERMLINK_AGENT_ID=<agent_id>` into the reachable
+- [x] `tl-claude.sh` exports `TERMLINK_AGENT_ID=<agent_id>` into the reachable
       claude process in BOTH launch paths (`build_claude_cmd` PTY-string path and
       `cmd_oneshot` exec path), gated on `REACHABLE=1` and a non-empty AGENT_ID.
-- [ ] `agent-respond.sh` prefers the deterministic env-respecting self-fp source
+- [x] `agent-respond.sh` prefers the deterministic env-respecting self-fp source
       (`termlink agent identity --resolve --json | .fingerprint`) when
       `TERMLINK_AGENT_ID` is set, falling back to the existing PL-195
       `channel info agent-presence .senders[0]` scrape when it is not (preserves
       current behavior for non-agent-id sessions — no regression).
-- [ ] Hermetic test (`tests/tl-claude-identity-binding.sh`) proves: (a) the
+- [x] Hermetic test (`tests/tl-claude-identity-binding.sh`) proves: (a) the
       launcher composes `TERMLINK_AGENT_ID` into the claude command when reachable
       + agent-id set and omits it otherwise; (b) `agent-respond.sh` self-fp
       resolver picks the env-respecting path when `TERMLINK_AGENT_ID` is set. All
       cases PASS; `bash -n` clean on both edited scripts.
+- [x] **LIVE cross-hub proof (.107 → .122):** deployed the fix to .122
+      fleet-scratch, relaunched ring20-concierge through the fixed launcher (claude
+      pid 1988328 confirmed carrying `TERMLINK_AGENT_ID=ring20-concierge` in
+      `/proc/<pid>/environ`), sent a doorbell from .107, and the concierge posted a
+      reply on the SAME rail signed `sender_id=88743a9ad59fda39` (its own agent-id
+      fp — NOT the host key `9219671e`), `conversation_id=cid-1783885903-21757`
+      (exact match), `in_reply_to="2"`. Payload: "respond-half confirmed …
+      Whole-fleet doorbell RESPOND half works." The prior un-bound concierge signed
+      the SAME rail as `9219671e` (offset 1) — the before/after is on one rail.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -220,3 +229,23 @@ rather than dependent on shared-host presence ordering, closing the
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2411-bind-per-agent-identity-into-reachable-c.md
 - **Context:** Initial task creation
+
+### 2026-07-12 — fix + live cross-hub proof
+- **Fix:** `scripts/tl-claude.sh` (both launch paths export `TERMLINK_AGENT_ID`) +
+  `scripts/agent-respond.sh` (env-respecting `agent identity --resolve` self-fp
+  preferred when `TERMLINK_AGENT_ID` set). Hermetic test
+  `tests/tl-claude-identity-binding.sh` 9/9 PASS. Committed 95ad9db8.
+- **Live proof:** deployed to .122 fleet-scratch (sha-matched), full teardown of
+  the stale concierge (4 duplicate wakers + dead session cleaned), clean relaunch
+  via fixed launcher → claude pid 1988328 carries `TERMLINK_AGENT_ID`. Doorbell
+  from .107 → concierge posted reply signed `88743a9a` (own agent-id fp) with
+  matching cid + in_reply_to. Before/after on ONE rail: offset 1 = un-bound
+  concierge signed host key `9219671e`; offset 3 = bound concierge signed
+  `88743a9a`. **Whole-fleet doorbell RESPOND half proven end-to-end.**
+- **Residual (separate, smaller):** (1) sender receipt-poll window (3 rings ~40s)
+  is too short for a COLD-START claude turn (~80s) — the ack lands but after
+  agent-send gives up → spurious "woken-but-silent". Tune ring count / add a
+  post-ring grace re-poll. (2) claude's own `whoami` still returns the host key
+  `9219671e` (session-identity layer) so its self-NARRATION is confused even
+  though the WIRE post is correctly signed — full per-agent session keys = T-1693
+  deeper scope, cosmetic here. Neither blocks the doorbell.

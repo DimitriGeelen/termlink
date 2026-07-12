@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-12T13:09:27Z
-last_update: 2026-07-12T13:22:53Z
+last_update: 2026-07-12T17:51:16Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -306,3 +306,22 @@ Operator answered the AskUserQuestion: **"Persistent concierge agent"** on .122 
 - **.121 (ring20-dashboard):** no remote-exec foothold session there yet → cannot push toolkit / launch
   concierge remotely. Needs a foothold (a `termlink register`ed session on .121) OR the same toolkit+launch
   done locally on .121. Deferred — flagged for operator. .141 down (no route, infra).
+
+### 2026-07-12 (session 3) — RESIDUAL COMPLETE: whole-fleet doorbell RESPOND proven end-to-end
+The concierge round-trip that was "1 step short" is now DONE and the failure it surfaced is FIXED.
+Completing the .122 onboarding (accept bypass prompt) and sending the doorbell revealed the real
+remaining gap: the woken claude REPL resolved its identity to the shared HOST key (9219671e) not its
+advertised agent-id fp (88743a9a), so `/check-arc respond` on a rail keyed to the agent-id refused to
+post — "woken-but-silent" was an IDENTITY mismatch, not a wake failure. Root-caused + fixed under
+**T-2411** (bind `TERMLINK_AGENT_ID` into the reachable claude process; agent-respond prefers the
+env-respecting `agent identity --resolve`). Deployed to .122, relaunched concierge identity-bound,
+re-sent the doorbell → concierge posted its ack on the SAME rail signed `88743a9a` (own fp),
+cid `cid-1783885903-21757`, in_reply_to "2": "Whole-fleet doorbell RESPOND half works." Before/after
+on one rail: offset 1 (un-bound) signed host key 9219671e; offset 3 (bound) signed 88743a9a.
+- **Chain now GREEN end-to-end:** transport (cross-hub direct) ✓ · discovery (cv_key) ✓ · wake (PTY
+  doorbell) ✓ · **respond with correct per-agent identity** ✓.
+- **Small residuals (logged in T-2411, non-blocking):** sender receipt-poll window too short for a
+  cold-start claude turn (ack lands after agent-send gives up → spurious woken-but-silent); claude's
+  own whoami still shows host key (self-narration only, wire identity correct — T-1693 deeper scope).
+- **.121 (ring20-dashboard):** still needs a remote-exec foothold OR local toolkit+launch. Same
+  recipe as .122 now proven. .141 down (infra).
