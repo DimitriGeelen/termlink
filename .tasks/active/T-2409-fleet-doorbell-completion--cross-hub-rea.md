@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-12T13:09:27Z
-last_update: 2026-07-12T19:57:17Z
+last_update: 2026-07-17T11:16:38Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -325,3 +325,48 @@ on one rail: offset 1 (un-bound) signed host key 9219671e; offset 3 (bound) sign
   own whoami still shows host key (self-narration only, wire identity correct — T-1693 deeper scope).
 - **.121 (ring20-dashboard):** still needs a remote-exec foothold OR local toolkit+launch. Same
   recipe as .122 now proven. .141 down (infra).
+
+### 2026-07-17 (session 4) — DELIVERED proven end-to-end; .121 root-caused as doorbell-incapable
+
+**The doorbell chain now CLOSES on a live peer.** `agent-send.sh --to workflow-designer`
+→ `DELIVERED — confirmation for cid=cid-1784286690-7916 at offset=52`. First live
+DELIVERED on the .107 fleet. wfd's reply signed with its OWN fp `6a646ce8` (not the host
+key) and independently narrated the proof: *"Doorbell chain confirmed closed — signed
+with my own fp, proving T-2411 identity binding + T-2413 msg_type=turn confirm path both
+land."*
+
+**"Why are they sitting and waiting instead of talking?" — answered with evidence: they
+ARE talking.** aef and workflow-designer were found mid-substantive exchange on
+`dm:0e7ee6ca...:6a646ce8...` (offset 50: wfd correcting its own earlier veto to aef,
+unprompted). aef was mid-`Churned for 41s` when rung — busy, not idle.
+
+**T-2411 confirmed LIVE in the field on the shared host:** aef signed 7 posts with its
+own fp `0e7ee6ca`, ZERO with host key `d1993c2c`.
+
+**Two real bugs found by DRIVING the rail (not by reading code):**
+- **T-2413** (shipped, closed) — T-2412's matcher was blind to `msg_type=turn`, the
+  canonical reply type. Genuinely-answered doorbells reported "receiver never acked".
+  Real-rail regression fixture pinned. Live: `consumed:false` -> `consumed:true`.
+- **T-2414** (shipped, closed) — confirmation window ~90s vs MEASURED replies of 44s
+  (aef) and 98s (sonnenstall). Widened to ~150s against the measured p100.
+
+**Identity-agnostic matching proven on the WORST case:** sonnenstall's reply signed with
+`d1993c2c` — OUR OWN host key (it is un-bound, predating the fixed launcher). wake-confirm
+still returned `consumed:true`, because `in_reply_to` matching never depends on sender
+identity and our own post carries no `in_reply_to` to self-match.
+
+**.121 root-caused — NOT infra, NOT comms code:** hub is UP and auth PASSES in 42ms, but
+`channel cv-keys --hub .121` returns `-32001: Missing 'target' in params` => the binary
+predates cv_index (T-2103), so presence reads walk the backlog and time out (rc=124).
+.121 is doorbell-incapable. It is version-floor-EXEMPT, so the fleet-binary canary says
+"healthy" — the framework cannot see this. Registered **G-084**; detection half filed as
+**T-2415** (probe CAPABILITY, not version — lineage-independent, which a version floor
+provably cannot be for a tag-epoch-artifact hub). Remediation needs a foothold + binary
+upgrade ON .121 (no remote-exec session there — operator reach).
+
+**Whole-fleet state:** .107 DONE (5 LIVE armed, DELIVERED proven, agents conversing
+unprompted). .122 concierge proven (T-2411) + cv-keys healthy (count=2). .121
+doorbell-incapable (stale hub binary, no foothold). .141 no route (infra).
+**Residual, NOT forced:** sonnenstall still signs as host key — heals on natural relaunch
+through `tl-claude --reachable --agent-id`; killing another agent's live session is
+outside Autonomous Mode Boundaries.
