@@ -2165,3 +2165,41 @@ concerns:
   - T-1629
   - T-1630
   - T-1638
+- id: G-084
+  type: gap
+  severity: medium
+  title: Framework cannot express "hub is UP and authenticating but structurally incapable
+    of carrying the doorbell" — version-floor exemption makes capability-staleness invisible
+  description: 'Found 2026-07-17 while completing the whole-fleet doorbell (T-2409).
+    ring20-dashboard (.121) passes `fleet doctor` in 42ms and is version-floor-EXEMPT
+    (`ring20-dashboard -` in .context/cron/fleet-version-floors.conf), so the T-2359
+    fleet-binary canary reports "healthy — all floored reachable hubs at/above floor".
+    But `termlink channel cv-keys agent-presence --hub 192.168.10.121:9100` returns
+    `JSON-RPC error -32001: Missing ''target'' in params` — the hub binary predates
+    cv_index (T-2103), so every agent-presence read walks the full backlog and times out
+    (rc=124). .121 is therefore invisible to /peers, find-idle, and the `agent contact`
+    reachability preflight: structurally excluded from the doorbell, with NOTHING firing.
+    The condition has been read for weeks as "unreachable, informational" (PL-219) when
+    the real state is "UP, authenticating, doorbell-incapable" — a different and
+    actionable diagnosis. THE STRUCTURAL POINT: the exemption is CORRECT on its own terms.
+    CLAUDE.md documents that .121''s 0.11.806 is a `git describe` tag-epoch artifact and
+    that patch numbers are NOT comparable across lineages/tag epochs (T-2377: .121 is
+    likely a ~1050-commit-STALE build of our OWN mainline, not a fork). A version FLOOR
+    provably cannot judge such a hub — which is why it was exempted, which is why the
+    framework went blind. Every instrument we have measures VERSION; the question that
+    matters is CAPABILITY ("can this hub carry the doorbell?"). A capability probe
+    (does it answer channel.cv_keys?) is lineage-independent, tag-epoch-independent and
+    decisive — it settles what version comparison cannot. Generalises beyond .121: ANY
+    exempt hub can silently lose ANY capability and no canary will ever say so.
+    Detection half filed as T-2415; remediating .121 itself needs a foothold + binary
+    upgrade on that host (no remote-exec session exists there — operator reach).
+    Do not close on the .121 upgrade alone: that is mitigation (one hub fixed), not
+    prevention (the framework still could not have told you).'
+  status: watching
+  created: 2026-07-17
+  last_reviewed: 2026-07-17
+  related_tasks:
+  - T-2415
+  - T-2409
+  - T-2359
+  - T-2377

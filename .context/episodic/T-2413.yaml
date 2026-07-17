@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2413: wake-confirm misses msg_type=turn replies — false woken-but-silent on the doorbell rail
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-17T11:05:33Z
+# ============================================================================
+
+task_id: T-2413
+task_name: "wake-confirm misses msg_type=turn replies — false woken-but-silent on the doorbell rail"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-17T11:01:33Z
+completed: 2026-07-17T11:05:28Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-17T13:05:22+02:00
+last_commit: 2026-07-17T13:05:22+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix false woken-but-silent — wake-confirm now matches msg_type=turn replies (the canonical reply type); real-rail regression fixture + 19/19 suite; live-proven on aef rail
+
+# Key outcomes
+outcomes:
+  - '`wake-confirm.sh` counts `msg_type=turn` with `metadata.in_reply_to == since_offset` as CONSUMED'
+  - 'The `receipt` path (`up_to >= since_offset`) and the T-1808 stale-receipt guard are both preserved'
+  - 'Our own posted turn (no `in_reply_to`) still does NOT self-match, including when sender and recipient share a host key'
+  - 'CONSUMED output reports `kind="reply"` for a turn-reply (not `kind="receipt"`)'
+  - 'Hermetic test covers the turn-reply case + real-rail regression fixture; `tests/wake-confirm-reply-match.sh` passes'
+  - 'Replaying the REAL captured aef rail (offset 2, turn, in_reply_to=1) through `wake-confirm.sh` yields `consumed:true`'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix false woken-but-silent — wake-confirm now matches msg_type=turn replies (the canonical reply type); real-rail regression fixture + 19/19 suite; live-proven on aef rail'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-2410.yaml'
+  - '.context/episodic/T-2411.yaml'
+  - 'scripts/wake-confirm.sh'
+  - '.tasks/active/T-2413-wake-confirm-misses-msgtypeturn-replies-.md'
+  - 'tests/fixtures/aef-turn-reply.json'
+  - 'tests/wake-confirm-reply-match.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-17T13:05:22"
+    action: "T-2413: fix false woken-but-silent — wake-confirm now matches msg_type=turn replies (the canonical reply type); real-rail regression fixture + 19/19 suite; live-proven on aef rail"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 6
+  lines_added: 489
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2413-wake-confirm-misses-msgtypeturn-replies-.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2414: doorbell confirmation window too tight for real agents — 90s default misses measured 98s replies
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-17T11:11:07Z
+# ============================================================================
+
+task_id: T-2414
+task_name: "doorbell confirmation window too tight for real agents — 90s default misses measured 98s replies"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-17T11:08:39Z
+completed: 2026-07-17T11:11:02Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-17T13:10:57+02:00
+last_commit: 2026-07-17T13:10:57+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  widen doorbell confirmation window 90s->150s against measured peer latency (aef 44s, sonnenstall 98s); regression guard pins default vs field p100
+
+# Key outcomes
+outcomes:
+  - '`AGENT_SEND_GRACE_SECS` default raised to cover the measured p100 (98s) with margin'
+  - 'Total confirmation window (rings + grace) is >= 120s at defaults'
+  - 'The default is justified in-code by the measured latency data, not left as a bare number'
+  - '`AGENT_SEND_GRACE_SECS=0` still disables the grace poll (pre-T-2412 give-up timing preserved)'
+  - 'Operator-overridable via env (`AGENT_SEND_GRACE_SECS=N`) — no hard-coding'
+  - 'Hermetic test asserts the default value and the 0-disables contract; suite passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/agent-send.sh'
+  - '.tasks/active/T-2414-doorbell-confirmation-window-too-tight-f.md'
+  - '.tasks/completed/T-2413-wake-confirm-misses-msgtypeturn-replies-.md'
+  - 'tests/agent-send-grace-window.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-17T13:10:57"
+    action: "T-2414: widen doorbell confirmation window 90s->150s against measured peer latency (aef 44s, sonnenstall 98s); regression guard pins default vs field p100"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 4
+  lines_added: 363
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2414-doorbell-confirmation-window-too-tight-f.md
+generated_by: context-agent-hybrid
