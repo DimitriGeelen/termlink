@@ -584,10 +584,28 @@ done
 # doorbell to woken-but-silent. Give the confirmation one final extended window
 # before giving up. Uses the SAME broadened wake-confirm matcher (receipt OR an
 # in_reply_to reply), so a late reply counts and is identity-agnostic. Tunable
-# via AGENT_SEND_GRACE_SECS (default 60; 0 disables → pre-T-2412 give-up timing).
+# via AGENT_SEND_GRACE_SECS (0 disables → pre-T-2412 give-up timing).
 # Skipped on the fallback path (host down — nothing was rung to answer late).
+#
+# T-2414: default raised 60 -> 120, justified by MEASURED peer latency rather than
+# intuition. A real claude-code peer must finish its current churn before it reads the
+# doorbell, so replies land late — not because anything is broken. Measured live
+# 2026-07-17 on the .107 shared host via `agent-send.sh --to <agent>`:
+#
+#     peer          reply latency    old window (~90s)
+#     aef           44s              caught
+#     sonnenstall   98s              MISSED by ~8s  <-- false woken-but-silent
+#
+# The old default (30s rings + 60s grace = ~90s) sat mid-distribution, so a genuinely
+# answered doorbell was coin-flip-reported as "receiver never acked" and escalated to
+# the woken-but-silent canary. 120s grace => ~150s total window, clearing the measured
+# p100 (98s) with ~50s margin. A false "silent peer" is precisely what trains agents and
+# operators to stop trusting the rail and fall back to passive waiting — so erring long
+# here is strictly cheaper than erring short: the cost of waiting is seconds, the cost of
+# a false silent is a rail nobody believes. If you lower this, re-measure first;
+# tests/agent-send-grace-window.sh pins it against the field data above.
 if [ -z "$deliver_offset" ] && [ "$eff_transport" != "fallback" ]; then
-    grace="${AGENT_SEND_GRACE_SECS:-60}"
+    grace="${AGENT_SEND_GRACE_SECS:-120}"
     if [ "$grace" -gt 0 ] 2>/dev/null; then
         echo "agent-send: rings exhausted, no confirmation yet — grace poll ${grace}s for a cold-start/slow peer (cid=$cid)" >&2
         wc_json="$( bash "$SELF_DIR/wake-confirm.sh" --topic "$topic" --cid "$cid" \
