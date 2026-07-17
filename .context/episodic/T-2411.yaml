@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2411: Bind per-agent identity into reachable claude session (doorbell respond gap + shared-host fp leak, T-1693)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-12T19:56:25Z
+# ============================================================================
+
+task_id: T-2411
+task_name: "Bind per-agent identity into reachable claude session (doorbell respond gap + shared-host fp leak, T-1693)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-12T19:39:08Z
+completed: 2026-07-12T19:56:21Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-12T21:42:03+02:00
+last_commit: 2026-07-12T21:56:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  bind per-agent identity into reachable claude session — fixes doorbell RESPOND gap + shared-host fp leak (T-1693). whole-fleet doorbell RESPOND half proven live — concierge acks signed with own agent-id fp (88743a9a), not host key; T-2409 residual complete
+
+# Key outcomes
+outcomes:
+  - '`tl-claude.sh` exports `TERMLINK_AGENT_ID=<agent_id>` into the reachable'
+  - '`agent-respond.sh` prefers the deterministic env-respecting self-fp source'
+  - 'Hermetic test (`tests/tl-claude-identity-binding.sh`) proves: (a) the'
+  - '**LIVE cross-hub proof (.107 → .122):** deployed the fix to .122'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'bind per-agent identity into reachable claude session — fixes doorbell RESPOND gap + shared-host fp leak (T-1693)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/agent-respond.sh'
+  - 'scripts/tl-claude.sh'
+  - '.tasks/active/T-2409-fleet-doorbell-completion--cross-hub-rea.md'
+  - '.tasks/active/T-2411-bind-per-agent-identity-into-reachable-c.md'
+  - 'tests/tl-claude-identity-binding.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-12T21:42:03"
+    action: "T-2411: bind per-agent identity into reachable claude session — fixes doorbell RESPOND gap + shared-host fp leak (T-1693)"
+  - time: "2026-07-12T21:56:11"
+    action: "T-2411: whole-fleet doorbell RESPOND half proven live — concierge acks signed with own agent-id fp (88743a9a), not host key; T-2409 residual complete"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 17 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 17
+  commits: 2
+  files_changed: 5
+  lines_added: 389
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2411-bind-per-agent-identity-into-reachable-c.md
+generated_by: context-agent-hybrid

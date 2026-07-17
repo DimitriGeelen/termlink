@@ -75,13 +75,26 @@ hub_args=()
 #       even when the peer signs its reply as a shared-host key (the .107 case),
 #       because our OWN original post carries no in_reply_to — so this can never
 #       self-match the sender's turn.
+#
+#       T-2413: the reply class MUST include msg_type=turn. `turn` is the
+#       CANONICAL reply on this rail — agent-send.sh's own --await-reply defines
+#       the peer's answer as "first msg_type=turn with offset > the posted turn".
+#       T-2412 shipped with only note/chat (every fixture was modelled on the one
+#       observed .122 concierge reply, which happened to be a note), so send and
+#       confirm disagreed about what a reply IS: the send path expected `turn`,
+#       the confirm path refused to see it. Result was a FALSE woken-but-silent on
+#       a genuinely answered doorbell (observed live 2026-07-17, peer `aef` at
+#       offset 2 with in_reply_to=1 — pinned as tests/fixtures/aef-turn-reply.json).
+#       Keep this list and agent-send's reply definition in agreement.
+REPLY_MSG_TYPES='["note","chat","turn"]'
+
 receipt_from_json() { # stdin: subscribe json ; stdout: confirming envelope json or empty
-    jq -c -s --argjson po "$since_offset" '
+    jq -c -s --argjson po "$since_offset" --argjson rt "$REPLY_MSG_TYPES" '
         [ .[] | if type=="array" then .[] else . end ]
         | map(select(
                 ((.msg_type // "") == "receipt"
                      and ((.metadata.up_to | tonumber? // -1) >= $po))
-              or (((.msg_type // "") == "note" or (.msg_type // "") == "chat")
+              or ((((.msg_type // "") as $mt | $rt | index($mt)) != null)
                      and ((.metadata.in_reply_to | tonumber? // -1) == $po))
             ))
         | (.[0] // empty)' 2>/dev/null || true
@@ -110,7 +123,11 @@ if [ -n "$receipt_json" ] && [ "$receipt_json" != "null" ]; then
     mtype="$(printf '%s' "$receipt_json" | jq -r '.msg_type // empty')"
     # T-2412: distinguish a receipt-ack from a substantive reply — both are
     # CONSUMED, but the operator wants to know which arrived.
-    kind="receipt"; [ "$mtype" = "note" ] || [ "$mtype" = "chat" ] && kind="reply"
+    # T-2413: derive from the receipt case rather than enumerating reply types —
+    # anything the selector matched that is NOT a receipt matched via in_reply_to,
+    # so it is by construction a reply. Enumerating here is what let `turn` fall
+    # through the cracks once already.
+    kind="reply"; [ "$mtype" = "receipt" ] && kind="receipt"
     if [ "$json" -eq 1 ]; then
         jq -cn --arg cid "$cid" --argjson off "${off:-null}" --arg stage "$stage" --arg kind "$kind" \
             '{consumed:true, cid:$cid, receipt_offset:$off, kind:$kind, stage:(if $stage=="" then null else $stage end)}'
