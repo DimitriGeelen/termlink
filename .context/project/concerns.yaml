@@ -2194,10 +2194,24 @@ concerns:
     Detection half filed as T-2415; remediating .121 itself needs a foothold + binary
     upgrade on that host (no remote-exec session exists there — operator reach).
     Do not close on the .121 upgrade alone: that is mitigation (one hub fixed), not
-    prevention (the framework still could not have told you).'
+    prevention (the framework still could not have told you).
+    ---
+    UPDATE 2026-07-18 — PREVENTION SHIPPED (T-2415, work-completed). New sibling canary
+    scripts/check-fleet-capability-freshness.sh probes channel.cv_keys per reachable hub
+    (lineage-independent, orthogonal to version floors), FIRES on any hub that rejects the
+    RPC regardless of version-floor exemption. Live-verified: fires on .121, passes
+    .107/.122/local-test, keeps .141 informational. Cron installed
+    /etc/cron.d/termlink-fleet-capability-canary (daily 06:07 + meta-aliveness 07:47);
+    /canaries auto-discovers it (currently shows FIRING on .121 — the correct signal the
+    framework was previously blind to). 21/21 hermetic test tests/fleet-capability-canary.sh.
+    The framework can now SAY which hubs are doorbell-incapable. GAP STAYS OPEN (watching)
+    because prevention (detection) exists but MITIGATION does not: .121 is still
+    doorbell-incapable and its upgrade needs a foothold on that host (operator reach). The
+    canary will nag daily until .121 is upgraded or explicitly FLEET_CAP_EXEMPT-ed. Close
+    only when .121 is either doorbell-capable or a declared non-participant.'
   status: watching
   created: 2026-07-17
-  last_reviewed: 2026-07-17
+  last_reviewed: 2026-07-18
   related_tasks:
   - T-2415
   - T-2409
