@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2415: Fleet-binary canary blind to capability-staleness on exempt hubs (.121 cannot serve cv_keys)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-18T07:36:07Z
+# ============================================================================
+
+task_id: T-2415
+task_name: "Fleet-binary canary blind to capability-staleness on exempt hubs (.121 cannot serve cv_keys)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-17T11:15:22Z
+completed: 2026-07-18T07:36:02Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-07-18T09:35:54+02:00
+last_commit: 2026-07-18T09:35:54+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fleet capability-freshness canary (G-084 prevention) — probes channel.cv_keys per hub, fires on doorbell-incapable .121 that version floors cannot judge; sibling to fleet-binary canary, 21/21 test, cron installed
+
+# Key outcomes
+outcomes:
+  - 'Canary probes a doorbell-prerequisite CAPABILITY (`channel.cv_keys`) per reachable hub, independent of version floors'
+  - 'A hub that is version-floor-EXEMPT still FIRES when it cannot serve the capability (the `.121` case)'
+  - 'A hub that serves the capability does NOT fire (the `.122` case — verify against both live hubs)'
+  - 'Unreachable hubs stay informational, never firing (PL-219 convention preserved)'
+  - 'Firing output names the failed capability + the remediation (binary upgrade on that host), not just "stale"'
+  - 'Existing version-floor behaviour is unchanged (no regression in `tests/`-covered floor logic)'
+  - 'Test hook feeds canned probe results so the check is verifiable hub-independently (PL-213 convention)'
+  - 'Canary is wired to fire daily (cron installed to `/etc/cron.d`) and `/canaries` auto-discovers it'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+  - decision: '2026-07-18 — sibling canary vs extending the fleet-binary canary'
+    chose: 'a NEW sibling script `scripts/check-fleet-capability-freshness.sh`, not'
+    rationale: '(1) the codebase pattern is one-canary-per-concern (~10 canaries, each its own'
+    alternatives_rejected: ['bolting a capability branch into the binary canary — would couple two']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/fleet-capability-canary.crontab'
+  - 'scripts/check-fleet-capability-freshness.sh'
+  - '.tasks/active/T-2415-fleet-binary-canary-blind-to-capability-.md'
+  - 'tests/fleet-capability-canary.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-18T09:35:54"
+    action: "T-2415: fleet capability-freshness canary (G-084 prevention) — probes channel.cv_keys per hub, fires on doorbell-incapable .121 that version floors cannot judge; sibling to fleet-binary canary, 21/21 test, cron installed"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1220 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1220
+  commits: 1
+  files_changed: 4
+  lines_added: 485
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2415-fleet-binary-canary-blind-to-capability-.md
+generated_by: context-agent-hybrid

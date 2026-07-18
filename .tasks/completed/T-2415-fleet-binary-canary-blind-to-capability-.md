@@ -4,10 +4,10 @@ name: "Fleet-binary canary blind to capability-staleness on exempt hubs (.121 ca
 description: >
   Add a lineage-independent CAPABILITY probe to the fleet-binary canary so a hub that cannot serve doorbell-prerequisite RPCs (cv_keys) FIRES, even when version-floor-exempt. .121 is doorbell-incapable and nothing fires.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-17T11:15:22Z
-last_update: 2026-07-18T07:29:47Z
-date_finished: null
+last_update: 2026-07-18T07:36:02Z
+date_finished: 2026-07-18T07:36:02Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -299,3 +299,26 @@ informational. Generalises: ANY exempt hub that loses ANY probed capability now 
 - **This CLOSES the prevention half of G-084** — the framework now SAYS which hubs are
   doorbell-incapable. Mitigation (upgrading .121 itself) still needs a foothold on that
   host (operator reach); detection no longer waits on it.
+
+### 2026-07-18 — follow-up: CLAUDE.md convention doc UNLANDED (budget-gated)
+The per-canary `### Fleet capability-freshness canary` section for CLAUDE.md (framework
+convention: each canary documented in the CLAUDE.md canary list) was drafted but BLOCKED
+by the budget-gate (source-file edit at ~95% context). The canary itself is fully live,
+tested, cron-wired, and /canaries-discovered — the doc is purely descriptive and does NOT
+gate function. NEXT SESSION (cheap, ~2 min, fresh budget): add the drafted section after
+the stale-waker-code canary section in CLAUDE.md (before "## Project-Specific Rules"),
+bump "nine canaries…ten" → "ten…eleven", note the three fleet-fitness axes (T-2359 version
+floor / T-2387 dead waker / T-2415 missing capability). Draft text is in this session's
+transcript. The reviewer PASS above covers the code+test+cron; the doc is cosmetic.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-3cdf1124
+- **Timestamp:** 2026-07-18T07:36:04Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-18T07:36:02Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
