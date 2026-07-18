@@ -348,6 +348,47 @@ a zero-outage waker-only respawn (heartbeat/presence never drops, T-2404). `/can
 auto-discovers the log. Pair with the nine canaries above — all ten follow the same
 "empty-log = healthy" convention.
 
+### Fleet capability-freshness canary (T-2415, G-084 prevention)
+
+The fleet-binary canary (T-2359) checks each hub's version against a declared
+**floor** — but a floor cannot express "this hub is UP, authenticating, and
+version-floor-EXEMPT, yet structurally CANNOT carry the doorbell." G-084 surfaced
+exactly that: ring20-dashboard (.121) passes `fleet doctor`, is floor-exempt (its
+patch number is a `git describe` tag-epoch artifact, NOT comparable across
+lineages — see the T-2359 note), and yet **rejects `channel.cv_keys`** (its binary
+predates the cv_index primitive, T-2103), so it is silently excluded from
+push-wake discovery with nothing firing. Version floors are provably blind to this
+class; only a **capability probe** can see it. A daily cron runs
+`scripts/check-fleet-capability-freshness.sh --quiet` (see
+`.context/cron/fleet-capability-canary.crontab`) and appends to
+`.context/working/.fleet-capability-canary.log`. Empty log = healthy.
+
+The canary walks `fleet doctor --json` for the hub list + reachability, then probes
+`channel cv-keys agent-presence --hub <addr> --json` on every **reachable** hub — a
+lineage-independent, tag-epoch-independent test of the doorbell's discovery
+prerequisite. Per-hub classification: **capable** (exit 0 + parseable `.count` —
+even `count:0` is healthy, an empty cv_index is not an error per T-2106),
+**incapable** (RPC rejected: `-32001` / `-32601` / method-not-found — the firing
+class), **inconclusive** (timeout / connection failure — fleet doctor owns
+reachability, so these never fire), **unreachable** (no probe attempted —
+informational per PL-219), **exempt** (`FLEET_CAP_EXEMPT=<hub>` — distinct from the
+version-floor exemption; for hubs that legitimately are not doorbell participants).
+The three fleet-fitness canaries now cover three orthogonal axes: **T-2359** = hub
+binary below its version FLOOR, **T-2387** = DEAD/unwakeable waker, **T-2415**
+(this) = hub structurally INCAPABLE of the doorbell RPC regardless of version.
+Ad-hoc check: `bash scripts/check-fleet-capability-freshness.sh` (exit 0 = healthy,
+1 = a reachable hub rejects the capability probe, 2 = tooling error); add `--json`
+for scripting (carries per-hub `state` + `firing[]` with the failed `capability`),
+`--no-heartbeat` to skip the heartbeat touch. Test seams (PL-213):
+`TERMLINK_FLEET_CAP_DOCTOR_JSON=<file>` feeds a canned `fleet doctor --json`,
+`TERMLINK_FLEET_CAP_PROBE_DIR=<dir>` feeds per-hub probe fixtures
+(`<slug>.rc` / `<slug>.out`, slug = address with `:/.` → `_`) for hub-independent
+verification. Operator action on firing: upgrade the named hub to a binary that
+serves cv_index and restart THROUGH the systemd unit (G-070) — needs a foothold on
+that host; or, if the hub is legitimately not a doorbell participant, set
+`FLEET_CAP_EXEMPT=<hub-name>`. `/canaries` auto-discovers the log. Pair with the ten
+canaries above — all eleven follow the same "empty-log = healthy" convention.
+
 ## Project-Specific Rules
 
 ### Hub Auth Rotation Protocol
