@@ -1,4 +1,42 @@
 concerns:
+- id: G-085
+  type: gap
+  title: woken-but-silent canary can never return to green — its log is append-only (written by agent-send.sh
+    at send time) with no re-verification path, so a false-positive or late-arriving reply keeps /canaries
+    permanently RED on stale residue
+  description: 'G-083 closed the DETECT side (a rung-but-not-consumed send now escalates a framed entry to
+    .woken-but-silent-canary.log, surfaced by /canaries). But the entry is written ONCE, at send time, and
+    nothing ever re-evaluates it. Two mechanisms produce false entries that then never clear: (a) pre-T-2413
+    the matcher was blind to msg_type=turn replies (the canonical reply type), so a peer that DID reply was
+    logged as silent; (b) pre-T-2414 the confirmation window (90s) was tighter than measured peer reply
+    latency (aef 44s, sonnenstall 98s), so a reply arriving 8s late left a permanent entry. Both sources are
+    now fixed, but the RESIDUE persists: on 2026-07-18 all 5 entries in the live log were re-verified against
+    the current rail via wake-confirm.sh and ALL 5 came back CONSUMED (aef off1->reply off2; sonnenstall
+    off0->off1; workflow-designer off35->off36; ring20-concierge off0->off1 and off2->off3 on .122). i.e.
+    100% false-positive residue, yet /canaries showed FIRING. A canary that stays red after the underlying
+    problem is resolved is worse than no canary — the operator learns to ignore it, and a REAL woken-but-silent
+    then hides in the noise (the classic cry-wolf failure that erodes trust in the doorbell health signal).
+    Mirror of G-083: G-083 = blind to the silent send; G-085 = blind to the silent send being later resolved.'
+  spec_reference: scripts/agent-send.sh::escalate_woken_but_silent (append-only writer, no re-verify);
+    scripts/wake-confirm.sh (the live matcher that CAN re-verify but is never invoked retrospectively);
+    T-2413 (msg_type=turn matcher fix — false-source a); T-2414 (window widen — false-source b); PL-168
+    (a canary needs a trigger to be prevention); G-083 (the detect-side sibling)
+  severity: medium
+  trigger_fired: true
+  trigger_event: '2026-07-18 session pickup: /canaries showed woken-but-silent-canary FIRING; re-verifying
+    each of the 5 logged entries against the live rail via wake-confirm.sh returned CONSUMED for all 5 —
+    the canary was red purely on stale false-positive residue from since-fixed bugs (T-2413/T-2414)'
+  detection_lag_days: 6 (oldest false entry 2026-07-12; canary stayed red through the T-2413/T-2414 fixes
+    with no path to clear it)
+  status: watching
+  what_works_now: 'The DETECT side works (G-083 — genuine silent sends escalate a framed entry). The matcher
+    (wake-confirm.sh, post-T-2413/T-2414) correctly classifies CONSUMED vs NOT-CONSUMED against live rail
+    state. What is missing- a re-verify-and-clear pass that re-runs the matcher over each logged entry and
+    archives the ones now CONSUMED (false/late), keeping only the genuinely-still-silent ones, plus a cron
+    trigger so late replies self-clear within a day (PL-168- a manual-only tool is dormant, not prevention).
+    Prevention shipped T-2416 (scripts/woken-silent-triage.sh + daily cron). Gap stays watching until the
+    triage has run at least one live cycle on the fleet and the canary is proven to return to green on
+    resolved entries while still firing on a genuine silent send.'
 - id: G-083
   type: gap
   title: WAKE layer has no consumption-confirmation — a rung recipient that never consumes the wake (busy

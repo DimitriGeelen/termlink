@@ -1,0 +1,31 @@
+# T-2416 — woken-but-silent canary self-healer (G-085 prevention).
+#
+# Source of truth: /opt/termlink/.context/cron/woken-silent-triage.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-woken-silent-triage (USER field syntax — do NOT load into a user crontab)
+#
+# The woken-but-silent canary (G-083) is written append-only by agent-send.sh at
+# send time and never re-evaluated, so a false-positive (pre-T-2413 msg_type=turn
+# blindness) or a late-arriving reply (pre-T-2414 tight window) keeps /canaries
+# permanently RED on stale residue — the cry-wolf failure that trains operators to
+# ignore the signal. This cron re-runs the LIVE matcher (wake-confirm.sh) over each
+# logged entry and CLEARS the ones now CONSUMED (archiving them to
+# .woken-but-silent-canary.resolved.log), keeping only genuinely-still-silent ones.
+# Late replies therefore self-clear within a day; a real silent send stays red.
+#
+# Empty log = healthy. `--apply --quiet` mutates only when it clears a resolved
+# entry, and it writes the canary's .heartbeat so canary-status can tell "cron ran
+# AND clean" from "cron stopped". A KEPT still-silent entry is left with the log
+# strictly newer than the heartbeat, so /canaries keeps FIRING on it (never masked).
+# /canaries auto-discovers the log.
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 06:53 UTC — minute :53 dodges :03 fleet-binary, :07 fleet-capability,
+# :13 mirror, :17 heartbeat, :23 substrate-preflight, :33 meta-canary, :43 rollout
+# audit. Runs as root so cwd-into the repo doesn't trip permissions on .context/.
+53 6 * * * root cd /opt/termlink && bash scripts/woken-silent-triage.sh --apply --quiet >> .context/working/.woken-silent-triage.log 2>&1
+
+# T-1723/T-2175 — meta-canary: fires ~100 minutes later, different minute, so a
+# cron lock or load race can't take both out together. --quiet means the log only
+# grows when the triage's heartbeat is stale (the self-healer itself broke).
+33 8 * * * root cd /opt/termlink && HEARTBEAT_FILE=.context/working/.woken-but-silent-canary.heartbeat CANARY_NAME="woken-silent-triage" CANARY_PROBE_CMD="bash scripts/woken-silent-triage.sh --quiet --no-heartbeat" CANARY_CRON_PATH=/etc/cron.d/termlink-woken-silent-triage bash scripts/check-canary-aliveness.sh --quiet >> .context/working/.canary-aliveness.log 2>&1
