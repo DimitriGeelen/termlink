@@ -1,0 +1,33 @@
+# T-2415 — fleet capability-freshness canary (G-084 prevention).
+#
+# Source of truth: /opt/termlink/.context/cron/fleet-capability-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-fleet-capability-canary (USER field syntax — do NOT load into a user crontab)
+#
+# SIBLING to the fleet-binary canary, answering what a version FLOOR cannot.
+# G-084: ring20-dashboard (.121) passes `fleet doctor` and is version-floor-EXEMPT,
+# yet CANNOT serve channel.cv_keys (its binary predates cv_index, T-2103), so it is
+# structurally excluded from the doorbell with nothing firing. This canary probes
+# the doorbell's discovery prerequisite (channel.cv_keys) on every reachable hub —
+# a lineage-independent, tag-epoch-independent test — and FIRES on any hub that
+# rejects the RPC, exemption from the VERSION floor notwithstanding.
+#
+# Exit 0 from --quiet means healthy and prints nothing; the log accumulates only
+# firing entries (framed === ts === ... ---), so an empty log is the healthy state.
+# /canaries auto-discovers the log.
+#
+# Operator action on firing: upgrade the named hub to a binary that serves cv_index
+# and restart THROUGH the systemd unit (G-070) — needs a foothold on that host. If a
+# hub legitimately is not a doorbell participant, set FLEET_CAP_EXEMPT=<hub-name>
+# (distinct from the version-floor exemption).
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 06:07 UTC — minute :07 dodges :03 fleet-binary, :13 mirror, :17
+# heartbeat, :23 substrate-preflight, :33 meta-canary, :43 rollout audit.
+# Runs as root so cwd-into the repo doesn't trip permissions on .context/.
+7 6 * * * root cd /opt/termlink && bash scripts/check-fleet-capability-freshness.sh --quiet >> .context/working/.fleet-capability-canary.log 2>&1
+
+# T-1723/T-2175 — meta-canary: fires ~100 minutes later, different minute, so a
+# cron lock or load race can't take both out together. --quiet means the log only
+# grows when the canary's heartbeat is stale (the canary itself broke).
+47 7 * * * root cd /opt/termlink && HEARTBEAT_FILE=.context/working/.fleet-capability-canary.heartbeat CANARY_NAME="fleet-capability canary" CANARY_PROBE_CMD="bash scripts/check-fleet-capability-freshness.sh --quiet --no-heartbeat" CANARY_CRON_PATH=/etc/cron.d/termlink-fleet-capability-canary bash scripts/check-canary-aliveness.sh --quiet >> .context/working/.canary-aliveness.log 2>&1

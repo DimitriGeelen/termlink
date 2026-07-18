@@ -4,7 +4,7 @@ name: "Fleet-binary canary blind to capability-staleness on exempt hubs (.121 ca
 description: >
   Add a lineage-independent CAPABILITY probe to the fleet-binary canary so a hub that cannot serve doorbell-prerequisite RPCs (cv_keys) FIRES, even when version-floor-exempt. .121 is doorbell-incapable and nothing fires.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-17T11:15:22Z
-last_update: 2026-07-17T11:15:22Z
+last_update: 2026-07-18T07:29:47Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -81,13 +81,14 @@ DETECTION half only: make the framework SAY it.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Canary probes a doorbell-prerequisite CAPABILITY (`channel.cv_keys`) per reachable hub, independent of version floors
-- [ ] A hub that is version-floor-EXEMPT still FIRES when it cannot serve the capability (the `.121` case)
-- [ ] A hub that serves the capability does NOT fire (the `.122` case — verify against both live hubs)
-- [ ] Unreachable hubs stay informational, never firing (PL-219 convention preserved)
-- [ ] Firing output names the failed capability + the remediation (binary upgrade on that host), not just "stale"
-- [ ] Existing version-floor behaviour is unchanged (no regression in `tests/`-covered floor logic)
-- [ ] Test hook feeds canned probe results so the check is verifiable hub-independently (PL-213 convention)
+- [x] Canary probes a doorbell-prerequisite CAPABILITY (`channel.cv_keys`) per reachable hub, independent of version floors
+- [x] A hub that is version-floor-EXEMPT still FIRES when it cannot serve the capability (the `.121` case)
+- [x] A hub that serves the capability does NOT fire (the `.122` case — verify against both live hubs)
+- [x] Unreachable hubs stay informational, never firing (PL-219 convention preserved)
+- [x] Firing output names the failed capability + the remediation (binary upgrade on that host), not just "stale"
+- [x] Existing version-floor behaviour is unchanged (no regression in `tests/`-covered floor logic)
+- [x] Test hook feeds canned probe results so the check is verifiable hub-independently (PL-213 convention)
+- [x] Canary is wired to fire daily (cron installed to `/etc/cron.d`) and `/canaries` auto-discovers it
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -153,7 +154,41 @@ DETECTION half only: make the framework SAY it.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+bash tests/fleet-capability-canary.sh
+bash -n scripts/check-fleet-capability-freshness.sh
+bash -n scripts/check-fleet-binary-freshness.sh
+test -f /etc/cron.d/termlink-fleet-capability-canary
+
 ## RCA
+
+**Symptom:** ring20-dashboard (.121) is structurally excluded from the fleet doorbell —
+it cannot serve `channel.cv_keys`, so every agent-presence read against it times out and
+it is invisible to `/peers`, `find-idle`, and the `agent contact` reachability preflight —
+yet nothing in the framework fires. The fleet-binary canary reports "healthy".
+
+**Root cause:** every fleet-health instrument measures VERSION, and .121 is
+version-floor-EXEMPT because its version number is uninterpretable (a `git describe`
+tag-epoch artifact — patch numbers are not comparable across build lineages, T-2377).
+The exemption is correct; the problem is that VERSION is the wrong axis. The operator's
+real question is "can this hub carry the doorbell?" — a CAPABILITY question — and no
+instrument asked it.
+
+**Why structurally allowed:** the fleet-binary canary (T-2359) was designed around a
+declared floor precisely so it would NOT misjudge foreign/ambiguous lineages — so by
+construction it exempts exactly the hubs most likely to be silently incapable. Exemption
+from a version floor was implicitly treated as exemption from ALL fleet-fitness checks,
+because no other fitness check existed. A down/slow hub read as "unreachable,
+informational" (PL-219) masked the sharper truth: UP, authenticating in 42ms, but
+doorbell-incapable.
+
+**Prevention:** a SIBLING canary that probes capability directly
+(`scripts/check-fleet-capability-freshness.sh` — does the hub answer `channel.cv_keys`?),
+orthogonal to and independent of version floors. It FIRES on any reachable hub that
+rejects the RPC, version-floor exemption notwithstanding. Lineage-independent by
+construction (it asks the hub a question rather than comparing an integer). Wired daily
+via `/etc/cron.d/termlink-fleet-capability-canary` + meta-canary aliveness; `/canaries`
+discovers it. Live-verified: fires on .121, passes .107/.122/local, keeps .141
+informational. Generalises: ANY exempt hub that loses ANY probed capability now surfaces.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -220,3 +255,47 @@ DETECTION half only: make the framework SAY it.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2415-fleet-binary-canary-blind-to-capability-.md
 - **Context:** Initial task creation
+
+### 2026-07-18T07:29:47Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+
+## Decisions
+
+### 2026-07-18 — sibling canary vs extending the fleet-binary canary
+- **Chose:** a NEW sibling script `scripts/check-fleet-capability-freshness.sh`, not
+  an added check inside `check-fleet-binary-freshness.sh`.
+- **Why:** (1) the codebase pattern is one-canary-per-concern (~10 canaries, each its own
+  script + cron + log); (2) "independent of version floors" is literally satisfied and
+  the version-floor canary is provably untouched (zero regression risk — asserted by
+  `bash -n` on it in the suite); (3) the two share NO logic — floor comparison vs RPC
+  capability probe are different detection philosophies for the same question ("is this
+  hub fit?"), and conflating them would muddy both. Version exemption must NOT imply
+  capability exemption, which is cleanest when the two live in separate instruments.
+- **Rejected:** bolting a capability branch into the binary canary — would couple two
+  orthogonal axes, risk the floor logic, and make the exempt-but-fires semantics harder
+  to reason about.
+
+## Updates
+
+### 2026-07-18 — built, live-verified, wired
+- **Script:** `scripts/check-fleet-capability-freshness.sh` — walks `fleet doctor --json`
+  for the hub list + reachability, probes `channel cv-keys agent-presence --hub <addr>
+  --json` per REACHABLE hub, classifies capable / incapable / inconclusive (pure
+  `classify_probe`, unit-tested). Same conventions as the 10 prior canaries
+  (`--quiet`/`--json`/`--no-heartbeat`/`.heartbeat`/framed-log/empty-log=healthy/exit 0-1-2).
+- **Live proof (real fleet):** FIRES on ring20-dashboard (.121) — "CANNOT serve
+  channel.cv_keys — binary predates cv_index (T-2103); doorbell-incapable"; passes
+  local-test / ring20-management (.122) / workstation-107-public (.107); keeps
+  laptop-141 (.141) informational (unreachable).
+- **Test:** `tests/fleet-capability-canary.sh` 21/21 ALL PASS — classify_probe matrix
+  (incl. the real .121 -32001 signature and -32601 method-not-found) + end-to-end via
+  the PL-213 seams (`TERMLINK_FLEET_CAP_DOCTOR_JSON` + `TERMLINK_FLEET_CAP_PROBE_DIR`):
+  exempt-but-incapable FIRES, capable does not, unreachable informational, inconclusive
+  does not fire, FLEET_CAP_EXEMPT silences.
+- **Cron:** `.context/cron/fleet-capability-canary.crontab` (git-tracked) installed to
+  `/etc/cron.d/termlink-fleet-capability-canary` (0644 root:root) — daily 06:07 UTC +
+  meta-canary aliveness 07:47. `/canaries` now lists it (14→15 canaries; shows FIRING on
+  .121, which is the correct current signal).
+- **This CLOSES the prevention half of G-084** — the framework now SAYS which hubs are
+  doorbell-incapable. Mitigation (upgrading .121 itself) still needs a foothold on that
+  host (operator reach); detection no longer waits on it.
