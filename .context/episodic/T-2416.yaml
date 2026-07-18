@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2416: woken-but-silent canary never self-heals — re-verify-and-clear triage
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-18T08:11:24Z
+# ============================================================================
+
+task_id: T-2416
+task_name: "woken-but-silent canary never self-heals — re-verify-and-clear triage"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-18T07:58:20Z
+completed: 2026-07-18T08:11:19Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-18T10:08:08+02:00
+last_commit: 2026-07-18T10:08:08+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  woken-but-silent canary self-healer (G-085) — re-verify-and-clear triage clears false/late-reply residue, daily cron self-heals, keeps genuine silents FIRING
+
+# Key outcomes
+outcomes:
+  - '`scripts/woken-silent-triage.sh` parses each framed log entry (cid, topic, `hub=` if present, `offset=N`) and re-runs `wake-confirm.sh` per entry, partitioning into RESOLVED (exit 0 / CONSUMED) vs STILL-SILENT (exit 3)'
+  - '`--apply` rewrites the live log with only STILL-SILENT entries and appends RESOLVED entries (with a `resolved-at` note + the offset the reply was found at) to `.woken-but-silent-canary.resolved.log`; default (no `--apply`) is report-only (no mutation)'
+  - '`--json` emits `{ok, resolved[], still_silent[], summary}`; exit 0 when nothing still-silent, 1 when ≥1 still-silent remains, 2 on tooling error'
+  - 'PL-213 test seam: `WOKEN_TRIAGE_CONFIRM_CMD` overrides the matcher invocation so the triage is verified hub-independently (stub returns canned per-cid verdicts)'
+  - '`tests/woken-silent-triage.sh` covers: all-resolved→green, mixed→keeps silent one, `--apply` archives + shrinks live log, report-mode is non-mutating, malformed entry skipped, `--hub` entry forwards `--hub`; ALL PASS'
+  - 'Daily cron (`.context/cron/woken-silent-triage.crontab`) runs `--apply --quiet` + a meta-canary aliveness companion, installed to `/etc/cron.d`'
+  - 'Live proof: running the triage against the real fleet clears all 5 current false-positive entries and returns the canary to green (`/canaries` no longer FIRING on woken-but-silent)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/woken-silent-triage.crontab'
+  - '.context/project/concerns.yaml'
+  - 'scripts/woken-silent-triage.sh'
+  - '.tasks/active/T-2416-woken-but-silent-canary-never-self-heals.md'
+  - 'tests/woken-silent-triage.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-18T10:08:08"
+    action: "T-2416: woken-but-silent canary self-healer (G-085) — re-verify-and-clear triage clears false/late-reply residue, daily cron self-heals, keeps genuine silents FIRING"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 12 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 12
+  commits: 1
+  files_changed: 5
+  lines_added: 673
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2416-woken-but-silent-canary-never-self-heals.md
+generated_by: context-agent-hybrid

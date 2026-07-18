@@ -4,10 +4,10 @@ name: "woken-but-silent canary never self-heals — re-verify-and-clear triage"
 description: >
   woken-but-silent canary never self-heals — re-verify-and-clear triage
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-18T07:58:20Z
-last_update: 2026-07-18T07:58:20Z
-date_finished: null
+last_update: 2026-07-18T08:11:19Z
+date_finished: 2026-07-18T08:11:19Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -47,13 +47,13 @@ keeps only genuinely-still-silent ones, plus a daily cron so late replies self-c
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `scripts/woken-silent-triage.sh` parses each framed log entry (cid, topic, `hub=` if present, `offset=N`) and re-runs `wake-confirm.sh` per entry, partitioning into RESOLVED (exit 0 / CONSUMED) vs STILL-SILENT (exit 3)
-- [ ] `--apply` rewrites the live log with only STILL-SILENT entries and appends RESOLVED entries (with a `resolved-at` note + the offset the reply was found at) to `.woken-but-silent-canary.resolved.log`; default (no `--apply`) is report-only (no mutation)
-- [ ] `--json` emits `{ok, resolved[], still_silent[], summary}`; exit 0 when nothing still-silent, 1 when ≥1 still-silent remains, 2 on tooling error
-- [ ] PL-213 test seam: `WOKEN_TRIAGE_CONFIRM_CMD` overrides the matcher invocation so the triage is verified hub-independently (stub returns canned per-cid verdicts)
-- [ ] `tests/woken-silent-triage.sh` covers: all-resolved→green, mixed→keeps silent one, `--apply` archives + shrinks live log, report-mode is non-mutating, malformed entry skipped, `--hub` entry forwards `--hub`; ALL PASS
-- [ ] Daily cron (`.context/cron/woken-silent-triage.crontab`) runs `--apply --quiet` + a meta-canary aliveness companion, installed to `/etc/cron.d`
-- [ ] Live proof: running the triage against the real fleet clears all 5 current false-positive entries and returns the canary to green (`/canaries` no longer FIRING on woken-but-silent)
+- [x] `scripts/woken-silent-triage.sh` parses each framed log entry (cid, topic, `hub=` if present, `offset=N`) and re-runs `wake-confirm.sh` per entry, partitioning into RESOLVED (exit 0 / CONSUMED) vs STILL-SILENT (exit 3)
+- [x] `--apply` rewrites the live log with only STILL-SILENT entries and appends RESOLVED entries (with a `resolved-at` note + the offset the reply was found at) to `.woken-but-silent-canary.resolved.log`; default (no `--apply`) is report-only (no mutation)
+- [x] `--json` emits `{ok, resolved[], still_silent[], summary}`; exit 0 when nothing still-silent, 1 when ≥1 still-silent remains, 2 on tooling error
+- [x] PL-213 test seam: `WOKEN_TRIAGE_CONFIRM_CMD` overrides the matcher invocation so the triage is verified hub-independently (stub returns canned per-cid verdicts)
+- [x] `tests/woken-silent-triage.sh` covers: all-resolved→green, mixed→keeps silent one, `--apply` archives + shrinks live log, report-mode is non-mutating, malformed entry skipped, `--hub` entry forwards `--hub`; ALL PASS
+- [x] Daily cron (`.context/cron/woken-silent-triage.crontab`) runs `--apply --quiet` + a meta-canary aliveness companion, installed to `/etc/cron.d`
+- [x] Live proof: running the triage against the real fleet clears all 5 current false-positive entries and returns the canary to green (`/canaries` no longer FIRING on woken-but-silent)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -211,9 +211,17 @@ recurring.
 
 ## Reviewer Verdict (v1.5)
 
-- **Scan ID:** R-7b144b0e
-- **Timestamp:** 2026-07-18T08:07:45Z
+- **Scan ID:** R-529279cd
+- **Timestamp:** 2026-07-18T08:11:21Z
 - **Catalogue:** v1.3-seed
-- **Overall:** PASS
+- **Overall:** CONCERN
 - **Needs Human:** no
-- **Findings:** none
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#6 (Agent)** — Daily cron (`.context/cron/woken-silent-triage.crontab`) runs `--apply --quiet` + a meta-canary aliveness companion, installed to `/etc/cron.d`
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=etc/cron.d in: Daily cron (`.context/cron/woken-silent-triage.crontab`) runs `--apply --quiet` + a meta-canary aliveness companion, installed to `/etc/cron.d``
+
+### 2026-07-18T08:11:19Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

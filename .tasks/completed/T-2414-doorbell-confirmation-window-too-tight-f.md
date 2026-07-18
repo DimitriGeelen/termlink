@@ -4,10 +4,10 @@ name: "doorbell confirmation window too tight for real agents — 90s default mi
 description: >
   doorbell confirmation window too tight for real agents — 90s default misses measured 98s replies
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-17T11:08:39Z
-last_update: 2026-07-17T11:08:39Z
-date_finished: null
+last_update: 2026-07-17T11:11:02Z
+date_finished: 2026-07-17T11:11:02Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -253,3 +253,15 @@ latency grows; the real detector is the woken-but-silent canary, which must be r
   costs a rail nobody believes. Bias long.
 - **Suites:** `tests/agent-send-grace-window.sh` 10/10 ALL PASS;
   `tests/wake-confirm-reply-match.sh` 19/19 ALL PASS (T-2413 unaffected).
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-226f8fd9
+- **Timestamp:** 2026-07-17T11:11:03Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-17T11:11:02Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

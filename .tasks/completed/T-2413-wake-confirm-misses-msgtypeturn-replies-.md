@@ -4,10 +4,10 @@ name: "wake-confirm misses msg_type=turn replies — false woken-but-silent on t
 description: >
   wake-confirm misses msg_type=turn replies — false woken-but-silent on the doorbell rail
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-17T11:01:33Z
-last_update: 2026-07-17T11:01:33Z
-date_finished: null
+last_update: 2026-07-17T11:05:28Z
+date_finished: 2026-07-17T11:05:28Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -254,3 +254,15 @@ matched type on a shared host where sender and recipient can sign identically.
 - **Fleet context:** this same run independently confirmed T-2411's identity binding is
   LIVE on the shared host — `aef` signed 7 posts with its own fp `0e7ee6ca` and ZERO
   with the host key `d1993c2c`. The .107 identity collapse is cured in the field.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-59b7e024
+- **Timestamp:** 2026-07-17T11:05:30Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-17T11:05:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
