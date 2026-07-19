@@ -4176,3 +4176,219 @@ scan_id: R-34338a72
 task_id: T-2405
 payload:
   task_file: .tasks/active/T-2405-stale-waker-code-detection-canary--surfa.md
+---
+kind: scan_emitted
+timestamp: '2026-07-12T17:01:09Z'
+scan_id: R-2a3ac0dd
+task_id: T-2410
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-12T17:01:09Z'
+scan_id: R-2a3ac0dd
+task_id: T-2410
+payload:
+  task_file: .tasks/active/T-2410-idle-gate-agent-send-doorbell-ring-sende.md
+---
+kind: scan_emitted
+timestamp: '2026-07-12T19:56:22Z'
+scan_id: R-004bdb22
+task_id: T-2411
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-12T19:56:22Z'
+scan_id: R-004bdb22
+task_id: T-2411
+payload:
+  task_file: .tasks/active/T-2411-bind-per-agent-identity-into-reachable-c.md
+---
+kind: scan_emitted
+timestamp: '2026-07-12T21:10:18Z'
+scan_id: R-166ae814
+task_id: T-2412
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-12T21:10:18Z'
+scan_id: R-166ae814
+task_id: T-2412
+payload:
+  task_file: .tasks/active/T-2412-harden-doorbell-consumption-confirmation.md
+---
+kind: scan_emitted
+timestamp: '2026-07-17T11:05:30Z'
+scan_id: R-59b7e024
+task_id: T-2413
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-17T11:05:30Z'
+scan_id: R-59b7e024
+task_id: T-2413
+payload:
+  task_file: .tasks/active/T-2413-wake-confirm-misses-msgtypeturn-replies-.md
+---
+kind: scan_emitted
+timestamp: '2026-07-17T11:11:03Z'
+scan_id: R-226f8fd9
+task_id: T-2414
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-17T11:11:03Z'
+scan_id: R-226f8fd9
+task_id: T-2414
+payload:
+  task_file: .tasks/active/T-2414-doorbell-confirmation-window-too-tight-f.md
+---
+kind: scan_emitted
+timestamp: '2026-07-18T07:36:04Z'
+scan_id: R-3cdf1124
+task_id: T-2415
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-18T07:36:04Z'
+scan_id: R-3cdf1124
+task_id: T-2415
+payload:
+  task_file: .tasks/active/T-2415-fleet-binary-canary-blind-to-capability-.md
+---
+kind: scan_emitted
+timestamp: '2026-07-18T08:07:45Z'
+scan_id: R-7b144b0e
+task_id: T-2416
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-18T08:07:45Z'
+scan_id: R-7b144b0e
+task_id: T-2416
+payload:
+  task_file: .tasks/active/T-2416-woken-but-silent-canary-never-self-heals.md
+---
+kind: scan_emitted
+timestamp: '2026-07-18T08:11:21Z'
+scan_id: R-529279cd
+task_id: T-2416
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-18T08:11:21Z'
+scan_id: R-529279cd
+task_id: T-2416
+payload:
+  task_file: .tasks/active/T-2416-woken-but-silent-canary-never-self-heals.md
+---
+kind: scan_emitted
+timestamp: '2026-07-19T12:49:02Z'
+scan_id: R-0ef1bff9
+task_id: T-2417
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-19T12:49:02Z'
+scan_id: R-0ef1bff9
+task_id: T-2417
+payload:
+  task_file: .tasks/active/T-2417-mcp-filesend-transferid-collides-within-.md
+---
+kind: scan_emitted
+timestamp: '2026-07-19T20:13:22Z'
+scan_id: R-1990d2c8
+task_id: T-2418
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-19T20:13:22Z'
+scan_id: R-1990d2c8
+task_id: T-2418
+payload:
+  task_file: .tasks/active/T-2418-port-g-009-ac-comment-sed-fix-to-vendore.md
+---
+kind: scan_emitted
+timestamp: '2026-07-19T20:50:48Z'
+scan_id: R-523b014c
+task_id: T-2420
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-19T20:50:48Z'
+scan_id: R-523b014c
+task_id: T-2420
+payload:
+  task_file: .tasks/active/T-2420-front-door-purpose-truth-readmecargo-sta.md
+---
+kind: scan_emitted
+timestamp: '2026-07-19T21:32:35Z'
+scan_id: R-41eb0d29
+task_id: T-2421
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-19T21:32:35Z'
+scan_id: R-41eb0d29
+task_id: T-2421
+payload:
+  task_file: .tasks/active/T-2421-channeldelete-primitive--hub-can-forget-.md

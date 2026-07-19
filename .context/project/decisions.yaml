@@ -752,3 +752,17 @@ decisions:
     date: 2026-07-09
     task: T-2382
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-087
+    decision: "`channel.delete` requires Execute (highest) scope."
+    scope: project
+    date: 2026-07-19
+    task: T-2421
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-088
+    decision: "CLI + RPC only; no `termlink_channel_delete` MCP tool."
+    scope: project
+    date: 2026-07-19
+    task: T-2421
+    rationale: "Auto-captured from task file on completion"

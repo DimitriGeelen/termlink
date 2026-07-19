@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2420: Front-door purpose truth: README+Cargo state substrate identity, guarantees, trust, federation (T-2419 GAP-1)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-19T20:50:51Z
+# ============================================================================
+
+task_id: T-2420
+task_name: "Front-door purpose truth: README+Cargo state substrate identity, guarantees, trust, federation (T-2419 GAP-1)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-19T20:48:52Z
+completed: 2026-07-19T20:50:47Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-19T22:50:46+02:00
+last_commit: 2026-07-19T22:50:46+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  front-door purpose truth — README/Cargo state substrate identity, guarantees, trust model, federation stance (T-2419 GAP-1)
+
+# Key outcomes
+outcomes:
+  - 'README.md opening states the substrate identity (hub-mediated, strict-star,'
+  - 'README.md gains a Guarantees section: per-topic monotonic offsets, reader-side'
+  - 'README.md states the trust model (UDS UID-trust same-host; HMAC + TOFU-pinned'
+  - 'No stale "37 MCP tools" claim remains; Cargo.toml workspace description updated'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'Cargo.toml'
+  - 'docs/reports/T-2419-ultra-critical-purpose-review.md'
+  - 'README.md'
+  - '.tasks/active/T-2419-ultra-critical-review-termlink-purpose-v.md'
+  - '.tasks/active/T-2420-front-door-purpose-truth-readmecargo-sta.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-19T22:50:46"
+    action: "T-2420: front-door purpose truth — README/Cargo state substrate identity, guarantees, trust model, federation stance (T-2419 GAP-1)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 5
+  lines_added: 624
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2420-front-door-purpose-truth-readmecargo-sta.md
+generated_by: context-agent-hybrid
