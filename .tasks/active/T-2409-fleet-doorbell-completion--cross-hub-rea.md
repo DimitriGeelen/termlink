@@ -370,3 +370,23 @@ doorbell-incapable (stale hub binary, no foothold). .141 no route (infra).
 **Residual, NOT forced:** sonnenstall still signs as host key — heals on natural relaunch
 through `tl-claude --reachable --agent-id`; killing another agent's live session is
 outside Autonomous Mode Boundaries.
+
+### 2026-07-19T22:00:00Z — .121 doorbell-discovery completion (operator report: "dashboard still having issues")
+- **Action:** Diagnosed + fixed the residual .121 gap after the hub upgrade: (1) agent-presence
+  on .121 had 64,808 records at retention=forever (T-1991 recurrence; per-minute cron beats since
+  May) — set `messages:1000` remotely + swept 63,809 records; (2) .121's bespoke
+  `presence-heartbeat.sh` (T-1989 era, on-host termlink checkout frozen at sha 53a3526e /
+  2026-04-15) predates T-2107 — patched on-host (foothold: SSH .180 → proxmox4 .195 → pct exec
+  CT 101 "dashboard-agent") to emit `cv_key=ring20-dashboard-agent` metadata; (3) installed an
+  on-host daily presence-sweep cron.d entry (04:17, runtime dir /var/lib/termlink) since the bus
+  runs no background sweep (T-1155).
+- **Output:** cv_index on .121 now serves the agent (count=1); the listeners walk against .121
+  completes in 174ms (was rc=124 timeout ≥30s — empty cv_index forced fallback to `channel.info`,
+  which O(N)-scans and hangs on .121's slow disk); fleet listeners view shows
+  ring20-dashboard-agent LIVE; capability canary exit 0; stale pre-fix canary log truncated.
+- **Context:** Root cause chain: no cv_key on heartbeats → empty cv_index → discovery fell back
+  to `channel.info` → timeouts read as "dashboard broken". Hub binary itself was fine (0.11.588).
+- **Follow-ups (ring20-manager scope):** .121 hub runs detached (termlink-hub.service inactive —
+  G-070 class); stray hub.sock under the legacy tmp runtime dir (live hub correctly on
+  /var/lib/termlink); on-host termlink checkout ~3 months stale; frozen-husk candidate
+  `register --self` pid 658689 unexamined.
