@@ -2556,3 +2556,10 @@ learnings:
   date: 2026-07-19
   context: Added via context agent
   application: TBD
+- id: PL-257
+  learning: "Verification-section commands must not contain literal HTML-comment delimiters — the P-011 extractor applies its own comment-strip and mangles them (meta-G-009); build such patterns at runtime via printf octal escapes (074/076)"
+  source: P-011
+  task: T-2418
+  date: 2026-07-19
+  context: Added via context agent
+  application: TBD
