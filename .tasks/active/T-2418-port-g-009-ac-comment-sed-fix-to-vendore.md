@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-19T20:10:17Z
-last_update: 2026-07-19T20:10:17Z
+last_update: 2026-07-19T20:12:35Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -127,9 +127,11 @@ Fix regex (adopted verbatim from 832/AEF): `s/<!--([^-]|-[^-]|--[^>])*-->//g`
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-out=$(grep -cF 's/<!--([^-]|-[^-]|--[^>])*-->//g' .agentic-framework/agents/task-create/update-task.sh); [ "$out" = "2" ]
-out=$(grep -cF 's/<!--([^-]|-[^-]|--[^>])*-->//g' .agentic-framework/agents/context/check-active-task.sh); [ "$out" = "1" ]
-! grep -rqF 's/<!--[^>]*-->//g' .agentic-framework/agents/
+# NOTE: patterns built via printf octal escapes — literal comment delimiters in this
+# section would be stripped by the verification extractor's own comment-strip (meta-G-009).
+npat=$(printf '\074!--([^-]|-[^-]|--[^\076])*--\076'); out=$(grep -cF "s/$npat//g" .agentic-framework/agents/task-create/update-task.sh); [ "$out" = "2" ]
+npat=$(printf '\074!--([^-]|-[^-]|--[^\076])*--\076'); out=$(grep -cF "s/$npat//g" .agentic-framework/agents/context/check-active-task.sh); [ "$out" = "1" ]
+opat=$(printf '\074!--[^\076]*--\076'); ! grep -rqF "s/$opat//g" .agentic-framework/agents/
 bash -n .agentic-framework/agents/task-create/update-task.sh
 bash -n .agentic-framework/agents/context/check-active-task.sh
 
