@@ -1347,6 +1347,67 @@ pub(crate) async fn handle_channel_trim_with(
     .into()
 }
 
+/// T-2421: `channel.delete(topic)` → `{ok, deleted_records, topic}`.
+/// Destructive: removes the topic ENTIRELY — registry entry, records,
+/// cursors, offset counter, claims, on-disk log, and cv_index entries.
+/// Exact-name only: wildcards are refused (destructive verbs never glob).
+/// Unknown topic is a loud error — no stealth success. Execute scope.
+/// Contrast `channel.trim`, which empties a topic but leaves it registered.
+pub async fn handle_channel_delete(id: Value, params: &Value) -> RpcResponse {
+    let bus = match bus_or_err(id.clone()) {
+        Ok(b) => b,
+        Err(r) => return r,
+    };
+    handle_channel_delete_with(bus, id, params).await
+}
+
+pub(crate) async fn handle_channel_delete_with(
+    bus: &Bus,
+    id: Value,
+    params: &Value,
+) -> RpcResponse {
+    let topic = match param_str(params, "topic") {
+        Some(t) if !t.is_empty() => t,
+        _ => return ErrorResponse::new(id, -32602, "Missing 'topic' in params").into(),
+    };
+    if topic.contains('*') || topic.contains('?') {
+        return ErrorResponse::new(
+            id,
+            -32602,
+            &format!(
+                "channel.delete: wildcards not allowed — exact-name only (got '{topic}'). \
+                 Enumerate with channel.list and delete each name explicitly."
+            ),
+        )
+        .into();
+    }
+    match bus.delete_topic(topic) {
+        Ok(Some(deleted_records)) => {
+            let cv_removed = crate::cv_index::remove_topic(topic);
+            tracing::info!(
+                topic,
+                deleted_records,
+                cv_entries_removed = cv_removed,
+                "channel.delete: topic removed"
+            );
+            Response::success(
+                id,
+                json!({"ok": true, "deleted_records": deleted_records, "topic": topic}),
+            )
+            .into()
+        }
+        Ok(None) => ErrorResponse::new(
+            id,
+            -32602,
+            &format!("channel.delete: unknown topic '{topic}' (nothing deleted)"),
+        )
+        .into(),
+        Err(e) => {
+            ErrorResponse::internal_error(id, &format!("channel.delete: {e}")).into()
+        }
+    }
+}
+
 /// `channel.list(prefix?)` → `{topics: [{name, retention}]}`.
 pub async fn handle_channel_list(id: Value, params: &Value) -> RpcResponse {
     let bus = match bus_or_err(id.clone()) {
@@ -2744,6 +2805,68 @@ mod tests {
     async fn sweep_missing_topic_param_is_invalid_params() {
         let (_d, bus) = tmp_bus();
         let resp = handle_channel_sweep_with(&bus, json!(1), &json!({})).await;
+        let (code, _) = unwrap_error(resp);
+        assert_eq!(code, -32602);
+    }
+
+    // === T-2421: channel.delete handler ===
+
+    fn delete_test_env(topic: &str, payload: &[u8]) -> Envelope {
+        Envelope {
+            topic: topic.to_string(),
+            sender_id: "test".to_string(),
+            msg_type: "note".to_string(),
+            payload: payload.to_vec(),
+            artifact_ref: None,
+            ts_unix_ms: 0,
+            metadata: std::collections::BTreeMap::new(),
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn delete_removes_topic_and_reports_count() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("debris", Retention::Forever).unwrap();
+        bus.post("debris", &delete_test_env("debris", b"a")).await.unwrap();
+        bus.post("debris", &delete_test_env("debris", b"b")).await.unwrap();
+        let resp =
+            handle_channel_delete_with(&bus, json!(1), &json!({"topic": "debris"})).await;
+        let v = unwrap_success(resp);
+        assert_eq!(v["ok"], true);
+        assert_eq!(v["deleted_records"], 2);
+        assert_eq!(v["topic"], "debris");
+        assert!(!bus.list_topics().unwrap().contains(&"debris".to_string()));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn delete_unknown_topic_is_loud_error() {
+        let (_d, bus) = tmp_bus();
+        let resp =
+            handle_channel_delete_with(&bus, json!(1), &json!({"topic": "no-such"})).await;
+        let (code, msg) = unwrap_error(resp);
+        assert_eq!(code, -32602);
+        assert!(msg.contains("unknown topic"), "got: {msg}");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn delete_rejects_wildcards() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("smoke-1", Retention::Forever).unwrap();
+        for pattern in ["smoke-*", "smoke-?", "*"] {
+            let resp =
+                handle_channel_delete_with(&bus, json!(1), &json!({"topic": pattern})).await;
+            let (code, msg) = unwrap_error(resp);
+            assert_eq!(code, -32602, "wildcard '{pattern}' must be refused");
+            assert!(msg.contains("wildcards not allowed"), "got: {msg}");
+        }
+        // The real topic survives every refused wildcard attempt.
+        assert!(bus.list_topics().unwrap().contains(&"smoke-1".to_string()));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn delete_missing_topic_param_is_invalid_params() {
+        let (_d, bus) = tmp_bus();
+        let resp = handle_channel_delete_with(&bus, json!(1), &json!({})).await;
         let (code, _) = unwrap_error(resp);
         assert_eq!(code, -32602);
     }

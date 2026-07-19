@@ -2563,3 +2563,10 @@ learnings:
   date: 2026-07-19
   context: Added via context agent
   application: TBD
+- id: PL-258
+  learning: "New CLI/RPC verbs ship core+--json only. The watch/notify/log/history/MCP-parity slice treatment requires FIELD-DEMAND evidence first: T-2419 found every such log/history layer unused in production (~/.termlink/{find-idle,governor,claims,queue,heal}.log all absent) while the 5-slice convention multiplied code ~5x (276 MCP tools, CLI+MCP=71% of LOC). Precedent: T-2421 channel.delete shipped with NO MCP parity by this policy."
+  source: T-2419
+  task: T-2419
+  date: 2026-07-19
+  context: Added via context agent
+  application: TBD

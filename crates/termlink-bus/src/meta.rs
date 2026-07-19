@@ -160,6 +160,39 @@ impl Meta {
         Ok(removed as u64)
     }
 
+    /// T-2421: delete a topic and ALL its associated state — registry row,
+    /// records index, per-subscriber cursors, offset counter, and claims —
+    /// in one transaction. Distinct from `trim_records` (which empties a
+    /// topic but leaves it registered): after this, the topic no longer
+    /// appears in `list_topics` and a re-create starts fresh at offset 0.
+    /// Returns `Ok(Some(record_count_removed))` when the topic existed,
+    /// `Ok(None)` when no such topic was registered (caller decides whether
+    /// absence is an error — the hub reports it loudly, no stealth success).
+    pub(crate) fn delete_topic(&self, name: &str) -> Result<Option<u64>> {
+        let mut conn = self.conn.lock().expect("meta mutex poisoned");
+        let tx = conn.transaction()?;
+        let existed: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM topics WHERE name = ?1",
+            params![name],
+            |r| r.get(0),
+        )?;
+        if existed == 0 {
+            return Ok(None);
+        }
+        let records: i64 = tx.query_row(
+            "SELECT COUNT(*) FROM records WHERE topic = ?1",
+            params![name],
+            |r| r.get(0),
+        )?;
+        tx.execute("DELETE FROM records WHERE topic = ?1", params![name])?;
+        tx.execute("DELETE FROM cursors WHERE topic = ?1", params![name])?;
+        tx.execute("DELETE FROM offsets WHERE topic = ?1", params![name])?;
+        tx.execute("DELETE FROM claims WHERE topic = ?1", params![name])?;
+        tx.execute("DELETE FROM topics WHERE name = ?1", params![name])?;
+        tx.commit()?;
+        Ok(Some(records as u64))
+    }
+
     /// Count records currently indexed for `topic`. Records pruned by
     /// `sweep_records` are not counted even if their bytes remain in the
     /// log file. Unknown topic returns `Ok(0)` rather than an error so

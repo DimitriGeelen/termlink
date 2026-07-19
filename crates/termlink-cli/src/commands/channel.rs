@@ -708,6 +708,91 @@ pub(crate) async fn cmd_channel_sweep(
     Ok(())
 }
 
+/// T-2421: `channel delete <name> --yes` — remove a topic entirely via
+/// `channel.delete` (Execute scope). Without `--yes`, refuses and reports
+/// what would be deleted (record count) so the operator confirms with
+/// full knowledge. Wildcards are refused client-side before any network
+/// call (the hub refuses them too — belt and suspenders on a destructive
+/// verb).
+pub(crate) async fn cmd_channel_delete(
+    name: &str,
+    yes: bool,
+    hub: Option<&str>,
+    json_output: bool,
+) -> Result<()> {
+    if name.contains('*') || name.contains('?') {
+        if json_output {
+            println!(
+                "{}",
+                json!({"ok": false, "error": "wildcards not allowed — channel delete is exact-name only", "topic": name})
+            );
+        } else {
+            eprintln!(
+                "channel delete: wildcards not allowed — exact-name only (got '{name}').\n\
+                 Enumerate with `termlink channel list` and delete each name explicitly."
+            );
+        }
+        std::process::exit(2);
+    }
+    let sock = hub_socket_or_json_exit(hub, json_output)?;
+    if !yes {
+        // Dry-run refusal: show what --yes would destroy.
+        let resp = rpc_call_authed(&sock, method::CHANNEL_LIST, json!({"prefix": name}))
+            .await
+            .context("Hub rpc_call failed")?;
+        let result = client::unwrap_result(resp)
+            .map_err(|e| anyhow!("Hub returned error for channel.list: {e}"))?;
+        let count = result
+            .get("topics")
+            .and_then(|t| t.as_array())
+            .and_then(|arr| {
+                arr.iter()
+                    .find(|t| t.get("name").and_then(|n| n.as_str()) == Some(name))
+            })
+            .and_then(|t| t.get("count"))
+            .and_then(|c| c.as_u64());
+        match count {
+            Some(n) => {
+                if json_output {
+                    println!(
+                        "{}",
+                        json!({"ok": false, "refused": "missing --yes", "topic": name, "records": n})
+                    );
+                } else {
+                    println!(
+                        "REFUSED (no --yes): would delete topic '{name}' and its {n} record(s), \
+                         cursors, claims, and log storage — irreversibly, for every subscriber.\n\
+                         Re-run with --yes to proceed."
+                    );
+                }
+            }
+            None => {
+                if json_output {
+                    println!("{}", json!({"ok": false, "error": "unknown topic", "topic": name}));
+                } else {
+                    println!("channel delete: unknown topic '{name}' (nothing to delete)");
+                }
+            }
+        }
+        return Ok(());
+    }
+    let resp = rpc_call_authed(&sock, method::CHANNEL_DELETE, json!({"topic": name}))
+        .await
+        .context("Hub rpc_call failed")?;
+    let result = client::unwrap_result(resp)
+        .map_err(|e| anyhow!("Hub returned error for channel.delete: {e}"))?;
+    if json_output {
+        println!("{}", serde_json::to_string_pretty(&result)?);
+    } else {
+        let deleted = result
+            .get("deleted_records")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        println!("Deleted topic '{name}' ({deleted} record(s) removed)");
+    }
+    Ok(())
+}
+
 #[allow(clippy::too_many_arguments)]
 /// T-2286: ack-with-retry options for `channel post --await-ack`. Grouped
 /// into a struct to keep `cmd_channel_post`'s arity in check. All fields are

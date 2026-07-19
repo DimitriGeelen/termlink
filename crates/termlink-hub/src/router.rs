@@ -104,6 +104,9 @@ pub async fn route(req: &Request, peer_addr: Option<&str>) -> Option<RpcResponse
         control::method::CHANNEL_TRIM => {
             crate::channel::handle_channel_trim(id, &req.params).await
         }
+        control::method::CHANNEL_DELETE => {
+            crate::channel::handle_channel_delete(id, &req.params).await
+        }
         control::method::CHANNEL_RECEIPTS => {
             crate::channel::handle_channel_receipts(id, &req.params).await
         }
@@ -946,6 +949,7 @@ fn handle_hub_capabilities(id: serde_json::Value) -> RpcResponse {
         control::method::CHANNEL_SUBSCRIBE,
         control::method::CHANNEL_LIST,
         control::method::CHANNEL_TRIM,
+        control::method::CHANNEL_DELETE,
         control::method::CHANNEL_RECEIPTS,
         control::method::CHANNEL_CLAIM,
         control::method::CHANNEL_RELEASE,

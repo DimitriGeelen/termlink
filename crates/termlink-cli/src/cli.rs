@@ -1876,6 +1876,29 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
+    /// Delete a topic ENTIRELY — registry entry, records, cursors, claims,
+    /// on-disk log, cv_index (T-2421). Irreversible; affects every
+    /// subscriber. Exact-name only (wildcards refused — enumerate with
+    /// `channel list` and delete each name). Requires `--yes`; without it,
+    /// prints what would be deleted and refuses. Contrast `channel sweep`,
+    /// which prunes records but keeps the topic registered.
+    Delete {
+        /// Topic name (exact — no wildcards)
+        name: String,
+
+        /// Actually delete. Without this flag the command refuses and
+        /// reports the topic's current record count instead.
+        #[arg(long)]
+        yes: bool,
+
+        /// Target hub address (unix path or host:port). Default: local hub.
+        #[arg(long)]
+        hub: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
     /// Post a signed envelope to a topic (reads payload from stdin if not given)
     Post {
         /// Topic name

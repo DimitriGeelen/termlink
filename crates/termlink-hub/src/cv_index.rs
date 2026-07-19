@@ -110,6 +110,12 @@ pub fn current_values(topic: &str) -> Vec<(String, u64)> {
     cv_index().current_values(topic)
 }
 
+/// T-2421: drop every cv entry for `topic`. Used by `handle_channel_delete`
+/// so a deleted topic's cv_index state dies with it. Returns entries removed.
+pub fn remove_topic(topic: &str) -> u64 {
+    cv_index().remove_topic(topic)
+}
+
 /// Total entries across all topics (sum of inner-map sizes). Surfaced
 /// via `hub.governor_status` (T-2110) for memory observability.
 pub fn entries_active() -> u64 {
@@ -195,6 +201,15 @@ impl CvIndex {
 
         inner.insert(cv_key.to_string(), offset);
         true
+    }
+
+    /// T-2421: drop every cv entry for `topic` (topic deletion). Returns
+    /// the number of entries removed; 0 if the topic had none. Keeps the
+    /// index consistent with the bus after `channel.delete` — otherwise a
+    /// deleted-then-recreated topic would advertise stale offsets.
+    pub fn remove_topic(&self, topic: &str) -> u64 {
+        let mut map = self.map.lock().expect("cv_index mutex poisoned");
+        map.remove(topic).map(|inner| inner.len() as u64).unwrap_or(0)
     }
 
     /// Snapshot of `(cv_key, offset)` pairs for `topic`. Empty Vec if

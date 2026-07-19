@@ -126,6 +126,31 @@ impl Bus {
         self.meta.count_records(topic)
     }
 
+    /// T-2421: delete `topic` ENTIRELY — registry entry, records index,
+    /// cursors, offset counter, claims, cached appender/notifier, and the
+    /// on-disk log file. The topic disappears from `list_topics`; a
+    /// subsequent `create_topic`/`post` under the same name starts a FRESH
+    /// topic at offset 0. Returns `Ok(Some(records_removed))` when the
+    /// topic existed, `Ok(None)` otherwise. Contrast `trim_topic`, which
+    /// empties a topic but leaves it registered forever — the gap that let
+    /// production hubs accumulate thousands of dead test topics (T-2419 §5.4).
+    pub fn delete_topic(&self, topic: &str) -> Result<Option<u64>> {
+        let deleted = self.meta.delete_topic(topic)?;
+        if deleted.is_some() {
+            self.appenders
+                .lock()
+                .expect("appenders mutex poisoned")
+                .remove(topic);
+            self.notifiers
+                .lock()
+                .expect("notifiers mutex poisoned")
+                .remove(topic);
+            // Missing log file is fine — topic may never have been posted to.
+            let _ = std::fs::remove_file(log::topic_log_path(&self.root, topic));
+        }
+        Ok(deleted)
+    }
+
     /// Destructive trim of `topic`. `before_offset=Some(N)` removes
     /// records with offset < N; `before_offset=None` removes ALL records.
     /// Returns count deleted. Index-only (log file bytes remain).
@@ -733,6 +758,57 @@ mod tests {
         let dir = TempDir::new().expect("tempdir");
         let bus = Bus::open(dir.path()).expect("open bus");
         (dir, bus)
+    }
+
+    #[tokio::test]
+    async fn delete_topic_removes_everything() {
+        let (dir, bus) = tmp_bus();
+        bus.create_topic("doomed", Retention::Forever).unwrap();
+        bus.post("doomed", &env("doomed", b"a")).await.unwrap();
+        bus.post("doomed", &env("doomed", b"b")).await.unwrap();
+        bus.advance_cursor("reader-1", "doomed", 1).unwrap();
+        bus.claim_offset("doomed", 0, "worker-A", 60_000).unwrap();
+        let log_path = log::topic_log_path(dir.path(), "doomed");
+        assert!(log_path.is_file(), "log file should exist pre-delete");
+
+        let removed = bus.delete_topic("doomed").unwrap();
+        assert_eq!(removed, Some(2), "two records should be reported removed");
+        assert!(
+            !bus.list_topics().unwrap().contains(&"doomed".to_string()),
+            "deleted topic must vanish from list_topics"
+        );
+        assert_eq!(bus.topic_record_count("doomed").unwrap(), 0);
+        assert!(
+            matches!(bus.list_claims("doomed", true), Err(BusError::UnknownTopic(_))),
+            "claims on a deleted topic must report UnknownTopic, not stale rows"
+        );
+        assert_eq!(bus.get_cursor("reader-1", "doomed").unwrap(), None);
+        assert!(!log_path.exists(), "on-disk log file must be removed");
+    }
+
+    #[tokio::test]
+    async fn delete_topic_nonexistent_returns_none() {
+        let (_dir, bus) = tmp_bus();
+        assert_eq!(bus.delete_topic("never-existed").unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn delete_topic_then_recreate_starts_fresh_at_offset_zero() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("phoenix", Retention::Forever).unwrap();
+        bus.post("phoenix", &env("phoenix", b"old-1")).await.unwrap();
+        bus.post("phoenix", &env("phoenix", b"old-2")).await.unwrap();
+        assert_eq!(bus.delete_topic("phoenix").unwrap(), Some(2));
+
+        bus.create_topic("phoenix", Retention::Messages(10)).unwrap();
+        let off = bus.post("phoenix", &env("phoenix", b"new-1")).await.unwrap();
+        assert_eq!(off, 0, "recreated topic must start at offset 0");
+        let got: Vec<_> = bus
+            .subscribe("phoenix", 0)
+            .unwrap()
+            .map(|r| r.unwrap().1.payload)
+            .collect();
+        assert_eq!(got, vec![b"new-1".to_vec()], "no ghost records from the old life");
     }
 
     #[test]

@@ -431,6 +431,12 @@ fn hub_method_scope(method: &str) -> PermissionScope {
         | control::method::CHANNEL_TRIM
         | control::method::CHANNEL_SWEEP => PermissionScope::Control,
 
+        // Execute: irreversible whole-topic destruction (T-2421). One notch
+        // above trim/sweep (Control): those empty a topic under a policy the
+        // topic keeps; delete erases the topic's existence, cursors, claims,
+        // and cv_index — for every subscriber, unrecoverably.
+        control::method::CHANNEL_DELETE => PermissionScope::Execute,
+
         // Forwarded methods: use per-method scope from the session auth model.
         // Genuinely unknown methods still deny-by-default to Execute there.
         _ => auth::method_scope(method),
@@ -1340,7 +1346,7 @@ mod tests {
     #[test]
     fn channel_surface_has_explicit_scopes() {
         use control::method as m;
-        use PermissionScope::{Control, Interact, Observe};
+        use PermissionScope::{Control, Execute, Interact, Observe};
 
         let expected: &[(&str, PermissionScope)] = &[
             // Observe — pure reads, no side effects
@@ -1364,6 +1370,8 @@ mod tests {
             (m::CHANNEL_FORCE_RELEASE, Control),
             (m::CHANNEL_TRIM, Control),
             (m::CHANNEL_SWEEP, Control),
+            // Execute — irreversible whole-topic destruction (T-2421)
+            (m::CHANNEL_DELETE, Execute),
         ];
 
         for (method, want) in expected {
@@ -1373,13 +1381,19 @@ mod tests {
                 "scope for '{}' should be {:?}, got {:?}",
                 method, want, got
             );
-            assert_ne!(
-                got,
-                PermissionScope::Execute,
-                "'{}' resolved to Execute (deny-by-default catch-all leaked back in) — \
-                 add an explicit scope arm in hub_method_scope",
-                method
-            );
+            // Execute is normally evidence the deny-by-default catch-all
+            // leaked back in — EXCEPT for methods that are deliberately
+            // Execute-scoped (T-2421: channel.delete, irreversible
+            // whole-topic destruction, one notch above trim/sweep).
+            if *want != PermissionScope::Execute {
+                assert_ne!(
+                    got,
+                    PermissionScope::Execute,
+                    "'{}' resolved to Execute (deny-by-default catch-all leaked back in) — \
+                     add an explicit scope arm in hub_method_scope",
+                    method
+                );
+            }
         }
     }
 

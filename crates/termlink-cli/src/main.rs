@@ -780,6 +780,9 @@ async fn main() -> Result<()> {
             ChannelAction::Sweep { name, hub, json } => {
                 commands::channel::cmd_channel_sweep(&name, hub.as_deref(), json).await
             }
+            ChannelAction::Delete { name, yes, hub, json } => {
+                commands::channel::cmd_channel_delete(&name, yes, hub.as_deref(), json).await
+            }
             ChannelAction::Post {
                 topic,
                 msg_type,

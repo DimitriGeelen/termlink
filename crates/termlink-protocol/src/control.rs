@@ -143,6 +143,13 @@ pub mod method {
     /// Params: `{ topic, before_offset? }` → `{ ok, deleted, topic }`. T-1234 / T-1230a.
     pub const CHANNEL_TRIM: &str = "channel.trim";
 
+    /// T-2421 — delete a topic ENTIRELY (registry, records, cursors, offset
+    /// counter, claims, log storage, cv_index entries). Exact-name only,
+    /// wildcards refused. Unknown topic is a loud error, not stealth success.
+    /// Contrast `channel.trim` (empties but leaves the topic registered).
+    /// Params: `{ topic }` → `{ ok, deleted_records, topic }`. Execute scope.
+    pub const CHANNEL_DELETE: &str = "channel.delete";
+
     /// T-2029 — exclusive-delivery claim over a topic offset (arc-parallel-substrate Slice 1).
     /// Hub leases `(topic, offset)` to `claimer` for `ttl_ms` (default 30s).
     /// Params: `{ topic, offset, claimer, ttl_ms? }` →
@@ -695,6 +702,7 @@ mod tests {
         assert_eq!(method::CHANNEL_SUBSCRIBE, "channel.subscribe");
         assert_eq!(method::CHANNEL_LIST, "channel.list");
         assert_eq!(method::CHANNEL_TRIM, "channel.trim");
+        assert_eq!(method::CHANNEL_DELETE, "channel.delete");
         assert_eq!(method::CHANNEL_RECEIPTS, "channel.receipts");
         // T-2029 (arc-parallel-substrate Slice 1).
         assert_eq!(method::CHANNEL_CLAIM, "channel.claim");
