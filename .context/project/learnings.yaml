@@ -2549,3 +2549,10 @@ learnings:
   date: 2026-07-19
   context: Added via context agent
   application: TBD
+- id: PL-256
+  learning: "Fleet doorbell completion: .121 (ring20-dashboard) hub upgraded from stale 0.11.806 (June, pre-cv_index) to 0.11.588 musl-static (includes cv_index T-2103 + T-2417 transfer_id fix). Was doorbell-INCAPABLE (channel.cv_keys -32001); now serves cv_index (ok:true). fleet-capability canary (T-2415/G-084) goes GREEN. PL-021 SAFE: .121 runtime_dir=/var/lib/termlink (persistent) so restart did NOT rotate secret/cert. Hub is a BARE process (parent=init, no systemd/watchdog) — clean kill+relaunch via 'TERMLINK_RUNTIME_DIR=/var/lib/termlink setsid nohup termlink hub start --tcp 0.0.0.0:9100'. Deploy access: dedicated ed25519 key installed on .121 root authorized_keys (CTID 101 on PVE), operator can revoke. Only remaining fleet gap: .141 network-unreachable (no route)."
+  source: P-001
+  task: T-2409
+  date: 2026-07-19
+  context: Added via context agent
+  application: TBD
