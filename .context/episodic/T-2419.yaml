@@ -1,0 +1,98 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2419: Ultra-critical review: termlink purpose vs current state — gap identification
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-19T21:43:35Z
+# ============================================================================
+
+task_id: T-2419
+task_name: "Ultra-critical review: termlink purpose vs current state — gap identification"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-19T20:43:16Z
+completed: 2026-07-19T21:43:31Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-19T23:32:46+02:00
+last_commit: 2026-07-19T23:32:46+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-2421 closed (channel.delete shipped) — GAP-2 complete; review arc build items done
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-07-19.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/episodic/T-2418.yaml'
+  - '.context/episodic/T-2420.yaml'
+  - '.context/episodic/T-2421.yaml'
+  - '.context/handovers/S-2026-0718-0943.md'
+  - '.context/project/decisions.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2409-fleet-doorbell-completion--cross-hub-rea.md'
+  - '.tasks/completed/T-2420-front-door-purpose-truth-readmecargo-sta.md'
+  - '.tasks/completed/T-2421-channeldelete-primitive--hub-can-forget-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-19T23:32:46"
+    action: "T-2419: T-2421 closed (channel.delete shipped) — GAP-2 complete; review arc build items done"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 60 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 60
+  commits: 1
+  files_changed: 23
+  lines_added: 5701
+  lines_removed: 4935
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2419-ultra-critical-review-termlink-purpose-v.md
+generated_by: context-agent-hybrid

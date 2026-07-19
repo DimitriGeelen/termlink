@@ -4392,3 +4392,21 @@ scan_id: R-41eb0d29
 task_id: T-2421
 payload:
   task_file: .tasks/active/T-2421-channeldelete-primitive--hub-can-forget-.md
+---
+kind: scan_emitted
+timestamp: '2026-07-19T21:43:32Z'
+scan_id: R-7a684cd6
+task_id: T-2419
+payload:
+  overall: CONCERN
+  finding_count: 4
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-19T21:43:32Z'
+scan_id: R-7a684cd6
+task_id: T-2419
+payload:
+  task_file: .tasks/active/T-2419-ultra-critical-review-termlink-purpose-v.md

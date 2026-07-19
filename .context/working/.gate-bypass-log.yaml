@@ -2225,3 +2225,8 @@ FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2402: promote incep
   command: 'cd /opt/termlink
 git add .tasks/active/T-2402-woken-but-silent-make-a-rung-yet-unanswe.md
 FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2402: remove vestigial inception ACs after build '
+- timestamp: '2026-07-19T21:43:31Z'
+  task: 'T-2419'
+  flag: '--skip-sovereignty'
+  caller: 'check_human_sovereignty'
+  reason: 'Inception decision: GO'

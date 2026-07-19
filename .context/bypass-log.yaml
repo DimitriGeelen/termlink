@@ -119,3 +119,23 @@ bypasses:
   command_hash: 11127f02bba31ee4c9b9baf87dc53cc4ec2110e5b9295bac2997485f1b7aa0bf
   authorized_by: human
   mechanism: fw tier0 approve
+- timestamp: '2026-07-19T21:42:51Z'
+  tier: 0
+  risk: 'INCEPTION DECISION: GO/NO-GO decisions require human authority. Present your
+    recommendation and rationale, then ask the human to run: fw inception decide T-XXX
+    go|no-go --rationale "..."'
+  command_preview: '.agentic-framework/bin/fw inception decide T-2419 go --rationale
+    "Operator approved 2026-07-19: gap dispositions ratifie'
+  command_hash: 49c97f9a1a9eb2ce0df1b07e70f9d46371d97fa4c509834d341f1fc84dc61a18
+  authorized_by: human
+  mechanism: fw tier0 approve
+- timestamp: '2026-07-19T21:43:38Z'
+  tier: 0
+  risk: 'INCEPTION DECISION: GO/NO-GO decisions require human authority. Present your
+    recommendation and rationale, then ask the human to run: fw inception decide T-XXX
+    go|no-go --rationale "..."'
+  command_preview: .agentic-framework/bin/fw inception decide T-2419 go --i-am-human
+    --rationale "Operator GO recorded via Watchtower appro
+  command_hash: 432b0c6c61b490b97c5c3352ac362b51d2632ed3f6d293cd263e42b58ae89233
+  authorized_by: human
+  mechanism: fw tier0 approve
