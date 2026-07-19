@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-12T13:09:27Z
-last_update: 2026-07-19T20:15:36Z
+last_update: 2026-07-19T21:58:42Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -390,3 +390,26 @@ outside Autonomous Mode Boundaries.
   G-070 class); stray hub.sock under the legacy tmp runtime dir (live hub correctly on
   /var/lib/termlink); on-host termlink checkout ~3 months stale; frozen-husk candidate
   `register --self` pid 658689 unexamined.
+
+### 2026-07-20T00:15:00Z — .121 dashboard APP flapping fixed (operator: "still having issues", round 2)
+- **Action:** Second operator report after the substrate fix. The remaining issue was the dashboard
+  WEB APP itself (FastAPI on :5000): it had been hand-launched from a Claude session on 2026-06-24
+  (`python3 main.py`, orphaned to ppid 1, no supervision, logs lost) with uvicorn's hardcoded
+  `reload=True` DEV mode. The reloader watched the whole repo dir — into which the per-minute
+  watchdog appends `.context/reflection/events.jsonl` — so file writes triggered worker restarts:
+  a churn/feedback loop producing the observed `dashboard.startup` bursts (10 in ~40s), periodic
+  `/health` blackouts, watchdog `dash=down` verdicts, and failed watchdog restart attempts
+  (bind-conflict `start-failed`). Fix: installed `ring20-dashboard-app.service` on CT 101 running
+  `python3 -m uvicorn main:app --host 0.0.0.0 --port 5000` (bypasses main.py's `reload=True`
+  without touching their code), killed the orphan pair, started through the unit.
+- **Output:** app active under systemd, Restart=on-failure; exactly 1 `Application startup
+  complete` since (zero churn); `/health` externally 200 in 0.23s; watchdog silent (=all-ok) on
+  every tick since 22:08Z — last `dash=down` event is pre-fix (21:32Z).
+- **Context:** the G-070 "detached long-lived process outside supervision" class strikes again,
+  this time at the app layer. Diagnosis chain: dashboard's own Events Timeline (startup bursts +
+  `dash=down` health-state events) → watchdog.sh probe logic (`--max-time 5` on /health) →
+  orphan process env showed CLAUDE_CODE_SESSION origin → `reload=True` in main.py's `__main__`.
+- **Remaining (their estate monitoring, not dashboard breakage):** action-required feed still
+  truthfully reports estate issues (external-tester VPN down 33d, storefront 41 patches behind,
+  ring20-manager 6 critical gaps, WAN degraded, "watchdog stale 753h" chip, Pulse unreachable
+  panel) — those are ring20-dashboard/ring20-manager project scope.
