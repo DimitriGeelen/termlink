@@ -170,6 +170,30 @@ history says the things that actually hurt are NOT what the scaffolding observes
 built+tested this session; GAP-4/GAP-5 filed as inceptions for operator decision;
 GAP-3/GAP-6/GAP-7 routed into existing arcs/policy.
 
+## 7. Execution record (same session)
+
+- **GAP-1 → T-2420 SHIPPED:** README rewritten (substrate identity headline,
+  Guarantees section, Trust Model section incl. the G-064 caveat stated plainly,
+  federation stance, tool count corrected 37→276); Cargo.toml description updated.
+  Closed through verification gate.
+- **GAP-2 → T-2421 SHIPPED:** `channel.delete` end-to-end — bus `delete_topic`
+  (single-transaction removal of registry/records/cursors/offsets/claims + on-disk
+  log + cached appender/notifier), Execute-scope RPC (exact-name only, wildcards
+  refused, loud unknown-topic error), CLI `channel delete <name> --yes` (dry-run
+  refusal shows record count), cv_index cleanup, 8 new tests (3 bus + 4 hub handler
+  + protocol const). Live E2E smoke on a throwaway hub: refuse/wildcard/delete/
+  relist/re-delete all correct. **No MCP parity by GAP-6 policy** (first precedent).
+  Rollout caveat: live on a hub only after that hub restarts onto a binary ≥ this
+  commit — same staged-rollout reality as every hub-side change (T-2359 floors).
+- **GAP-4 → T-2422 filed** (inception, DEFER recommendation — operator threat-model
+  decision needed).
+- **GAP-5 → T-2423 filed** (inception, DEFER recommendation — operator fleet-topology
+  input needed; #1 incident source).
+- **GAP-6 → learning registered** (new verbs ship core+JSON only; slices need field
+  demand; T-2421 is the precedent).
+- **T-2419 decision:** GO recommendation recorded in-task; formal
+  `fw inception decide` is Tier-0 (human authority) — command surfaced to operator.
+
 ## Dialogue Log
 
 - 2026-07-19: Operator directive: "please ultra critically review termlink's purpose and

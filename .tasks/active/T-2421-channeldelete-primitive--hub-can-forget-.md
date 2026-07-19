@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-19T20:51:04Z
-last_update: 2026-07-19T20:51:04Z
+last_update: 2026-07-19T21:05:24Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -50,18 +50,20 @@ tooling is a FOLLOW-UP (operator script walking list+delete), not this primitive
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Bus: `delete_topic(name)` removes the topic's log storage, registry/meta entry,
+- [x] Bus: `delete_topic(name)` removes the topic's log storage, registry/meta entry,
       claims, and cv_index entries; returns whether the topic existed; a subsequent
       post to the same name creates a FRESH topic starting at offset 0
-- [ ] Hub: `channel.delete` RPC routed with Execute (highest) scope; exact-name only —
+- [x] Hub: `channel.delete` RPC routed with Execute (highest) scope; exact-name only —
       a name containing `*` or `?` is rejected with a clear error; unknown topic
       returns a structured not-found error (no stealth success)
-- [ ] CLI: `termlink channel delete <TOPIC>` requires `--yes` (refuses without it,
+- [x] CLI: `termlink channel delete <TOPIC>` requires `--yes` (refuses without it,
       printing what would be deleted); supports `--json`; success output includes the
       deleted record count
-- [ ] Tests: bus unit tests (delete existing, delete nonexistent, recreate-fresh at
+- [x] Tests: bus unit tests (delete existing, delete nonexistent, recreate-fresh at
       offset 0, claims/cv_index cleared) + wildcard-rejection test; full workspace
-      test suite still green
+      test suite still green (all crates 0 failed; termlink-mcp parity showed 2
+      timeouts under full-workspace load contention, standalone rerun 24/24 green —
+      pre-existing flake class, not a T-2421 surface)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
