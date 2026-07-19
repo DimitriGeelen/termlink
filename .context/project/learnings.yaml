@@ -2535,3 +2535,17 @@ learnings:
   date: 2026-07-10
   context: Added via context agent
   application: TBD
+- id: PL-254
+  learning: "A canary self-healer that touches the .heartbeat while KEEPING a still-firing entry will MASK the firing: canary-status classifies FIRING as log_mtime > heartbeat_mtime, so heartbeat-after-log flips it to HEALTHY. Fix: write heartbeat FIRST, re-stamp the log LAST when entries remain; only leave the log empty (log_size==0 guard) when all cleared. Assert the mtime ordering in tests."
+  source: P-001
+  task: T-2416
+  date: 2026-07-18
+  context: Added via context agent
+  application: TBD
+- id: PL-255
+  learning: "MCP file_send transfer_id lifetime is per-SEND, never per-process. A PID-only mint (xfer-mcp-<pid>) collides across every send in one MCP process; file_receive scopes reassembly solely by transfer_id, so two sends under one id blend chunk streams (the 'got 17/1 chunks' failure). Mint PID+ms-timestamp+atomic-nonce (mirror CLI util.rs::generate_request_id). Pin per-send uniqueness with a test so it can't silently revert."
+  source: P-001
+  task: T-2417
+  date: 2026-07-19
+  context: Added via context agent
+  application: TBD

@@ -11,6 +11,27 @@ use tokio::sync::Mutex;
 use termlink_protocol::format_age;
 use termlink_session::{client, endpoint::EndpointHandle, manager};
 
+/// T-2417: Mint a transfer id that is unique per SEND, not per process.
+///
+/// The prior mint (`format!("xfer-mcp-{}", std::process::id())`) was PID-only,
+/// so every `file_send` in one MCP server process produced an identical id.
+/// Because `file_receive` scopes chunk reassembly solely by `transfer_id`, two
+/// back-to-back sends sharing an id blended their chunk streams (the observed
+/// "got 17/1 chunks" reassembly failure). PID + millisecond timestamp + a
+/// per-process atomic nonce guarantees uniqueness even for two sends issued in
+/// the same millisecond by the same process. Mirrors the CLI's timestamped
+/// scheme (`termlink-cli::util::generate_request_id`).
+fn new_transfer_id() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static XFER_NONCE: AtomicU64 = AtomicU64::new(0);
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+    let nonce = XFER_NONCE.fetch_add(1, Ordering::Relaxed);
+    format!("xfer-mcp-{}-{}-{}", std::process::id(), ts, nonce)
+}
+
 /// TermLink MCP server — exposes terminal orchestration as structured tools.
 #[derive(Clone)]
 pub struct TermLinkTools {
@@ -13481,7 +13502,16 @@ impl TermLinkTools {
         let chunk_size: usize = 49152; // 48KB chunks
         let total_chunks = file_data.len().div_ceil(chunk_size) as u32;
 
-        let transfer_id = format!("xfer-mcp-{}", std::process::id());
+        // T-2417: transfer_id MUST be unique per send, not per process. A
+        // PID-only id (`xfer-mcp-<pid>`) collides across every file_send in the
+        // same MCP server process: two back-to-back sends draw the same id, and
+        // the receiver's reassembly (scoped only by transfer_id) then blends
+        // both chunk streams — the "got 17/1 chunks" failure that cost a live
+        // AEF<->workflow-designer delivery a full round-trip. Mint PID + ms
+        // timestamp + a per-process atomic nonce so two sends in the same
+        // process (even within one millisecond) cannot collide. Mirrors the
+        // CLI's timestamped scheme (util.rs::generate_request_id).
+        let transfer_id = new_transfer_id();
 
         let mut hasher = Sha256::new();
         hasher.update(&file_data);
@@ -30486,6 +30516,24 @@ impl TermLinkTools {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // === T-2417: transfer_id is unique per send, never per process ===
+
+    #[test]
+    fn transfer_id_unique_per_send() {
+        // Regression guard for the PID-only mint that blended two sends under
+        // one id ("got 17/1 chunks"). Two mints from the SAME process must
+        // differ — pins the per-send lifetime so a future edit can't silently
+        // reintroduce a per-process-constant id.
+        let a = new_transfer_id();
+        let b = new_transfer_id();
+        assert_ne!(a, b, "two in-process mints must not collide: {a} == {b}");
+        assert!(a.starts_with("xfer-mcp-"), "unexpected prefix: {a}");
+        // A whole batch stays distinct (the collision class was N sends → 1 id).
+        let batch: std::collections::HashSet<String> =
+            (0..1000).map(|_| new_transfer_id()).collect();
+        assert_eq!(batch.len(), 1000, "1000 in-process mints must all be unique");
+    }
 
     // === T-2392: cv_index presence read (count-seek staleness twin) ===
 
