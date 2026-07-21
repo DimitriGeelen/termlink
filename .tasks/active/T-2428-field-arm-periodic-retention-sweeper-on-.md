@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-21T09:04:18Z
-last_update: 2026-07-21T09:04:29Z
+last_update: 2026-07-21T09:05:45Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -42,11 +42,11 @@ persist-if-present).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Release binary built from the T-2426+T-2427 commits and installed at /root/.cargo/bin/termlink (the unit's ExecStart path); `termlink --version` reports the new git-derived version.
-- [ ] Systemd drop-in sets `TERMLINK_SWEEP_INTERVAL_SECS=3600` for termlink-hub; hub restarted THROUGH the unit (systemctl restart, MainPID matches pidfile, no detached ghost).
-- [ ] `hub.governor_status` on the live hub reports `retention_sweep_interval_secs: 3600` and the three T-2427 fields present.
-- [ ] Auth preserved across restart: `termlink fleet doctor` shows local hub connected with NO secret-mismatch/TOFU violation (PL-021 check).
-- [ ] Debris default live-verified: creating a topic named `t-2428-smoke` with no retention lands `days:7` (then deleted); a plain-named topic still lands `forever`.
+- [x] Release binary built from the T-2426+T-2427 commits and installed at /root/.cargo/bin/termlink (the unit's ExecStart path); `termlink --version` reports the new git-derived version.
+- [x] (env line in unit source+installed copy, not drop-in) Systemd unit sets `TERMLINK_SWEEP_INTERVAL_SECS=3600` for termlink-hub; hub restarted THROUGH the unit (systemctl restart, MainPID matches pidfile, no detached ghost).
+- [x] `hub.governor_status` on the live hub reports `retention_sweep_interval_secs: 3600` and the three T-2427 fields present.
+- [x] Auth preserved across restart: `termlink fleet doctor` shows local hub connected with NO secret-mismatch/TOFU violation (PL-021 check).
+- [x] Debris default live-verified: creating a topic named `t-2428-smoke` with no retention lands `days:7` (then deleted); a plain-named topic still lands `forever`.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -80,6 +80,9 @@ persist-if-present).
 -->
 
 ## Verification
+
+termlink hub status --governor --json | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['governor']['retention_sweep_interval_secs']==3600, d"
+out=$(systemctl is-active termlink-hub 2>&1); echo "$out" | grep -q "^active"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -174,6 +177,13 @@ persist-if-present).
      legacy tasks lacking this section. -->
 
 ## Updates
+
+### 2026-07-21T09:18:00Z — field-armed [agent]
+- **Binary:** 0.11.611 installed to the unit ExecStart path; hub restarted THROUGH the unit — MainPID=20804 == pidfile, NRestarts=0 (no G-070 ghost).
+- **Sweeper:** governor reports retention_sweep_interval_secs=3600, runs/pruned counters live (first pass fires within the hour).
+- **Auth:** fleet doctor local-test + workstation-107-public both PASS on 0.11.611, no secret-mismatch/TOFU (PL-021 clean — persist-if-present held).
+- **Debris default live:** `channel post t-2428-smoke --ensure-topic` fired the loud note and landed retention days:7; plain-named topic still lands forever; both smoke topics deleted via channel.delete.
+
 
 ### 2026-07-21T09:04:18Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
