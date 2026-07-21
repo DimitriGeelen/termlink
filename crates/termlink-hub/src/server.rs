@@ -790,6 +790,46 @@ pub async fn run_accept_loop(
 /// T-1409: `peer_addr` is the TCP source address (`"ip:port"`) for
 /// network-remote callers; the network analogue of `peer_pid`. Unix
 /// connections pass `None`.
+/// T-2442: connection-liveness timeouts that close the unauthenticated
+/// connection-cap-exhaustion DoS. A silent TCP client that completes TLS but
+/// never speaks, or a half-open link with no FIN/RST, used to hold a
+/// `ConnGovernor` slot forever (the slot is released only when the
+/// per-connection task returns). All three are env-tunable and clamped.
+///
+/// Time a freshly-accepted connection has to send its first byte before the hub
+/// drops it. A legitimate JSON-RPC / WS client speaks immediately after connect.
+fn conn_handshake_timeout() -> std::time::Duration {
+    std::time::Duration::from_millis(crate::governor::parse_env_u64_clamped(
+        "TERMLINK_CONN_HANDSHAKE_TIMEOUT_MS",
+        30_000,
+        200,
+        600_000,
+    ))
+}
+
+/// Interval between hub-initiated WS keepalive pings. A live client answers with
+/// a Pong, which resets the idle clock; a dead one never does.
+fn ws_ping_interval() -> std::time::Duration {
+    std::time::Duration::from_millis(crate::governor::parse_env_u64_clamped(
+        "TERMLINK_WS_PING_INTERVAL_MS",
+        30_000,
+        100,
+        600_000,
+    ))
+}
+
+/// How long a WS connection may go with zero inbound frames (requests OR pongs)
+/// before the hub closes it and releases its governor slot. Must exceed the ping
+/// interval so a healthy-but-quiet push subscriber has several chances to pong.
+fn ws_idle_timeout() -> std::time::Duration {
+    std::time::Duration::from_millis(crate::governor::parse_env_u64_clamped(
+        "TERMLINK_WS_IDLE_TIMEOUT_MS",
+        120_000,
+        200,
+        3_600_000,
+    ))
+}
+
 async fn handle_connection<S>(
     stream: S,
     initial_scope: Option<PermissionScope>,
@@ -807,11 +847,22 @@ async fn handle_connection<S>(
     // path (`process_request_message`), so auth/rate-limit/audit stay identical.
     let mut stream = stream;
     let mut first = [0u8; 1];
-    let n = match stream.read(&mut first).await {
-        Ok(0) => return, // client closed before sending anything
-        Ok(n) => n,
-        Err(e) => {
+    // T-2442: bound the first-byte read. A connection that completes TLS but
+    // never sends anything must not pin a governor slot indefinitely.
+    let handshake_timeout = conn_handshake_timeout();
+    let n = match tokio::time::timeout(handshake_timeout, stream.read(&mut first)).await {
+        Ok(Ok(0)) => return, // client closed before sending anything
+        Ok(Ok(n)) => n,
+        Ok(Err(e)) => {
             tracing::debug!(error = %e, "Hub: read error before dispatch");
+            return;
+        }
+        Err(_) => {
+            tracing::debug!(
+                timeout_ms = handshake_timeout.as_millis(),
+                peer = ?peer_addr,
+                "Hub: connection sent no data before handshake timeout — closing (T-2442 conn-cap DoS guard)"
+            );
             return;
         }
     };
@@ -902,10 +953,38 @@ async fn handle_ws_connection<S>(
     // push arm stays dormant forever.
     let mut event_rx = router::aggregator().map(|a| a.subscribe());
 
+    // T-2442: hub-initiated keepalive + inbound-idle timeout. A subscribed push
+    // client may sit silent for minutes (it only receives), so the hub pings on
+    // a timer and drops the connection if no inbound frame (request OR pong) has
+    // arrived within the idle window — reclaiming the governor slot for dead or
+    // half-open peers. `last_activity` is reset on every inbound frame.
+    let ping_interval = ws_ping_interval();
+    let idle_timeout = ws_idle_timeout();
+    let mut ping_timer = tokio::time::interval(ping_interval);
+    ping_timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    ping_timer.tick().await; // consume the immediate first tick
+    let mut last_activity = tokio::time::Instant::now();
+
     loop {
         tokio::select! {
+            // ---- keepalive: ping the client; drop the connection if it has gone idle ----
+            _ = ping_timer.tick() => {
+                if last_activity.elapsed() >= idle_timeout {
+                    tracing::debug!(
+                        idle_ms = last_activity.elapsed().as_millis(),
+                        peer = ?peer_addr,
+                        "Hub: WS connection idle beyond timeout — closing (T-2442 conn-cap DoS guard)"
+                    );
+                    break;
+                }
+                if sink.send(Message::Ping(Vec::new().into())).await.is_err() { break; }
+            }
+
             // ---- client → hub: request frames (same dispatch as the line path) ----
             msg = source.next() => {
+                // Any inbound frame — request, pong, ping, even a read error we
+                // are about to break on — proves the peer is alive; reset the clock.
+                last_activity = tokio::time::Instant::now();
                 let msg = match msg {
                     Some(Ok(m)) => m,
                     Some(Err(e)) => { tracing::debug!(error = %e, "Hub: WS read error"); break; }
@@ -1899,6 +1978,139 @@ mod tests {
 
         tx.send(true).unwrap();
         let _ = tokio::time::timeout(std::time::Duration::from_secs(3), hub_handle).await;
+    }
+
+    /// T-2442: a connection that completes the TCP accept but sends no first byte
+    /// must be actively closed by the hub within the handshake timeout — otherwise
+    /// it pins a `ConnGovernor` slot forever (unauthenticated conn-cap DoS). Proven
+    /// by observing EOF (`read` → 0 bytes) on the client side.
+    #[tokio::test]
+    async fn conn_handshake_timeout_closes_silent_connection() {
+        use tokio::io::AsyncReadExt;
+        let _lock = ENV_LOCK.lock().await;
+        let prev = std::env::var("TERMLINK_CONN_HANDSHAKE_TIMEOUT_MS").ok();
+        unsafe { std::env::set_var("TERMLINK_CONN_HANDSHAKE_TIMEOUT_MS", "400") };
+
+        let dir = test_dir();
+        let hub_socket = hub_sock(&dir);
+        let (tx, rx) = watch::channel(false);
+        let socket_clone = hub_socket.clone();
+        let hub_handle = tokio::spawn(async move {
+            let _ = std::fs::remove_file(&socket_clone);
+            let unix_listener = UnixListener::bind(&socket_clone).unwrap();
+            let tcp_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let tcp_port = tcp_listener.local_addr().unwrap().port();
+            std::fs::write(socket_clone.with_extension("tcp_port"), tcp_port.to_string()).unwrap();
+            run_accept_loop(unix_listener, Some(tcp_listener), None, None, rx).await;
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        let tcp_port: u16 = std::fs::read_to_string(hub_socket.with_extension("tcp_port"))
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap();
+
+        // Connect (no TLS configured in tests) and send nothing.
+        let mut tcp = tokio::net::TcpStream::connect(format!("127.0.0.1:{}", tcp_port))
+            .await
+            .unwrap();
+
+        // The hub must close us within the handshake timeout (400ms) + slack.
+        let mut buf = [0u8; 1];
+        let read = tokio::time::timeout(std::time::Duration::from_secs(2), tcp.read(&mut buf)).await;
+        match read {
+            Ok(Ok(0)) => { /* EOF — hub closed the silent connection. Slot released. */ }
+            Ok(Ok(n)) => panic!("expected EOF from idle-timeout close, got {n} byte(s)"),
+            Ok(Err(_)) => { /* reset by peer — also an acceptable close signal */ }
+            Err(_) => panic!("hub did NOT close a silent connection within 2s — slot would leak"),
+        }
+
+        tx.send(true).unwrap();
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(3), hub_handle).await;
+        match prev {
+            Some(v) => unsafe { std::env::set_var("TERMLINK_CONN_HANDSHAKE_TIMEOUT_MS", v) },
+            None => unsafe { std::env::remove_var("TERMLINK_CONN_HANDSHAKE_TIMEOUT_MS") },
+        }
+    }
+
+    /// T-2442: a WS connection that upgrades but then goes silent (no requests, no
+    /// pongs) must be closed by the hub within the idle timeout so its governor
+    /// slot is reclaimed. Proven by the client's WS stream ending (None / Close).
+    #[tokio::test]
+    async fn ws_idle_timeout_closes_quiet_connection() {
+        use futures_util::StreamExt;
+        let _lock = ENV_LOCK.lock().await;
+        let prev_ping = std::env::var("TERMLINK_WS_PING_INTERVAL_MS").ok();
+        let prev_idle = std::env::var("TERMLINK_WS_IDLE_TIMEOUT_MS").ok();
+        unsafe {
+            std::env::set_var("TERMLINK_WS_PING_INTERVAL_MS", "150");
+            std::env::set_var("TERMLINK_WS_IDLE_TIMEOUT_MS", "400");
+            // Keep the handshake generous so it doesn't race the WS upgrade.
+            std::env::set_var("TERMLINK_CONN_HANDSHAKE_TIMEOUT_MS", "30000");
+        }
+
+        let dir = test_dir();
+        let hub_socket = hub_sock(&dir);
+        let (tx, rx) = watch::channel(false);
+        let socket_clone = hub_socket.clone();
+        let hub_handle = tokio::spawn(async move {
+            let _ = std::fs::remove_file(&socket_clone);
+            let unix_listener = UnixListener::bind(&socket_clone).unwrap();
+            let tcp_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let tcp_port = tcp_listener.local_addr().unwrap().port();
+            std::fs::write(socket_clone.with_extension("tcp_port"), tcp_port.to_string()).unwrap();
+            run_accept_loop(unix_listener, Some(tcp_listener), None, None, rx).await;
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        let tcp_port: u16 = std::fs::read_to_string(hub_socket.with_extension("tcp_port"))
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap();
+
+        let tcp = tokio::net::TcpStream::connect(format!("127.0.0.1:{}", tcp_port))
+            .await
+            .unwrap();
+        let (mut ws, _resp) =
+            tokio_tungstenite::client_async(format!("ws://127.0.0.1:{}/", tcp_port), tcp)
+                .await
+                .expect("WebSocket upgrade should succeed");
+
+        // Go completely silent through the idle window: crucially, do NOT poll
+        // `ws.next()` yet — polling would let tokio-tungstenite auto-pong the
+        // hub's keepalive ping, which (correctly) keeps a live client connected.
+        // A dead/half-open peer never reads, so the hub sees no inbound frame and
+        // its idle clock (400ms) fires. Sleep past that, then observe the close.
+        tokio::time::sleep(std::time::Duration::from_millis(750)).await;
+        let closed = tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            loop {
+                match ws.next().await {
+                    None => break true,                        // stream ended — hub closed us
+                    Some(Ok(tokio_tungstenite::tungstenite::Message::Close(_))) => break true,
+                    Some(Err(_)) => break true,                // connection reset — also a close
+                    Some(Ok(_)) => continue,                   // buffered ping/other — drain to the close
+                }
+            }
+        })
+        .await;
+        assert!(
+            matches!(closed, Ok(true)),
+            "hub did NOT close an idle WS connection after the idle timeout — governor slot would leak"
+        );
+
+        tx.send(true).unwrap();
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(3), hub_handle).await;
+        unsafe {
+            match prev_ping {
+                Some(v) => std::env::set_var("TERMLINK_WS_PING_INTERVAL_MS", v),
+                None => std::env::remove_var("TERMLINK_WS_PING_INTERVAL_MS"),
+            }
+            match prev_idle {
+                Some(v) => std::env::set_var("TERMLINK_WS_IDLE_TIMEOUT_MS", v),
+                None => std::env::remove_var("TERMLINK_WS_IDLE_TIMEOUT_MS"),
+            }
+            std::env::remove_var("TERMLINK_CONN_HANDSHAKE_TIMEOUT_MS");
+        }
     }
 
     /// T-2306 (arc-004 push-transport S2): once a WS connection authenticates, the

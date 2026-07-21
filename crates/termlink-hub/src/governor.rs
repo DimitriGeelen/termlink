@@ -378,7 +378,7 @@ pub fn spawn_rate_evict_loop() {
     });
 }
 
-fn parse_env_u64_clamped(name: &str, default: u64, min: u64, max: u64) -> u64 {
+pub(crate) fn parse_env_u64_clamped(name: &str, default: u64, min: u64, max: u64) -> u64 {
     let raw = std::env::var(name).ok();
     let parsed = match raw.as_deref() {
         Some(v) => v.parse::<u64>().unwrap_or_else(|_| {
