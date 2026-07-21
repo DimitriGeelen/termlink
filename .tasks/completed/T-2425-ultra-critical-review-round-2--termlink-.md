@@ -4,16 +4,16 @@ name: "ultra-critical review round 2 — termlink purpose vs field reality"
 description: >
   Inception: ultra-critical review round 2 — termlink purpose vs field reality
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-hub/src/lib.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/server.rs]
 related_tasks: []
 created: 2026-07-21T08:48:35Z
-last_update: 2026-07-21T11:26:15Z
-date_finished: null
+last_update: 2026-07-21T13:27:20Z
+date_finished: 2026-07-21T13:27:20Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -101,15 +101,15 @@ OUT: authz model (T-2422, awaiting operator), managed deploy (T-2423, awaiting o
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -214,7 +214,17 @@ Operator re-issued the standing review directive after round 1 (T-2419) closed. 
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale:
+
+Operator re-issued the standing review directive after round 1 (T-2419) closed. Fresh field evidence since the GO — T-1991 recurrence on .121 (bespoke stale producer, retention never set), 851 debris topics on .107 accumulated with retention=forever defaults, G-070 detached-hub ghosts, G-084 capability-blind version floors — indicates the substrate's DEFAULTS still fight its stated purpose even where primitives exist. Round 2 audits closure-reality of round-1 gaps and identifies default/lifecycle gaps the first pass missed.
+
+Evidence:
+
+**Date**: 2026-07-21T13:27:20Z
 
 ## Updates
 
@@ -223,3 +233,32 @@ Operator re-issued the standing review directive after round 1 (T-2419) closed. 
 
 ### 2026-07-21T08:49:21Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-07-21T13:27:20Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale:
+
+Operator re-issued the standing review directive after round 1 (T-2419) closed. Fresh field evidence since the GO — T-1991 recurrence on .121 (bespoke stale producer, retention never set), 851 debris topics on .107 accumulated with retention=forever defaults, G-070 detached-hub ghosts, G-084 capability-blind version floors — indicates the substrate's DEFAULTS still fight its stated purpose even where primitives exist. Round 2 audits closure-reality of round-1 gaps and identifies default/lifecycle gaps the first pass missed.
+
+Evidence:
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-d350a3bd
+- **Timestamp:** 2026-07-21T13:27:21Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-1
+     - evidence: `IW-1 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+### 2026-07-21T13:27:20Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
