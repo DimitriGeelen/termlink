@@ -324,14 +324,21 @@ pub(crate) async fn cmd_register(opts: RegisterOpts) -> Result<()> {
                 }
             });
 
-            // PTY read loop with broadcast
+            // PTY read loop with broadcast. T-2439: surface loop death —
+            // a silently-exited read loop means session output stops
+            // flowing with no trace (sibling data_server spawn above
+            // already logs).
             Some(tokio::spawn(async move {
-                let _ = pty_clone.read_loop_with_broadcast(Some(tx)).await;
+                if let Err(e) = pty_clone.read_loop_with_broadcast(Some(tx)).await {
+                    tracing::error!(error = %e, "PTY read loop (broadcast) exited with error — session output stopped");
+                }
             }))
         } else {
-            // No data plane — plain read loop
+            // No data plane — plain read loop (T-2439: same loud-exit contract).
             Some(tokio::spawn(async move {
-                let _ = pty_clone.read_loop().await;
+                if let Err(e) = pty_clone.read_loop().await {
+                    tracing::error!(error = %e, "PTY read loop exited with error — session output stopped");
+                }
             }))
         }
     } else {

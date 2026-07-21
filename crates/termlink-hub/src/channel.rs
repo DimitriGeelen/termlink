@@ -1501,11 +1501,20 @@ pub(crate) async fn handle_channel_list_with(
         .into_iter()
         .filter(|n| prefix.is_empty() || n.starts_with(prefix))
         .map(|name| {
-            let ret = bus
-                .topic_retention(&name)
-                .ok()
-                .flatten()
-                .unwrap_or(Retention::Forever);
+            // T-2439: distinguish "no retention configured" (a true
+            // Forever) from "retention READ failed" — the latter must
+            // not silently assert Forever to operators.
+            let ret = match bus.topic_retention(&name) {
+                Ok(r) => r.unwrap_or(Retention::Forever),
+                Err(e) => {
+                    tracing::warn!(
+                        topic = %name,
+                        error = %e,
+                        "channel.list: retention read failed — reporting Forever as fallback"
+                    );
+                    Retention::Forever
+                }
+            };
             // T-1233 / T-1229a: count enables single-round-trip aggregation
             // (e.g. inbox.status replacement). Per-topic count error degrades
             // to 0 rather than failing the whole list.

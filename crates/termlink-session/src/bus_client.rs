@@ -241,7 +241,16 @@ impl BusClient {
                             error = %e,
                             "flush: hub rejected post (will retry)"
                         );
-                        let _ = self.queue.bump_attempts(id);
+                        // T-2439: a failed attempt-counter bump stalls the
+                        // poison/dead-letter threshold for this row — the
+                        // post would retry forever with no signal.
+                        if let Err(be) = self.queue.bump_attempts(id) {
+                            tracing::warn!(
+                                queue_id = id.0,
+                                error = %be,
+                                "flush: failed to bump attempt counter — poison threshold may stall for this row"
+                            );
+                        }
                         report.failed += 1;
                         break;
                     }
