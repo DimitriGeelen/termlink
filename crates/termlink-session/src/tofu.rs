@@ -119,7 +119,26 @@ impl KnownHubStore {
     }
 
     /// Write all entries to disk.
+    /// Persist the store, warning LOUDLY on failure (T-2438). A lost
+    /// pin write is security-relevant: the in-memory pin protects only
+    /// this process — the next invocation would silently re-TOFU the
+    /// hub (trust-downgrade window), so the operator must hear about
+    /// it. Mutating callers' signatures stay infallible; the warning
+    /// is the contract.
     fn save(&self) {
+        if let Err(e) = self.save_result() {
+            eprintln!(
+                "warning: failed to persist TOFU pin store to {} ({e}); \
+                 fingerprint pins from this session will NOT survive process exit — \
+                 the next connection will re-trust-on-first-use (fix the path/permissions)",
+                self.path.display()
+            );
+        }
+    }
+
+    /// Fallible core of [`Self::save`], split out so tests can assert
+    /// the failure surfaces (T-2438) without capturing stderr.
+    fn save_result(&self) -> std::io::Result<()> {
         let entries = self.entries.lock().expect("TOFU store lock poisoned");
         let mut lines = Vec::new();
         lines.push("# TermLink known hubs (TOFU)".to_string());
@@ -133,9 +152,9 @@ impl KnownHubStore {
 
         // Ensure parent dir exists
         if let Some(parent) = self.path.parent() {
-            let _ = std::fs::create_dir_all(parent);
+            std::fs::create_dir_all(parent)?;
         }
-        let _ = std::fs::write(&self.path, lines.join("\n") + "\n");
+        std::fs::write(&self.path, lines.join("\n") + "\n")
     }
 
     /// Look up a stored fingerprint for a host:port.
@@ -496,6 +515,54 @@ mod tests {
         let result = store.accept("192.168.1.1:9100", "sha256:abc123");
         assert!(result.is_ok());
         assert!(result.unwrap()); // is_new = true
+    }
+
+    #[test]
+    fn save_result_errs_on_unwritable_path() {
+        // T-2438: a failed pin write must SURFACE, not vanish. Parent
+        // "directory" is a regular file, so create_dir_all fails.
+        let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+        let blocker = PathBuf::from(format!(
+            "/tmp/tl-tofu-blocker-{}-{}",
+            std::process::id(),
+            n
+        ));
+        let _ = std::fs::remove_file(&blocker);
+        std::fs::write(&blocker, "not a dir").unwrap();
+
+        let store = KnownHubStore::new(blocker.join("known_hubs"));
+        {
+            let mut entries = store.entries.lock().unwrap();
+            entries.insert(
+                "1.2.3.4:9100".to_string(),
+                KnownHub {
+                    host_port: "1.2.3.4:9100".to_string(),
+                    fingerprint: "sha256:xyz".to_string(),
+                    first_seen: "t0".to_string(),
+                    last_seen: "t0".to_string(),
+                },
+            );
+        }
+        assert!(
+            store.save_result().is_err(),
+            "unwritable pin store must report the failure"
+        );
+        let _ = std::fs::remove_file(&blocker);
+    }
+
+    #[test]
+    fn save_result_persists_and_reloads_pin() {
+        // T-2438: happy path — the fallible core actually persists.
+        let (store, path) = test_store();
+        store.accept("5.6.7.8:9100", "sha256:pin1").unwrap();
+        store.save_result().expect("writable store must save");
+
+        let reloaded = KnownHubStore::new(path);
+        assert_eq!(
+            reloaded.get("5.6.7.8:9100").as_deref(),
+            Some("sha256:pin1"),
+            "pin must survive a reload"
+        );
     }
 
     #[test]

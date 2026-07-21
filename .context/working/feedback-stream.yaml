@@ -4644,3 +4644,21 @@ scan_id: R-677f5016
 task_id: T-2436
 payload:
   task_file: .tasks/active/T-2436-cvindex-monotonic-offset-record--index-m.md
+---
+kind: scan_emitted
+timestamp: '2026-07-21T20:21:18Z'
+scan_id: R-d84e499c
+task_id: T-2437
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-21T20:21:18Z'
+scan_id: R-d84e499c
+task_id: T-2437
+payload:
+  task_file: .tasks/active/T-2437-hubstoml-parse-error-must-be-loud--silen.md
