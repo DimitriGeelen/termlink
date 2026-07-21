@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2428: field-arm periodic retention sweeper on .107 hub
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-21T09:16:41Z
+# ============================================================================
+
+task_id: T-2428
+task_name: "field-arm periodic retention sweeper on .107 hub"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-21T09:04:18Z
+completed: 2026-07-21T09:16:37Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-07-21T11:05:44+02:00
+last_commit: 2026-07-21T11:16:33+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  hub unit gains TERMLINK_SWEEP_INTERVAL_SECS=3600 (source+installed); T-2425 execution record updated (A/B shipped, arc-007 filed). .107 hub field-armed — 0.11.611 through unit, sweeper interval 3600 live in governor telemetry, auth preserved, debris days:7 default live-verified
+
+# Key outcomes
+outcomes:
+  - 'Release binary built from the T-2426+T-2427 commits and installed at /root/.cargo/bin/termlink (the unit''s ExecStart path); `termlink --version` reports the new git-derived version.'
+  - '(env line in unit source+installed copy, not drop-in) Systemd unit sets `TERMLINK_SWEEP_INTERVAL_SECS=3600` for termlink-hub; hub restarted THROUGH the unit (systemctl restart, MainPID matches pidfile, no detached ghost).'
+  - '`hub.governor_status` on the live hub reports `retention_sweep_interval_secs: 3600` and the three T-2427 fields present.'
+  - 'Auth preserved across restart: `termlink fleet doctor` shows local hub connected with NO secret-mismatch/TOFU violation (PL-021 check).'
+  - 'Debris default live-verified: creating a topic named `t-2428-smoke` with no retention lands `days:7` (then deleted); a plain-named topic still lands `forever`.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/systemd/termlink-hub.service'
+  - 'docs/reports/T-2425-ultra-critical-review-round-2.md'
+  - '.tasks/active/T-2428-field-arm-periodic-retention-sweeper-on-.md'
+  - '.tasks/completed/T-2427-env-gated-hub-side-periodic-sweep--terml.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-21T11:05:44"
+    action: "T-2428: hub unit gains TERMLINK_SWEEP_INTERVAL_SECS=3600 (source+installed); T-2425 execution record updated (A/B shipped, arc-007 filed)"
+  - time: "2026-07-21T11:16:33"
+    action: "T-2428: .107 hub field-armed — 0.11.611 through unit, sweeper interval 3600 live in governor telemetry, auth preserved, debris days:7 default live-verified"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 12 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 12
+  commits: 2
+  files_changed: 4
+  lines_added: 225
+  lines_removed: 7
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2428-field-arm-periodic-retention-sweeper-on-.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2426: debris-namespace lifecycle defaults — auto-pick Days(7) at topic creation
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-21T09:00:08Z
+# ============================================================================
+
+task_id: T-2426
+task_name: "debris-namespace lifecycle defaults — auto-pick Days(7) at topic creation"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-21T08:53:33Z
+completed: 2026-07-21T08:59:31Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-21T10:59:27+02:00
+last_commit: 2026-07-21T10:59:27+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  debris-namespace lifecycle defaults — auto-pick Days(7) at both creation sites (CLI ensure_topic + hub channel.create), 8 new tests; prevents T-2424 debris re-accumulation
+
+# Key outcomes
+outcomes:
+  - 'A shared debris-pattern predicate (`is_debris_pattern`) exists in the CLI (crates/termlink-cli/src/commands/channel.rs) matching exactly the sweep-test-debris.sh allowlist classes; unit-tested for positives (t-123-x, T-999, xhub-a, stress-b, scratch:c, smoke:d, smoke-e) and negatives (agent-presence, dm:a:b, channel:learnings, state:x, test-results, tstress).'
+  - 'CLI `ensure_topic` auto-picks `{"kind":"days","value":7}` for debris-pattern names (precedence: state:* → Latest; high-rate → Messages(1000); debris → Days(7); else Forever) and prints a loud one-line stderr note when it does.'
+  - 'Hub-side `channel.create` with no explicit retention defaults debris-pattern names to Days(7) instead of Forever (explicit retention always wins), with a tracing log line; predicate duplicated hub-side per T-2069 convention and unit-tested.'
+  - '`cargo test` (hub 968 + CLI 412, 0 failed, incl. 8 new debris tests) passes with the new tests; `cargo check` clean.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-hub/src/channel.rs'
+  - '.tasks/active/T-2426-debris-namespace-lifecycle-defaults--aut.md'
+  - '.tasks/active/T-2427-env-gated-hub-side-periodic-sweep--terml.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-21T10:59:27"
+    action: "T-2426: debris-namespace lifecycle defaults — auto-pick Days(7) at both creation sites (CLI ensure_topic + hub channel.create), 8 new tests; prevents T-2424 debris re-accumulation"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 4
+  lines_added: 573
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2426-debris-namespace-lifecycle-defaults--aut.md
+generated_by: context-agent-hybrid

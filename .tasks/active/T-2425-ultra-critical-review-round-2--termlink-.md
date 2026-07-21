@@ -187,6 +187,8 @@ enforcement — that round 1's verb-and-document work exposed but did not touch:
 Both build items are low-risk: behavior changes only for known-debris names or
 behind an opt-in env var. Full evidence: docs/reports/T-2425-ultra-critical-review-round-2.md.
 
+## Recommendation
+
 **Recommendation:** GO
 
 **Rationale:**

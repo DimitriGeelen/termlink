@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2427: env-gated hub-side periodic sweep — TERMLINK_SWEEP_INTERVAL_SECS
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-21T09:03:39Z
+# ============================================================================
+
+task_id: T-2427
+task_name: "env-gated hub-side periodic sweep — TERMLINK_SWEEP_INTERVAL_SECS"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-21T08:53:47Z
+completed: 2026-07-21T09:03:30Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-21T11:03:25+02:00
+last_commit: 2026-07-21T11:03:25+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  env-gated hub-side periodic retention sweep (TERMLINK_SWEEP_INTERVAL_SECS, default OFF) + governor_status telemetry; arc-007 comms-loudness files re-homed orphaned loudness tasks (T-2425 R2-GAP-B/C)
+
+# Key outcomes
+outcomes:
+  - 'New module `crates/termlink-hub/src/retention_sweeper.rs`: `interval_from_env()` parses `TERMLINK_SWEEP_INTERVAL_SECS` (absent/empty/`0`/unparseable → None = disabled, loud warn on unparseable; value clamped to [30, 86400]); unit-tested for all parse cases.'
+  - '`sweep_all(bus, now_ms)` walks `list_topics`, skips `Forever`/unknown-retention topics, calls `Bus::sweep` per bounded topic, returns (topics_pruned_from, records_pruned); per-topic errors warn and continue (one bad topic never aborts the pass); unit-tested against a tmp Bus (bounded topic pruned, Forever topic untouched).'
+  - '`run(interval, shutdown_rx)` loop spawned from server.rs ONLY when `interval_from_env()` is Some (mirrors supervisor::run select pattern); disabled path logs one info line naming the env var; enabled path logs interval at start and a summary line per sweep pass.'
+  - '`hub.governor_status` gains `retention_sweep_interval_secs` (0 = disabled), `retention_sweep_runs_total`, `retention_sweep_pruned_total`; doc comment updated; handler test asserts the three fields present.'
+  - '`cargo test -p termlink-hub` passes (416 passed, 0 failed, incl. 4 new sweeper tests + extended governor field test); `cargo check` clean.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/arcs/comms-loudness.yaml'
+  - 'crates/termlink-hub/src/lib.rs'
+  - 'crates/termlink-hub/src/retention_sweeper.rs'
+  - 'crates/termlink-hub/src/router.rs'
+  - 'crates/termlink-hub/src/server.rs'
+  - '.tasks/active/T-2224-substrate-backpressure-demo--hub-loud-re.md'
+  - '.tasks/active/T-2385-agent-contact-reachability-preflight--fa.md'
+  - '.tasks/active/T-2389-relaunch-107-agents-via-t-2388-tl-claude.md'
+  - '.tasks/active/T-2402-woken-but-silent-make-a-rung-yet-unanswe.md'
+  - '.tasks/active/T-2427-env-gated-hub-side-periodic-sweep--terml.md'
+  - '.tasks/completed/T-2426-debris-namespace-lifecycle-defaults--aut.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-21T11:03:25"
+    action: "T-2427: env-gated hub-side periodic retention sweep (TERMLINK_SWEEP_INTERVAL_SECS, default OFF) + governor_status telemetry; arc-007 comms-loudness files re-homed orphaned loudness tasks (T-2425 R2-GAP-B/C)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 9
+  commits: 1
+  files_changed: 11
+  lines_added: 336
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2427-env-gated-hub-side-periodic-sweep--terml.md
+generated_by: context-agent-hybrid
