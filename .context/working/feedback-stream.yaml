@@ -4410,3 +4410,21 @@ scan_id: R-7a684cd6
 task_id: T-2419
 payload:
   task_file: .tasks/active/T-2419-ultra-critical-review-termlink-purpose-v.md
+---
+kind: scan_emitted
+timestamp: '2026-07-21T08:12:27Z'
+scan_id: R-e35a8eb1
+task_id: T-2424
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-21T08:12:27Z'
+scan_id: R-e35a8eb1
+task_id: T-2424
+payload:
+  task_file: .tasks/active/T-2424-test-debris-sweep-on-107--channeldelete-.md
