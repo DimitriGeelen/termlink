@@ -406,6 +406,76 @@ fn parse_env_i64_clamped(name: &str, default: i64, min: i64, max: i64) -> i64 {
 mod tests {
     use super::*;
 
+    // ── token conservation under contention (T-2440) ────────────────
+
+    #[test]
+    fn rate_governor_token_conservation_under_contention() {
+        // T-2440 (round-7 R3): N threads race ONE sender's bucket at a
+        // fixed now_ms — exactly `capacity` admits may succeed. Pins the
+        // check-then-act inside the mutex; a refactor moving the check
+        // outside the lock would oversell and fail this.
+        use std::sync::{Arc, Barrier};
+
+        let capacity = 5u32;
+        let n = 20usize;
+        let g = Arc::new(RateGovernor::new(capacity));
+        let barrier = Arc::new(Barrier::new(n));
+        let handles: Vec<_> = (0..n)
+            .map(|_| {
+                let g = Arc::clone(&g);
+                let barrier = Arc::clone(&barrier);
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    g.try_acquire("one-sender", 1_000)
+                })
+            })
+            .collect();
+        let results: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
+
+        let admitted = results.iter().filter(|r| r.is_ok()).count();
+        let refused = results.iter().filter(|r| r.is_err()).count();
+        assert_eq!(admitted, capacity as usize, "no oversell, no lost token");
+        assert_eq!(refused, n - capacity as usize);
+        assert_eq!(g.buckets_active(), 1, "one sender == one bucket");
+        assert_eq!(g.rate_hits_total(), (n - capacity as usize) as u64);
+    }
+
+    #[test]
+    fn conn_governor_conserves_capacity_under_contention() {
+        // T-2440: the lock-free CAS loop admits exactly `max` under an
+        // N-thread race; release() then conserves the cap for a second
+        // wave.
+        use std::sync::{Arc, Barrier};
+
+        let cap = 4u32;
+        let n = 16usize;
+        let g = Arc::new(ConnGovernor::new(cap));
+        let barrier = Arc::new(Barrier::new(n));
+        let handles: Vec<_> = (0..n)
+            .map(|_| {
+                let g = Arc::clone(&g);
+                let barrier = Arc::clone(&barrier);
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    g.try_acquire().is_ok()
+                })
+            })
+            .collect();
+        let admitted = handles
+            .into_iter()
+            .map(|h| h.join().unwrap())
+            .filter(|ok| *ok)
+            .count() as u32;
+        assert_eq!(admitted, cap, "exactly max slots admitted");
+        assert_eq!(g.current(), cap);
+
+        // Release one → exactly one more admit possible.
+        g.release();
+        assert!(g.try_acquire().is_ok());
+        assert!(g.try_acquire().is_err(), "cap conserved after release/reacquire");
+        assert_eq!(g.current(), cap);
+    }
+
     // ── derive_sender_key (T-2432) ──────────────────────────────────
 
     #[test]

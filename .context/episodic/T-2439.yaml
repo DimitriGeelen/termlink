@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2439: silent-failure residuals sweep — PTY read-loop death, poison-counter bump, retention fallback (round-7 M-class)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-21T20:27:23Z
+# ============================================================================
+
+task_id: T-2439
+task_name: "silent-failure residuals sweep — PTY read-loop death, poison-counter bump, retention fallback (round-7 M-class)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-21T20:24:11Z
+completed: 2026-07-21T20:27:19Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-21T22:27:18+02:00
+last_commit: 2026-07-21T22:27:18+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  silent-failure M-class sweep — PTY read-loop death now logged, poison-counter bump failure warned, retention read-failure distinguished from true Forever (383+87 tests green)
+
+# Key outcomes
+outcomes:
+  - '(a) Both PTY read-loop spawn sites (broadcast + plain) log Err via `tracing::error!` "session output stopped" — session.rs'
+  - '(b) `bump_attempts` failure logs `tracing::warn!` with queue_id + error naming the poison-threshold stall — bus_client.rs'
+  - '(c) retention read error now a distinct match arm: `tracing::warn!` with topic + error, explicit fallback comment distinguishing true-Forever from read-failure — channel.rs handle_channel_list'
+  - 'Suites green: termlink-session 383 passed; termlink-hub channel slice 87 passed; termlink bin `cargo check` clean'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-2438.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-cli/src/commands/session.rs'
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'crates/termlink-session/src/bus_client.rs'
+  - '.tasks/active/T-2439-silent-failure-residuals-sweep--pty-read.md'
+  - '.tasks/completed/T-2438-tofu-pin-write-failure-must-be-loud--swa.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-21T22:27:18"
+    action: "T-2439: silent-failure M-class sweep — PTY read-loop death now logged, poison-counter bump failure warned, retention read-failure distinguished from true Forever (383+87 tests green)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 12
+  lines_added: 340
+  lines_removed: 24
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2439-silent-failure-residuals-sweep--pty-read.md
+generated_by: context-agent-hybrid
