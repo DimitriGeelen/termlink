@@ -4698,3 +4698,21 @@ scan_id: R-975a4b4e
 task_id: T-2439
 payload:
   task_file: .tasks/active/T-2439-silent-failure-residuals-sweep--pty-read.md
+---
+kind: scan_emitted
+timestamp: '2026-07-21T20:29:06Z'
+scan_id: R-3ed4d9fc
+task_id: T-2440
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-21T20:29:06Z'
+scan_id: R-3ed4d9fc
+task_id: T-2440
+payload:
+  task_file: .tasks/active/T-2440-rategovernor-token-conservation-concurre.md
