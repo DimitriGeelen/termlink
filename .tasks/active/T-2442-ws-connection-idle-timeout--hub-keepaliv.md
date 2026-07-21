@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-21T21:29:12Z
-last_update: 2026-07-21T21:29:12Z
+last_update: 2026-07-21T21:36:29Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -48,11 +48,11 @@ WS loop so dead connections release their slot. Env-tunable, clamped.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `handle_connection` bounds the first-byte sniff read with a timeout (`TERMLINK_CONN_HANDSHAKE_TIMEOUT_MS`, default 30000, clamped); a silent connection is dropped and its governor slot released.
-- [ ] `handle_ws_connection` sends a hub-initiated `Ping` on a periodic timer (`TERMLINK_WS_PING_INTERVAL_MS`, default 30000) and drops the connection when no inbound frame has arrived within the idle window (`TERMLINK_WS_IDLE_TIMEOUT_MS`, default 120000); any inbound frame (incl. Pong) resets the idle clock.
-- [ ] Integration test: a raw-TCP connection that sends nothing is closed by the hub within the handshake timeout (client observes EOF).
-- [ ] Integration test: a WS-upgraded connection that goes silent is closed by the hub within the idle timeout.
-- [ ] `cargo test -p termlink-hub --lib` green (existing + new tests).
+- [x] `handle_connection` bounds the first-byte sniff read with a timeout (`TERMLINK_CONN_HANDSHAKE_TIMEOUT_MS`, default 30000, clamped); a silent connection is dropped and its governor slot released.
+- [x] `handle_ws_connection` sends a hub-initiated `Ping` on a periodic timer (`TERMLINK_WS_PING_INTERVAL_MS`, default 30000) and drops the connection when no inbound frame has arrived within the idle window (`TERMLINK_WS_IDLE_TIMEOUT_MS`, default 120000); any inbound frame (incl. Pong) resets the idle clock.
+- [x] Integration test: a raw-TCP connection that sends nothing is closed by the hub within the handshake timeout (client observes EOF).
+- [x] Integration test: a WS-upgraded connection that goes silent is closed by the hub within the idle timeout.
+- [x] `cargo test -p termlink-hub --lib` green (existing + new tests).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
