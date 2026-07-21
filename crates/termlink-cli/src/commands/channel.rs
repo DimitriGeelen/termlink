@@ -1175,6 +1175,58 @@ async fn run_await_ack(
     let effective_attempts = if opts.retry { opts.max_attempts.max(1) } else { 1 };
     let policy = RetryPolicy::from_operator(opts.ack_timeout_secs, effective_attempts);
 
+    // T-2443: durability guard. On the Unix path, make the FIRST post go through
+    // the offline queue so a hub-down `--await-ack` durably enqueues the message
+    // instead of dropping it (the whole point of a reliability flag). If the hub
+    // is unreachable the post is `Queued` — the message is safe and will flush +
+    // dedup on reconnect — but there is no live connection to await a receipt on,
+    // so we report the durable-queued outcome and skip the ack-await. When the
+    // post is `Delivered` we fall through to the ack-retry loop unchanged (its
+    // first re-post reuses the SAME client_msg_id and is hub-deduped, so no
+    // double-append). TCP cross-hub posts have no Unix-level queue (mirrors the
+    // normal `cmd_channel_post` TCP path) and keep their existing direct-RPC
+    // behaviour.
+    if !sock.is_tcp() {
+        let queue_path = default_queue_path();
+        let (bus, _flush_task) = BusClient::connect(sock.clone(), &queue_path)
+            .context("open bus client / offline queue")?;
+        if bus.queue_size() > 0 {
+            let _ = bus.flush().await;
+        }
+        match bus
+            .post(pending.clone())
+            .await
+            .map_err(|e| anyhow!("channel.post failed (and offline queue also failed): {e}"))?
+        {
+            PostOutcome::Queued { queue_id } => {
+                if json_output {
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&json!({
+                            "queued": {
+                                "queue_id": queue_id,
+                                "queue_path": queue_path.display().to_string(),
+                                "ack_awaited": false,
+                                "reason": "hub unreachable — message durably queued; ack cannot be awaited offline"
+                            }
+                        }))?
+                    );
+                } else {
+                    println!(
+                        "Queued to {topic} — queue_id={queue_id} (hub unreachable; will flush on \
+                         reconnect). Ack not awaited: no live connection while offline."
+                    );
+                }
+                return Ok(());
+            }
+            PostOutcome::Delivered { .. } => {
+                // Hub is reachable — proceed to the ack-await retry loop below.
+                // The loop re-posts (attempt 1) with the same client_msg_id; the
+                // hub dedupes it against this delivery, so it is exactly-once.
+            }
+        }
+    }
+
     let params = channel_post_params(&pending);
     let sock_post = sock.clone();
     let post_fn = move |_cmid: String| {
@@ -12061,6 +12113,79 @@ mod tests {
         assert!(out.get("from").is_none(), "opt_out must disable stamping");
         let out = stamp_from_with(json!({"topic": "t"}), None, false);
         assert!(out.get("from").is_none(), "no fp resolved → no stamp");
+    }
+
+    // ---- T-2443 await-ack durability guard ---------------------------------
+
+    /// Serialises the tests that mutate `TERMLINK_IDENTITY_DIR` (a process-global
+    /// env var) so parallel test threads don't clobber each other's temp home.
+    static AWAIT_ACK_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// T-2443: a `--await-ack` post to an UNREACHABLE Unix hub must durably queue
+    /// the message (not drop it). Proves the fix: `run_await_ack` returns Ok and
+    /// a row lands in `~/.termlink/outbound.sqlite` — matching the durability of
+    /// a plain `channel post`, instead of the pre-fix hard-fail-and-lose.
+    #[tokio::test]
+    async fn await_ack_durably_queues_when_hub_unreachable() {
+        use termlink_session::offline_queue::{default_queue_path, OfflineQueue};
+
+        let _guard = AWAIT_ACK_ENV_LOCK.lock().unwrap();
+        let prev = std::env::var("TERMLINK_IDENTITY_DIR").ok();
+        let tmp = std::env::temp_dir().join(format!(
+            "tl-await-ack-{}-{}",
+            std::process::id(),
+            // vary by nanos-free unique-ish suffix; process id + fixed is fine
+            // because the lock serialises and we clean the dir up front.
+            "durability"
+        ));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+        unsafe { std::env::set_var("TERMLINK_IDENTITY_DIR", &tmp) };
+
+        // A dead Unix socket path — connect is lazy; the post fails and queues.
+        let dead_sock = tmp.join("nonexistent-hub.sock");
+        let sock = TransportAddr::unix(dead_sock);
+
+        // A valid dm:<self>:<peer> topic so recipient derivation succeeds.
+        let pending = PendingPost {
+            topic: "dm:selfaaaa:peerbbbb".to_string(),
+            msg_type: "chat".to_string(),
+            payload: b"round-8 durability probe".to_vec(),
+            artifact_ref: None,
+            ts_unix_ms: 1_700_000_000_000,
+            sender_id: "selfaaaa".to_string(),
+            sender_pubkey_hex: "00".repeat(32),
+            signature_hex: "00".repeat(64),
+            metadata: Default::default(),
+            client_msg_id: Some("test-cmid-durability".to_string()),
+        };
+        let opts = AwaitAckOpts {
+            await_ack: true,
+            retry: false,
+            ack_timeout_secs: 1,
+            max_attempts: 1,
+        };
+
+        let result = run_await_ack(sock, pending, /* json_output */ true, opts).await;
+        assert!(
+            result.is_ok(),
+            "hub-down --await-ack must NOT hard-fail (it used to drop the message): {result:?}"
+        );
+
+        // The message must be durable: a row is present in the offline queue.
+        let q = OfflineQueue::open(&default_queue_path()).expect("open offline queue");
+        assert_eq!(
+            q.size().expect("queue size"),
+            1,
+            "hub-down --await-ack must durably enqueue exactly one row (durability restored)"
+        );
+
+        // Restore env.
+        match prev {
+            Some(v) => unsafe { std::env::set_var("TERMLINK_IDENTITY_DIR", v) },
+            None => unsafe { std::env::remove_var("TERMLINK_IDENTITY_DIR") },
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 
     // ---- T-2391 cv_index presence-read extraction --------------------------
