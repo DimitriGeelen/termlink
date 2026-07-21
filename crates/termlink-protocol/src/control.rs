@@ -422,6 +422,16 @@ pub mod error_code {
     /// `channel.receipts`, which aggregates the whole topic, resume is
     /// not offered — a partial receipt map would be wrong data).
     pub const WALK_DEADLINE_EXCEEDED: i64 = -32020;
+    /// T-2435 — a `channel.post` carrying a `client_msg_id` whose
+    /// original post is still in flight on another connection/task.
+    /// The hub pre-reserves the (sender_id, client_msg_id) dedupe slot
+    /// (closing the concurrent double-apply TOCTOU) and LOUD-refuses
+    /// the concurrent duplicate instead of double-appending or
+    /// fabricating an offset. Retryable: the spoke retries and hits the
+    /// normal `deduped: true` cached-envelope path once the first post
+    /// commits. Data field: `{retry_after_ms: u64}` (best-effort ~250ms
+    /// — an in-flight post normally commits within milliseconds).
+    pub const POST_IN_FLIGHT: i64 = -32021;
 }
 
 /// Default `protocol_version` when the field is missing on the wire.

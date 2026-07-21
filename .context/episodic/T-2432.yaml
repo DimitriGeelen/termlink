@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2432: identity-keyed governor rate buckets — retire peer_pid keying (T-2430 GO build)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-21T18:02:57Z
+# ============================================================================
+
+task_id: T-2432
+task_name: "identity-keyed governor rate buckets — retire peer_pid keying (T-2430 GO build)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-21T17:53:34Z
+completed: 2026-07-21T18:02:22Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-21T20:02:14+02:00
+last_commit: 2026-07-21T20:02:14+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  identity-keyed governor rate buckets — shared derive_sender_key (from → sender_id → peer_addr → peer_pid → anonymous) + CLI identity stamp in rpc_call_authed; PL-218/PL-209 fix, 9 new tests
+
+# Key outcomes
+outcomes:
+  - 'CLI channel-RPC requests carry `params.from` populated from the resolved identity fingerprint (`stamp_identity_from` in `rpc_call_authed` — the single channel-RPC funnel; identity via `load_identity_or_create`, the same key the wire envelope signs with, cached per process; `TERMLINK_NO_IDENTITY_FROM=1` opt-out), so repeated CLI invocations share one governor bucket instead of one-per-pid'
+  - 'Hub sender-key derivation prefers a verified/declared identity over peer_pid in both RPC paths (shared `governor::derive_sender_key` used by process_request_message and maybe_handle_ws_subscribe; precedence `from → sender_id → peer_addr → peer_pid → anonymous` — the new `sender_id` tier keys old-CLI channel.post traffic by verified identity too) with unchanged fallback order for clients that send nothing'
+  - 'Unit tests cover: same identity across two simulated pids shares one bucket (`same_identity_across_two_connections_shares_one_bucket`); precedence + fallback tests (4 hub-side); CLI stamp tests (insert/never-overwrite/non-object/opt-out, 4 cases)'
+  - 'cargo build --release passes and full hub+cli test suites pass with no regressions (hub 421+4 passed, cli 972+3+174 passed, 0 failed)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'identity-keyed governor rate buckets — shared derive_sender_key (from → sender_id → peer_addr → peer_pid → anonymous) + CLI identity stamp in rpc_call_authed; PL-218/PL-209 fix, 9 new tests'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-hub/src/governor.rs'
+  - 'crates/termlink-hub/src/server.rs'
+  - 'docs/operations/substrate-governor.md'
+  - '.tasks/active/T-2432-identity-keyed-governor-rate-buckets--re.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-21T20:02:14"
+    action: "T-2432: identity-keyed governor rate buckets — shared derive_sender_key (from → sender_id → peer_addr → peer_pid → anonymous) + CLI identity stamp in rpc_call_authed; PL-218/PL-209 fix, 9 new tests"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 8
+  commits: 1
+  files_changed: 5
+  lines_added: 380
+  lines_removed: 24
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2432-identity-keyed-governor-rate-buckets--re.md
+generated_by: context-agent-hybrid

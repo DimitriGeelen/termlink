@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2434: extend T-2432 identity stamp to remaining one-shot RPC funnels (find-idle, fetch_topic_names, substrate digest)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-21T18:09:59Z
+# ============================================================================
+
+task_id: T-2434
+task_name: "extend T-2432 identity stamp to remaining one-shot RPC funnels (find-idle, fetch_topic_names, substrate digest)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-21T18:06:42Z
+completed: 2026-07-21T18:09:40Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-21T20:09:35+02:00
+last_commit: 2026-07-21T20:09:35+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  extend identity stamp to find-idle (cron-fired, highest mint source), fetch_topic_names, substrate digest fetches — round-5 sweep residuals closed
+
+# Key outcomes
+outcomes:
+  - 'stamp_identity_from exported (pub(crate)) and applied at agent_find_idle.rs (stamped once on params_template — covers one-shot AND --watch), channel.rs fetch_topic_names, and all three substrate.rs raw RPC sites (find_idle, channel.list, governor probe)'
+  - 'No remaining unstamped client::rpc_call_addr callers for local-hub one-shot verbs in the three named files (grep for raw `json!({})` params = 0 hits)'
+  - 'cargo check + existing test suites pass with no regressions (CLI bin: 972 passed, 0 failed)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/agent_find_idle.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/commands/substrate.rs'
+  - '.tasks/active/T-2433-field-apply-t-2432-identity-keyed-govern.md'
+  - '.tasks/active/T-2434-extend-t-2432-identity-stamp-to-remainin.md'
+  - '.tasks/completed/T-2432-identity-keyed-governor-rate-buckets--re.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-21T20:09:35"
+    action: "T-2434: extend identity stamp to find-idle (cron-fired, highest mint source), fetch_topic_names, substrate digest fetches — round-5 sweep residuals closed"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 6
+  lines_added: 398
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2434-extend-t-2432-identity-stamp-to-remainin.md
+generated_by: context-agent-hybrid

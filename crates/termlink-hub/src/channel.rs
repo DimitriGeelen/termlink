@@ -735,7 +735,23 @@ pub(crate) async fn handle_channel_post_with_peer(
                 )
                 .into();
             }
-            crate::dedupe::DedupeOutcome::Newly => { /* fall through to post */ }
+            crate::dedupe::DedupeOutcome::InFlight => {
+                // T-2435 — the original post with this (sender_id,
+                // client_msg_id) is still in flight on another
+                // connection/task. LOUD retryable refusal instead of
+                // double-appending (the TOCTOU) or fabricating an
+                // offset. The spoke's retry loop will hit the
+                // Duplicate cached-envelope path once the first post
+                // commits.
+                return ErrorResponse::with_data(
+                    id,
+                    error_code::POST_IN_FLIGHT,
+                    "post with this client_msg_id is in flight (retry in 250ms)",
+                    json!({ "retry_after_ms": 250 }),
+                )
+                .into();
+            }
+            crate::dedupe::DedupeOutcome::Newly => { /* reserved (T-2435); fall through to post */ }
         }
     }
 
@@ -866,13 +882,26 @@ pub(crate) async fn handle_channel_post_with_peer(
             }
             Response::success(id, json!({"offset": offset, "ts": ts_unix_ms})).into()
         }
-        Err(termlink_bus::BusError::UnknownTopic(t)) => ErrorResponse::new(
-            id,
-            error_code::CHANNEL_TOPIC_UNKNOWN,
-            &format!("unknown topic: {t}"),
-        )
-        .into(),
-        Err(e) => ErrorResponse::internal_error(id, &format!("channel.post: {e}")).into(),
+        Err(termlink_bus::BusError::UnknownTopic(t)) => {
+            // T-2435 — release the dedupe reservation so a corrected
+            // retry (e.g. after topic creation) is not refused as
+            // in-flight until the TTL ages the orphan out.
+            if let Some(ref cid) = client_msg_id {
+                crate::dedupe::post_dedupe().abort_reservation(&env.sender_id, cid);
+            }
+            ErrorResponse::new(
+                id,
+                error_code::CHANNEL_TOPIC_UNKNOWN,
+                &format!("unknown topic: {t}"),
+            )
+            .into()
+        }
+        Err(e) => {
+            if let Some(ref cid) = client_msg_id {
+                crate::dedupe::post_dedupe().abort_reservation(&env.sender_id, cid);
+            }
+            ErrorResponse::internal_error(id, &format!("channel.post: {e}")).into()
+        }
     }
 }
 

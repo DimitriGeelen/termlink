@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2431: core async/concurrency test-debt — bus/hub under-tested relative to risk
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-21T18:25:00Z
+# ============================================================================
+
+task_id: T-2431
+task_name: "core async/concurrency test-debt — bus/hub under-tested relative to risk"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-21T12:33:07Z
+completed: 2026-07-21T18:24:51Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-21T20:24:50+02:00
+last_commit: 2026-07-21T20:24:50+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  bus concurrency test slice green — gapless concurrent posts, post/sweep race, claim atomicity, lease lifecycle (86 passed)
+
+# Key outcomes
+outcomes:
+  - 'Concurrency test: 8 tasks × 25 posts to one topic — all land, offsets unique and gapless (`concurrent_posts_all_land_with_unique_gapless_offsets`)'
+  - 'Concurrency test: 120 posts racing 30 sweeps on Messages(20) topic — no panic/error, final state exactly the newest 20 records (`posts_racing_sweep_never_lose_fresh_records`)'
+  - 'Concurrency test: 10 tasks racing claim_offset on same (topic, offset) — exactly 1 Ok, 9 ClaimConflict (`claim_race_exactly_one_winner`)'
+  - 'Concurrency test: released-without-ack offset claimable exactly once by racers while a held claim rejects all 6 racers (`released_offset_reclaimable_while_held_claim_stays_exclusive`)'
+  - 'Full termlink-bus suite passes: 86 passed, 0 failed (multi_thread flavor, 4 workers)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2431-core-asyncconcurrency-test-debt--bushub-.md'
+  - '.tasks/completed/T-2433-field-apply-t-2432-identity-keyed-govern.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-21T20:24:50"
+    action: "T-2431: bus concurrency test slice green — gapless concurrent posts, post/sweep race, claim atomicity, lease lifecycle (86 passed)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 351 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 351
+  commits: 1
+  files_changed: 2
+  lines_added: 7
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2431-core-asyncconcurrency-test-debt--bushub-.md
+generated_by: context-agent-hybrid

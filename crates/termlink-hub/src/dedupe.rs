@@ -20,7 +20,9 @@
 //!   identity fingerprint already verified by `handle_channel_post_with`
 //!   (T-1427 invariant), so an attacker can't poison another sender's
 //!   dedupe namespace.
-//! * Value = `DedupeEntry { offset, ts_unix_ms, seen_at_ms }`.
+//! * Value = `DedupeEntry { state: Pending | Committed{offset, ts}, seen_at_ms }`
+//!   — `Pending` is the T-2435 pre-reservation that closes the concurrent
+//!   double-post TOCTOU (both racers seeing a miss and both appending).
 //! * Eviction = TTL-based (default 5 min) + capacity-bounded LRU (default
 //!   10K entries). TTL keeps the cache small in steady state; LRU is the
 //!   floor under pathological burst-of-distinct-ids load.
@@ -88,29 +90,48 @@ fn parse_env_usize(name: &str, default: usize) -> usize {
     }
 }
 
+/// Lifecycle of a dedupe entry (T-2435). A key is `Pending` from the
+/// moment the first call reserves it until `record_offset` promotes it
+/// after `bus.post` succeeds; a failed post releases the reservation via
+/// [`PostDedupe::abort_reservation`] (or TTL ages it out if the caller
+/// crashes mid-post).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EntryState {
+    /// Reserved — the original post is still in flight, no offset yet.
+    Pending,
+    /// Committed — the original post succeeded at this offset/ts.
+    Committed { offset: u64, ts_unix_ms: i64 },
+}
+
 /// One cached post — what the hub returns on a duplicate hit so the
 /// retrying client sees the same response shape as the first call.
 #[derive(Debug, Clone, Copy)]
 struct DedupeEntry {
-    offset: u64,
-    ts_unix_ms: i64,
+    state: EntryState,
     seen_at_ms: i64,
 }
 
 /// Outcome of `try_record_or_lookup`. `Newly` means the caller must
-/// proceed with `bus.post` and then call `record` to populate the cache;
+/// proceed with `bus.post` and then call [`PostDedupe::record_offset`]
+/// on success or [`PostDedupe::abort_reservation`] on failure;
 /// `Duplicate` means the caller must return the cached envelope without
-/// appending.
+/// appending; `InFlight` means a concurrent call holds the reservation
+/// and the caller must refuse loudly with a retryable error (T-2435 —
+/// never fall through to `bus.post`, that is the double-apply TOCTOU).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DedupeOutcome {
-    /// First time seeing this (sender_id, client_msg_id) pair. Proceed
-    /// with the post; the dedupe entry has been pre-reserved but holds
-    /// no offset yet — call [`PostDedupe::record_offset`] after
-    /// `bus.post` succeeds.
+    /// First time seeing this (sender_id, client_msg_id) pair. The entry
+    /// IS pre-reserved (`Pending`, T-2435) — the caller MUST follow up
+    /// with `record_offset` (success) or `abort_reservation` (failure).
     Newly,
     /// Already-seen pair. The cached `(offset, ts_unix_ms)` of the
     /// original successful post is returned verbatim.
     Duplicate { offset: u64, ts_unix_ms: i64 },
+    /// The original post with this pair is still in flight on another
+    /// connection/task — no offset exists yet. Caller returns a
+    /// structured retryable refusal (`POST_IN_FLIGHT`); the retrying
+    /// spoke will hit `Duplicate` once the first post commits.
+    InFlight,
 }
 
 /// Process-global recently-seen-posts cache.
@@ -158,39 +179,48 @@ impl PostDedupe {
             // Hit. Don't update seen_at_ms — the cache is keyed on the
             // first sighting so TTL anchors to the original post, not
             // the retry. (A spoke that retries every 30s for 4 minutes
-            // would otherwise hold the entry forever.)
+            // would otherwise hold the entry forever.) Both hit kinds
+            // count toward hits_total: each absorbs a would-be
+            // double-append.
             self.hits_total.fetch_add(1, Ordering::Relaxed);
-            return DedupeOutcome::Duplicate {
-                offset: entry.offset,
-                ts_unix_ms: entry.ts_unix_ms,
+            return match entry.state {
+                EntryState::Committed { offset, ts_unix_ms } => {
+                    DedupeOutcome::Duplicate { offset, ts_unix_ms }
+                }
+                EntryState::Pending => DedupeOutcome::InFlight,
             };
         }
 
-        // Miss. Pre-reserve with a placeholder so concurrent retries
-        // collide on the second call instead of both posting. The
-        // caller MUST follow up with `record_offset` after bus.post
-        // succeeds; if it doesn't (error path), the entry remains as
-        // a placeholder and ages out by TTL (offset = -1 is a
-        // recognisable "no real offset yet" marker — but the next
-        // duplicate would still see it and return -1, which is wrong.
-        // So: ONLY insert after a successful post — see record_offset).
-        //
-        // Simpler design adopted: don't pre-reserve. Record only on
-        // success. Race window: two concurrent retries with the same
-        // (sender, msg_id) both miss the cache, both call bus.post,
-        // hub appends twice. This is the EXACT scenario the dedupe
-        // is meant to prevent.
-        //
-        // Mitigation: clients post serially on a given connection
-        // anyway (FIFO offline queue); concurrent retries from the
-        // SAME sender_id with the SAME client_msg_id are degenerate.
-        // The realistic case is sequential retry (ack lost → wait →
-        // retry), which dedupe catches reliably.
-        //
-        // If concurrent retries from a misbehaving spoke become a
-        // real problem, escalate to pre-reservation with a follow-up
-        // task.
+        // Miss. Pre-reserve under the SAME lock acquisition (T-2435) so
+        // concurrent retries of the same pair collide on the entry
+        // instead of both reaching `bus.post` — the double-apply TOCTOU
+        // this cache exists to prevent. The caller MUST follow up with
+        // `record_offset` (success) or `abort_reservation` (post
+        // failed); a crashed caller's orphan reservation ages out by
+        // TTL.
+        evict_for_capacity_in(&mut map, self.capacity, &key);
+        map.insert(
+            key,
+            DedupeEntry {
+                state: EntryState::Pending,
+                seen_at_ms: now_ms,
+            },
+        );
         DedupeOutcome::Newly
+    }
+
+    /// Release a `Pending` reservation after the guarded `bus.post`
+    /// failed (T-2435). Removes the entry ONLY if it is still Pending —
+    /// a Committed entry is never dropped here (that would re-open the
+    /// sequential-retry double-apply window).
+    pub fn abort_reservation(&self, sender_id: &str, client_msg_id: &str) {
+        let key = (sender_id.to_string(), client_msg_id.to_string());
+        let mut map = self.map.lock().expect("dedupe mutex poisoned");
+        if let Some(entry) = map.get(&key)
+            && entry.state == EntryState::Pending
+        {
+            map.remove(&key);
+        }
     }
 
     /// Record the cached `{offset, ts_unix_ms}` for a successful post.
@@ -209,24 +239,15 @@ impl PostDedupe {
         let mut map = self.map.lock().expect("dedupe mutex poisoned");
 
         evict_expired_in(&mut map, now_ms, self.ttl_ms);
+        evict_for_capacity_in(&mut map, self.capacity, &key);
 
-        if map.len() >= self.capacity && !map.contains_key(&key) {
-            // LRU eviction — find the oldest by seen_at_ms. O(n) but
-            // only fires when the cache is full, which TTL keeps rare.
-            if let Some(oldest_key) = map
-                .iter()
-                .min_by_key(|(_, v)| v.seen_at_ms)
-                .map(|(k, _)| k.clone())
-            {
-                map.remove(&oldest_key);
-            }
-        }
-
+        // Promote the Pending reservation (normal path) — or insert
+        // directly for callers that record without a prior reservation
+        // (kept for back-compat; the T-2435 handler always reserves).
         map.insert(
             key,
             DedupeEntry {
-                offset,
-                ts_unix_ms,
+                state: EntryState::Committed { offset, ts_unix_ms },
                 seen_at_ms: now_ms,
             },
         );
@@ -264,6 +285,26 @@ fn evict_expired_in(
     ttl_ms: i64,
 ) {
     map.retain(|_, entry| now_ms.saturating_sub(entry.seen_at_ms) <= ttl_ms);
+}
+
+/// LRU eviction when at capacity and the incoming key is not already
+/// present — find the oldest by `seen_at_ms`. O(n) but only fires when
+/// the cache is full, which TTL keeps rare. Shared by the reservation
+/// path (`try_record_or_lookup`, T-2435) and `record_offset`.
+fn evict_for_capacity_in(
+    map: &mut HashMap<(String, String), DedupeEntry>,
+    capacity: usize,
+    incoming: &(String, String),
+) {
+    if map.len() >= capacity && !map.contains_key(incoming) {
+        if let Some(oldest_key) = map
+            .iter()
+            .min_by_key(|(_, v)| v.seen_at_ms)
+            .map(|(k, _)| k.clone())
+        {
+            map.remove(&oldest_key);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -334,10 +375,11 @@ mod tests {
         let outcome = d.try_record_or_lookup(sender, msg_id, 3_000);
         assert!(matches!(outcome, DedupeOutcome::Duplicate { .. }));
 
-        // Past TTL — evicted, miss.
+        // Past TTL — evicted, miss. The miss pre-reserves a fresh
+        // Pending entry (T-2435), so the map holds exactly that one.
         let outcome = d.try_record_or_lookup(sender, msg_id, 10_000);
         assert_eq!(outcome, DedupeOutcome::Newly);
-        assert_eq!(d.entries_active(), 0);
+        assert_eq!(d.entries_active(), 1);
     }
 
     #[test]
@@ -426,6 +468,95 @@ mod tests {
 
         d.evict_expired(10_000);
         assert_eq!(d.entries_active(), 0);
+    }
+
+    #[test]
+    fn in_flight_reservation_blocks_second_caller() {
+        // T-2435: the sequential shape of the TOCTOU — caller A reserves,
+        // caller B arrives before A commits. B must get InFlight, never
+        // Newly (double-post) and never a fabricated Duplicate.
+        let d = PostDedupe::new(60_000, 100);
+        assert_eq!(d.try_record_or_lookup("a", "m", 100), DedupeOutcome::Newly);
+        assert_eq!(
+            d.try_record_or_lookup("a", "m", 150),
+            DedupeOutcome::InFlight
+        );
+        // InFlight counts as an absorbed retry.
+        assert_eq!(d.hits_total(), 1);
+
+        // A commits — B's retry now sees the committed envelope.
+        d.record_offset("a", "m", 200, 7, 180);
+        assert_eq!(
+            d.try_record_or_lookup("a", "m", 250),
+            DedupeOutcome::Duplicate {
+                offset: 7,
+                ts_unix_ms: 180
+            }
+        );
+    }
+
+    #[test]
+    fn abort_reservation_releases_pending_only() {
+        let d = PostDedupe::new(60_000, 100);
+
+        // Failed post: reserve → abort → a retry may post again.
+        assert_eq!(d.try_record_or_lookup("a", "m", 100), DedupeOutcome::Newly);
+        d.abort_reservation("a", "m");
+        assert_eq!(d.try_record_or_lookup("a", "m", 200), DedupeOutcome::Newly);
+
+        // Committed entries are never dropped by abort.
+        d.record_offset("a", "m", 300, 9, 300);
+        d.abort_reservation("a", "m");
+        assert!(matches!(
+            d.try_record_or_lookup("a", "m", 400),
+            DedupeOutcome::Duplicate { offset: 9, .. }
+        ));
+    }
+
+    #[test]
+    fn concurrent_racers_exactly_one_newly() {
+        // T-2435 regression armor: N threads race the same key through a
+        // barrier — exactly 1 may get Newly, the rest InFlight. Before
+        // the pre-reservation fix every racer got Newly and the hub
+        // double-appended.
+        use std::sync::Arc;
+        use std::sync::Barrier;
+
+        let d = Arc::new(PostDedupe::new(60_000, 100));
+        let n = 10;
+        let barrier = Arc::new(Barrier::new(n));
+        let handles: Vec<_> = (0..n)
+            .map(|_| {
+                let d = Arc::clone(&d);
+                let barrier = Arc::clone(&barrier);
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    d.try_record_or_lookup("racer", "same-msg", 1000)
+                })
+            })
+            .collect();
+        let outcomes: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
+
+        let newly = outcomes
+            .iter()
+            .filter(|o| **o == DedupeOutcome::Newly)
+            .count();
+        let in_flight = outcomes
+            .iter()
+            .filter(|o| **o == DedupeOutcome::InFlight)
+            .count();
+        assert_eq!(newly, 1, "exactly one racer may proceed to bus.post");
+        assert_eq!(in_flight, n - 1, "all others must be refused loudly");
+
+        // Winner commits; every subsequent retry gets the cached offset.
+        d.record_offset("racer", "same-msg", 1100, 42, 1050);
+        assert_eq!(
+            d.try_record_or_lookup("racer", "same-msg", 1200),
+            DedupeOutcome::Duplicate {
+                offset: 42,
+                ts_unix_ms: 1050
+            }
+        );
     }
 
     #[test]
