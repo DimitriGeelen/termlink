@@ -33,6 +33,39 @@ pub enum WsConsumerError {
     AuthRejected,
     #[error("malformed frame: {0}")]
     Malformed(serde_json::Error),
+    #[error("hub sent no frame within the read timeout (silent/half-open link)")]
+    ReadTimeout,
+}
+
+/// T-2446 (WS#4): client-side read timeout. `run_ws_session` used to await
+/// `source.next()` with no bound, so a half-open hub link (no FIN/RST) hung the
+/// consumer forever and the reconnect loop never fired. This bounds every read;
+/// a live hub (post-T-2442) pings ~every 30s and each ping frame resets the
+/// window, so healthy quiet push sessions are unaffected. Env-tunable, clamped.
+fn client_read_timeout() -> std::time::Duration {
+    let ms = std::env::var("TERMLINK_WS_CLIENT_READ_TIMEOUT_MS")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(90_000)
+        .clamp(1_000, 3_600_000);
+    std::time::Duration::from_millis(ms)
+}
+
+/// Await the next stream item bounded by `read_timeout`. Returns
+/// `Err(ReadTimeout)` when the hub sends nothing within the window — the caller
+/// then surfaces an error and the reconnect loop degrades to poll instead of
+/// hanging. `Ok(None)` still means a clean stream end.
+async fn next_frame_bounded<S>(
+    source: &mut S,
+    read_timeout: std::time::Duration,
+) -> Result<Option<Result<Message, tokio_tungstenite::tungstenite::Error>>, WsConsumerError>
+where
+    S: StreamExt<Item = Result<Message, tokio_tungstenite::tungstenite::Error>> + Unpin,
+{
+    match tokio::time::timeout(read_timeout, source.next()).await {
+        Ok(item) => Ok(item),
+        Err(_) => Err(WsConsumerError::ReadTimeout),
+    }
 }
 
 /// Build the `hub.auth` request frame (pure — unit-tested).
@@ -160,13 +193,14 @@ where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
 {
     let (mut sink, mut source) = ws.split();
+    let read_timeout = client_read_timeout();
 
     // --- authenticate (TCP only) ---
     if let Some(token_raw) = token {
         sink.send(Message::Text(build_ws_auth_request(token_raw).into()))
             .await
             .map_err(WsConsumerError::Stream)?;
-        let auth_ack = next_text_frame(&mut source)
+        let auth_ack = next_text_frame(&mut source, read_timeout)
             .await?
             .ok_or(WsConsumerError::ClosedEarly("auth"))?;
         if !auth_ack_ok(&auth_ack) {
@@ -178,13 +212,18 @@ where
     sink.send(Message::Text(build_ws_subscribe_request(topics).into()))
         .await
         .map_err(WsConsumerError::Stream)?;
-    let _sub_ack = next_text_frame(&mut source)
+    let _sub_ack = next_text_frame(&mut source, read_timeout)
         .await?
         .ok_or(WsConsumerError::ClosedEarly("subscribe"))?;
 
     // --- stream pushes ---
-    while let Some(msg) = source.next().await {
-        let msg = msg.map_err(WsConsumerError::Stream)?;
+    // T-2446: bounded read — a silent/half-open hub yields Err(ReadTimeout) so
+    // the reconnect loop degrades to poll instead of hanging forever.
+    loop {
+        let msg = match next_frame_bounded(&mut source, read_timeout).await? {
+            Some(m) => m.map_err(WsConsumerError::Stream)?,
+            None => break,
+        };
         match msg {
             Message::Text(t) => {
                 let frame: serde_json::Value =
@@ -206,11 +245,16 @@ where
 
 /// Read frames until the next Text frame (skipping ping/pong). Returns `Ok(None)`
 /// if the stream closes first.
-async fn next_text_frame<S>(source: &mut S) -> Result<Option<serde_json::Value>, WsConsumerError>
+async fn next_text_frame<S>(
+    source: &mut S,
+    read_timeout: std::time::Duration,
+) -> Result<Option<serde_json::Value>, WsConsumerError>
 where
     S: StreamExt<Item = Result<Message, tokio_tungstenite::tungstenite::Error>> + Unpin,
 {
-    while let Some(msg) = source.next().await {
+    // T-2446: bound the handshake reads too — a hub that upgrades but never acks
+    // auth/subscribe would otherwise hang here indefinitely.
+    while let Some(msg) = next_frame_bounded(source, read_timeout).await? {
         let msg = msg.map_err(WsConsumerError::Stream)?;
         match msg {
             Message::Text(t) => {
@@ -229,6 +273,51 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ---- T-2446 client read timeout (WS#4) ---------------------------------
+
+    #[tokio::test]
+    async fn next_frame_bounded_times_out_on_silent_source() {
+        // A source that never yields (a half-open hub link) must produce
+        // Err(ReadTimeout) within the window — NOT hang forever. This is the
+        // load-bearing behaviour that lets the reconnect loop degrade to poll.
+        let mut silent = futures_util::stream::pending::<
+            Result<Message, tokio_tungstenite::tungstenite::Error>,
+        >();
+        let started = std::time::Instant::now();
+        let r = next_frame_bounded(&mut silent, std::time::Duration::from_millis(120)).await;
+        assert!(
+            matches!(r, Err(WsConsumerError::ReadTimeout)),
+            "silent source must time out, got {r:?}"
+        );
+        assert!(
+            started.elapsed() < std::time::Duration::from_secs(2),
+            "must return promptly at the timeout, not hang"
+        );
+    }
+
+    #[tokio::test]
+    async fn next_frame_bounded_returns_ready_frame_no_false_timeout() {
+        // A frame already available must be returned unchanged — the timeout is
+        // a backstop, not a throttle. Guards against a false-positive timeout.
+        let mut ready = futures_util::stream::iter(vec![Ok(Message::Text("hi".into()))]);
+        let r = next_frame_bounded(&mut ready, std::time::Duration::from_secs(5)).await;
+        match r {
+            Ok(Some(Ok(Message::Text(t)))) => assert_eq!(t.as_str(), "hi"),
+            other => panic!("expected the ready Text frame, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn client_read_timeout_defaults_and_clamps() {
+        // Default when unset (env is process-global; this test only reads).
+        let d = client_read_timeout();
+        assert!(
+            d >= std::time::Duration::from_secs(1)
+                && d <= std::time::Duration::from_secs(3600),
+            "timeout stays within the clamp band"
+        );
+    }
 
     #[test]
     fn ws_auth_request_shape() {
