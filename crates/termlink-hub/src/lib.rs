@@ -9,6 +9,7 @@ pub mod governor;
 pub mod inbox;
 pub mod pidfile;
 pub mod remote_store;
+pub mod retention_sweeper;
 pub mod route_cache;
 pub mod router;
 pub mod rpc_audit;

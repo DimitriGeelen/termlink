@@ -4,7 +4,7 @@ name: "env-gated hub-side periodic sweep — TERMLINK_SWEEP_INTERVAL_SECS"
 description: >
   R2-GAP-B (T-2425 GO): retention is policy-without-enforcement — the hub never sweeps on its own (T-1155), and per-host sweep crons are empirically the least reliable estate component (T-1991 twice, canary #5 exists to watch the cron). Add an opt-in env-gated periodic sweep loop in the hub: TERMLINK_SWEEP_INTERVAL_SECS (default OFF = exact current behavior). Sweeps all topics with bounded retention each interval; telemetry counter surfaced via hub.governor_status; tests.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-21T08:53:47Z
-last_update: 2026-07-21T08:53:47Z
+last_update: 2026-07-21T09:00:13Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -46,11 +46,11 @@ exact current behavior; T-1155 explicitness preserved (operator opts in).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] New module `crates/termlink-hub/src/retention_sweeper.rs`: `interval_from_env()` parses `TERMLINK_SWEEP_INTERVAL_SECS` (absent/empty/`0`/unparseable → None = disabled, loud warn on unparseable; value clamped to [30, 86400]); unit-tested for all parse cases.
-- [ ] `sweep_all(bus, now_ms)` walks `list_topics`, skips `Forever`/unknown-retention topics, calls `Bus::sweep` per bounded topic, returns (topics_pruned_from, records_pruned); per-topic errors warn and continue (one bad topic never aborts the pass); unit-tested against a tmp Bus (bounded topic pruned, Forever topic untouched).
-- [ ] `run(interval, shutdown_rx)` loop spawned from server.rs ONLY when `interval_from_env()` is Some (mirrors supervisor::run select pattern); disabled path logs one info line naming the env var; enabled path logs interval at start and a summary line per sweep pass.
-- [ ] `hub.governor_status` gains `retention_sweep_interval_secs` (0 = disabled), `retention_sweep_runs_total`, `retention_sweep_pruned_total`; doc comment updated; handler test asserts the three fields present.
-- [ ] `cargo test -p termlink-hub` passes; `cargo check` clean.
+- [x] New module `crates/termlink-hub/src/retention_sweeper.rs`: `interval_from_env()` parses `TERMLINK_SWEEP_INTERVAL_SECS` (absent/empty/`0`/unparseable → None = disabled, loud warn on unparseable; value clamped to [30, 86400]); unit-tested for all parse cases.
+- [x] `sweep_all(bus, now_ms)` walks `list_topics`, skips `Forever`/unknown-retention topics, calls `Bus::sweep` per bounded topic, returns (topics_pruned_from, records_pruned); per-topic errors warn and continue (one bad topic never aborts the pass); unit-tested against a tmp Bus (bounded topic pruned, Forever topic untouched).
+- [x] `run(interval, shutdown_rx)` loop spawned from server.rs ONLY when `interval_from_env()` is Some (mirrors supervisor::run select pattern); disabled path logs one info line naming the env var; enabled path logs interval at start and a summary line per sweep pass.
+- [x] `hub.governor_status` gains `retention_sweep_interval_secs` (0 = disabled), `retention_sweep_runs_total`, `retention_sweep_pruned_total`; doc comment updated; handler test asserts the three fields present.
+- [x] `cargo test -p termlink-hub` passes (416 passed, 0 failed, incl. 4 new sweeper tests + extended governor field test); `cargo check` clean.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -84,6 +84,9 @@ exact current behavior; T-1155 explicitness preserved (operator opts in).
 -->
 
 ## Verification
+
+out=$(cargo test -p termlink-hub retention_sweeper 2>&1); echo "$out" | grep -q "4 passed"
+out=$(cargo test -p termlink-hub governor_status_exposes 2>&1); echo "$out" | grep -q "1 passed"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -183,3 +186,6 @@ exact current behavior; T-1155 explicitness preserved (operator opts in).
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2427-env-gated-hub-side-periodic-sweep--terml.md
 - **Context:** Initial task creation
+
+### 2026-07-21T09:00:13Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

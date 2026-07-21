@@ -10,6 +10,7 @@ owner: human
 horizon: now
 tags: []
 components: []
+arc_id: comms-loudness              # arc-007 (T-2425 R2-GAP-C re-home)
 related_tasks: []
 created: 2026-07-11T07:37:06Z
 last_update: 2026-07-11T12:08:32Z

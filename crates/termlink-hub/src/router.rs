@@ -846,7 +846,10 @@ fn handle_hub_bus_state(id: serde_json::Value) -> RpcResponse {
 ///   "webhook_enqueued_total": u64,
 ///   "webhook_retry_success_total": u64,
 ///   "webhook_dropped_full_total": u64,
-///   "webhook_dead_letter_total": u64
+///   "webhook_dead_letter_total": u64,
+///   "retention_sweep_interval_secs": u64,
+///   "retention_sweep_runs_total": u64,
+///   "retention_sweep_pruned_total": u64
 /// }
 /// ```
 ///
@@ -871,7 +874,14 @@ fn handle_hub_bus_state(id: serde_json::Value) -> RpcResponse {
 /// `TERMLINK_WEBHOOK_CONFIG`); a non-zero `webhook_dead_letter_total`
 /// means some external endpoint failed past `WEBHOOK_MAX_ATTEMPTS`; a
 /// growing `webhook_retry_depth` means a target is currently unreachable
-/// and posts are backing up in the in-memory retry queue.
+/// and posts are backing up in the in-memory retry queue. T-2427 adds the
+/// three `retention_sweep_*` fields so operators can confirm the opt-in
+/// periodic retention sweeper is armed and firing:
+/// `retention_sweep_interval_secs` 0 = disabled (TERMLINK_SWEEP_INTERVAL_SECS
+/// unset — retention enforced only via explicit channel.sweep per T-1155);
+/// non-zero interval with `retention_sweep_runs_total` stuck at zero =
+/// the loop is armed but not firing (bug); growing `runs_total` with zero
+/// `pruned_total` = healthy, nothing to prune.
 fn handle_hub_governor_status(id: serde_json::Value) -> RpcResponse {
     let conn = crate::governor::conn_governor();
     let rate = crate::governor::rate_governor();
@@ -906,6 +916,13 @@ fn handle_hub_governor_status(id: serde_json::Value) -> RpcResponse {
             "webhook_retry_success_total": crate::webhook::retry_queue().retry_success_total(),
             "webhook_dropped_full_total": crate::webhook::retry_queue().dropped_full_total(),
             "webhook_dead_letter_total": crate::webhook::retry_queue().dead_letter_total(),
+            // T-2427: periodic retention sweeper observability. 0 interval =
+            // disabled (the T-1155 explicit-only default); armed hubs report
+            // their cadence + cumulative pass/prune counters so "armed but
+            // never firing" is visible instead of silent.
+            "retention_sweep_interval_secs": crate::retention_sweeper::interval_active_secs(),
+            "retention_sweep_runs_total": crate::retention_sweeper::runs_total(),
+            "retention_sweep_pruned_total": crate::retention_sweeper::pruned_total(),
         }),
     )
     .into()
@@ -3658,6 +3675,20 @@ mod tests {
             assert!(
                 r.result.get(field).and_then(|v| v.as_u64()).is_some(),
                 "expected T-2335 field {field} to be a present u64 in hub.governor_status response"
+            );
+        }
+        // T-2427 periodic-retention-sweeper fields (3). In a fresh test
+        // process the loop is disabled (no TERMLINK_SWEEP_INTERVAL_SECS from
+        // run()), so interval reads 0 — but all three fields must always be
+        // PRESENT so wrappers never need a version probe.
+        for field in [
+            "retention_sweep_interval_secs",
+            "retention_sweep_runs_total",
+            "retention_sweep_pruned_total",
+        ] {
+            assert!(
+                r.result.get(field).and_then(|v| v.as_u64()).is_some(),
+                "expected T-2427 field {field} to be a present u64 in hub.governor_status response"
             );
         }
     }

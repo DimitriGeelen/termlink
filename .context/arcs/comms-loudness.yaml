@@ -1,0 +1,23 @@
+id: arc-007
+slug: comms-loudness
+name: "Comms loud-contract completion"
+description: "Re-homes the round-trip-loudness tasks orphaned when arc-003 (reliable-comms)\
+  \ closed under them (R2-GAP-C, T-2425 round-2 review): T-2385 contact reachability\
+  \ preflight (partial), T-2389 relaunch .107 agents via T-2388 launcher, T-2402\
+  \ woken-but-silent rung, T-2224 backpressure demo. Success = the T-2380 loud-contract\
+  \ holds end-to-end: an agent that cannot be reached, wakes but stays silent, or\
+  \ is backpressured is LOUDLY surfaced in-band — no new canary required. arc-006\
+  \ number skipped (reserved by T-1918 value-prioritisation comments)."
+status: in-progress
+anchor_task: T-2385
+headline_mechanic: "Every failure mode between 'message sent' and 'peer acted on it' surfaces\
+  \ loudly in-band at the moment it happens, instead of days later via an out-of-band canary."
+demo_evidence: ""
+created: 2026-07-21T09:10:00Z
+closed_at: null
+decision: ""
+# T-1918 (arc-006, value-prioritisation): BVP scoring fields. Semantics in
+# docs/reports/T-1915-bvp-inception.md §4 (D7-reframe) and §7 (M2).
+bvp_scores: {}
+scoped_drivers: []           # max 3, weight ≤6 each (M2). Approved by fw arc approve-driver (T-1926).
+proposed_scoped_drivers: []  # uncapped persistence (D7-reframe). Estimator may write here freely.

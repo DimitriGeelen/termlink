@@ -280,6 +280,21 @@ pub async fn run_with_tcp(
         supervisor::run(supervisor::DEFAULT_INTERVAL, supervisor_rx).await;
     });
 
+    // T-2427: opt-in periodic retention sweeper. Enabled ONLY when
+    // TERMLINK_SWEEP_INTERVAL_SECS is set to a positive integer (typically in
+    // the systemd unit next to TERMLINK_RUNTIME_DIR). Unset = exact T-1155
+    // behavior: retention enforced only via explicit channel.sweep.
+    if let Some(sweep_interval) = crate::retention_sweeper::interval_from_env() {
+        let sweeper_rx = shutdown_rx.clone();
+        tokio::spawn(async move {
+            crate::retention_sweeper::run(sweep_interval, sweeper_rx).await;
+        });
+    } else {
+        tracing::info!(
+            "Periodic retention sweeper disabled (TERMLINK_SWEEP_INTERVAL_SECS unset) — retention enforced only via explicit channel.sweep (T-1155); set the env var in the hub unit to opt in (T-2427)"
+        );
+    }
+
     // Start the remote store reaper (expires stale remote sessions)
     let reaper_rx = shutdown_rx.clone();
     tokio::spawn(async move {
