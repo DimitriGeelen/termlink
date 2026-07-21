@@ -40,11 +40,11 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Concurrency test: N concurrent tokio tasks posting to one topic — all posts land, offsets unique and gapless, count correct (lost-write detector)
-- [ ] Concurrency test: posts racing a concurrent sweep on a bounded topic — no panic, no lost fresh records, retention invariant holds after final sweep
-- [ ] Concurrency test: N tasks racing claim_offset on the same (topic, offset) — exactly one Ok, all others ClaimConflict (atomicity proof for substrate primitive #1)
-- [ ] Concurrency test: released-without-ack offset is re-claimable by a different worker while a still-held claim stays exclusive (lease lifecycle race)
-- [ ] Full termlink-bus test suite passes including the new tests
+- [x] Concurrency test: 8 tasks × 25 posts to one topic — all land, offsets unique and gapless (`concurrent_posts_all_land_with_unique_gapless_offsets`)
+- [x] Concurrency test: 120 posts racing 30 sweeps on Messages(20) topic — no panic/error, final state exactly the newest 20 records (`posts_racing_sweep_never_lose_fresh_records`)
+- [x] Concurrency test: 10 tasks racing claim_offset on same (topic, offset) — exactly 1 Ok, 9 ClaimConflict (`claim_race_exactly_one_winner`)
+- [x] Concurrency test: released-without-ack offset claimable exactly once by racers while a held claim rejects all 6 racers (`released_offset_reclaimable_while_held_claim_stays_exclusive`)
+- [x] Full termlink-bus suite passes: 86 passed, 0 failed (multi_thread flavor, 4 workers)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -78,6 +78,8 @@ date_finished: null
 -->
 
 ## Verification
+
+out=$(cargo test -p termlink-bus 2>&1); echo "$out" | grep -q "86 passed"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
