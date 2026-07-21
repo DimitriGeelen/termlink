@@ -4,10 +4,10 @@ name: "apply documented chat-arc retention on .107 — Messages(2000) + sweep"
 description: >
   T-2425 round-4 delta: .107's agent-chat-arc sits at retention=forever with 8,643 records despite being in the is_high_rate_pattern set and having a documented recommendation (substrate-orchestrator-recipe.md §recommended-retention: Messages(2000) ≈ 1-2 weeks of fleet chat). Apply set-retention + sweep; the T-2427 hourly sweeper then enforces it permanently. Durable topics (channel:learnings, policy-decisions, framework:pickup, broadcast:global) untouched.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-21T12:08:15Z
-last_update: 2026-07-21T12:08:23Z
-date_finished: null
+last_update: 2026-07-21T12:09:28Z
+date_finished: 2026-07-21T12:09:28Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -181,3 +181,15 @@ termlink channel list --json | python3 -c "import json,sys; t=[x for x in json.l
 
 ### 2026-07-21T12:08:23Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-03d29ace
+- **Timestamp:** 2026-07-21T12:09:29Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-21T12:09:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,20 +4,20 @@ name: "env-gated hub-side periodic sweep — TERMLINK_SWEEP_INTERVAL_SECS"
 description: >
   R2-GAP-B (T-2425 GO): retention is policy-without-enforcement — the hub never sweeps on its own (T-1155), and per-host sweep crons are empirically the least reliable estate component (T-1991 twice, canary #5 exists to watch the cron). Add an opt-in env-gated periodic sweep loop in the hub: TERMLINK_SWEEP_INTERVAL_SECS (default OFF = exact current behavior). Sweeps all topics with bounded retention each interval; telemetry counter surfaced via hub.governor_status; tests.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-hub/src/lib.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/server.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-21T08:53:47Z
-last_update: 2026-07-21T09:00:13Z
-date_finished: null
+last_update: 2026-07-21T09:03:30Z
+date_finished: 2026-07-21T09:03:30Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -189,3 +189,20 @@ out=$(cargo test -p termlink-hub governor_status_exposes 2>&1); echo "$out" | gr
 
 ### 2026-07-21T09:00:13Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-36bcd0a3
+- **Timestamp:** 2026-07-21T09:03:36Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — New module `crates/termlink-hub/src/retention_sweeper.rs`: `interval_from_env()` parses `TERMLINK_SWEEP_INTERVAL_SECS` (absent/empty/`0`/unparseable → None = disabled, loud warn on unparseable; value 
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-hub/src/retention_sweeper.rs in: New module `crates/termlink-hub/src/retention_sweeper.rs`: `interval_from_env()` parses `TERMLINK_SWEEP_INTERVAL_SECS` (absent/empty/`0`/unparseable →`
+
+### 2026-07-21T09:03:30Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

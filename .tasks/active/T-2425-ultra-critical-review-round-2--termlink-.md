@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-07-21T08:48:35Z
-last_update: 2026-07-21T08:49:21Z
+last_update: 2026-07-21T11:26:15Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -139,7 +139,30 @@ OUT: authz model (T-2422, awaiting operator), managed deploy (T-2423, awaiting o
 # matching build command (dotnet build / go build / cargo check / tsc --noEmit /
 # mvn compile) to that build task's ## Verification — P-011 only runs what you write.
 
-## Recommendation
+## Round-4 delta (2026-07-21, session S-after-1118 — recorded here because budget gate blocked docs/ edits)
+
+Round-4 pass attacked the round-3 "agent side drained" conclusion and found three
+un-dispositioned threads:
+
+1. **DONE — T-2429 closed:** .107 agent-chat-arc was still retention=forever at
+   8,643 records despite the documented Messages(2000) recommendation
+   (substrate-orchestrator-recipe.md §recommended-retention). Applied + swept
+   (6,643 pruned); durable topics untouched; T-2427 hourly sweeper now enforces
+   permanently. Also live-verified this session: sweeper runs_total=2,
+   pruned_total=4,292; agent-presence already latest_per_cv_key (441).
+2. **TO FILE next session (budget-gated): inception "identity-keyed governor
+   rate buckets — retire peer_pid keying (PL-218 follow-up)".** Recommendation
+   GO, rationale: sender-key precedence (params.from > peer_addr > peer_pid,
+   server.rs ~1030) makes local CLI callers unlimitable — every invocation is a
+   fresh pid bucket, so limits never accumulate (PL-218) and buckets bloat
+   (PL-209 mechanism, 44 active observed). Fix: CLI sets params.from to its
+   T-1857 identity fp and/or hub keys authed connections by verified identity.
+   Named in PL-218 as the follow-up inception, never filed until now.
+3. **TO FILE next session (budget-gated): test task "core async/concurrency
+   test-debt — bus/hub under-tested relative to risk"** (horizon: later).
+   Round-1 sweep-B verdict (1,808 sync formatting tests vs 137+64 async tests
+   in session/bus; the core is the risk concentration) was observed but never
+   turned into a tracked item. Filing it converts folklore into backlog.
 
 **GO.** Round 2 found a coherent, buildable gap class — creation-time defaults and
 enforcement — that round 1's verb-and-document work exposed but did not touch:

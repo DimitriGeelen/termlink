@@ -4428,3 +4428,75 @@ scan_id: R-e35a8eb1
 task_id: T-2424
 payload:
   task_file: .tasks/active/T-2424-test-debris-sweep-on-107--channeldelete-.md
+---
+kind: scan_emitted
+timestamp: '2026-07-21T09:00:04Z'
+scan_id: R-929c7d2e
+task_id: T-2426
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-21T09:00:04Z'
+scan_id: R-929c7d2e
+task_id: T-2426
+payload:
+  task_file: .tasks/active/T-2426-debris-namespace-lifecycle-defaults--aut.md
+---
+kind: scan_emitted
+timestamp: '2026-07-21T09:03:36Z'
+scan_id: R-36bcd0a3
+task_id: T-2427
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-21T09:03:36Z'
+scan_id: R-36bcd0a3
+task_id: T-2427
+payload:
+  task_file: .tasks/active/T-2427-env-gated-hub-side-periodic-sweep--terml.md
+---
+kind: scan_emitted
+timestamp: '2026-07-21T09:16:38Z'
+scan_id: R-ef28d65a
+task_id: T-2428
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-21T09:16:38Z'
+scan_id: R-ef28d65a
+task_id: T-2428
+payload:
+  task_file: .tasks/active/T-2428-field-arm-periodic-retention-sweeper-on-.md
+---
+kind: scan_emitted
+timestamp: '2026-07-21T12:09:29Z'
+scan_id: R-03d29ace
+task_id: T-2429
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-21T12:09:29Z'
+scan_id: R-03d29ace
+task_id: T-2429
+payload:
+  task_file: .tasks/active/T-2429-apply-documented-chat-arc-retention-on-1.md

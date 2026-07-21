@@ -4,20 +4,20 @@ name: "debris-namespace lifecycle defaults — auto-pick Days(7) at topic creati
 description: >
   R2-GAP-A (T-2425 GO): the five known test-debris namespaces (t-*/T-*/xhub-*/stress-*/scratch:*/smoke:*) are born Retention::Forever, guaranteeing re-accumulation after the T-2424 sweep. Auto-pick Days(7) for these namespaces at creation time (CLI ensure_topic + hub-side channel.create default), loud stderr/log note on auto-pick, tests.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/channel.rs, crates/termlink-hub/src/channel.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-21T08:53:33Z
-last_update: 2026-07-21T08:53:55Z
-date_finished: null
+last_update: 2026-07-21T08:59:31Z
+date_finished: 2026-07-21T08:59:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -187,3 +187,20 @@ out=$(cargo test -p termlink debris 2>&1); echo "$out" | grep -q "3 passed"
 
 ### 2026-07-21T08:53:55Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-929c7d2e
+- **Timestamp:** 2026-07-21T09:00:04Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — A shared debris-pattern predicate (`is_debris_pattern`) exists in the CLI (crates/termlink-cli/src/commands/channel.rs) matching exactly the sweep-test-debris.sh allowlist classes; unit-tested for pos
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-cli/src/commands/channel.rs in: A shared debris-pattern predicate (`is_debris_pattern`) exists in the CLI (crates/termlink-cli/src/commands/channel.rs) matching exactly the sweep-tes`
+
+### 2026-07-21T08:59:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,10 +4,10 @@ name: "field-arm periodic retention sweeper on .107 hub"
 description: >
   R2-GAP-B field application (T-2425/T-2427): rebuild termlink with the T-2426+T-2427 code, install to /root/.cargo/bin, add TERMLINK_SWEEP_INTERVAL_SECS=3600 via systemd drop-in, restart hub THROUGH the unit (G-070), verify governor_status shows the sweeper armed and auth preserved (no re-pin).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-21T09:04:18Z
-last_update: 2026-07-21T09:05:45Z
-date_finished: null
+last_update: 2026-07-21T09:16:37Z
+date_finished: 2026-07-21T09:16:37Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -192,3 +192,15 @@ out=$(systemctl is-active termlink-hub 2>&1); echo "$out" | grep -q "^active"
 
 ### 2026-07-21T09:04:29Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-ef28d65a
+- **Timestamp:** 2026-07-21T09:16:38Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-21T09:16:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
