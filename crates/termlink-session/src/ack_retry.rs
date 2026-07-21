@@ -209,6 +209,23 @@ where
         }
     }
 
+    // T-2444: one final receipt check before declaring Exhausted. An ack that
+    // arrives during the LAST attempt's poll-sleep — after that attempt's
+    // deadline breaks the inner loop but before we give up — would otherwise be
+    // a false negative: the sender reports "not acked" for a message the
+    // recipient DID ack. Re-read the frontier once more; if the ack is now
+    // visible, confirm and report success.
+    if let Some(posted) = offset {
+        let receipts = receipts_fn().await.map_err(AckRetryError::Receipts)?;
+        if recipient_acked(&receipts, recipient_sender_id, posted) {
+            tracker.confirm(client_msg_id)?;
+            return Ok(AckOutcome::Acked {
+                offset: posted,
+                attempts: max_attempts,
+            });
+        }
+    }
+
     Ok(AckOutcome::Exhausted {
         offset: offset.unwrap_or(0),
         attempts: max_attempts,
@@ -651,6 +668,90 @@ mod tests {
         assert_eq!(hub.borrow().append_count, 1, "all retries deduped to one append");
         let row = t.get("cmid-dead").unwrap().expect("durable row retained on exhaustion");
         assert_eq!(row.attempts, 3, "attempt count reflects every re-post");
+    }
+
+    #[tokio::test]
+    async fn late_ack_after_final_deadline_is_acked_not_exhausted() {
+        // T-2444 regression: the ack becomes visible ONLY after the last
+        // attempt's deadline breaks the poll loop — i.e. it lands in the final
+        // sleep window. The pre-fix code returned Exhausted here (false
+        // negative); the final receipt re-check must now report Acked.
+        //
+        // Timing with poll=deadline=10_000, max_attempts=1:
+        //   read#1 @ now=0      (miss) → sleep → now=10_000
+        //   read#2 @ now=10_000 (miss) → now>=deadline → break, loop ends
+        //   read#3 @ now=10_000 (FINAL re-check) → ack visible → Acked
+        let t = AwaitingAckTracker::open_in_memory().unwrap();
+        let hub = Rc::new(RefCell::new(DedupeHub::default()));
+        let (_clock, now, sleep) = fake_clock();
+
+        let hub_p = hub.clone();
+        let post_fn = move |cmid: String| {
+            let off = hub_p.borrow_mut().post(&cmid);
+            std::future::ready(Ok(off))
+        };
+
+        let reads = Rc::new(Cell::new(0u32));
+        let reads_p = reads.clone();
+        let receipts_fn = move || {
+            let n = reads_p.get();
+            reads_p.set(n + 1);
+            // Miss on the two in-loop reads (n=0,1); ack visible on the final
+            // post-loop re-check (n>=2).
+            let rows = if n >= 2 {
+                vec![ReceiptRow { sender_id: "recip".into(), up_to: 5 }]
+            } else {
+                Vec::new()
+            };
+            std::future::ready(Ok(rows))
+        };
+
+        let policy = RetryPolicy { poll_interval_ms: 10_000, deadline_ms: 10_000, max_attempts: 1 };
+        let out = await_ack_with_retry(
+            &t, "dm:a:recip", "recip", "cmid-late",
+            &policy, post_fn, receipts_fn, now, sleep,
+        )
+        .await
+        .unwrap();
+
+        match out {
+            AckOutcome::Acked { offset, attempts } => {
+                assert_eq!(offset, 0);
+                assert_eq!(attempts, 1, "single attempt, ack caught on the final re-check");
+            }
+            other => panic!("late ack must be Acked (not a false-negative Exhausted), got {other:?}"),
+        }
+        assert_eq!(t.size().unwrap(), 0, "row confirmed once the late ack is observed");
+    }
+
+    #[tokio::test]
+    async fn truly_unacked_still_exhausts_after_final_recheck() {
+        // T-2444 guard against a false POSITIVE: the final re-check must not
+        // flip a genuinely-unacked message to Acked. Recipient is deaf forever
+        // (no receipt row at any read, including the final one) → Exhausted, row
+        // retained.
+        let t = AwaitingAckTracker::open_in_memory().unwrap();
+        let hub = Rc::new(RefCell::new(DedupeHub::default()));
+        let (_clock, now, sleep) = fake_clock();
+
+        let hub_p = hub.clone();
+        let post_fn = move |cmid: String| {
+            let off = hub_p.borrow_mut().post(&cmid);
+            std::future::ready(Ok(off))
+        };
+        let receipts_fn = || std::future::ready(Ok(Vec::<ReceiptRow>::new()));
+
+        let policy = RetryPolicy { poll_interval_ms: 10_000, deadline_ms: 10_000, max_attempts: 1 };
+        let out = await_ack_with_retry(
+            &t, "dm:a:recip", "recip", "cmid-deaf",
+            &policy, post_fn, receipts_fn, now, sleep,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(out, AckOutcome::Exhausted { offset: 0, attempts: 1 });
+        let row = t.get("cmid-deaf").unwrap().expect("durable row retained on exhaustion");
+        assert_eq!(row.attempts, 1);
     }
 
     #[tokio::test]
