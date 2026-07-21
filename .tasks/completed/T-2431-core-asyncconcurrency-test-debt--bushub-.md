@@ -4,20 +4,20 @@ name: "core async/concurrency test-debt — bus/hub under-tested relative to ris
 description: >
   Round-1 sweep-B verdict (T-2419): 1,808 sync formatting tests vs 137+64 async tests in session/bus — the core (bus append/sweep/claims, hub router concurrency) is the risk concentration yet the least tested. Convert folklore into backlog: add async/concurrency tests for bus sweep-under-concurrent-post, claim lease races, subscribe/state read-path under write load (T-2258 class).
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-bus/src/lib.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-21T12:33:07Z
-last_update: 2026-07-21T18:13:35Z
-date_finished: null
+last_update: 2026-07-21T18:24:51Z
+date_finished: 2026-07-21T18:24:51Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -183,3 +183,15 @@ out=$(cargo test -p termlink-bus 2>&1); echo "$out" | grep -q "86 passed"
 ### 2026-07-21T18:13:35Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-e63c5d19
+- **Timestamp:** 2026-07-21T18:24:57Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-21T18:24:51Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

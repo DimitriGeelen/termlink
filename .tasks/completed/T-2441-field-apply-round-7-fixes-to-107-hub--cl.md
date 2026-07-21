@@ -4,10 +4,10 @@ name: "field-apply round-7 fixes to .107 hub + close G-085 (triage live-proven)"
 description: >
   field-apply round-7 fixes to .107 hub + close G-085 (triage live-proven)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-21T20:29:28Z
-last_update: 2026-07-21T20:29:28Z
-date_finished: null
+last_update: 2026-07-21T20:40:42Z
+date_finished: 2026-07-21T20:40:42Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -183,3 +183,15 @@ test suite ("mixed→keeps silent one", ALL PASS).
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2441-field-apply-round-7-fixes-to-107-hub--cl.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-1cdf4643
+- **Timestamp:** 2026-07-21T20:40:43Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-21T20:40:42Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

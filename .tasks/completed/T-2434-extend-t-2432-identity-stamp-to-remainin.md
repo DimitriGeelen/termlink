@@ -4,20 +4,20 @@ name: "extend T-2432 identity stamp to remaining one-shot RPC funnels (find-idle
 description: >
   extend T-2432 identity stamp to remaining one-shot RPC funnels (find-idle, fetch_topic_names, substrate digest)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/agent_find_idle.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/commands/substrate.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-21T18:06:42Z
-last_update: 2026-07-21T18:06:42Z
-date_finished: null
+last_update: 2026-07-21T18:09:40Z
+date_finished: 2026-07-21T18:09:40Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -186,3 +186,15 @@ out=$(cargo check -p termlink 2>&1); echo "$out" | grep -q "Finished"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2434-extend-t-2432-identity-stamp-to-remainin.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-963c6e82
+- **Timestamp:** 2026-07-21T18:09:56Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-07-21T18:09:40Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

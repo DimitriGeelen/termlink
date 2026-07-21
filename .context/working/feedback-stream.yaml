@@ -4716,3 +4716,21 @@ scan_id: R-3ed4d9fc
 task_id: T-2440
 payload:
   task_file: .tasks/active/T-2440-rategovernor-token-conservation-concurre.md
+---
+kind: scan_emitted
+timestamp: '2026-07-21T20:40:43Z'
+scan_id: R-1cdf4643
+task_id: T-2441
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-21T20:40:43Z'
+scan_id: R-1cdf4643
+task_id: T-2441
+payload:
+  task_file: .tasks/active/T-2441-field-apply-round-7-fixes-to-107-hub--cl.md
