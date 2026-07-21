@@ -4500,3 +4500,129 @@ scan_id: R-03d29ace
 task_id: T-2429
 payload:
   task_file: .tasks/active/T-2429-apply-documented-chat-arc-retention-on-1.md
+---
+kind: scan_emitted
+timestamp: '2026-07-21T13:27:21Z'
+scan_id: R-d350a3bd
+task_id: T-2425
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-21T13:27:21Z'
+scan_id: R-d350a3bd
+task_id: T-2425
+payload:
+  task_file: .tasks/active/T-2425-ultra-critical-review-round-2--termlink-.md
+---
+kind: scan_emitted
+timestamp: '2026-07-21T13:27:33Z'
+scan_id: R-d9bce749
+task_id: T-2430
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-21T13:27:33Z'
+scan_id: R-d9bce749
+task_id: T-2430
+payload:
+  task_file: .tasks/active/T-2430-identity-keyed-governor-rate-buckets--re.md
+---
+kind: scan_emitted
+timestamp: '2026-07-21T18:02:54Z'
+scan_id: R-22b59bb3
+task_id: T-2432
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-21T18:02:54Z'
+scan_id: R-22b59bb3
+task_id: T-2432
+payload:
+  task_file: .tasks/active/T-2432-identity-keyed-governor-rate-buckets--re.md
+---
+kind: scan_emitted
+timestamp: '2026-07-21T18:09:56Z'
+scan_id: R-963c6e82
+task_id: T-2434
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-21T18:09:56Z'
+scan_id: R-963c6e82
+task_id: T-2434
+payload:
+  task_file: .tasks/active/T-2434-extend-t-2432-identity-stamp-to-remainin.md
+---
+kind: scan_emitted
+timestamp: '2026-07-21T18:23:54Z'
+scan_id: R-89dac96c
+task_id: T-2433
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-21T18:23:54Z'
+scan_id: R-89dac96c
+task_id: T-2433
+payload:
+  task_file: .tasks/active/T-2433-field-apply-t-2432-identity-keyed-govern.md
+---
+kind: scan_emitted
+timestamp: '2026-07-21T18:24:57Z'
+scan_id: R-e63c5d19
+task_id: T-2431
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-21T18:24:57Z'
+scan_id: R-e63c5d19
+task_id: T-2431
+payload:
+  task_file: .tasks/active/T-2431-core-asyncconcurrency-test-debt--bushub-.md
+---
+kind: scan_emitted
+timestamp: '2026-07-21T20:12:39Z'
+scan_id: R-2f61715a
+task_id: T-2435
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-21T20:12:39Z'
+scan_id: R-2f61715a
+task_id: T-2435
+payload:
+  task_file: .tasks/active/T-2435-hub-dedupe-pre-reservation--close-concur.md

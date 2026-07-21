@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2435: hub dedupe pre-reservation — close concurrent double-post TOCTOU (T-2049 exactly-once gap)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-21T20:12:42Z
+# ============================================================================
+
+task_id: T-2435
+task_name: "hub dedupe pre-reservation — close concurrent double-post TOCTOU (T-2049 exactly-once gap)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-21T20:06:06Z
+completed: 2026-07-21T20:12:33Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-21T22:12:28+02:00
+last_commit: 2026-07-21T22:12:28+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  hub dedupe pre-reservation — close concurrent double-post TOCTOU; Pending/Committed entry states, InFlight loud-refuse (POST_IN_FLIGHT -32021, retry_after_ms), abort_reservation on post failure; 3 new tests incl. 10-thread race (exactly-one-Newly)
+
+# Key outcomes
+outcomes:
+  - '`try_record_or_lookup` pre-reserves a Pending entry on miss; a concurrent call with the same key while the first is in flight returns a distinct `InFlight` outcome (NOT `Newly`, NOT a fabricated `Duplicate`) — dedupe.rs EntryState::Pending + DedupeOutcome::InFlight'
+  - 'Hub post handler maps `InFlight` to a structured retryable JSON-RPC refusal carrying `retry_after_ms` (loud-refuse per IW-3), and calls a new abort/release API on the bus.post error path so failed posts do not strand the reservation — POST_IN_FLIGHT (-32021) in control.rs, abort_reservation in both Err arms of channel.rs post handler'
+  - '`record_offset` promotes the Pending entry to Committed; subsequent duplicates return the cached `{offset, ts_unix_ms}` exactly as before (back-compat for the sequential-retry path) — all 4 pre-existing channel-level dedupe tests pass unchanged'
+  - 'Concurrency regression test: 10 threads race `try_record_or_lookup` with an identical key through a Barrier — exactly 1 gets `Newly`, 9 get `InFlight`; after `record_offset`, later calls get `Duplicate` with the recorded offset (`concurrent_racers_exactly_one_newly`); plus `in_flight_reservation_blocks_second_caller` + `abort_reservation_releases_pending_only`'
+  - 'Stale `Newly` doc-comment corrected (it falsely claimed pre-reservation existed); full hub lib suite green: 424 passed, 0 failed; protocol crate 102 passed'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-2431.yaml'
+  - '.context/episodic/T-2432.yaml'
+  - '.context/episodic/T-2433.yaml'
+  - '.context/episodic/T-2434.yaml'
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'crates/termlink-hub/src/dedupe.rs'
+  - 'crates/termlink-protocol/src/control.rs'
+  - '.tasks/active/T-2435-hub-dedupe-pre-reservation--close-concur.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-21T22:12:28"
+    action: "T-2435: hub dedupe pre-reservation — close concurrent double-post TOCTOU; Pending/Committed entry states, InFlight loud-refuse (POST_IN_FLIGHT -32021, retry_after_ms), abort_reservation on post failure; 3 new tests incl. 10-thread race (exactly-one-Newly)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 8
+  lines_added: 737
+  lines_removed: 61
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2435-hub-dedupe-pre-reservation--close-concur.md
+generated_by: context-agent-hybrid

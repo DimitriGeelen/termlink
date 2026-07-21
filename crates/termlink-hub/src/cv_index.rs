@@ -85,9 +85,15 @@ pub fn cv_index() -> &'static CvIndex {
     CV_INDEX.get_or_init(|| CvIndex::new(DEFAULT_CV_INDEX_CAP_PER_TOPIC))
 }
 
-/// Record the latest offset for `(topic, cv_key)`. Last-write-wins:
-/// if `(topic, cv_key)` was already present, the offset is updated to
-/// the new value (mirrors agent-presence latest-heartbeat semantics).
+/// Record the latest offset for `(topic, cv_key)`. Monotonic-max
+/// (T-2436): if `(topic, cv_key)` was already present, the offset is
+/// updated only when the new offset is HIGHER — bus offsets per topic
+/// are strictly monotonic, so highest-offset IS the latest post. Plain
+/// "last-write-wins" was ordered by call scheduling, not by offset:
+/// `record` runs after `bus.post` under a different lock, so two
+/// concurrent posts could commit offsets N then N+1 yet interleave the
+/// index updates to leave N advertised — a stale current-value served
+/// to every late-joiner.
 ///
 /// Called from `handle_channel_post_with` after `bus.post` returns
 /// `Ok(offset)` AND the envelope's metadata carries a `cv_key` field.
@@ -178,16 +184,23 @@ impl CvIndex {
         }
     }
 
-    /// Record `(topic, cv_key) -> offset` with last-write-wins. Returns
-    /// `true` on accept, `false` on cap-overflow refusal for new keys.
-    /// Updates to existing keys always succeed and return `true`.
+    /// Record `(topic, cv_key) -> offset` with monotonic-max semantics
+    /// (T-2436): an existing key only advances, never regresses — a
+    /// lower offset arriving later is by definition the stale racer
+    /// (bus offsets per topic are strictly monotonic). Returns `true`
+    /// on accept (including the absorbed-stale case), `false` on
+    /// cap-overflow refusal for new keys. Updates to existing keys
+    /// always succeed and return `true`.
     pub fn record(&self, topic: &str, cv_key: &str, offset: u64) -> bool {
         let mut map = self.map.lock().expect("cv_index mutex poisoned");
         let inner = map.entry(topic.to_string()).or_default();
 
-        if inner.contains_key(cv_key) {
-            // Existing key — last-write-wins update. Doesn't grow the map.
-            inner.insert(cv_key.to_string(), offset);
+        if let Some(stored) = inner.get_mut(cv_key) {
+            // Existing key — advance only (monotonic-max). Doesn't grow
+            // the map.
+            if offset > *stored {
+                *stored = offset;
+            }
             return true;
         }
 
@@ -271,7 +284,7 @@ mod tests {
     }
 
     #[test]
-    fn key_update_is_last_write_wins() {
+    fn key_update_advances_monotonically() {
         let idx = CvIndex::new(1000);
         assert!(idx.record("agent-presence", "alice", 1));
         assert!(idx.record("agent-presence", "alice", 5));
@@ -281,6 +294,55 @@ mod tests {
         assert_eq!(snap, vec![("alice".to_string(), 99)]);
         // Still only ONE entry — updates don't grow the map.
         assert_eq!(idx.entries_active(), 1);
+    }
+
+    #[test]
+    fn stale_offset_never_regresses_index() {
+        // T-2436: record() runs after bus.post under a different lock,
+        // so the racer that committed offset N can call record() AFTER
+        // the racer that committed N+1. Both interleavings must
+        // converge on the max offset.
+        let idx = CvIndex::new(1000);
+
+        // In-order: N then N+1 → N+1 wins.
+        assert!(idx.record("t", "k", 10));
+        assert!(idx.record("t", "k", 11));
+        assert_eq!(idx.current_values("t"), vec![("k".to_string(), 11)]);
+
+        // Out-of-order: the stale racer (10) lands last — absorbed,
+        // still returns true, index keeps 11.
+        assert!(idx.record("t", "k", 10));
+        assert_eq!(idx.current_values("t"), vec![("k".to_string(), 11)]);
+    }
+
+    #[test]
+    fn concurrent_records_converge_to_max_offset() {
+        // T-2436 regression armor: N threads record shuffled offsets
+        // for one key through a barrier; whatever the scheduling, the
+        // final advertised current-value must be the max.
+        use std::sync::{Arc, Barrier};
+
+        let idx = Arc::new(CvIndex::new(1000));
+        let offsets: Vec<u64> = vec![3, 17, 9, 42, 1, 28, 35, 6];
+        let barrier = Arc::new(Barrier::new(offsets.len()));
+        let handles: Vec<_> = offsets
+            .iter()
+            .map(|&off| {
+                let idx = Arc::clone(&idx);
+                let barrier = Arc::clone(&barrier);
+                std::thread::spawn(move || {
+                    barrier.wait();
+                    idx.record("race-topic", "one-key", off)
+                })
+            })
+            .collect();
+        for h in handles {
+            assert!(h.join().unwrap());
+        }
+        assert_eq!(
+            idx.current_values("race-topic"),
+            vec![("one-key".to_string(), 42)]
+        );
     }
 
     #[test]
