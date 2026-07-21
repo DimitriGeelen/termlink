@@ -1,0 +1,94 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2436: cv_index monotonic-offset record — index must never regress to a stale offset under concurrent posts
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-21T20:15:38Z
+# ============================================================================
+
+task_id: T-2436
+task_name: "cv_index monotonic-offset record — index must never regress to a stale offset under concurrent posts"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-21T20:12:49Z
+completed: 2026-07-21T20:15:31Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-21T22:15:30+02:00
+last_commit: 2026-07-21T22:15:30+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  cv_index monotonic-offset record — index never regresses to a stale offset under concurrent same-cv_key posts; advance-only update + interleave/threaded-race tests (426 hub tests green)
+
+# Key outcomes
+outcomes:
+  - '`CvIndex::record` never regresses an existing key: `get_mut` + advance-only (`if offset > *stored`), absorbed-stale still returns true — cv_index.rs:record'
+  - 'Regression tests: `stale_offset_never_regresses_index` (both interleavings converge to max) + `concurrent_records_converge_to_max_offset` (8 threads, shuffled offsets through a Barrier, final == 42 max); `key_update_is_last_write_wins` renamed to `key_update_advances_monotonically`'
+  - 'Doc-comments updated at both the free-fn wrapper and the method (monotonic-max semantics + why call-scheduling ordering made plain last-write-wins wrong)'
+  - 'Full hub lib test suite green: 426 passed, 0 failed (cv_index slice: 11 passed)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-07-21.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/episodic/T-2435.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.gate-bypass-log.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-hub/src/cv_index.rs'
+  - '.tasks/active/T-2436-cvindex-monotonic-offset-record--index-m.md'
+  - '.tasks/completed/T-2435-hub-dedupe-pre-reservation--close-concur.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-21T22:15:30"
+    action: "T-2436: cv_index monotonic-offset record — index never regresses to a stale offset under concurrent same-cv_key posts; advance-only update + interleave/threaded-race tests (426 hub tests green)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 19
+  lines_added: 1667
+  lines_removed: 1144
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2436-cvindex-monotonic-offset-record--index-m.md
+generated_by: context-agent-hybrid

@@ -40,12 +40,47 @@ pub(crate) fn termlink_config_dir() -> std::path::PathBuf {
     std::path::PathBuf::from(home).join(".termlink")
 }
 
+/// Lenient loader for READ-ONLY callers (fleet doctor/verify/status,
+/// address resolution, ...). A missing file is a normal empty config;
+/// a file that exists but fails to parse degrades to empty LOUDLY
+/// (T-2437) — one stderr line naming the path and the toml error —
+/// so "why did every hub vanish?" is answered on the spot instead of
+/// silently returning zero hubs. Mutation paths (profile add/remove)
+/// MUST use [`load_hubs_config_strict`] instead: saving a leniently
+/// defaulted config would wipe the operator's file.
 pub(crate) fn load_hubs_config() -> HubsConfig {
     let path = hubs_config_path();
     if let Ok(content) = std::fs::read_to_string(&path) {
-        toml::from_str(&content).unwrap_or_default()
+        match toml::from_str(&content) {
+            Ok(cfg) => cfg,
+            Err(e) => {
+                eprintln!(
+                    "warning: {} is unparseable ({e}); treating hub config as EMPTY — fix the file to restore your hub profiles",
+                    path.display()
+                );
+                HubsConfig::default()
+            }
+        }
     } else {
         HubsConfig::default()
+    }
+}
+
+/// Strict loader for MUTATION callers (T-2437). Propagates a parse
+/// error instead of defaulting so a load→modify→save cycle over a
+/// corrupt hubs.toml refuses the edit rather than silently replacing
+/// the whole file with near-empty content (losing every declared hub
+/// + bootstrap anchor). Missing file is still a normal empty config.
+pub(crate) fn load_hubs_config_strict() -> Result<HubsConfig> {
+    let path = hubs_config_path();
+    match std::fs::read_to_string(&path) {
+        Ok(content) => toml::from_str(&content).map_err(|e| {
+            anyhow::anyhow!(
+                "{} is unparseable ({e}); refusing to modify it — fix the syntax first",
+                path.display()
+            )
+        }),
+        Err(_) => Ok(HubsConfig::default()),
     }
 }
 
@@ -295,6 +330,95 @@ mod tests {
     fn hubs_config_empty_deserialize() {
         let config: HubsConfig = toml::from_str("").unwrap();
         assert!(config.hubs.is_empty());
+    }
+
+    #[test]
+    fn corrupt_hubs_toml_strict_errs_lenient_defaults() {
+        // T-2437: a hubs.toml that EXISTS but fails to parse must (a)
+        // refuse mutation loads with an error naming the path, and (b)
+        // degrade read-only loads to empty (loudly, via stderr — the
+        // behavioral contract asserted here is the fallback itself).
+        let _guard = crate::test_env_lock::ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+
+        let tmp = std::env::temp_dir().join(format!(
+            "tl-config-corrupt-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos(),
+        ));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(tmp.join(".termlink")).unwrap();
+        std::fs::write(
+            tmp.join(".termlink/hubs.toml"),
+            "[hubs.broken\naddress = \"oops",
+        )
+        .unwrap();
+
+        let orig_home = std::env::var("HOME").ok();
+        // SAFETY: guarded by ENV_LOCK.
+        unsafe { std::env::set_var("HOME", &tmp); }
+
+        let strict = load_hubs_config_strict();
+        let lenient = load_hubs_config();
+
+        // Restore HOME before asserting so a panic can't leak the override.
+        // SAFETY: guarded by ENV_LOCK.
+        unsafe {
+            match orig_home {
+                Some(h) => std::env::set_var("HOME", h),
+                None => std::env::remove_var("HOME"),
+            }
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+
+        let err = match strict {
+            Err(e) => e,
+            Ok(_) => panic!("strict load must refuse a corrupt hubs.toml"),
+        };
+        assert!(
+            err.to_string().contains("hubs.toml"),
+            "error must name the file: {err}"
+        );
+        assert!(lenient.hubs.is_empty(), "lenient load degrades to empty");
+    }
+
+    #[test]
+    fn missing_hubs_toml_is_normal_empty_for_both_loaders() {
+        let _guard = crate::test_env_lock::ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+
+        let tmp = std::env::temp_dir().join(format!(
+            "tl-config-missing-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos(),
+        ));
+        let _ = std::fs::remove_dir_all(&tmp);
+        std::fs::create_dir_all(&tmp).unwrap();
+
+        let orig_home = std::env::var("HOME").ok();
+        // SAFETY: guarded by ENV_LOCK.
+        unsafe { std::env::set_var("HOME", &tmp); }
+
+        let strict = load_hubs_config_strict();
+        let lenient = load_hubs_config();
+
+        // SAFETY: guarded by ENV_LOCK.
+        unsafe {
+            match orig_home {
+                Some(h) => std::env::set_var("HOME", h),
+                None => std::env::remove_var("HOME"),
+            }
+        }
+        let _ = std::fs::remove_dir_all(&tmp);
+
+        let strict = match strict {
+            Ok(cfg) => cfg,
+            Err(e) => panic!("missing file is not an error: {e}"),
+        };
+        assert!(strict.hubs.is_empty());
+        assert!(lenient.hubs.is_empty());
     }
 
     #[test]

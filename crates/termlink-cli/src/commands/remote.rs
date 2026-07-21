@@ -926,7 +926,9 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
                 }
                 anyhow::bail!(msg);
             }
-            let mut config = load_hubs_config();
+            // T-2437: strict load — a corrupt hubs.toml must refuse the
+            // edit, not be silently replaced by a near-empty save.
+            let mut config = crate::config::load_hubs_config_strict()?;
             let is_update = config.hubs.contains_key(&name);
             // T-1651: capture before move so we can emit the heal-readiness tip below.
             let bootstrap_omitted = bootstrap_from.is_none();
@@ -1049,7 +1051,8 @@ pub(crate) fn cmd_remote_profile(action: ProfileAction) -> Result<()> {
             Ok(())
         }
         ProfileAction::Remove { name, json } => {
-            let mut config = load_hubs_config();
+            // T-2437: strict load — see ProfileAction::Add.
+            let mut config = crate::config::load_hubs_config_strict()?;
             if config.hubs.remove(&name).is_some() {
                 save_hubs_config(&config)?;
                 if json {
