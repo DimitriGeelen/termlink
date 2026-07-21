@@ -43,10 +43,10 @@ auth preserved and new keying live.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Release binary installed to ~/.cargo/bin/termlink and hub restarted through the systemd unit (MainPID == pidfile, is-active, no NRestarts churn)
-- [ ] Auth preserved across restart (fleet doctor local hub OK — persist-if-present held, no PL-021 rotation)
-- [ ] Identity keying live-verified: two separate CLI invocations (distinct pids) land in ONE governor bucket keyed by identity fp (rate_buckets_active delta = 1 for a fresh-identity probe, or hub log shows fp-keyed sender)
-- [ ] Substrate preflight passes post-restart (no WARN/FAIL regressions vs pre-restart baseline)
+- [x] Release binary 0.11.625 (T-2432+T-2434) installed to ~/.cargo/bin/termlink; hub restarted through the systemd unit — active, MainPID 2621520 == pidfile, NRestarts=0
+- [x] Auth preserved across restart — fleet doctor local-test + workstation-107-public both PASS on 0.11.625 (persist-if-present held, no PL-021 rotation)
+- [x] Identity keying live-verified via rpc-audit.jsonl: one-shot `channel.list` records `from: d1993c2c3ec44c94` (host identity fp — all invocations share that bucket); co-resident agent shows its own distinct fp (b4619245…), proving per-identity keying
+- [x] Substrate preflight 6 pass / 0 warn / 0 fail post-restart — IMPROVED vs baseline (5/1/0: the stale-binary WARN this deploy existed to clear)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

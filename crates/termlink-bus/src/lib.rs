@@ -2247,4 +2247,171 @@ mod tests {
         let got = bus.envelope_at("t", 0).unwrap();
         assert!(got.is_none(), "expected None on empty topic");
     }
+
+    // ── T-2431: async/concurrency test-debt slice ───────────────────────
+    // Round-1 review sweep-B verdict: the bus core (append, sweep, claims)
+    // carried the risk concentration but was tested almost exclusively
+    // single-threaded. These tests exercise the invariants that only break
+    // under interleaving — the T-2258 class (read-path stall under
+    // concurrent write) taught that this crate's failure modes are
+    // concurrency-shaped.
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn concurrent_posts_all_land_with_unique_gapless_offsets() {
+        let (_dir, bus) = tmp_bus();
+        let bus = std::sync::Arc::new(bus);
+        bus.create_topic("t", Retention::Forever).unwrap();
+        const TASKS: usize = 8;
+        const PER_TASK: usize = 25;
+        let mut handles = Vec::new();
+        for w in 0..TASKS {
+            let b = bus.clone();
+            handles.push(tokio::spawn(async move {
+                for i in 0..PER_TASK {
+                    b.post("t", &env("t", format!("w{w}-m{i}").as_bytes()))
+                        .await
+                        .expect("concurrent post must not error");
+                }
+            }));
+        }
+        for h in handles {
+            h.await.expect("post task panicked");
+        }
+        let mut offsets: Vec<u64> = bus
+            .subscribe("t", 0)
+            .unwrap()
+            .map(|r| r.unwrap().0)
+            .collect();
+        offsets.sort_unstable();
+        let expected: Vec<u64> = (0..(TASKS * PER_TASK) as u64).collect();
+        assert_eq!(offsets, expected, "lost or duplicated write under concurrency");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn posts_racing_sweep_never_lose_fresh_records() {
+        let (_dir, bus) = tmp_bus();
+        let bus = std::sync::Arc::new(bus);
+        bus.create_topic("t", Retention::Messages(20)).unwrap();
+        const TOTAL: usize = 120;
+        let poster = {
+            let b = bus.clone();
+            tokio::spawn(async move {
+                for i in 0..TOTAL {
+                    b.post("t", &env("t", format!("m{i}").as_bytes()))
+                        .await
+                        .expect("post during sweep race must not error");
+                    if i % 10 == 0 {
+                        tokio::task::yield_now().await;
+                    }
+                }
+            })
+        };
+        let sweeper = {
+            let b = bus.clone();
+            tokio::spawn(async move {
+                for _ in 0..30 {
+                    // Sweeps race the poster; each must be internally
+                    // consistent (no panic, no error, never over-prunes).
+                    b.sweep("t", 0).expect("sweep during post race must not error");
+                    tokio::task::yield_now().await;
+                }
+            })
+        };
+        poster.await.expect("poster panicked");
+        sweeper.await.expect("sweeper panicked");
+        // Final sweep from quiescence: exactly the retention bound remains,
+        // and it is exactly the NEWEST records (tail intact, no holes).
+        bus.sweep("t", 0).unwrap();
+        let offsets: Vec<u64> = bus
+            .subscribe("t", 0)
+            .unwrap()
+            .map(|r| r.unwrap().0)
+            .collect();
+        let expected: Vec<u64> = ((TOTAL as u64 - 20)..TOTAL as u64).collect();
+        assert_eq!(
+            offsets, expected,
+            "sweep racing posts lost fresh records or left holes"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn claim_race_exactly_one_winner() {
+        let (_dir, bus) = tmp_bus();
+        let bus = std::sync::Arc::new(bus);
+        bus.create_topic("t", Retention::Forever).unwrap();
+        bus.post("t", &env("t", b"unit")).await.unwrap();
+        const RACERS: usize = 10;
+        let mut handles = Vec::new();
+        for w in 0..RACERS {
+            let b = bus.clone();
+            handles.push(tokio::spawn(async move {
+                b.claim_offset("t", 0, &format!("worker-{w}"), 60_000)
+            }));
+        }
+        let mut wins = 0;
+        let mut conflicts = 0;
+        for h in handles {
+            match h.await.expect("claim task panicked") {
+                Ok(_) => wins += 1,
+                Err(BusError::ClaimConflict { topic, offset }) => {
+                    assert_eq!((topic.as_str(), offset), ("t", 0));
+                    conflicts += 1;
+                }
+                Err(e) => panic!("unexpected claim error under race: {e}"),
+            }
+        }
+        assert_eq!(wins, 1, "claim atomicity broken: {wins} winners");
+        assert_eq!(conflicts, RACERS - 1);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn released_offset_reclaimable_while_held_claim_stays_exclusive() {
+        let (_dir, bus) = tmp_bus();
+        let bus = std::sync::Arc::new(bus);
+        bus.create_topic("t", Retention::Forever).unwrap();
+        bus.post("t", &env("t", b"u0")).await.unwrap();
+        bus.post("t", &env("t", b"u1")).await.unwrap();
+
+        // worker-A holds offset 0; worker-B holds offset 1 then releases
+        // WITHOUT ack (return-for-retry).
+        let a = bus.claim_offset("t", 0, "worker-A", 60_000).unwrap();
+        let b_claim = bus.claim_offset("t", 1, "worker-B", 60_000).unwrap();
+        bus.release_claim(&b_claim.claim_id, "worker-B", false).unwrap();
+
+        // Racers: some try the still-held offset 0 (must ALL fail), some
+        // try the released offset 1 (exactly one must win).
+        let mut held_attempts = Vec::new();
+        let mut freed_attempts = Vec::new();
+        for w in 0..6 {
+            let b = bus.clone();
+            held_attempts.push(tokio::spawn(async move {
+                b.claim_offset("t", 0, &format!("h{w}"), 60_000)
+            }));
+            let b = bus.clone();
+            freed_attempts.push(tokio::spawn(async move {
+                b.claim_offset("t", 1, &format!("f{w}"), 60_000)
+            }));
+        }
+        for h in held_attempts {
+            assert!(
+                matches!(
+                    h.await.expect("racer panicked"),
+                    Err(BusError::ClaimConflict { .. })
+                ),
+                "a held claim leaked to another worker"
+            );
+        }
+        let freed_wins = {
+            let mut wins = 0;
+            for h in freed_attempts {
+                if h.await.expect("racer panicked").is_ok() {
+                    wins += 1;
+                }
+            }
+            wins
+        };
+        assert_eq!(freed_wins, 1, "released offset must be claimable exactly once");
+        // Original holder can still release cleanly.
+        bus.release_claim(&a.claim_id, "worker-A", true).unwrap();
+    }
 }

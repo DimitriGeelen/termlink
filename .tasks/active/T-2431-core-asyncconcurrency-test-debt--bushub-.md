@@ -4,10 +4,10 @@ name: "core async/concurrency test-debt — bus/hub under-tested relative to ris
 description: >
   Round-1 sweep-B verdict (T-2419): 1,808 sync formatting tests vs 137+64 async tests in session/bus — the core (bus append/sweep/claims, hub router concurrency) is the risk concentration yet the least tested. Convert folklore into backlog: add async/concurrency tests for bus sweep-under-concurrent-post, claim lease races, subscribe/state read-path under write load (T-2258 class).
 
-status: captured
+status: started-work
 workflow_type: test
 owner: agent
-horizon: later
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-21T12:33:07Z
-last_update: 2026-07-21T12:33:07Z
+last_update: 2026-07-21T18:13:35Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -40,8 +40,11 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] Concurrency test: N concurrent tokio tasks posting to one topic — all posts land, offsets unique and gapless, count correct (lost-write detector)
+- [ ] Concurrency test: posts racing a concurrent sweep on a bounded topic — no panic, no lost fresh records, retention invariant holds after final sweep
+- [ ] Concurrency test: N tasks racing claim_offset on the same (topic, offset) — exactly one Ok, all others ClaimConflict (atomicity proof for substrate primitive #1)
+- [ ] Concurrency test: released-without-ack offset is re-claimable by a different worker while a still-held claim stays exclusive (lease lifecycle race)
+- [ ] Full termlink-bus test suite passes including the new tests
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -174,3 +177,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2431-core-asyncconcurrency-test-debt--bushub-.md
 - **Context:** Initial task creation
+
+### 2026-07-21T18:13:35Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
