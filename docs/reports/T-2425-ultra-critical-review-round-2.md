@@ -149,6 +149,35 @@ bookkeeping. R2-GAP-D/E are existing work re-prioritized.
   arc-005 remains in-progress.
 - **R2-GAP-E:** T-2422 / T-2423 re-surfaced to operator (unchanged).
 
+## 7. Round-3 delta pass (2026-07-21, same day)
+
+The operator re-issued the directive a sixth time (~2.5h after round 2 closed).
+Rather than a third full review (no new field evidence in the interval), round 3
+ran as a delta audit of the round-2 dispositions plus live verification:
+
+1. **R2-GAP-B LIVE-PROVEN.** The .107 sweeper's first two hourly passes pruned
+   **4,292 records** (`retention_sweep_runs_total: 2`,
+   `retention_sweep_pruned_total: 4292`) — records that bounded retention
+   policies had promised to remove and per-host cron enforcement never did.
+   The gap was real; the fix is live and observable.
+2. **CORRECTION — R2-GAP-D was already agent-complete.** T-2408 (arc-005 S3)
+   has `status: work-completed` since 2026-07-11; it sits in `active/` only for
+   the Human [RUBBER-STAMP] arc-close (arc total 156,525 → 108,051 bytes,
+   ~12.1k tokens/agent reclaimed, guard-locked). The round-2 Track A sweep
+   misread directory location as live status. §5's "advance T-2408" disposition
+   is void — the arc awaits one operator click.
+3. **arc-007 audit:** T-2385 and T-2402 are agent-complete awaiting Human-AC
+   clicks; T-2224 recorded NO-GO awaiting the Tier-0 inception decision;
+   T-2389 is 3/4 complete with the last AC explicitly an operator-timing
+   decision (re-homing 4 live production agents under tl-claude interrupts
+   their work). Waker rail verified healthy (`--expect-armed` exit 0).
+4. **Round-3 finding: the agent side is fully drained.** Every gap identified
+   across three review passes is either shipped+live-verified or blocked on
+   exactly one class of dependency: operator decision latency. The pending
+   queue (7 items) is enumerated in the completion report; this is the G-008
+   partial-complete class the framework already tracks — no new gap filing
+   warranted.
+
 ## Dialogue Log
 
 - 2026-07-21: Operator re-issued the standing directive verbatim ("please ultra
