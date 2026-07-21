@@ -2492,6 +2492,30 @@ pub(crate) fn is_single_value_state_pattern(name: &str) -> bool {
     name.starts_with("state:")
 }
 
+/// T-2426: topic-name patterns that are test debris by convention — the
+/// exact allowlist classes `scripts/sweep-test-debris.sh` (T-2424) deletes.
+/// When `ensure_topic` auto-creates one of these it picks `Days(7)` instead
+/// of `Forever`, so the T-2424 debris class self-cleans instead of
+/// re-accumulating until the next manual sweep. Explicit `channel create`
+/// with a retention always wins. Duplicated verbatim from
+/// `crates/termlink-hub/src/channel.rs::is_debris_pattern` per the T-2069
+/// convention — keep the two definitions in lockstep, and keep both in
+/// lockstep with the sweep script's `allow_topic`.
+pub(crate) fn is_debris_pattern(name: &str) -> bool {
+    let task_prefixed = |p: &str| {
+        name.len() > p.len()
+            && name.starts_with(p)
+            && name.as_bytes()[p.len()].is_ascii_digit()
+    };
+    task_prefixed("t-")
+        || task_prefixed("T-")
+        || name.starts_with("xhub-")
+        || name.starts_with("stress-")
+        || name.starts_with("scratch:")
+        || name.starts_with("smoke:")
+        || name.starts_with("smoke-")
+}
+
 /// T-2382: classify a `channel.create` error string as an "already exists"
 /// condition. The hub's TopicPolicyMismatch guard (termlink-bus meta.rs)
 /// returns `-32603: channel.create: topic "..." already exists with a
@@ -2532,6 +2556,14 @@ async fn ensure_topic(sock: &TransportAddr, name: &str) -> Result<bool> {
         json!({"kind": "latest"})
     } else if is_high_rate_pattern(name) {
         json!({"kind": "messages", "value": 1000})
+    } else if is_debris_pattern(name) {
+        // T-2426: debris namespaces self-clean instead of accumulating
+        // Forever until the next manual sweep (T-2424 deleted 851 of these).
+        eprintln!(
+            "note: '{name}' matches a test-debris namespace — auto-created with retention days:7 \
+             (T-2426; use `channel create {name} --retention ...` first if the output must outlive a week)"
+        );
+        json!({"kind": "days", "value": 7})
     } else {
         json!({"kind": "forever"})
     };
@@ -18666,6 +18698,62 @@ not json at all
         assert!(!is_high_rate_pattern("work-queue"));
         assert!(!is_high_rate_pattern("framework-pickup"));
         assert!(!is_high_rate_pattern(""));
+    }
+
+    // ---- T-2426 is_debris_pattern tests ----------------------------------
+    //
+    // Mirror of the hub-side tests in `crates/termlink-hub/src/channel.rs`
+    // mod tests, and of scripts/sweep-test-debris.sh `allow_topic`. Same
+    // T-2069 duplicated-not-shared convention as is_high_rate_pattern.
+
+    #[test]
+    fn is_debris_pattern_matches_sweep_allowlist_classes() {
+        assert!(is_debris_pattern("t-1234-smoke"));
+        assert!(is_debris_pattern("T-999"));
+        assert!(is_debris_pattern("xhub-reach-test"));
+        assert!(is_debris_pattern("stress-run-7"));
+        assert!(is_debris_pattern("scratch:t2409-reachtest"));
+        assert!(is_debris_pattern("smoke:drain"));
+        assert!(is_debris_pattern("smoke-e2e"));
+    }
+
+    #[test]
+    fn is_debris_pattern_rejects_durable_and_operational_topics() {
+        assert!(!is_debris_pattern("agent-presence"));
+        assert!(!is_debris_pattern("dm:abc:def"));
+        assert!(!is_debris_pattern("channel:learnings"));
+        assert!(!is_debris_pattern("policy-decisions"));
+        assert!(!is_debris_pattern("framework:pickup"));
+        assert!(!is_debris_pattern("state:deploy-mode"));
+        // t-/T- must be followed by a DIGIT — plain words starting with t
+        // (or hyphenated non-task names) are not task-smoke debris.
+        assert!(!is_debris_pattern("test-results"));
+        assert!(!is_debris_pattern("t-shirt-sizes"));
+        assert!(!is_debris_pattern("tstress"));
+        // Substrings elsewhere don't match — prefix-only.
+        assert!(!is_debris_pattern("my-smoke-test"));
+        assert!(!is_debris_pattern(""));
+    }
+
+    #[test]
+    fn debris_pattern_disjoint_from_high_rate_and_state() {
+        // The three ensure_topic branches must never overlap — each picks a
+        // different retention and overlap would make branch order load-bearing.
+        for name in [
+            "t-1234-smoke",
+            "T-999",
+            "xhub-reach-test",
+            "stress-run-7",
+            "scratch:t2409-reachtest",
+            "smoke:drain",
+            "smoke-e2e",
+        ] {
+            assert!(!is_high_rate_pattern(name), "{name} tripped high-rate");
+            assert!(!is_single_value_state_pattern(name), "{name} tripped state");
+        }
+        for name in ["agent-presence", "dm:a:b", "state:x"] {
+            assert!(!is_debris_pattern(name), "{name} tripped debris");
+        }
     }
 
     // ---- T-2145 is_single_value_state_pattern tests ----------------------

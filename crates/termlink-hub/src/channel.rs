@@ -347,6 +347,33 @@ pub(crate) fn is_single_value_state_pattern(name: &str) -> bool {
     name.starts_with("state:")
 }
 
+/// T-2426: topic-name patterns that are test debris by convention — the exact
+/// allowlist classes `scripts/sweep-test-debris.sh` (T-2424) deletes. The
+/// T-2424 sweep removed 851 such topics from the production hub; without a
+/// creation-time default they re-accumulate at `Retention::Forever` and the
+/// sweep has to be repeated forever. Debris topics born through the
+/// no-explicit-retention path get `Days(7)` instead — long enough for any
+/// test to read its own output, short enough that the namespace self-cleans.
+/// An EXPLICIT retention always wins (a test that needs durable output says
+/// so). Duplicated verbatim into
+/// `crates/termlink-cli/src/commands/channel.rs::is_debris_pattern` per the
+/// T-2069 convention — keep the two definitions in lockstep, and keep both
+/// in lockstep with the sweep script's `allow_topic`.
+pub(crate) fn is_debris_pattern(name: &str) -> bool {
+    let task_prefixed = |p: &str| {
+        name.len() > p.len()
+            && name.starts_with(p)
+            && name.as_bytes()[p.len()].is_ascii_digit()
+    };
+    task_prefixed("t-")
+        || task_prefixed("T-")
+        || name.starts_with("xhub-")
+        || name.starts_with("stress-")
+        || name.starts_with("scratch:")
+        || name.starts_with("smoke:")
+        || name.starts_with("smoke-")
+}
+
 pub(crate) async fn handle_channel_create_with(
     bus: &Bus,
     id: Value,
@@ -359,7 +386,21 @@ pub(crate) async fn handle_channel_create_with(
     let retention = params
         .get("retention")
         .and_then(retention_from_json)
-        .unwrap_or(Retention::Forever);
+        .unwrap_or_else(|| {
+            // T-2426: debris namespaces born without an explicit retention
+            // default to Days(7) instead of Forever — prevents the T-2424
+            // debris class from re-accumulating. Explicit retention wins.
+            if is_debris_pattern(name) {
+                tracing::info!(
+                    topic = %name,
+                    retention = "days:7",
+                    "channel.create on test-debris namespace with no explicit retention — defaulting to Days(7) instead of Forever (T-2426; pass an explicit retention to keep test output longer)"
+                );
+                Retention::Days(7)
+            } else {
+                Retention::Forever
+            }
+        });
     // T-2058: loud-not-silent warn at create time for the known-high-rate
     // operator-default vector. Topic still created with requested
     // retention — this is informational, not a refusal.
@@ -2304,6 +2345,75 @@ mod tests {
         assert!(!is_single_value_state_pattern("statebook"));
         // Empty name doesn't match.
         assert!(!is_single_value_state_pattern(""));
+    }
+
+    // T-2426: debris-pattern matcher exhaustiveness (mirror of the
+    // sweep-test-debris.sh allowlist).
+    #[test]
+    fn debris_pattern_matches_sweep_allowlist_classes() {
+        assert!(is_debris_pattern("t-1234-smoke"));
+        assert!(is_debris_pattern("T-999"));
+        assert!(is_debris_pattern("xhub-reach-test"));
+        assert!(is_debris_pattern("stress-run-7"));
+        assert!(is_debris_pattern("scratch:t2409-reachtest"));
+        assert!(is_debris_pattern("smoke:drain"));
+        assert!(is_debris_pattern("smoke-e2e"));
+    }
+
+    #[test]
+    fn debris_pattern_rejects_durable_and_operational_topics() {
+        assert!(!is_debris_pattern("agent-presence"));
+        assert!(!is_debris_pattern("dm:abc:def"));
+        assert!(!is_debris_pattern("channel:learnings"));
+        assert!(!is_debris_pattern("policy-decisions"));
+        assert!(!is_debris_pattern("framework:pickup"));
+        assert!(!is_debris_pattern("state:deploy-mode"));
+        // t-/T- must be followed by a DIGIT — plain words starting with t
+        // (or hyphenated non-task names) are not task-smoke debris.
+        assert!(!is_debris_pattern("test-results"));
+        assert!(!is_debris_pattern("t-shirt-sizes"));
+        assert!(!is_debris_pattern("tstress"));
+        // Substrings elsewhere don't match — prefix-only.
+        assert!(!is_debris_pattern("my-smoke-test"));
+        assert!(!is_debris_pattern(""));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn create_debris_topic_without_retention_defaults_days_7() {
+        let (_d, bus) = tmp_bus();
+        let resp =
+            handle_channel_create_with(&bus, json!(1), &json!({"name": "t-9999-smoke"})).await;
+        let v = unwrap_success(resp);
+        assert_eq!(v["ok"], true);
+        assert_eq!(v["retention"]["kind"], "days");
+        assert_eq!(v["retention"]["value"], 7);
+        assert_eq!(bus.topic_retention("t-9999-smoke").unwrap(), Some(Retention::Days(7)));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn create_debris_topic_with_explicit_retention_wins() {
+        let (_d, bus) = tmp_bus();
+        let resp = handle_channel_create_with(
+            &bus,
+            json!(1),
+            &json!({"name": "t-9999-durable", "retention": {"kind": "forever"}}),
+        )
+        .await;
+        let v = unwrap_success(resp);
+        assert_eq!(v["retention"]["kind"], "forever");
+        assert_eq!(
+            bus.topic_retention("t-9999-durable").unwrap(),
+            Some(Retention::Forever)
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn create_non_debris_topic_without_retention_stays_forever() {
+        let (_d, bus) = tmp_bus();
+        let resp =
+            handle_channel_create_with(&bus, json!(1), &json!({"name": "release-notes"})).await;
+        let v = unwrap_success(resp);
+        assert_eq!(v["retention"]["kind"], "forever");
     }
 
     #[test]
