@@ -333,7 +333,9 @@ fn cached_identity_fingerprint() -> Option<String> {
 }
 
 /// T-2432: env-gated wrapper applying the identity stamp to outbound RPC params.
-fn stamp_identity_from(params: Value) -> Value {
+/// pub(crate) since T-2434 so sibling one-shot funnels (agent find-idle,
+/// /substrate digest fetches) key the same governor bucket.
+pub(crate) fn stamp_identity_from(params: Value) -> Value {
     let opt_out = std::env::var("TERMLINK_NO_IDENTITY_FROM").is_ok_and(|v| v == "1");
     let fp = if opt_out {
         None
@@ -11976,7 +11978,8 @@ async fn render_claims_summary_fleet_json(addr: &TransportAddr, only_stuck: bool
 /// the names in the order the hub returned them (which is insertion order
 /// for the topics table — stable for stuck-worker diagnostic display).
 async fn fetch_topic_names(addr: &TransportAddr) -> Result<Vec<String>> {
-    let resp = client::rpc_call_addr(addr, method::CHANNEL_LIST, json!({}))
+    // T-2434: stamped so this raw one-shot read shares the identity bucket.
+    let resp = client::rpc_call_addr(addr, method::CHANNEL_LIST, stamp_identity_from(json!({})))
         .await
         .context("Hub rpc_call failed for channel.list")?;
     let result = client::unwrap_result(resp)

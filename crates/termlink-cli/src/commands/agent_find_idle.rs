@@ -312,6 +312,12 @@ pub(crate) async fn cmd_agent_find_idle(
     if let Some(n) = limit {
         params_template["limit"] = json!(n);
     }
+    // T-2434 (PL-218): stamp identity `from` once here so BOTH the one-shot
+    // and --watch paths key one governor bucket per caller identity instead
+    // of one per pid — the one-shot form fires from cron (lib-idle-gate.sh),
+    // making it the highest real-world bucket-mint source found by the
+    // T-2432 follow-up sweep.
+    let params_template = crate::commands::channel::stamp_identity_from(params_template);
 
     // T-2078: --watch + --json are guarded at the clap layer via
     // conflicts_with — clap rejects before we get here. Belt-and-braces

@@ -134,10 +134,14 @@ async fn fetch_dispatch(local_addr: Option<&TransportAddr>, timeout_secs: u64) -
     };
     let timeout_dur = Duration::from_secs(timeout_secs);
     let probe = async {
-        let resp =
-            termlink_session::client::rpc_call_addr(addr, method::AGENT_FIND_IDLE, json!({}))
-                .await
-                .map_err(|e| format!("agent.find_idle RPC failed: {e}"))?;
+        // T-2434: identity-stamped so digest reads share the caller's bucket.
+        let resp = termlink_session::client::rpc_call_addr(
+            addr,
+            method::AGENT_FIND_IDLE,
+            crate::commands::channel::stamp_identity_from(json!({})),
+        )
+        .await
+        .map_err(|e| format!("agent.find_idle RPC failed: {e}"))?;
         let result = termlink_session::client::unwrap_result(resp)
             .map_err(|e| format!("hub returned error for agent.find_idle: {e}"))?;
         Ok::<Value, String>(result)
@@ -173,7 +177,7 @@ async fn fetch_claim(
         let resp = termlink_session::client::rpc_call_addr(
             addr,
             method::CHANNEL_LIST,
-            json!({}),
+            crate::commands::channel::stamp_identity_from(json!({})),
         )
         .await
         .map_err(|e| format!("channel.list RPC failed: {e}"))?;
@@ -316,7 +320,11 @@ async fn fetch_backpressure(only_pressured: bool, timeout_secs: u64) -> SubResul
             )
             .await?;
             let resp = client
-                .call("hub.governor_status", json!("substrate-status"), json!({}))
+                .call(
+                    "hub.governor_status",
+                    json!("substrate-status"),
+                    crate::commands::channel::stamp_identity_from(json!({})),
+                )
                 .await?;
             match resp {
                 RpcResponse::Success(r) => Ok::<Value, anyhow::Error>(r.result),
