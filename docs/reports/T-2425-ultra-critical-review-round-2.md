@@ -126,7 +126,28 @@ bookkeeping. R2-GAP-D/E are existing work re-prioritized.
 
 ## 6. Execution record (same session)
 
-- _(populated as work lands)_
+- **R2-GAP-A → T-2426 SHIPPED:** `is_debris_pattern` predicate (mirrored CLI+hub
+  per T-2069, locked to the sweep script's allowlist) — CLI `ensure_topic` and
+  hub `channel.create` now default debris-namespace topics to `Days(7)` instead
+  of `Forever` (explicit retention always wins; loud stderr note / tracing line
+  on auto-pick). 8 new tests; full suites green (hub 968 + CLI 412, 0 failed).
+  Closed through the P-011 gate.
+- **R2-GAP-B → T-2427 SHIPPED:** new `crates/termlink-hub/src/retention_sweeper.rs`
+  — `TERMLINK_SWEEP_INTERVAL_SECS` (absent/0/unparseable ⇒ disabled with loud
+  warn; clamped [30, 86400]) arms a hub-internal sweep loop enforcing every
+  bounded topic per interval; per-topic errors warn-and-continue; three new
+  `retention_sweep_*` telemetry fields on `hub.governor_status` so "armed but
+  never firing" is visible. Default OFF = exact T-1155 behavior. 4 new tests +
+  extended governor field test; hub suite 416 passed. Closed through the gate.
+- **R2-GAP-C → arc-007 `comms-loudness` FILED:** anchored on T-2385; T-2385 /
+  T-2389 / T-2402 / T-2224 re-homed via `arc_id` (arc-006 number skipped —
+  reserved by T-1918 comments).
+- **R2-GAP-B field application → T-2428:** .107 hub unit gains
+  `TERMLINK_SWEEP_INTERVAL_SECS=3600` (git-tracked source + installed copy);
+  binary rebuilt/installed; restart through the unit; verification in-task.
+- **R2-GAP-D:** T-2408 (arc-005 S3) left as the next build item — existing task,
+  arc-005 remains in-progress.
+- **R2-GAP-E:** T-2422 / T-2423 re-surfaced to operator (unchanged).
 
 ## Dialogue Log
 

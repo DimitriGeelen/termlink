@@ -23,6 +23,9 @@ WorkingDirectory=/opt/termlink
 # moving to /var/lib/termlink means hub.secret, hub.sock, and TLS cert
 # survive reboots once T-933 (persist-if-present secret) lands.
 Environment=TERMLINK_RUNTIME_DIR=/var/lib/termlink
+# T-2427/T-2428: opt-in periodic retention sweeper — every bounded topic
+# enforced hourly, replacing per-host sweep crons (the T-1991 failure class).
+Environment=TERMLINK_SWEEP_INTERVAL_SECS=3600
 StateDirectory=termlink
 StateDirectoryMode=0700
 
