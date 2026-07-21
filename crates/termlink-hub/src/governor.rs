@@ -81,6 +81,33 @@ pub fn rate_governor() -> &'static RateGovernor {
     RATE_GOVERNOR.get_or_init(|| RateGovernor::new(DEFAULT_RATE_LIMIT_PER_SEC))
 }
 
+/// T-2432 (T-2430 GO, PL-218): single source of truth for the per-sender
+/// rate-bucket key. Precedence: explicit `params.from` (declared operator /
+/// agent identity) → `params.sender_id` (the signature-verified identity
+/// fingerprint that every `channel.post` already carries, T-1427) →
+/// `peer_addr` (network identity) → `peer_pid` (Unix-local process identity)
+/// → `"anonymous"`. Preferring a stable identity over `peer_pid` is the PL-218
+/// fix: one-shot CLI invocations previously each minted a fresh pid bucket,
+/// so limits never accumulated per caller and buckets bloated (PL-209
+/// mechanism — 380K live buckets observed fleet-wide). The tail of the
+/// precedence is unchanged for clients that send neither field.
+///
+/// Extracted from the two duplicated derivations in `server.rs`
+/// (`process_request_message` + `maybe_handle_ws_subscribe`) so the intercept
+/// paths can never drift apart (T-2372 coherence requirement).
+pub fn derive_sender_key(
+    from: Option<&str>,
+    sender_id: Option<&str>,
+    peer_addr: Option<&str>,
+    peer_pid: Option<u32>,
+) -> String {
+    from.map(str::to_string)
+        .or_else(|| sender_id.map(str::to_string))
+        .or_else(|| peer_addr.map(str::to_string))
+        .or_else(|| peer_pid.map(|p| p.to_string()))
+        .unwrap_or_else(|| "anonymous".to_string())
+}
+
 fn parse_env_u32(name: &str, default: u32) -> u32 {
     match std::env::var(name) {
         Ok(v) => v.parse::<u32>().unwrap_or_else(|_| {
@@ -378,6 +405,51 @@ fn parse_env_i64_clamped(name: &str, default: i64, min: i64, max: i64) -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── derive_sender_key (T-2432) ──────────────────────────────────
+
+    #[test]
+    fn sender_key_prefers_explicit_from() {
+        let k = derive_sender_key(Some("fp-abc"), Some("sid-1"), Some("10.0.0.1:5"), Some(42));
+        assert_eq!(k, "fp-abc");
+    }
+
+    #[test]
+    fn sender_key_falls_back_to_verified_sender_id() {
+        let k = derive_sender_key(None, Some("sid-1"), Some("10.0.0.1:5"), Some(42));
+        assert_eq!(k, "sid-1");
+    }
+
+    #[test]
+    fn sender_key_falls_back_to_peer_addr_then_pid() {
+        assert_eq!(
+            derive_sender_key(None, None, Some("10.0.0.1:5"), Some(42)),
+            "10.0.0.1:5"
+        );
+        assert_eq!(derive_sender_key(None, None, None, Some(42)), "42");
+    }
+
+    #[test]
+    fn sender_key_anonymous_when_nothing_known() {
+        assert_eq!(derive_sender_key(None, None, None, None), "anonymous");
+    }
+
+    #[test]
+    fn same_identity_across_two_connections_shares_one_bucket() {
+        // PL-218 regression shape: two "processes" (distinct pids) declaring
+        // the same identity must land in ONE bucket so limits accumulate.
+        let g = RateGovernor::new(2);
+        let k1 = derive_sender_key(Some("fp-same"), None, None, Some(100));
+        let k2 = derive_sender_key(Some("fp-same"), None, None, Some(101));
+        assert_eq!(k1, k2);
+        assert!(g.try_acquire(&k1, 0).is_ok());
+        assert!(g.try_acquire(&k2, 0).is_ok());
+        assert!(
+            g.try_acquire(&k2, 0).is_err(),
+            "third call under shared identity bucket must rate-limit"
+        );
+        assert_eq!(g.buckets_active(), 1, "one bucket, not one per pid");
+    }
 
     // ── ConnGovernor ────────────────────────────────────────────────
 

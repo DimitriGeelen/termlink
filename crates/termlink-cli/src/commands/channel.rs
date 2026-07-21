@@ -299,6 +299,50 @@ fn resolve_hub_secret_hex(addr: &TransportAddr) -> Result<String> {
 /// `client::rpc_call_addr` (peer-cred trust). For TCP, opens a connection,
 /// performs `hub.auth` with the resolved secret, then issues the RPC. Each
 /// call opens a fresh connection (matches Unix one-shot semantics).
+/// T-2432 (T-2430 GO, PL-218): pure core of the identity stamp. Inserts
+/// `from: <fp>` into object-shaped params that don't already carry a `from`,
+/// so the hub's per-sender rate governor keys this caller by stable identity
+/// instead of transient peer_pid (one fresh bucket per one-shot CLI
+/// invocation — limits never accumulate, buckets bloat; PL-209 mechanism).
+/// Never overwrites an explicit `from`; non-object params pass through
+/// untouched; `opt_out` (TERMLINK_NO_IDENTITY_FROM=1) disables entirely.
+fn stamp_from_with(mut params: Value, fp: Option<&str>, opt_out: bool) -> Value {
+    if opt_out {
+        return params;
+    }
+    if let (Some(obj), Some(fp)) = (params.as_object_mut(), fp) {
+        if !obj.contains_key("from") {
+            obj.insert("from".to_string(), Value::String(fp.to_string()));
+        }
+    }
+    params
+}
+
+/// Process-cached identity fingerprint for the governor stamp. Resolves once
+/// via `load_identity_or_create` (same key the wire envelope signs with, so
+/// the rate bucket and the verified `sender_id` agree). Load failure → `None`
+/// (stamp skipped, hub falls back to peer_addr/peer_pid — never fatal).
+fn cached_identity_fingerprint() -> Option<String> {
+    static FP: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
+    FP.get_or_init(|| {
+        load_identity_or_create()
+            .ok()
+            .map(|i| i.fingerprint().to_string())
+    })
+    .clone()
+}
+
+/// T-2432: env-gated wrapper applying the identity stamp to outbound RPC params.
+fn stamp_identity_from(params: Value) -> Value {
+    let opt_out = std::env::var("TERMLINK_NO_IDENTITY_FROM").is_ok_and(|v| v == "1");
+    let fp = if opt_out {
+        None
+    } else {
+        cached_identity_fingerprint()
+    };
+    stamp_from_with(params, fp.as_deref(), opt_out)
+}
+
 async fn rpc_call_authed(
     addr: &TransportAddr,
     method: &str,
@@ -306,6 +350,9 @@ async fn rpc_call_authed(
 ) -> std::result::Result<termlink_protocol::jsonrpc::RpcResponse, termlink_session::client::ClientError>
 {
     use termlink_session::auth::{self, PermissionScope};
+    // T-2432 (PL-218): every channel RPC through this funnel carries a stable
+    // identity `from` so hub rate buckets accumulate per caller, not per pid.
+    let params = stamp_identity_from(params);
     if addr.is_unix() {
         return client::rpc_call_addr(addr, method, params).await;
     }
@@ -11979,6 +12026,39 @@ fn render_claims_summary_text_with_annotation(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ---- T-2432 identity-keyed governor stamp (PL-218) ---------------------
+
+    #[test]
+    fn stamp_inserts_from_when_absent() {
+        let out = stamp_from_with(json!({"topic": "t"}), Some("fp-abc"), false);
+        assert_eq!(out.get("from").and_then(|v| v.as_str()), Some("fp-abc"));
+        assert_eq!(out.get("topic").and_then(|v| v.as_str()), Some("t"));
+    }
+
+    #[test]
+    fn stamp_never_overwrites_explicit_from() {
+        let out = stamp_from_with(json!({"from": "operator-alice"}), Some("fp-abc"), false);
+        assert_eq!(
+            out.get("from").and_then(|v| v.as_str()),
+            Some("operator-alice"),
+            "explicit from (e.g. display name / --from flag) must win"
+        );
+    }
+
+    #[test]
+    fn stamp_passes_non_object_params_through() {
+        let out = stamp_from_with(json!("bare-string"), Some("fp-abc"), false);
+        assert_eq!(out, json!("bare-string"));
+    }
+
+    #[test]
+    fn stamp_opt_out_and_missing_fp_are_noops() {
+        let out = stamp_from_with(json!({"topic": "t"}), Some("fp-abc"), true);
+        assert!(out.get("from").is_none(), "opt_out must disable stamping");
+        let out = stamp_from_with(json!({"topic": "t"}), None, false);
+        assert!(out.get("from").is_none(), "no fp resolved → no stamp");
+    }
 
     // ---- T-2391 cv_index presence-read extraction --------------------------
 

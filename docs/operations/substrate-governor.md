@@ -44,13 +44,23 @@ slot frees, so it gives a fixed conservative hint.
 ### Per-sender rate limit (`RATE_LIMITED`)
 
 Triggered in `handle_connection` AFTER request parse but BEFORE
-`router::route` dispatch. Sender-key priority:
+`router::route` dispatch. Sender-key priority (shared helper
+`governor::derive_sender_key`, T-2432):
 
 1. `params.from` (operator/agent self-identifier — same key the audit
-   log uses)
-2. `peer_addr` (network identity for TCP callers)
-3. `peer_pid` (Unix-local PID as string)
-4. `"anonymous"` (degenerate fallback)
+   log uses; since T-2432 the CLI auto-stamps this with its identity
+   fingerprint on every channel RPC, opt out via
+   `TERMLINK_NO_IDENTITY_FROM=1`)
+2. `params.sender_id` (the signature-verified identity fingerprint every
+   `channel.post` carries — T-1427; keys old-CLI posts by stable identity)
+3. `peer_addr` (network identity for TCP callers)
+4. `peer_pid` (Unix-local PID as string)
+5. `"anonymous"` (degenerate fallback)
+
+Before T-2432, one-shot Unix-local CLI invocations fell through to
+`peer_pid` — a fresh bucket per process, so per-caller limits never
+accumulated (PL-218) and buckets bloated (PL-209, 380K observed
+fleet-wide). Identity-first keying closes both.
 
 Each sender gets a token bucket with capacity = refill rate =
 `rate_limit_per_sec`. On overflow:

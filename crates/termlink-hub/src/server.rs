@@ -1021,20 +1021,19 @@ fn maybe_handle_ws_subscribe(
     // T-2372: ws_subscribe is intercepted before process_request_message, so it
     // must charge the same per-sender rate governor and record the same rpc_audit
     // entry as every other authed RPC — otherwise a client can spam ws_subscribe
-    // frames un-throttled and with no audit trail (arc-004 review finding #3). The
-    // sender-key precedence (params.from → peer_addr → peer_pid → anonymous) mirrors
-    // process_request_message so the audit log and rate buckets stay coherent across
-    // both intercept paths.
+    // frames un-throttled and with no audit trail (arc-004 review finding #3).
+    // T-2432: sender-key derivation is shared with process_request_message via
+    // governor::derive_sender_key so the two intercept paths can never drift.
     let from = v
         .get("params")
         .and_then(|p| p.get("from"))
         .and_then(|f| f.as_str());
+    let sender_id = v
+        .get("params")
+        .and_then(|p| p.get("sender_id"))
+        .and_then(|f| f.as_str());
     let peer_addr_ref = peer_addr.as_deref();
-    let sender_key = from
-        .map(str::to_string)
-        .or_else(|| peer_addr_ref.map(str::to_string))
-        .or_else(|| peer_pid.map(|p| p.to_string()))
-        .unwrap_or_else(|| "anonymous".to_string());
+    let sender_key = crate::governor::derive_sender_key(from, sender_id, peer_addr_ref, peer_pid);
     if let Err(hint) = crate::governor::rate_governor()
         .try_acquire(&sender_key, crate::governor::now_ms())
     {
@@ -1141,16 +1140,20 @@ async fn process_request_message(
                 let peer_addr_ref = peer_addr.as_deref();
 
                 // T-2048: per-sender rate-limit check BEFORE any dispatch.
-                // Sender key priority: explicit `params.from` (operator/agent
-                // identity) → `peer_addr` (network identity) → `peer_pid` as
-                // string (Unix-local identity) → "anonymous". Same precedence
-                // as the rpc_audit subject so the audit log + rate buckets
-                // stay coherent.
-                let sender_key = from
-                    .map(str::to_string)
-                    .or_else(|| peer_addr_ref.map(str::to_string))
-                    .or_else(|| peer_pid.map(|p| p.to_string()))
-                    .unwrap_or_else(|| "anonymous".to_string());
+                // T-2432 (PL-218): key priority now lives in
+                // governor::derive_sender_key — `params.from` → verified
+                // `params.sender_id` (every channel.post carries it, T-1427)
+                // → `peer_addr` → `peer_pid` → "anonymous". Preferring stable
+                // identity over pid means one-shot CLI invocations accumulate
+                // into ONE bucket instead of minting a fresh bucket per
+                // process (PL-209 bloat mechanism).
+                let sender_id = req.params.get("sender_id").and_then(|v| v.as_str());
+                let sender_key = crate::governor::derive_sender_key(
+                    from,
+                    sender_id,
+                    peer_addr_ref,
+                    peer_pid,
+                );
                 if let Err(hint) = crate::governor::rate_governor()
                     .try_acquire(&sender_key, crate::governor::now_ms())
                 {
