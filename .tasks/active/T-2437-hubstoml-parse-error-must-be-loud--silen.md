@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-21T20:16:06Z
-last_update: 2026-07-21T20:16:06Z
+last_update: 2026-07-21T20:19:55Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -132,6 +132,30 @@ out=$(grep -c "load_hubs_config_strict" /opt/termlink/crates/termlink-cli/src/co
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** A syntax error in `~/.termlink/hubs.toml` makes every fleet verb behave as
+if zero hubs are configured — no warning, no error, hubs just "vanish". Additionally,
+running `profile add`/`profile remove` in that state would rewrite the file from the
+empty in-memory config, permanently destroying every declared hub profile and
+bootstrap anchor.
+
+**Root cause:** `load_hubs_config` used `toml::from_str(&content).unwrap_or_default()`
+— it conflated "file missing" (a normal empty config) with "file present but
+unparseable" (an operator error that must be surfaced), collapsing both to the same
+silent default.
+
+**Why structurally allowed:** The loader's infallible signature (`-> HubsConfig`) was
+convenient for ~25 read-only call sites, and no test ever fed it a corrupt file — the
+test suite only exercised the missing-file and valid-file paths. Nothing in review or
+CI distinguishes "defensible default" from "swallowed error"; it took a directed
+silent-failure sweep (Reliability directive audit) to spot it.
+
+**Prevention:** (1) `corrupt_hubs_toml_strict_errs_lenient_defaults` regression test
+pins both behaviors — strict refuses, lenient degrades loudly. (2) The
+strict/lenient split makes the mutation-path contract explicit in the API: any future
+load→save cycle reaching for `load_hubs_config` will find the doc-comment directing
+it to the strict variant. (3) The round-7 sweep findings (MEDIUM class) remain
+registered for follow-up so the same class is re-checked, not rediscovered.
 
 ## Evolution
 
