@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-21T21:47:07Z
-last_update: 2026-07-21T21:47:20Z
+last_update: 2026-07-21T21:47:57Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -43,7 +43,7 @@ one bug = one task (Task Sizing Rules).
 
 ### WS push-transport residuals (`crates/termlink-hub/src/{server,aggregator}.rs`, `crates/termlink-session/src/ws_consumer.rs`, `crates/termlink-cli/src/commands/channel.rs`)
 
-- **[MED] WS#4 — client push consumer hangs forever on a silently-dead hub; never degrades to poll.** `run_ws_session` (`ws_consumer.rs:186-203`) streams via `source.next().await` with no read timeout and sends no pings; on a half-open hub link the consumer blocks indefinitely, the CLI reconnect loop (`channel.rs:643`) never fires, and push silently wedges with no fallback to poll. Client-side mirror of the hub-side fix already shipped in T-2442. **Strongest remaining candidate.**
+- **[DONE — T-2446] WS#4 — client push consumer hangs forever on a silently-dead hub; never degrades to poll.** `run_ws_session` (`ws_consumer.rs:186-203`) streamed via `source.next().await` with no read timeout; on a half-open hub link the consumer blocked indefinitely, the CLI reconnect loop (`channel.rs:643`) never fired, and push silently wedged with no fallback to poll. **Fixed in T-2446 (round-9):** bounded read via `next_frame_bounded` + `TERMLINK_WS_CLIENT_READ_TIMEOUT_MS` (default 90s); a silent hub yields `Err(ReadTimeout)` → existing reconnect+catch-up degrades to poll.
 - **[MED] WS#2 — slow WS consumer loses events silently.** Bounded broadcast (aggregator cap 1024) returns `Lagged` handled by only a server-side `tracing::warn` (`server.rs` push arm); dropped events are never signalled to the client (no gap marker). For a raw `ws_consumer` user with no poll backstop this is a permanent silent hole.
 - **[MED] WS#3 — every WS reconnect re-renders all live-delivered events (duplicates).** `run_ws_push` (`channel.rs:462-512`) renders pushed events but never advances `*cursor`; on drop, `ws_poll_catchup` re-fetches from the unadvanced cursor and re-renders everything already shown live. `ws_poll_catchup`'s own doc claims it "can't miss OR double-render" — the double-render half is false for live-phase events (doc is wrong).
 - **[LOW] WS#5 — aggregator re-subscribe replays old events.** `add_session` resets `cursor = 0` on every (re)add (`aggregator.rs:80`); a flapping session re-fetches from seq 0 and re-sends old events to all connected WS clients.
