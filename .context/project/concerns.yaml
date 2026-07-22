@@ -1,4 +1,42 @@
 concerns:
+- id: G-087
+  type: gap
+  title: identity-binding gap below the verification boundary — three shipped coordination/governance guards
+    key on unverified request params, not the T-1427-verified identity (round-13 class generalizing G-086)
+  description: 'Round-13 adversarial review found G-086 (claim verbs on spoofable claimer) is one of THREE
+    instances of a single root cause: coordination/governance guards compare against unverified request params
+    because the only cryptographically-verified identity (T-1427: sender_id==fingerprint, channel.rs:684) is
+    produced INSIDE the channel.post handler, and these guards run in sibling handlers, on the un-signed metadata
+    map, or before the post handler parses. Instances: (A) claim verbs on claimer/by (G-086/T-2454, HIGH);
+    (B) cv_index current-value records (topic,cv_key)->offset from the UNSIGNED metadata.cv_key (channel.rs:793,
+    excluded from signed bytes at :696) with no cv_key==sender_id check — a validly-signed producer A can post to
+    agent-presence with cv_key="<B fp>" and evict/impersonate B''s presence entry (find-idle / push-wake discovery
+    spoof, HIGH); (C) governor rate-limiter keys per-sender buckets on spoofable params.from/sender_id
+    (governor.rs:98) charged before the signature check (server.rs:1149) — rotate from to evade own limit, spoof
+    victim from to drain their bucket (MED). Each naive per-instance fix regresses prior work: cv_key==sender_id
+    breaks arbitrary-key broadcast-replay #9; connection-keying the limiter regresses PL-218/PL-209 (380K-bucket
+    bloat, the from-first order was the deliberate T-2432 fix). Hence a shared boundary decision (a hoisted
+    verify_sender_identity primitive + per-topic identity policy + dual-bucket charge model), incepted as T-2457,
+    not three ad-hoc patches. Tempered toward MED by the trusted-mesh model; HIGH the moment arc-011 is not
+    mutually trusting (same threat-model call as G-086/T-2454). The Q3 receipt-frontier sibling was CLEAN and its
+    one LOW receding-frontier quirk was fixed this round (T-2456).'
+  spec_reference: crates/termlink-hub/src/channel.rs:793 (cv_index write on unsigned cv_key); channel.rs:684
+    (T-1427 binding these guards lack); crates/termlink-hub/src/governor.rs:98 + server.rs:1149 (rate-limit
+    bucket key on unverified param, charged pre-verify); generalizes G-086
+  severity: high
+  trigger_fired: true
+  trigger_event: '2026-07-22 round-13 ultra-critical review of the coordination/governance substrate: adversarial
+    review of cv_index, rate-limiter, and receipt paths found two new instances (cv_index HIGH, rate-limit MED) of
+    the G-086 root cause plus verified the receipt path clean'
+  detection_lag_days: months (cv_index shipped T-2103; governor shipped T-2048; identity binding never applied to
+    either — surfaced only by round-13 adversarial review)
+  status: watching
+  created: '2026-07-22'
+  last_reviewed: '2026-07-22'
+  related_tasks:
+  - T-2457
+  - T-2454
+  - T-2456
 - id: G-086
   type: gap
   title: claim primitive enforces exclusive-ownership only against a spoofable, world-readable claimer string —
