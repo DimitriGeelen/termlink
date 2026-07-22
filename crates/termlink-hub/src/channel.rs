@@ -2054,6 +2054,18 @@ pub(crate) async fn handle_channel_cv_keys_with(
     .into()
 }
 
+/// T-2458 (round-14 F2) — is the cv_index hint a COMPLETE substitute for the
+/// authoritative log walk on a topic with `entry_count` distinct keys and cap
+/// `cap`? True only when the topic is non-empty AND strictly below cap: cv_index
+/// is monotonic-insert-only with no eviction (cv_index.rs:207-217), so at/over
+/// cap a newly-heartbeating agent overflows silently and is absent from the
+/// hint — the hint would then under-report idle agents. Empty ⇒ cold start
+/// (walk), saturated ⇒ lossy (walk). Pure so it can be unit-tested at the exact
+/// decision boundary.
+pub(crate) fn find_idle_hint_is_complete(entry_count: usize, cap: usize) -> bool {
+    entry_count > 0 && entry_count < cap
+}
+
 /// T-2045 (T-2020 GO) — `agent.find_idle`: derived idle-agent roster.
 /// Server-side join of `agent-presence` (LIVE) ∖ active claims (any topic).
 /// Params: `{ role?: string, capabilities?: [string], limit?: u32 }` →
@@ -2096,7 +2108,17 @@ pub(crate) async fn handle_agent_find_idle_with(
     // single-offset reads instead of walking the whole topic. Empty cv_index
     // (cold start, no producers wired) falls back to the walk path.
     let cv_entries = crate::cv_index::current_values("agent-presence");
-    let outcome = if !cv_entries.is_empty() {
+    // T-2458 (round-14 F2): the hint path is a COMPLETE substitute for the walk
+    // ONLY while the topic's cv_index is below its per-topic key cap. cv_index is
+    // monotonic-insert-only with no eviction (cv_index.rs:207-217), so once
+    // `agent-presence` saturates its cap, any newly-heartbeating LIVE agent
+    // overflows silently and is ABSENT from `cv_entries` — the hint would then
+    // under-report idle agents (a fresh idle worker becomes invisible to
+    // dispatch). Emptiness is not the only lossy state; saturation is too. Use
+    // the authoritative log walk when the index is empty OR at/over cap; keep the
+    // O(N) hint only when the topic is strictly below cap (guaranteed complete).
+    let cv_cap = crate::cv_index::cap_per_topic();
+    let outcome = if find_idle_hint_is_complete(cv_entries.len(), cv_cap) {
         bus.find_idle_agents_from_hint(
             role.as_deref(),
             &capabilities,
@@ -2196,6 +2218,34 @@ mod tests {
     use serde_json::json;
     use tempfile::TempDir;
     use termlink_protocol::jsonrpc::RpcResponse;
+
+    // ── T-2458 (round-14 F2): find-idle hint-completeness predicate ──────
+
+    #[test]
+    fn find_idle_hint_complete_only_strictly_below_cap() {
+        let cap = 1000;
+        // Empty index — cold start, hint has nothing → walk.
+        assert!(!find_idle_hint_is_complete(0, cap), "empty ⇒ walk");
+        // Below cap — every advertiser fits, hint is complete → hint.
+        assert!(find_idle_hint_is_complete(1, cap));
+        assert!(find_idle_hint_is_complete(cap - 1, cap));
+        // At cap — the next advertiser overflows silently; hint is lossy → walk.
+        assert!(
+            !find_idle_hint_is_complete(cap, cap),
+            "saturated index is lossy — must fall back to the authoritative walk"
+        );
+        // Defensive: an over-cap count (shouldn't occur) also routes to walk.
+        assert!(!find_idle_hint_is_complete(cap + 5, cap));
+    }
+
+    #[test]
+    fn find_idle_hint_degenerate_cap_one_always_walks() {
+        // cv_index clamps cap to a minimum of 1 (cv_index.rs). With cap=1 the
+        // first key already saturates, so the hint is never a complete
+        // substitute — the predicate must always choose the walk.
+        assert!(!find_idle_hint_is_complete(0, 1));
+        assert!(!find_idle_hint_is_complete(1, 1));
+    }
 
     // ── T-2355: deadline-bounded record walks ────────────────────────────
 

@@ -2030,6 +2030,47 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn find_idle_walk_finds_overflow_agent_that_hint_misses() {
+        // T-2458 (round-14 F2): cv_index caps distinct keys per topic and never
+        // evicts, so once `agent-presence` saturates its cap a newly-heartbeating
+        // LIVE agent overflows and is ABSENT from the hint's cv_entries. This test
+        // pins the divergence the handler-side fix (channel.rs) guards against: the
+        // authoritative walk MUST still see the overflowed agent that the lossy
+        // hint cannot. `agent-b` here stands in for the post-saturation overflow
+        // advertiser — present in the log, missing from the hint.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("agent-presence", Retention::Forever).unwrap();
+        let now = now_unix_ms();
+        bus.post("agent-presence", &heartbeat_env("agent-a", now - 1_000, None, None))
+            .await
+            .unwrap();
+        bus.post("agent-presence", &heartbeat_env("agent-b", now - 1_000, None, None))
+            .await
+            .unwrap();
+
+        // Hint carries ONLY agent-a (agent-b overflowed the cap → not indexed).
+        let incomplete_hint = vec![("agent-a".to_string(), 0u64)];
+        let via_hint = bus
+            .find_idle_agents_from_hint(None, &[], 60_000, None, &incomplete_hint)
+            .unwrap();
+        let hint_ids: std::collections::HashSet<&str> =
+            via_hint.iter().map(|a| a.agent_id.as_str()).collect();
+        assert!(
+            !hint_ids.contains("agent-b"),
+            "the lossy hint must NOT see the overflowed agent (this is the bug)"
+        );
+
+        // The authoritative walk sees BOTH — including the overflowed agent-b.
+        let via_walk = bus.find_idle_agents(None, &[], 60_000, None).unwrap();
+        let walk_ids: std::collections::HashSet<&str> =
+            via_walk.iter().map(|a| a.agent_id.as_str()).collect();
+        assert!(
+            walk_ids.contains("agent-a") && walk_ids.contains("agent-b"),
+            "the walk is ground truth — it must find the overflowed agent the hint dropped"
+        );
+    }
+
+    #[tokio::test]
     async fn find_idle_from_hint_skips_swept_offsets() {
         // cv_index can carry an offset whose envelope has been swept by
         // retention. The fast path must skip such entries cleanly, not panic
