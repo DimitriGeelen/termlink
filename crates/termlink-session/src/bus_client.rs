@@ -61,11 +61,28 @@ pub enum BusClientError {
     #[error("rpc: {0}")]
     Rpc(#[from] ClientError),
 
-    #[error("hub returned error: {0}")]
-    HubError(String),
+    #[error("hub returned error (code {code}): {message}")]
+    HubError { code: i64, message: String },
 
     #[error("hub response malformed: {0}")]
     Malformed(String),
+}
+
+/// Is this hub-reject a *transient* backpressure condition (rate-limit /
+/// at-capacity) rather than a permanent poison (unknown topic, bad signature,
+/// invalid params)? (T-2450, round-11 F1.)
+///
+/// A transient reject must NOT count toward the poison threshold: a durably-
+/// queued *guaranteed* message has to survive a fleet-wide hub bounce (the exact
+/// case the T-2055 flush jitter targets), not get dead-lettered after ~50s of
+/// `RATE_LIMITED`. Pure so it is unit-testable without a live hub.
+pub fn is_transient_hub_reject(err: &BusClientError) -> bool {
+    use termlink_protocol::control::error_code;
+    matches!(
+        err,
+        BusClientError::HubError { code, .. }
+            if *code == error_code::RATE_LIMITED || *code == error_code::HUB_AT_CAPACITY
+    )
 }
 
 /// Default flush cadence for the background task.
@@ -192,6 +209,22 @@ impl BusClient {
                         report.sent += 1;
                     }
                     Err(e) => {
+                        // T-2450 (round-11 F1): a TRANSIENT hub reject
+                        // (RATE_LIMITED / HUB_AT_CAPACITY — backpressure during a
+                        // fleet-wide hub bounce) must NOT count toward the poison
+                        // threshold. Preserve FIFO, leave the durably-queued
+                        // guaranteed message at head, and retry on the next flush
+                        // tick (the T-2055 jitter desynchronises the retry).
+                        // Only PERMANENT rejects fall through to the poison path.
+                        if is_transient_hub_reject(&e) {
+                            tracing::debug!(
+                                queue_id = id.0,
+                                error = %e,
+                                "flush: transient hub reject (backpressure) — retry next tick, not counting toward poison"
+                            );
+                            report.failed += 1;
+                            break;
+                        }
                         // Hub answered but rejected — not a transport problem.
                         // T-1439: once attempts crosses POISON_THRESHOLD the
                         // entry is treated as permanent-error poison and popped
@@ -315,10 +348,10 @@ fn parse_post_response(resp: RpcResponse) -> Result<i64, BusClientError> {
             .get("offset")
             .and_then(|v| v.as_i64())
             .ok_or_else(|| BusClientError::Malformed("missing offset".into())),
-        RpcResponse::Error(e) => Err(BusClientError::HubError(format!(
-            "code={} message={}",
-            e.error.code, e.error.message
-        ))),
+        RpcResponse::Error(e) => Err(BusClientError::HubError {
+            code: e.error.code,
+            message: e.error.message,
+        }),
     }
 }
 
@@ -339,6 +372,33 @@ mod tests {
             metadata: Default::default(),
             client_msg_id: None,
         }
+    }
+
+    #[test]
+    fn is_transient_hub_reject_classifies_backpressure_vs_poison() {
+        use termlink_protocol::control::error_code;
+        // Transient backpressure → true (must NOT count toward poison).
+        assert!(is_transient_hub_reject(&BusClientError::HubError {
+            code: error_code::RATE_LIMITED,
+            message: "rate limited".into(),
+        }));
+        assert!(is_transient_hub_reject(&BusClientError::HubError {
+            code: error_code::HUB_AT_CAPACITY,
+            message: "at capacity".into(),
+        }));
+        // Permanent rejects → false (still poison after threshold).
+        assert!(!is_transient_hub_reject(&BusClientError::HubError {
+            code: -32601, // method not found
+            message: "no such method".into(),
+        }));
+        assert!(!is_transient_hub_reject(&BusClientError::HubError {
+            code: -32602, // invalid params
+            message: "bad params".into(),
+        }));
+        // Non-HubError variants → false.
+        assert!(!is_transient_hub_reject(&BusClientError::Malformed(
+            "missing offset".into()
+        )));
     }
 
     #[test]
