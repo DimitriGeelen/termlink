@@ -1264,9 +1264,18 @@ fn walk_receipt_records(
         };
         let ts = env.ts_unix_ms;
         let sender = env.sender_id.clone();
+        // T-2456: aggregate by MAX `up_to` (monotonic delivery frontier),
+        // tie-broken by newer `ts`. A receipt's `up_to` is a "received up to
+        // offset N" high-water mark that can only advance; the previous
+        // latest-by-ts logic let a later-timestamped receipt carrying a
+        // SMALLER `up_to` move a sender's advertised frontier BACKWARDS —
+        // semantically wrong for a delivery-confirmation frontier, and it
+        // re-opened bounded `--await-ack` re-posts for a message the recipient
+        // had already confirmed. Behaviour-preserving for honest senders, whose
+        // `up_to` rises monotonically with `ts`.
         match latest.get(&sender) {
-            Some(prev) if prev.ts > ts => {}
-            Some(prev) if prev.ts == ts && prev.up_to >= up_to => {}
+            Some(prev) if prev.up_to > up_to => {}
+            Some(prev) if prev.up_to == up_to && prev.ts >= ts => {}
             _ => {
                 latest.insert(sender, ReceiptEntry { up_to, ts });
             }
@@ -2316,6 +2325,44 @@ mod tests {
         assert_eq!(walk.records_scanned, 3);
         assert_eq!(walk.latest.len(), 1);
         assert_eq!(walk.latest.get("peer-a").expect("peer-a receipt").up_to, 9);
+    }
+
+    #[test]
+    fn receipts_walk_monotonic_by_up_to_not_latest_ts() {
+        // T-2456: a LATER-timestamped receipt carrying a SMALLER up_to must NOT
+        // lower a sender's reported frontier. peer-a posts up_to=5 (ts=100) then
+        // up_to=3 (ts=200). Latest-by-ts (the old logic) would report 3;
+        // monotonic-max-by-up_to reports 5.
+        let mut n = 0u64;
+        let iter: termlink_bus::SubscribeIter = Box::new(std::iter::from_fn(move || {
+            if n >= 2 {
+                return None;
+            }
+            let env = match n {
+                0 => {
+                    let mut e = walk_test_env(0, "receipt", Some(5));
+                    e.sender_id = "peer-a".into();
+                    e.ts_unix_ms = 100;
+                    e
+                }
+                _ => {
+                    let mut e = walk_test_env(1, "receipt", Some(3));
+                    e.sender_id = "peer-a".into();
+                    e.ts_unix_ms = 200;
+                    e
+                }
+            };
+            let item = Ok((n, env));
+            n += 1;
+            Some(item)
+        }));
+        let walk = walk_receipt_records(iter, std::time::Duration::from_secs(60));
+        assert_eq!(walk.latest.len(), 1);
+        assert_eq!(
+            walk.latest.get("peer-a").expect("peer-a receipt").up_to,
+            5,
+            "monotonic frontier: a later smaller-up_to receipt must not lower it"
+        );
     }
 
     #[test]
