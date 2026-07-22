@@ -2591,3 +2591,10 @@ learnings:
   date: 2026-07-22
   context: Added via context agent
   application: TBD
+- id: PL-262
+  learning: "The claim primitive's exactly-one-owner safety (substrate #1, the whole disjoint-assignment purpose) is race-free BY TWO load-bearing invariants a refactor must never break: (1) all claim/release/renew/transfer ops go through a SINGLE process-wide Mutex<Connection> (meta.rs), serializing every DB touch; (2) the atomic CAS is a single INSERT guarded by UNIQUE INDEX idx_claims_topic_offset_active(topic,offset) (meta.rs:809) — the second racer's INSERT hits ConstraintViolation to ClaimConflict, never a double-grant. Round-15 verified this clean at the code level (complementing the T-2211 concurrent-drain demo, which can only show no-collision-in-runs-executed, not prove race-freedom). RISK: if any path opens a 2nd Connection to the same meta.db, the DELETE-expired+INSERT split into separate DEFERRED txns and you get SQLITE_BUSY (BusError::Sqlite), not a double-grant — the single-connection invariant is what keeps it clean; guard it. Corollary (T-2461): a PRIMARY KEY must be derived from the FULL uniqueness domain, never a lossy prefix."
+  source: P-001
+  task: T-2461
+  date: 2026-07-22
+  context: Added via context agent
+  application: TBD

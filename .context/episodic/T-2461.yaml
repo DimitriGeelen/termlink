@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2461: claim_id collides across distinct topics sharing a 16-char sanitized prefix at the same offset+nanosecond, misreported as ClaimConflict and spuriously denying a free slot — make claim_id collision-proof via a monotonic seq (round-15 F1)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-22T19:18:51Z
+# ============================================================================
+
+task_id: T-2461
+task_name: "claim_id collides across distinct topics sharing a 16-char sanitized prefix at the same offset+nanosecond, misreported as ClaimConflict and spuriously denying a free slot — make claim_id collision-proof via a monotonic seq (round-15 F1)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-22T19:15:05Z
+completed: 2026-07-22T19:18:41Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-22T21:18:36+02:00
+last_commit: 2026-07-22T21:18:36+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  make claim_id collision-proof via a process-monotonic seq — distinct topics sharing a 16-char prefix at the same offset+nanosecond no longer collide on the PK and get misreported as ClaimConflict, spuriously denying a free slot (round-15 F1)
+
+# Key outcomes
+outcomes:
+  - '`generate_claim_id` appends a process-global monotonic `AtomicU64` sequence so distinct calls can never produce an equal `claim_id`, even for two distinct topics sharing a 16-char prefix at the same offset+nanosecond; the misleading collision comment is corrected. — `CLAIM_ID_SEQ.fetch_add` + rewritten doc-comment (meta.rs:750-786).'
+  - 'The id composition is extracted to a pure `compose_claim_id(now_ns, seq, topic, offset)` and unit-tested: with a FIXED `now_ns`, two distinct topics that sanitize to the same 16-char tag at the same offset get DISTINCT claim_ids (the seq disambiguates) — deterministically proving the collision is closed. — `compose_claim_id_distinct_for_shared_prefix_topics_at_same_instant` + 2 siblings (meta.rs claim_id_tests).'
+  - 'A bus-level test confirms two distinct topics can each claim the SAME offset without a spurious `ClaimConflict` (distinct-(topic,offset) pairs are independent). Full `cargo test -p termlink-bus --lib` stays green. — `claim_distinct_topics_same_offset_both_succeed` (lib.rs); 91 bus tests green (+4).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'make claim_id collision-proof via a process-monotonic seq — distinct topics sharing a 16-char prefix at the same offset+nanosecond no longer collide on the PK and get misreported as ClaimConflict, spuriously denying a free slot (round-15 F1)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-bus/src/lib.rs'
+  - 'crates/termlink-bus/src/meta.rs'
+  - '.tasks/active/T-2461-claimid-collides-across-distinct-topics-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-22T21:18:36"
+    action: "T-2461: make claim_id collision-proof via a process-monotonic seq — distinct topics sharing a 16-char prefix at the same offset+nanosecond no longer collide on the PK and get misreported as ClaimConflict, spuriously denying a free slot (round-15 F1)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 3
+  lines_added: 320
+  lines_removed: 5
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2461-claimid-collides-across-distinct-topics-.md
+generated_by: context-agent-hybrid
