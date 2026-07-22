@@ -2577,3 +2577,17 @@ learnings:
   date: 2026-07-22
   context: Added via context agent
   application: TBD
+- id: PL-260
+  learning: "When reviewing any shipped coordination/governance guard (claim ownership, cv_index current-value, rate-limit buckets), check whether it keys on the T-1427-VERIFIED identity or on a raw request param — the sender_id==fingerprint binding (channel.rs:684) only covers channel.post; guards in sibling handlers, on the unsigned metadata map, or charged BEFORE the post handler (pre-verify) systematically miss it and end up trusting a spoofable string. Round-13 found 3 instances (G-087/T-2457). Detection heuristic: grep for params/metadata field reads that feed an ownership/eviction/limiting decision, then ask 'is this field in the canonical signed bytes?'"
+  source: P-001
+  task: T-2457
+  date: 2026-07-22
+  context: Added via context agent
+  application: TBD
+- id: PL-261
+  learning: "A fast-path that mirrors a slow-path is only correct where the two are provably equivalent — a BOUNDED cache (cv_index: per-topic cap 1000, no eviction) silently diverges from an UNBOUNDED ground-truth (the log walk) exactly at the bound. T-2109 added find-idle's cv_index hint as a drop-in for the walk but gated fallback on is_empty() alone; at cap, overflowed live agents vanish from the hint while the walk still sees them (T-2458 F2). Rule: when a fast path substitutes for a ground-truth, its selection predicate must exclude EVERY lossy state of the fast structure (empty AND saturated), not just the obvious one — and a test must pin behavior AT the bound, not only below it."
+  source: P-001
+  task: T-2458
+  date: 2026-07-22
+  context: Added via context agent
+  application: TBD

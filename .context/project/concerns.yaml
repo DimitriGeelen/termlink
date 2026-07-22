@@ -1,4 +1,42 @@
 concerns:
+- id: G-088
+  type: gap
+  title: post-idempotency exactly-once does not survive a hub restart — the dedupe recogniser is in-memory
+    while the client replays the idempotency key durably (round-14 F1)
+  description: 'Round-14 adversarial correctness hunt found the substrate''s advertised exactly-once post
+    delivery is really "exactly-once within one hub lifetime AND within the 5-min dedupe TTL; at-least-once
+    across a hub restart or a longer blip." Durability asymmetry: the CLIENT persists client_msg_id durably to
+    SQLite and replays it verbatim on flush (offline_queue.rs:44-48), but the HUB''s recogniser for that key is
+    a process-global in-memory OnceLock<Mutex<HashMap>> with a 5-min TTL (dedupe.rs:34,49,141,41) — no disk
+    backing. Trigger: spoke posts K (client_msg_id=c) -> hub commits at offset N + records dedupe entry -> TCP
+    ack lost -> hub RESTARTS (map wiped) OR >=5min elapse (entry TTL-expires) while the durable queue row
+    survives -> flush replays the SAME c -> dedupe miss -> try_record_or_lookup returns Newly (dedupe.rs:126) ->
+    bus.post re-appends the same payload at N+k -> subscribers see K twice. The dedupe.rs module header lists
+    "hub bounce" as a CLOSED scenario — it is not, across a process restart, because the committed-entry cache
+    dies with the process while the bus-log offset survives. Matters because arc-011''s AEF orchestrator uses
+    --await-ack for worker completion/ledger messages: a double-applied completion double-counts finished work.
+    ADR §5 overstates the guarantee ("T-2049 dedupe -> exactly-once"). Fix direction spans the collaboration seam
+    (§9): persist the await-ack-subset dedupe to runtime_dir (PL-111, never /tmp per PL-021) to restore true
+    exactly-once, OR correct the contract to at-least-once-across-restart + require an idempotent AEF
+    completion-ledger consumer. Human owns the boundary because option (b) depends on the AEF ledger''s
+    idempotency, which the substrate cannot see. Incepted as T-2459, not force-built.'
+  spec_reference: crates/termlink-hub/src/dedupe.rs:34,49,141 (in-memory dedupe, no persistence) + :41 (5min TTL)
+    + :126 (Newly on miss); crates/termlink-session/src/offline_queue.rs:44-48 (durable client_msg_id replay);
+    docs/architecture/parallel-execution-substrate.md §5 (overstated exactly-once claim)
+  severity: medium
+  trigger_fired: true
+  trigger_event: '2026-07-22 round-14 adversarial correctness hunt of the substrate''s exactly-once / lifecycle
+    guarantees: source-cited trace found the dedupe recogniser is in-memory while the client replays the
+    idempotency key durably — exactly-once breaks across a hub restart or a >5min blip'
+  detection_lag_days: months (dedupe shipped T-2049; await-ack shipped T-2286; the restart-durability asymmetry
+    was never tested — surfaced only by round-14 adversarial review)
+  status: watching
+  created: '2026-07-22'
+  last_reviewed: '2026-07-22'
+  related_tasks:
+  - T-2459
+  - T-2049
+  - T-2286
 - id: G-087
   type: gap
   title: identity-binding gap below the verification boundary — three shipped coordination/governance guards
