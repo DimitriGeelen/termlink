@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2449: clamp token create TTL to a ceiling — bound captured-token reuse window (T-2447 F2)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-22T05:54:27Z
+# ============================================================================
+
+task_id: T-2449
+task_name: "clamp token create TTL to a ceiling — bound captured-token reuse window (T-2447 F2)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-22T05:50:45Z
+completed: 2026-07-22T05:54:19Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-22T07:54:13+02:00
+last_commit: 2026-07-22T07:54:13+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  clamp token create TTL to a ceiling — bound captured-token reuse window (T-2447 F2)
+
+# Key outcomes
+outcomes:
+  - '`auth.rs` exposes `DEFAULT_MAX_TOKEN_TTL_SECS` (7d), `max_token_ttl_secs()` (env-aware, fail-closed to default on 0/unparseable), pure `clamp_ttl_to(req, max) -> (u64, bool)`, and env wrapper `clamp_token_ttl(req)`.'
+  - '`create_token` clamps `ttl_secs` via `clamp_token_ttl` as a hard backstop — no caller can mint a token exceeding the ceiling (MCP path auto-protected too).'
+  - 'CLI `cmd_token_create` pre-clamps, emits a loud stderr warn when clamped, and reports the effective (clamped) TTL in both text and JSON output (JSON carries `clamped` + `requested_ttl`).'
+  - 'Unit tests: `clamp_ttl_to` under/at/over ceiling; `create_token` caps `expires_at` when ttl exceeds the max. `cargo test -p termlink-session --lib` green (390 passed, +2 new).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-2448.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-cli/src/commands/token.rs'
+  - 'crates/termlink-session/src/auth.rs'
+  - '.tasks/active/T-2449-clamp-token-create-ttl-to-a-ceiling--bou.md'
+  - '.tasks/completed/T-2448-fail-closed-unix-peer-cred--reject-on-so.md'
+  - '.termlink-task'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-22T07:54:13"
+    action: "T-2449: clamp token create TTL to a ceiling — bound captured-token reuse window (T-2447 F2)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 12
+  lines_added: 453
+  lines_removed: 25
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2449-clamp-token-create-ttl-to-a-ceiling--bou.md
+generated_by: context-agent-hybrid
