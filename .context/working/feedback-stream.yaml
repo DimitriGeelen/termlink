@@ -4896,3 +4896,21 @@ scan_id: R-fbfc4736
 task_id: T-2451
 payload:
   task_file: .tasks/active/T-2451-await-ack-postfn-must-not-map-missing-of.md
+---
+kind: scan_emitted
+timestamp: '2026-07-22T06:10:25Z'
+scan_id: R-9514ac2e
+task_id: T-2452
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-22T06:10:25Z'
+scan_id: R-9514ac2e
+task_id: T-2452
+payload:
+  task_file: .tasks/active/T-2452-flush-poison-double-failure-must-break-n.md
