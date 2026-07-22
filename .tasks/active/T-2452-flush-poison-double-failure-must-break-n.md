@@ -1,8 +1,8 @@
 ---
-id: T-2451
-name: "await-ack post_fn must not map missing offset to 0 — prevents false Acked (round-11 F3)"
+id: T-2452
+name: "flush poison double-failure must break not loop — avoid unbounded re-POST under disk-full (round-11 F2)"
 description: >
-  await-ack post_fn must not map missing offset to 0 — prevents false Acked (round-11 F3)
+  flush poison double-failure must break not loop — avoid unbounded re-POST under disk-full (round-11 F2)
 
 status: started-work
 workflow_type: build
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-07-22T06:04:46Z
-last_update: 2026-07-22T06:04:46Z
+created: 2026-07-22T06:08:47Z
+last_update: 2026-07-22T06:08:47Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,30 +30,29 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2451: await-ack post_fn must not map missing offset to 0 — prevents false Acked (round-11 F3)
+# T-2452: flush poison double-failure must break not loop — avoid unbounded re-POST under disk-full (round-11 F2)
 
 ## Context
 
-Round-11 durable-delivery review Finding 3 (false-confirm — the worst class per
-termlink's contract). In `run_await_ack`'s `post_fn`
-(`crates/termlink-cli/src/commands/channel.rs` ~1241), a hub *success* response
-missing the `offset` field is silently mapped to offset `0`
-(`...unwrap_or(0).max(0) as u64`). Combined with `recipient_acked`'s inclusive
-`up_to >= offset` frontier, a recipient that has ANY receipt row (up_to >= 0)
-then falsely satisfies the ack check at offset 0 → the send is reported **Acked**
-when the post never actually landed at a real offset. `bus_client`'s own
-`parse_post_response` correctly errors on missing offset; only this CLI wiring
-diverges. Fix: extract a pure `parse_post_offset(&Value) -> Result<u64, String>`
-that returns `Err` on absent/invalid offset, use it in `post_fn`, and unit-test
-it.
+Round-11 durable-delivery review Finding 2. In `BusClient::flush`
+(`bus_client.rs` ~220-236), when a poison entry crosses `POISON_THRESHOLD` the
+code tries `dead_letter(id)`; on failure it falls back to a bare `pop(id)` whose
+result is **ignored** (`let _ = self.queue.pop(id)`), then `report.dropped_poison
++= 1; continue;`. If BOTH `dead_letter` AND the fallback `pop` fail (e.g.
+disk-full: reads/peek succeed but every write fails), the head row is never
+removed, `attempts` stays above threshold, and `continue` re-enters the loop on
+the SAME head entry — an unbounded loop that re-POSTs the same message to the hub
+every iteration (a busy-loop hammering the hub). Fix: on the dead_letter+pop
+double-failure, `break` (count `failed`) so the flush pass yields; the next tick
+retries once the disk recovers.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Pure `parse_post_offset(&serde_json::Value) -> Result<u64, String>` added: `Ok(offset)` on a valid non-negative integer offset, `Err` on missing/non-integer/negative offset.
-- [x] `post_fn` uses `parse_post_offset` (propagates `Err`) instead of `unwrap_or(0)` — a malformed hub success no longer maps to a real-looking offset 0.
-- [x] Unit tests: valid offset → Ok(n); missing offset → Err; non-integer/negative offset → Err. `cargo test -p termlink --bin termlink` green (978 passed, +3 new).
+- [x] `flush`'s poison fallback checks the `pop` result: on double-failure (dead_letter Err AND pop Err) it logs an error, increments `failed`, and `break`s instead of `continue`ing onto the same un-removed head row.
+- [x] The happy poison path (dead_letter succeeds, or fallback pop succeeds) is unchanged — entry removed, `dropped_poison` incremented, loop continues.
+- [x] `cargo test -p termlink-session --lib` green (391 passed; existing `flush_poison_dead_letters_instead_of_silent_drop` still passes — no happy-path regression). Note: the double-failure branch is defensive robustness code; a direct unit test needs a failure-injecting mock queue (no such infra today) — covered by no-regression + code review.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -88,7 +87,8 @@ it.
 
 ## Verification
 
-cargo test -p termlink --bin termlink parse_post_offset
+cargo test -p termlink-session --lib flush_poison_dead_letters_instead_of_silent_drop
+cargo test -p termlink-session --lib
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -137,24 +137,24 @@ cargo test -p termlink --bin termlink parse_post_offset
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
-**Symptom:** A hub `channel.post` success response missing the `offset` field
-was silently treated as a real delivery at offset 0; with a recipient holding any
-receipt row (`up_to >= 0`), the await-ack loop reported the send **Acked** though
-it never landed at a real offset — a false-confirmed delivery.
+**Symptom:** Under disk-full (or a broken SQLite write path) during a poison
+drop, `flush` could loop forever re-POSTing the same head entry to the hub — an
+unbounded busy-loop hammering the hub.
 
-**Root cause:** `post_fn` used `r.get("offset")...unwrap_or(0)`, papering over an
-absent/invalid offset instead of surfacing it as an error. The offset then fed
-`recipient_acked`'s inclusive `up_to >= offset` frontier, which trivially holds at
-0.
+**Root cause:** The dead-letter-failure fallback did `let _ = self.queue.pop(id)`,
+discarding the pop result, then `continue`d unconditionally. If both the
+dead_letter write and the fallback pop failed, the head row remained and the loop
+re-entered on the same entry.
 
-**Why structurally allowed:** The offset-parse was an inline `unwrap_or(0)` buried
-in a closure inside a 150-line CLI function — never extracted, so never unit-tested,
-so the malformed-success branch was invisible. `bus_client::parse_post_response`
-already did the correct thing, but the CLI await-ack path had its own divergent copy.
+**Why structurally allowed:** The fallback was written as a best-effort "at least
+try to unblock" with the pop result intentionally ignored — the second-order case
+(pop ALSO fails) was never considered, and `continue` assumed forward progress
+that a failed removal doesn't provide.
 
-**Prevention:** Extracted `parse_post_offset` with tests asserting missing/invalid
-offset → `Err` (not 0), so the false-confirm branch is now covered and a future
-regression fails a test. Aligns the CLI path with `bus_client`'s parse semantics.
+**Prevention:** The fallback now checks the pop result and `break`s on
+double-failure, guaranteeing the loop yields regardless of removal success. (A
+direct test needs a failure-injecting mock queue — noted as follow-up infra;
+covered here by no-happy-path-regression + review.)
 
 ## Evolution
 
@@ -203,7 +203,7 @@ regression fails a test. Aligns the CLI path with `bus_client`'s parse semantics
 
 ## Updates
 
-### 2026-07-22T06:04:46Z — task-created [task-create-agent]
+### 2026-07-22T06:08:47Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2451-await-ack-postfn-must-not-map-missing-of.md
+- **Output:** /opt/termlink/.tasks/active/T-2452-flush-poison-double-failure-must-break-n.md
 - **Context:** Initial task creation

@@ -261,7 +261,22 @@ impl BusClient {
                                     error = %de,
                                     "flush: dead-letter write failed; dropping poison post to avoid head-of-line block"
                                 );
-                                let _ = self.queue.pop(id);
+                                // T-2452 (round-11 F2): if the fallback pop ALSO
+                                // fails (writes broken, e.g. disk-full), the head
+                                // row is still present. `continue`ing here would
+                                // re-POST the same entry to the hub every
+                                // iteration — an unbounded busy-loop. Break so the
+                                // pass yields; the next flush tick retries once the
+                                // disk recovers.
+                                if let Err(pe) = self.queue.pop(id) {
+                                    tracing::error!(
+                                        queue_id = id.0,
+                                        error = %pe,
+                                        "flush: dead-letter AND fallback pop both failed (disk?) — aborting flush pass to avoid unbounded re-POST loop"
+                                    );
+                                    report.failed += 1;
+                                    break;
+                                }
                             }
                             report.dropped_poison += 1;
                             // Continue draining — don't let the poison
