@@ -4842,3 +4842,21 @@ scan_id: R-444cd18a
 task_id: T-2449
 payload:
   task_file: .tasks/active/T-2449-clamp-token-create-ttl-to-a-ceiling--bou.md
+---
+kind: scan_emitted
+timestamp: '2026-07-22T05:54:55Z'
+scan_id: R-527ac01d
+task_id: T-2447
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-22T05:54:55Z'
+scan_id: R-527ac01d
+task_id: T-2447
+payload:
+  task_file: .tasks/active/T-2447-round-10-review--authtokenscope-security.md

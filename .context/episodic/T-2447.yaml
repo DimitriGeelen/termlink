@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2447: Round-10 review — auth/token/scope security core findings
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-22T05:54:58Z
+# ============================================================================
+
+task_id: T-2447
+task_name: "Round-10 review — auth/token/scope security core findings"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-21T22:23:13Z
+completed: 2026-07-22T05:54:54Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-07-22T00:28:19+02:00
+last_commit: 2026-07-22T07:54:49+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  round-10 auth/token/scope review — capture 2 MED findings (fail-open peer-cred, uncapped token TTL); security-critical paths verified clean. close round-10 auth-review tracker — both findings built (T-2448 fail-closed peer-cred + T-2449 token TTL clamp)
+
+# Key outcomes
+outcomes:
+  - '(Tracking/capture task — no direct build ACs.) On pickup: build Finding 1 (fail-closed peer-cred, unit-tested) as its own task, then Finding 2 (TTL clamp) as its own task; close this tracker when both are filed/built. → **DONE:** Finding 1 = T-2448 (closed, 433 hub tests green), Finding 2 = T-2449 (closed, 390 session tests green).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-2449.yaml'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.tool-counter'
+  - '.tasks/active/T-2447-round-10-review--authtokenscope-security.md'
+  - '.tasks/completed/T-2449-clamp-token-create-ttl-to-a-ceiling--bou.md'
+  - '.termlink-task'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-22T00:28:19"
+    action: "T-2447: round-10 auth/token/scope review — capture 2 MED findings (fail-open peer-cred, uncapped token TTL); security-critical paths verified clean"
+  - time: "2026-07-22T07:54:49"
+    action: "T-2447: close round-10 auth-review tracker — both findings built (T-2448 fail-closed peer-cred + T-2449 token TTL clamp)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 451 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 451
+  commits: 2
+  files_changed: 8
+  lines_added: 389
+  lines_removed: 22
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2447-round-10-review--authtokenscope-security.md
+generated_by: context-agent-hybrid
