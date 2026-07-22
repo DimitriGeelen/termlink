@@ -4860,3 +4860,21 @@ scan_id: R-527ac01d
 task_id: T-2447
 payload:
   task_file: .tasks/active/T-2447-round-10-review--authtokenscope-security.md
+---
+kind: scan_emitted
+timestamp: '2026-07-22T06:04:26Z'
+scan_id: R-c0176bc9
+task_id: T-2450
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-22T06:04:26Z'
+scan_id: R-c0176bc9
+task_id: T-2450
+payload:
+  task_file: .tasks/active/T-2450-flush-must-not-dead-letter-guaranteed-ms.md

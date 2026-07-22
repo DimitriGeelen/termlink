@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2450: flush must not dead-letter guaranteed msg on transient RATE_LIMITED — classify transient vs poison (round-11 F1)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-22T06:04:29Z
+# ============================================================================
+
+task_id: T-2450
+task_name: "flush must not dead-letter guaranteed msg on transient RATE_LIMITED — classify transient vs poison (round-11 F1)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-22T06:01:23Z
+completed: 2026-07-22T06:04:22Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-22T08:04:15+02:00
+last_commit: 2026-07-22T08:04:15+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  flush must not dead-letter a guaranteed msg on transient RATE_LIMITED (round-11 F1)
+
+# Key outcomes
+outcomes:
+  - '`BusClientError::HubError` carries `{ code: i64, message: String }`; `parse_post_response` populates the code from the JSON-RPC error.'
+  - 'Pure `is_transient_hub_reject(&BusClientError) -> bool` returns true for `RATE_LIMITED` (-32008) and `HUB_AT_CAPACITY` (-32019), false for permanent codes and non-HubError variants.'
+  - '`flush` reject arm: a transient reject `break`s WITHOUT bumping `attempts`/dead-lettering (guaranteed msg stays queued); permanent rejects retain existing poison-threshold dead-letter behavior.'
+  - 'Unit test for the classifier (both transient codes true, a permanent code + a non-HubError false); existing `flush_poison_dead_letters_instead_of_silent_drop` (-32601 permanent) still green. `cargo test -p termlink-session --lib` green (391 passed, +1 new); CLI+MCP build clean.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-07-22.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-session/src/bus_client.rs'
+  - '.tasks/active/T-2450-flush-must-not-dead-letter-guaranteed-ms.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-22T08:04:15"
+    action: "T-2450: flush must not dead-letter a guaranteed msg on transient RATE_LIMITED (round-11 F1)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 12
+  lines_added: 326
+  lines_removed: 29
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2450-flush-must-not-dead-letter-guaranteed-ms.md
+generated_by: context-agent-hybrid

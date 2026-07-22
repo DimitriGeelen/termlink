@@ -1062,6 +1062,25 @@ pub(crate) async fn cmd_channel_post(
 /// expects (mirror of the TCP inline path in `cmd_channel_post`). Used by the
 /// ack-with-retry loop to re-post with the SAME `client_msg_id` so T-2049
 /// dedupe absorbs the duplicate (exactly-once).
+/// Extract the delivery offset from a hub `channel.post` success result.
+///
+/// T-2451 (round-11 F3): a hub success MUST carry a valid non-negative integer
+/// `offset`. Returning `Err` on an absent/invalid offset — rather than the old
+/// `unwrap_or(0)` — prevents a malformed response from being reported as a real
+/// delivery at offset 0, which `recipient_acked`'s inclusive `up_to >= offset`
+/// frontier would then falsely satisfy (false-confirmed delivery). Mirrors
+/// `bus_client::parse_post_response`. Pure so it is unit-testable.
+fn parse_post_offset(result: &Value) -> Result<u64, String> {
+    let offset = result
+        .get("offset")
+        .and_then(|v| v.as_i64())
+        .ok_or_else(|| "hub channel.post success missing integer 'offset' field".to_string())?;
+    if offset < 0 {
+        return Err(format!("hub channel.post returned negative offset {offset}"));
+    }
+    Ok(offset as u64)
+}
+
 fn channel_post_params(pending: &PendingPost) -> Value {
     let mut params = json!({
         "topic": pending.topic,
@@ -1238,7 +1257,7 @@ async fn run_await_ack(
                 .map_err(|e| format!("channel.post failed: {e}"))?;
             let r = client::unwrap_result(resp)
                 .map_err(|e| format!("hub error on channel.post: {e}"))?;
-            Ok(r.get("offset").and_then(|v| v.as_i64()).unwrap_or(0).max(0) as u64)
+            parse_post_offset(&r)
         }
     };
     let sock_recv = sock.clone();
@@ -12081,6 +12100,28 @@ fn render_claims_summary_text_with_annotation(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ---- T-2451 (round-11 F3): parse_post_offset false-confirm guard -------
+
+    #[test]
+    fn parse_post_offset_valid() {
+        assert_eq!(parse_post_offset(&json!({"offset": 42})), Ok(42));
+        assert_eq!(parse_post_offset(&json!({"offset": 0})), Ok(0));
+    }
+
+    #[test]
+    fn parse_post_offset_missing_is_err_not_zero() {
+        // The false-confirm vector: a malformed success must NOT become offset 0.
+        assert!(parse_post_offset(&json!({"deduped": true})).is_err());
+        assert!(parse_post_offset(&json!({})).is_err());
+    }
+
+    #[test]
+    fn parse_post_offset_non_integer_is_err() {
+        assert!(parse_post_offset(&json!({"offset": "42"})).is_err());
+        assert!(parse_post_offset(&json!({"offset": null})).is_err());
+        assert!(parse_post_offset(&json!({"offset": -1})).is_err());
+    }
 
     // ---- T-2432 identity-keyed governor stamp (PL-218) ---------------------
 
