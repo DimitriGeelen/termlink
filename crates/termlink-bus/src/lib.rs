@@ -811,6 +811,39 @@ mod tests {
         assert_eq!(got, vec![b"new-1".to_vec()], "no ghost records from the old life");
     }
 
+    #[tokio::test]
+    async fn claim_distinct_topics_same_offset_both_succeed() {
+        // T-2461 (round-15 F1): two DISTINCT topics sharing a 16-char sanitized
+        // prefix ("arc_parallel_sub"), claimed at the SAME offset, are independent
+        // slots — neither may spuriously deny the other with ClaimConflict (the
+        // pre-fix claim_id PK-collision symptom, which misreported a free slot as
+        // conflicted).
+        let (_dir, bus) = tmp_bus();
+        for t in ["arc-parallel-substrate-a", "arc-parallel-substrate-b"] {
+            bus.create_topic(t, Retention::Forever).unwrap();
+            for i in 0..3u32 {
+                bus.post(t, &env(t, &i.to_le_bytes())).await.unwrap();
+            }
+        }
+        let a = bus
+            .claim_offset("arc-parallel-substrate-a", 2, "worker-A", 60_000)
+            .unwrap();
+        let b = bus
+            .claim_offset("arc-parallel-substrate-b", 2, "worker-B", 60_000)
+            .unwrap();
+        assert_ne!(
+            a.claim_id, b.claim_id,
+            "distinct topics must mint distinct claim_ids"
+        );
+        // The SAME (topic, offset) is still correctly a conflict — the real
+        // UNIQUE(topic,offset) guarantee is intact, not weakened by the fix.
+        let conflict = bus.claim_offset("arc-parallel-substrate-a", 2, "worker-C", 60_000);
+        assert!(
+            matches!(conflict, Err(BusError::ClaimConflict { .. })),
+            "same (topic, offset) must still conflict, got {conflict:?}"
+        );
+    }
+
     #[test]
     fn open_creates_layout() {
         let (dir, bus) = tmp_bus();

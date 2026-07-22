@@ -747,21 +747,41 @@ impl Meta {
     }
 }
 
+/// Process-monotonic disambiguator for `claim_id`. Guarantees no two claim_ids
+/// minted in one process lifetime are ever equal, regardless of clock
+/// granularity or topic-prefix collisions (T-2461 / round-15 F1).
+static CLAIM_ID_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 fn generate_claim_id(topic: &str, offset: u64, now_ms: i64) -> String {
-    // claim_id must be PRIMARY-KEY-unique across the bus lifetime. Compose
-    // nanos + sanitized topic prefix + offset — collision needs two claims
-    // at the same nanosecond on the same (topic-prefix, offset), which the
-    // UNIQUE(topic, offset) index already blocks anyway.
+    // claim_id is the claims-table PRIMARY KEY, so it MUST be unique. It is NOT
+    // a lossy projection of the topic: the `topic_tag` below is only a 16-char
+    // human-readable HINT, while the FULL uniqueness domain is the topic. Two
+    // distinct topics can share a 16-char sanitized prefix, so the tag alone
+    // does not guarantee PK uniqueness (T-2461: a shared-prefix collision at the
+    // same offset+nanosecond used to fail on the claim_id PK and be misreported
+    // as ClaimConflict, spuriously denying a free slot). The monotonic `seq`
+    // below makes claim_id collision-proof by construction; `now_ns` still
+    // disambiguates across a process restart. With a collision-proof id, any
+    // remaining ConstraintViolation on INSERT is genuinely a
+    // UNIQUE(topic,offset) conflict, so the ClaimConflict mapping stays correct.
     let now_ns = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or((now_ms as u128).saturating_mul(1_000_000));
+    let seq = CLAIM_ID_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    compose_claim_id(now_ns, seq, topic, offset)
+}
+
+/// Pure `claim_id` composer — split out so the collision-resistance guarantee
+/// (a fixed `now_ns` + shared topic-prefix + same offset still yields distinct
+/// ids via `seq`) is unit-testable without wall-clock nondeterminism.
+fn compose_claim_id(now_ns: u128, seq: u64, topic: &str, offset: u64) -> String {
     let topic_tag: String = topic
         .chars()
         .take(16)
         .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
         .collect();
-    format!("clm-{now_ns}-{topic_tag}-{offset}")
+    format!("clm-{now_ns}-{seq}-{topic_tag}-{offset}")
 }
 
 fn init_schema(conn: &Connection) -> Result<()> {
@@ -828,4 +848,50 @@ fn now_unix_ms() -> i64 {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis() as i64)
         .unwrap_or(0)
+}
+
+#[cfg(test)]
+mod claim_id_tests {
+    use super::{compose_claim_id, generate_claim_id};
+
+    #[test]
+    fn compose_claim_id_distinct_for_shared_prefix_topics_at_same_instant() {
+        // T-2461 (round-15 F1): two DISTINCT topics that sanitize to the SAME
+        // 16-char tag, same offset, same nanosecond — the pre-fix PK-collision
+        // case. The monotonic seq must keep their claim_ids distinct so a free
+        // slot on topic B is not spuriously denied as ClaimConflict.
+        let ns = 1_700_000_000_000_000_000u128;
+        let a = compose_claim_id(ns, 0, "arc-parallel-substrate-a", 5);
+        let b = compose_claim_id(ns, 1, "arc-parallel-substrate-b", 5);
+        // Both truncate+sanitize to "arc_parallel_sub" — identical topic tag,
+        // so the tag alone would collide; only the seq keeps them apart.
+        assert!(
+            a.contains("arc_parallel_sub") && b.contains("arc_parallel_sub"),
+            "both topics must share the 16-char tag (the collision precondition)"
+        );
+        assert_ne!(
+            a, b,
+            "shared-prefix topics at the same instant must get distinct claim_ids"
+        );
+    }
+
+    #[test]
+    fn compose_claim_id_seq_disambiguates_identical_inputs() {
+        // Even with every other field identical, the seq alone guarantees a
+        // distinct id — the collision-proof-by-construction property.
+        let ns = 42u128;
+        assert_ne!(
+            compose_claim_id(ns, 0, "t", 1),
+            compose_claim_id(ns, 1, "t", 1)
+        );
+    }
+
+    #[test]
+    fn generate_claim_id_consecutive_calls_never_collide() {
+        // The live generator bumps the process seq every call, so back-to-back
+        // ids for identical (topic, offset) are always distinct.
+        let x = generate_claim_id("same-topic", 7, 1_000);
+        let y = generate_claim_id("same-topic", 7, 1_000);
+        assert_ne!(x, y, "consecutive generate_claim_id calls must never collide");
+    }
 }
