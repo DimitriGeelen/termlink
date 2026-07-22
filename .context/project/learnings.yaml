@@ -2570,3 +2570,10 @@ learnings:
   date: 2026-07-19
   context: Added via context agent
   application: TBD
+- id: PL-259
+  learning: "Reliability parse-boundary rule: never collapse a structured error (JSON-RPC code) into a String, and never map a missing success field to a default (unwrap_or(0)) — both erase the transient-vs-permanent / success-vs-malformed distinction that downstream reliability logic needs. Round-11 found two instances of this: bus_client::flush poisoned guaranteed msgs on transient RATE_LIMITED (code erased to HubError(String)), and CLI await-ack post_fn falsely Acked on missing offset (unwrap_or(0)). Fix pattern: preserve the code in a struct error variant + pure classifier (is_transient_hub_reject); return Err on missing fields (parse_post_offset) mirroring the authoritative parser (bus_client::parse_post_response). Grep for unwrap_or(0) on wire-response fields and String-flattened RPC errors."
+  source: P-002
+  task: T-2450
+  date: 2026-07-22
+  context: Added via context agent
+  application: TBD

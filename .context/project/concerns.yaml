@@ -1,4 +1,37 @@
 concerns:
+- id: G-086
+  type: gap
+  title: claim primitive enforces exclusive-ownership only against a spoofable, world-readable claimer string —
+    no caller-identity binding on any of the five claim verbs (round-12)
+  description: 'TermLink''s coordination substrate (claim primitive #1) promises exclusive ownership of a (topic,offset)
+    work unit — the guarantee that lets an AEF orchestrator fan work across N workers without two processing the
+    same unit. Round-12 adversarial review found the invariant is enforced ONLY against a spoofable JSON param:
+    channel.claim/renew/release/claim_transfer/claim_force_release read claimer/by/to_owner straight from params
+    and compare to stored claimed_by (channel.rs:1618; meta.rs:431/557/623), with NO caller-identity check. By
+    contrast channel.post binds identity cryptographically (T-1427: sender_id==fingerprint(pubkey), channel.rs:684).
+    channel.claims exposes {claim_id,claimer} at Observe scope (server.rs:422, meta.rs:669), so any Interact-scoped
+    peer can release/transfer another agent''s live claim -> double-grant (two workers process the same offset).
+    The comms half of the substrate is identity-bound; the coordination half is not. SQL state machine verified
+    CLEAN (atomic acquire, no-resurrect renew, 1h TTL clamp, monotonic cursor, atomic transfer, Control-scoped
+    force-release) — the ONLY hole is the missing binding. Tempered toward MED by the trusted-mesh model (all
+    token/Unix-scope holders semi-trusted) so it is primarily accidental-double-work + accountability hardening;
+    but it becomes a genuine steal vector the moment arc-011 orchestrator+workers are not mutually trusting.
+    Sibling MED vector (separate task): wall-clock lease expiry (meta.rs:826) -> NTP forward step expires a live
+    lease early -> transient double-grant.'
+  spec_reference: crates/termlink-hub/src/channel.rs:1618 (release reads claimer param); channel.rs:684 (post
+    T-1427 identity binding — the pattern claim verbs lack); crates/termlink-bus/src/meta.rs:431/557/623 (ownership
+    guards on param string)
+  severity: high
+  trigger_fired: true
+  trigger_event: '2026-07-22 round-12 ultra-critical review of the coordination substrate: adversarial claim-lifecycle
+    audit confirmed the double-grant scenario against the exclusive-ownership invariant'
+  detection_lag_days: months (claim primitive shipped T-2019/T-2029/T-2032; identity binding never applied — surfaced
+    only by round-12 adversarial review)
+  status: watching
+  created: '2026-07-22'
+  last_reviewed: '2026-07-22'
+  related_tasks:
+  - T-2454
 - id: G-085
   type: gap
   title: woken-but-silent canary can never return to green — its log is append-only (written by agent-send.sh at
