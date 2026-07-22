@@ -4734,3 +4734,75 @@ scan_id: R-1cdf4643
 task_id: T-2441
 payload:
   task_file: .tasks/active/T-2441-field-apply-round-7-fixes-to-107-hub--cl.md
+---
+kind: scan_emitted
+timestamp: '2026-07-21T21:36:47Z'
+scan_id: R-618eddf3
+task_id: T-2442
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-21T21:36:47Z'
+scan_id: R-618eddf3
+task_id: T-2442
+payload:
+  task_file: .tasks/active/T-2442-ws-connection-idle-timeout--hub-keepaliv.md
+---
+kind: scan_emitted
+timestamp: '2026-07-21T21:43:07Z'
+scan_id: R-089296a7
+task_id: T-2443
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-21T21:43:07Z'
+scan_id: R-089296a7
+task_id: T-2443
+payload:
+  task_file: .tasks/active/T-2443-await-ack-must-not-forfeit-offline-queue.md
+---
+kind: scan_emitted
+timestamp: '2026-07-21T21:45:55Z'
+scan_id: R-9750293e
+task_id: T-2444
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-21T21:45:55Z'
+scan_id: R-9750293e
+task_id: T-2444
+payload:
+  task_file: .tasks/active/T-2444-await-ack-final-receipt-check-before-exh.md
+---
+kind: scan_emitted
+timestamp: '2026-07-21T22:13:08Z'
+scan_id: R-977b3044
+task_id: T-2446
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-21T22:13:08Z'
+scan_id: R-977b3044
+task_id: T-2446
+payload:
+  task_file: .tasks/active/T-2446-ws-client-read-timeout--dead-hub-push-we.md

@@ -572,6 +572,37 @@ fn handle_hub_auth_token(
     }
 }
 
+/// Fail-closed decision for an accepted Unix-socket peer (T-2448, T-2447 F1).
+///
+/// A security default must never fail *open*: both a UID mismatch and a
+/// credential-extraction failure reject the connection. Only a same-UID peer
+/// is granted `Execute`.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum UnixPeerDecision {
+    /// Same-UID peer: grant full `Execute` scope. Carries the peer pid (if any)
+    /// for the audit log / legacy-method warn.
+    Accept { peer_pid: Option<u32> },
+    /// Reject the connection. `Some(uid)` = different-UID case (log the peer
+    /// uid); `None` = credential extraction failed (fail-closed).
+    Reject { uid_mismatch: Option<u32> },
+}
+
+/// Pure fail-closed policy for a Unix peer. Generic over the error type so it is
+/// unit-testable without SO_PEERCRED ever actually failing — tests pass a
+/// synthetic `Ok(creds)` / `Err(())`.
+pub(crate) fn decide_unix_peer<E>(
+    creds: Result<PeerCredentials, E>,
+    owner_uid: u32,
+) -> UnixPeerDecision {
+    match creds {
+        Ok(c) if c.is_same_user(owner_uid) => UnixPeerDecision::Accept { peer_pid: c.pid },
+        Ok(c) => UnixPeerDecision::Reject {
+            uid_mismatch: Some(c.uid),
+        },
+        Err(_) => UnixPeerDecision::Reject { uid_mismatch: None },
+    }
+}
+
 /// Accept loop: spawns a task per connection.
 ///
 /// Rejects connections from different UIDs (same security model as session server).
@@ -606,27 +637,30 @@ pub async fn run_accept_loop(
                         // Extract peer credentials and check UID
                         // T-1407: capture peer_pid so we can thread it into the
                         // audit log + legacy-method warn for Unix-socket callers.
-                        let mut peer_pid: Option<u32> = None;
-                        match PeerCredentials::from_tokio_stream(&stream) {
-                            Ok(creds) => {
-                                if !creds.is_same_user(owner_uid) {
-                                    tracing::warn!(
-                                        peer_uid = creds.uid,
-                                        peer_pid = ?creds.pid,
+                        // T-2448 (T-2447 F1): fail CLOSED. Both a UID mismatch
+                        // and a credential-extraction failure reject the
+                        // connection; only a same-UID peer is granted Execute.
+                        let peer_pid: Option<u32> = match decide_unix_peer(
+                            PeerCredentials::from_tokio_stream(&stream),
+                            owner_uid,
+                        ) {
+                            UnixPeerDecision::Accept { peer_pid } => peer_pid,
+                            UnixPeerDecision::Reject { uid_mismatch } => {
+                                match uid_mismatch {
+                                    Some(peer_uid) => tracing::warn!(
+                                        peer_uid = peer_uid,
                                         owner_uid = owner_uid,
                                         "Hub: rejected Unix connection from different UID"
-                                    );
-                                    continue;
+                                    ),
+                                    None => tracing::warn!(
+                                        owner_uid = owner_uid,
+                                        "Hub: rejected Unix connection — could not extract \
+                                         peer credentials (fail-closed)"
+                                    ),
                                 }
-                                peer_pid = creds.pid;
+                                continue;
                             }
-                            Err(e) => {
-                                tracing::debug!(
-                                    error = %e,
-                                    "Hub: could not extract peer credentials, allowing connection"
-                                );
-                            }
-                        }
+                        };
 
                         // T-2048: connection-cap check BEFORE spawn. LOUD refuse
                         // per IW-3 — write one envelope, close socket.
@@ -1432,6 +1466,51 @@ mod tests {
     use crate::test_util::ENV_LOCK;
 
     static TEST_COUNTER: AtomicU32 = AtomicU32::new(0);
+
+    // ── T-2448 (T-2447 F1): fail-closed Unix peer-cred policy ──────────────
+    // These assert the fail-CLOSED decision without needing SO_PEERCRED to
+    // actually fail, by feeding decide_unix_peer synthetic Ok/Err results.
+
+    #[test]
+    fn decide_unix_peer_same_uid_accepts_with_pid() {
+        let creds: Result<PeerCredentials, ()> = Ok(PeerCredentials {
+            uid: 1000,
+            gid: 1000,
+            pid: Some(4242),
+        });
+        assert_eq!(
+            decide_unix_peer(creds, 1000),
+            UnixPeerDecision::Accept {
+                peer_pid: Some(4242)
+            }
+        );
+    }
+
+    #[test]
+    fn decide_unix_peer_different_uid_rejects() {
+        let creds: Result<PeerCredentials, ()> = Ok(PeerCredentials {
+            uid: 1001,
+            gid: 1001,
+            pid: Some(9),
+        });
+        assert_eq!(
+            decide_unix_peer(creds, 1000),
+            UnixPeerDecision::Reject {
+                uid_mismatch: Some(1001)
+            }
+        );
+    }
+
+    #[test]
+    fn decide_unix_peer_cred_error_rejects_fail_closed() {
+        // The load-bearing case: cred-extraction failure must NOT fall through
+        // to Execute — it rejects, with uid_mismatch=None (no peer uid known).
+        let creds: Result<PeerCredentials, ()> = Err(());
+        assert_eq!(
+            decide_unix_peer(creds, 1000),
+            UnixPeerDecision::Reject { uid_mismatch: None }
+        );
+    }
 
     /// T-2267 regression guard. The full known `channel.*` surface (plus
     /// `agent.find_idle` and `event.emit_to`) must resolve to an EXPLICIT

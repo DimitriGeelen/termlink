@@ -1,23 +1,23 @@
 ---
-id: T-2443
-name: "await-ack must not forfeit offline-queue durability — route Unix post through the durable queue"
+id: T-2448
+name: "fail-closed Unix peer-cred — reject on SO_PEERCRED extraction failure (T-2447 F1)"
 description: >
-  await-ack must not forfeit offline-queue durability — route Unix post through the durable queue
+  fail-closed Unix peer-cred — reject on SO_PEERCRED extraction failure (T-2447 F1)
 
-status: work-completed
+status: started-work
 workflow_type: build
 owner: agent
-horizon: null
+horizon: now
 tags: []
-components: [crates/termlink-cli/src/commands/channel.rs]
+components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-07-21T21:37:47Z
-last_update: 2026-07-21T21:43:04Z
-date_finished: 2026-07-21T21:43:04Z
+created: 2026-07-22T05:45:20Z
+last_update: 2026-07-22T05:45:20Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -30,30 +30,27 @@ date_finished: 2026-07-21T21:43:04Z
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2443: await-ack must not forfeit offline-queue durability — route Unix post through the durable queue
+# T-2448: fail-closed Unix peer-cred — reject on SO_PEERCRED extraction failure (T-2447 F1)
 
 ## Context
 
-Round-8 review found that `channel post --await-ack` (T-2286) posts via
-`rpc_call_authed` directly, never through `BusClient`/`OfflineQueue`. If the hub
-is unreachable, the first post returns `Err` → the command hard-fails and the
-message is DROPPED — whereas a plain `channel post` durably queues it to
-`~/.termlink/outbound.sqlite`. A reliability flag (`--await-ack`) that *removes*
-durability is a foot-gun that violates the Reliability directive. Fix: on the
-Unix path, route the first post through the durable queue. If the hub is down,
-the message is queued (durable) and the ack-await is skipped with a clear
-message — you cannot await a receipt while offline, but the message is not lost;
-it flushes + dedups on reconnect. TCP cross-hub behaviour is unchanged (the
-normal TCP post path also bypasses the Unix-only queue — consistent).
+Round-10 review Finding 1 (T-2447). Hub's Unix-accept branch in
+`crates/termlink-hub/src/server.rs` fails **open**: when
+`PeerCredentials::from_tokio_stream` returns `Err`, it logs `debug!("…allowing
+connection")` and spawns the connection with `Some(PermissionScope::Execute)`
+unconditionally — the same-UID gate is skipped. A security default must fail
+**closed**. Fix: introduce a pure, unit-testable `decide_unix_peer(creds_result,
+owner_uid)` policy returning Accept{peer_pid} / Reject, and reject the connection
+(loud `warn`) on both the UID-mismatch AND the cred-extraction-failure paths.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] On the Unix socket path, `run_await_ack` performs its first post through `BusClient`/`OfflineQueue` (not raw `rpc_call_authed`), so a hub-down post is durably enqueued rather than dropped.
-- [x] When the first post is `Queued` (hub unreachable), the command reports a durable-queued outcome (queue_id + "ack not awaited while offline") and exits 0 — the message is NOT lost.
-- [x] When the first post is `Delivered`, the existing ack-retry loop still runs (re-posts reuse `client_msg_id` and are hub-deduped) — happy-path behaviour unchanged.
-- [x] TCP cross-hub `--await-ack` behaviour is unchanged (documented as consistent with the normal TCP bypass).
-- [x] `cargo test -p termlink --bin termlink` and `cargo test -p termlink-session --lib` green.
+<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
+- [x] Pure helper `decide_unix_peer<E>(creds: Result<PeerCredentials, E>, owner_uid) -> UnixPeerDecision` added to `server.rs`; `Err` → `Reject`, `Ok`+different-UID → `Reject`, `Ok`+same-UID → `Accept { peer_pid }`.
+- [x] Unix-accept loop routes through the helper; the `Err`/reject path `continue`s (connection dropped) with a loud `tracing::warn!` — no fall-through to `Execute`.
+- [x] Unit tests assert all three branches (cred-error → Reject, uid-mismatch → Reject, same-uid → Accept with pid) without needing SO_PEERCRED to actually fail.
+- [x] `cargo test -p termlink-hub --lib` green (433 passed, +3 new).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -88,7 +85,8 @@ normal TCP post path also bypasses the Unix-only queue — consistent).
 
 ## Verification
 
-cargo test -p termlink-session --lib offline_queue
+cargo test -p termlink-hub --lib decide_unix_peer
+cargo test -p termlink-hub --lib
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -123,27 +121,23 @@ cargo test -p termlink-session --lib offline_queue
 
 ## RCA
 
-**Symptom:** `channel post --await-ack <dm-topic> "msg"` while the local hub is
-unreachable exits non-zero and the message is silently dropped — no offline
-queue row, no awaiting-ack row. The same post WITHOUT `--await-ack` durably
-queues to `~/.termlink/outbound.sqlite` and flushes on reconnect.
+**Symptom:** Hub's Unix-accept branch, on `PeerCredentials::from_tokio_stream`
+returning `Err`, logged `debug!` and spawned the connection with full
+`PermissionScope::Execute` — the same-UID gate silently skipped.
 
-**Root cause:** `run_await_ack`'s `post_fn` calls `rpc_call_authed` directly
-and the ack-retry loop treats a post error as fatal (`AckRetryError::Post` →
-`?`). The durable `BusClient`/`OfflineQueue` path — which the non-await post
-uses — was never wired into the await-ack path. So the reliability *flag*
-bypassed the reliability *mechanism*.
+**Root cause:** The `Err` arm of the `match` had no `continue`/reject; control
+fell through to the shared spawn site that hard-codes `Some(Execute)`. The scope
+grant was structurally decoupled from the credential decision, so a cred failure
+inherited the happy-path grant.
 
-**Why structurally allowed:** T-2286 built the ack-retry loop as a self-contained
-posting path (so the retry could own the exactly-once re-post via a stable
-`client_msg_id`) and, in doing so, forked away from the offline-queue path that
-plain posts use. No test exercised `--await-ack` against a down hub, so the
-durability regression was invisible — the happy path (hub up) worked perfectly.
+**Why structurally allowed:** The scope decision lived inline in the accept loop
+(no isolated policy function), so it was invisible to unit tests — SO_PEERCRED
+effectively never fails on a connected Linux AF_UNIX socket, so the fail-open arm
+was never exercised in the field either. Belief + un-testability = blind spot.
 
-**Prevention:** The first post now goes through `BusClient::post`, so the
-`PostOutcome::Queued` branch is reachable and durable; a unit test drives the
-queued branch (hub-down) and asserts a row lands in the offline queue. Any
-future refactor that re-bypasses the queue fails that test.
+**Prevention:** Extract the decision into a pure `decide_unix_peer` helper that
+is unit-tested for the `Err` → Reject branch, so the fail-closed policy is
+asserted by a test that does not depend on SO_PEERCRED ever failing.
 
 ## Evolution
 
@@ -192,19 +186,7 @@ future refactor that re-bypasses the queue fails that test.
 
 ## Updates
 
-### 2026-07-21T21:37:47Z — task-created [task-create-agent]
+### 2026-07-22T05:45:20Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2443-await-ack-must-not-forfeit-offline-queue.md
+- **Output:** /opt/termlink/.tasks/active/T-2448-fail-closed-unix-peer-cred--reject-on-so.md
 - **Context:** Initial task creation
-
-## Reviewer Verdict (v1.5)
-
-- **Scan ID:** R-089296a7
-- **Timestamp:** 2026-07-21T21:43:07Z
-- **Catalogue:** v1.3-seed
-- **Overall:** PASS
-- **Needs Human:** no
-- **Findings:** none
-
-### 2026-07-21T21:43:04Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed

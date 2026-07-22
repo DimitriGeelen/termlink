@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2441: field-apply round-7 fixes to .107 hub + close G-085 (triage live-proven)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-21T20:40:46Z
+# ============================================================================
+
+task_id: T-2441
+task_name: "field-apply round-7 fixes to .107 hub + close G-085 (triage live-proven)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-21T20:29:28Z
+completed: 2026-07-21T20:40:42Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-21T22:40:42+02:00
+last_commit: 2026-07-21T22:40:42+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  field-apply 0.11.635 to .107 — round-7 fixes live (dedupe pre-reservation, cv_index monotonic-max, retention warn); MainPID==pidfile, auth preserved, preflight 6/6; G-085 closed (triage live-proven Jul 19-21, both watch halves met)
+
+# Key outcomes
+outcomes:
+  - 'Release 0.11.635 built from round-7 HEAD, installed to ~/.cargo/bin/termlink; restart through unit: active, MainPID 1418913 == pidfile, NRestarts=0'
+  - 'Hub serves round-7 set: `hub status --governor` full telemetry (dedupe/cv_index/webhook blocks); fleet doctor local-test + workstation-107-public PASS at 0.11.635 (auth preserved, no rotation); preflight 6/6 PASS incl. binary >= VERSION and T-2139 field probe (.141 FAIL is the known-offline laptop, pre-existing)'
+  - 'G-085 closed in concerns.yaml (status=closed, closed=2026-07-21, closure_evidence covering both watch-condition halves); register parses, 20 watching remain'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'field-apply 0.11.635 to .107 — round-7 fixes live (dedupe pre-reservation, cv_index monotonic-max, retention warn); MainPID==pidfile, auth preserved, preflight 6/6; G-085 closed (triage live-proven Jul 19-21, both watch halves met)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/episodic/T-2440.yaml'
+  - '.context/project/concerns.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - '.tasks/active/T-2441-field-apply-round-7-fixes-to-107-hub--cl.md'
+  - '.tasks/completed/T-2440-rategovernor-token-conservation-concurre.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-21T22:40:42"
+    action: "T-2441: field-apply 0.11.635 to .107 — round-7 fixes live (dedupe pre-reservation, cv_index monotonic-max, retention warn); MainPID==pidfile, auth preserved, preflight 6/6; G-085 closed (triage live-proven Jul 19-21, both watch halves met)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 11 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 11
+  commits: 1
+  files_changed: 12
+  lines_added: 1658
+  lines_removed: 1497
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2441-field-apply-round-7-fixes-to-107-hub--cl.md
+generated_by: context-agent-hybrid
