@@ -268,7 +268,44 @@ pub fn parse_scope(s: &str) -> Result<PermissionScope, TokenError> {
     }
 }
 
+/// Default maximum token TTL: 7 days. Bounds the captured-token reuse window
+/// (T-2449, T-2447 F2) — an uncapped `--ttl` mints an effectively-permanent
+/// bearer token, defeating the expiry safeguard for network callers.
+pub const DEFAULT_MAX_TOKEN_TTL_SECS: u64 = 7 * 24 * 60 * 60;
+
+/// Resolve the configured max token TTL from `TERMLINK_MAX_TOKEN_TTL_SECS`,
+/// falling back to [`DEFAULT_MAX_TOKEN_TTL_SECS`]. A `0`, negative, or
+/// unparseable value falls back to the default — the ceiling is never
+/// unbounded (fail-closed).
+pub fn max_token_ttl_secs() -> u64 {
+    std::env::var("TERMLINK_MAX_TOKEN_TTL_SECS")
+        .ok()
+        .and_then(|v| v.trim().parse::<u64>().ok())
+        .filter(|&v| v > 0)
+        .unwrap_or(DEFAULT_MAX_TOKEN_TTL_SECS)
+}
+
+/// Pure TTL clamp: returns `(effective_ttl, clamped?)`. Testable without env.
+pub fn clamp_ttl_to(requested_secs: u64, max_secs: u64) -> (u64, bool) {
+    if requested_secs > max_secs {
+        (max_secs, true)
+    } else {
+        (requested_secs, false)
+    }
+}
+
+/// Clamp a requested TTL to the configured maximum (env-aware wrapper around
+/// [`clamp_ttl_to`]). Returns `(effective_ttl, clamped?)`; a `true` second
+/// element means the caller SHOULD emit a loud warning.
+pub fn clamp_token_ttl(requested_secs: u64) -> (u64, bool) {
+    clamp_ttl_to(requested_secs, max_token_ttl_secs())
+}
+
 /// Create a signed capability token.
+///
+/// The requested `ttl_secs` is clamped to [`max_token_ttl_secs`] as a hard
+/// enforcement backstop — no caller can mint a token that outlives the ceiling,
+/// even if it forgets to pre-clamp/warn (T-2449, T-2447 F2).
 pub fn create_token(
     secret: &TokenSecret,
     scope: PermissionScope,
@@ -277,6 +314,10 @@ pub fn create_token(
 ) -> CapabilityToken {
     use base64::Engine;
     use rand::Rng;
+
+    // Hard ceiling — defense in depth. The CLI/MCP layer also clamps so it can
+    // warn the user, but the security invariant lives here at the choke point.
+    let (ttl_secs, _clamped) = clamp_token_ttl(ttl_secs);
 
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -497,6 +538,33 @@ mod tests {
         assert_eq!(scope, PermissionScope::Interact);
         assert_eq!(payload.session_id, "sess-123");
         assert!(payload.expires_at > payload.issued_at);
+    }
+
+    // ── T-2449 (T-2447 F2): token TTL ceiling ─────────────────────────────
+
+    #[test]
+    fn clamp_ttl_to_below_at_and_over_ceiling() {
+        // below ceiling: unchanged, not clamped
+        assert_eq!(clamp_ttl_to(3600, 604_800), (3600, false));
+        // exactly at ceiling: unchanged, not clamped
+        assert_eq!(clamp_ttl_to(604_800, 604_800), (604_800, false));
+        // over ceiling: clamped down
+        assert_eq!(clamp_ttl_to(999_999_999, 604_800), (604_800, true));
+        assert_eq!(clamp_ttl_to(u64::MAX, 604_800), (604_800, true));
+    }
+
+    #[test]
+    fn create_token_caps_expiry_at_max_ttl() {
+        let secret = generate_secret();
+        // Request an absurd TTL; create_token must clamp it to the ceiling.
+        let token = create_token(&secret, PermissionScope::Observe, "", u64::MAX);
+        let (payload, _) = validate_token(&secret, &token.raw, None).unwrap();
+        let effective = payload.expires_at - payload.issued_at;
+        // Env-agnostic: whatever the configured ceiling is, the effective TTL
+        // must equal it (never the requested u64::MAX) — no overflow, no
+        // effectively-permanent token.
+        assert_eq!(effective, max_token_ttl_secs());
+        assert!(effective <= DEFAULT_MAX_TOKEN_TTL_SECS.max(max_token_ttl_secs()));
     }
 
     #[test]

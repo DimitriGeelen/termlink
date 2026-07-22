@@ -59,19 +59,33 @@ pub(crate) async fn cmd_token_create(target: &str, scope: &str, ttl: u64, json: 
         }
     };
 
-    let token = auth::create_token(&secret_bytes, permission_scope, reg.id.as_str(), ttl);
+    // T-2449 (T-2447 F2): clamp the requested TTL to the configured ceiling and
+    // warn loudly when clamped, so the operator sees that an uncapped --ttl was
+    // reduced rather than silently minting a shorter-lived token.
+    let (effective_ttl, clamped) = auth::clamp_token_ttl(ttl);
+    if clamped && !json {
+        eprintln!(
+            "WARNING: requested TTL {ttl}s exceeds the maximum ({max}s); clamped to {effective_ttl}s. \
+             Raise TERMLINK_MAX_TOKEN_TTL_SECS to allow longer-lived tokens.",
+            max = auth::max_token_ttl_secs()
+        );
+    }
+
+    let token = auth::create_token(&secret_bytes, permission_scope, reg.id.as_str(), effective_ttl);
 
     if json {
         println!("{}", serde_json::json!({
             "ok": true,
             "token": token.raw,
             "scope": scope,
-            "ttl": ttl,
+            "ttl": effective_ttl,
+            "requested_ttl": ttl,
+            "clamped": clamped,
             "session": reg.id.as_str(),
         }));
     } else {
         println!("{}", token.raw);
-        eprintln!("Scope: {scope}, TTL: {ttl}s, Session: {}", reg.id);
+        eprintln!("Scope: {scope}, TTL: {effective_ttl}s, Session: {}", reg.id);
     }
 
     let _ = sessions_dir; // suppress unused

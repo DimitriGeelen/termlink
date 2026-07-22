@@ -1,0 +1,106 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2448: fail-closed Unix peer-cred — reject on SO_PEERCRED extraction failure (T-2447 F1)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-22T05:50:03Z
+# ============================================================================
+
+task_id: T-2448
+task_name: "fail-closed Unix peer-cred — reject on SO_PEERCRED extraction failure (T-2447 F1)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-22T05:45:20Z
+completed: 2026-07-22T05:49:03Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-22T07:48:58+02:00
+last_commit: 2026-07-22T07:48:58+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fail-closed Unix peer-cred — reject on SO_PEERCRED extraction failure (T-2447 F1)
+
+# Key outcomes
+outcomes:
+  - 'Pure helper `decide_unix_peer<E>(creds: Result<PeerCredentials, E>, owner_uid) -> UnixPeerDecision` added to `server.rs`; `Err` → `Reject`, `Ok`+different-UID → `Reject`, `Ok`+same-UID → `Accept { peer_pid }`.'
+  - 'Unix-accept loop routes through the helper; the `Err`/reject path `continue`s (connection dropped) with a loud `tracing::warn!` — no fall-through to `Execute`.'
+  - 'Unit tests assert all three branches (cred-error → Reject, uid-mismatch → Reject, same-uid → Accept with pid) without needing SO_PEERCRED to actually fail.'
+  - '`cargo test -p termlink-hub --lib` green (433 passed, +3 new).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-07-21.yaml'
+  - '.context/audits/2026-07-22.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/episodic/T-2441.yaml'
+  - '.context/episodic/T-2442.yaml'
+  - '.context/episodic/T-2443.yaml'
+  - '.context/episodic/T-2444.yaml'
+  - '.context/episodic/T-2446.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.gate-bypass-log.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-hub/src/server.rs'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2445-round-8-review-residuals--ws-push-transp.md'
+  - '.tasks/active/T-2448-fail-closed-unix-peer-cred--reject-on-so.md'
+  - '.tasks/completed/T-2442-ws-connection-idle-timeout--hub-keepaliv.md'
+  - '.tasks/completed/T-2443-await-ack-must-not-forfeit-offline-queue.md'
+  - '.tasks/completed/T-2444-await-ack-final-receipt-check-before-exh.md'
+  - '.tasks/completed/T-2446-ws-client-read-timeout--dead-hub-push-we.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-22T07:48:58"
+    action: "T-2448: fail-closed Unix peer-cred — reject on SO_PEERCRED extraction failure (T-2447 F1)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 31
+  lines_added: 2200
+  lines_removed: 1295
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2448-fail-closed-unix-peer-cred--reject-on-so.md
+generated_by: context-agent-hybrid

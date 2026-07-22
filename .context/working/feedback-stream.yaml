@@ -4806,3 +4806,21 @@ scan_id: R-977b3044
 task_id: T-2446
 payload:
   task_file: .tasks/active/T-2446-ws-client-read-timeout--dead-hub-push-we.md
+---
+kind: scan_emitted
+timestamp: '2026-07-22T05:50:00Z'
+scan_id: R-91434a21
+task_id: T-2448
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-22T05:50:00Z'
+scan_id: R-91434a21
+task_id: T-2448
+payload:
+  task_file: .tasks/active/T-2448-fail-closed-unix-peer-cred--reject-on-so.md
