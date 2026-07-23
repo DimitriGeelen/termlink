@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2462: advance_cursor overwrites the persisted cursor instead of taking the max, so a stale or retried advance can regress a subscriber's delivery frontier and re-deliver already-consumed records — make it monotonic like the claim-ack path (round-16 F3)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-23T09:29:24Z
+# ============================================================================
+
+task_id: T-2462
+task_name: "advance_cursor overwrites the persisted cursor instead of taking the max, so a stale or retried advance can regress a subscriber's delivery frontier and re-deliver already-consumed records — make it monotonic like the claim-ack path (round-16 F3)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-23T08:40:44Z
+completed: 2026-07-23T09:29:14Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-23T10:43:59+02:00
+last_commit: 2026-07-23T11:29:09+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  spec round-16 F3 (advance_cursor must be monotonic MAX, not overwrite — mirrors claim-ack + T-2456) with full ACs/RCA/test plan; preserve F1 (fsync durability inversion / poison offset, HIGH power-loss-only) + F2 (cursor-blind sweep SILENT subscribe-skip, HIGH) as related findings to file next session. Source edit blocked by budget wrap-up gate — one-line fix pending. make advance_cursor monotonic (MAX upsert) so a stale/retried advance can't regress a subscriber's delivery frontier and re-deliver consumed records (round-16 F3). tick Agent ACs (all satisfied) + file round-16 F1/F2 as tracked backlog tasks — F1 durability-inversion → T-2464, F2 silent-sweep-gap → T-2463 (both owner:agent horizon:later, bugs-with-known-fixes kept out of the human go/no-go backlog)
+
+# Key outcomes
+outcomes:
+  - '`Meta::put_cursor`''s upsert uses `SET last_offset = MAX(last_offset, excluded.last_offset)` so `advance_cursor` can never regress a persisted cursor (mirrors the claim-ack path at meta.rs:445 and the T-2456 receipt-frontier monotonicity fix).'
+  - 'A regression test proves a lower-offset `advance_cursor` after a higher one leaves the cursor at the high-water mark (set 5 → advance 3 → cursor stays 5), while a genuine forward advance still moves it (5 → 7 → 7).'
+  - 'Existing cursor round-trip behavior (fresh insert, monotonic advance) is unchanged; full `cargo test -p termlink-bus --lib` stays green.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'tick Agent ACs (all satisfied) + file round-16 F1/F2 as tracked backlog tasks — F1 durability-inversion → T-2464, F2 silent-sweep-gap → T-2463 (both owner:agent horizon:later, bugs-with-known-fixes kept out of the human go/no-go backlog)'
+    source: git-mined
+  - description: 'spec round-16 F3 (advance_cursor must be monotonic MAX, not overwrite — mirrors claim-ack + T-2456) with full ACs/RCA/test plan; preserve F1 (fsync durability inversion / poison offset, HIGH power-loss-only) + F2 (cursor-blind sweep SILENT subscribe-skip, HIGH) as related findings to file next session. Source edit blocked by budget wrap-up gate — one-line fix pending'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-07-22 — NEXT STEP (source fix pending — budget gate blocked it mid-round-16)'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-bus/src/lib.rs'
+  - 'crates/termlink-bus/src/meta.rs'
+  - '.tasks/active/T-2462-advancecursor-overwrites-the-persisted-c.md'
+  - '.tasks/active/T-2463-subscribe-silently-skips-swept-records-w.md'
+  - '.tasks/active/T-2464-log-payload-write-has-no-fsync-while-ind.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-23T10:43:59"
+    action: "T-2462: spec round-16 F3 (advance_cursor must be monotonic MAX, not overwrite — mirrors claim-ack + T-2456) with full ACs/RCA/test plan; preserve F1 (fsync durability inversion / poison offset, HIGH power-loss-only) + F2 (cursor-blind sweep SILENT subscribe-skip, HIGH) as related findings to file next session. Source edit blocked by budget wrap-up gate — one-line fix pending"
+  - time: "2026-07-23T11:26:58"
+    action: "T-2462: make advance_cursor monotonic (MAX upsert) so a stale/retried advance can't regress a subscriber's delivery frontier and re-deliver consumed records (round-16 F3)"
+  - time: "2026-07-23T11:29:09"
+    action: "T-2462: tick Agent ACs (all satisfied) + file round-16 F1/F2 as tracked backlog tasks — F1 durability-inversion → T-2464, F2 silent-sweep-gap → T-2463 (both owner:agent horizon:later, bugs-with-known-fixes kept out of the human go/no-go backlog)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 48 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 48
+  commits: 3
+  files_changed: 5
+  lines_added: 649
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2462-advancecursor-overwrites-the-persisted-c.md
+generated_by: context-agent-hybrid
