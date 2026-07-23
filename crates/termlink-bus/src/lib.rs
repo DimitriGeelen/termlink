@@ -995,6 +995,27 @@ mod tests {
         assert_eq!(bus.get_cursor("sub-A", "t").unwrap(), Some(3));
     }
 
+    /// The cursor is a monotonic delivery frontier: a stale or retried
+    /// advance to a LOWER offset must not regress it (T-2462, round-16 F3).
+    /// Before the MAX-upsert fix, `advance_cursor(.., 3)` after `(.., 5)`
+    /// would overwrite 5→3 and re-deliver offsets 3 and 4.
+    #[tokio::test]
+    async fn cursor_advance_is_monotonic_never_regresses() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+        for i in 0..8 {
+            bus.post("t", &env("t", format!("m{i}").as_bytes())).await.unwrap();
+        }
+        bus.advance_cursor("sub-A", "t", 5).unwrap();
+        assert_eq!(bus.get_cursor("sub-A", "t").unwrap(), Some(5));
+        // Stale/retried advance to a lower offset must NOT regress the frontier.
+        bus.advance_cursor("sub-A", "t", 3).unwrap();
+        assert_eq!(bus.get_cursor("sub-A", "t").unwrap(), Some(5));
+        // A genuine forward advance still moves it.
+        bus.advance_cursor("sub-A", "t", 7).unwrap();
+        assert_eq!(bus.get_cursor("sub-A", "t").unwrap(), Some(7));
+    }
+
     #[tokio::test]
     async fn sweep_retention_messages_keeps_last_n() {
         let (_dir, bus) = tmp_bus();

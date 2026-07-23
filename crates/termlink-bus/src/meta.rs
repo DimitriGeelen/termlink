@@ -246,6 +246,14 @@ impl Meta {
     }
 
     /// Persist a subscriber cursor for the given (subscriber, topic).
+    ///
+    /// The cursor is a monotonic delivery frontier: the upsert takes
+    /// `MAX(existing, incoming)` so a stale or retried advance can never
+    /// regress the frontier and re-deliver already-consumed records (T-2462,
+    /// round-16 F3). This mirrors the claim-ack cursor-advance path
+    /// (`release_claim`, same MAX upsert) — both express the same
+    /// at-least-once invariant. `advance_cursor` (the sole caller) is
+    /// advance-only by contract; there is no legitimate rewind/seek caller.
     pub(crate) fn put_cursor(
         &self,
         subscriber_id: &str,
@@ -255,7 +263,8 @@ impl Meta {
         let conn = self.conn.lock().expect("meta mutex poisoned");
         conn.execute(
             "INSERT INTO cursors (subscriber_id, topic, last_offset) VALUES (?1, ?2, ?3) \
-             ON CONFLICT(subscriber_id, topic) DO UPDATE SET last_offset = excluded.last_offset",
+             ON CONFLICT(subscriber_id, topic) DO UPDATE SET \
+             last_offset = MAX(last_offset, excluded.last_offset)",
             params![subscriber_id, topic, offset as i64],
         )?;
         Ok(())
