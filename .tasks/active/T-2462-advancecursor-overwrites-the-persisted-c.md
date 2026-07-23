@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-23T08:40:44Z
-last_update: 2026-07-23T08:40:44Z
+last_update: 2026-07-23T09:26:59Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -52,9 +52,9 @@ claim-ack `MAX` upsert.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `Meta::put_cursor`'s upsert uses `SET last_offset = MAX(last_offset, excluded.last_offset)` so `advance_cursor` can never regress a persisted cursor (mirrors the claim-ack path at meta.rs:445 and the T-2456 receipt-frontier monotonicity fix).
-- [ ] A regression test proves a lower-offset `advance_cursor` after a higher one leaves the cursor at the high-water mark (set 5 → advance 3 → cursor stays 5), while a genuine forward advance still moves it (5 → 7 → 7).
-- [ ] Existing cursor round-trip behavior (fresh insert, monotonic advance) is unchanged; full `cargo test -p termlink-bus --lib` stays green.
+- [x] `Meta::put_cursor`'s upsert uses `SET last_offset = MAX(last_offset, excluded.last_offset)` so `advance_cursor` can never regress a persisted cursor (mirrors the claim-ack path at meta.rs:445 and the T-2456 receipt-frontier monotonicity fix).
+- [x] A regression test proves a lower-offset `advance_cursor` after a higher one leaves the cursor at the high-water mark (set 5 → advance 3 → cursor stays 5), while a genuine forward advance still moves it (5 → 7 → 7).
+- [x] Existing cursor round-trip behavior (fresh insert, monotonic advance) is unchanged; full `cargo test -p termlink-bus --lib` stays green.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -190,11 +190,12 @@ context-budget wrap-up gate before it landed. **To complete (next session):**
 4. Commit BEFORE `fw task update --status work-completed` (focus→null jams the gate
    otherwise). Verification block already written above.
 
-## Related findings — round-16 reliability hunt (FILE AS SEPARATE TASKS next session)
+## Related findings — round-16 reliability hunt (NOW FILED AS SEPARATE TASKS)
 
-Same hunt surfaced two more, captured here so they are not lost (one-bug-one-task —
-file each as its own task; they are BUGS with known fix directions, NOT go/no-go
-inceptions, so keep them out of the human decision backlog):
+**Filed 2026-07-23:** F1 → **T-2464** (durability inversion), F2 → **T-2463**
+(silent sweep-gap). Both `owner: agent`, `horizon: later` backlog builds — BUGS
+with known fix directions, deliberately NOT go/no-go inceptions (kept out of the
+human decision backlog). Full detail preserved below for lineage:
 
 - **F1 (HIGH, power-loss-only) — durability inversion / poison offset.** `post()`
   indexes durably (SQLite `synchronous=FULL`, `record_append` `tx.commit()` fsyncs,
