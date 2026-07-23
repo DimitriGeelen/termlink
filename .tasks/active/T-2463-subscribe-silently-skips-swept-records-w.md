@@ -4,10 +4,10 @@ name: "subscribe silently skips swept records when cursor < oldest_offset — ma
 description: >
   Bus::sweep deletes by ts/keep-last-N with no consult of the slowest live cursor; subscribe(topic, cursor) with cursor below the retention floor returns WHERE offset >= cursor and silently jumps cursor->oldest, skipping swept records with no error and no gap-marker. A slow/paused subscriber SILENTLY loses messages (Directive #2 no-silent-failures violation). Bounded topics are DESIGNED to drop, so the fix is not don't-sweep-past-cursors (would unbound the topic); it is make-the-drop-LOUD: when subscribe detects cursor < oldest_offset, surface a gap signal (typed gap-marker / distinct return / at minimum tracing::warn!). Round-16 reliability hunt F2, captured in T-2462.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-23T09:28:11Z
-last_update: 2026-07-23T09:28:11Z
+last_update: 2026-07-23T09:33:09Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,41 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Round-16 reliability hunt F2 (captured in T-2462). `Bus::sweep` deletes by
+ts/keep-last-N with no guard against the slowest live cursor; `records_from`
+(meta.rs:231) is `WHERE offset >= cursor ORDER BY offset`, so `subscribe(topic,
+cursor)` with `cursor` below the retention floor silently starts at `oldest`,
+skipping the swept `[cursor, oldest)` records with NO error and NO gap-marker.
+A slow/paused subscriber SILENTLY loses messages — a Constitutional Directive #2
+(no silent failures) violation.
+
+**Design resolution (this task's scope is the bus-layer primitive).** A bare
+`tracing::warn!` inside `subscribe` is the WRONG fix: it fires spuriously. A
+legitimate FRESH subscriber loading from `cursor=0` on a bounded topic
+(agent-presence, `Messages(1000)`) that has swept past 1000 is
+indistinguishable, from the raw `cursor` arg alone, from one that fell behind —
+`subscribe` is stateless about caller intent. The clean discriminator is the
+**persisted** cursor (`get_cursor`): a subscriber with NO persisted cursor is
+fresh (no gap possible); one whose persisted cursor is now `< oldest_offset`
+genuinely fell behind and lost the gap. This keys the detection on state the bus
+already owns (T-2462 just made that cursor monotonic), cleanly separating fresh
+from fell-behind with zero spurious signals.
+
+**Scope split.** This task delivers the bus-layer detection primitive
+`Bus::gap_before(topic, subscriber_id) -> Option<Gap>` + tests. Surfacing the
+gap through the hub `channel.subscribe` RPC / CLI / MCP (so remote clients see
+it) is a larger, multi-layer blast radius and is a FOLLOW-UP (file separately if
+the primitive proves the shape). The existing `oldest_offset` (lib.rs:270,
+T-1285/T-243) is the low-level half; `gap_before` is the caller-trivial decision
+built on it + the persisted cursor.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `Bus::gap_before(topic, subscriber_id)` returns `None` when the subscriber has no persisted cursor (fresh subscriber — no gap possible), and `None` when the persisted cursor is `>= oldest_offset` (still within the retention window).
+- [x] `Bus::gap_before` returns `Some(Gap { persisted_cursor, oldest_offset, skipped })` when the persisted cursor is `< oldest_offset` (records in the gap were swept), with `skipped = oldest_offset - persisted_cursor`.
+- [x] `gap_before` returns `BusError::UnknownTopic` for an unregistered topic (mirrors `oldest_offset` / `subscribe`), and `None` for a topic with zero live records.
+- [x] Unit tests prove all four paths: fresh (no cursor → None), caught-up (cursor >= oldest → None), fell-behind (cursor < oldest → Some with correct skipped count), unknown-topic (Err). Full `cargo test -p termlink-bus --lib` stays green (95 passed).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -107,7 +134,38 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+cargo test -p termlink-bus --lib gap_before 2>&1 | tail -5 | grep -qE 'test result: ok'
+cargo test -p termlink-bus --lib 2>&1 | tail -5 | grep -qE 'test result: ok'
+
 ## RCA
+
+**Symptom:** A slow or paused subscriber whose cursor fell behind the retention
+window re-subscribes and silently receives records starting at `oldest`, with no
+signal that the `[cursor, oldest)` records were swept and permanently lost.
+
+**Root cause:** `Bus::subscribe` → `records_from` (meta.rs:231) is
+`WHERE offset >= cursor`, which returns the earliest LIVE record when `cursor`
+is below the swept floor — it cannot represent "you asked from C but C..O are
+gone." The gap-detection primitive `oldest_offset` (lib.rs:270) exists but is an
+opt-in the caller must remember to invoke; nothing forces it, so the loss is
+silent by default.
+
+**Why structurally allowed:** Sweeping (retention) and subscribing (delivery)
+were designed independently — sweep never consults live cursors (correct: it
+must, to keep bounded topics bounded), and subscribe never consults the
+retention floor. The seam between them (a slow subscriber crossing the floor)
+had no test and no loud signal. Directive #2 (no silent failures) was satisfied
+for the crash-restart case (subscribe is a pure read, re-delivers on crash) but
+not for the fell-behind case.
+
+**Prevention:** (1) `gap_before` keyed on the PERSISTED cursor makes the
+fell-behind condition a first-class, spurious-free query — fresh subscribers
+(no persisted cursor) never false-positive; (2) unit tests pin all four paths;
+(3) learning candidate: any read primitive layered over a retention-bounded log
+must expose a gap query, and detection must key on persisted state, not the raw
+request offset (fresh-vs-behind is invisible to a stateless call). The follow-up
+that wires `gap_before` into the hub `channel.subscribe` RPC is what closes the
+silent-loss gap for REMOTE clients (this task closes it at the bus layer).
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -174,3 +232,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2463-subscribe-silently-skips-swept-records-w.md
 - **Context:** Initial task creation
+
+### 2026-07-23T09:33:09Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)

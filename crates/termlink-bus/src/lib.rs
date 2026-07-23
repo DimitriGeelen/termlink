@@ -27,6 +27,23 @@ pub use retention::Retention;
 /// record, or a decode/IO error.
 pub type SubscribeIter = Box<dyn Iterator<Item = Result<(Offset, Envelope)>> + Send>;
 
+/// A retention gap detected by `Bus::gap_before` (T-2463, round-16 F2): the
+/// subscriber's persisted cursor fell behind the retention window, so the
+/// records in `[persisted_cursor, oldest_offset)` were swept and are
+/// permanently lost. This is the LOUD signal that closes the silent
+/// message-loss gap — `subscribe` alone silently jumps to `oldest_offset`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Gap {
+    /// The subscriber's last-persisted cursor (the offset it expected to
+    /// resume from).
+    pub persisted_cursor: Offset,
+    /// The smallest offset still live after retention sweeps.
+    pub oldest_offset: Offset,
+    /// Count of swept records the subscriber missed: `oldest_offset -
+    /// persisted_cursor`.
+    pub skipped: u64,
+}
+
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -272,6 +289,47 @@ impl Bus {
             return Err(BusError::UnknownTopic(topic.to_string()));
         }
         self.meta.oldest_offset(topic)
+    }
+
+    /// Detect whether a subscriber's persisted cursor fell behind the
+    /// retention window — the LOUD counterpart to `subscribe`, which silently
+    /// jumps a lagging cursor forward to `oldest_offset` (T-2463, round-16 F2).
+    ///
+    /// Returns `Some(Gap)` iff the subscriber has a persisted cursor AND that
+    /// cursor is `< oldest_offset` (records in the gap were swept and are
+    /// lost). Returns `None` when:
+    /// - the subscriber has no persisted cursor (a FRESH subscriber loading
+    ///   from an arbitrary offset cannot have "fallen behind" — this is the
+    ///   discriminator that avoids the spurious-warning trap of checking the
+    ///   raw `subscribe` cursor arg, which is stateless about caller intent); or
+    /// - the persisted cursor is `>= oldest_offset` (still within the window); or
+    /// - the topic has zero live records.
+    ///
+    /// Keying on the PERSISTED cursor (`get_cursor`, made monotonic in T-2462)
+    /// is what cleanly separates "fresh subscriber" from "slow subscriber that
+    /// lost messages". Returns `BusError::UnknownTopic` for an unregistered
+    /// topic (mirrors `subscribe` / `oldest_offset`).
+    pub fn gap_before(&self, topic: &str, subscriber_id: &str) -> Result<Option<Gap>> {
+        if !self.meta.topic_exists(topic)? {
+            return Err(BusError::UnknownTopic(topic.to_string()));
+        }
+        let persisted = match self.meta.get_cursor(subscriber_id, topic)? {
+            Some(c) => c,
+            None => return Ok(None), // fresh subscriber — no gap possible
+        };
+        let oldest = match self.meta.oldest_offset(topic)? {
+            Some(o) => o,
+            None => return Ok(None), // topic has zero live records
+        };
+        if persisted < oldest {
+            Ok(Some(Gap {
+                persisted_cursor: persisted,
+                oldest_offset: oldest,
+                skipped: oldest - persisted,
+            }))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Read the single envelope at `offset` on `topic`. Returns `None` if
@@ -1014,6 +1072,66 @@ mod tests {
         // A genuine forward advance still moves it.
         bus.advance_cursor("sub-A", "t", 7).unwrap();
         assert_eq!(bus.get_cursor("sub-A", "t").unwrap(), Some(7));
+    }
+
+    /// T-2463 (round-16 F2): `gap_before` reports a retention gap only when a
+    /// PERSISTED cursor fell behind `oldest_offset` — the LOUD counterpart to
+    /// `subscribe`'s silent jump-to-oldest.
+    #[tokio::test]
+    async fn gap_before_detects_fell_behind_subscriber() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Messages(2)).unwrap();
+        for i in 0..5 {
+            bus.post("t", &env("t", format!("m{i}").as_bytes())).await.unwrap();
+        }
+        // Sweep prunes offsets 0,1,2 → oldest live offset is 3.
+        assert_eq!(bus.sweep("t", 0).unwrap(), 3);
+        assert_eq!(bus.oldest_offset("t").unwrap(), Some(3));
+
+        // Subscriber whose persisted cursor (1) is below oldest (3) lost the
+        // records in [1, 3): a LOUD gap of 2 swept records.
+        bus.advance_cursor("slow", "t", 1).unwrap();
+        assert_eq!(
+            bus.gap_before("t", "slow").unwrap(),
+            Some(Gap { persisted_cursor: 1, oldest_offset: 3, skipped: 2 }),
+        );
+    }
+
+    /// A fresh subscriber (no persisted cursor) can never have "fallen behind"
+    /// — `gap_before` must NOT false-positive on it, even on a swept topic.
+    /// This is the discriminator that a raw-cursor check would get wrong.
+    #[tokio::test]
+    async fn gap_before_none_for_fresh_and_caught_up() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Messages(2)).unwrap();
+        for i in 0..5 {
+            bus.post("t", &env("t", format!("m{i}").as_bytes())).await.unwrap();
+        }
+        assert_eq!(bus.sweep("t", 0).unwrap(), 3); // oldest → 3
+
+        // Fresh subscriber: no persisted cursor → no gap.
+        assert_eq!(bus.gap_before("t", "fresh").unwrap(), None);
+
+        // Caught-up subscriber: cursor 4 (>= oldest 3) → no gap.
+        bus.advance_cursor("fast", "t", 4).unwrap();
+        assert_eq!(bus.gap_before("t", "fast").unwrap(), None);
+    }
+
+    /// `gap_before` errors on an unknown topic (mirrors `subscribe` /
+    /// `oldest_offset`) and returns `None` for a topic with zero live records.
+    #[tokio::test]
+    async fn gap_before_unknown_topic_and_empty_topic() {
+        let (_dir, bus) = tmp_bus();
+        // Unknown topic → UnknownTopic error.
+        assert!(matches!(
+            bus.gap_before("nope", "s").unwrap_err(),
+            BusError::UnknownTopic(_),
+        ));
+        // Registered but empty topic with a persisted cursor → no gap
+        // (oldest_offset is None, nothing was swept).
+        bus.create_topic("empty", Retention::Forever).unwrap();
+        bus.advance_cursor("s", "empty", 0).unwrap();
+        assert_eq!(bus.gap_before("empty", "s").unwrap(), None);
     }
 
     #[tokio::test]
