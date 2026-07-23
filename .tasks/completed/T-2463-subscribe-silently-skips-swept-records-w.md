@@ -4,20 +4,20 @@ name: "subscribe silently skips swept records when cursor < oldest_offset — ma
 description: >
   Bus::sweep deletes by ts/keep-last-N with no consult of the slowest live cursor; subscribe(topic, cursor) with cursor below the retention floor returns WHERE offset >= cursor and silently jumps cursor->oldest, skipping swept records with no error and no gap-marker. A slow/paused subscriber SILENTLY loses messages (Directive #2 no-silent-failures violation). Bounded topics are DESIGNED to drop, so the fix is not don't-sweep-past-cursors (would unbound the topic); it is make-the-drop-LOUD: when subscribe detects cursor < oldest_offset, surface a gap signal (typed gap-marker / distinct return / at minimum tracing::warn!). Round-16 reliability hunt F2, captured in T-2462.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-bus/src/lib.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-23T09:28:11Z
-last_update: 2026-07-23T09:33:09Z
-date_finished: null
+last_update: 2026-07-23T09:35:46Z
+date_finished: 2026-07-23T09:35:46Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -236,3 +236,22 @@ silent-loss gap for REMOTE clients (this task closes it at the bus layer).
 ### 2026-07-23T09:33:09Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-54b5ab60
+- **Timestamp:** 2026-07-23T09:35:53Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Verification-level findings:**
+
+  1. **l387-sigpipe-risk** (partial, heuristic) @ Verification:line 32
+     - evidence: `cargo test -p termlink-bus --lib gap_before 2>&1 | tail -5 | grep -qE 'test result: ok'`
+  2. **l387-sigpipe-risk** (partial, heuristic) @ Verification:line 33
+     - evidence: `cargo test -p termlink-bus --lib 2>&1 | tail -5 | grep -qE 'test result: ok'`
+
+### 2026-07-23T09:35:46Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
