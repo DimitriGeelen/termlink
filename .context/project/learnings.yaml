@@ -2598,3 +2598,10 @@ learnings:
   date: 2026-07-22
   context: Added via context agent
   application: TBD
+- id: PL-263
+  learning: "Any read primitive layered over a retention-bounded log must expose a gap query, and fell-behind detection must key on PERSISTED subscriber state (get_cursor), never the raw request offset — a stateless subscribe(cursor) call cannot tell a fresh full-history load from a slow subscriber that lost swept records, so a naive warn/marker on cursor<oldest fires spuriously on every bounded-topic cold start. Bus::gap_before (T-2463) returns None for no-persisted-cursor (fresh) and Some(Gap) only when persisted_cursor<oldest_offset. Sibling to the monotonic-delivery-frontier rule (T-2456 receipts, T-2462 cursor, claim-ack): retention (sweep) and delivery (subscribe) are designed independently, so the seam where a slow subscriber crosses the retention floor needs an explicit loud query."
+  source: P-001
+  task: T-2463
+  date: 2026-07-23
+  context: Added via context agent
+  application: TBD
