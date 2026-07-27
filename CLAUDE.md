@@ -358,7 +358,17 @@ patch number is a `git describe` tag-epoch artifact, NOT comparable across
 lineages — see the T-2359 note), and yet **rejects `channel.cv_keys`** (its binary
 predates the cv_index primitive, T-2103), so it is silently excluded from
 push-wake discovery with nothing firing. Version floors are provably blind to this
-class; only a **capability probe** can see it. A daily cron runs
+class; only a **capability probe** can see it.
+
+> **Note (T-2467, 2026-07-28): the .121 example above is now HISTORICAL.** Fresh
+> probes show ring20-dashboard was redeployed onto **0.11.588** (our own lineage,
+> ~96 commits behind HEAD) and now **serves `channel.cv_keys`** — a live
+> `ring20-dashboard-agent` presence entry is returned. So .121 specifically is
+> doorbell-CAPABLE today; it is no longer the exclusion this paragraph describes.
+> The canary and its rationale stand unchanged — the capability-incapable *class*
+> is real (any hub predating cv_index still trips it); .121 is simply no longer a
+> member. See `.context/cron/fleet-version-floors.conf` for its current status
+> (exempt only for lack of an upgrade foothold, not incapability). A daily cron runs
 `scripts/check-fleet-capability-freshness.sh --quiet` (see
 `.context/cron/fleet-capability-canary.crontab`) and appends to
 `.context/working/.fleet-capability-canary.log`. Empty log = healthy.
