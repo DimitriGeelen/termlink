@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2467: Correct stale .121 ring20-dashboard doc claims
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-27T22:41:58Z
+# ============================================================================
+
+task_id: T-2467
+task_name: "Correct stale .121 ring20-dashboard doc claims"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-27T22:39:18Z
+completed: 2026-07-27T22:41:54Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-07-28T00:41:44+02:00
+last_commit: 2026-07-28T00:41:44+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  correct stale .121 docs — probed healthy/doorbell-capable/0.11.588 same-lineage, not the fork/rejects-cv_keys story (floors.conf + G-084 note)
+
+# Key outcomes
+outcomes:
+  - '`.context/cron/fleet-version-floors.conf` ring20-dashboard block no longer asserts "0.11.806 / ~1050-commit fork / own mainline"; states probed reality (0.11.588, same lineage, doorbell-capable, exempt because no upgrade foothold)'
+  - 'CLAUDE.md G-084 section carries a dated note that .121''s specific "rejects cv_keys" premise no longer holds (serves cv_keys as of 2026-07-28), while the canary''s design rationale (the capability-incapable CLASS) is left intact'
+  - 'Both edits reflect the actual fresh probe (status:ok, 0.11.588, cv-keys count>=1) — no invented values'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/cron/fleet-version-floors.conf'
+  - '.tasks/active/T-2467-correct-stale-121-ring20-dashboard-doc-c.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-28T00:41:44"
+    action: "T-2467: correct stale .121 docs — probed healthy/doorbell-capable/0.11.588 same-lineage, not the fork/rejects-cv_keys story (floors.conf + G-084 note)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 3
+  lines_added: 217
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2467-correct-stale-121-ring20-dashboard-doc-c.md
+generated_by: context-agent-hybrid

@@ -4914,3 +4914,147 @@ scan_id: R-9514ac2e
 task_id: T-2452
 payload:
   task_file: .tasks/active/T-2452-flush-poison-double-failure-must-break-n.md
+---
+kind: scan_emitted
+timestamp: '2026-07-22T18:01:48Z'
+scan_id: R-ce3d851f
+task_id: T-2456
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-22T18:01:48Z'
+scan_id: R-ce3d851f
+task_id: T-2456
+payload:
+  task_file: .tasks/active/T-2456-receipt-frontier-aggregation-must-be-mon.md
+---
+kind: scan_emitted
+timestamp: '2026-07-22T18:33:50Z'
+scan_id: R-3103ddeb
+task_id: T-2458
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-22T18:33:50Z'
+scan_id: R-3103ddeb
+task_id: T-2458
+payload:
+  task_file: .tasks/active/T-2458-find-idle-hint-path-under-reports-live-i.md
+---
+kind: scan_emitted
+timestamp: '2026-07-22T19:18:48Z'
+scan_id: R-2faa613b
+task_id: T-2461
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-22T19:18:48Z'
+scan_id: R-2faa613b
+task_id: T-2461
+payload:
+  task_file: .tasks/active/T-2461-claimid-collides-across-distinct-topics-.md
+---
+kind: scan_emitted
+timestamp: '2026-07-23T09:29:21Z'
+scan_id: R-e87057c3
+task_id: T-2462
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-23T09:29:21Z'
+scan_id: R-e87057c3
+task_id: T-2462
+payload:
+  task_file: .tasks/active/T-2462-advancecursor-overwrites-the-persisted-c.md
+---
+kind: scan_emitted
+timestamp: '2026-07-23T09:35:53Z'
+scan_id: R-54b5ab60
+task_id: T-2463
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-23T09:35:53Z'
+scan_id: R-54b5ab60
+task_id: T-2463
+payload:
+  task_file: .tasks/active/T-2463-subscribe-silently-skips-swept-records-w.md
+---
+kind: scan_emitted
+timestamp: '2026-07-27T18:49:13Z'
+scan_id: R-7d54aaf4
+task_id: T-2465
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-27T18:49:13Z'
+scan_id: R-7d54aaf4
+task_id: T-2465
+payload:
+  task_file: .tasks/active/T-2465-upgrade-stale-ring20-management-122-hub-.md
+---
+kind: scan_emitted
+timestamp: '2026-07-27T20:25:49Z'
+scan_id: R-41fea8d9
+task_id: T-2466
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-27T20:25:49Z'
+scan_id: R-41fea8d9
+task_id: T-2466
+payload:
+  task_file: .tasks/active/T-2466-upgrade-local-107-hub-local-test--workst.md
+---
+kind: scan_emitted
+timestamp: '2026-07-27T22:41:55Z'
+scan_id: R-67209b53
+task_id: T-2467
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-27T22:41:55Z'
+scan_id: R-67209b53
+task_id: T-2467
+payload:
+  task_file: .tasks/active/T-2467-correct-stale-121-ring20-dashboard-doc-c.md
