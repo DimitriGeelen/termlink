@@ -2605,3 +2605,10 @@ learnings:
   date: 2026-07-23
   context: Added via context agent
   application: TBD
+- id: PL-264
+  learning: "Fleet-host reachability has THREE independent gates, not one — do not collapse them into 'off-.107 = unreachable'. (1) hub-RPC reachability (fleet doctor status:ok), (2) EXECUTION foothold = a 'ready' remote-exec session (termlink remote list HUB) OR authorized SSH key, (3) host up at all. .122 had hub-RPC + 3 ready remote-exec sessions the whole time → binary swap via fleet-deploy-binary.sh was always agent-executable; only .121 (no session, SSH publickey-denied) and .141 (no route) are genuinely blocked. Probe termlink remote list + ssh BatchMode before claiming a host is 'out of reach'."
+  source: P-001
+  task: T-2465
+  date: 2026-07-27
+  context: Added via context agent
+  application: TBD
