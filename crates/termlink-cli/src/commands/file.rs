@@ -471,17 +471,32 @@ async fn try_recv_via_artifact(
     }
 }
 
-/// Process a batch of received artifact envelopes; on first writable artifact,
-/// write it to disk and return the summary. Idempotency: if `<out_path>/<filename>`
-/// already exists with matching sha256, skip the download/write and return the
-/// pre-existing file's summary.
+/// T-2473 (OBS-108 bug #1): pick which artifact in a batch to serve. Returns the
+/// NEWEST (highest `channel_offset`) artifact, not the oldest.
+///
+/// The old code took `artifacts.first()` — which, because the replay path
+/// subscribes at cursor 0 (oldest-first), pinned `--replay` permanently to the
+/// EARLIEST historical transfer and made every newer one unreachable. Selecting
+/// by max offset makes `--replay` serve the most-recent transfer instead. This is
+/// the minimal fix for a retirement-track verb (T-1166); for full addressable
+/// history use `channel subscribe`.
+fn select_newest_artifact(
+    artifacts: &[termlink_session::artifact::RecvArtifact],
+) -> Option<&termlink_session::artifact::RecvArtifact> {
+    artifacts.iter().max_by_key(|a| a.channel_offset)
+}
+
+/// Process a batch of received artifact envelopes; on the NEWEST writable artifact
+/// (T-2473), write it to disk and return the summary. Idempotency: if
+/// `<out_path>/<filename>` already exists with matching sha256, skip the
+/// download/write and return the pre-existing file's summary.
 async fn process_artifact_batch(
     client: &mut client::Client,
     artifacts: &[termlink_session::artifact::RecvArtifact],
     out_path: &std::path::Path,
 ) -> Result<Option<RecvSummary>> {
     use sha2::{Digest, Sha256};
-    if let Some(a) = artifacts.first() {
+    if let Some(a) = select_newest_artifact(artifacts) {
         let (bytes, sha256_hex, filename, via) = if let Some(sha) = &a.artifact_ref {
             // Chunked path: manifest carries filename, bytes via artifact.get.
             let manifest_filename = a
@@ -1066,6 +1081,33 @@ mod tests {
         assert!(!inline.contains("verified against expected"), "must not overclaim: {inline}");
         let chunked = reconcile_expected_sha256(A, None, "channel.artifact").unwrap();
         assert!(chunked.contains("sender manifest"), "chunked label: {chunked}");
+    }
+
+    // T-2473 (OBS-108 bug #1): replay must serve the NEWEST transfer, not the oldest.
+    fn mk_artifact(offset: u64) -> termlink_session::artifact::RecvArtifact {
+        termlink_session::artifact::RecvArtifact {
+            channel_offset: offset,
+            artifact_ref: None,
+            manifest: None,
+            payload: vec![offset as u8],
+            sender_id: "s".to_string(),
+            ts_unix_ms: 0,
+        }
+    }
+
+    #[test]
+    fn select_newest_artifact_picks_highest_offset() {
+        // Batch arrives oldest-first (as channel.subscribe cursor 0 returns it).
+        let batch = vec![mk_artifact(3), mk_artifact(41), mk_artifact(17)];
+        let picked = select_newest_artifact(&batch).expect("non-empty batch");
+        assert_eq!(picked.channel_offset, 41, "must serve newest, not first/oldest");
+        // Regression guard: the OLD code did artifacts.first() → offset 3.
+        assert_ne!(picked.channel_offset, batch.first().unwrap().channel_offset);
+    }
+
+    #[test]
+    fn select_newest_artifact_empty_is_none() {
+        assert!(select_newest_artifact(&[]).is_none());
     }
 
     #[test]

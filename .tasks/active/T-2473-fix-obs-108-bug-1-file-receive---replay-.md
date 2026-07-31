@@ -1,8 +1,8 @@
 ---
-id: T-2472
-name: "RCA OBS-108 file receive --replay re-serves earliest transfer + tautological SHA verify false-green"
+id: T-2473
+name: "Fix OBS-108 bug #1 file receive --replay hardwired to oldest transfer — serve newest + nudge channel subscribe"
 description: >
-  OBS-108: termlink file receive --replay re-serves the same earliest historical transfer on every invocation (later transfers unreachable), AND prints 'SHA-256 verified' exit 0 on the wrong file (tautological digest check = false green). RCA the replay cursor bug + the integrity-check bug; remediate; incept structural fix if warranted. Peer 832 relayed via operator.
+  OBS-108 bug #1 (separate from T-2472 bug #2): file receive --replay subscribes at cursor 0 then process_artifact_batch returns artifacts.first() = oldest, so replay is permanently stuck on the earliest transfer and later ones are unreachable. Minimal fix (retiring verb per T-1166): serve NEWEST artifact on replay instead of oldest + deprecation nudge to channel subscribe for full addressable history. Not building a rich transfer-id model into a dying primitive.
 
 status: started-work
 workflow_type: build
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-07-31T11:34:16Z
-last_update: 2026-07-31T11:34:16Z
+created: 2026-07-31T11:52:07Z
+last_update: 2026-07-31T11:52:07Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,35 +30,27 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2472: RCA OBS-108 file receive --replay re-serves earliest transfer + tautological SHA verify false-green
+# T-2473: Fix OBS-108 bug #1 file receive --replay hardwired to oldest transfer — serve newest + nudge channel subscribe
 
 ## Context
 
-RCA of OBS-108 (peer 832 relayed via operator). Full RCA in
-`docs/reports/OBS-108-file-receive-replay-rca.md`. Two INDEPENDENT bugs found:
-**#1** `file receive --replay` is hardwired to the oldest transfer (subscribe at
-cursor 0 → `artifacts.first()`); **#2** the `SHA-256 verified` line is a
-false-green (inline path reports `sha256(received_bytes)` — tautological; chunked
-path reports the sender's own manifest digest — never a caller-supplied expected
-digest). **This task carries the RCA + the bug #2 fix** (the operator-critical
-false-green — the tool the operator was told to trust for independent digest
-confirmation gave a clean pass on the wrong file). Bug #1 → separate task per
-"one bug = one task". No inception: both are bounded point-fixes on a
-retirement-track primitive (T-1166/T-1415, verbs retained as thin wrappers).
+OBS-108 bug #1 (bug #2 fixed in T-2472). `file receive --replay` subscribes at
+cursor 0 (file.rs:432) then `process_artifact_batch` returns `artifacts.first()`
+(file.rs:484) = lowest offset = oldest artifact, with no cursor/selector — so
+replay is permanently pinned to the earliest transfer and newer ones are
+unreachable. **Minimal fix** on a retirement-track verb (T-1166): serve the
+NEWEST artifact on replay (`.last()` not `.first()`) and nudge to
+`channel subscribe` for full addressable history. NOT building a transfer-id
+addressing model into a dying primitive.
 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `termlink file receive` accepts `--expected-sha256 <hex>`; when the served
-      file's actual sha256 != expected, the command prints a loud `SHA-256 MISMATCH`
-      line and exits NON-zero (no "verified", no exit 0) — the operator's
-      "on mismatch, don't re-pin, tell me" contract.
-- [ ] When `--expected-sha256` matches, output reads `SHA-256 verified against expected: <hex>` and exits 0.
-- [ ] When `--expected-sha256` is ABSENT, the success line no longer claims a bare
-      `SHA-256 verified`: inline path labels it computed-from-received-bytes,
-      chunked path labels it sender-manifest — the tautology is removed.
-- [ ] RCA section below is filled; OBS-108 registered in `.context` (gap + learning).
-- [ ] A unit test covers the mismatch → non-zero-exit path; `cargo check -p termlink-cli` is clean.
+- [x] `process_artifact_batch` serves the NEWEST artifact in the batch (highest
+      `channel_offset`), not the oldest — `--replay` no longer pins to the earliest
+      transfer.
+- [x] A unit test proves newest-wins selection over a multi-artifact batch.
+- [x] `cargo check -p termlink` clean; existing file tests still pass.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -123,59 +115,32 @@ retirement-track primitive (T-1166/T-1415, verbs retained as thin wrappers).
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
-cargo check -p termlink 2>&1 | tail -2
-cargo test -p termlink --bin termlink reconcile 2>&1 | grep -q '3 passed'
-grep -q 'expected_sha256' crates/termlink-cli/src/commands/file.rs
-grep -q 'OBS-108' .context/project/concerns.yaml
+cargo check -p termlink 2>&1 | tail -1
+cargo test -p termlink --bin termlink select_newest 2>&1 | grep -q '2 passed'
+grep -q 'select_newest_artifact' crates/termlink-cli/src/commands/file.rs
 
 ## RCA
 
-**Symptom:** Peer 832 sent two repaired fixtures; operator ran `termlink file
-receive --replay` to independently confirm digests with an explicit "on mismatch,
-don't re-pin, tell me". The verb re-served the same months-old transfer
-(`escalation-patterns.yaml`) on all four invocations and printed `SHA-256 verified`
-+ exit 0 every time — right digest, wrong file, clean success.
+**Symptom:** `termlink file receive --replay` returned the same months-old transfer
+(`escalation-patterns.yaml`) on all four invocations; newer transfers were
+permanently unreachable through the verb.
 
-**Root cause (bug #2 — this task):** The `SHA-256 verified` line
-(`crates/termlink-cli/src/commands/file.rs:597`) reports `s.sha256`, which is
-never compared against a caller-supplied expected digest. Inline path
-(`file.rs:516-518`) computes `sha256(received_payload)` and reports it — a
-tautology that always passes. Chunked path reports the sender's own manifest
-`artifact_ref` (bytes ARE checked against it in
-`crates/termlink-session/src/artifact.rs:534`, so transit integrity holds) — but
-that is the SENDER's declaration, not the RECEIVER's expectation, so it cannot
-detect "served the wrong (old) transfer". Either way the word "verified" claims
-an independent check that never happened.
+**Root cause:** the replay path subscribes at channel cursor 0 (oldest-first;
+file.rs:432) and `process_artifact_batch` returned `artifacts.first()` (file.rs:484)
+= the lowest offset = the oldest artifact. With no persisted cursor and no
+selector, replay was hardwired to the earliest envelope forever.
 
-**Root cause (bug #1 — separate task):** `--replay` subscribes at cursor 0
-(`file.rs:432`) and `process_artifact_batch` returns `artifacts.first()`
-(`file.rs:484`) = lowest offset = oldest artifact, with no persisted cursor and no
-transfer-id/offset/`--since` selector — hardwired to the earliest envelope forever.
+**Why structurally allowed:** the verb had exactly one selection policy
+("first in the batch") that happened to coincide with "oldest" once the
+subscribe-at-0 replay path was added; nothing expressed "which transfer did the
+caller actually want?", and OBS-108 bug #2's false-green (fixed in T-2472) meant
+the wrong selection produced a clean success, hiding it.
 
-**Why structurally allowed:** the integrity check was self-referential by
-construction — there was no seam for the receiver to assert an *expected* digest,
-so the one command whose entire job is integrity confirmation could return a
-false-green with exit 0 and no test caught it (the check can only ever pass).
-
-**Prevention:** (a) `--expected-sha256` gives the receiver an independent assertion
-that FAILS LOUD (non-zero exit) on mismatch; (b) honest labelling removes the word
-"verified" when no independent digest was supplied; (c) a unit test locks the
-mismatch → non-zero-exit contract; (d) OBS-108 registered as a gap so the class is
-tracked through T-1166 retirement.
-
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
-
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
-
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Prevention:** select the NEWEST artifact (`select_newest_artifact`, max
+`channel_offset`) so replay serves the most-recent transfer; a unit test locks
+newest-wins with an explicit regression guard against the old `.first()` behaviour.
+Full addressable history remains available via `channel subscribe` — the
+retirement-track successor (T-1166); no transfer-id model is added to the dying verb.
 
 ## Evolution
 
@@ -224,7 +189,7 @@ tracked through T-1166 retirement.
 
 ## Updates
 
-### 2026-07-31T11:34:16Z — task-created [task-create-agent]
+### 2026-07-31T11:52:07Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2472-rca-obs-108-file-receive---replay-re-ser.md
+- **Output:** /opt/termlink/.tasks/active/T-2473-fix-obs-108-bug-1-file-receive---replay-.md
 - **Context:** Initial task creation
