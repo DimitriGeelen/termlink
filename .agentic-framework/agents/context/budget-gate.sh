@@ -79,7 +79,7 @@ if os.path.exists(status_file):
 # Output: LEVEL TOKENS AGE TOOL_NAME CLASSIFICATION
 # Classification: 'allowed' for wrap-up/read ops, 'blocked' for new work
 import re
-is_allowed_cmd = bool(re.search(r'(git\s+commit|git\s+add|git\s+(status|log|diff)|fw\s+(handover|git|context\s+init|resume|task)|context\.sh\s+init|resume\.sh|checkpoint\.sh|budget-gate\.sh|handover\.sh|update-task\.sh|echo\s+0\s*>)', command)) if command else False
+is_allowed_cmd = bool(re.search(r'(git\s+commit|git\s+add|git\s+(status|log|diff)|fw\s+(handover|git|context\s+(init|focus)|resume|task)|context\.sh\s+init|resume\.sh|checkpoint\.sh|budget-gate\.sh|handover\.sh|update-task\.sh|echo\s+0\s*>)', command)) if command else False
 is_read_tool = tool_name in ('Read', 'Glob', 'Grep')
 
 # At critical, allow Write/Edit to wrap-up paths (handover, tasks, context)
