@@ -1,10 +1,12 @@
 # TermLink Architecture
 
-> Cross-terminal session communication system in Rust
+> TermLink is a hub-mediated, durable append-log message bus with terminal endpoints — the coordination substrate that lets a fleet of AI agents (and humans) discover each other, exchange durable messages, claim work, and control terminal sessions across one or many machines.
+>
+> — the canonical purpose (see [`docs/CHARTER.md`](CHARTER.md) for the charter + non-goals). This document describes *how* that substrate is built.
 
 ## System Overview
 
-TermLink enables **multiple terminal sessions to communicate** with each other via structured messaging over Unix sockets. It provides a dual-plane architecture: a **JSON-RPC control plane** for commands and queries, and a **binary data plane** for raw terminal I/O streaming.
+TermLink enables **a fleet of agent/terminal sessions to coordinate** — discover each other, exchange durable append-log messages, claim work, and stream/control terminals — via structured messaging over Unix sockets (and TCP across machines). It provides a dual-plane architecture: a **JSON-RPC control plane** for commands and queries, and a **binary data plane** for raw terminal I/O streaming. (Its origin as a cross-terminal session-communication tool survives in the data plane.)
 
 ```
 ┌─────────────────────────────────────────────────────────┐

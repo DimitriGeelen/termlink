@@ -1,7 +1,8 @@
 ![TermLink](header.svg)
 
-A coordination substrate for parallel AI agents — a hub-mediated, durable
-append-log message bus with terminal endpoints.
+TermLink is a hub-mediated, durable append-log message bus with terminal endpoints — the coordination substrate that lets a fleet of AI agents (and humans) discover each other, exchange durable messages, claim work, and control terminal sessions across one or many machines.
+
+*(This is the canonical purpose — see [`docs/CHARTER.md`](docs/CHARTER.md) for the charter and explicit non-goals.)*
 
 TermLink lets a fleet of agents (and humans) **discover each other, exchange durable
 messages, claim work, and control terminal sessions** across one or many machines.

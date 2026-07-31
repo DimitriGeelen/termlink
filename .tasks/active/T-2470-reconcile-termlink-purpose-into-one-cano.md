@@ -4,10 +4,10 @@ name: "Reconcile TermLink purpose into one canonical charter (T-2468 P1)"
 description: >
   Reconcile README.md (coordination substrate for parallel AI agents) vs docs/ARCHITECTURE.md (cross-terminal session comm) into one owned one-sentence charter; retire the stale framing. Doc-only, reversible. GO recorded in T-2468.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-31T11:11:06Z
-last_update: 2026-07-31T11:11:06Z
+last_update: 2026-07-31T12:31:04Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,32 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+T-2468 P1 (GO'd): TermLink has no single owned purpose sentence — README frames it
+as "a coordination substrate for parallel AI agents" while ARCHITECTURE framing
+still reads as a "cross-terminal session comm system". Every cut/build decision
+(P4 surface reduction, P6 build-or-descope) hangs off which one is canonical.
+Deliverable: ONE canonical charter (purpose + non-goals) that both docs point to.
+Reversible doc work; the canonical SENTENCE is human-blessed (sovereignty).
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] A single canonical charter block (one-sentence purpose + explicit non-goals +
+      the origin-evolution note) exists in one authoritative location
+      (`docs/CHARTER.md` or a `## Charter` section) — drafted, not invented from
+      nothing: synthesised from the existing README + ARCHITECTURE framings.
+- [x] README and the ARCHITECTURE doc both reference/quote the SAME canonical
+      sentence (no contradictory standalone purpose statements remain).
+- [x] A grep check proves the two docs are consistent (same canonical sentence
+      string present in both).
+
+### Human
+- [ ] [REVIEW] Bless the canonical purpose sentence
+      **Steps:** 1. Read the `## Charter` block (path surfaced on completion).
+      2. Confirm the one-sentence purpose is the one TermLink should own.
+      **Expected:** The sentence captures what TermLink IS (and the non-goals capture
+      what it deliberately is NOT) to your satisfaction.
+      **If not:** Edit the sentence in place; the docs quote it by reference so one edit propagates.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -106,6 +124,8 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+test $(grep -lF "the coordination substrate that lets a fleet of AI agents" README.md docs/ARCHITECTURE.md docs/CHARTER.md | wc -l) -eq 3
+! grep -q "Cross-terminal session communication system" README.md docs/ARCHITECTURE.md
 
 ## RCA
 
@@ -174,3 +194,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2470-reconcile-termlink-purpose-into-one-cano.md
 - **Context:** Initial task creation
+
+### 2026-07-31T12:31:04Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
