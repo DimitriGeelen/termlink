@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2469: Wrap-up deadlock: check-active-task blocks handover while budget-gate blocks the focus-fix
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-31T11:09:28Z
+# ============================================================================
+
+task_id: T-2469
+task_name: "Wrap-up deadlock: check-active-task blocks handover while budget-gate blocks the focus-fix"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-31T11:03:03Z
+completed: 2026-07-31T11:09:23Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-31T13:09:01+02:00
+last_commit: 2026-07-31T13:09:01+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  wrap-up deadlock RCA — vendor drift (budget-gate missing 'context focus'); on-disk hotfix applied, PL-265, re-vendor recommended
+
+# Key outcomes
+outcomes:
+  - 'Deadlock reproduced/confirmed: budget-gate.sh:82 allowlist omits `context focus` (has `context init`); check-active-task.sh:77 allows `context focus` but blocks `fw handover` on null focus → neither escape command clears both gates'
+  - 'Root cause written up: it is VENDOR DRIFT — AEF upstream budget-gate.sh:159 already includes `context\s+(init|focus)` (+ git push/fetch); the vendored copy was stale'
+  - 'A concrete mitigation is identified and applied: ported the upstream one-line allowlist fix to the vendored budget-gate.sh:82 (`context\s+(init|focus)`); tested (focus now allowed, feature-work still blocked, handover unaffected). Broader fix = re-vendor'
+  - 'Defect registered where it persists: PL-265 (vendor-drift learning)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'wrap-up deadlock RCA — vendor drift (budget-gate missing ''context focus''); on-disk hotfix applied, PL-265, re-vendor recommended'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.agentic-framework/agents/context/budget-gate.sh'
+  - '.context/project/learnings.yaml'
+  - '.tasks/active/T-2469-wrap-up-deadlock-check-active-task-block.md'
+  - '.tasks/completed/T-2224-substrate-backpressure-demo--hub-loud-re.md'
+  - '.tasks/completed/T-2454-claim-verbs-lack-caller-identity-binding.md'
+  - '.tasks/completed/T-2457-identity-binding-gap-below-the-verificat.md'
+  - '.tasks/completed/T-2459-post-idempotency-exactly-once-does-not-s.md'
+  - '.tasks/completed/T-2468-critical-review-of-termlink-purpose-goal.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-31T13:09:01"
+    action: "T-2469: wrap-up deadlock RCA — vendor drift (budget-gate missing 'context focus'); on-disk hotfix applied, PL-265, re-vendor recommended"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 4
+  lines_added: 199
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2469-wrap-up-deadlock-check-active-task-block.md
+generated_by: context-agent-hybrid

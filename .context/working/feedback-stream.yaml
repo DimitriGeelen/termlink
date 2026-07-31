@@ -5058,3 +5058,183 @@ scan_id: R-67209b53
 task_id: T-2467
 payload:
   task_file: .tasks/active/T-2467-correct-stale-121-ring20-dashboard-doc-c.md
+---
+kind: scan_emitted
+timestamp: '2026-07-31T11:00:46Z'
+scan_id: R-750009e1
+task_id: T-2454
+payload:
+  overall: CONCERN
+  finding_count: 3
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-31T11:00:46Z'
+scan_id: R-750009e1
+task_id: T-2454
+payload:
+  task_file: .tasks/active/T-2454-claim-verbs-lack-caller-identity-binding.md
+---
+kind: scan_emitted
+timestamp: '2026-07-31T11:00:49Z'
+scan_id: R-cb248f06
+task_id: T-2457
+payload:
+  overall: CONCERN
+  finding_count: 3
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-31T11:00:49Z'
+scan_id: R-cb248f06
+task_id: T-2457
+payload:
+  task_file: .tasks/active/T-2457-identity-binding-gap-below-the-verificat.md
+---
+kind: scan_emitted
+timestamp: '2026-07-31T11:00:56Z'
+scan_id: R-1495ff1c
+task_id: T-2459
+payload:
+  overall: CONCERN
+  finding_count: 3
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-31T11:00:56Z'
+scan_id: R-1495ff1c
+task_id: T-2459
+payload:
+  task_file: .tasks/active/T-2459-post-idempotency-exactly-once-does-not-s.md
+---
+kind: scan_emitted
+timestamp: '2026-07-31T11:01:02Z'
+scan_id: R-e5dd6731
+task_id: T-2468
+payload:
+  overall: CONCERN
+  finding_count: 3
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-31T11:01:02Z'
+scan_id: R-e5dd6731
+task_id: T-2468
+payload:
+  task_file: .tasks/active/T-2468-critical-review-of-termlink-purpose-goal.md
+---
+kind: scan_emitted
+timestamp: '2026-07-31T11:01:27Z'
+scan_id: R-50a040cb
+task_id: T-2224
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-31T11:01:27Z'
+scan_id: R-50a040cb
+task_id: T-2224
+payload:
+  task_file: .tasks/active/T-2224-substrate-backpressure-demo--hub-loud-re.md
+---
+kind: scan_emitted
+timestamp: '2026-07-31T11:09:25Z'
+scan_id: R-37fb256e
+task_id: T-2469
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-31T11:09:25Z'
+scan_id: R-37fb256e
+task_id: T-2469
+payload:
+  task_file: .tasks/active/T-2469-wrap-up-deadlock-check-active-task-block.md
+---
+kind: scan_emitted
+timestamp: '2026-07-31T11:51:25Z'
+scan_id: R-975283a3
+task_id: T-2472
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-31T11:51:25Z'
+scan_id: R-975283a3
+task_id: T-2472
+payload:
+  task_file: .tasks/active/T-2472-rca-obs-108-file-receive---replay-re-ser.md
+---
+kind: scan_emitted
+timestamp: '2026-07-31T11:55:10Z'
+scan_id: R-a4dd14ba
+task_id: T-2473
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-31T11:55:10Z'
+scan_id: R-a4dd14ba
+task_id: T-2473
+payload:
+  task_file: .tasks/active/T-2473-fix-obs-108-bug-1-file-receive---replay-.md
+---
+kind: scan_emitted
+timestamp: '2026-07-31T12:36:16Z'
+scan_id: R-59266316
+task_id: T-2474
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-31T12:36:16Z'
+scan_id: R-59266316
+task_id: T-2474
+payload:
+  task_file: .tasks/active/T-2474-deploy-obs-108-patched-termlink-binary-s.md
+---
+kind: scan_emitted
+timestamp: '2026-07-31T12:36:41Z'
+scan_id: R-2595cda9
+task_id: T-2475
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-07-31T12:36:41Z'
+scan_id: R-2595cda9
+task_id: T-2475
+payload:
+  task_file: .tasks/active/T-2475-fix-obs-108-mcp-parity--termlinkfilerece.md

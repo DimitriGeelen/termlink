@@ -4,16 +4,16 @@ name: "Critical review of TermLink purpose-goals — identify and prioritize gap
 description: >
   Inception: Critical review of TermLink purpose-goals — identify and prioritize gaps
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-07-31T10:47:59Z
-last_update: 2026-07-31T10:52:17Z
-date_finished: null
+last_update: 2026-07-31T11:01:01Z
+date_finished: 2026-07-31T11:01:01Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -117,15 +117,15 @@ upgrading off-reach hosts (.121/.141 — external/foothold-blocked).
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -198,7 +198,37 @@ round-trip, and live-across-fleet adoption. The correct response is to subtract
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO (staged subset — subtract-and-deepen, not build-everything)
+
+Rationale:
+
+Four parallel review dimensions converge on one verdict: TermLink over-built breadth
+while leaving its core promises incomplete — a legible purpose, a reliable comms
+round-trip, and live-across-fleet adoption. The correct response is to subtract
+(over-service) and deepen (the core), not add. Staged GO:
+
+- P1 (single charter): GO now — reconcile README vs ARCHITECTURE.md to one owned
+  one-sentence purpose. Doc-only, reversible, foundational. Human picks the sentence.
+- P4 (surface reduction): GO now, staged — retire the ~57 directive-untraceable
+  social-analytics MCP tools + ~30 never-read substrate observability surfaces; coordinate
+  with arc-005. Biggest concrete Usability/context win. Reversible via git.
+- P2 (consumption-confirmation / G-083) + P3 (shipped≠live gate + make-it-live primitive):
+  GO-to-inception — highest reliability value, need design; each its own single-question
+  inception.
+- P5: continue existing tracked work (T-2459 exactly-once, T-2371 WS degrade-to-poll).
+- P6 (collision detection / multi-tenant scope): DEFER pending a product decision.
+
+Evidence:
+
+- docs/reports/T-2468-termlink-purpose-review.md — full four-dimension findings + register.
+- IW-1: README.md:3 vs docs/ARCHITECTURE.md:3 (charter contradiction); 276 MCP tools, ~57 social-analytics.
+- IW-2: G-083 (wake→consume silent break), G-088/T-2459 (exactly-once), T-2371 (WS).
+- IW-3: `claims-summary work-queue` active=0 expired=1; `~/.termlink/{claims,find-idle,governor,queue}.log` absent.
+- IW-4: fleet-deploy-binary.sh single-host; concerns.yaml:282,299 (arc-closure gap open); G-069.
+
+**Date**: 2026-07-31T11:01:00Z
 
 ## Updates
 
@@ -207,3 +237,56 @@ round-trip, and live-across-fleet adoption. The correct response is to subtract
 
 ### 2026-07-31T10:48:22Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-07-31T11:01:00Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO (staged subset — subtract-and-deepen, not build-everything)
+
+Rationale:
+
+Four parallel review dimensions converge on one verdict: TermLink over-built breadth
+while leaving its core promises incomplete — a legible purpose, a reliable comms
+round-trip, and live-across-fleet adoption. The correct response is to subtract
+(over-service) and deepen (the core), not add. Staged GO:
+
+- P1 (single charter): GO now — reconcile README vs ARCHITECTURE.md to one owned
+  one-sentence purpose. Doc-only, reversible, foundational. Human picks the sentence.
+- P4 (surface reduction): GO now, staged — retire the ~57 directive-untraceable
+  social-analytics MCP tools + ~30 never-read substrate observability surfaces; coordinate
+  with arc-005. Biggest concrete Usability/context win. Reversible via git.
+- P2 (consumption-confirmation / G-083) + P3 (shipped≠live gate + make-it-live primitive):
+  GO-to-inception — highest reliability value, need design; each its own single-question
+  inception.
+- P5: continue existing tracked work (T-2459 exactly-once, T-2371 WS degrade-to-poll).
+- P6 (collision detection / multi-tenant scope): DEFER pending a product decision.
+
+Evidence:
+
+- docs/reports/T-2468-termlink-purpose-review.md — full four-dimension findings + register.
+- IW-1: README.md:3 vs docs/ARCHITECTURE.md:3 (charter contradiction); 276 MCP tools, ~57 social-analytics.
+- IW-2: G-083 (wake→consume silent break), G-088/T-2459 (exactly-once), T-2371 (WS).
+- IW-3: `claims-summary work-queue` active=0 expired=1; `~/.termlink/{claims,find-idle,governor,queue}.log` absent.
+- IW-4: fleet-deploy-binary.sh single-host; concerns.yaml:282,299 (arc-closure gap open); G-069.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-e5dd6731
+- **Timestamp:** 2026-07-31T11:01:02Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 3
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-3
+     - evidence: `IW-3 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  2. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-4
+     - evidence: `IW-4 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  3. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-5
+     - evidence: `IW-5 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+### 2026-07-31T11:01:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

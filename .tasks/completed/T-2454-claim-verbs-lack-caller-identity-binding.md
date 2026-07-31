@@ -4,16 +4,16 @@ name: "claim verbs lack caller-identity binding — ownership on spoofable claim
 description: >
   Inception: claim verbs lack caller-identity binding — ownership on spoofable claimer string (round-12 HIGH)
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-07-22T09:54:58Z
-last_update: 2026-07-22T09:58:52Z
-date_finished: null
+last_update: 2026-07-31T11:00:45Z
+date_finished: 2026-07-31T11:00:45Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -136,15 +136,15 @@ any change to the SQL state machine (verified correct this round).
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -220,7 +220,40 @@ Round-12 adversarial review confirmed a genuine hole in the coordination substra
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale:
+
+Round-12 adversarial review confirmed a genuine hole in the coordination substrate's core exclusive-ownership invariant: all five claim verbs (claim/renew/release/transfer/force-release) read claimer/by/to_owner as plain JSON params and enforce ownership against that spoofable string (channel.rs:1618, meta.rs:431/557/623), while channel.post properly binds identity via T-1427 signature (sender_id==fingerprint(pubkey), channel.rs:684). channel.claims exposes {claim_id,claimer} at Observe scope, so any Interact-scoped peer can release/transfer another agent's claim → double-grant (two workers process the same offset). Recommend GO to design the fix, but scope carefully: the correct fix is the T-1427 signature pattern applied to claim params (a protocol change across hub+session+cli+mcp), which is why this is an inception not a direct build. Decision (and GO-to-build) is the human's.
+
+Evidence:
+
+- `crates/termlink-hub/src/channel.rs:1618` — `handle_channel_release_with` reads
+  `claimer` from params; passes it verbatim to `bus.release_claim(claim_id,
+  claimer, ack)`. No connection identity threaded in (handler sig is `(bus, id,
+  params)`).
+- `crates/termlink-hub/src/channel.rs:684` — `channel.post` DOES bind identity:
+  `sender_id != fingerprint_of(verifying_key)` → `CHANNEL_IDENTITY_MISMATCH`
+  (T-1427). This is the pattern the claim verbs are missing.
+- `crates/termlink-bus/src/meta.rs:431/557/623` — ownership guards compare
+  `claimed_by != claimer` where `claimer` is the attacker-controlled param.
+- `channel.claims` is Observe-scoped (`server.rs:422`) and returns
+  `{claim_id, claimer}` (`meta.rs:669-679`) → the identifiers needed to spoof are
+  world-readable within the mesh.
+- Verified CLEAN this round (SQL state machine is sound): acquire atomicity
+  (DELETE-expired + INSERT in one tx under the meta mutex + `UNIQUE INDEX
+  idx_claims_topic_offset_active`, no TOCTOU); renew no-resurrect; TTL clamped to
+  1h (no permanent claim); release monotonic cursor advance; transfer atomic
+  (single UPDATE, lease preserved); force-release + transfer gated at Control
+  scope. The ONLY hole is the missing identity binding.
+- Secondary vector (separate task): MED-2 wall-clock lease expiry
+  (`meta.rs:826-831 now_unix_ms = SystemTime::now`) → an NTP forward step can
+  expire a live lease early → transient double-grant. Smaller, orthogonal fix.
+- Full write-up: `docs/reports/T-2454-claim-identity-binding-inception.md`.
+
+**Date**: 2026-07-31T11:00:45Z
 
 ## Updates
 
@@ -229,3 +262,59 @@ Round-12 adversarial review confirmed a genuine hole in the coordination substra
 
 ### 2026-07-22T09:56:57Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-07-31T11:00:45Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale:
+
+Round-12 adversarial review confirmed a genuine hole in the coordination substrate's core exclusive-ownership invariant: all five claim verbs (claim/renew/release/transfer/force-release) read claimer/by/to_owner as plain JSON params and enforce ownership against that spoofable string (channel.rs:1618, meta.rs:431/557/623), while channel.post properly binds identity via T-1427 signature (sender_id==fingerprint(pubkey), channel.rs:684). channel.claims exposes {claim_id,claimer} at Observe scope, so any Interact-scoped peer can release/transfer another agent's claim → double-grant (two workers process the same offset). Recommend GO to design the fix, but scope carefully: the correct fix is the T-1427 signature pattern applied to claim params (a protocol change across hub+session+cli+mcp), which is why this is an inception not a direct build. Decision (and GO-to-build) is the human's.
+
+Evidence:
+
+- `crates/termlink-hub/src/channel.rs:1618` — `handle_channel_release_with` reads
+  `claimer` from params; passes it verbatim to `bus.release_claim(claim_id,
+  claimer, ack)`. No connection identity threaded in (handler sig is `(bus, id,
+  params)`).
+- `crates/termlink-hub/src/channel.rs:684` — `channel.post` DOES bind identity:
+  `sender_id != fingerprint_of(verifying_key)` → `CHANNEL_IDENTITY_MISMATCH`
+  (T-1427). This is the pattern the claim verbs are missing.
+- `crates/termlink-bus/src/meta.rs:431/557/623` — ownership guards compare
+  `claimed_by != claimer` where `claimer` is the attacker-controlled param.
+- `channel.claims` is Observe-scoped (`server.rs:422`) and returns
+  `{claim_id, claimer}` (`meta.rs:669-679`) → the identifiers needed to spoof are
+  world-readable within the mesh.
+- Verified CLEAN this round (SQL state machine is sound): acquire atomicity
+  (DELETE-expired + INSERT in one tx under the meta mutex + `UNIQUE INDEX
+  idx_claims_topic_offset_active`, no TOCTOU); renew no-resurrect; TTL clamped to
+  1h (no permanent claim); release monotonic cursor advance; transfer atomic
+  (single UPDATE, lease preserved); force-release + transfer gated at Control
+  scope. The ONLY hole is the missing identity binding.
+- Secondary vector (separate task): MED-2 wall-clock lease expiry
+  (`meta.rs:826-831 now_unix_ms = SystemTime::now`) → an NTP forward step can
+  expire a live lease early → transient double-grant. Smaller, orthogonal fix.
+- Full write-up: `docs/reports/T-2454-claim-identity-binding-inception.md`.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-750009e1
+- **Timestamp:** 2026-07-31T11:00:46Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 3
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-1
+     - evidence: `IW-1 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  2. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-3
+     - evidence: `IW-3 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  3. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-1
+     - evidence: `IW-1 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+### 2026-07-31T11:00:45Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

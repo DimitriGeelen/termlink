@@ -4,20 +4,20 @@ name: "RCA OBS-108 file receive --replay re-serves earliest transfer + tautologi
 description: >
   OBS-108: termlink file receive --replay re-serves the same earliest historical transfer on every invocation (later transfers unreachable), AND prints 'SHA-256 verified' exit 0 on the wrong file (tautological digest check = false green). RCA the replay cursor bug + the integrity-check bug; remediate; incept structural fix if warranted. Peer 832 relayed via operator.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/file.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-31T11:34:16Z
-last_update: 2026-07-31T11:50:02Z
-date_finished: null
+last_update: 2026-07-31T11:50:42Z
+date_finished: 2026-07-31T11:50:42Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -228,3 +228,20 @@ tracked through T-1166 retirement.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2472-rca-obs-108-file-receive---replay-re-ser.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-975283a3
+- **Timestamp:** 2026-07-31T11:51:25Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **l387-sigpipe-risk** (partial, heuristic) @ Verification:line 32
+     - evidence: `cargo test -p termlink --bin termlink reconcile 2>&1 | grep -q '3 passed'`
+
+### 2026-07-31T11:50:42Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

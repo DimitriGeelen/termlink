@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2472: RCA OBS-108 file receive --replay re-serves earliest transfer + tautological SHA verify false-green
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-31T11:51:29Z
+# ============================================================================
+
+task_id: T-2472
+task_name: "RCA OBS-108 file receive --replay re-serves earliest transfer + tautological SHA verify false-green"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-31T11:34:16Z
+completed: 2026-07-31T11:50:42Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-31T13:50:01+02:00
+last_commit: 2026-07-31T13:50:01+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix OBS-108 file-receive false-green — --expected-sha256 loud-fail + honest labels (bug #2); RCA + G-089 + PL-266
+
+# Key outcomes
+outcomes:
+  - '`termlink file receive` accepts `--expected-sha256 <hex>`; when the served'
+  - 'When `--expected-sha256` matches, output reads `SHA-256 verified against expected: <hex>` and exits 0.'
+  - 'When `--expected-sha256` is ABSENT, the success line no longer claims a bare'
+  - 'RCA section below is filled; OBS-108 registered in `.context` (gap + learning).'
+  - 'A unit test covers the mismatch → non-zero-exit path; `cargo check -p termlink` is clean.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix OBS-108 file-receive false-green — --expected-sha256 loud-fail + honest labels (bug #2); RCA + G-089 + PL-266'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/concerns.yaml'
+  - '.context/project/learnings.yaml'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/file.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'docs/reports/OBS-108-file-receive-replay-rca.md'
+  - '.tasks/active/T-2472-rca-obs-108-file-receive---replay-re-ser.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-31T13:50:01"
+    action: "T-2472: fix OBS-108 file-receive false-green — --expected-sha256 loud-fail + honest labels (bug #2); RCA + G-089 + PL-266"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 16 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 16
+  commits: 1
+  files_changed: 7
+  lines_added: 628
+  lines_removed: 37
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2472-rca-obs-108-file-receive---replay-re-ser.md
+generated_by: context-agent-hybrid

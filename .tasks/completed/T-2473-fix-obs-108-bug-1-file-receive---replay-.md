@@ -4,20 +4,20 @@ name: "Fix OBS-108 bug #1 file receive --replay hardwired to oldest transfer —
 description: >
   OBS-108 bug #1 (separate from T-2472 bug #2): file receive --replay subscribes at cursor 0 then process_artifact_batch returns artifacts.first() = oldest, so replay is permanently stuck on the earliest transfer and later ones are unreachable. Minimal fix (retiring verb per T-1166): serve NEWEST artifact on replay instead of oldest + deprecation nudge to channel subscribe for full addressable history. Not building a rich transfer-id model into a dying primitive.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/file.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-31T11:52:07Z
-last_update: 2026-07-31T11:52:07Z
-date_finished: null
+last_update: 2026-07-31T11:54:25Z
+date_finished: 2026-07-31T11:54:25Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -193,3 +193,20 @@ retirement-track successor (T-1166); no transfer-id model is added to the dying 
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2473-fix-obs-108-bug-1-file-receive---replay-.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-a4dd14ba
+- **Timestamp:** 2026-07-31T11:55:10Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **l387-sigpipe-risk** (partial, heuristic) @ Verification:line 32
+     - evidence: `cargo test -p termlink --bin termlink select_newest 2>&1 | grep -q '2 passed'`
+
+### 2026-07-31T11:54:25Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2224: substrate BACKPRESSURE demo — hub loud-refuses at rate-limit/capacity (arc-001 #10 proof)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-31T11:01:31Z
+# ============================================================================
+
+task_id: T-2224
+task_name: "substrate BACKPRESSURE demo — hub loud-refuses at rate-limit/capacity (arc-001 #10 proof)"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-13T21:48:38Z
+completed: 2026-07-31T11:01:27Z
+duration_days: 48
+updates_count: 5
+first_commit: 2026-06-13T23:52:52+02:00
+last_commit: 2026-07-05T00:29:58+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  backpressure-demo feasibility NO-GO recommendation + PL-218 (peer_pid rate-bucket keying = PL-209 root mechanism). fill real ACs + C-001 research artifact — unblocks fw inception decide
+
+# Key outcomes
+outcomes:
+  - 'Rate-limit trigger path assessed from source: governor buckets key on `params.from` > `peer_addr` > `peer_pid` (server.rs:756) and `channel.post` never sets `params.from` (bus_client.rs::post_to_params), so sequential CLI posts each mint a fresh pid-keyed bucket — a shell demo structurally cannot accumulate to the limit (Recommendation §1)'
+  - 'HUB_AT_CAPACITY path assessed for smoke-gate fit: forceable via `TERMLINK_MAX_CONNECTIONS=N` + N+1 held subscribes, but capturing the Nth refusal in shell is timing-dependent — flaky-risk disqualifies it as a deterministic regression gate (Recommendation §2)'
+  - 'Existing-coverage audit: governor behavior already asserted by `governor.rs` unit tests (`rate_hits_total`, eviction) — a shell demo adds no coverage at that layer (Recommendation §3)'
+  - 'Recommendation section filled with NO-GO + three-point rationale + copy-pasteable Tier-0 decision route; no code shipped under this task'
+  - 'Investigation payoff captured as learning PL-218 (peer_pid keying is the PL-209 rate-bucket-bloat mechanism; identity-fingerprint keying named as the natural follow-up inception) — present in .context/project/learnings.yaml'
+  - '[RUBBER-STAMP] Record the inception decision (Tier-0, sovereignty-gated)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/learnings.yaml'
+  - 'docs/reports/T-2224-backpressure-demo-inception.md'
+  - '.tasks/active/T-2224-substrate-backpressure-demo--hub-loud-re.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-06-13T23:52:52"
+    action: "T-2224: backpressure-demo feasibility NO-GO recommendation + PL-218 (peer_pid rate-bucket keying = PL-209 root mechanism)"
+  - time: "2026-07-05T00:29:58"
+    action: "T-2224: fill real ACs + C-001 research artifact — unblocks fw inception decide"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 68472 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 68472
+  commits: 2
+  files_changed: 3
+  lines_added: 305
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2224-substrate-backpressure-demo--hub-loud-re.md
+generated_by: context-agent-hybrid

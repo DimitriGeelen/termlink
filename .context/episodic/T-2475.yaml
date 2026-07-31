@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2475: Fix OBS-108 MCP parity — termlink_file_receive has same false-green tautology (no receiver-expected-digest)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-31T12:36:44Z
+# ============================================================================
+
+task_id: T-2475
+task_name: "Fix OBS-108 MCP parity — termlink_file_receive has same false-green tautology (no receiver-expected-digest)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-31T12:16:32Z
+completed: 2026-07-31T12:36:31Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-07-31T14:23:44+02:00
+last_commit: 2026-07-31T14:36:31+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix OBS-108 MCP parity — termlink_file_receive gains expected_sha256 receiver check + honest provenance label; successor-path audit; G-089 update. finalize MCP parity task (verification + RCA + ACs)
+
+# Key outcomes
+outcomes:
+  - '`FileReceiveParams` gains `expected_sha256: Option<String>` (caller-supplied'
+  - 'When supplied and != actual, the tool returns a loud error (json_err naming'
+  - 'The success response labels the digest honestly (verified-against-expected vs'
+  - '`cargo check -p termlink-mcp` clean.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix OBS-108 MCP parity — termlink_file_receive gains expected_sha256 receiver check + honest provenance label; successor-path audit; G-089 update'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/concerns.yaml'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - 'docs/reports/OBS-108-successor-path-audit.md'
+  - '.tasks/active/T-2475-fix-obs-108-mcp-parity--termlinkfilerece.md'
+  - '.tasks/completed/T-2473-fix-obs-108-bug-1-file-receive---replay-.md'
+  - '.tasks/completed/T-2474-deploy-obs-108-patched-termlink-binary-s.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-31T14:23:44"
+    action: "T-2475: fix OBS-108 MCP parity — termlink_file_receive gains expected_sha256 receiver check + honest provenance label; successor-path audit; G-089 update"
+  - time: "2026-07-31T14:36:31"
+    action: "T-2475: finalize MCP parity task (verification + RCA + ACs)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 19 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 19
+  commits: 2
+  files_changed: 5
+  lines_added: 351
+  lines_removed: 29
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2475-fix-obs-108-mcp-parity--termlinkfilerece.md
+generated_by: context-agent-hybrid

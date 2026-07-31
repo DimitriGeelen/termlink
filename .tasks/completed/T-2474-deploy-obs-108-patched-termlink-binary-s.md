@@ -4,10 +4,10 @@ name: "Deploy OBS-108-patched termlink binary so --expected-sha256 + newest-repl
 description: >
   Build the release termlink binary carrying T-2472 (--expected-sha256 loud-fail) + T-2473 (replay newest) and install it on the operator's host (.107) so the OBS-108 fixes are actually usable. CLI-only change — no hub restart needed (file receive is client-side).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-31T12:11:07Z
-last_update: 2026-07-31T12:11:07Z
-date_finished: null
+last_update: 2026-07-31T12:36:15Z
+date_finished: 2026-07-31T12:36:15Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -187,3 +187,20 @@ grep -q 'select_newest_artifact' crates/termlink-cli/src/commands/file.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2474-deploy-obs-108-patched-termlink-binary-s.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-59266316
+- **Timestamp:** 2026-07-31T12:36:16Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **l387-sigpipe-risk** (partial, heuristic) @ Verification:line 31
+     - evidence: `termlink file receive --help 2>&1 | grep -q -- '--expected-sha256'`
+
+### 2026-07-31T12:36:15Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

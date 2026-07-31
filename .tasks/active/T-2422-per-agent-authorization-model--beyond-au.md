@@ -7,12 +7,12 @@ description: >
 status: captured
 workflow_type: inception
 owner: human
-horizon: now
+horizon: later
 tags: []
 components: []
 related_tasks: []
 created: 2026-07-19T21:04:04Z
-last_update: 2026-07-19T21:04:04Z
+last_update: 2026-07-31T11:01:29Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -72,15 +72,15 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -137,9 +137,34 @@ T-2419 review confirmed the gap (G-064: every authenticated caller has equal pri
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: DEFER
+
+**Rationale**: Recommendation: DEFER
+
+Rationale:
+
+T-2419 review confirmed the gap (G-064: every authenticated caller has equal privilege; 38 identity-confusion learnings) but the fix shape needs an operator threat-model decision: is termlink single-operator-trusted forever, or must it hold a boundary? Options range from per-agent signing keys (T-1693 design) + per-topic ACLs to keeping the current model and documenting the trust boundary loudly (done in T-2420 README). Revisit when a concrete multi-tenant or boundary-crossing use case exists.
+
+Evidence:
+
+**Date**: 2026-07-31T11:01:29Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-07-31T11:01:29Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** DEFER
+- **Rationale:** Recommendation: DEFER
+
+Rationale:
+
+T-2419 review confirmed the gap (G-064: every authenticated caller has equal privilege; 38 identity-confusion learnings) but the fix shape needs an operator threat-model decision: is termlink single-operator-trusted forever, or must it hold a boundary? Options range from per-agent signing keys (T-1693 design) + per-topic ACLs to keeping the current model and documenting the trust boundary loudly (done in T-2420 README). Revisit when a concrete multi-tenant or boundary-crossing use case exists.
+
+Evidence:
+
+### 2026-07-31T11:01:29Z — status-update [task-update-agent]
+- **Change:** horizon: now → later
+- **Reason:** Inception decision: DEFER — parking task

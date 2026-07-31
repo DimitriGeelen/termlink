@@ -4,16 +4,16 @@ name: "post-idempotency exactly-once does not survive a hub restart — dedupe L
 description: >
   Inception: post-idempotency exactly-once does not survive a hub restart — dedupe LRU is in-memory only, so a persisted offline-queue replay double-applies after restart or beyond the 5min TTL (round-14 F1); decide where restart-durable idempotency lives
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-07-22T18:34:49Z
-last_update: 2026-07-22T18:39:17Z
-date_finished: null
+last_update: 2026-07-31T11:00:55Z
+date_finished: 2026-07-31T11:00:55Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -159,15 +159,15 @@ open question); changing the 5-min in-lifetime TTL (orthogonal tuning).
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -240,7 +240,37 @@ Real documented-vs-real contract gap: ADR §5 says await-ack 'reuses dedupe → 
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale:
+
+Real documented-vs-real contract gap: ADR §5 says await-ack 'reuses dedupe → exactly-once' but the dedupe map is a process-global in-memory OnceLock (dedupe.rs:49) with a 5min TTL, while the offline queue durably persists client_msg_id and replays it verbatim after a hub restart (offline_queue.rs). Across a restart the replayed post double-applies — exactly-once is really 'exactly-once within one hub lifetime + TTL, at-least-once across restart'. The fix direction (persist dedupe vs correct the contract + require idempotent AEF completion-ledger consumer) spans the collaboration seam (§9 soft-dependency), so human owns the call. GO to decide the boundary.
+
+Evidence:
+
+- In-memory dedupe (no persistence): `crates/termlink-hub/src/dedupe.rs:34`
+  (`use std::sync::{Mutex, OnceLock}`), `:49` (`static POST_DEDUPE: OnceLock<PostDedupe>`),
+  `:141` (`map: Mutex<HashMap<(String,String), DedupeEntry>>`). TTL 5min at `:41`
+  (`DEFAULT_DEDUPE_TTL_MS = 300_000`); LRU capacity note `:26-27`. Nothing writes this
+  map to disk — it dies with the process.
+- Durable client-side replay of the SAME id: `crates/termlink-session/src/offline_queue.rs:44-48`
+  — `client_msg_id` is `#[serde]`-persisted with the queue row so "a flush-replay reuses
+  the SAME id and the hub recognises it"; `:4` "persisted to SQLite so they survive."
+  Mint-once at `:51-56`.
+- The overstated contract: ADR `docs/architecture/parallel-execution-substrate.md`
+  §5 — `--await-ack` "reuses dedupe + the receipt frontier … (T-2049 dedupe →
+  exactly-once)." True only within one hub lifetime + TTL.
+- Restart wipes the recogniser but not the offset: `dedupe.rs` module header lists
+  "hub bounce" as closed — it is not, across a process restart. Replay after wipe →
+  `try_record_or_lookup` returns `Newly` (`dedupe.rs:126`) → `bus.post` re-appends.
+- Relevant prior: PL-111 (restart-durable hub state belongs in runtime_dir),
+  PL-021 (volatile /tmp wipes runtime_dir — the persistence must go to the persistent
+  runtime_dir, not /tmp). T-2049 (the dedupe primitive), T-2286 (await-ack).
+- Full write-up: `docs/reports/T-2459-post-idempotency-restart-durability-inception.md`.
+
+**Date**: 2026-07-31T11:00:54Z
 
 ## Updates
 
@@ -249,3 +279,56 @@ Real documented-vs-real contract gap: ADR §5 says await-ack 'reuses dedupe → 
 
 ### 2026-07-22T18:35:12Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-07-31T11:00:54Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale:
+
+Real documented-vs-real contract gap: ADR §5 says await-ack 'reuses dedupe → exactly-once' but the dedupe map is a process-global in-memory OnceLock (dedupe.rs:49) with a 5min TTL, while the offline queue durably persists client_msg_id and replays it verbatim after a hub restart (offline_queue.rs). Across a restart the replayed post double-applies — exactly-once is really 'exactly-once within one hub lifetime + TTL, at-least-once across restart'. The fix direction (persist dedupe vs correct the contract + require idempotent AEF completion-ledger consumer) spans the collaboration seam (§9 soft-dependency), so human owns the call. GO to decide the boundary.
+
+Evidence:
+
+- In-memory dedupe (no persistence): `crates/termlink-hub/src/dedupe.rs:34`
+  (`use std::sync::{Mutex, OnceLock}`), `:49` (`static POST_DEDUPE: OnceLock<PostDedupe>`),
+  `:141` (`map: Mutex<HashMap<(String,String), DedupeEntry>>`). TTL 5min at `:41`
+  (`DEFAULT_DEDUPE_TTL_MS = 300_000`); LRU capacity note `:26-27`. Nothing writes this
+  map to disk — it dies with the process.
+- Durable client-side replay of the SAME id: `crates/termlink-session/src/offline_queue.rs:44-48`
+  — `client_msg_id` is `#[serde]`-persisted with the queue row so "a flush-replay reuses
+  the SAME id and the hub recognises it"; `:4` "persisted to SQLite so they survive."
+  Mint-once at `:51-56`.
+- The overstated contract: ADR `docs/architecture/parallel-execution-substrate.md`
+  §5 — `--await-ack` "reuses dedupe + the receipt frontier … (T-2049 dedupe →
+  exactly-once)." True only within one hub lifetime + TTL.
+- Restart wipes the recogniser but not the offset: `dedupe.rs` module header lists
+  "hub bounce" as closed — it is not, across a process restart. Replay after wipe →
+  `try_record_or_lookup` returns `Newly` (`dedupe.rs:126`) → `bus.post` re-appends.
+- Relevant prior: PL-111 (restart-durable hub state belongs in runtime_dir),
+  PL-021 (volatile /tmp wipes runtime_dir — the persistence must go to the persistent
+  runtime_dir, not /tmp). T-2049 (the dedupe primitive), T-2286 (await-ack).
+- Full write-up: `docs/reports/T-2459-post-idempotency-restart-durability-inception.md`.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-1495ff1c
+- **Timestamp:** 2026-07-31T11:00:56Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 3
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-1
+     - evidence: `IW-1 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  2. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-1
+     - evidence: `IW-1 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  3. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-3
+     - evidence: `IW-3 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+### 2026-07-31T11:00:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

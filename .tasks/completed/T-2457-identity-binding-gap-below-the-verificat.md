@@ -4,16 +4,16 @@ name: "identity-binding gap below the verification boundary — coordination/gov
 description: >
   Inception: identity-binding gap below the verification boundary — coordination/governance state keyed on unverified params (round-13 class: cv_index Q1 HIGH + rate-limit Q2 MED, generalizes T-2454)
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-07-22T18:02:27Z
-last_update: 2026-07-22T18:06:43Z
-date_finished: null
+last_update: 2026-07-31T11:00:48Z
+date_finished: 2026-07-31T11:00:48Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -140,15 +140,15 @@ model (documented ADR §7 deviation, its own inception); the SQL claim state mac
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -220,7 +220,36 @@ Round-13 adversarial review found two NEW instances (cv_index cv_key presence-sp
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale:
+
+Round-13 adversarial review found two NEW instances (cv_index cv_key presence-spoof HIGH; governor rate-limit bucket spoof/evade MED) of the SAME root as T-2454's claim finding: coordination/governance guards compare against unverified request params (cv_key, from/sender_id) because they run below/before channel.post's T-1427 signature verification. Each naive per-instance fix hits a real tension (cv_key==sender_id breaks arbitrary-key broadcast-replay #9; connection-keying the rate limiter regresses PL-218 bucket bloat). The shared question — where the verification boundary belongs for governance/coordination state — should be decided once and parameterize all three instance builds. GO to design; human owns the arc-011 threat-model call (same IW as T-2454).
+
+Evidence:
+
+- Instance B (cv_index, HIGH): `crates/termlink-hub/src/channel.rs:793-797` —
+  `cv_index::record(&topic, cv_key, offset)` from `env.metadata.get("cv_key")` with
+  no identity check. `channel.rs:696-698` — metadata explicitly excluded from the
+  signed bytes. `crates/termlink-hub/src/cv_index.rs:106,215` — monotonic-max,
+  one-offset-per-key (A's higher offset evicts B's key). Contrast the bound path at
+  `channel.rs:684` (`sender_id != expected_fp` → CHANNEL_IDENTITY_MISMATCH).
+- Instance C (governor, MED): `crates/termlink-hub/src/governor.rs:98-109`
+  (`derive_sender_key` precedence `from`→`sender_id`→`peer_addr`→`peer_pid`), charged
+  at `crates/termlink-hub/src/server.rs:1149` before the post handler's verify.
+  Fresh-full-bucket mint at `governor.rs:266`. PL-218/PL-209 (380K-bucket bloat) is
+  why the naive connection-key fix regresses — the `from`-first order was the T-2432
+  fix.
+- Instance A (claim, HIGH): T-2454 + `docs/reports/T-2454-claim-identity-binding-inception.md`
+  (already filed; this inception generalizes it).
+- CLEAN (verified this round): receipt frontier / await-ack identity-bound
+  (`crates/termlink-session/src/ack_retry.rs:107`); the one LOW receding-frontier
+  quirk was fixed as T-2456 (commit a9064ff8, 434 hub tests green).
+- Full write-up: `docs/reports/T-2457-identity-binding-below-verification-boundary-inception.md`.
+
+**Date**: 2026-07-31T11:00:48Z
 
 ## Updates
 
@@ -229,3 +258,55 @@ Round-13 adversarial review found two NEW instances (cv_index cv_key presence-sp
 
 ### 2026-07-22T18:03:27Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-07-31T11:00:48Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale:
+
+Round-13 adversarial review found two NEW instances (cv_index cv_key presence-spoof HIGH; governor rate-limit bucket spoof/evade MED) of the SAME root as T-2454's claim finding: coordination/governance guards compare against unverified request params (cv_key, from/sender_id) because they run below/before channel.post's T-1427 signature verification. Each naive per-instance fix hits a real tension (cv_key==sender_id breaks arbitrary-key broadcast-replay #9; connection-keying the rate limiter regresses PL-218 bucket bloat). The shared question — where the verification boundary belongs for governance/coordination state — should be decided once and parameterize all three instance builds. GO to design; human owns the arc-011 threat-model call (same IW as T-2454).
+
+Evidence:
+
+- Instance B (cv_index, HIGH): `crates/termlink-hub/src/channel.rs:793-797` —
+  `cv_index::record(&topic, cv_key, offset)` from `env.metadata.get("cv_key")` with
+  no identity check. `channel.rs:696-698` — metadata explicitly excluded from the
+  signed bytes. `crates/termlink-hub/src/cv_index.rs:106,215` — monotonic-max,
+  one-offset-per-key (A's higher offset evicts B's key). Contrast the bound path at
+  `channel.rs:684` (`sender_id != expected_fp` → CHANNEL_IDENTITY_MISMATCH).
+- Instance C (governor, MED): `crates/termlink-hub/src/governor.rs:98-109`
+  (`derive_sender_key` precedence `from`→`sender_id`→`peer_addr`→`peer_pid`), charged
+  at `crates/termlink-hub/src/server.rs:1149` before the post handler's verify.
+  Fresh-full-bucket mint at `governor.rs:266`. PL-218/PL-209 (380K-bucket bloat) is
+  why the naive connection-key fix regresses — the `from`-first order was the T-2432
+  fix.
+- Instance A (claim, HIGH): T-2454 + `docs/reports/T-2454-claim-identity-binding-inception.md`
+  (already filed; this inception generalizes it).
+- CLEAN (verified this round): receipt frontier / await-ack identity-bound
+  (`crates/termlink-session/src/ack_retry.rs:107`); the one LOW receding-frontier
+  quirk was fixed as T-2456 (commit a9064ff8, 434 hub tests green).
+- Full write-up: `docs/reports/T-2457-identity-binding-below-verification-boundary-inception.md`.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-cb248f06
+- **Timestamp:** 2026-07-31T11:00:49Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 3
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-1
+     - evidence: `IW-1 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  2. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-1
+     - evidence: `IW-1 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  3. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-2
+     - evidence: `IW-2 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+### 2026-07-31T11:00:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

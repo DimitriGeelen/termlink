@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2459: post-idempotency exactly-once does not survive a hub restart — dedupe LRU is in-memory only, so a persisted offline-queue replay double-applies after restart or beyond the 5min TTL (round-14 F1); decide where restart-durable idempotency lives
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-07-31T11:01:01Z
+# ============================================================================
+
+task_id: T-2459
+task_name: "post-idempotency exactly-once does not survive a hub restart — dedupe LRU is in-memory only, so a persisted offline-queue replay double-applies after restart or beyond the 5min TTL (round-14 F1); decide where restart-durable idempotency lives"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-22T18:34:49Z
+completed: 2026-07-31T11:00:55Z
+duration_days: 9
+updates_count: 2
+first_commit: 2026-07-22T20:39:16+02:00
+last_commit: 2026-07-22T20:39:16+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  incept post-idempotency restart-durability gap — dedupe recogniser is in-memory while client replays client_msg_id durably, so exactly-once breaks across a hub restart / >5min blip (round-14 F1); register G-088; capture F4 (T-2460, panic connection-leak, LOW); PL-261 (fast-path must exclude every lossy state)
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/concerns.yaml'
+  - '.context/project/learnings.yaml'
+  - 'docs/reports/T-2459-post-idempotency-restart-durability-inception.md'
+  - '.tasks/active/T-2459-post-idempotency-exactly-once-does-not-s.md'
+  - '.tasks/active/T-2460-connectionsactive-gauge-and-governor-slo.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-07-22T20:39:16"
+    action: "T-2459: incept post-idempotency restart-durability gap — dedupe recogniser is in-memory while client replays client_msg_id durably, so exactly-once breaks across a hub restart / >5min blip (round-14 F1); register G-088; capture F4 (T-2460, panic connection-leak, LOW); PL-261 (fast-path must exclude every lossy state)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 12506 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 12506
+  commits: 1
+  files_changed: 5
+  lines_added: 586
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2459-post-idempotency-exactly-once-does-not-s.md
+generated_by: context-agent-hybrid

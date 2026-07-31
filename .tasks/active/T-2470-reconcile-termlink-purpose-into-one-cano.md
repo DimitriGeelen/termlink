@@ -6,7 +6,7 @@ description: >
 
 status: started-work
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-31T11:11:06Z
-last_update: 2026-07-31T12:31:04Z
+last_update: 2026-07-31T12:33:55Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -198,3 +198,6 @@ test $(grep -lF "the coordination substrate that lets a fleet of AI agents" READ
 ### 2026-07-31T12:31:04Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-07-31T12:33:55Z — status-update [task-update-agent]
+- **Change:** owner: agent → human
