@@ -9570,6 +9570,12 @@ pub struct FileReceiveParams {
     pub target: String,
     /// Directory to write the received file into (must exist)
     pub output_dir: String,
+    /// Optional: independently verify the received file against an EXPECTED sha256
+    /// hex digest (T-2475/OBS-108). On mismatch the tool returns an error (never
+    /// ok:true). Without it, the tool only checks bytes against the SENDER's declared
+    /// digest (transit integrity), which cannot detect a wrong/older transfer.
+    #[serde(default)]
+    pub expected_sha256: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -13910,19 +13916,19 @@ impl TermLinkTools {
             ));
         }
 
-        // Find the file.complete event for SHA-256 verification
-        let mut expected_sha256: Option<String> = None;
+        // Find the file.complete event for the SENDER-declared digest (transit integrity).
+        let mut sender_sha256: Option<String> = None;
         for event in events.iter() {
             let topic = event["topic"].as_str().unwrap_or("");
             if topic == file_topic::COMPLETE
                 && let Ok(complete) = serde_json::from_value::<FileComplete>(event["payload"].clone())
                 && complete.transfer_id == init.transfer_id
             {
-                expected_sha256 = Some(complete.sha256);
+                sender_sha256 = Some(complete.sha256);
             }
         }
 
-        let expected_sha256 = match expected_sha256 {
+        let sender_sha256 = match sender_sha256 {
             Some(s) => s,
             None => return json_err(format!("no file.complete event for transfer {}", init.transfer_id)),
         };
@@ -13936,16 +13942,36 @@ impl TermLinkTools {
             }
         }
 
-        // Verify SHA-256
+        // Compute the ACTUAL digest of the received bytes.
         let mut hasher = Sha256::new();
         hasher.update(&file_data);
         let actual_sha256 = format!("{:x}", hasher.finalize());
 
-        if actual_sha256 != expected_sha256 {
+        // Transit integrity: bytes must match the SENDER's declared digest.
+        if actual_sha256 != sender_sha256 {
             return json_err(format!(
-                "SHA-256 mismatch — expected {expected_sha256}, got {actual_sha256}"
+                "SHA-256 transit mismatch — sender declared {sender_sha256}, received bytes hash to {actual_sha256}"
             ));
         }
+
+        // T-2475 (OBS-108 parity): if the CALLER supplied an EXPECTED digest, verify
+        // the received bytes against IT and fail loud on mismatch. The sender-declared
+        // check above cannot detect a wrong/older transfer (it is self-consistent);
+        // only a receiver-supplied expectation can. Without one, `sha256_verified` is
+        // false and the label states the digest is sender-declared, NOT verified.
+        let sha256_verified = if let Some(exp) = p.expected_sha256.as_deref() {
+            let exp = exp.trim().to_lowercase();
+            if exp != actual_sha256 {
+                return json_err(format!(
+                    "SHA-256 MISMATCH — expected {exp}, received file hashes to {actual_sha256}. \
+                     Not accepting: the served bytes are NOT the file you expected (OBS-108). \
+                     For addressable history use channel subscribe."
+                ));
+            }
+            true
+        } else {
+            false
+        };
 
         // Write file
         let dest = out_path.join(&init.filename);
@@ -13960,6 +13986,8 @@ impl TermLinkTools {
             "path": dest.display().to_string(),
             "size": file_data.len(),
             "sha256": actual_sha256,
+            "sha256_verified": sha256_verified,
+            "sha256_provenance": if sha256_verified { "verified-against-expected" } else { "sender-declared (pass expected_sha256 to verify)" },
             "transfer_id": init.transfer_id,
         });
         serde_json::to_string_pretty(&response).unwrap_or_else(json_err)

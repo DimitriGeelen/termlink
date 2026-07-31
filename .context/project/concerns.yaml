@@ -36,7 +36,20 @@ concerns:
   related_tasks:
   - T-2472
   - T-2473
+  - T-2475
   - T-1166
+  update_2026_07_31: 'Successor-path audit done (docs/reports/OBS-108-successor-path-audit.md).
+    VERDICT: the content-addressed channel successor path does NOT inherit the false-green — channel post has
+    no --file and channel subscribe never writes to disk, so the only artifact-to-file consumer is the CLI
+    `file receive` verb, which now carries BOTH transit integrity (download_artifact_via_client, bytes==content-address)
+    AND the receiver-expected-digest seam (reconcile_expected_sha256, T-2472). Bug #1 wrong-selection analogue
+    also absent (select_newest_artifact, T-2473). So G-089''s ORIGINAL close-condition (successor clean) is met.
+    BUT the audit surfaced a SIBLING instance of the SAME class on a different surface: the MCP tool
+    termlink_file_receive (tools.rs:13706-13966) sourced expected_sha256 from the SENDER''s file.complete event and
+    compared to bytes recomputed from that same payload — a sender-declared transit check masquerading as
+    verification, with no caller-supplied field. Fixing under T-2475 (add expected_sha256 to FileReceiveParams +
+    loud receiver-vs-actual compare + honest sha256_provenance label). GAP STAYS OPEN until T-2475 ships +
+    deploys, then close — the class is not fully dead while the MCP surface still false-greens.'
 - id: G-088
   type: gap
   title: post-idempotency exactly-once does not survive a hub restart — the dedupe recogniser is in-memory
