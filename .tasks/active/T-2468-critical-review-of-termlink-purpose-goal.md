@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-07-31T10:47:59Z
-last_update: 2026-07-31T10:48:22Z
+last_update: 2026-07-31T10:52:17Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -57,43 +57,35 @@ the right moment to ask "is what we built the right thing, and is it whole?"
 ## Open Questions
 
 - **IW-1: Purpose–reality alignment — does the built system serve its stated goals?**
-  What are TermLink's canonical, written purpose/goal statements (ADR, FRAMEWORK.md,
-  README, constitutional directives), and where does the implementation measurably
-  under- or over-serve them?
-  confidence: 1
-  disposition: <answered|deferred|dissolved>
-  rationale: <filled during exploration>
+  confidence: 3
+  disposition: answered
+  rationale: Two unreconciled charters (README.md:3 vs docs/ARCHITECTURE.md:3); Four
+  Directives are AEF's not TermLink's; ~21% MCP over-service; core job (collision detection)
+  unbuilt. See docs/reports/T-2468 §IW-1.
 
-- **IW-2: Comms rail (the doorbell replacement) — is the round-trip actually reliable end-to-end?**
-  The core value prop is guaranteed cross-agent comms. Write is guaranteed; the
-  round-trip (deliver → wake → ack) is not (per project_comms_loud_contract, T-2285
-  ack-with-retry gap, T-2385/86/87 remnants). What are the remaining reliability holes
-  and which are load-bearing?
-  confidence: 1
-  disposition: <answered|deferred|dissolved>
-  rationale: <filled during exploration>
+- **IW-2: Comms rail — is the round-trip actually reliable end-to-end?**
+  confidence: 3
+  disposition: answered
+  rationale: DELIVER guaranteed, WAKE best-effort, CONSUME silently breaks (G-083), ACK
+  observable+retry only via --await-ack. Round-trip NOT end-to-end guaranteed. §IW-2.
 
 - **IW-3: Coordination substrate — coherent and used, or over-built?**
-  Claims / find-idle / governor / queue / cv-index and their ~273 MCP tools + slash
-  verbs: is this coherent and actually exercised, or is there directive-untraceable
-  bloat (arc-005: ~39k tokens/agent)? Where is the complexity/value line?
-  confidence: 1
-  disposition: <answered|deferred|dissolved>
-  rationale: <filled during exploration>
+  confidence: 3
+  disposition: answered
+  rationale: Over-built. ~1 lifetime real claim (expired); --log/history verbs read
+  never-written files; ~30 surfaces zero reads; only offline-queue #5 shows real use. §IW-3.
 
-- **IW-4: Adoption / portability / "shipped ≠ live" — is what we built actually running?**
-  G-069 recurs (stale/dark binaries, 0-wakers-fleet-wide, shipped≠live). Is there a
-  structural adoption/deploy gap between "merged" and "capability-live across the
-  fleet," and does the portability directive (MCP/standards, no lock-in) hold?
-  confidence: 1
-  disposition: <answered|deferred|dissolved>
-  rationale: <filled during exploration>
+- **IW-4: Adoption / "shipped ≠ live" — is what we built actually running?**
+  confidence: 3
+  disposition: answered
+  rationale: Release half automated, fleet-adoption half fully manual/per-host/foothold-gated;
+  no make-it-live primitive; arc closure lacks capability-live gate. 11 canaries = symptom. §IW-4.
 
-- **IW-5: Which gaps warrant action, at what priority, and which are agent-scoped vs need human GO?**
-  Synthesis question — the gap register + per-gap recommendation is the deliverable.
-  confidence: 0
-  disposition: <answered|deferred|dissolved>
-  rationale: <filled during synthesis>
+- **IW-5: Which gaps warrant action, at what priority, agent-scoped vs human GO?**
+  confidence: 3
+  disposition: answered
+  rationale: Prioritized register P1..P6 produced; staged-GO recommendation (P1 charter + P4
+  surface-reduction now; P2/P3 to inception; P5 continue; P6 defer). §Prioritized gap register.
 
 ## Exploration Plan
 
@@ -165,17 +157,33 @@ upgrading off-reach hosts (.121/.141 — external/foothold-blocked).
 
 ## Recommendation
 
-**Recommendation:** DEFER
+**Recommendation:** GO (staged subset — subtract-and-deepen, not build-everything)
 
 **Rationale:**
 
-Exploration-first inception: gather evidence on purpose-vs-reality divergence across comms rail, coordination substrate, reliability/observability, and adoption/portability before recommending per-gap GO/NO-GO. No build authorized until the gap register is produced and reviewed.
+Four parallel review dimensions converge on one verdict: TermLink over-built *breadth*
+while leaving its *core promises* incomplete — a legible purpose, a reliable comms
+round-trip, and live-across-fleet adoption. The correct response is to subtract
+(over-service) and deepen (the core), not add. Staged GO:
+
+- **P1 (single charter): GO now** — reconcile README vs ARCHITECTURE.md to one owned
+  one-sentence purpose. Doc-only, reversible, foundational. Human picks the sentence.
+- **P4 (surface reduction): GO now, staged** — retire the ~57 directive-untraceable
+  social-analytics MCP tools + ~30 never-read substrate observability surfaces; coordinate
+  with arc-005. Biggest concrete Usability/context win. Reversible via git.
+- **P2 (consumption-confirmation / G-083) + P3 (shipped≠live gate + make-it-live primitive):
+  GO-to-inception** — highest reliability value, need design; each its own single-question
+  inception.
+- **P5:** continue existing tracked work (T-2459 exactly-once, T-2371 WS degrade-to-poll).
+- **P6 (collision detection / multi-tenant scope): DEFER** pending a product decision.
 
 **Evidence:**
 
-<!-- Add evidence bullets as exploration progresses (file paths,
-     commit hashes, test results). The filing-time recommendation
-     can be revised before fw inception decide. -->
+- docs/reports/T-2468-termlink-purpose-review.md — full four-dimension findings + register.
+- IW-1: README.md:3 vs docs/ARCHITECTURE.md:3 (charter contradiction); 276 MCP tools, ~57 social-analytics.
+- IW-2: G-083 (wake→consume silent break), G-088/T-2459 (exactly-once), T-2371 (WS).
+- IW-3: `claims-summary work-queue` active=0 expired=1; `~/.termlink/{claims,find-idle,governor,queue}.log` absent.
+- IW-4: fleet-deploy-binary.sh single-host; concerns.yaml:282,299 (arc-closure gap open); G-069.
 
 ## Decisions
 
