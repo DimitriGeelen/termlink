@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-31T12:16:32Z
-last_update: 2026-07-31T12:16:32Z
+last_update: 2026-07-31T12:23:45Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,10 +34,6 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
-
-## Context
-
 Successor-path audit (`docs/reports/OBS-108-successor-path-audit.md`) found the MCP
 tool `termlink_file_receive` (tools.rs:13706-13966) carries the same OBS-108
 false-green as the old CLI verb: `expected_sha256` is read from the SENDER's
@@ -49,14 +45,14 @@ as T-2472; independent MCP surface → its own task.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `FileReceiveParams` gains `expected_sha256: Option<String>` (caller-supplied
+- [x] `FileReceiveParams` gains `expected_sha256: Option<String>` (caller-supplied
       receiver expectation).
-- [ ] When supplied and != actual, the tool returns a loud error (json_err naming
+- [x] When supplied and != actual, the tool returns a loud error (json_err naming
       MISMATCH), never `ok:true` — the sender-declared check remains as transit
       integrity but no longer masquerades as receiver verification.
-- [ ] The success response labels the digest honestly (verified-against-expected vs
+- [x] The success response labels the digest honestly (verified-against-expected vs
       sender-declared) so `ok:true` never implies an independent check that didn't happen.
-- [ ] `cargo check -p termlink-mcp` clean.
+- [x] `cargo check -p termlink-mcp` clean.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -121,22 +117,33 @@ as T-2472; independent MCP surface → its own task.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+cargo check -p termlink-mcp 2>&1 | tail -1
+grep -q 'pub expected_sha256: Option<String>' crates/termlink-mcp/src/tools.rs
+grep -q 'sha256_provenance' crates/termlink-mcp/src/tools.rs
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** the MCP tool `termlink_file_receive` reported `ok:true` with a
+`sha256` field on a received transfer without ever verifying it against a
+caller-supplied expectation — the same false-green class as OBS-108 bug #2, on the
+agent-facing surface.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** `expected_sha256` was sourced from the SENDER's own `file.complete`
+event (tools.rs:13921) and compared to bytes recomputed from that same transfer
+(tools.rs:13944). That is a self-consistent transit check (bytes == sender's
+declared digest); it can never detect "a different/older transfer than the one the
+caller wanted". `FileReceiveParams` had no field for the caller to assert an
+expected digest.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** the tool was authored as a mirror of the legacy CLI
+event-stream path, which had the same defect; the false-green propagated to the MCP
+twin because both trusted the sender's declaration as if it were verification.
+
+**Prevention:** `FileReceiveParams.expected_sha256: Option<String>` lets the caller
+assert the receiver's expectation; mismatch returns a loud `json_err` (never
+`ok:true`); the response carries `sha256_verified` + `sha256_provenance` so
+`ok:true` no longer implies an independent check. Class now tracked to closure via
+G-089; sibling CLI fix is T-2472.
 
 ## Evolution
 
