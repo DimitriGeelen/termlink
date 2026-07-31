@@ -613,8 +613,8 @@ async fn main() -> Result<()> {
             FileAction::Send { target, path, chunk_size, json, timeout } => {
                 commands::file::cmd_file_send(&target, &path, chunk_size, json, timeout).await
             }
-            FileAction::Receive { target, output_dir, timeout, interval, replay, json } => {
-                commands::file::cmd_file_receive(&target, &output_dir, timeout, interval, replay, json).await
+            FileAction::Receive { target, output_dir, timeout, interval, replay, expected_sha256, json } => {
+                commands::file::cmd_file_receive(&target, &output_dir, timeout, interval, replay, expected_sha256.as_deref(), json).await
             }
         },
         Command::Remote { action } => match action {

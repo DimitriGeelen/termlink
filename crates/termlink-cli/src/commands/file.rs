@@ -95,11 +95,11 @@ pub(crate) fn calculate_chunks(file_size: usize, chunk_size: usize) -> (usize, u
 /// T-1249: Try to send via the new `channel.post` + `artifact.put` path.
 ///
 /// Returns:
-/// - `Ok(Some((offset, path)))` — sent successfully on the new path.
-/// - `Ok(None)` — peer hub advertises neither artifact.put nor channel.post
+/// - `Ok(Some((offset, path)))` -- sent successfully on the new path.
+/// - `Ok(None)` -- peer hub advertises neither artifact.put nor channel.post
 ///   in a way the helper can use; caller should fall back to the legacy
 ///   3-phase event-emit path.
-/// - `Err(_)` — transport/connect/auth error talking to the local hub
+/// - `Err(_)` -- transport/connect/auth error talking to the local hub
 ///   socket; caller may also fall back.
 async fn try_send_via_artifact(
     hub_socket: &std::path::Path,
@@ -146,7 +146,7 @@ async fn try_send_via_artifact(
         } => {
             // Defensive sanity: helper hashes itself; the caller-computed sha256
             // and the helper-returned sha256 must agree. Mismatch would indicate
-            // a sha2 implementation bug — surface loudly.
+            // a sha2 implementation bug -- surface loudly.
             if sha256 != expected_sha256 {
                 anyhow::bail!(
                     "artifact sha256 mismatch (helper={sha256}, caller={expected_sha256})"
@@ -162,11 +162,11 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
     use base64::Engine;
     use sha2::{Digest, Sha256};
 
-    // T-989: Resolve delivery route — direct to session, or via hub (enables inbox)
+    // T-989: Resolve delivery route -- direct to session, or via hub (enables inbox)
     let route = match manager::find_session(target) {
         Ok(r) => DeliveryRoute::Direct(r.socket_path().to_path_buf()),
         Err(_) => {
-            // Session not found locally — try hub fallback
+            // Session not found locally -- try hub fallback
             let (_, hub_socket) = super::infrastructure::resolve_hub_paths();
             if hub_socket.exists() {
                 if !json {
@@ -258,14 +258,14 @@ pub(crate) async fn cmd_file_send(target: &str, path: &str, chunk_size: usize, j
             Ok(None) => {
                 tracing::debug!(
                     target = %target,
-                    "T-1249: hub doesn't advertise artifact.put — falling back to legacy events"
+                    "T-1249: hub doesn't advertise artifact.put -- falling back to legacy events"
                 );
             }
             Err(e) => {
                 tracing::warn!(
                     target = %target,
                     error = %e,
-                    "T-1249: new-path send failed — falling back to legacy events"
+                    "T-1249: new-path send failed -- falling back to legacy events"
                 );
             }
         }
@@ -404,14 +404,14 @@ struct RecvSummary {
 /// T-1250: Try to receive via the new `channel.subscribe` + `artifact.get` path.
 ///
 /// Returns:
-/// - `Ok(Some(summary))` — artifact received successfully, written to disk.
-/// - `Ok(None)` — peer hub doesn't advertise `channel.subscribe`; caller
+/// - `Ok(Some(summary))` -- artifact received successfully, written to disk.
+/// - `Ok(None)` -- peer hub doesn't advertise `channel.subscribe`; caller
 ///   should fall back to the legacy event-stream reassembly path.
-/// - `Err(_)` — transport, protocol, sha-mismatch, or timeout-with-cap-present.
+/// - `Err(_)` -- transport, protocol, sha-mismatch, or timeout-with-cap-present.
 ///
 /// Note: when the hub advertises `channel.subscribe`, this consumes the full
 /// `timeout`. A legacy-only sender concurrent with a new-capable hub will
-/// only be picked up after fallthrough — worst-case 2× wait during migration.
+/// only be picked up after fallthrough -- worst-case 2× wait during migration.
 async fn try_recv_via_artifact(
     hub_socket: &std::path::Path,
     target: &str,
@@ -533,12 +533,63 @@ async fn process_artifact_batch(
     Ok(None)
 }
 
+/// T-2472 (OBS-108): reconcile a received file's ACTUAL sha256 against an
+/// operator-supplied EXPECTED digest and return the honest human-readable label
+/// for the sha line.
+///
+/// - `expected = Some(x)` and `x == actual` → `Ok("SHA-256 verified against expected: …")`.
+/// - `expected = Some(x)` and `x != actual` → `Err(..)` -- a LOUD failure the caller must
+///   surface with a non-zero exit. This is the receiver's "on mismatch, don't re-pin,
+///   tell me" contract; it is the check that was structurally missing (the old code only
+///   ever compared bytes against their OWN or the SENDER's digest, never the receiver's).
+/// - `expected = None` → `Ok(label)` where the label states the digest's PROVENANCE
+///   (computed-from-received-bytes / sender-manifest) and deliberately avoids the word
+///   "verified", because no independent verification was performed.
+///
+/// `expected` is trimmed and lower-cased before comparison; `actual` is assumed to already
+/// be lower-case hex (as produced by `format!("{:x}", Sha256::finalize())`).
+fn reconcile_expected_sha256(actual: &str, expected: Option<&str>, via: &str) -> Result<String> {
+    match expected {
+        Some(exp) => {
+            let exp = exp.trim().to_lowercase();
+            if exp != actual {
+                anyhow::bail!(
+                    "SHA-256 MISMATCH: expected {exp}, received file hashes to {actual} \
+                     (via {via}). Not re-pinning -- the served bytes are NOT the file you \
+                     expected. (OBS-108: `file receive --replay` can re-serve an older \
+                     transfer; confirm the sender exposed a pullable ref, or use \
+                     `channel subscribe` for addressable history.)"
+                );
+            }
+            Ok(format!("SHA-256 verified against expected: {actual}"))
+        }
+        None => {
+            let provenance = match via {
+                "channel.inline" => {
+                    "computed from received bytes, NOT independently verified \
+                     (pass --expected-sha256 to verify)"
+                }
+                "channel.artifact" | "channel.artifact.skip-existing" => {
+                    "matches sender manifest, NOT verified against a receiver digest \
+                     (pass --expected-sha256 to verify)"
+                }
+                _ => {
+                    "matches sender-declared digest, NOT verified against a receiver digest \
+                     (pass --expected-sha256 to verify)"
+                }
+            };
+            Ok(format!("SHA-256 {provenance}: {actual}"))
+        }
+    }
+}
+
 pub(crate) async fn cmd_file_receive(
     target: &str,
     output_dir: &str,
     timeout: u64,
     interval: u64,
     replay: bool,
+    expected_sha256: Option<&str>,
     json: bool,
 ) -> Result<()> {
     super::print_deprecation_warning("file receive", "channel subscribe");
@@ -577,38 +628,60 @@ pub(crate) async fn cmd_file_receive(
         .await
         {
             Ok(Some(s)) => {
-                if json {
-                    println!(
-                        "{}",
-                        serde_json::json!({
-                            "ok": true,
-                            "filename": s.filename,
-                            "path": s.path,
-                            "size": s.size,
-                            "sha256": s.sha256,
-                            "target": target,
-                            "via": s.via,
-                        })
-                    );
-                } else {
-                    eprintln!(
-                        "File saved: {} ({} bytes) via {}", s.path, s.size, s.via
-                    );
-                    eprintln!("SHA-256 verified: {}", s.sha256);
+                // T-2472 (OBS-108): reconcile against operator-supplied expected digest
+                // BEFORE reporting success. A mismatch is a loud, non-zero-exit failure --
+                // never a clean "verified" + exit 0 on the wrong bytes.
+                match reconcile_expected_sha256(&s.sha256, expected_sha256, s.via) {
+                    Ok(label) => {
+                        if json {
+                            println!(
+                                "{}",
+                                serde_json::json!({
+                                    "ok": true,
+                                    "filename": s.filename,
+                                    "path": s.path,
+                                    "size": s.size,
+                                    "sha256": s.sha256,
+                                    "sha256_expected": expected_sha256,
+                                    "sha256_verified": expected_sha256.is_some(),
+                                    "target": target,
+                                    "via": s.via,
+                                })
+                            );
+                        } else {
+                            eprintln!(
+                                "File saved: {} ({} bytes) via {}", s.path, s.size, s.via
+                            );
+                            eprintln!("{label}");
+                        }
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        if json {
+                            super::json_error_exit(serde_json::json!({
+                                "ok": false,
+                                "target": target,
+                                "error": e.to_string(),
+                                "sha256_received": s.sha256,
+                                "sha256_expected": expected_sha256,
+                                "path": s.path,
+                            }));
+                        }
+                        return Err(e);
+                    }
                 }
-                return Ok(());
             }
             Ok(None) => {
                 tracing::debug!(
                     target = %target,
-                    "T-1250: hub doesn't advertise channel.subscribe — falling back to legacy events"
+                    "T-1250: hub doesn't advertise channel.subscribe -- falling back to legacy events"
                 );
             }
             Err(e) => {
                 tracing::warn!(
                     target = %target,
                     error = %e,
-                    "T-1250: new-path receive failed — falling back to legacy events"
+                    "T-1250: new-path receive failed -- falling back to legacy events"
                 );
             }
         }
@@ -756,6 +829,16 @@ pub(crate) async fn cmd_file_receive(
                                                     }
                                                     anyhow::bail!("{}", msg);
                                                 }
+                                                // T-2472 (OBS-108): independent verification against a receiver-supplied digest.
+                                                // A mismatch here is a loud, non-zero-exit failure -- never a clean "verified".
+                                                if let Some(exp) = expected_sha256 {
+                                                    let exp = exp.trim().to_lowercase();
+                                                    if exp != actual_sha256 {
+                                                        let msg = format!("SHA-256 MISMATCH: expected {exp}, received file hashes to {actual_sha256}. Not re-pinning -- served bytes are NOT the expected file (OBS-108).");
+                                                        if json { super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": msg, "sha256_received": actual_sha256, "sha256_expected": exp})); }
+                                                        anyhow::bail!("{}", msg);
+                                                    }
+                                                }
                                                 let fname = filename.as_deref().unwrap_or("received-file");
                                                 let dest = out_path.join(fname);
                                                 if let Err(e) = std::fs::write(&dest, &file_data) {
@@ -776,7 +859,11 @@ pub(crate) async fn cmd_file_receive(
                                                     }));
                                                 } else {
                                                     eprintln!("File saved: {} ({} bytes)", dest.display(), file_data.len());
-                                                    eprintln!("SHA-256 verified: {}", actual_sha256);
+                                                    if expected_sha256.is_some() {
+                                                        eprintln!("SHA-256 verified against expected: {actual_sha256}");
+                                                    } else {
+                                                        eprintln!("SHA-256 matches sender-declared digest, NOT verified against a receiver digest (pass --expected-sha256 to verify): {actual_sha256}");
+                                                    }
                                                 }
                                                 return Ok(());
                                             }
@@ -859,6 +946,16 @@ pub(crate) async fn cmd_file_receive(
                                                 anyhow::bail!("{}", msg);
                                             }
 
+                                            // T-2472 (OBS-108): independent verification against a receiver-supplied digest.
+                                            // A mismatch here is a loud, non-zero-exit failure -- never a clean "verified".
+                                            if let Some(exp) = expected_sha256 {
+                                                let exp = exp.trim().to_lowercase();
+                                                if exp != actual_sha256 {
+                                                    let msg = format!("SHA-256 MISMATCH: expected {exp}, received file hashes to {actual_sha256}. Not re-pinning -- served bytes are NOT the expected file (OBS-108).");
+                                                    if json { super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": msg, "sha256_received": actual_sha256, "sha256_expected": exp})); }
+                                                    anyhow::bail!("{}", msg);
+                                                }
+                                            }
                                             let fname = filename.as_deref().unwrap_or("received-file");
                                             let dest = out_path.join(fname);
                                             if let Err(e) = std::fs::write(&dest, &file_data) {
@@ -880,7 +977,11 @@ pub(crate) async fn cmd_file_receive(
                                                 }));
                                             } else {
                                                 eprintln!("File saved: {} ({} bytes)", dest.display(), file_data.len());
-                                                eprintln!("SHA-256 verified: {}", actual_sha256);
+                                                if expected_sha256.is_some() {
+                                                    eprintln!("SHA-256 verified against expected: {actual_sha256}");
+                                                } else {
+                                                    eprintln!("SHA-256 matches sender-declared digest, NOT verified against a receiver digest (pass --expected-sha256 to verify): {actual_sha256}");
+                                                }
                                             }
                                             return Ok(());
                                         }
@@ -934,6 +1035,38 @@ pub(crate) async fn cmd_file_receive(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // T-2472 (OBS-108): the digest-reconcile contract that kills the false-green.
+    const A: &str = "093858aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+    #[test]
+    fn reconcile_mismatch_is_loud_error() {
+        // Expected digest supplied but the served file hashes differently → Err
+        // (the caller turns this into a non-zero exit). This is the whole point.
+        let r = reconcile_expected_sha256(A, Some("efb53839deadbeef"), "channel.inline");
+        assert!(r.is_err(), "mismatch must be a hard error, not a clean pass");
+        let msg = r.unwrap_err().to_string();
+        assert!(msg.contains("MISMATCH"), "error must name the mismatch: {msg}");
+    }
+
+    #[test]
+    fn reconcile_match_is_verified() {
+        // Expected digest supplied and equal (case/whitespace-insensitive) → verified.
+        let r = reconcile_expected_sha256(A, Some(&format!("  {}  ", A.to_uppercase())), "channel.artifact")
+            .expect("matching digest must succeed");
+        assert!(r.contains("verified against expected"), "label must say verified: {r}");
+    }
+
+    #[test]
+    fn reconcile_absent_is_not_verified() {
+        // No expected digest → NO independent verification happened, so the label
+        // must never claim a bare "verified"; it states provenance instead.
+        let inline = reconcile_expected_sha256(A, None, "channel.inline").unwrap();
+        assert!(inline.contains("computed from received bytes"), "inline label: {inline}");
+        assert!(!inline.contains("verified against expected"), "must not overclaim: {inline}");
+        let chunked = reconcile_expected_sha256(A, None, "channel.artifact").unwrap();
+        assert!(chunked.contains("sender manifest"), "chunked label: {chunked}");
+    }
 
     #[test]
     fn chunks_exact_multiple() {

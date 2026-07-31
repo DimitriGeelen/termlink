@@ -2619,3 +2619,10 @@ learnings:
   date: 2026-07-31
   context: Added via context agent
   application: TBD
+- id: PL-266
+  learning: "Integrity/verification verbs must check against a RECEIVER-supplied expectation, never only self- or sender-declared digests (OBS-108/T-2472). `file receive` printed 'SHA-256 verified' + exit 0 on the wrong file because the inline path hashed the received bytes and reported that (tautology), and the chunked path reported the sender's own manifest digest (transit check, not the receiver's intent) — neither could ever fail. A check that can only pass is a false-green: worse than no check, because it launders wrong output as verified. Rule: any verb whose job is confirmation must expose a seam for the caller to assert the expected value and FAIL LOUD (non-zero exit) on mismatch; when no expectation is supplied, label the result by provenance (computed/sender-declared), never 'verified'. Peer's phrasing: 'a correct tool with an unchecked narration layer is a false green with extra steps.'"
+  source: P-001
+  task: T-2472
+  date: 2026-07-31
+  context: RCA of OBS-108 file-receive false-green
+  application: Audit other verbs that print 'verified'/'ok'/'confirmed' for the same self-referential pattern

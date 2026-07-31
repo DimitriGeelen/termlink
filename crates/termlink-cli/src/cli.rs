@@ -6371,6 +6371,14 @@ pub(crate) enum FileAction {
         #[arg(long)]
         replay: bool,
 
+        /// Independently verify the received file against an EXPECTED sha256 hex digest
+        /// (T-2472/OBS-108). On mismatch the command prints `SHA-256 MISMATCH` and exits
+        /// non-zero — it does NOT print "verified" and does NOT exit 0. Without this flag no
+        /// independent verification is possible, so the output labels the digest by its
+        /// provenance (computed-from-received-bytes / sender-manifest) rather than "verified".
+        #[arg(long)]
+        expected_sha256: Option<String>,
+
         /// Output transfer result as JSON
         #[arg(long)]
         json: bool,

@@ -1,4 +1,42 @@
 concerns:
+- id: G-089
+  type: gap
+  title: 'file receive integrity check was a false-green by construction (OBS-108) — the one verb whose job
+    is digest confirmation could pass on the wrong bytes and exit 0'
+  description: 'OBS-108 (peer 832 via operator): `termlink file receive --replay` printed "SHA-256 verified" +
+    exit 0 while serving the WRONG file. Two independent bugs. BUG #2 (the class this gap tracks): the integrity
+    check was self-referential by construction — inline path reported sha256(received_bytes) (a tautology that
+    always passes; file.rs:516-518), chunked path reported the SENDER''s own manifest digest (a transit check,
+    not the receiver''s expectation; artifact.rs:534). There was NO seam for the receiver to assert an EXPECTED
+    digest, so the command whose entire purpose is independent integrity confirmation could return a clean
+    false-green and no test caught it (the check could only ever pass). BUG #1 (separate task): --replay is
+    hardwired to the OLDEST transfer (subscribe cursor 0 -> artifacts.first(); file.rs:432,484) with no cursor
+    or selector, so it silently re-serves a months-old transfer — and bug #2 made that silent. THE STRUCTURAL
+    POINT: a "correct tool with an unchecked narration layer is a false green with extra steps" (peer''s phrase) —
+    an integrity verb that cannot fail is worse than no verb. Fixed (T-2472): added `--expected-sha256 <hex>`
+    (loud, non-zero-exit on mismatch — the receiver''s "on mismatch, don''t re-pin, tell me" contract) + honest
+    provenance labels when absent (computed-from-received-bytes / sender-manifest, never bare "verified") + a
+    unit test locking the mismatch->error contract. GAP STAYS OPEN (watching) until bug #1 (T-2473) also ships
+    AND the class is confirmed absent from the successor channel-transfer path (channel post --file / channel
+    subscribe), since file.send/receive is on the T-1166 retirement track — the successor must not inherit the
+    same "no receiver-expected-digest seam".'
+  spec_reference: crates/termlink-cli/src/commands/file.rs:516-518 (inline tautology), :597 (false-green label),
+    :432+:484 (replay stuck-on-oldest); crates/termlink-session/src/artifact.rs:534 (sender-digest transit check);
+    fix in file.rs reconcile_expected_sha256 + --expected-sha256; docs/reports/OBS-108-file-receive-replay-rca.md
+  severity: medium
+  trigger_fired: true
+  trigger_event: '2026-07-31 peer 832 asked for independent digest confirmation of two repaired fixtures with an
+    explicit "on mismatch, don''t re-pin, tell me"; `file receive --replay` served a months-old wrong transfer 4x
+    and printed "SHA-256 verified" + exit 0 every time — right digest, wrong file, clean success'
+  detection_lag_days: months (file.send/receive shipped long ago; the false-green was structural and could only
+    ever pass, so no self-test or field use surfaced it until a human asked the verb to actually discriminate)
+  status: watching
+  created: '2026-07-31'
+  last_reviewed: '2026-07-31'
+  related_tasks:
+  - T-2472
+  - T-2473
+  - T-1166
 - id: G-088
   type: gap
   title: post-idempotency exactly-once does not survive a hub restart — the dedupe recogniser is in-memory
