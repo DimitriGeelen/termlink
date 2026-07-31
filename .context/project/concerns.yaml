@@ -30,13 +30,22 @@ concerns:
     and printed "SHA-256 verified" + exit 0 every time — right digest, wrong file, clean success'
   detection_lag_days: months (file.send/receive shipped long ago; the false-green was structural and could only
     ever pass, so no self-test or field use surfaced it until a human asked the verb to actually discriminate)
-  status: watching
+  status: resolved
+  resolved: '2026-07-31'
+  resolution: 'CLOSED — the false-green class is dead on BOTH receiver surfaces and deployed. CLI file receive
+    (T-2472: --expected-sha256 loud-fail + honest provenance labels, all 3 code paths) + MCP termlink_file_receive
+    (T-2475: expected_sha256 param + receiver-vs-actual guard + sha256_provenance) both fixed; bug #1 wrong-selection
+    (T-2473: select_newest_artifact) fixed; successor channel path audited clean (no artifact-to-file consumer
+    outside the fixed CLI verb). Prevention exists (receiver-expected-digest seam on both surfaces + reconcile unit
+    tests + PL-266 learning), not just mitigation — satisfies the G-019 close bar. Shipped in binary 0.11.693,
+    installed to all on-PATH locations (T-2474). Audit: docs/reports/OBS-108-successor-path-audit.md.'
   created: '2026-07-31'
   last_reviewed: '2026-07-31'
   related_tasks:
   - T-2472
   - T-2473
   - T-2475
+  - T-2474
   - T-1166
   update_2026_07_31: 'Successor-path audit done (docs/reports/OBS-108-successor-path-audit.md).
     VERDICT: the content-addressed channel successor path does NOT inherit the false-green — channel post has
