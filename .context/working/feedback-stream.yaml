@@ -5346,3 +5346,21 @@ scan_id: R-211524fb
 task_id: T-2482
 payload:
   task_file: .tasks/active/T-2482-comms-round-trip-self-test--staged-disco.md
+---
+kind: scan_emitted
+timestamp: '2026-08-01T23:14:38Z'
+scan_id: R-520cf15a
+task_id: T-2478
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-01T23:14:38Z'
+scan_id: R-520cf15a
+task_id: T-2478
+payload:
+  task_file: .tasks/active/T-2478-p4-stage-2--retire-cli-entangled-analyti.md

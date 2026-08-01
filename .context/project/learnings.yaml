@@ -2647,3 +2647,10 @@ learnings:
   date: 2026-08-01
   context: Added via context agent
   application: TBD
+- id: PL-270
+  learning: "Deprecate-in-place (not delete) that keeps invariant tests green: mirror the codebase's EXISTING deprecation convention rather than inventing one. TermLink already deprecates remote_inbox_* via a help_categories description marker that trips is_deprecated() AND carries a parseable '(use X instead)' replacement hint (locked by every_deprecated_tool_has_replacement_hint). Reusing that exact shape to deprecate 40 analytics tools meant ZERO test edits — the guard tests passed because entries were MARKED not removed (name-correspondence held). Lesson: before adding a marker/flag class, grep for an existing one and mirror it; the tests that lock the existing convention then protect your change for free."
+  source: P-001
+  task: T-2478
+  date: 2026-08-01
+  context: Added via context agent
+  application: TBD
