@@ -4,10 +4,10 @@ name: "P3a — arc-closure capability-live gate (T-2477, G-069)"
 description: >
   T-2477 P3 part (a), GO recorded. Add a capability-live check to arc closure so 'shipped' means capability-live not just code-merged. Gate point is AEF tooling (.agentic-framework/lib/arc.sh arc_close, human-invoked per G-062) — so this is a cross-repo change via the upstream-mirror pattern, NOT a pure termlink edit. Design: arc-closing task's ## Verification gains a one-line live-probe against the primary hub (fleet doctor / cv-keys capability probe). Bounded + reversible. Scope carefully: mandatory-block vs advisory-warn is a human call (IW-1).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-01T21:18:36Z
-last_update: 2026-08-01T21:18:36Z
+last_update: 2026-08-01T21:49:23Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,49 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+P3 (T-2477, G-069) part (a): make "shipped" mean **capability-live**, not just
+code-merged. The gap: capabilities were recorded closed=shipped while dark in the
+field for weeks (arc-004 push-transport; .107/.122 stale). Detection is partly
+covered (T-2359 binary-floor / T-2387 waker / T-2415 capability canaries) but
+there is **no gate** at closure time and **no synchronous make-it-live probe**.
+
+**Design pivot (this build).** The task originally framed the gate as an AEF
+`arc.sh arc_close` change (shared governance, cross-repo, embedded human
+mandatory-vs-advisory decision). Instead we build the missing **primitive** and
+let the *existing* P-011 verification gate do the enforcing: `scripts/arc-live-probe.sh`
+is a synchronous single-hub probe that confirms a capability/version is actually
+being served **right now**. An arc-closing task drops one line into its
+`## Verification` block — P-011 already runs Verification commands before
+`work-completed` and blocks on non-zero exit, so closure is blocked until the
+fleet genuinely serves the capability. No AEF change, reversible, no user-facing
+surface removed. The stronger AEF `arc_close` mandatory-block (IW-1) remains a
+human decision, captured as a follow-up — advisory-by-convention ships first.
+
+Reuses the exact probe invocations of the T-2359 / T-2415 canaries (fleet doctor
+version read + cv-keys / governor capability probe) rather than reinventing them.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `scripts/arc-live-probe.sh` exists, is executable, and `--help` documents the
+      purpose (the "shipped == live" gate), all flags (`--hub`, `--min-version`,
+      `--capability`, `--json`), and the three exit codes (0 live-confirmed /
+      1 shipped-but-not-live / 2 tooling-error).
+- [x] Version assertion: with `--min-version X`, the probe exits **1** when the
+      probed hub serves a version < X and exits **0** when >= X (proven via the
+      PL-213 test hook, no live hub needed).
+- [x] Capability assertion: with `--capability <cv-keys|field:NAME>`, the
+      probe exits **1** when the hub rejects/omits the capability and **0** when it
+      is served (proven via fixtures).
+- [x] **Fail-closed:** an unreachable or unparseable hub exits **2** (tooling
+      error) — never a false "live". A gate that fails open would re-admit the
+      exact G-069 blindness it exists to close.
+- [x] `scripts/test-arc-live-probe.sh` covers all three assertion types + the
+      fail-closed path + `--help`, prints a final `PASS`/`FAIL` line, and all
+      cases pass (14/14).
+- [x] `docs/operations/shipped-equals-live-gate.md` documents the convention
+      (arc-closing tasks add the probe to `## Verification`; P-011 enforces) with a
+      copy-paste example line, and CLAUDE.md references the gate.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -75,6 +110,12 @@ date_finished: null
 -->
 
 ## Verification
+
+test -x scripts/arc-live-probe.sh
+out=$(bash scripts/arc-live-probe.sh --help 2>&1); echo "$out" | grep -q "shipped"
+out=$(bash scripts/test-arc-live-probe.sh 2>&1); echo "$out" | grep -q "^test-arc-live-probe: PASS"
+test -f docs/operations/shipped-equals-live-gate.md
+grep -q "arc-live-probe.sh" CLAUDE.md
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -174,3 +215,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2480-p3a--arc-closure-capability-live-gate-t-.md
 - **Context:** Initial task creation
+
+### 2026-08-01T21:49:23Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

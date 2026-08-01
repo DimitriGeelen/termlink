@@ -696,6 +696,33 @@ these commands) → T-1291 (declarative `bootstrap_from` per profile +
 `--bootstrap-from auto`, lowers the floor on every heal). T-1058 added
 this documentation.
 
+### Shipped == Live gate (T-2480, G-069 prevention)
+
+Capabilities were repeatedly recorded **closed=shipped** while dark in the field
+for weeks (arc-004 push-transport; .107/.122 stale binaries) — "shipped" meant
+*code merged*, not *capability live on the hubs that need it*. Detection is
+covered on a daily cron (T-2359 binary-floor / T-2387 waker / T-2415 capability
+canaries) but was retrospective; there was **no gate at closure time**.
+
+`scripts/arc-live-probe.sh` is the synchronous "is this capability/version
+actually served RIGHT NOW" probe an arc-closing task drops into its
+`## Verification` block, so the existing P-011 verification gate mechanically
+blocks `work-completed` until the fleet genuinely serves it:
+
+```bash
+bash scripts/arc-live-probe.sh --hub <primary-addr> --min-version "$(cat VERSION)" --capability cv-keys
+```
+
+Exit **0** = live-confirmed, **1** = shipped-but-not-live (the G-069 firing
+class), **2** = tooling-error (**fail-closed** — an unreachable/unparseable hub is
+NEVER reported live). Capabilities: `cv-keys` (doorbell discovery prereq, reuses
+the T-2415 probe) or `field:<name>` (a named non-null field on the hub's
+fleet-doctor entry). Test hooks `TERMLINK_ARC_PROBE_TEST_DOCTOR_JSON` +
+`TERMLINK_ARC_PROBE_TEST_CVKEYS_{RC,OUT}` (PL-213). This ships the
+**advisory-by-convention** form; the mandatory-block inside AEF `arc.sh arc_close`
+(T-2477 IW-1) is a deferred human governance decision (cross-repo per G-062). See
+`docs/operations/shipped-equals-live-gate.md`.
+
 ### Channel Topic Semantics — Per-Hub State (G-060 / T-1791 / T-1792)
 
 TermLink hubs maintain **independent** channel-topic storage. A topic named
