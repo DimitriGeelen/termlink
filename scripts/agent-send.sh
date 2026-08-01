@@ -667,16 +667,41 @@ escalate_woken_but_silent() {
     local reason="$1"
     local log="${TERMLINK_WOKEN_SILENT_LOG:-$SELF_DIR/../.context/working/.woken-but-silent-canary.log}"
     local ts; ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+    # T-2479 (G-083): classify WHY the wake was not consumed instead of emitting a
+    # generic remediation. diagnose-unconsumed.sh reads the peer's presence
+    # (LIVE? armed?) and turns "no receipt" into busy-or-manual / unwakeable / dead,
+    # each with a specific fix. Best-effort — a diagnosis failure must never mask
+    # the underlying send failure, so it is fully guarded and falls back to the
+    # generic line. Needs the recipient agent_id; skipped if we only had a session.
+    local diag_class="" diag_line=""
+    if [ -n "$to_agent_id" ] && [ -x "$SELF_DIR/diagnose-unconsumed.sh" ]; then
+        local diag_json
+        diag_json="$(bash "$SELF_DIR/diagnose-unconsumed.sh" --peer "$to_agent_id" \
+            ${topic:+--topic "$topic"} ${cid:+--cid "$cid"} ${peer_hub:+--hub "$peer_hub"} \
+            --json 2>/dev/null || true)"
+        if [ -n "$diag_json" ] && printf '%s' "$diag_json" | jq -e '.class' >/dev/null 2>&1; then
+            diag_class="$(printf '%s' "$diag_json" | jq -r '.class')"
+            diag_line="$(printf '%s' "$diag_json" | jq -r '.remediation')"
+        fi
+    fi
+
     mkdir -p "$(dirname "$log")" 2>/dev/null || true
     if {
         printf '=== %s ===\n' "$ts"
         printf 'woken-but-silent: no receipt for cid=%s on topic=%s\n' "$cid" "$topic"
         printf '  recipient=%s session=%s%s\n' "$to_agent_id" "$to_session" "${peer_hub:+ hub=$peer_hub}"
         printf '  turn posted at offset=%s; rings=%s; reason=%s\n' "$post_offset" "$max_rings" "$reason"
-        printf '  remediation: confirm peer LIVE (/peers --all); re-send (/agent-handoff <peer> <task> "..."); or drop the thread if dead\n'
+        if [ -n "$diag_class" ]; then
+            printf '  diagnosis: %s (G-083)\n' "$diag_class"
+            printf '  remediation: %s\n' "$diag_line"
+        else
+            printf '  remediation: confirm peer LIVE (/peers --all); re-send (/agent-handoff <peer> <task> "..."); or drop the thread if dead\n'
+        fi
         printf -- '---\n'
     } >> "$log" 2>/dev/null; then
-        echo "agent-send: ESCALATED woken-but-silent -> $log (operator-visible via /canaries)" >&2
+        echo "agent-send: ESCALATED woken-but-silent${diag_class:+ [$diag_class]} -> $log (operator-visible via /canaries)" >&2
+        [ -n "$diag_line" ] && echo "agent-send:   ↳ $diag_line" >&2
     else
         echo "agent-send: WARN could not write woken-but-silent canary log at $log" >&2
     fi
