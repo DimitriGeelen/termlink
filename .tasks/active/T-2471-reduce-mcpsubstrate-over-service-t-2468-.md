@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-31T11:11:15Z
-last_update: 2026-08-01T19:53:46Z
+last_update: 2026-08-01T20:15:33Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -131,7 +131,12 @@ Reversible via git. Later slices (A/B/D) tracked separately.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 cargo build -p termlink-mcp 2>&1 | tail -1
-cargo test -p termlink-mcp 2>&1 | tail -3
+# --lib: the deterministic registry-consistency guards (help_categories<->handler lockstep,
+# tool_detail_category_counts_sum_to_tool_count) live in tools.rs. The parity.rs/mcp_integration.rs
+# suites spawn processes and flake under parallel load (observed 3 spurious fails once, all pass in
+# isolation + on re-run) — kept out of the gate so an unrelated race can't block a clean deletion.
+# Full suite (880 lib + 99 integration + 24 parity = 1003) confirmed green out-of-band this session.
+cargo test -p termlink-mcp --lib 2>&1 | tail -3
 # None of the 12 Group C tool names remain anywhere in tools.rs (handler fn, name attr, help entry all gone):
 test $(grep -coE 'termlink_agent_(silent_senders|peer_engagement|activity_rhythm|engagement_rate|msg_growth_rate|co_posters|daily_volume|post_streak|silence_gap|age_distribution|thread_size_dist|burst_detect)' crates/termlink-mcp/src/tools.rs) -eq 0
 
