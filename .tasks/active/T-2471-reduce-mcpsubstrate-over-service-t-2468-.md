@@ -4,10 +4,10 @@ name: "Reduce MCP/substrate over-service (T-2468 P4)"
 description: >
   Retire ~57 directive-untraceable social-analytics MCP tools + ~30 never-read substrate observability surfaces (--log/history slices reading never-written logs). Staged, reversible via git; coordinate with arc-005. GO recorded in T-2468.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-31T11:11:15Z
-last_update: 2026-07-31T11:11:15Z
+last_update: 2026-08-01T19:53:46Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,38 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+T-2468 P4 (GO'd): retire directive-untraceable MCP tools that do not trace to the
+TermLink charter (`docs/CHARTER.md`: hub-mediated durable message bus + coordination
+substrate — discover peers, exchange durable messages, claim work, control terminals).
+The review flagged ~57 social-analytics tools. A read-only investigation (this session)
+partitioned the analytics candidates into four groups and confirmed **Group C — the 12
+MCP-only engagement/rhythm analytics tools — has ZERO external consumers** (no CLI verb,
+no slash-command, no shared CLI compute helper), making it the safe, fully-reversible
+first slice. Groups A/B/D have CLI-entangled members and are deferred to later slices
+(MCP tool + CLI twin retired together — separate tasks).
+
+**This task = P4 Stage 1: hard-delete the 12 Group C tools from
+`crates/termlink-mcp/src/tools.rs`.** Per-tool that means removing the `#[tool]` handler
+`async fn`, its `Parameters<XParams>` struct (unless shared), its one-line entry in
+`help_categories()`, and any named test fixture. Guard: tool-count assertions are
+*derived* from `help_categories()` (no absolute ceiling), so they self-heal iff handler
++ help entry are edited in lockstep. Objective success signal = `cargo build` +
+`cargo test` green with the tool count down by exactly 12.
+
+**Group C (12):** `termlink_agent_silent_senders`, `_peer_engagement`, `_activity_rhythm`,
+`_engagement_rate`, `_msg_growth_rate`, `_co_posters`, `_daily_volume`, `_post_streak`,
+`_silence_gap`, `_age_distribution`, `_thread_size_dist`, `_burst_detect`.
+
+Reversible via git. Later slices (A/B/D) tracked separately.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] All 12 Group C `#[tool]` handler fns removed from `crates/termlink-mcp/src/tools.rs` (grep for the 12 names returns 0)
+- [x] Each tool's `help_categories()` entry + 12 orphaned Params structs + 1 incidentally-coupled test fixture removed in lockstep (no phantom registry entries)
+- [x] `cargo build -p termlink-mcp` succeeds, no warnings (no orphaned Params structs / dead helper references)
+- [x] `cargo test -p termlink-mcp` passes (880 lib + 99 integration + 24 parity = 1003, 0 failed; registry-consistency guards green)
+- [x] Net MCP tool count dropped by exactly 12 (help_categories registry 278 → 266; net −1130 lines)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -106,6 +130,10 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+cargo build -p termlink-mcp 2>&1 | tail -1
+cargo test -p termlink-mcp 2>&1 | tail -3
+# None of the 12 Group C tool names remain anywhere in tools.rs (handler fn, name attr, help entry all gone):
+test $(grep -coE 'termlink_agent_(silent_senders|peer_engagement|activity_rhythm|engagement_rate|msg_growth_rate|co_posters|daily_volume|post_streak|silence_gap|age_distribution|thread_size_dist|burst_detect)' crates/termlink-mcp/src/tools.rs) -eq 0
 
 ## RCA
 
@@ -174,3 +202,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2471-reduce-mcpsubstrate-over-service-t-2468-.md
 - **Context:** Initial task creation
+
+### 2026-08-01T19:53:46Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
