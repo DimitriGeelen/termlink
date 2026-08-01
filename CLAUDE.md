@@ -696,6 +696,30 @@ these commands) → T-1291 (declarative `bootstrap_from` per profile +
 `--bootstrap-from auto`, lowers the floor on every heal). T-1058 added
 this documentation.
 
+### Comms round-trip self-test (T-2482 — "why is there still no response?")
+
+The substrate has 11 failure-detecting canaries + four observability arcs, but
+all detect breakage **after the fact**. There was no single on-demand command to
+**affirmatively prove the charter's core round-trip works right now** and, when it
+doesn't, name whether the break is in discover / send / consume.
+`scripts/comms-selftest.sh --peer <id>` is that staged prover — the affirmative
+complement to the canaries ("prove it works" vs "detect when it broke"):
+
+```bash
+bash scripts/comms-selftest.sh --peer <agent_id> --discover-only   # side-effect-free: reachable + armed?
+bash scripts/comms-selftest.sh --peer <agent_id> [--json]          # full: fires one synthetic proof-ping
+```
+
+Three PASS/FAIL stages — **DISCOVER** (peer LIVE + armed, reuses
+`diagnose-unconsumed.sh`), **SEND** (durable turn written, reuses `agent-send.sh`),
+**CONSUME** (peer posted a receipt). A DISCOVER fail stops before a pointless send
+(`dead` / `unwakeable`); a CONSUME fail carries the G-083 class
+(`busy-or-manual`). Exit **0** proven / **1** broken (names the stage) / **2**
+tooling (fail-closed). The SEND stage is bounded by `COMMS_SELFTEST_SEND_TIMEOUT`
+(default 120s) so it never hangs — no receipt in time renders `CONSUME=FAIL(timeout)`.
+Test hooks `TERMLINK_DIAGNOSE_TEST_PRESENCE_JSON` + `COMMS_SELFTEST_TEST_SEND_RC`
+(PL-213). See `docs/operations/comms-selftest.md`.
+
 ### Shipped == Live gate (T-2480, G-069 prevention)
 
 Capabilities were repeatedly recorded **closed=shipped** while dark in the field
