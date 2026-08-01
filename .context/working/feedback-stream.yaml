@@ -5310,3 +5310,21 @@ scan_id: R-1654545c
 task_id: T-2479
 payload:
   task_file: .tasks/active/T-2479-loud-consumption-diagnosis-for-unacked-w.md
+---
+kind: scan_emitted
+timestamp: '2026-08-01T21:54:21Z'
+scan_id: R-d94d8eb2
+task_id: T-2480
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-01T21:54:21Z'
+scan_id: R-d94d8eb2
+task_id: T-2480
+payload:
+  task_file: .tasks/active/T-2480-p3a--arc-closure-capability-live-gate-t-.md

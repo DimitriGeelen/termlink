@@ -2633,3 +2633,10 @@ learnings:
   date: 2026-08-01
   context: Added via context agent
   application: TBD
+- id: PL-268
+  learning: "To add an enforcement GATE, prefer reusing an existing gate's trigger over building a new enforcement point. P3a (shipped==live, G-069): instead of editing shared AEF arc.sh (cross-repo governance + embedded human mandatory-vs-advisory decision), shipped a synchronous probe (scripts/arc-live-probe.sh) that arc-closing tasks drop into ## Verification — the EXISTING P-011 gate already blocks work-completed on non-zero exit. Pure-termlink, reversible, no user-facing surface touched, no governance decision usurped. Gate fails-closed (unreachable hub -> exit 2, never a false 'live')."
+  source: P-001
+  task: T-2480
+  date: 2026-08-01
+  context: Added via context agent
+  application: TBD

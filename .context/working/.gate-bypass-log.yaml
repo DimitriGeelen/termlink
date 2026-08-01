@@ -2290,3 +2290,11 @@ FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2472: close G-089 â
   flag: '--skip-sovereignty'
   caller: 'check_human_sovereignty'
   reason: 'Inception decision: GO'
+- timestamp: '2026-08-01T21:55:32Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2480'
+  command: 'cd /opt/termlink
+git add .context/project/learnings.yaml .context/working/ 2>/dev/null
+FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2480: capture reuse-existing-gate learning (P3a ship'
