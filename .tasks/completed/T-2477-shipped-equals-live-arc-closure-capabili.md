@@ -4,16 +4,16 @@ name: "Shipped-equals-live: arc-closure capability gate + make-it-live primitive
 description: >
   Inception: Shipped-equals-live: arc-closure capability gate + make-it-live primitive (T-2468 P3, G-069)
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-08-01T19:50:32Z
-last_update: 2026-08-01T19:53:30Z
-date_finished: null
+last_update: 2026-08-01T21:08:26Z
+date_finished: 2026-08-01T21:08:26Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -126,15 +126,15 @@ retiring existing canaries (separate reversible decisions, IW-3).
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -191,7 +191,17 @@ T-2468 IW-4 found the 'shipped != live' class (G-069): capabilities recorded clo
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale:
+
+T-2468 IW-4 found the 'shipped != live' class (G-069): capabilities recorded closed=shipped while dark in the field for weeks (.122 served a 13-day-old deleted-exe binary; .107 itself 26 commits stale during arc-004 'closure'). Detection is now partly covered (T-2359 fleet-binary canary, T-2387 waker-liveness) but the ROOT remains: (1) arc-closure has no capability-live gate — 'shipped' still means code-merged not capability-live; (2) no make-it-live primitive — fleet adoption is fully manual/per-host/foothold-gated. GO to inception: the arc-closure gate is a bounded template change (agent-scoped); the make-it-live primitive is a new fleet-orchestration surface (human GO). Split needed; design first.
+
+Evidence:
+
+**Date**: 2026-08-01T21:08:25Z
 
 ## Updates
 
@@ -200,3 +210,32 @@ T-2468 IW-4 found the 'shipped != live' class (G-069): capabilities recorded clo
 
 ### 2026-08-01T19:51:04Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-08-01T21:08:25Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale:
+
+T-2468 IW-4 found the 'shipped != live' class (G-069): capabilities recorded closed=shipped while dark in the field for weeks (.122 served a 13-day-old deleted-exe binary; .107 itself 26 commits stale during arc-004 'closure'). Detection is now partly covered (T-2359 fleet-binary canary, T-2387 waker-liveness) but the ROOT remains: (1) arc-closure has no capability-live gate — 'shipped' still means code-merged not capability-live; (2) no make-it-live primitive — fleet adoption is fully manual/per-host/foothold-gated. GO to inception: the arc-closure gate is a bounded template change (agent-scoped); the make-it-live primitive is a new fleet-orchestration surface (human GO). Split needed; design first.
+
+Evidence:
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-025d76cb
+- **Timestamp:** 2026-08-01T21:08:27Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-1
+     - evidence: `IW-1 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+### 2026-08-01T21:08:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

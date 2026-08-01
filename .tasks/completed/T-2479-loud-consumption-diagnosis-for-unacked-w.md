@@ -4,10 +4,10 @@ name: "Loud consumption-diagnosis for unacked wakes (T-2476 P2 build, G-083)"
 description: >
   Loud consumption-diagnosis for unacked wakes (T-2476 P2 build, G-083)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-01T21:11:41Z
-last_update: 2026-08-01T21:11:41Z
-date_finished: null
+last_update: 2026-08-01T21:17:05Z
+date_finished: 2026-08-01T21:17:05Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -203,3 +203,22 @@ grep -q "diagnose-unconsumed.sh" scripts/agent-send.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2479-loud-consumption-diagnosis-for-unacked-w.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-1654545c
+- **Timestamp:** 2026-08-01T21:17:07Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Verification-level findings:**
+
+  1. **l387-sigpipe-risk** (partial, heuristic) @ Verification:line 32
+     - evidence: `bash scripts/diagnose-unconsumed.sh --help 2>&1 | grep -q "busy-or-manual"`
+  2. **l387-sigpipe-risk** (partial, heuristic) @ Verification:line 33
+     - evidence: `bash scripts/test-diagnose-unconsumed.sh 2>&1 | tail -1 | grep -q "PASS"`
+
+### 2026-08-01T21:17:05Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

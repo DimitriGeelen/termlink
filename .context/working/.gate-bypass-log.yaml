@@ -2280,3 +2280,13 @@ FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2402: remove vestig
   command: 'cd /opt/termlink
 git add .context/project/concerns.yaml
 FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2472: close G-089 — OBS-108 false-green dead on both surfaces + deployed (0.11.69'
+- timestamp: '2026-08-01T21:08:26Z'
+  task: 'T-2476'
+  flag: '--skip-sovereignty'
+  caller: 'check_human_sovereignty'
+  reason: 'Inception decision: GO'
+- timestamp: '2026-08-01T21:08:26Z'
+  task: 'T-2477'
+  flag: '--skip-sovereignty'
+  caller: 'check_human_sovereignty'
+  reason: 'Inception decision: GO'

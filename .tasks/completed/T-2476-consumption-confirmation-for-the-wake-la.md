@@ -4,16 +4,16 @@ name: "Consumption-confirmation for the WAKE layer (T-2468 P2, G-083)"
 description: >
   Inception: Consumption-confirmation for the WAKE layer (T-2468 P2, G-083)
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-08-01T19:49:44Z
-last_update: 2026-08-01T19:53:18Z
-date_finished: null
+last_update: 2026-08-01T21:08:26Z
+date_finished: 2026-08-01T21:08:26Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -124,15 +124,15 @@ the WAKE transport itself (already shipped, T-1800/arc-004).
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -189,7 +189,17 @@ T-2468 IW-2 identified the comms round-trip's weakest link: WAKE fires and the m
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale:
+
+T-2468 IW-2 identified the comms round-trip's weakest link: WAKE fires and the message is durably written, but a busy/manual-accept recipient session consumes NOTHING and the framework has no consumed-AFTER check (only reachable-BEFORE via T-2385). This is the operator's own 'comms does not flow without manual nudging' complaint (G-083, high severity, blind since T-1800). Highest Reliability value in the register. GO to inception because the fix (poll recipient read-cursor/receipt post-ring; fail LOUD with busy/manual-mode + unread-offset diagnosis if no advance within N secs) is bounded and testable but MUST be designed + proven against the live aef<->designer thread before building — G-083 explicitly warns 'do not build blindly'.
+
+Evidence:
+
+**Date**: 2026-08-01T21:08:22Z
 
 ## Updates
 
@@ -198,3 +208,32 @@ T-2468 IW-2 identified the comms round-trip's weakest link: WAKE fires and the m
 
 ### 2026-08-01T19:50:24Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-08-01T21:08:22Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale:
+
+T-2468 IW-2 identified the comms round-trip's weakest link: WAKE fires and the message is durably written, but a busy/manual-accept recipient session consumes NOTHING and the framework has no consumed-AFTER check (only reachable-BEFORE via T-2385). This is the operator's own 'comms does not flow without manual nudging' complaint (G-083, high severity, blind since T-1800). Highest Reliability value in the register. GO to inception because the fix (poll recipient read-cursor/receipt post-ring; fail LOUD with busy/manual-mode + unread-offset diagnosis if no advance within N secs) is bounded and testable but MUST be designed + proven against the live aef<->designer thread before building — G-083 explicitly warns 'do not build blindly'.
+
+Evidence:
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-1967da3d
+- **Timestamp:** 2026-08-01T21:08:27Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-1
+     - evidence: `IW-1 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+### 2026-08-01T21:08:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

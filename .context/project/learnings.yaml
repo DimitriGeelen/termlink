@@ -2626,3 +2626,10 @@ learnings:
   date: 2026-07-31
   context: RCA of OBS-108 file-receive false-green
   application: Audit other verbs that print 'verified'/'ok'/'confirmed' for the same self-referential pattern
+- id: PL-267
+  learning: "For silent-failure classes (G-083 LIVE!=listening), detection alone is not the fix — turn the silent give-up into a CLASSIFIED diagnosis + per-class remediation at the moment of failure. diagnose-unconsumed.sh reads the same presence signal (pty_session/status/age via agent-listeners.sh --json) the T-2387 waker canary uses, but synchronously on one unconsumed send: LIVE+armed+no-receipt=busy-or-manual, LIVE+unarmed=unwakeable, stale=dead. Reuse existing signal sources (wake-confirm.sh for receipts) rather than inventing new ones; PL-213 test-JSON hooks make the classifier unit-testable with no hub."
+  source: P-001
+  task: T-2479
+  date: 2026-08-01
+  context: Added via context agent
+  application: TBD

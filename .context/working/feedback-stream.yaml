@@ -5256,3 +5256,57 @@ scan_id: R-fc745334
 task_id: T-2471
 payload:
   task_file: .tasks/active/T-2471-reduce-mcpsubstrate-over-service-t-2468-.md
+---
+kind: scan_emitted
+timestamp: '2026-08-01T21:08:27Z'
+scan_id: R-1967da3d
+task_id: T-2476
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-01T21:08:27Z'
+scan_id: R-1967da3d
+task_id: T-2476
+payload:
+  task_file: .tasks/active/T-2476-consumption-confirmation-for-the-wake-la.md
+---
+kind: scan_emitted
+timestamp: '2026-08-01T21:08:27Z'
+scan_id: R-025d76cb
+task_id: T-2477
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-01T21:08:27Z'
+scan_id: R-025d76cb
+task_id: T-2477
+payload:
+  task_file: .tasks/active/T-2477-shipped-equals-live-arc-closure-capabili.md
+---
+kind: scan_emitted
+timestamp: '2026-08-01T21:17:07Z'
+scan_id: R-1654545c
+task_id: T-2479
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-01T21:17:07Z'
+scan_id: R-1654545c
+task_id: T-2479
+payload:
+  task_file: .tasks/active/T-2479-loud-consumption-diagnosis-for-unacked-w.md
