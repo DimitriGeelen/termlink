@@ -1,23 +1,23 @@
 ---
-id: T-2471
-name: "Reduce MCP/substrate over-service (T-2468 P4)"
+id: T-2478
+name: "P4 Stage 2 — retire CLI-entangled analytics tools (Groups A/B/D)"
 description: >
-  Retire ~57 directive-untraceable social-analytics MCP tools + ~30 never-read substrate observability surfaces (--log/history slices reading never-written logs). Staged, reversible via git; coordinate with arc-005. GO recorded in T-2468.
+  T-2468 P4 continuation of T-2471 (Stage 1 retired the 12 zero-consumer Group C tools). Groups A (reactions/emoji ~11), B (stars/pins leaderboards ~13), D (typing indicators + polls ~11) each have CLI-entangled members — the MCP tool and its CLI twin (+ shared compute helper) must be retired together, per-group, with the same build+test+count guard. Investigate each group's CLI/slash consumers before deleting. Reversible via git.
 
-status: work-completed
+status: captured
 workflow_type: build
 owner: agent
-horizon: null
+horizon: later
 tags: []
-components: [crates/termlink-mcp/src/tools.rs]
+components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-07-31T11:11:15Z
-last_update: 2026-08-01T20:16:13Z
-date_finished: 2026-08-01T20:16:13Z
+created: 2026-08-01T20:17:38Z
+last_update: 2026-08-01T20:17:38Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -30,42 +30,18 @@ date_finished: 2026-08-01T20:16:13Z
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2471: Reduce MCP/substrate over-service (T-2468 P4)
+# T-2478: P4 Stage 2 — retire CLI-entangled analytics tools (Groups A/B/D)
 
 ## Context
 
-T-2468 P4 (GO'd): retire directive-untraceable MCP tools that do not trace to the
-TermLink charter (`docs/CHARTER.md`: hub-mediated durable message bus + coordination
-substrate — discover peers, exchange durable messages, claim work, control terminals).
-The review flagged ~57 social-analytics tools. A read-only investigation (this session)
-partitioned the analytics candidates into four groups and confirmed **Group C — the 12
-MCP-only engagement/rhythm analytics tools — has ZERO external consumers** (no CLI verb,
-no slash-command, no shared CLI compute helper), making it the safe, fully-reversible
-first slice. Groups A/B/D have CLI-entangled members and are deferred to later slices
-(MCP tool + CLI twin retired together — separate tasks).
-
-**This task = P4 Stage 1: hard-delete the 12 Group C tools from
-`crates/termlink-mcp/src/tools.rs`.** Per-tool that means removing the `#[tool]` handler
-`async fn`, its `Parameters<XParams>` struct (unless shared), its one-line entry in
-`help_categories()`, and any named test fixture. Guard: tool-count assertions are
-*derived* from `help_categories()` (no absolute ceiling), so they self-heal iff handler
-+ help entry are edited in lockstep. Objective success signal = `cargo build` +
-`cargo test` green with the tool count down by exactly 12.
-
-**Group C (12):** `termlink_agent_silent_senders`, `_peer_engagement`, `_activity_rhythm`,
-`_engagement_rate`, `_msg_growth_rate`, `_co_posters`, `_daily_volume`, `_post_streak`,
-`_silence_gap`, `_age_distribution`, `_thread_size_dist`, `_burst_detect`.
-
-Reversible via git. Later slices (A/B/D) tracked separately.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] All 12 Group C `#[tool]` handler fns removed from `crates/termlink-mcp/src/tools.rs` (grep for the 12 names returns 0)
-- [x] Each tool's `help_categories()` entry + 12 orphaned Params structs + 1 incidentally-coupled test fixture removed in lockstep (no phantom registry entries)
-- [x] `cargo build -p termlink-mcp` succeeds, no warnings (no orphaned Params structs / dead helper references)
-- [x] `cargo test -p termlink-mcp` passes (880 lib + 99 integration + 24 parity = 1003, 0 failed; registry-consistency guards green)
-- [x] Net MCP tool count dropped by exactly 12 (help_categories registry 278 → 266; net −1130 lines)
+<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -130,15 +106,6 @@ Reversible via git. Later slices (A/B/D) tracked separately.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
-cargo build -p termlink-mcp 2>&1 | tail -1
-# --lib: the deterministic registry-consistency guards (help_categories<->handler lockstep,
-# tool_detail_category_counts_sum_to_tool_count) live in tools.rs. The parity.rs/mcp_integration.rs
-# suites spawn processes and flake under parallel load (observed 3 spurious fails once, all pass in
-# isolation + on re-run) — kept out of the gate so an unrelated race can't block a clean deletion.
-# Full suite (880 lib + 99 integration + 24 parity = 1003) confirmed green out-of-band this session.
-cargo test -p termlink-mcp --lib 2>&1 | tail -3
-# None of the 12 Group C tool names remain anywhere in tools.rs (handler fn, name attr, help entry all gone):
-test $(grep -coE 'termlink_agent_(silent_senders|peer_engagement|activity_rhythm|engagement_rate|msg_growth_rate|co_posters|daily_volume|post_streak|silence_gap|age_distribution|thread_size_dist|burst_detect)' crates/termlink-mcp/src/tools.rs) -eq 0
 
 ## RCA
 
@@ -203,23 +170,7 @@ test $(grep -coE 'termlink_agent_(silent_senders|peer_engagement|activity_rhythm
 
 ## Updates
 
-### 2026-07-31T11:11:15Z — task-created [task-create-agent]
+### 2026-08-01T20:17:38Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2471-reduce-mcpsubstrate-over-service-t-2468-.md
+- **Output:** /opt/termlink/.tasks/active/T-2478-p4-stage-2--retire-cli-entangled-analyti.md
 - **Context:** Initial task creation
-
-### 2026-08-01T19:53:46Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
-- **Change:** horizon: next → now (auto-sync)
-
-## Reviewer Verdict (v1.5)
-
-- **Scan ID:** R-fc745334
-- **Timestamp:** 2026-08-01T20:16:50Z
-- **Catalogue:** v1.3-seed
-- **Overall:** PASS
-- **Needs Human:** no
-- **Findings:** none
-
-### 2026-08-01T20:16:13Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed

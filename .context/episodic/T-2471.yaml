@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2471: Reduce MCP/substrate over-service (T-2468 P4)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-01T20:16:54Z
+# ============================================================================
+
+task_id: T-2471
+task_name: "Reduce MCP/substrate over-service (T-2468 P4)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-31T11:11:15Z
+completed: 2026-08-01T20:16:13Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-08-01T22:15:32+02:00
+last_commit: 2026-08-01T22:16:07+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  P4 Stage 1 — retire 12 directive-untraceable MCP analytics tools (Group C, zero-consumer); 278→266 tools, -1130 lines, build+test green. scope completion-gate test to --lib (deterministic registry guards; keep flaky process-spawning suites out of the gate)
+
+# Key outcomes
+outcomes:
+  - 'All 12 Group C `#[tool]` handler fns removed from `crates/termlink-mcp/src/tools.rs` (grep for the 12 names returns 0)'
+  - 'Each tool''s `help_categories()` entry + 12 orphaned Params structs + 1 incidentally-coupled test fixture removed in lockstep (no phantom registry entries)'
+  - '`cargo build -p termlink-mcp` succeeds, no warnings (no orphaned Params structs / dead helper references)'
+  - '`cargo test -p termlink-mcp` passes (880 lib + 99 integration + 24 parity = 1003, 0 failed; registry-consistency guards green)'
+  - 'Net MCP tool count dropped by exactly 12 (help_categories registry 278 → 266; net −1130 lines)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-2471-reduce-mcpsubstrate-over-service-t-2468-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-01T22:15:32"
+    action: "T-2471: P4 Stage 1 — retire 12 directive-untraceable MCP analytics tools (Group C, zero-consumer); 278→266 tools, -1130 lines, build+test green"
+  - time: "2026-08-01T22:16:07"
+    action: "T-2471: scope completion-gate test to --lib (deterministic registry guards; keep flaky process-spawning suites out of the gate)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 1984 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1984
+  commits: 2
+  files_changed: 2
+  lines_added: 51
+  lines_removed: 1139
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2471-reduce-mcpsubstrate-over-service-t-2468-.md
+generated_by: context-agent-hybrid

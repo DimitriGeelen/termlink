@@ -5238,3 +5238,21 @@ scan_id: R-2595cda9
 task_id: T-2475
 payload:
   task_file: .tasks/active/T-2475-fix-obs-108-mcp-parity--termlinkfilerece.md
+---
+kind: scan_emitted
+timestamp: '2026-08-01T20:16:50Z'
+scan_id: R-fc745334
+task_id: T-2471
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-01T20:16:50Z'
+scan_id: R-fc745334
+task_id: T-2471
+payload:
+  task_file: .tasks/active/T-2471-reduce-mcpsubstrate-over-service-t-2468-.md
