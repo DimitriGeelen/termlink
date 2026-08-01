@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-01T22:47:36Z
-last_update: 2026-08-01T22:47:36Z
+last_update: 2026-08-01T22:54:25Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -154,19 +154,27 @@ grep -q "comms-selftest.sh" CLAUDE.md
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** The core comms round-trip to a peer silently fails — the operator's
+recurring "why is there still no response?" — with no single command to prove the
+round-trip works or to say *which* link (discover/send/consume) broke.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** The substrate's liveness observability was built **entirely as
+after-the-fact failure detection** (11 canaries + four observability arcs). The
+affirmative on-demand round-trip proof was never composed. `agent-send.sh` does
+compose discover+send+consume, but collapses them into a single exit code, so a
+failure could not be attributed to a stage — the round-trip failed into silence.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** Observability grew reactively — each field failure
+spawned a detector (a canary) for *that* failure, but nothing ever asked "is there
+one affirmative proof that the whole promise holds right now?" The charter promise
+("discover, exchange durable messages") had detectors for its failure modes but no
+prover for its success. No gate required one.
+
+**Prevention:** `scripts/comms-selftest.sh` IS the prevention — an on-demand,
+staged, per-stage PASS/FAIL proof that names the broken link. Regression-locked by
+`scripts/test-comms-selftest.sh` (13 cases, PL-213 fixtures, no live hub) and made
+discoverable via `docs/operations/comms-selftest.md` + CLAUDE.md. It is the
+affirmative complement to the canaries: "prove it works" beside "detect when it broke".
 
 ## Evolution
 
