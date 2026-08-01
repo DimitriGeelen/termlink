@@ -2161,6 +2161,7 @@ pub(crate) enum ChannelAction {
     /// envelope with `metadata.expires_at_ms=<now+ttl>`. List walks the
     /// topic and reports senders whose latest typing envelope has not
     /// expired. Default TTL: 30000ms (Matrix's 30s typing window).
+    #[command(hide = true)]
     Typing {
         /// Topic name
         topic: String,
@@ -2188,6 +2189,7 @@ pub(crate) enum ChannelAction {
     /// envelope carrying `metadata.pin_target=<offset>` and
     /// `metadata.action=pin|unpin`. The current pin set is computed by
     /// walking the topic (see `channel pinned`).
+    #[command(hide = true)]
     Pin {
         /// Topic name
         topic: String,
@@ -2212,6 +2214,7 @@ pub(crate) enum ChannelAction {
     /// pin/unpin events in offset order (latest action per target wins), and
     /// renders one row per actively-pinned target. Sorted by most-recently
     /// pinned descending. Read-only.
+    #[command(hide = true)]
     Pinned {
         /// Topic name
         topic: String,
@@ -2229,6 +2232,7 @@ pub(crate) enum ChannelAction {
     /// envelope carrying `metadata.star_target=<offset>` and
     /// `metadata.star=true`. Latest action per (sender_id, target) wins, so
     /// repeating `star` is idempotent. See `channel starred` for aggregation.
+    #[command(hide = true)]
     Star {
         /// Topic name
         topic: String,
@@ -2268,6 +2272,7 @@ pub(crate) enum ChannelAction {
     /// target. By default scoped to the calling user; pass `--all` to include
     /// every user's stars. Sorted by most-recently starred descending.
     /// Read-only.
+    #[command(hide = true)]
     Starred {
         /// Topic name
         topic: String,
@@ -2477,6 +2482,7 @@ pub(crate) enum ChannelAction {
     /// With `--remove`, finds the latest matching reaction this identity
     /// posted on the same parent with the same payload, and emits an
     /// `m.redaction` targeting that offset (T-1330).
+    #[command(hide = true)]
     React {
         /// Topic name
         topic: String,
@@ -3375,6 +3381,7 @@ pub(crate) enum ChannelAction {
     },
     /// Polls on a topic (T-1355). Matrix `m.poll.start` / `m.poll.response`
     /// / `m.poll.end` analog. Sub-actions: `start`, `vote`, `end`, `results`.
+    #[command(hide = true)]
     Poll {
         #[command(subcommand)]
         action: PollAction,
@@ -5438,6 +5445,7 @@ pub(crate) enum AgentAction {
     /// (latest pin/unpin action per target wins) and renders one row per
     /// pinned offset. Companion to `agent starred` (T-1518): pinned is
     /// admin-attention, starred is personal-attention.
+    #[command(hide = true)]
     Pinned {
         /// Override hub address (default: local hub).
         #[arg(long)]
@@ -5453,6 +5461,7 @@ pub(crate) enum AgentAction {
     /// identity ("you"); pass `--all` for fleet-wide stars. Companion
     /// to `agent pinned` (T-1517): stars are personal bookmarks; pins
     /// are admin attention.
+    #[command(hide = true)]
     Starred {
         /// Show stars from every identity, not just the local one.
         #[arg(long)]
@@ -5512,6 +5521,7 @@ pub(crate) enum AgentAction {
     /// groups by emoji, prints `{emoji × count — senders}` rows. Pairs
     /// with `agent quote <offset>` — together they answer "what did this
     /// post say + how was it received".
+    #[command(hide = true)]
     Reactions {
         /// Arc offset of the post to inspect (positional, required).
         offset: u64,
@@ -5609,6 +5619,7 @@ pub(crate) enum AgentAction {
     /// Closes the engagement-emit primitive — read-side already shipped as
     /// `agent reactions <offset>` (T-1514), `agent reactions-of` (T-1521),
     /// `agent emoji-stats` (T-1515).
+    #[command(hide = true)]
     React {
         /// Parent post offset to react to.
         offset: u64,
@@ -5657,6 +5668,7 @@ pub(crate) enum AgentAction {
     /// `unpin` with `--unpin`). Topic-wide curation visible to all peers
     /// — distinct from `agent star` (per-sender bookmark). Read-side
     /// shipped as T-1517 `agent pinned`.
+    #[command(hide = true)]
     Pin {
         /// Offset to pin (or unpin with --unpin).
         offset: u64,
@@ -5679,6 +5691,7 @@ pub(crate) enum AgentAction {
     /// with `metadata.star_target=<offset>` for personal bookmarking.
     /// Distinct from `agent pin` (topic-wide curation). Read-side
     /// shipped as T-1518 `agent starred`.
+    #[command(hide = true)]
     Star {
         /// Offset to star (or unstar with --unstar).
         offset: u64,
@@ -6099,6 +6112,7 @@ pub(crate) enum AgentAction {
     /// envelope with `metadata.expires_at_ms=now+ttl`. Operator workflow:
     /// signal "I'm composing right now" so peers reading `agent typers`
     /// see live composition activity. Read companion: T-1551 `agent typers`.
+    #[command(hide = true)]
     Typing {
         /// TTL in milliseconds (how long the typing indicator stays active).
         #[arg(long = "ttl-ms", default_value = "5000")]
@@ -6121,6 +6135,7 @@ pub(crate) enum AgentAction {
     /// a live dashboard refreshing every `--watch-interval` seconds (TTL
     /// is 5s by default, so watching gives a moving picture of who's
     /// composing right now).
+    #[command(hide = true)]
     Typers {
         /// Override hub address (default: local hub).
         #[arg(long)]

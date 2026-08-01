@@ -938,19 +938,19 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_channel_edit_stats", "Aggregate edit metrics for a topic"),
             ("termlink_channel_redact", "Retract a post — content erased, marker kept"),
             ("termlink_channel_redactions", "All redactions on a topic"),
-            ("termlink_channel_pin", "Pin a post for prominence in topic metadata (any topic)"),
-            ("termlink_channel_pin_history", "Pin/unpin events on a topic (any topic)"),
-            ("termlink_channel_pinned", "Currently-pinned posts (any topic)"),
+            ("termlink_channel_pin", "Pin a post for prominence in topic metadata (any topic)  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_channel_pin_history", "Pin/unpin events on a topic (any topic)  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_channel_pinned", "Currently-pinned posts (any topic)  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
             ("termlink_channel_forward", "Re-publish a post to a different topic"),
             ("termlink_channel_forwards_of", "Forward history of a post (any topic)"),
         ]),
         ("channel_engagement", vec![
-            ("termlink_channel_react", "Add an emoji reaction to a post (any topic)"),
-            ("termlink_channel_reactions_of", "Reactions made by a specific sender"),
-            ("termlink_channel_reactions_on", "Reactions on a specific post (any topic)"),
-            ("termlink_channel_emoji_stats", "Aggregate emoji usage on a topic"),
-            ("termlink_channel_star", "Star a post (private bookmark) (any topic)"),
-            ("termlink_channel_starred", "Your starred posts (any topic)"),
+            ("termlink_channel_react", "Add an emoji reaction to a post (any topic)  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_channel_reactions_of", "Reactions made by a specific sender  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_channel_reactions_on", "Reactions on a specific post (any topic)  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_channel_emoji_stats", "Aggregate emoji usage on a topic  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_channel_star", "Star a post (private bookmark) (any topic)  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_channel_starred", "Your starred posts (any topic)  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
             ("termlink_channel_mentions", "Posts mentioning a sender"),
             ("termlink_channel_mentions_of", "All mentions of a specific identity"),
             ("termlink_channel_search", "Search content within a topic"),
@@ -960,8 +960,8 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
         ("channel_admin", vec![
             ("termlink_channel_members", "List members/subscribers on a topic"),
             ("termlink_channel_queue_status", "Inspect offline-queue state (pending count, cap, head post, + dead-letter backlog)"),
-            ("termlink_channel_typing_emit", "Emit a typing indicator to a topic (UX signal)"),
-            ("termlink_channel_typing_list", "List peers currently emitting typing indicators on a topic (any topic)"),
+            ("termlink_channel_typing_emit", "Emit a typing indicator to a topic (UX signal)  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_channel_typing_list", "List peers currently emitting typing indicators on a topic (any topic)  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
             ("termlink_channel_claim", "Reserve a (topic, offset) for exclusive processing (arc-parallel-substrate)"),
             ("termlink_channel_release", "Release a claim — ack=true advances cursor, ack=false reopens slot"),
             ("termlink_channel_claim_force_release", "Operator-Tier-0 force release — bypass claimer-ownership check to clear a stuck claim faster than TTL expiry (T-2044)"),
@@ -973,10 +973,10 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_channel_claims_history", "T-2075/T-2074 — retrospective read of ~/.termlink/claims.log NDJSON (written by `channel claims-summary --watch --log`). Per-topic aggregate of transition/new/removed event counts within --since-days window"),
         ]),
         ("channel_poll", vec![
-            ("termlink_channel_poll_start", "Open a poll on a topic (lower-level than agent_poll_start)"),
-            ("termlink_channel_poll_vote", "Cast a vote on an open channel poll"),
-            ("termlink_channel_poll_end", "Close a channel poll"),
-            ("termlink_channel_poll_results", "Read current results of a channel poll (open or closed)"),
+            ("termlink_channel_poll_start", "Open a poll on a topic (lower-level than agent_poll_start)  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_channel_poll_vote", "Cast a vote on an open channel poll  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_channel_poll_end", "Close a channel poll  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_channel_poll_results", "Read current results of a channel poll (open or closed)  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
         ]),
         ("agent_chat", vec![
             ("termlink_agent_post", "Post a message on agent-chat-arc (or any chat topic)"),
@@ -984,12 +984,12 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_agent_quote", "Quote-reply a post (preserves the quoted snippet)"),
             ("termlink_agent_edit", "Edit your own prior post in-place (revision logged)"),
             ("termlink_agent_redact", "Retract a post — content erased, marker preserved"),
-            ("termlink_agent_react", "Add an emoji reaction to a post (chat-arc)"),
-            ("termlink_agent_pin", "Pin a post for prominence in topic metadata (chat-arc)"),
-            ("termlink_agent_star", "Star a post (private bookmark) (chat-arc)"),
+            ("termlink_agent_react", "Add an emoji reaction to a post (chat-arc)  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_agent_pin", "Pin a post for prominence in topic metadata (chat-arc)  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_agent_star", "Star a post (private bookmark) (chat-arc)  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
             ("termlink_agent_describe", "Set chat-arc topic metadata description"),
-            ("termlink_agent_typing", "Emit a typing indicator on chat-arc (UX signal, T-1551)"),
-            ("termlink_agent_typers", "List peers currently emitting typing indicators on a topic (chat-arc)"),
+            ("termlink_agent_typing", "Emit a typing indicator on chat-arc (UX signal, T-1551)  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_agent_typers", "List peers currently emitting typing indicators on a topic (chat-arc)  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
             ("termlink_chat_arc_broadcast", "Fan a chat-arc post to every hub in the fleet (G-060 mitigation)"),
         ]),
         ("agent_read", vec![
@@ -1050,35 +1050,35 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_agent_followups", "Posts that follow this one chronologically"),
             ("termlink_agent_followups_to", "Posts that follow a specific peer"),
             ("termlink_agent_edits_of", "Edit history of a post (chat-arc)"),
-            ("termlink_agent_pin_history", "Pin/unpin events on a topic (chat-arc)"),
-            ("termlink_agent_pinned", "Currently-pinned posts (chat-arc)"),
-            ("termlink_agent_pinned_history", "Past pin states for a post"),
-            ("termlink_agent_starred", "Your starred posts (chat-arc)"),
-            ("termlink_agent_starred_history", "Past star events"),
-            ("termlink_agent_reactions", "Reactions on a specific post (chat-arc)"),
+            ("termlink_agent_pin_history", "Pin/unpin events on a topic (chat-arc)  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_agent_pinned", "Currently-pinned posts (chat-arc)  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_agent_pinned_history", "Past pin states for a post  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_agent_starred", "Your starred posts (chat-arc)  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_agent_starred_history", "Past star events  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_agent_reactions", "Reactions on a specific post (chat-arc)  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
             ("termlink_agent_relations", "All relations (replies/quotes/reacts/edits) of a post (chat-arc)"),
         ]),
         ("agent_poll", vec![
-            ("termlink_agent_poll_start", "Open a poll on a chat topic"),
-            ("termlink_agent_poll_vote", "Cast a vote on an open poll"),
-            ("termlink_agent_poll_end", "Close a poll and surface results"),
+            ("termlink_agent_poll_start", "Open a poll on a chat topic  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_agent_poll_vote", "Cast a vote on an open poll  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_agent_poll_end", "Close a poll and surface results  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
         ]),
         ("agent_engagement_metrics", vec![
-            ("termlink_agent_emoji_stats", "Aggregate emoji usage across an agent's posts"),
-            ("termlink_agent_emoji_users", "Distinct users of a specific emoji"),
-            ("termlink_agent_reactions_by", "Reactions emitted by a specific agent"),
-            ("termlink_agent_reactions_of", "Reactions received by a specific agent"),
-            ("termlink_agent_reaction_rate", "Reaction-per-post rate for an agent or topic"),
-            ("termlink_agent_reaction_summary", "Per-offset emoji breakdown on chat-arc"),
-            ("termlink_agent_pinned_by", "Posts pinned by a specific agent"),
-            ("termlink_agent_starred_by", "Posts starred by a specific agent"),
+            ("termlink_agent_emoji_stats", "Aggregate emoji usage across an agent's posts  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_agent_emoji_users", "Distinct users of a specific emoji  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_agent_reactions_by", "Reactions emitted by a specific agent  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_agent_reactions_of", "Reactions received by a specific agent  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_agent_reaction_rate", "Reaction-per-post rate for an agent or topic  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_agent_reaction_summary", "Per-offset emoji breakdown on chat-arc  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_agent_pinned_by", "Posts pinned by a specific agent  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_agent_starred_by", "Posts starred by a specific agent  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
         ]),
         ("agent_rankings", vec![
-            ("termlink_agent_top_pinners", "Agents who pin the most posts (leaderboard)"),
-            ("termlink_agent_top_reacted", "Most-reacted posts on chat-arc"),
+            ("termlink_agent_top_pinners", "Agents who pin the most posts (leaderboard)  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
+            ("termlink_agent_top_reacted", "Most-reacted posts on chat-arc  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
             ("termlink_agent_top_replied", "Most-replied posts on chat-arc"),
             ("termlink_agent_top_repliers", "Agents who reply the most (leaderboard)"),
-            ("termlink_agent_top_starrers", "Agents who star the most posts (leaderboard)"),
+            ("termlink_agent_top_starrers", "Agents who star the most posts (leaderboard)  (deprecated P4/T-2478) (use termlink_channel_post instead)"),
             ("termlink_agent_top_thread_starters", "Agents who start the most threads (leaderboard)"),
             ("termlink_agent_first_post_by", "Earliest post by a sender on chat-arc"),
             ("termlink_agent_first_responders", "Agents who tend to reply first on new threads"),
@@ -18392,7 +18392,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_typers",
-        description = "List active typers on `agent-chat-arc`. Keeps the latest typing envelope per sender, filtered by `metadata.expires_at_ms > now`; rows sorted by `ts` descending (sender_id tiebreak). Distinct from presence_now (which infers presence from any-msg recency, not a TTL signal). Default typing TTL is 5s; expired indicators dropped. Returns `{ok, topic:'agent-chat-arc', now_ms, typers:[{sender_id, expires_at_ms, ts}, ...]}`. Read-only."
+        description = "[DEPRECATED — use termlink_channel_post] List active typers on `agent-chat-arc`. Keeps the latest typing envelope per sender, filtered by `metadata.expires_at_ms > now`; rows sorted by `ts` descending (sender_id tiebreak). Distinct from presence_now (which infers presence from any-msg recency, not a TTL signal). Default typing TTL is 5s; expired indicators dropped. Returns `{ok, topic:'agent-chat-arc', now_ms, typers:[{sender_id, expires_at_ms, ts}, ...]}`. Read-only."
     )]
     async fn termlink_agent_typers(
         &self,
@@ -18578,7 +18578,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_reactions_of",
-        description = "List every active (non-redacted) reaction by a sender on `agent-chat-arc`. Filters: msg_type=reaction, sender match, drop redacted, require parent offset, drop empty emoji. `sender` defaults to the caller's local fingerprint ('what have I reacted to?'). Returns `{ok, topic, sender, reactions:[{reaction_offset, parent_offset, emoji, parent_payload, ts}, ...]}` sorted by reaction_offset descending — `parent_payload` is None when the parent is absent. Read-only."
+        description = "[DEPRECATED — use termlink_channel_post] List every active (non-redacted) reaction by a sender on `agent-chat-arc`. Filters: msg_type=reaction, sender match, drop redacted, require parent offset, drop empty emoji. `sender` defaults to the caller's local fingerprint ('what have I reacted to?'). Returns `{ok, topic, sender, reactions:[{reaction_offset, parent_offset, emoji, parent_payload, ts}, ...]}` sorted by reaction_offset descending — `parent_payload` is None when the parent is absent. Read-only."
     )]
     async fn termlink_agent_reactions_of(
         &self,
@@ -19012,7 +19012,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_typing",
-        description = "Emit a typing indicator on agent-chat-arc — signals 'I'm composing' to peers reading `agent typers`. Posts a `msg_type=typing` envelope with `metadata.expires_at_ms = now + ttl_ms` (default ttl: 5000ms)."
+        description = "[DEPRECATED — use termlink_channel_post] Emit a typing indicator on agent-chat-arc — signals 'I'm composing' to peers reading `agent typers`. Posts a `msg_type=typing` envelope with `metadata.expires_at_ms = now + ttl_ms` (default ttl: 5000ms)."
     )]
     async fn termlink_agent_typing(
         &self,
@@ -19084,7 +19084,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_react",
-        description = "Emit a reaction envelope on agent-chat-arc tied to a parent post offset. Posts a `msg_type=reaction` envelope with payload=emoji and `metadata.in_reply_to=<offset>`."
+        description = "[DEPRECATED — use termlink_channel_post] Emit a reaction envelope on agent-chat-arc tied to a parent post offset. Posts a `msg_type=reaction` envelope with payload=emoji and `metadata.in_reply_to=<offset>`."
     )]
     async fn termlink_agent_react(
         &self,
@@ -19232,7 +19232,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_pin",
-        description = "Pin (or unpin) a chat-arc post by offset. Posts a `msg_type=pin` envelope with empty payload and `metadata.pin_target=<offset>` + `metadata.action=pin|unpin` so the curation set rendered by `agent pinned` updates accordingly."
+        description = "[DEPRECATED — use termlink_channel_post] Pin (or unpin) a chat-arc post by offset. Posts a `msg_type=pin` envelope with empty payload and `metadata.pin_target=<offset>` + `metadata.action=pin|unpin` so the curation set rendered by `agent pinned` updates accordingly."
     )]
     async fn termlink_agent_pin(
         &self,
@@ -19304,7 +19304,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_star",
-        description = "Star (or unstar) a chat-arc post by offset. Posts a `msg_type=star` envelope with empty payload and `metadata.star_target=<offset>` + `metadata.star=true|false` so the per-sender bookmark set rendered by `agent starred` updates accordingly. Personal bookmark (vs `termlink_agent_pin`, which is fleet-wide curation)."
+        description = "[DEPRECATED — use termlink_channel_post] Star (or unstar) a chat-arc post by offset. Posts a `msg_type=star` envelope with empty payload and `metadata.star_target=<offset>` + `metadata.star=true|false` so the per-sender bookmark set rendered by `agent starred` updates accordingly. Personal bookmark (vs `termlink_agent_pin`, which is fleet-wide curation)."
     )]
     async fn termlink_agent_star(
         &self,
@@ -19788,7 +19788,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_emoji_stats",
-        description = "Per-emoji + per-sender reaction breakdown on any topic. Filters msg_type=reaction, SKIPS redacted reactions, groups by emoji AND sender; rows sorted total count desc / emoji asc, reactors within each row by count desc / sender asc. Unlike `agent_emoji_stats`: topic-flexible, per-sender reactor breakdown, and respects redactions. `top` truncates after sort. Returns `{ok, topic, total_distinct_emojis, rows:[{emoji, count, distinct_reactors, reactors:[{sender_id, count}, ...]}, ...]}`. Read-only."
+        description = "[DEPRECATED — use termlink_channel_post] Per-emoji + per-sender reaction breakdown on any topic. Filters msg_type=reaction, SKIPS redacted reactions, groups by emoji AND sender; rows sorted total count desc / emoji asc, reactors within each row by count desc / sender asc. Unlike `agent_emoji_stats`: topic-flexible, per-sender reactor breakdown, and respects redactions. `top` truncates after sort. Returns `{ok, topic, total_distinct_emojis, rows:[{emoji, count, distinct_reactors, reactors:[{sender_id, count}, ...]}, ...]}`. Read-only."
     )]
     async fn termlink_channel_emoji_stats(
         &self,
@@ -19902,7 +19902,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_reactions_of",
-        description = "Per-sender reaction history with parent-post preview on any topic. Filters msg_type=reaction by `sender_id`, skips redacted, attaches `parent_payload` preview. `sender_id` defaults to the caller's local fingerprint ('my reactions'). Returns `{ok, topic, sender_id, rows:[{reaction_offset, parent_offset, emoji, parent_payload, ts}, ...]}` sorted newest-first. Topic-flexible + redaction-respecting variant of `agent_reactions_by`. Read-only."
+        description = "[DEPRECATED — use termlink_channel_post] Per-sender reaction history with parent-post preview on any topic. Filters msg_type=reaction by `sender_id`, skips redacted, attaches `parent_payload` preview. `sender_id` defaults to the caller's local fingerprint ('my reactions'). Returns `{ok, topic, sender_id, rows:[{reaction_offset, parent_offset, emoji, parent_payload, ts}, ...]}` sorted newest-first. Topic-flexible + redaction-respecting variant of `agent_reactions_by`. Read-only."
     )]
     async fn termlink_channel_reactions_of(
         &self,
@@ -19943,7 +19943,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_reactions_on",
-        description = "Per-target reaction rollup on any topic. Filters msg_type=reaction whose `metadata.in_reply_to==target` and not redacted, groups by emoji. `count` = total reactions (repeat-taps count — alice reacting twice = 2); `senders` is deduplicated, ascending. Sort: count desc, emoji asc. Note vs `agent_reaction_summary`: this respects redactions and counts total reactions (not distinct senders), preserving repeat-tap signal. Returns `{ok, topic, target, total_count, rows:[{emoji, count, senders:[sender_id, ...]}, ...]}`. Read-only."
+        description = "[DEPRECATED — use termlink_channel_post] Per-target reaction rollup on any topic. Filters msg_type=reaction whose `metadata.in_reply_to==target` and not redacted, groups by emoji. `count` = total reactions (repeat-taps count — alice reacting twice = 2); `senders` is deduplicated, ascending. Sort: count desc, emoji asc. Note vs `agent_reaction_summary`: this respects redactions and counts total reactions (not distinct senders), preserving repeat-tap signal. Returns `{ok, topic, target, total_count, rows:[{emoji, count, senders:[sender_id, ...]}, ...]}`. Read-only."
     )]
     async fn termlink_channel_reactions_on(
         &self,
@@ -20164,7 +20164,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_typing_list",
-        description = "List active typers on any topic (topic-flexible `agent_typers`). Keeps the latest msg_type=typing envelope per sender, drops entries whose `metadata.expires_at_ms <= now_ms`. Sort: `ts` desc (sender_id tiebreak). Default typing TTL is 5s. Use for typing-presence on DM (`dm:*`) or project topics. Returns `{ok, topic, now_ms, typers:[{sender_id, expires_at_ms, ts}, ...], count}`. Read-only."
+        description = "[DEPRECATED — use termlink_channel_post] List active typers on any topic (topic-flexible `agent_typers`). Keeps the latest msg_type=typing envelope per sender, drops entries whose `metadata.expires_at_ms <= now_ms`. Sort: `ts` desc (sender_id tiebreak). Default typing TTL is 5s. Use for typing-presence on DM (`dm:*`) or project topics. Returns `{ok, topic, now_ms, typers:[{sender_id, expires_at_ms, ts}, ...], count}`. Read-only."
     )]
     async fn termlink_channel_typing_list(
         &self,
@@ -20204,7 +20204,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_typing_emit",
-        description = "Emit a typing indicator on any topic (topic-flexible `agent_typing`; write side). Builds a msg_type=typing envelope with empty payload and `metadata.expires_at_ms = now + ttl_ms` (default 5000ms), signs via local identity, POSTs. Peers reading typing filter expired indicators automatically. Returns the raw `channel.post` result envelope on success. WRITES state."
+        description = "[DEPRECATED — use termlink_channel_post] Emit a typing indicator on any topic (topic-flexible `agent_typing`; write side). Builds a msg_type=typing envelope with empty payload and `metadata.expires_at_ms = now + ttl_ms` (default 5000ms), signs via local identity, POSTs. Peers reading typing filter expired indicators automatically. Returns the raw `channel.post` result envelope on success. WRITES state."
     )]
     async fn termlink_channel_typing_emit(
         &self,
@@ -20828,7 +20828,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_poll_start",
-        description = "Start a poll on an arbitrary topic (topic-flexible variant of `termlink_agent_poll_start`, hardcoded to chat-arc). Posts a `msg_type=poll_start` envelope with payload=question and `metadata.poll_options=a|b|c` (pipe-delimited). Requires ≥2 options; rejects labels containing `|`. The envelope's offset becomes the `poll_id` used by subsequent vote/end envelopes."
+        description = "[DEPRECATED — use termlink_channel_post] Start a poll on an arbitrary topic (topic-flexible variant of `termlink_agent_poll_start`, hardcoded to chat-arc). Posts a `msg_type=poll_start` envelope with payload=question and `metadata.poll_options=a|b|c` (pipe-delimited). Requires ≥2 options; rejects labels containing `|`. The envelope's offset becomes the `poll_id` used by subsequent vote/end envelopes."
     )]
     async fn termlink_channel_poll_start(
         &self,
@@ -20911,7 +20911,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_poll_vote",
-        description = "Cast a vote on an open poll on an arbitrary topic (topic-flexible variant of `termlink_agent_poll_vote`). Posts a `msg_type=poll_vote` envelope with empty payload, `metadata.poll_id=<id>` + `metadata.poll_choice=<idx>`. Latest vote per (poll_id, sender) wins at aggregation time."
+        description = "[DEPRECATED — use termlink_channel_post] Cast a vote on an open poll on an arbitrary topic (topic-flexible variant of `termlink_agent_poll_vote`). Posts a `msg_type=poll_vote` envelope with empty payload, `metadata.poll_id=<id>` + `metadata.poll_choice=<idx>`. Latest vote per (poll_id, sender) wins at aggregation time."
     )]
     async fn termlink_channel_poll_vote(
         &self,
@@ -20987,7 +20987,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_poll_end",
-        description = "Close a poll on an arbitrary topic (topic-flexible variant of `termlink_agent_poll_end`). Posts a `msg_type=poll_end` envelope with empty payload and `metadata.poll_id=<id>`. Aggregators drop votes whose ts > this envelope's ts when computing final tally."
+        description = "[DEPRECATED — use termlink_channel_post] Close a poll on an arbitrary topic (topic-flexible variant of `termlink_agent_poll_end`). Posts a `msg_type=poll_end` envelope with empty payload and `metadata.poll_id=<id>`. Aggregators drop votes whose ts > this envelope's ts when computing final tally."
     )]
     async fn termlink_channel_poll_end(
         &self,
@@ -21059,7 +21059,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_poll_results",
-        description = "Aggregate poll tallies on any topic (topic-flexible `agent_poll_results`). Locates `poll_start` at `poll_id`, replays `poll_vote` envelopes in offset order (latest vote per sender wins; out-of-range choices and votes with ts > `poll_end` ts dropped). Returns `{poll_id, question, options:[{label, count, voters[]}], closed, total_votes}`. Errors when no `poll_start` at the offset (or malformed: <2 options). Read-only."
+        description = "[DEPRECATED — use termlink_channel_post] Aggregate poll tallies on any topic (topic-flexible `agent_poll_results`). Locates `poll_start` at `poll_id`, replays `poll_vote` envelopes in offset order (latest vote per sender wins; out-of-range choices and votes with ts > `poll_end` ts dropped). Returns `{poll_id, question, options:[{label, count, voters[]}], closed, total_votes}`. Errors when no `poll_start` at the offset (or malformed: <2 options). Read-only."
     )]
     async fn termlink_channel_poll_results(
         &self,
@@ -21312,7 +21312,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_star",
-        description = "Star (or unstar) a post by offset on any topic (topic-flexible `agent_star`; personal bookmark, vs fleet-wide pin). Posts a msg_type=star envelope with empty payload, `metadata.star_target=<offset>` + `metadata.star=true|false` so the per-sender bookmark set updates. Returns the raw `channel.post` result envelope. WRITES state."
+        description = "[DEPRECATED — use termlink_channel_post] Star (or unstar) a post by offset on any topic (topic-flexible `agent_star`; personal bookmark, vs fleet-wide pin). Posts a msg_type=star envelope with empty payload, `metadata.star_target=<offset>` + `metadata.star=true|false` so the per-sender bookmark set updates. Returns the raw `channel.post` result envelope. WRITES state."
     )]
     async fn termlink_channel_star(
         &self,
@@ -21383,7 +21383,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_pin",
-        description = "Pin (or unpin) a post by offset on an arbitrary topic (topic-flexible variant of `termlink_agent_pin`, hardcoded to chat-arc). Use case: curate important posts in a DM channel (`dm:a:b`) or project topic. Posts a `msg_type=pin` envelope with empty payload, `metadata.pin_target=<offset>` + `metadata.action=pin|unpin` so the per-topic curation set updates accordingly. Returns the raw `channel.post` result envelope on success."
+        description = "[DEPRECATED — use termlink_channel_post] Pin (or unpin) a post by offset on an arbitrary topic (topic-flexible variant of `termlink_agent_pin`, hardcoded to chat-arc). Use case: curate important posts in a DM channel (`dm:a:b`) or project topic. Posts a `msg_type=pin` envelope with empty payload, `metadata.pin_target=<offset>` + `metadata.action=pin|unpin` so the per-topic curation set updates accordingly. Returns the raw `channel.post` result envelope on success."
     )]
     async fn termlink_channel_pin(
         &self,
@@ -21792,7 +21792,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_react",
-        description = "Emit a reaction on any topic tied to a parent offset (topic-flexible `agent_react`). Posts a msg_type=reaction envelope with payload=emoji (UTF-8) and `metadata.in_reply_to=<offset>`. Add-only scope (reaction removal via redaction is a separate follow-up). Returns the raw `channel.post` result envelope. WRITES state."
+        description = "[DEPRECATED — use termlink_channel_post] Emit a reaction on any topic tied to a parent offset (topic-flexible `agent_react`). Posts a msg_type=reaction envelope with payload=emoji (UTF-8) and `metadata.in_reply_to=<offset>`. Add-only scope (reaction removal via redaction is a separate follow-up). Returns the raw `channel.post` result envelope. WRITES state."
     )]
     async fn termlink_channel_react(
         &self,
@@ -22054,7 +22054,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_poll_start",
-        description = "Open a chat-arc poll. Posts a `msg_type=poll_start` envelope with the question as payload and `metadata.poll_options=opt1|opt2|...` (pipe-delimited). Returns the offset of the new envelope — that offset is the `poll_id` used by subsequent vote/end calls. Requires at least 2 options; option labels cannot contain '|'."
+        description = "[DEPRECATED — use termlink_channel_post] Open a chat-arc poll. Posts a `msg_type=poll_start` envelope with the question as payload and `metadata.poll_options=opt1|opt2|...` (pipe-delimited). Returns the offset of the new envelope — that offset is the `poll_id` used by subsequent vote/end calls. Requires at least 2 options; option labels cannot contain '|'."
     )]
     async fn termlink_agent_poll_start(
         &self,
@@ -22131,7 +22131,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_poll_vote",
-        description = "Cast a vote on a chat-arc poll. Posts a `msg_type=poll_vote` envelope with empty payload and `metadata.poll_id=<offset>` + `metadata.poll_choice=<index>`. Latest vote per (poll_id, sender) wins."
+        description = "[DEPRECATED — use termlink_channel_post] Cast a vote on a chat-arc poll. Posts a `msg_type=poll_vote` envelope with empty payload and `metadata.poll_id=<offset>` + `metadata.poll_choice=<index>`. Latest vote per (poll_id, sender) wins."
     )]
     async fn termlink_agent_poll_vote(
         &self,
@@ -22202,7 +22202,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_poll_end",
-        description = "Close a chat-arc poll. Posts a `msg_type=poll_end` envelope with empty payload and `metadata.poll_id=<offset>`. The aggregator (`agent poll-results`) drops votes whose ts is after this envelope's ts."
+        description = "[DEPRECATED — use termlink_channel_post] Close a chat-arc poll. Posts a `msg_type=poll_end` envelope with empty payload and `metadata.poll_id=<offset>`. The aggregator (`agent poll-results`) drops votes whose ts is after this envelope's ts."
     )]
     async fn termlink_agent_poll_end(
         &self,
@@ -22500,7 +22500,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_pin_history",
-        description = "Full pin/unpin event log on agent-chat-arc. Walks the topic, filters `msg_type=pin` envelopes, and returns `[{pin_target, sender_id, action, ts_unix_ms}, ...]` sorted newest-first. Different from `termlink_agent_pinned` (current state) — this is the timeline of curation events including unpins. `limit` defaults to 200, capped at 1000."
+        description = "[DEPRECATED — use termlink_channel_post] Full pin/unpin event log on agent-chat-arc. Walks the topic, filters `msg_type=pin` envelopes, and returns `[{pin_target, sender_id, action, ts_unix_ms}, ...]` sorted newest-first. Different from `termlink_agent_pinned` (current state) — this is the timeline of curation events including unpins. `limit` defaults to 200, capped at 1000."
     )]
     async fn termlink_agent_pin_history(
         &self,
@@ -22899,7 +22899,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_emoji_stats",
-        description = "Topic-wide reaction aggregator on agent-chat-arc. Walks the topic, filters `msg_type=reaction` envelopes, groups by emoji (the reaction payload), and counts uses + tracks `last_used_ts`. Returns `[{emoji, count, last_used_ts}, ...]` sorted by count desc. Zooms OUT from `termlink_agent_reactions` (per-offset) — answers \"what's resonating across the whole topic?\". `limit` defaults to 50, capped at 500."
+        description = "[DEPRECATED — use termlink_channel_post] Topic-wide reaction aggregator on agent-chat-arc. Walks the topic, filters `msg_type=reaction` envelopes, groups by emoji (the reaction payload), and counts uses + tracks `last_used_ts`. Returns `[{emoji, count, last_used_ts}, ...]` sorted by count desc. Zooms OUT from `termlink_agent_reactions` (per-offset) — answers \"what's resonating across the whole topic?\". `limit` defaults to 50, capped at 500."
     )]
     async fn termlink_agent_emoji_stats(
         &self,
@@ -23645,7 +23645,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_reactions_by",
-        description = "Per-sender reaction history on agent-chat-arc. Walks the topic, filters `msg_type=reaction` by `sender_id` (defaults to caller's local Identity), and returns `[{emoji, in_reply_to, ts_unix_ms}, ...]` sorted newest-first. Triangulates with `termlink_agent_reactions` (per-offset) and `termlink_agent_emoji_stats` (topic-wide) — three orthogonal views of the same reaction data: by-target, by-emoji, by-sender. Default limit 200, capped at 1000."
+        description = "[DEPRECATED — use termlink_channel_post] Per-sender reaction history on agent-chat-arc. Walks the topic, filters `msg_type=reaction` by `sender_id` (defaults to caller's local Identity), and returns `[{emoji, in_reply_to, ts_unix_ms}, ...]` sorted newest-first. Triangulates with `termlink_agent_reactions` (per-offset) and `termlink_agent_emoji_stats` (topic-wide) — three orthogonal views of the same reaction data: by-target, by-emoji, by-sender. Default limit 200, capped at 1000."
     )]
     async fn termlink_agent_reactions_by(
         &self,
@@ -23732,7 +23732,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_pinned_by",
-        description = "List targets currently pinned BY a specific sender on agent-chat-arc. Walks the topic, filters `msg_type=pin` envelopes by `sender_id` (defaults to caller's local Identity), applies the latest-wins reduce per pin_target (an unpin event from the same sender supersedes their earlier pin), and returns `[{pin_target, ts_unix_ms}, ...]` sorted newest-first. Per-curator companion to `termlink_agent_pinned` (topic-wide). Useful for \"what has X curated?\" or \"what have I pinned?\" (default sender_id = me)."
+        description = "[DEPRECATED — use termlink_channel_post] List targets currently pinned BY a specific sender on agent-chat-arc. Walks the topic, filters `msg_type=pin` envelopes by `sender_id` (defaults to caller's local Identity), applies the latest-wins reduce per pin_target (an unpin event from the same sender supersedes their earlier pin), and returns `[{pin_target, ts_unix_ms}, ...]` sorted newest-first. Per-curator companion to `termlink_agent_pinned` (topic-wide). Useful for \"what has X curated?\" or \"what have I pinned?\" (default sender_id = me)."
     )]
     async fn termlink_agent_pinned_by(
         &self,
@@ -23819,7 +23819,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_starred_by",
-        description = "List targets currently starred BY a specific sender on agent-chat-arc. Walks the topic, filters `msg_type=star` envelopes by `sender_id` (defaults to caller's local Identity), applies the latest-wins reduce per star_target (a `star=false` event from the same sender supersedes their earlier `star=true`), and returns `[{star_target, ts_unix_ms}, ...]` sorted newest-first. Per-curator companion to `termlink_agent_starred` (topic-wide). Useful for \"what has X bookmarked?\" or \"what have I starred?\" (default sender_id = me)."
+        description = "[DEPRECATED — use termlink_channel_post] List targets currently starred BY a specific sender on agent-chat-arc. Walks the topic, filters `msg_type=star` envelopes by `sender_id` (defaults to caller's local Identity), applies the latest-wins reduce per star_target (a `star=false` event from the same sender supersedes their earlier `star=true`), and returns `[{star_target, ts_unix_ms}, ...]` sorted newest-first. Per-curator companion to `termlink_agent_starred` (topic-wide). Useful for \"what has X bookmarked?\" or \"what have I starred?\" (default sender_id = me)."
     )]
     async fn termlink_agent_starred_by(
         &self,
@@ -23906,7 +23906,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_pinned_history",
-        description = "Per-target pin/unpin audit log on agent-chat-arc. Walks the topic, filters `msg_type=pin` envelopes by `metadata.pin_target == <given offset>`, and returns the full chronological log `[{action, sender_id, ts_unix_ms}, ...]` sorted oldest-first. `action` is `pin` or `unpin`. Per-target companion to `termlink_agent_pinned` (current-state) and `termlink_agent_pinned_by` (per-curator). Useful for debugging contested pins or pin/unpin flapping — answers \"how has this target's pin state evolved?\"."
+        description = "[DEPRECATED — use termlink_channel_post] Per-target pin/unpin audit log on agent-chat-arc. Walks the topic, filters `msg_type=pin` envelopes by `metadata.pin_target == <given offset>`, and returns the full chronological log `[{action, sender_id, ts_unix_ms}, ...]` sorted oldest-first. `action` is `pin` or `unpin`. Per-target companion to `termlink_agent_pinned` (current-state) and `termlink_agent_pinned_by` (per-curator). Useful for debugging contested pins or pin/unpin flapping — answers \"how has this target's pin state evolved?\"."
     )]
     async fn termlink_agent_pinned_history(
         &self,
@@ -23973,7 +23973,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_starred_history",
-        description = "Per-target star/unstar audit log on agent-chat-arc. Walks the topic, filters `msg_type=star` envelopes by `metadata.star_target == <given offset>`, and returns the full chronological log `[{star_value, sender_id, ts_unix_ms}, ...]` sorted oldest-first. `star_value` is the `star` payload field — `true` for star, `false` for unstar. Per-target companion to `termlink_agent_starred` (current-state) and `termlink_agent_starred_by` (per-curator). Answers \"how has this target's star state evolved across all curators?\"."
+        description = "[DEPRECATED — use termlink_channel_post] Per-target star/unstar audit log on agent-chat-arc. Walks the topic, filters `msg_type=star` envelopes by `metadata.star_target == <given offset>`, and returns the full chronological log `[{star_value, sender_id, ts_unix_ms}, ...]` sorted oldest-first. `star_value` is the `star` payload field — `true` for star, `false` for unstar. Per-target companion to `termlink_agent_starred` (current-state) and `termlink_agent_starred_by` (per-curator). Answers \"how has this target's star state evolved across all curators?\"."
     )]
     async fn termlink_agent_starred_history(
         &self,
@@ -24951,7 +24951,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_reaction_summary",
-        description = "Per-offset emoji breakdown on agent-chat-arc. Given an `offset`, walks topic, finds all `msg_type=reaction` envelopes whose `metadata.in_reply_to` matches, groups by decoded emoji payload, and returns `{offset, total_count, by_emoji: [{emoji, count, senders: [sender_id, ...]}, ...]}` sorted by count descending. Companion to `termlink_agent_reactions` (raw list) and `termlink_agent_emoji_stats` (topic-wide aggregate). Useful for \"how was this post received?\" sentiment scans."
+        description = "[DEPRECATED — use termlink_channel_post] Per-offset emoji breakdown on agent-chat-arc. Given an `offset`, walks topic, finds all `msg_type=reaction` envelopes whose `metadata.in_reply_to` matches, groups by decoded emoji payload, and returns `{offset, total_count, by_emoji: [{emoji, count, senders: [sender_id, ...]}, ...]}` sorted by count descending. Companion to `termlink_agent_reactions` (raw list) and `termlink_agent_emoji_stats` (topic-wide aggregate). Useful for \"how was this post received?\" sentiment scans."
     )]
     async fn termlink_agent_reaction_summary(
         &self,
@@ -25570,7 +25570,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_top_reacted",
-        description = "Most-reacted-to posts on agent-chat-arc. Walks topic in window, tallies `msg_type=reaction` envelopes per `metadata.in_reply_to` parent, and returns `[{offset, sender_id, body_preview, ts_unix_ms, reaction_count}, ...]` sorted by reaction_count desc. Window cutoff is applied to PARENT post ts so attention is judged relative to recently-posted content. Companion to `emoji_stats` (topic aggregate) and `reaction_summary` (single-offset breakdown) — fills \"which posts attracted the most reactions?\" gap."
+        description = "[DEPRECATED — use termlink_channel_post] Most-reacted-to posts on agent-chat-arc. Walks topic in window, tallies `msg_type=reaction` envelopes per `metadata.in_reply_to` parent, and returns `[{offset, sender_id, body_preview, ts_unix_ms, reaction_count}, ...]` sorted by reaction_count desc. Window cutoff is applied to PARENT post ts so attention is judged relative to recently-posted content. Companion to `emoji_stats` (topic aggregate) and `reaction_summary` (single-offset breakdown) — fills \"which posts attracted the most reactions?\" gap."
     )]
     async fn termlink_agent_top_reacted(
         &self,
@@ -26159,7 +26159,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_emoji_users",
-        description = "Per-emoji peer leaderboard on agent-chat-arc. Given an `emoji` string (e.g. \"🎉\"), walks topic, filters `msg_type=reaction` envelopes whose decoded payload matches the emoji, tallies per-sender count + max-ts, and returns `[{sender_id, count, last_use_ts}, ...]` sorted by count desc. Companion to `emoji_stats` (topic-wide aggregate) but pivoted: emoji_stats answers \"which emoji is most used?\", emoji_users answers \"who uses THIS emoji most?\". Useful for emoji-affinity / find-the-cheerleader-of-X."
+        description = "[DEPRECATED — use termlink_channel_post] Per-emoji peer leaderboard on agent-chat-arc. Given an `emoji` string (e.g. \"🎉\"), walks topic, filters `msg_type=reaction` envelopes whose decoded payload matches the emoji, tallies per-sender count + max-ts, and returns `[{sender_id, count, last_use_ts}, ...]` sorted by count desc. Companion to `emoji_stats` (topic-wide aggregate) but pivoted: emoji_stats answers \"which emoji is most used?\", emoji_users answers \"who uses THIS emoji most?\". Useful for emoji-affinity / find-the-cheerleader-of-X."
     )]
     async fn termlink_agent_emoji_users(
         &self,
@@ -27093,7 +27093,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_reaction_rate",
-        description = "Per-peer reactions-per-post popularity gauge for agent-chat-arc. Given a `sender_id`, walks topic, identifies posts authored by sender, tallies reactions received on those posts (sum across all reactions). Returns `{sender_id, total_posts, total_reactions_received, reactions_per_post, top_post_offset, top_post_reactions}`. Distinct from `termlink_agent_top_reacted` (per-post peaks across topic) — this gives sender-aggregate ratio. Useful for 'is this peer's content resonant per-post?'."
+        description = "[DEPRECATED — use termlink_channel_post] Per-peer reactions-per-post popularity gauge for agent-chat-arc. Given a `sender_id`, walks topic, identifies posts authored by sender, tallies reactions received on those posts (sum across all reactions). Returns `{sender_id, total_posts, total_reactions_received, reactions_per_post, top_post_offset, top_post_reactions}`. Distinct from `termlink_agent_top_reacted` (per-post peaks across topic) — this gives sender-aggregate ratio. Useful for 'is this peer's content resonant per-post?'."
     )]
     async fn termlink_agent_reaction_rate(
         &self,
@@ -27406,7 +27406,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_top_pinners",
-        description = "Most-active pinners leaderboard for agent-chat-arc. Walks topic, filters `msg_type=pin` envelopes, tallies per `sender_id`, returns `[{sender_id, pin_actions, last_pin_ts}, ...]` sorted desc by pin_actions. Curator-activity leader. Distinct from `termlink_agent_pinned_by` (per-curator current pins after latest-wins reduce) — this counts ALL pin actions (raw activity). Default limit 20, capped at 200."
+        description = "[DEPRECATED — use termlink_channel_post] Most-active pinners leaderboard for agent-chat-arc. Walks topic, filters `msg_type=pin` envelopes, tallies per `sender_id`, returns `[{sender_id, pin_actions, last_pin_ts}, ...]` sorted desc by pin_actions. Curator-activity leader. Distinct from `termlink_agent_pinned_by` (per-curator current pins after latest-wins reduce) — this counts ALL pin actions (raw activity). Default limit 20, capped at 200."
     )]
     async fn termlink_agent_top_pinners(
         &self,
@@ -27417,7 +27417,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_top_starrers",
-        description = "Most-active starrers leaderboard for agent-chat-arc. Walks topic, filters `msg_type=star` envelopes, tallies per `sender_id`, returns `[{sender_id, star_actions, last_star_ts}, ...]` sorted desc by star_actions. Curator-activity leader for stars. Distinct from `termlink_agent_starred_by` (per-curator current stars). Default limit 20, capped at 200."
+        description = "[DEPRECATED — use termlink_channel_post] Most-active starrers leaderboard for agent-chat-arc. Walks topic, filters `msg_type=star` envelopes, tallies per `sender_id`, returns `[{sender_id, star_actions, last_star_ts}, ...]` sorted desc by star_actions. Curator-activity leader for stars. Distinct from `termlink_agent_starred_by` (per-curator current stars). Default limit 20, capped at 200."
     )]
     async fn termlink_agent_top_starrers(
         &self,
@@ -27665,7 +27665,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_reactions",
-        description = "List all reaction envelopes for a single chat-arc offset. Walks the topic, filters `msg_type=reaction` with `metadata.in_reply_to=<offset>`, base64-decodes payload (emoji) and returns `[{emoji, sender_id, ts_unix_ms}, ...]` sorted newest-first. Companion read tool to `termlink_agent_react`."
+        description = "[DEPRECATED — use termlink_channel_post] List all reaction envelopes for a single chat-arc offset. Walks the topic, filters `msg_type=reaction` with `metadata.in_reply_to=<offset>`, base64-decodes payload (emoji) and returns `[{emoji, sender_id, ts_unix_ms}, ...]` sorted newest-first. Companion read tool to `termlink_agent_react`."
     )]
     async fn termlink_agent_reactions(
         &self,
@@ -27786,7 +27786,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_pinned",
-        description = "List currently pinned posts on agent-chat-arc. Walks pin envelopes via channel.subscribe, groups by `metadata.pin_target`, keeps the latest by ts, and returns only those whose final `action` is `pin` (i.e. not subsequently unpinned). Returns a JSON array sorted newest-first: `[{pin_target, sender_id, ts_unix_ms}, ...]`. Companion read tool to `termlink_agent_pin` — completes the curation surface."
+        description = "[DEPRECATED — use termlink_channel_post] List currently pinned posts on agent-chat-arc. Walks pin envelopes via channel.subscribe, groups by `metadata.pin_target`, keeps the latest by ts, and returns only those whose final `action` is `pin` (i.e. not subsequently unpinned). Returns a JSON array sorted newest-first: `[{pin_target, sender_id, ts_unix_ms}, ...]`. Companion read tool to `termlink_agent_pin` — completes the curation surface."
     )]
     async fn termlink_agent_pinned(
         &self,
@@ -27885,7 +27885,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_starred",
-        description = "List currently starred posts on agent-chat-arc. Walks star envelopes via channel.subscribe, groups by `(sender_id, metadata.star_target)`, keeps the latest by ts, and returns entries whose final `metadata.star` is `true` (i.e. not subsequently unstarred). Personal bookmark view — optional `peer_fp` filter scopes to one user's stars (default = all peers). Returns a JSON array sorted newest-first: `[{star_target, sender_id, ts_unix_ms}, ...]`. Companion read tool to `termlink_agent_star`."
+        description = "[DEPRECATED — use termlink_channel_post] List currently starred posts on agent-chat-arc. Walks star envelopes via channel.subscribe, groups by `(sender_id, metadata.star_target)`, keeps the latest by ts, and returns entries whose final `metadata.star` is `true` (i.e. not subsequently unstarred). Personal bookmark view — optional `peer_fp` filter scopes to one user's stars (default = all peers). Returns a JSON array sorted newest-first: `[{star_target, sender_id, ts_unix_ms}, ...]`. Companion read tool to `termlink_agent_star`."
     )]
     async fn termlink_agent_starred(
         &self,
@@ -28587,7 +28587,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_pin_history",
-        description = "Chronological pin/unpin event log for any topic (vs a pinned-set LWW snapshot). Each row carries the event offset, action (pin/unpin), target offset, actor sender, timestamp, and (when target is in the set) a decoded payload preview. Forensic use: who pinned what when, was it undone, by whom. Returns `{ok, topic, rows:[{event_offset, action, target_offset, actor_sender, ts_ms, target_payload}], count}`. Read-only."
+        description = "[DEPRECATED — use termlink_channel_post] Chronological pin/unpin event log for any topic (vs a pinned-set LWW snapshot). Each row carries the event offset, action (pin/unpin), target offset, actor sender, timestamp, and (when target is in the set) a decoded payload preview. Forensic use: who pinned what when, was it undone, by whom. Returns `{ok, topic, rows:[{event_offset, action, target_offset, actor_sender, ts_ms, target_payload}], count}`. Read-only."
     )]
     async fn termlink_channel_pin_history(
         &self,
@@ -28822,7 +28822,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_pinned",
-        description = "Currently-pinned set on any topic with payload preview (topic-flexible richer `agent_pinned`). Applies last-write-wins per `metadata.pin_target` (action=pin records, unpin removes), then enriches each row with `payload` from the target envelope (Some if present, None if out-of-range). Sorted by `pinned_ts` desc (target asc tiebreak). Returns `{ok, topic, rows:[{target, pinned_by, pinned_ts, payload}, ...], count}`. Read-only."
+        description = "[DEPRECATED — use termlink_channel_post] Currently-pinned set on any topic with payload preview (topic-flexible richer `agent_pinned`). Applies last-write-wins per `metadata.pin_target` (action=pin records, unpin removes), then enriches each row with `payload` from the target envelope (Some if present, None if out-of-range). Sorted by `pinned_ts` desc (target asc tiebreak). Returns `{ok, topic, rows:[{target, pinned_by, pinned_ts, payload}, ...], count}`. Read-only."
     )]
     async fn termlink_channel_pinned(
         &self,
@@ -28850,7 +28850,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_starred",
-        description = "Currently-starred set on any topic with payload preview (topic-flexible richer `agent_starred`). Stars are personal bookmarks keyed by (sender_id, star_target). Default scope is all users (cross-room); pass `caller_fp` to scope to one fingerprint. LWW per (sender, target): star=true records, star=false removes. Payload from the target envelope (Some if present, None if out-of-range). Sorted by starred_ts desc (target asc, starred_by asc tiebreak). Returns `{ok, topic, scope, rows:[{target, starred_by, starred_ts, payload}, ...], count}`. Read-only."
+        description = "[DEPRECATED — use termlink_channel_post] Currently-starred set on any topic with payload preview (topic-flexible richer `agent_starred`). Stars are personal bookmarks keyed by (sender_id, star_target). Default scope is all users (cross-room); pass `caller_fp` to scope to one fingerprint. LWW per (sender, target): star=true records, star=false removes. Payload from the target envelope (Some if present, None if out-of-range). Sorted by starred_ts desc (target asc, starred_by asc tiebreak). Returns `{ok, topic, scope, rows:[{target, starred_by, starred_ts, payload}, ...], count}`. Read-only."
     )]
     async fn termlink_channel_starred(
         &self,
