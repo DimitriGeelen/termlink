@@ -2640,3 +2640,10 @@ learnings:
   date: 2026-08-01
   context: Added via context agent
   application: TBD
+- id: PL-269
+  learning: "Observability that is ALL after-the-fact failure-detection has a blind spot: no affirmative on-demand proof that the core promise HOLDS right now. TermLink grew 11 canaries + 4 observability arcs reactively (each field failure spawned a detector for THAT failure) but never a prover for success — so the charter round-trip (discover->send->consume) could fail into silence ('why is there still no response?'). Fix pattern: for each core promise, build a single staged on-demand verb that PROVES it and attributes a failure to the exact broken link (comms-selftest.sh: DISCOVER/SEND/CONSUME PASS-FAIL). Compose existing primitives; add no surface. The affirmative complement to canaries: 'prove it works' beside 'detect when it broke'."
+  source: P-001
+  task: T-2482
+  date: 2026-08-01
+  context: Added via context agent
+  application: TBD
