@@ -1821,10 +1821,13 @@ pub(crate) fn detect_ack_in_msgs(
 }
 
 /// T-1485: poll a dm topic for an ack from `peer_fp` posted after
-/// `send_ts_ms`. Polls at ~1s cadence using `fetch_topic_msgs(slice=200)`
-/// — chosen so we see ~3min of dm history per poll which is plenty for
-/// the conversational use case. Returns Ok(Some(ts_ms)) on ack,
-/// Ok(None) on timeout. Errors propagate (e.g. hub unreachable).
+/// `send_ts_ms`. Polls at ~1s cadence. T-2507: reads via offset-cursor
+/// pagination (`walk_topic_from`), NOT the count-anchored `fetch_topic_msgs`
+/// slice — the latter returns the OLDEST live page on a swept dm topic and
+/// misses the tail ack. The first poll reads the full live topic; subsequent
+/// polls carry `next_cursor` so they read only new records. Returns
+/// Ok(Some(ts_ms)) on ack, Ok(None) on timeout. Errors propagate (e.g. hub
+/// unreachable).
 pub(crate) async fn wait_for_peer_ack(
     topic: &str,
     peer_fp: &str,
@@ -1833,9 +1836,23 @@ pub(crate) async fn wait_for_peer_ack(
     timeout_secs: u64,
 ) -> Result<Option<i64>> {
     use tokio::time::{sleep, Duration, Instant};
+    let sock = hub_socket(hub)?;
     let start = Instant::now();
+    // T-2507: poll the true tail via offset-cursor pagination, NOT the count-anchored
+    // fetch_topic_msgs slice. fetch_topic_msgs' tail_slice_cursor(count, …) = count -
+    // slice treats the channel.list `count` as the max offset; once a retention sweep
+    // front-trims this Messages(1000) dm topic, count decouples from the tail
+    // (count << max_offset) and the single capped page returns the OLDEST live
+    // records — missing the peer's just-posted ack at the tail → false Ok(None)
+    // "delivery unconfirmed". walk_topic_from advances a below-window cursor to the
+    // oldest live offset and walks to the true tail (correct under any sweep);
+    // carrying next_cursor across polls keeps each subsequent poll incremental (only
+    // new records). Sibling of T-2390/T-2391, which fixed the same count-vs-offset
+    // decoupling on the presence read.
+    let mut cursor: u64 = 0;
     loop {
-        let msgs = fetch_topic_msgs(topic, hub, 200).await?;
+        let (msgs, next_cursor) = walk_topic_from(&sock, topic, cursor).await?;
+        cursor = next_cursor;
         if let Some(ts) = detect_ack_in_msgs(&msgs, peer_fp, send_ts_ms) {
             return Ok(Some(ts));
         }
@@ -10441,8 +10458,25 @@ pub(crate) fn from_latest_overrides(
 /// Returns all envelopes as JSON values in offset-ascending order. Bounded by
 /// hub-page limit (1000); large topics make multiple round-trips.
 async fn walk_topic_full(sock: &TransportAddr, topic: &str) -> Result<Vec<Value>> {
+    let (all, _next) = walk_topic_from(sock, topic, 0).await?;
+    Ok(all)
+}
+
+/// T-2507: paginate `topic` from `start_cursor` to the current tail, returning the
+/// collected envelopes AND the final `next_cursor` (so a poll loop can resume
+/// incrementally). Unlike `fetch_topic_msgs`, the cursor is a real OFFSET, not a
+/// `channel.list` count, so this is correct under any retention sweep: on a
+/// front-trimmed topic the hub advances a below-window cursor to the oldest live
+/// offset and walks to the true tail. `wait_for_peer_ack` polls through this to
+/// avoid the count-anchored `tail_slice_cursor` bug (which read the OLDEST live page
+/// on a swept dm topic and missed the peer's tail ack → false "unconfirmed").
+async fn walk_topic_from(
+    sock: &TransportAddr,
+    topic: &str,
+    start_cursor: u64,
+) -> Result<(Vec<Value>, u64)> {
     let mut all: Vec<Value> = Vec::new();
-    let mut cursor: u64 = 0;
+    let mut cursor: u64 = start_cursor;
     let limit: u64 = 1000;
     loop {
         let resp = rpc_call_authed(
@@ -10463,7 +10497,7 @@ async fn walk_topic_full(sock: &TransportAddr, topic: &str) -> Result<Vec<Value>
             break;
         }
     }
-    Ok(all)
+    Ok((all, cursor))
 }
 
 /// T-1335: per-topic statistics row. `meta` counts envelopes whose msg_type is
