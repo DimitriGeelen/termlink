@@ -36,7 +36,23 @@ impl Meta {
             )
             .ok();
         if let Some((kind, value)) = existing {
-            let got = Retention::from_parts(&kind, value).unwrap_or(Retention::Forever);
+            // T-2500: a stored row that does not parse into a known Retention is
+            // a corruption / schema-drift / cross-version signal — surface it
+            // LOUD rather than fabricating `Forever` (the old `unwrap_or(Forever)`
+            // silently masked it, then either reported a phantom `existing:
+            // Forever` policy mismatch or accepted the corrupt topic as a valid
+            // Forever topic → unbounded growth). Mirrors `topic_retention`, which
+            // already propagates the parse-failure as `None`.
+            let got = match Retention::from_parts(&kind, value) {
+                Some(r) => r,
+                None => {
+                    return Err(BusError::CorruptRetention {
+                        name: name.to_string(),
+                        kind,
+                        value,
+                    });
+                }
+            };
             if got != retention {
                 return Err(BusError::TopicPolicyMismatch {
                     name: name.to_string(),

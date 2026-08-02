@@ -17,6 +17,17 @@ pub enum BusError {
         requested: crate::Retention,
     },
 
+    // T-2500: an existing topic row's stored (kind, value) does not parse into
+    // any known Retention. Surfaced LOUD instead of fabricating Retention::Forever
+    // (the old `unwrap_or(Forever)` silently masked corruption / schema drift /
+    // cross-version rows and let a bounded topic masquerade as unbounded).
+    #[error("topic {name:?} has a corrupt/unrecognized stored retention policy (kind={kind:?}, value={value})")]
+    CorruptRetention {
+        name: String,
+        kind: String,
+        value: i64,
+    },
+
     #[error("topic {0:?} not found")]
     UnknownTopic(String),
 

@@ -935,6 +935,50 @@ mod tests {
         assert!(matches!(err, BusError::TopicPolicyMismatch { .. }));
     }
 
+    // T-2500: an existing topic row whose stored retention_kind is unrecognized
+    // (schema drift / disk corruption / a cross-version row this binary predates)
+    // must surface LOUD as CorruptRetention — NOT be silently fabricated as
+    // Forever (which the old `unwrap_or(Forever)` did, then reported a phantom
+    // `existing: Forever` policy mismatch or accepted the corrupt topic silently).
+    #[test]
+    fn create_topic_rejects_corrupt_stored_kind() {
+        let (dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Messages(100)).unwrap();
+        let conn = rusqlite::Connection::open(dir.path().join("meta.db")).unwrap();
+        conn.execute(
+            "UPDATE topics SET retention_kind = 'bogus_kind' WHERE name = 't'",
+            [],
+        )
+        .unwrap();
+        drop(conn);
+        let err = bus.create_topic("t", Retention::Messages(100)).unwrap_err();
+        match err {
+            BusError::CorruptRetention { name, kind, .. } => {
+                assert_eq!(name, "t");
+                assert_eq!(kind, "bogus_kind");
+            }
+            other => panic!("expected CorruptRetention, got {other:?}"),
+        }
+    }
+
+    // T-2500: a valid kind ("days") with an out-of-range stored value (negative)
+    // fails `u32::try_from` inside `from_parts` → None. Old code fabricated
+    // Forever; new code surfaces the corruption LOUD.
+    #[test]
+    fn create_topic_rejects_corrupt_stored_value() {
+        let (dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Days(7)).unwrap();
+        let conn = rusqlite::Connection::open(dir.path().join("meta.db")).unwrap();
+        conn.execute("UPDATE topics SET retention_value = -1 WHERE name = 't'", [])
+            .unwrap();
+        drop(conn);
+        let err = bus.create_topic("t", Retention::Days(7)).unwrap_err();
+        assert!(
+            matches!(err, BusError::CorruptRetention { value: -1, .. }),
+            "expected CorruptRetention with value=-1, got {err:?}"
+        );
+    }
+
     fn env(topic: &str, payload: &[u8]) -> Envelope {
         Envelope {
             topic: topic.to_string(),
