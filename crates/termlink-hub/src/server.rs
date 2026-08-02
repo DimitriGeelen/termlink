@@ -153,9 +153,38 @@ fn generate_and_write_hub_secret() -> std::io::Result<String> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    std::fs::write(&path, &secret_hex)?;
 
-    // Set file permissions to 0600 (owner read/write only)
+    // T-2502: write the fleet HMAC secret ATOMICALLY (temp file + rename), never
+    // truncate-in-place. `std::fs::write` truncates the live file BEFORE writing,
+    // so a crash / OOM-kill / power-loss / ENOSPC mid-write leaves `hub.secret`
+    // truncated on disk → next boot rejects it (len != 64) → silent regeneration
+    // → fleet-wide re-auth (PL-021 / G-058). POSIX rename(2) is atomic within one
+    // filesystem: a reader sees the whole old (absent) or whole new file, never a
+    // partial one; a crash mid-write leaves only the discardable temp. The temp is
+    // created 0600 up-front so the secret is never world-readable, even briefly.
+    // Mirrors known_peers.rs::save / tofu.rs (T-2501).
+    let tmp_path = path.with_extension("tmp");
+    #[cfg(unix)]
+    {
+        use std::io::Write;
+        use std::os::unix::fs::OpenOptionsExt;
+        let mut f = std::fs::OpenOptions::new()
+            .create(true)
+            .truncate(true)
+            .write(true)
+            .mode(0o600)
+            .open(&tmp_path)?;
+        f.write_all(secret_hex.as_bytes())?;
+        f.flush()?;
+    }
+    #[cfg(not(unix))]
+    {
+        std::fs::write(&tmp_path, &secret_hex)?;
+    }
+    std::fs::rename(&tmp_path, &path)?;
+
+    // Defensive: re-assert 0600 on the final path (rename preserves the temp's
+    // mode on unix; this guards against any umask/edge surprise).
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -1797,6 +1826,43 @@ mod tests {
         assert_ne!(third, "not-hex");
         assert_eq!(third.len(), 64);
         assert!(third.chars().all(|c| c.is_ascii_hexdigit()));
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+    }
+
+    /// T-2502: the secret must be written atomically (temp + rename), not
+    /// truncate-in-place. After generation no leftover `hub.secret.tmp` may
+    /// remain, the final file must be 0600, and the secret must round-trip
+    /// (a second call reuses it). A regression to `fs::write` would truncate
+    /// the live file on a mid-write crash → silent fleet re-auth (PL-021).
+    #[tokio::test]
+    async fn hub_secret_written_atomically() {
+        let _lock = ENV_LOCK.lock().await;
+        let dir = test_dir();
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &dir) };
+
+        let secret = generate_and_write_hub_secret().expect("generate");
+        assert_eq!(secret.len(), 64);
+
+        let secret_path = dir.join("hub.secret");
+        let tmp_path = secret_path.with_extension("tmp");
+        assert!(
+            !tmp_path.exists(),
+            "atomic write must leave no leftover temp at {}",
+            tmp_path.display()
+        );
+        assert!(secret_path.exists(), "hub.secret must exist after generation");
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(&secret_path).unwrap().permissions().mode();
+            assert_eq!(mode & 0o777, 0o600, "hub.secret must be 0600");
+        }
+
+        // Round-trips: the on-disk secret is reused, not regenerated.
+        let again = generate_and_write_hub_secret().expect("reuse");
+        assert_eq!(secret, again, "second call must reuse the atomically-written secret");
 
         unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
     }
