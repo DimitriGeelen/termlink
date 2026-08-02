@@ -1,9 +1,9 @@
-# Audit Results - 2026-08-02-1012
-timestamp: 2026-08-02T08:12:55Z
+# Audit Results - 2026-08-02-1018
+timestamp: 2026-08-02T08:18:05Z
 sections: "structure"
 summary:
-  pass: 34
-  warn: 4
+  pass: 35
+  warn: 3
   fail: 0
 findings:
   - level: PASS
@@ -79,9 +79,8 @@ findings:
     check: "cron(waker-liveness-canary): USER-field syntax installed at /etc/cron.d/termlink-waker-liveness-canary"
   - level: PASS
     check: "cron(woken-silent-triage): USER-field syntax installed at /etc/cron.d/termlink-woken-silent-triage"
-  - level: WARN
-    check: "Hook threshold: 1 hook(s) failing over threshold (T-1626)"
-    mitigation: "Run: python3 /opt/termlink/.agentic-framework/lib/hook-threshold.py --register (or fw upgrade if witness pattern)"
+  - level: PASS
+    check: "Hook threshold: no hooks failing over threshold"
   - level: PASS
     check: "Secret scan: tracked tree clean"
   - level: PASS

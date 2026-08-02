@@ -5472,3 +5472,21 @@ scan_id: R-6ca0ac00
 task_id: T-2488
 payload:
   task_file: .tasks/active/T-2488-eventemitto-mislabels-inbox-spool-io-fai.md
+---
+kind: scan_emitted
+timestamp: '2026-08-02T08:35:07Z'
+scan_id: R-4cf7ff5b
+task_id: T-2489
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-02T08:35:07Z'
+scan_id: R-4cf7ff5b
+task_id: T-2489
+payload:
+  task_file: .tasks/active/T-2489-inbox-delivertransfer-silently-skips-cor.md

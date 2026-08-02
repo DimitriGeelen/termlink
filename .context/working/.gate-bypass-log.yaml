@@ -2328,3 +2328,11 @@ FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2478: capture mirro
   command: 'git add -A && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2488: complete — episodic + PL-276 (lossy if-let-Ok(true) discards Err, directive-#2 class)
 
 Reader-resilience sibling ship'
+- timestamp: '2026-08-02T08:36:13Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2489'
+  command: 'git add -A && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2489: complete — episodic + learning (skip-then-destroy data-loss trap); file T-2490 (chunk lexical-sort) as backlog
+
+Firin'

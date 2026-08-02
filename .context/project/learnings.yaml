@@ -2696,3 +2696,10 @@ learnings:
   date: 2026-08-02
   context: Added via context agent
   application: TBD
+- id: PL-277
+  learning: "In a delivery/consume loop where a downstream success signal triggers destruction of the source (e.g. deliver_transfer returns true -> caller remove_dir_all's the spool), an Option-returning read that maps None to 'continue/skip' is a data-loss trap: the skip escalates into irreversible deletion of the only copy. Map None to abort-and-retain (return false, loud warn), never skip-and-continue. Same no-silent-failures class as PL-274 (T-2487 log reader) and PL-276 (T-2488 emit_to). Prefer a pure validate-all-first helper so the loop can't silently drop an element."
+  source: P-001
+  task: T-2489
+  date: 2026-08-02
+  context: Added via context agent
+  application: TBD
