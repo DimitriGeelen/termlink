@@ -315,6 +315,19 @@ pub async fn deliver_pending(target: &str, addr: &TransportAddr) -> usize {
     delivered
 }
 
+/// Extract the numeric chunk index from a `chunk-<n>.json` filename (T-2490).
+///
+/// Returns `None` if the name does not match the `chunk-<digits>.json` shape —
+/// callers sort such a name last so a malformed filename cannot reorder the
+/// valid chunks. This is magnitude-independent (unlike a lexical filename sort,
+/// which is only correct within `deposit`'s 4-digit zero-pad).
+fn chunk_index(file_name: &str) -> Option<u64> {
+    file_name
+        .strip_prefix("chunk-")
+        .and_then(|s| s.strip_suffix(".json"))
+        .and_then(|s| s.parse::<u64>().ok())
+}
+
 /// List a transfer's `chunk-*` files in delivery order, verifying every one is
 /// readable/parseable.
 ///
@@ -333,7 +346,15 @@ fn ordered_chunk_paths_checked(xfer_dir: &Path) -> Option<Vec<std::path::PathBuf
         .flatten()
         .filter(|e| e.file_name().to_string_lossy().starts_with("chunk-"))
         .collect();
-    chunk_files.sort_by_key(|e| e.file_name());
+    // T-2490: sort by the parsed NUMERIC chunk index, not the filename string.
+    // `deposit` names chunks `chunk-{index:04}.json`; a lexical filename sort is
+    // correct only while the index stays within the 4-digit zero-pad — once it
+    // overflows to 5 digits (`chunk-10000.json`) lexical order diverges from
+    // numeric ("chunk-10000" < "chunk-9999"), so any transfer >10000 chunks
+    // (~>480MB at 48KiB chunks) reassembled out of order. A name that does not
+    // parse to an index sorts last (u64::MAX) rather than panicking — it would
+    // fail the receiver's sha256 anyway and must not reorder the valid chunks.
+    chunk_files.sort_by_key(|e| chunk_index(&e.file_name().to_string_lossy()).unwrap_or(u64::MAX));
 
     let mut paths = Vec::with_capacity(chunk_files.len());
     for chunk_file in chunk_files {
@@ -825,6 +846,72 @@ mod tests {
         );
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// T-2490: chunk delivery order must be NUMERIC, correct across the 4→5-digit
+    /// zero-pad boundary. A lexical filename sort put chunk-10000 before
+    /// chunk-9999 → corrupted reassembly for transfers >10000 chunks (>480MB).
+    #[test]
+    fn ordered_chunk_paths_checked_sorts_numerically_across_9999_boundary() {
+        let dir = test_inbox_dir();
+        let xfer_dir = dir.join("tgt-big").join("xfer-big");
+        std::fs::create_dir_all(&xfer_dir).unwrap();
+
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let write_chunk = |index: u64| {
+            let entry = InboxEntry {
+                transfer_id: "xfer-big".to_string(),
+                target: "tgt-big".to_string(),
+                from: Some("sender".to_string()),
+                topic: "file.chunk".to_string(),
+                payload: json!({ "transfer_id": "xfer-big", "index": index, "data": "dGVzdA==" }),
+                timestamp: now,
+            };
+            std::fs::write(
+                xfer_dir.join(format!("chunk-{index:04}.json")),
+                serde_json::to_string_pretty(&entry).unwrap(),
+            )
+            .unwrap();
+        };
+        // Written out of order; spans the 4→5 digit boundary.
+        for idx in [10001u64, 9999, 0, 10000, 1, 9998] {
+            write_chunk(idx);
+        }
+
+        let paths = ordered_chunk_paths_checked(&xfer_dir).expect("all chunks readable");
+        let names: Vec<String> = paths
+            .iter()
+            .map(|p| p.file_name().unwrap().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(
+            names,
+            vec![
+                "chunk-0000.json",
+                "chunk-0001.json",
+                "chunk-9998.json",
+                "chunk-9999.json",
+                "chunk-10000.json",
+                "chunk-10001.json",
+            ],
+            "chunks must be numerically ordered across the 4→5 digit boundary (lexical would put 10000 before 9999)"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// T-2490: chunk_index parses valid names and rejects the rest (→ sorts last).
+    #[test]
+    fn chunk_index_parses_and_rejects() {
+        assert_eq!(chunk_index("chunk-0000.json"), Some(0));
+        assert_eq!(chunk_index("chunk-9999.json"), Some(9999));
+        assert_eq!(chunk_index("chunk-10000.json"), Some(10000));
+        assert_eq!(chunk_index("chunk-.json"), None);
+        assert_eq!(chunk_index("chunk-abc.json"), None);
+        assert_eq!(chunk_index("init.json"), None);
+        assert_eq!(chunk_index("complete.json"), None);
     }
 
     #[test]

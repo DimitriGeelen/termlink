@@ -4,10 +4,10 @@ name: "inbox chunk delivery uses lexical sort — reassembly corrupts past 9999 
 description: >
   deliver_transfer/ordered_chunk_paths_checked (crates/termlink-hub/src/inbox.rs) sort chunk files by file_name() (lexical): chunk-10000.json sorts before chunk-9999.json, so any offline transfer with >10000 chunks (~>480MB at 48KiB DEFAULT_CHUNK_SIZE) reassembles out of order. Caught downstream by the receiver's sha256 (loud, not silent) so it is lower severity than T-2489 — but a real correctness bug with a purely size-determined trigger. Fix: sort by the parsed numeric chunk index (deposit naming + ordered_chunk_paths_checked change together) + a regression test. Found by firing-#12 adversarial audit alongside T-2489.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-02T08:35:56Z
-last_update: 2026-08-02T08:35:56Z
+last_update: 2026-08-02T08:52:12Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,30 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+`ordered_chunk_paths_checked` (`crates/termlink-hub/src/inbox.rs`, added in T-2489) and the original
+`deliver_transfer` sort a transfer's chunk files with `sort_by_key(|e| e.file_name())` — a LEXICAL
+string sort. `deposit` names chunks `chunk-{index:04}.json` (zero-padded to 4 digits), so for
+`index >= 10000` the pad overflows to 5 digits and `"chunk-10000.json"` sorts BEFORE
+`"chunk-9999.json"` (`'1' < '9'` at the 7th char). Any offline transfer with >10000 chunks
+(~>480 MB at the 48 KiB `DEFAULT_CHUNK_SIZE`) therefore reassembles with chunks 10000+ delivered out
+of order → a corrupted file. It is caught downstream by the receiver's sha256 (so LOUD, recoverable
+by re-send), which is why it is lower-severity than T-2489 — but a real correctness bug with a purely
+size-determined trigger (no hardware fault needed). Found by firing-#12 adversarial audit; filed as
+backlog, promoted + fixed in firing-#13.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Chunk files are delivered in NUMERIC index order, not lexical filename order: a transfer with
+      chunks 0..10001 orders `chunk-9999.json` before `chunk-10000.json`.
+- [x] The numeric ordering is derived from the chunk's index (parsed from the `chunk-<n>.json`
+      filename via `chunk_index()`); a filename that does not parse to an index sorts deterministically
+      last (`u64::MAX`; it would fail sha256 downstream anyway) rather than panicking.
+- [x] New unit test: a transfer dir containing `chunk-9999.json` and `chunk-10000.json` (plus a few
+      low-index chunks) → `ordered_chunk_paths_checked` returns them in numeric order (9999 before 10000).
+      (`ordered_chunk_paths_checked_sorts_numerically_across_9999_boundary` + `chunk_index_parses_and_rejects`.)
+- [x] Existing inbox tests (incl. T-2489's `ordered_chunk_paths_checked_*`) still pass.
+- [x] `cargo test -p termlink-hub --lib` passes (443/443); `cargo check -p termlink-hub` clean.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -106,6 +122,8 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+cargo test -p termlink-hub --lib inbox
+cargo check -p termlink-hub
 
 ## RCA
 
@@ -122,6 +140,27 @@ date_finished: null
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** An offline file transfer larger than ~480 MB (>10000 chunks) reassembles corrupted on
+the receiver — chunks with index ≥ 10000 arrive before chunk 9999 — and fails its sha256 integrity
+check, forcing a re-send.
+
+**Root cause:** Chunk files were ordered by `sort_by_key(|e| e.file_name())`, a lexical string sort.
+The filenames `chunk-{index:04}.json` are only lexically-sortable while the index stays within the
+4-digit zero-pad; once it overflows to 5 digits (`chunk-10000.json`), lexical order diverges from
+numeric order (`"chunk-10000" < "chunk-9999"`). The delivery order therefore silently depended on the
+transfer staying under 10000 chunks — an undocumented, size-determined invariant.
+
+**Why structurally allowed:** Zero-padded numeric filenames sort correctly *only* within the pad
+width, a classic off-by-magnitude trap; nothing pinned the pad width to the maximum possible index,
+and no test exercised a >9999-chunk transfer (the existing tests use 3 chunks). The lexical sort
+"looked right" for every case anyone tested.
+
+**Prevention:** Ordering is now derived from the parsed numeric index (`chunk_index()` extracts `<n>`
+from `chunk-<n>.json`), so it is correct for any magnitude regardless of pad width. A unit test with
+`chunk-9999.json` + `chunk-10000.json` locks numeric ordering across the 4→5-digit boundary — the
+exact case lexical sort got wrong. Learning: a zero-padded-numeric-filename sort is only safe up to
+its pad width; sort by the parsed number, or the ordering carries a hidden magnitude ceiling.
 
 ## Evolution
 
@@ -174,3 +213,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2490-inbox-chunk-delivery-uses-lexical-sort--.md
 - **Context:** Initial task creation
+
+### 2026-08-02T08:52:12Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
