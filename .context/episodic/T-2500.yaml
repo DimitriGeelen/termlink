@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2500: create_topic fabricates Retention::Forever on corrupt stored policy — silent
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-02T16:38:04Z
+# ============================================================================
+
+task_id: T-2500
+task_name: "create_topic fabricates Retention::Forever on corrupt stored policy — silent"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-02T16:34:19Z
+completed: 2026-08-02T16:37:54Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-02T18:37:45+02:00
+last_commit: 2026-08-02T18:37:45+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  create_topic surfaces corrupt stored retention LOUD instead of fabricating Forever
+
+# Key outcomes
+outcomes:
+  - '`create_topic` no longer fabricates `Retention::Forever` on parse failure of an existing row; a `None` from `from_parts` on an existing topic surfaces a loud `BusError` naming the topic + the unparseable kind/value. (meta.rs:39 explicit match → `BusError::CorruptRetention`)'
+  - 'New `BusError` variant added (`CorruptRetention`) with a `thiserror` message including topic name, stored kind string, and stored value. (error.rs)'
+  - 'Unit test proves an existing topic row with an unrecognized `retention_kind` yields the loud error (NOT `Ok(false)` and NOT a phantom `TopicPolicyMismatch { existing: Forever }`). (`create_topic_rejects_corrupt_stored_kind`)'
+  - 'Unit test proves an existing topic row with an out-of-range value (negative `days`/`messages`) yields the loud error. (`create_topic_rejects_corrupt_stored_value`)'
+  - 'Valid-row idempotent re-create path is unchanged (existing `create_topic` / `TopicPolicyMismatch` tests stay green). (5/5 create_topic tests pass)'
+  - '`cargo test -p termlink-bus --lib` passes. (100 passed; 0 failed)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-bus/src/error.rs'
+  - 'crates/termlink-bus/src/lib.rs'
+  - 'crates/termlink-bus/src/meta.rs'
+  - '.tasks/active/T-2500-createtopic-fabricates-retentionforever-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-02T18:37:45"
+    action: "T-2500: create_topic surfaces corrupt stored retention LOUD instead of fabricating Forever"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 4
+  lines_added: 291
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2500-createtopic-fabricates-retentionforever-.md
+generated_by: context-agent-hybrid
