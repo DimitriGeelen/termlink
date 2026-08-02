@@ -12,10 +12,10 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-08-02T06:01:39Z
-last_update: 2026-08-02T06:02:06Z
+last_update: 2026-08-02T06:10:19Z
 date_finished: null
-# revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
-# revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
+revisit_at: 2026-11-01           # T-1451: DEFER — residual is the fsync-before-index durability half (T-2464)
+revisit_evidence_needed: "Human ADR decision on fsync-before-index in LogAppender::append (perf vs durability); reader-resilience half already shipped (T-2487)"
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
 target_blast_radius: 3            # int 0..9. Anticipated component count of the build work this inception would authorise on GO.
                                   # Substitutes for the absent components: list in the F8 cost formula (040). Required.
@@ -52,19 +52,28 @@ human-gated — which is itself a valid, reportable review outcome (not a mandat
 ## Open Questions
 
 - **IW-1: Do all four charter-verb provers pass against the live substrate right now?**
-  confidence: 1
-  disposition: answered|deferred|dissolved   <!-- filled after the empirical run -->
-  rationale: <filled after running session-selftest / substrate-smoke / comms-selftest>
+  confidence: 3
+  disposition: answered
+  rationale: Yes — 3.5/4 proven live (session-selftest PROVEN; substrate-smoke 10/10; comms
+  DISCOVER+SEND PASS). The only non-PASS was comms CONSUME → correctly classified busy-or-manual
+  (G-083), a peer-side diagnosis, not a TermLink defect. The charter core HOLDS.
 
 - **IW-2: If a prover fails, is the fix in-authority (bounded, reversible, no new subsystem/no user-facing removal)?**
-  confidence: 1
-  disposition: answered|deferred|dissolved
-  rationale: <filled after triaging any failure>
+  confidence: 3
+  disposition: answered
+  rationale: The provers found no core defect; but the parallel critical-review subagent surfaced a
+  genuine in-authority reliability defect NOT covered by any prover — the durable-log reader walled a
+  whole topic on one poison record. Bounded (2 files + 3 tests), reversible, no new surface. Built +
+  shipped as T-2487 (commit 5b0c0134, 98/98 bus lib green, hub compiles).
 
 - **IW-3: If ALL provers pass, is there a genuine subtract-or-deepen gap left, or is the honest finding "core proven, remainder human-gated"?**
-  confidence: 1
-  disposition: answered|deferred|dissolved
-  rationale: <filled after synthesis; guard against manufacturing a build to satisfy the mandate>
+  confidence: 3
+  disposition: answered
+  rationale: Both, honestly. ONE genuine deepen existed and is now shipped (T-2487 reader-resilience —
+  deepens the #1 charter noun's antifragility, zero new breadth). The residual is human-gated: the
+  fsync-before-index DURABILITY half (T-2464, perf/ADR call), P3b make-it-live subsystem (T-2481),
+  P6 multi-tenant, P4 deprecated-tool deletion (soak + GO). No 14th canary/prover was manufactured —
+  the anti-pattern this firing named was explicitly avoided.
 
 ## Exploration Plan
 
@@ -155,6 +164,18 @@ Empirical prover run against the live substrate (local hub .107, 5 LIVE fleet pe
 Finding: 3.5/4 charter verbs proven decisively; the remaining half (CONSUME) is a correct peer-side
 diagnosis, not a bug. The charter core HOLDS. This directly supports IW-3's "core proven" branch and
 the review's own "don't manufacture work" guard.
+
+**Synthesis / outcome (2026-08-02).** The empirical run + an independent critical-review subagent
+converged: the core is proven healthy, and the ONE genuine in-authority deepen was a reliability
+defect the provers don't cover — the durable-log reader walled a whole topic on a single poison
+record. Shipped as **T-2487** (reader skips truncated/undecodable records with a loud gap-marker;
+3 new tests; 98/98 bus lib green; hub compiles). No new canary/prover/subsystem was added — the
+accretion anti-pattern this firing named was explicitly avoided.
+
+**Residual (DEFER, human-gated):** the sibling fsync-before-index durability half (T-2464, perf/ADR
+call — revisit_at 2026-11-01); P3b make-it-live subsystem (T-2481); P6 multi-tenant; P4
+deprecated-tool deletion (soak + GO). This inception is left for the human to formally decide via
+`fw task review T-2486` (owner:human — the go/no-go is the human's per the [REVIEW] AC).
 
 ## Decisions
 
