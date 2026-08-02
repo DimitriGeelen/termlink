@@ -93,19 +93,37 @@ impl ShutdownHandle {
     }
 }
 
-/// Load an existing hub secret from disk if present and valid. Returns
-/// `Some(hex)` on valid existing secret, `None` if missing or unparseable.
-fn load_existing_hub_secret() -> Option<String> {
-    let path = hub_secret_path();
-    let contents = std::fs::read_to_string(&path).ok()?;
+/// T-2499: classify a `hub.secret` read into reuse / generate / refuse.
+/// Extracted pure so the load-bearing "a read ERROR must NOT be treated as
+/// missing" rule is unit-testable without touching the global runtime_dir.
+///
+/// - `Err(NotFound)` → `Ok(None)`: no secret yet (first deploy) → caller generates.
+/// - other `Err(..)` → `Err(..)`: the file exists but is unreadable (EACCES / EIO /
+///   NFS ESTALE / EINTR). Treating this as "missing" would regenerate + silently
+///   rotate the secret out from under every cross-host agent (PL-021 full fleet
+///   re-auth) on a transient hiccup. Propagate LOUD so the caller refuses to
+///   overwrite a secret that may still be valid on disk.
+/// - valid 64-char hex → `Ok(Some(hex))`: reuse.
+/// - present but not valid hex → `Ok(None)`: regenerate (the file really is corrupt).
+fn classify_secret_read(read: std::io::Result<String>) -> std::io::Result<Option<String>> {
+    let contents = match read {
+        Ok(c) => c,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(e),
+    };
     let hex = contents.trim();
-    if hex.len() != 64 {
-        return None;
+    if hex.len() != 64 || !hex.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Ok(None);
     }
-    if !hex.chars().all(|c| c.is_ascii_hexdigit()) {
-        return None;
-    }
-    Some(hex.to_string())
+    Ok(Some(hex.to_string()))
+}
+
+/// Load an existing hub secret from disk. Returns `Ok(Some(hex))` on a valid
+/// existing secret, `Ok(None)` if genuinely absent or present-but-invalid, and
+/// `Err` if the file exists but could not be read (so the caller refuses to
+/// silently regenerate — T-2499).
+fn load_existing_hub_secret() -> std::io::Result<Option<String>> {
+    classify_secret_read(std::fs::read_to_string(hub_secret_path()))
 }
 
 /// Return the hub secret, reusing the on-disk value when possible (T-933).
@@ -116,7 +134,10 @@ fn load_existing_hub_secret() -> Option<String> {
 /// every bounce. Otherwise a fresh secret is generated and written to disk
 /// with mode 0600.
 fn generate_and_write_hub_secret() -> std::io::Result<String> {
-    if let Some(existing) = load_existing_hub_secret() {
+    // T-2499: `?` propagates a genuine read error (not NotFound) so the hub
+    // REFUSES to overwrite a possibly-valid secret rather than silently rotating
+    // the whole fleet on a transient read hiccup.
+    if let Some(existing) = load_existing_hub_secret()? {
         tracing::info!(
             path = %hub_secret_path().display(),
             "Hub secret loaded from disk (persist-if-present, T-933)"
@@ -1712,6 +1733,44 @@ mod tests {
     fn start_hub(socket: PathBuf) -> tokio::task::JoinHandle<()> {
         let (handle, _tx) = start_hub_with_shutdown(socket);
         handle
+    }
+
+    /// T-2499: a NotFound read is the only case that means "generate a fresh
+    /// secret". Any other read error must NOT be collapsed to "missing" — that
+    /// would silently rotate the hub secret + re-auth the whole fleet (PL-021).
+    #[test]
+    fn classify_secret_read_notfound_means_generate() {
+        let read = Err(std::io::Error::new(std::io::ErrorKind::NotFound, "no file"));
+        assert!(matches!(classify_secret_read(read), Ok(None)));
+    }
+
+    #[test]
+    fn classify_secret_read_other_error_refuses() {
+        // EACCES / EIO / ESTALE / EINTR on an EXISTING secret → propagate, never
+        // treat as missing (the bug T-2499 fixes).
+        let read = Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            "eacces",
+        ));
+        let out = classify_secret_read(read);
+        assert!(out.is_err(), "a non-NotFound read error must propagate, not regenerate");
+        assert_eq!(out.unwrap_err().kind(), std::io::ErrorKind::PermissionDenied);
+    }
+
+    #[test]
+    fn classify_secret_read_valid_hex_reuses() {
+        let hex = "ab".repeat(32); // 64 hex chars
+        assert!(matches!(
+            classify_secret_read(Ok(format!("{hex}\n"))),
+            Ok(Some(s)) if s == hex
+        ));
+    }
+
+    #[test]
+    fn classify_secret_read_invalid_content_regenerates() {
+        // Present but not a valid secret → Ok(None) → regenerate (unchanged).
+        assert!(matches!(classify_secret_read(Ok("not-hex".into())), Ok(None)));
+        assert!(matches!(classify_secret_read(Ok("xyz".repeat(40))), Ok(None)));
     }
 
     /// T-933: two calls to generate_and_write_hub_secret() against the same
