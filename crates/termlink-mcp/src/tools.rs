@@ -6380,6 +6380,17 @@ const ACTIVE_TRAFFIC_THRESHOLD_SECS: u64 = 300;
 ///
 /// Returns a JSON object with: verdict, window_days, total_legacy_fleet,
 /// hubs_clean, hubs_with_traffic, hubs_unsupported, hubs_no_audit.
+/// T-2506: decide whether an incoming read-receipt should REPLACE the one already
+/// held for a sender when reducing a receipt stream client-side (MCP mirror of the
+/// CLI helper — T-2069 duplicated-not-shared convention). A receipt's `up_to` is a
+/// MONOTONIC delivery frontier; keep the HIGHER up_to, ties broken by newer ts,
+/// mirroring the hub reducer `walk_receipt_records` (T-2456). The pre-T-2456
+/// ts-keyed predicate let a later-but-lower receipt regress the frontier →
+/// over-reported unread. Pure — unit-tested.
+fn receipt_frontier_replaces(prev_up_to: u64, prev_ts: i64, up_to: u64, ts: i64) -> bool {
+    up_to > prev_up_to || (up_to == prev_up_to && ts > prev_ts)
+}
+
 fn aggregate_legacy_summary(
     hub_results: &[serde_json::Value],
     window_days: u64,
@@ -20810,12 +20821,14 @@ impl TermLinkTools {
                     .and_then(|s| s.parse::<u64>().ok());
                 let Some(up_to) = up_to else { continue };
                 let ts = m.get("ts").and_then(|v| v.as_i64()).unwrap_or(0);
-                match latest.get(&sender) {
-                    Some(prev) if prev.ts > ts => {}
-                    Some(prev) if prev.ts == ts && prev.up_to >= up_to => {}
-                    _ => {
-                        latest.insert(sender, Receipt { up_to, ts });
-                    }
+                // T-2506: keep the HIGHER up_to (frontier), ties broken by newer ts —
+                // mirror the hub reducer, not latest-ts (which regresses the frontier).
+                let replace = match latest.get(&sender) {
+                    Some(prev) => receipt_frontier_replaces(prev.up_to, prev.ts, up_to, ts),
+                    None => true,
+                };
+                if replace {
+                    latest.insert(sender, Receipt { up_to, ts });
                 }
             }
         }
@@ -21207,12 +21220,13 @@ impl TermLinkTools {
                 continue;
             };
             let ts = m.get("ts").and_then(|v| v.as_i64()).unwrap_or(0);
-            match receipts.get(&sender) {
-                Some(prev) if prev.ts > ts => {}
-                Some(prev) if prev.ts == ts && prev.up_to >= up_to => {}
-                _ => {
-                    receipts.insert(sender, Rcpt { up_to, ts });
-                }
+            // T-2506: keep the HIGHER up_to (frontier), ties broken by newer ts.
+            let replace = match receipts.get(&sender) {
+                Some(prev) => receipt_frontier_replaces(prev.up_to, prev.ts, up_to, ts),
+                None => true,
+            };
+            if replace {
+                receipts.insert(sender, Rcpt { up_to, ts });
             }
         }
 
@@ -33917,59 +33931,29 @@ YW\tJ
     }
 
     #[test]
-    fn channel_receipts_walker_dedup_latest_ts_wins() {
-        // Verify the dedup logic the walker fallback uses:
-        // for the same sender, latest ts wins; ties broken by higher up_to.
-        use std::collections::HashMap;
-        struct Receipt { up_to: u64, ts: i64 }
-        let mut latest: HashMap<String, Receipt> = HashMap::new();
-
-        // First write: sender=alice, up_to=5, ts=100.
-        latest.insert("alice".to_string(), Receipt { up_to: 5, ts: 100 });
-        // Second write: same sender, later ts → should override.
-        let (new_up_to, new_ts): (u64, i64) = (10, 200);
-        match latest.get("alice") {
-            Some(prev) if prev.ts > new_ts => {}
-            Some(prev) if prev.ts == new_ts && prev.up_to >= new_up_to => {}
-            _ => {
-                latest.insert("alice".to_string(), Receipt { up_to: new_up_to, ts: new_ts });
-            }
-        }
-        let r = latest.get("alice").unwrap();
-        assert_eq!(r.up_to, 10);
-        assert_eq!(r.ts, 200);
+    fn channel_receipts_walker_dedup_higher_up_to_wins() {
+        // T-2506: the walker fallback keeps the HIGHER up_to (delivery frontier),
+        // ties broken by newer ts — mirroring the hub reducer (T-2456). Routes
+        // through the production helper so a revert to ts-keyed logic breaks this.
+        // Higher up_to replaces regardless of ts direction.
+        assert!(receipt_frontier_replaces(5, 100, 10, 200));
+        assert!(receipt_frontier_replaces(5, 999, 10, 1));
     }
 
     #[test]
-    fn channel_receipts_walker_dedup_tie_breaks_on_higher_up_to() {
-        // Same ts but higher up_to → wins.
-        use std::collections::HashMap;
-        struct Receipt { up_to: u64, ts: i64 }
-        let mut latest: HashMap<String, Receipt> = HashMap::new();
-        latest.insert("alice".to_string(), Receipt { up_to: 5, ts: 100 });
-        let (new_up_to, new_ts): (u64, i64) = (8, 100);
-        match latest.get("alice") {
-            Some(prev) if prev.ts > new_ts => {}
-            Some(prev) if prev.ts == new_ts && prev.up_to >= new_up_to => {}
-            _ => {
-                latest.insert("alice".to_string(), Receipt { up_to: new_up_to, ts: new_ts });
-            }
-        }
-        let r = latest.get("alice").unwrap();
-        assert_eq!(r.up_to, 8);
-        assert_eq!(r.ts, 100);
+    fn channel_receipts_walker_dedup_later_but_lower_does_not_regress() {
+        // T-2506 core regression: a LATER ts carrying a SMALLER up_to must NOT
+        // replace the higher frontier. The pre-T-2456 ts-keyed predicate wrongly
+        // did → over-reported already-read offsets as unread in awaiting-ack.
+        assert!(!receipt_frontier_replaces(10, 100, 4, 200));
+    }
 
-        // Same ts AND same up_to → does NOT override (prev wins).
-        let (new_up_to, new_ts): (u64, i64) = (8, 100);
-        match latest.get("alice") {
-            Some(prev) if prev.ts > new_ts => {}
-            Some(prev) if prev.ts == new_ts && prev.up_to >= new_up_to => {}
-            _ => {
-                latest.insert("alice".to_string(), Receipt { up_to: new_up_to, ts: new_ts });
-            }
-        }
-        let r = latest.get("alice").unwrap();
-        assert_eq!(r.up_to, 8); // unchanged
+    #[test]
+    fn channel_receipts_walker_dedup_tie_breaks_on_newer_ts() {
+        // Same up_to: newer ts replaces; older/equal ts does not.
+        assert!(receipt_frontier_replaces(8, 100, 8, 200));
+        assert!(!receipt_frontier_replaces(8, 200, 8, 100));
+        assert!(!receipt_frontier_replaces(8, 100, 8, 100));
     }
 
     // --- T-1786 channel_forward --------------------------------------------

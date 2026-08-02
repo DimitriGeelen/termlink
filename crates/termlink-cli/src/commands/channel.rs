@@ -561,6 +561,21 @@ fn should_ws_reprobe(cycles_on_poll_floor: u32, threshold: u32) -> bool {
     cycles_on_poll_floor >= threshold
 }
 
+/// T-2506: decide whether an incoming read-receipt should REPLACE the one already
+/// held for a sender when reducing a receipt stream client-side.
+///
+/// A receipt's `up_to` is a MONOTONIC delivery frontier ("I have received up to
+/// offset N"). The correct merge keeps the HIGHER `up_to`, breaking ties on the
+/// newer `ts` — mirroring the hub's authoritative reducer `walk_receipt_records`
+/// (T-2456). The pre-T-2456 client-side reducers keyed on latest `ts` instead, so a
+/// later-but-lower receipt (e.g. an out-of-order arrival, or an operator
+/// `channel ack --up-to <smaller>`) regressed the frontier and made
+/// `check-outbox`/`awaiting-ack` over-report already-read offsets as unread.
+/// Pure — unit-tested; a revert to the ts-keyed predicate breaks a test.
+fn receipt_frontier_replaces(prev_up_to: u64, prev_ts: i64, up_to: u64, ts: i64) -> bool {
+    up_to > prev_up_to || (up_to == prev_up_to && ts > prev_ts)
+}
+
 /// Exponential reconnect backoff: `BASE × 2^(attempt-1)`, clamped to `CAP_MS`, plus
 /// up to +25% jitter selected by `jitter_frac` (0.0..=1.0) to de-synchronise a fleet
 /// of agents reconnecting to the same hub after a shared blip. Pure — unit-tested.
@@ -3231,13 +3246,14 @@ pub(crate) async fn cmd_channel_receipts(
                     .and_then(|s| s.parse::<u64>().ok());
                 let Some(up_to) = up_to else { continue };
                 let ts = m.get("ts").and_then(|v| v.as_i64()).unwrap_or(0);
-                // Latest-wins by ts; ties broken by higher up_to.
-                match latest.get(&sender) {
-                    Some(prev) if prev.ts > ts => {}
-                    Some(prev) if prev.ts == ts && prev.up_to >= up_to => {}
-                    _ => {
-                        latest.insert(sender, Receipt { up_to, ts });
-                    }
+                // T-2506: keep the HIGHER up_to (frontier), ties broken by newer ts —
+                // mirror the hub's authoritative reducer, not latest-ts (which regresses).
+                let replace = match latest.get(&sender) {
+                    Some(prev) => receipt_frontier_replaces(prev.up_to, prev.ts, up_to, ts),
+                    None => true,
+                };
+                if replace {
+                    latest.insert(sender, Receipt { up_to, ts });
                 }
             }
             cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
@@ -4047,12 +4063,13 @@ pub(crate) async fn cmd_channel_info(
             continue;
         };
         let ts = m.get("ts").and_then(|v| v.as_i64()).unwrap_or(0);
-        match receipts.get(&sender) {
-            Some(prev) if prev.ts > ts => {}
-            Some(prev) if prev.ts == ts && prev.up_to >= up_to => {}
-            _ => {
-                receipts.insert(sender, Rcpt { up_to, ts });
-            }
+        // T-2506: keep the HIGHER up_to (frontier), ties broken by newer ts.
+        let replace = match receipts.get(&sender) {
+            Some(prev) => receipt_frontier_replaces(prev.up_to, prev.ts, up_to, ts),
+            None => true,
+        };
+        if replace {
+            receipts.insert(sender, Rcpt { up_to, ts });
         }
     }
 
@@ -8556,11 +8573,17 @@ pub(crate) async fn cmd_channel_ack_status(
                 .and_then(|v| v.as_i64())
                 .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
                 .unwrap_or(0);
-            match receipts.get(&sender) {
-                Some((_, prev_ts)) if *prev_ts > ts => {}
-                _ => {
-                    receipts.insert(sender, (up_to, ts));
+            // T-2506: keep the HIGHER up_to (frontier), ties broken by newer ts.
+            // Previously keyed on prev_ts alone — a later-but-lower receipt regressed
+            // the frontier with no up_to comparison at all.
+            let replace = match receipts.get(&sender) {
+                Some((prev_up_to, prev_ts)) => {
+                    receipt_frontier_replaces(*prev_up_to, *prev_ts, up_to, ts)
                 }
+                None => true,
+            };
+            if replace {
+                receipts.insert(sender, (up_to, ts));
             }
         }
     }
@@ -14462,6 +14485,29 @@ mod tests {
         );
         assert_eq!(clamp_reprobe_cycles(Some(2)), 2);
         assert_eq!(clamp_reprobe_cycles(Some(30)), 30);
+    }
+
+    #[test]
+    fn receipt_frontier_higher_up_to_replaces() {
+        // T-2506: a strictly higher frontier always wins, regardless of ts.
+        assert!(receipt_frontier_replaces(5, 100, 9, 100));
+        assert!(receipt_frontier_replaces(5, 999, 9, 1)); // higher up_to, older ts → still wins
+    }
+
+    #[test]
+    fn receipt_frontier_later_but_lower_does_not_regress() {
+        // T-2506 core regression: a LATER ts with a SMALLER up_to must NOT replace —
+        // this is the bug (frontier regression → over-reported unread). Pre-T-2456
+        // ts-keyed logic wrongly returned true here.
+        assert!(!receipt_frontier_replaces(9, 100, 4, 200));
+    }
+
+    #[test]
+    fn receipt_frontier_ties_break_on_newer_ts() {
+        // Same up_to: newer ts replaces, older/equal ts does not.
+        assert!(receipt_frontier_replaces(7, 100, 7, 200));
+        assert!(!receipt_frontier_replaces(7, 200, 7, 100));
+        assert!(!receipt_frontier_replaces(7, 100, 7, 100));
     }
 
     #[test]
