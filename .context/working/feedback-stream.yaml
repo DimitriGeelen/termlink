@@ -5688,3 +5688,21 @@ scan_id: R-c6b3d896
 task_id: T-2502
 payload:
   task_file: .tasks/active/T-2502-hub-secret-written-non-atomically--crash.md
+---
+kind: scan_emitted
+timestamp: '2026-08-02T17:05:23Z'
+scan_id: R-def4f43d
+task_id: T-2503
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-02T17:05:23Z'
+scan_id: R-def4f43d
+task_id: T-2503
+payload:
+  task_file: .tasks/active/T-2503-aggregator-poll-loop-cursor-stalls-on-mi.md
