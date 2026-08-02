@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-08-02T06:01:39Z
-last_update: 2026-08-02T06:10:19Z
+last_update: 2026-08-02T06:16:57Z
 date_finished: null
 revisit_at: 2026-11-01           # T-1451: DEFER — residual is the fsync-before-index durability half (T-2464)
 revisit_evidence_needed: "Human ADR decision on fsync-before-index in LogAppender::append (perf vs durability); reader-resilience half already shipped (T-2487)"

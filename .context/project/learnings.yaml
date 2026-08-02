@@ -2689,3 +2689,10 @@ learnings:
   date: 2026-08-02
   context: Added via context agent
   application: TBD
+- id: PL-276
+  learning: "A lossy 'if let Ok(true) = fn()' on an io::Result<bool> silently discards the Err arm — collapsing a real I/O failure into the same fall-through as the legitimate Ok(false) case, unlogged. Match all three arms explicitly so a disk failure (ENOSPC/EACCES/read-only fs) surfaces loudly (tracing::warn! + INTERNAL_ERROR) instead of masquerading as SESSION_NOT_FOUND. Same directive-#2 no-silent-failures class as PL-274 (durable-log reader must be gap-tolerant, T-2487)."
+  source: P-001
+  task: T-2488
+  date: 2026-08-02
+  context: Added via context agent
+  application: TBD
