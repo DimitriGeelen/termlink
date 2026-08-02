@@ -2731,3 +2731,10 @@ learnings:
   date: 2026-08-02
   context: Added via context agent
   application: TBD
+- id: PL-282
+  learning: "In any retry/poll loop, transport errors and in-band RPC errors are BOTH failures and must be handled symmetrically (both back off). The aggregator long-poll used 'if let Ok(data) = unwrap_result(resp)' with no else: the transport-error arm slept 2s but the in-band-RPC-error branch fell through with no sleep -> hot-loop hammering the failing session (worse: an RPC error returns immediately, unlike a success which the server long-polls ~5s, so the spin is tight). The bare 'if let Ok(x) = fallible()' with no else is the silent-drop shape (sibling PL-276): it reads as 'process on success' and hides the error branch. Fix pattern: reduce the layered timeout/transport/rpc result into ONE outcome enum and dispatch on a pure classifier the loop actually calls, so the backoff rule is unit-testable without a live hub and can't silently regress. 8th no-silent-failures fix (T-2487/88/89/90/91/94/95/96)."
+  source: P-001
+  task: T-2496
+  date: 2026-08-02
+  context: Added via context agent
+  application: TBD
