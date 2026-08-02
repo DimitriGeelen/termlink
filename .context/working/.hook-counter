@@ -1,9 +1,11 @@
-audit-task-tools=88
+checkpoint=49
 
-check-active-task=180
-error-watchdog=2
-budget-gate=2
-check-tier0=2
-check-project-boundary=2
-loop-detect=1
-checkpoint=1
+loop-detect=49
+audit-task-tools=49
+check-tier0=18
+budget-gate=24
+check-project-boundary=24
+check-active-task=24
+error-watchdog=17
+check-human-ac-tick=6
+commit-cadence=6

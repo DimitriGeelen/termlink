@@ -5670,3 +5670,21 @@ scan_id: R-c8d95dad
 task_id: T-2501
 payload:
   task_file: .tasks/active/T-2501-tofu-pin-store-saveresult-uses-non-atomi.md
+---
+kind: scan_emitted
+timestamp: '2026-08-02T16:58:43Z'
+scan_id: R-c6b3d896
+task_id: T-2502
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-02T16:58:43Z'
+scan_id: R-c6b3d896
+task_id: T-2502
+payload:
+  task_file: .tasks/active/T-2502-hub-secret-written-non-atomically--crash.md
