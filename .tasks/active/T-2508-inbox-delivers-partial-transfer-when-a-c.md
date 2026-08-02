@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-02T23:46:11Z
-last_update: 2026-08-02T23:47:17Z
+last_update: 2026-08-02T23:50:27Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -58,10 +58,10 @@ local I/O fix with no wire/protocol change.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] A pure helper `chunk_set_is_complete(chunk_paths, total_chunks)` returns false when a chunk is missing / the set is non-contiguous, and true for a full contiguous set; `total_chunks == 0` returns true (back-compat with senders that omit the field)
-- [ ] `deliver_transfer` calls the completeness gate after `ordered_chunk_paths_checked` and, on failure, logs loud and `return false` (RETAIN the spool, deliver nothing further) — mirroring the T-2489 retain-don't-destroy convention
-- [ ] Unit tests cover: missing intermediate chunk → retained + not delivered; full contiguous set → delivered; `total_chunks=0` → delivered (back-compat)
-- [ ] `cargo test -p termlink-hub --lib` passes
+- [x] A pure helper `chunk_set_is_complete(chunk_paths, total_chunks)` returns false when a chunk is missing / the set is non-contiguous, and true for a full contiguous set; `total_chunks == 0` returns true (back-compat with senders that omit the field)
+- [x] `deliver_transfer` calls the completeness gate after `ordered_chunk_paths_checked` and, on failure, logs loud and `return false` (RETAIN the spool, deliver nothing further) — mirroring the T-2489 retain-don't-destroy convention
+- [x] Unit tests cover: missing intermediate chunk → retained + not delivered; full contiguous set → delivered; `total_chunks=0` → delivered (back-compat)
+- [x] `cargo test -p termlink-hub --lib` passes
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
