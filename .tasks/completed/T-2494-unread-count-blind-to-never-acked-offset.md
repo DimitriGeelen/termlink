@@ -4,20 +4,20 @@ name: "unread count blind to never-acked offset-0 message (up_to=0 sentinel coll
 description: >
   count_unread / count_unread_mcp use up_to:u64 with a 0 default sentinel that collides with acked-through-offset-0; inclusive off<=up_to then hides a never-acked FIRST DM (offset 0) as unread=0 on the RECEIVE surface (/check-arc, channel unread, agent_dms). Fix: thread Option<u64> (None=never-acked=>count all, Some(b)=>skip off<=b). Silent durable-message loss, directive-#2.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/channel.rs, crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-02T09:37:40Z
-last_update: 2026-08-02T09:37:40Z
-date_finished: null
+last_update: 2026-08-02T09:45:28Z
+date_finished: 2026-08-02T09:45:28Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -197,3 +197,15 @@ so a future refactor that re-flattens to a sentinel fails the suite.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2494-unread-count-blind-to-never-acked-offset.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-f20cff95
+- **Timestamp:** 2026-08-02T09:46:51Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-02T09:45:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
