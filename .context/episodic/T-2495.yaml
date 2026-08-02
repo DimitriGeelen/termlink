@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2495: circuit breaker never re-arms cooldown after failed half-open probe (protection evaporates)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-02T09:56:12Z
+# ============================================================================
+
+task_id: T-2495
+task_name: "circuit breaker never re-arms cooldown after failed half-open probe (protection evaporates)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-02T09:54:20Z
+completed: 2026-08-02T09:56:03Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-02T11:55:57+02:00
+last_commit: 2026-08-02T11:55:57+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  circuit breaker re-arms cooldown on failed half-open probe
+
+# Key outcomes
+outcomes:
+  - '`CircuitState::record_failure` re-stamps `opened_at = Some(now)` on any failure at/over `FAILURE_THRESHOLD` (drop the `&& self.opened_at.is_none()` guard), so a failed half-open probe re-arms the cooldown'
+  - 'Fix lives in the shared `CircuitState` so it covers BOTH `CircuitBreakerRegistry` (session) and `ModelCircuitBreaker` (model)'
+  - 'New regression test: open a circuit, backdate `opened_at` to `now - COOLDOWN - 1s` (half-open), call `record_failure`, assert `should_skip` is `true` again (fails on current code, passes after fix)'
+  - 'All existing `circuit_breaker` tests still pass (no behavior change below threshold or on the success/close path)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-08-02.yaml'
+  - '.context/project/learnings.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-hub/src/circuit_breaker.rs'
+  - '.tasks/active/T-2495-circuit-breaker-never-re-arms-cooldown-a.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-02T11:55:57"
+    action: "T-2495: circuit breaker re-arms cooldown on failed half-open probe"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 12
+  lines_added: 303
+  lines_removed: 25
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2495-circuit-breaker-never-re-arms-cooldown-a.md
+generated_by: context-agent-hybrid

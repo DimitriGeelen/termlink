@@ -5544,3 +5544,21 @@ scan_id: R-f20cff95
 task_id: T-2494
 payload:
   task_file: .tasks/active/T-2494-unread-count-blind-to-never-acked-offset.md
+---
+kind: scan_emitted
+timestamp: '2026-08-02T09:56:09Z'
+scan_id: R-b74b804c
+task_id: T-2495
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-02T09:56:09Z'
+scan_id: R-b74b804c
+task_id: T-2495
+payload:
+  task_file: .tasks/active/T-2495-circuit-breaker-never-re-arms-cooldown-a.md
