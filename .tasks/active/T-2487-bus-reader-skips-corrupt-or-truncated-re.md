@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-02T06:10:28Z
-last_update: 2026-08-02T06:10:28Z
+last_update: 2026-08-02T06:15:07Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -47,15 +47,19 @@ T-2464 as a perf/ADR decision (human-gated) — out of scope here.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `ReaderIter::next` skips a poison record (payload read failure OR decode failure) instead of
+- [x] `ReaderIter::next` skips a poison record (payload read failure OR decode failure) instead of
       returning an aborting `Err` — loops to the next `RecordLoc` so replay continues past the gap.
-- [ ] Each skipped record emits a loud, offset-tagged signal to stderr (`eprintln!`, no new dep) —
-      the skip is observable, never silent (directive #2: no silent failures).
-- [ ] `envelope_at` returns `Ok(None)` (not `Err`) when the single requested offset is a poison
-      record that got skipped (offset behaves as swept, not as a topic-brick).
-- [ ] New bus unit test: a log with one truncated/corrupt record in the middle → reader yields the
-      records BEFORE and AFTER it, skipping only the poison one.
-- [ ] `cargo test -p termlink-bus --lib` passes (existing + new tests green).
+      (log.rs:101-153 — loop with UnexpectedEof + decode-error skip arms.)
+- [x] Each skipped record emits a loud, offset-tagged signal to stderr (`eprintln!`, no new dep) —
+      the skip is observable, never silent (directive #2: no silent failures). (log.rs:132, 144.)
+- [x] `envelope_at` returns `Ok(None)` (not `Err`) when the single requested offset is a poison
+      record that got skipped (offset behaves as swept, not as a topic-brick). Satisfied with zero
+      code change: the reader now yields the NEXT offset, so lib.rs:352-354 `Some(Ok(_)) => Ok(None)`
+      fires; the `Some(Err(e)) => Err(e)` arm now only sees genuine systemic faults.
+- [x] New bus unit test: a log with one truncated/corrupt record in the middle → reader yields the
+      records BEFORE and AFTER it, skipping only the poison one. (reader_skips_undecodable_middle_*,
+      reader_skips_truncated_tail_*, reader_all_valid_records_unaffected.)
+- [x] `cargo test -p termlink-bus --lib` passes (existing + new tests green). (98 passed / 0 failed.)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
