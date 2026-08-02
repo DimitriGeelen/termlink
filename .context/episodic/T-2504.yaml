@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2504: collect fan-in silently drops a panicked session poll task (JoinError swallowed, no log)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-02T17:13:57Z
+# ============================================================================
+
+task_id: T-2504
+task_name: "collect fan-in silently drops a panicked session poll task (JoinError swallowed, no log)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-02T17:09:37Z
+completed: 2026-08-02T17:12:58Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-02T19:12:53+02:00
+last_commit: 2026-08-02T19:12:53+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  collect fan-in surfaces a panicked poll task instead of silently dropping it
+
+# Key outcomes
+outcomes:
+  - 'The collect drain loop routes each join result through a pure `collect_join_action` classifier: `Ok(Some)` → deliver, `Ok(None)` → skip (already logged in-task), `Err(JoinError)` → failed. (router.rs — `collect_join_action` + rewired match)'
+  - 'The `Err(JoinError)` case emits a `tracing::warn!` naming the failure (a panicked/cancelled collector task is surfaced, not silently dropped); event-delivery semantics for the `Ok(Some)`/`Ok(None)` cases are unchanged. (warn! on the Failed arm; Deliver/Skip logic identical)'
+  - 'The classifier is unit-tested: a real panicking task joined via a `JoinSet` yields `Err` → classified `Failed`; `Ok(Some)` → `Deliver`; `Ok(None)` → `Skip`. (2 `collect_join_action_*` tests, real panic → JoinError)'
+  - '`cargo test -p termlink-hub --lib` passes (existing router behavior unbroken). (460 passed; 0 failed)'
+  - '`cargo test -p termlink-hub --lib collect_join` passes (new classifier tests). (2 passed)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-hub/src/router.rs'
+  - '.tasks/active/T-2504-collect-fan-in-silently-drops-a-panicked.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-02T19:12:53"
+    action: "T-2504: collect fan-in surfaces a panicked poll task instead of silently dropping it"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 2
+  lines_added: 295
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2504-collect-fan-in-silently-drops-a-panicked.md
+generated_by: context-agent-hybrid
