@@ -2752,3 +2752,10 @@ learnings:
   date: 2026-08-02
   context: Added via context agent
   application: TBD
+- id: PL-285
+  learning: "'.ok()?' / '.unwrap_or' on a std::fs::read whose error KIND the caller branches on erases a load-bearing discriminant. hub secret load (server.rs) did read_to_string(&path).ok()? — collapsing NotFound (legit: generate a fresh secret) with EACCES/EIO/NFS-ESTALE/EINTR (file EXISTS but unreadable: must NOT regenerate) into one None. The caller reads None as 'generate', so a transient read hiccup on an existing valid secret silently ROTATES the hub HMAC secret → full-fleet re-auth (PL-021, invalid signature) with only an info log. Rule: when the caller's decision depends on WHY a read failed, match ErrorKind explicitly — NotFound=>absent, other=>propagate/refuse; never let .ok()/.unwrap_or fold 'unreadable' into 'absent'. For a SECRET, fail loud (refuse to start) over silent rotation. Extract a pure classifier(io::Result<T>)->io::Result<Option<T>> to unit-test all kinds. Same no-silent-failures class as PL-283/284."
+  source: P-001
+  task: T-2499
+  date: 2026-08-02
+  context: Added via context agent
+  application: TBD
