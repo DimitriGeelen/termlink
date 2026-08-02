@@ -365,19 +365,41 @@ async fn handle_event_emit_to(
                     .into();
                 }
 
-            // T-988: For file events, spool to inbox instead of erroring
-            if let Ok(true) = crate::inbox::deposit(target, topic, &payload, from) {
-                // T-1163: dual-write into channel:inbox:<target> so subscribers can
-                // migrate to the channel.* surface without waiting for legacy inbox.*
-                // callers. Best-effort; never blocks the deposit response.
-                crate::channel::mirror_inbox_deposit(target, topic, &payload, from).await;
-                return Response::success(id, json!({
-                    "ok": true,
-                    "spooled": true,
-                    "target": target,
-                    "message": format!("Target '{}' offline — file event spooled to inbox", target),
-                }))
-                .into();
+            // T-988: For file events, spool to inbox instead of erroring.
+            // T-2488: deposit() returns io::Result<bool> with THREE distinct outcomes —
+            // Ok(true)=spooled, Ok(false)=not a spoolable file event, Err(e)=real inbox
+            // I/O failure. The former `if let Ok(true)` collapsed Ok(false) AND Err(e)
+            // into one unlogged SESSION_NOT_FOUND fall-through, so a disk error
+            // (ENOSPC/EACCES/read-only fs) masqueraded as a missing session and the
+            // file event vanished (directive-#2 silent-failure). Match all three.
+            match crate::inbox::deposit(target, topic, &payload, from) {
+                Ok(true) => {
+                    // T-1163: dual-write into channel:inbox:<target> so subscribers can
+                    // migrate to the channel.* surface without waiting for legacy inbox.*
+                    // callers. Best-effort; never blocks the deposit response.
+                    crate::channel::mirror_inbox_deposit(target, topic, &payload, from).await;
+                    return Response::success(id, json!({
+                        "ok": true,
+                        "spooled": true,
+                        "target": target,
+                        "message": format!("Target '{}' offline — file event spooled to inbox", target),
+                    }))
+                    .into();
+                }
+                Ok(false) => { /* not a spoolable file event — fall through to SESSION_NOT_FOUND below */ }
+                Err(e) => {
+                    tracing::warn!(
+                        target = target,
+                        topic = topic,
+                        error = %e,
+                        "event.emit_to: inbox spool FAILED (I/O error) — returning internal_error, not SESSION_NOT_FOUND"
+                    );
+                    return ErrorResponse::internal_error(
+                        id,
+                        &format!("inbox spool failed for target '{target}' topic '{topic}': {e}"),
+                    )
+                    .into();
+                }
             }
 
             return ErrorResponse::new(
@@ -3258,6 +3280,55 @@ mod tests {
             assert!(e.error.message.contains("nonexistent-session"));
         } else {
             panic!("Expected error response");
+        }
+    }
+
+    /// T-2488: a REAL inbox I/O failure while spooling a file.* event must surface
+    /// as INTERNAL_ERROR (loud), NOT be collapsed into the unlogged SESSION_NOT_FOUND
+    /// fall-through. We force the failure by pointing runtime_dir at a regular FILE,
+    /// so `inbox::deposit`'s `create_dir_all(runtime_dir/inbox/...)` fails with
+    /// NotADirectory. The target is unknown so control reaches the deposit arm.
+    #[tokio::test]
+    async fn emit_to_file_event_surfaces_inbox_io_error_as_internal_error() {
+        let _lock = ENV_LOCK.lock().await;
+        // A path that is a regular file, not a directory — create_dir_all under it fails.
+        let file_as_runtime = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("target/test-tmp")
+            .join(format!("tl-hub-eto-iofail-{}", std::process::id()));
+        std::fs::create_dir_all(file_as_runtime.parent().unwrap()).unwrap();
+        let _ = std::fs::remove_dir_all(&file_as_runtime);
+        std::fs::write(&file_as_runtime, b"not-a-directory").unwrap();
+
+        let prev = std::env::var("TERMLINK_RUNTIME_DIR").ok();
+        // SAFETY: tests serialise on ENV_LOCK so this set_var is exclusive.
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &file_as_runtime) };
+
+        let params = json!({
+            "target": "offline-target-for-io-test",
+            "topic": "file.init",
+            "payload": { "transfer_id": "t-io-2488" },
+        });
+        let resp = handle_event_emit_to(json!("eto-io-1"), &params).await;
+
+        // Restore env before asserting so a panic doesn't leak the override.
+        unsafe {
+            match prev {
+                Some(v) => std::env::set_var("TERMLINK_RUNTIME_DIR", v),
+                None => std::env::remove_var("TERMLINK_RUNTIME_DIR"),
+            }
+        }
+        let _ = std::fs::remove_file(&file_as_runtime);
+
+        if let RpcResponse::Error(e) = resp {
+            assert_eq!(
+                e.error.code,
+                termlink_protocol::jsonrpc::standard_error::INTERNAL_ERROR,
+                "inbox I/O failure must be INTERNAL_ERROR (-32603), not SESSION_NOT_FOUND; got {}",
+                e.error.message
+            );
+            assert_ne!(e.error.code, control::error_code::SESSION_NOT_FOUND);
+        } else {
+            panic!("Expected error response for inbox I/O failure");
         }
     }
 

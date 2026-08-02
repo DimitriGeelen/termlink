@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-02T07:30:38Z
-last_update: 2026-08-02T07:32:42Z
+last_update: 2026-08-02T07:33:26Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -47,15 +47,17 @@ registered target reaches this path. Found by firing-#10 adversarial audit; veri
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `handle_event_emit_to` distinguishes the three `deposit` outcomes via an explicit `match`:
+- [x] `handle_event_emit_to` distinguishes the three `deposit` outcomes via an explicit `match`:
       `Ok(true)` → existing spooled-success response (unchanged); `Ok(false)` → fall through to
       `SESSION_NOT_FOUND` (genuinely not spoolable); `Err(e)` → surfaced, not swallowed.
-- [ ] On `Err(e)` the handler emits a `tracing::warn!` naming target + topic + error, AND returns
+- [x] On `Err(e)` the handler emits a `tracing::warn!` naming target + topic + error, AND returns
       `ErrorResponse::internal_error` (−32603) — NOT `SESSION_NOT_FOUND` (the failure is loud + correctly classified).
-- [ ] New unit test: with the inbox dir pointed at an unwritable path, `event.emit_to` for a
+- [x] New unit test: with the inbox dir pointed at an unwritable path, `event.emit_to` for a
       `file.init` payload to an unknown target returns `INTERNAL_ERROR`, not `SESSION_NOT_FOUND`.
-- [ ] Existing emit_to tests still pass (spooled-success + unknown-non-file-target → SESSION_NOT_FOUND unchanged).
-- [ ] `cargo test -p termlink-hub --lib` passes; `cargo check -p termlink-hub` clean.
+      (`emit_to_file_event_surfaces_inbox_io_error_as_internal_error` — runtime_dir pointed at a
+      regular file so `create_dir_all` fails with NotADirectory.)
+- [x] Existing emit_to tests still pass (spooled-success + unknown-non-file-target → SESSION_NOT_FOUND unchanged).
+- [x] `cargo test -p termlink-hub --lib` passes (439/439); `cargo check -p termlink-hub` clean.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
