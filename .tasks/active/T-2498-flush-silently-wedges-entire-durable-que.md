@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-02T11:33:00Z
-last_update: 2026-08-02T11:33:00Z
+last_update: 2026-08-02T11:35:56Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -53,13 +53,13 @@ peek — the queue's entry gate). Directive-#2 breach (silent failure + total dr
 ## Acceptance Criteria
 
 ### Agent
-- [ ] A corrupt/undeserializable head row is dead-lettered (durable, recoverable) instead of silently wedging the queue — the queue drains past it
-- [ ] The failure surfaces LOUD (`tracing::error!` with the row id + serde error) instead of a silent `break`
-- [ ] The peek `Err` path is disambiguated from the empty-queue `Ok(None)` path via an explicit match (not a `let-else` that collapses both)
-- [ ] A non-deserializing `OfflineQueue::peek_head_id()` helper reads the head id so a corrupt row can be quarantined without re-triggering the deserialize failure
-- [ ] A genuine DB fault (peek_head_id itself errors) breaks the pass LOUD rather than spinning
-- [ ] Regression test: seed a queue whose head row's `post_json` is corrupt, run `flush()`, assert it dead-letters the row (recoverable in the dead-letter store) and drains — no hang, no wedge
-- [ ] `cargo test -p termlink-session --lib` passes (existing + new)
+- [x] A corrupt/undeserializable head row is dead-lettered (durable, recoverable) instead of silently wedging the queue — the queue drains past it
+- [x] The failure surfaces LOUD (`tracing::error!` with the row id + serde error) instead of a silent `break`
+- [x] The peek `Err` path is disambiguated from the empty-queue `Ok(None)` path via an explicit match (not a `let-else` that collapses both)
+- [x] A non-deserializing `OfflineQueue::peek_head_id()` helper reads the head id so a corrupt row can be quarantined without re-triggering the deserialize failure
+- [x] A genuine DB fault (peek_head_id itself errors) breaks the pass LOUD rather than spinning
+- [x] Regression test: seed a queue whose head row's `post_json` is corrupt, run `flush()`, assert it dead-letters the row (recoverable in the dead-letter store) and drains — no hang, no wedge
+- [x] `cargo test -p termlink-session --lib` passes (existing + new)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
