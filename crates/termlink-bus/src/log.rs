@@ -99,22 +99,156 @@ impl Iterator for ReaderIter {
     type Item = Result<(Offset, Envelope)>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let loc = self.records.next()?;
-        // Skip the 8-byte length prefix — we have the length in `loc`.
-        let payload_start = loc.byte_pos + 8;
-        if let Err(e) = self.file.seek(SeekFrom::Start(payload_start)) {
-            return Some(Err(BusError::Io(e)));
+        // Loop so a single poison record (truncated payload / undecodable bytes)
+        // becomes a logged GAP, not a WALL: the append path fsyncs the SQLite index
+        // but not the payload (T-2464), so a crash mid-append can leave the index
+        // pointing at bytes that never fully hit disk. Before this loop, that one bad
+        // record made `next()` return `Some(Err(..))`, and every consumer's `item?`
+        // aborted the whole topic's replay — permanently, on every re-subscribe. We
+        // now skip the poison offset and continue. Every skip is LOUD (eprintln to
+        // stderr, no new dep — directive #2: no silent failures). Genuinely systemic
+        // faults (seek failure, index length overflow, non-EOF read errors) still
+        // propagate as `Err` — only per-record data corruption is skippable.
+        loop {
+            let loc = self.records.next()?;
+            // Skip the 8-byte length prefix — we have the length in `loc`.
+            let payload_start = loc.byte_pos + 8;
+            if let Err(e) = self.file.seek(SeekFrom::Start(payload_start)) {
+                return Some(Err(BusError::Io(e)));
+            }
+            let Ok(len) = usize::try_from(loc.length) else {
+                return Some(Err(BusError::Io(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "record length overflows usize",
+                ))));
+            };
+            let mut buf = vec![0u8; len];
+            if let Err(e) = self.file.read_exact(&mut buf) {
+                if e.kind() == std::io::ErrorKind::UnexpectedEof {
+                    // Truncated record — the payload on disk is shorter than the
+                    // index says. Skip it and replay the rest of the topic.
+                    eprintln!(
+                        "termlink-bus: WARN skipping truncated record at offset {} \
+                         (byte_pos {}, declared {} bytes): {e}",
+                        loc.offset, loc.byte_pos, len
+                    );
+                    continue;
+                }
+                // Non-EOF read error is systemic (e.g. disk I/O) — surface it.
+                return Some(Err(BusError::Io(e)));
+            }
+            match decode_envelope(&buf) {
+                Ok(env) => return Some(Ok((loc.offset, env))),
+                Err(e) => {
+                    // Undecodable payload — corrupt bytes at a valid position. Skip.
+                    eprintln!(
+                        "termlink-bus: WARN skipping undecodable record at offset {} \
+                         (byte_pos {}, {} bytes): {e}",
+                        loc.offset, loc.byte_pos, len
+                    );
+                    continue;
+                }
+            }
         }
-        let Ok(len) = usize::try_from(loc.length) else {
-            return Some(Err(BusError::Io(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "record length overflows usize",
-            ))));
-        };
-        let mut buf = vec![0u8; len];
-        if let Err(e) = self.file.read_exact(&mut buf) {
-            return Some(Err(BusError::Io(e)));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    // T-2487 — reader-resilience: a single poison record (undecodable payload or a
+    // truncated tail from a crash mid-append) must become a logged GAP, not a WALL
+    // that bricks the whole topic's replay for every consumer forever.
+    use super::*;
+    use crate::meta::RecordLoc;
+    use std::io::Write as _;
+
+    fn valid_payload(marker: &str) -> Vec<u8> {
+        encode_envelope(&Envelope {
+            topic: "t".into(),
+            sender_id: "s".into(),
+            msg_type: "note".into(),
+            payload: marker.as_bytes().to_vec(),
+            artifact_ref: None,
+            ts_unix_ms: 0,
+            metadata: std::collections::BTreeMap::new(),
+        })
+        .unwrap()
+    }
+
+    // Write payloads as [8-byte BE length][payload] each, returning the reader-ready
+    // RecordLoc index (length excludes the prefix, matching the SQLite offsets table).
+    fn write_raw_log(payloads: &[&[u8]]) -> (tempfile::TempDir, std::path::PathBuf, Vec<RecordLoc>) {
+        let dir = tempfile::TempDir::new().expect("tempdir");
+        let path = dir.path().join("test.log");
+        let mut f = std::fs::File::create(&path).expect("create");
+        let mut records = Vec::new();
+        let mut pos: u64 = 0;
+        for (i, p) in payloads.iter().enumerate() {
+            let len = p.len() as u64;
+            f.write_all(&len.to_be_bytes()).unwrap();
+            f.write_all(p).unwrap();
+            records.push(RecordLoc { offset: i as u64, byte_pos: pos, length: len });
+            pos += 8 + len;
         }
-        Some(decode_envelope(&buf).map(|env| (loc.offset, env)))
+        f.flush().unwrap();
+        (dir, path, records)
+    }
+
+    #[test]
+    fn reader_skips_undecodable_middle_record_and_yields_before_and_after() {
+        let a = valid_payload("A");
+        let c = valid_payload("C");
+        // Non-JSON garbage of a plausible length — decode_envelope() will fail.
+        let garbage: &[u8] = b"}{ this is not a valid envelope at all";
+        let (_dir, path, records) = write_raw_log(&[&a, garbage, &c]);
+        let file = std::fs::File::open(&path).unwrap();
+        let got: Vec<(Offset, Envelope)> = ReaderIter::new(file, records)
+            .map(|r| r.expect("a poison record must be SKIPPED, never surfaced as Err"))
+            .collect();
+        let offsets: Vec<Offset> = got.iter().map(|(o, _)| *o).collect();
+        assert_eq!(offsets, vec![0, 2], "middle poison record must be skipped, not wall the topic");
+        assert_eq!(got[0].1.payload, b"A");
+        assert_eq!(got[1].1.payload, b"C");
+    }
+
+    #[test]
+    fn reader_skips_truncated_tail_record() {
+        // Realistic crash-mid-append: the last record's index entry declares more
+        // bytes than the file actually contains → read_exact hits UnexpectedEof.
+        let a = valid_payload("A");
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("trunc.log");
+        let mut f = std::fs::File::create(&path).unwrap();
+        f.write_all(&(a.len() as u64).to_be_bytes()).unwrap();
+        f.write_all(&a).unwrap();
+        let rec1_pos = 8 + a.len() as u64;
+        f.write_all(&100u64.to_be_bytes()).unwrap(); // declares 100 bytes…
+        f.write_all(&[0u8; 5]).unwrap(); // …but only 5 exist, then the file ends.
+        f.flush().unwrap();
+        let records = vec![
+            RecordLoc { offset: 0, byte_pos: 0, length: a.len() as u64 },
+            RecordLoc { offset: 1, byte_pos: rec1_pos, length: 100 },
+        ];
+        let file = std::fs::File::open(&path).unwrap();
+        let got: Vec<(Offset, Envelope)> = ReaderIter::new(file, records)
+            .map(|r| r.expect("a truncated tail must be SKIPPED, never surfaced as Err"))
+            .collect();
+        let offsets: Vec<Offset> = got.iter().map(|(o, _)| *o).collect();
+        assert_eq!(offsets, vec![0], "valid record before a truncated tail must still replay");
+        assert_eq!(got[0].1.payload, b"A");
+    }
+
+    #[test]
+    fn reader_all_valid_records_unaffected() {
+        // Regression guard: the loop must not change happy-path behaviour.
+        let a = valid_payload("A");
+        let b = valid_payload("B");
+        let c = valid_payload("C");
+        let (_dir, path, records) = write_raw_log(&[&a, &b, &c]);
+        let file = std::fs::File::open(&path).unwrap();
+        let offsets: Vec<Offset> = ReaderIter::new(file, records)
+            .map(|r| r.unwrap().0)
+            .collect();
+        assert_eq!(offsets, vec![0, 1, 2]);
     }
 }
