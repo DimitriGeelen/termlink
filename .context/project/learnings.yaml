@@ -2675,3 +2675,10 @@ learnings:
   date: 2026-08-02
   context: Added via context agent
   application: TBD
+- id: PL-274
+  learning: "A durable append-log reader must be gap-tolerant: skip a poison record (truncated payload / undecodable bytes) with a loud offset-tagged log and continue, never return an aborting Err — one corrupt offset otherwise walls the whole topic's replay for every consumer forever (index-ahead-of-payload-fsync is the source, T-2464). Fix the amplifier (reader) independently of the root (fsync); they are separate bugs."
+  source: P-001
+  task: T-2487
+  date: 2026-08-02
+  context: Added via context agent
+  application: TBD
