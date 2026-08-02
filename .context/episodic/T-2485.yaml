@@ -1,0 +1,93 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2485: session-selftest — affirmative prover for the control-terminal-sessions charter verb (4th verb, sibling of comms-selftest)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-02T00:31:21Z
+# ============================================================================
+
+task_id: T-2485
+task_name: "session-selftest — affirmative prover for the control-terminal-sessions charter verb (4th verb, sibling of comms-selftest)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-02T00:24:31Z
+completed: 2026-08-02T00:31:16Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-08-02T02:31:10+02:00
+last_commit: 2026-08-02T02:31:10+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  session-selftest — affirmative prover for the control-terminal-sessions charter verb (4th/4 verbs now proven); +bounded EXEC readiness-retry for spawn race; tests 9/9, live PROVEN
+
+# Key outcomes
+outcomes:
+  - '`scripts/session-selftest.sh` exists, is executable, and `--help` documents purpose'
+  - 'Runs three staged PASS/FAIL checks against a real session: **SPAWN** (a tmux-backed'
+  - 'Exit 0 only when SPAWN and EXEC both PASS; exit 1 naming the broken stage when'
+  - '`--json` emits `{ok, proven, broken_stage, stages:{spawn,exec,cleanup}, session,'
+  - 'Host-independent test hooks (PL-213): `TERMLINK_SESSION_SELFTEST_TEST_SPAWN_RC` and'
+  - '`scripts/test-session-selftest.sh` covers proven / broken-at-SPAWN / broken-at-EXEC'
+  - 'Live-validated once this session against the real local hub: full run exits 0'
+  - '`docs/operations/session-selftest.md` written, and a CLAUDE.md mention added'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/audits/2026-08-02.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'docs/operations/session-selftest.md'
+  - 'scripts/session-selftest.sh'
+  - 'scripts/test-session-selftest.sh'
+  - '.tasks/active/T-2485-session-selftest--affirmative-prover-for.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-02T02:31:10"
+    action: "T-2485: session-selftest — affirmative prover for the control-terminal-sessions charter verb (4th/4 verbs now proven); +bounded EXEC readiness-retry for spawn race; tests 9/9, live PROVEN"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 14
+  lines_added: 653
+  lines_removed: 19
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2485-session-selftest--affirmative-prover-for.md
+generated_by: context-agent-hybrid

@@ -2668,3 +2668,10 @@ learnings:
   date: 2026-08-02
   context: Added via context agent
   application: TBD
+- id: PL-273
+  learning: "Prover-coverage-per-promise: maintain one affirmative on-demand prover per core charter verb, and treat the set as an inventory so a missing one is VISIBLE. TermLink had provers for 3 of 4 verbs (comms-selftest, substrate-smoke) but the founding PTY verb was the silent odd-one-out — the gap was even acknowledged in-code yet never closed because nothing tied 'prover' to 'each verb'. Extends PL 'affirmative-proof-vs-detection': don't just detect breakage, prove each promise, and track the coverage matrix."
+  source: P-001
+  task: T-2485
+  date: 2026-08-02
+  context: Added via context agent
+  application: TBD
