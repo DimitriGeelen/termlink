@@ -787,6 +787,34 @@ tooling (fail-closed). The SEND stage is bounded by `COMMS_SELFTEST_SEND_TIMEOUT
 Test hooks `TERMLINK_DIAGNOSE_TEST_PRESENCE_JSON` + `COMMS_SELFTEST_TEST_SEND_RC`
 (PL-213). See `docs/operations/comms-selftest.md`.
 
+### Session self-test — proving the "control terminal sessions" verb (T-2485)
+
+The charter names four core verbs (discover / exchange durable messages / claim work
+/ control terminal sessions). Affirmative on-demand provers existed for three —
+`comms-selftest.sh` (T-2482, discover+exchange) and `substrate-smoke.sh` (T-2151,
+claim work) — but the **fourth**, the founding verb ("TermLink began as a
+cross-terminal session-control tool"), had none. The gap was acknowledged in-code:
+`agent-conversation-selftest.sh` says "does NOT validate: PTY inject", and
+comms-selftest only checks the `pty_session` presence *flag*, never that a command
+actually injects and runs. `scripts/session-selftest.sh` closes it — the 4th sibling
+completing prover coverage of all four verbs (an on-demand PROVER, **not** a cron
+canary, so it adds no canary breadth):
+
+```bash
+bash scripts/session-selftest.sh [--json] [--ttl <secs>] [--hub <addr>]
+```
+
+Three staged PASS/FAIL checks against a real session — **SPAWN** (a tmux-backed
+scratch session registers), **EXEC** (`termlink exec <s> 'echo <sentinel>' --json`
+returns ok + exit_code 0 with the sentinel in stdout — the inject→run→capture
+round-trip), **CLEANUP** (best-effort `signal TERM` + `clean`, never fatal). Unlike
+doorbell-wake (needs a live peer), `exec --json` makes it deterministic + local. The
+EXEC stage retries ~5s to absorb the spawn→ready race (`spawn` returns before the
+shell is exec-ready). Exit **0** proven / **1** broken (names the stage) / **2**
+tooling (fail-closed — hub-down/missing-dep is never "proven"). Test hooks
+`TERMLINK_SESSION_SELFTEST_TEST_SPAWN_RC` + `TERMLINK_SESSION_SELFTEST_TEST_EXEC_JSON`
++ `SESSION_SELFTEST_SENTINEL` (PL-213). See `docs/operations/session-selftest.md`.
+
 ### Shipped == Live gate (T-2480, G-069 prevention)
 
 Capabilities were repeatedly recorded **closed=shipped** while dark in the field

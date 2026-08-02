@@ -1,8 +1,8 @@
-# Audit Results - 2026-08-02-0115
-timestamp: 2026-08-01T23:15:49Z
+# Audit Results - 2026-08-02-0216
+timestamp: 2026-08-02T00:16:27Z
 sections: "structure"
 summary:
-  pass: 33
+  pass: 35
   warn: 3
   fail: 0
 findings:
@@ -41,6 +41,10 @@ findings:
     mitigation: "Run: fw fabric scan"
   - level: PASS
     check: "Cron registry in sync with /etc/cron.d/agentic-audit-termlink"
+  - level: PASS
+    check: "cron(charter-drift-canary): USER-field syntax installed at /etc/cron.d/termlink-charter-drift-canary"
+  - level: PASS
+    check: "cron(charter-sentence-drift-canary): USER-field syntax installed at /etc/cron.d/termlink-charter-sentence-drift-canary"
   - level: PASS
     check: "cron(fleet-adoption-snapshot): USER-field syntax installed at /etc/cron.d/termlink-fleet-adoption-snapshot"
   - level: PASS
