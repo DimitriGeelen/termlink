@@ -2703,3 +2703,10 @@ learnings:
   date: 2026-08-02
   context: Added via context agent
   application: TBD
+- id: PL-278
+  learning: "A zero-padded-numeric filename sort (e.g. chunk-{index:04}.json sorted lexically) is correct ONLY up to its pad width: once the index overflows the pad (10000 in a :04 field), lexical order diverges from numeric ('chunk-10000' < 'chunk-9999') and ordered iteration silently breaks. The bug carries a hidden magnitude ceiling determined by the pad width. Sort by the PARSED number, not the string — or the ordering is only as correct as the largest value anyone happened to test. Regression test must cross the pad-width boundary (9999 vs 10000)."
+  source: P-001
+  task: T-2490
+  date: 2026-08-02
+  context: Added via context agent
+  application: TBD

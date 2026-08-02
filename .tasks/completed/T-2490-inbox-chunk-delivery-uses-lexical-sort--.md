@@ -4,20 +4,20 @@ name: "inbox chunk delivery uses lexical sort — reassembly corrupts past 9999 
 description: >
   deliver_transfer/ordered_chunk_paths_checked (crates/termlink-hub/src/inbox.rs) sort chunk files by file_name() (lexical): chunk-10000.json sorts before chunk-9999.json, so any offline transfer with >10000 chunks (~>480MB at 48KiB DEFAULT_CHUNK_SIZE) reassembles out of order. Caught downstream by the receiver's sha256 (loud, not silent) so it is lower severity than T-2489 — but a real correctness bug with a purely size-determined trigger. Fix: sort by the parsed numeric chunk index (deposit naming + ordered_chunk_paths_checked change together) + a regression test. Found by firing-#12 adversarial audit alongside T-2489.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-hub/src/inbox.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-02T08:35:56Z
-last_update: 2026-08-02T08:52:12Z
-date_finished: null
+last_update: 2026-08-02T08:56:14Z
+date_finished: 2026-08-02T08:56:14Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -217,3 +217,15 @@ its pad width; sort by the parsed number, or the ordering carries a hidden magni
 ### 2026-08-02T08:52:12Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-624ddc09
+- **Timestamp:** 2026-08-02T08:56:21Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-02T08:56:14Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
