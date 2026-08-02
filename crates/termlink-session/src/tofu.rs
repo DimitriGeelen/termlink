@@ -154,7 +154,19 @@ impl KnownHubStore {
         if let Some(parent) = self.path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        std::fs::write(&self.path, lines.join("\n") + "\n")
+        // T-2501: write atomically (temp file + rename) instead of
+        // truncate-in-place. `std::fs::write` truncates the live file BEFORE
+        // writing, so a crash / OOM-kill / power-loss / ENOSPC mid-write leaves
+        // `known_hubs` truncated on disk → pins vanish → the next connection
+        // silently re-TOFUs (trust-downgrade / MITM window). POSIX rename(2) is
+        // atomic within one filesystem, so a reader always sees the complete old
+        // or complete new file — never a partial one. Mirrors the crate's
+        // established idiom (registration.rs::write_atomic, known_peers.rs).
+        // T-2438's Err-path warning still applies: any failure here propagates
+        // to save()'s loud eprintln.
+        let tmp_path = self.path.with_extension("tmp");
+        std::fs::write(&tmp_path, lines.join("\n") + "\n")?;
+        std::fs::rename(&tmp_path, &self.path)
     }
 
     /// Look up a stored fingerprint for a host:port.
@@ -562,6 +574,34 @@ mod tests {
             reloaded.get("5.6.7.8:9100").as_deref(),
             Some("sha256:pin1"),
             "pin must survive a reload"
+        );
+    }
+
+    #[test]
+    fn save_result_is_atomic_no_leftover_temp() {
+        // T-2501: the write must be atomic (temp file + rename), not
+        // truncate-in-place. After a successful save no sibling temp file may
+        // remain, and the pin must round-trip. A regression to `fs::write`
+        // (truncate-in-place) would not leave a temp file — but the atomic
+        // path is what guarantees a crash mid-write can't truncate the live
+        // file; this test locks in the temp+rename mechanism + clean round-trip.
+        let (store, path) = test_store();
+        store.accept("9.9.9.9:9100", "sha256:atomic").unwrap();
+        store.save_result().expect("writable store must save");
+
+        let tmp_path = path.with_extension("tmp");
+        assert!(
+            !tmp_path.exists(),
+            "atomic write must leave no leftover temp file at {}",
+            tmp_path.display()
+        );
+        assert!(path.exists(), "the live pin file must exist after save");
+
+        let reloaded = KnownHubStore::new(path);
+        assert_eq!(
+            reloaded.get("9.9.9.9:9100").as_deref(),
+            Some("sha256:atomic"),
+            "pin must survive the atomic write + reload"
         );
     }
 
