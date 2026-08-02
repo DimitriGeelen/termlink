@@ -315,6 +315,39 @@ pub async fn deliver_pending(target: &str, addr: &TransportAddr) -> usize {
     delivered
 }
 
+/// List a transfer's `chunk-*` files in delivery order, verifying every one is
+/// readable/parseable.
+///
+/// Returns the ordered chunk paths, or `None` if ANY chunk file is unreadable or
+/// corrupt. T-2489: a `None` MUST make the caller RETAIN the spool and report the
+/// transfer undelivered — the previous `None => continue` in `deliver_transfer`
+/// silently omitted the bad chunk, delivered the rest + `complete.json`, returned
+/// `true`, and let the caller `remove_dir_all` the only copy (unrecoverable loss
+/// of a file that then fails its sha256 on the receiver). Mirrors the
+/// loud-and-never-destroy convention of T-2487 (log reader) + T-2488 (emit_to).
+/// Pure I/O, no network — unit-testable.
+fn ordered_chunk_paths_checked(xfer_dir: &Path) -> Option<Vec<std::path::PathBuf>> {
+    let mut chunk_files: Vec<_> = std::fs::read_dir(xfer_dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|e| e.file_name().to_string_lossy().starts_with("chunk-"))
+        .collect();
+    chunk_files.sort_by_key(|e| e.file_name());
+
+    let mut paths = Vec::with_capacity(chunk_files.len());
+    for chunk_file in chunk_files {
+        let path = chunk_file.path();
+        // Validate readability up front so a corrupt chunk aborts BEFORE any
+        // partial delivery (and before the caller deletes the spool).
+        if read_entry(&path).is_none() {
+            return None;
+        }
+        paths.push(path);
+    }
+    Some(paths)
+}
+
 /// Deliver a single transfer's events to a session.
 async fn deliver_transfer(addr: &TransportAddr, xfer_dir: &Path) -> bool {
     // Read and deliver init
@@ -332,25 +365,41 @@ async fn deliver_transfer(addr: &TransportAddr, xfer_dir: &Path) -> bool {
         return false;
     }
 
-    // Deliver chunks in order
-    let mut chunk_files: Vec<_> = std::fs::read_dir(xfer_dir)
-        .into_iter()
-        .flatten()
-        .flatten()
-        .filter(|e| e.file_name().to_string_lossy().starts_with("chunk-"))
-        .collect();
-    chunk_files.sort_by_key(|e| e.file_name());
+    // Deliver chunks in order. T-2489: a single unreadable/corrupt chunk aborts
+    // the whole transfer and RETAINS the spool — we never deliver a partial
+    // transfer and then let the caller destroy the only copy (the previous
+    // `None => continue` silently dropped bad chunks, returned true, and the
+    // spool was deleted → unrecoverable loss + failed sha256 on the receiver).
+    let chunk_paths = match ordered_chunk_paths_checked(xfer_dir) {
+        Some(paths) => paths,
+        None => {
+            tracing::warn!(
+                transfer_id = %init_entry.transfer_id,
+                "Inbox: a chunk is unreadable/corrupt — RETAINING spool, NOT delivering partial transfer"
+            );
+            return false;
+        }
+    };
 
-    for chunk_file in chunk_files {
-        let entry: InboxEntry = match read_entry(&chunk_file.path()) {
+    for path in chunk_paths {
+        let entry: InboxEntry = match read_entry(&path) {
             Some(e) => e,
-            None => continue,
+            None => {
+                // Became unreadable between the pre-check and emit (TOCTOU) —
+                // still abort + retain rather than silently skip.
+                tracing::warn!(
+                    transfer_id = %init_entry.transfer_id,
+                    chunk = %path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
+                    "Inbox: chunk became unreadable during delivery — RETAINING spool"
+                );
+                return false;
+            }
         };
 
         if emit_event(addr, &entry).await.is_err() {
             tracing::warn!(
                 transfer_id = %init_entry.transfer_id,
-                chunk = %chunk_file.file_name().to_string_lossy(),
+                chunk = %path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
                 "Inbox: failed to deliver chunk"
             );
             return false;
@@ -729,6 +778,51 @@ mod tests {
 
         // New transfer should survive
         assert!(dir.join("new-target").join("new-xfer").exists());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// T-2489: a corrupt/unreadable chunk must make delivery-planning return
+    /// None (→ caller retains the spool), NOT silently skip it. Guards against
+    /// the regression where a bad chunk was skipped, the rest delivered, true
+    /// returned, and the spool then deleted (unrecoverable file loss).
+    #[test]
+    fn ordered_chunk_paths_checked_returns_none_on_corrupt_chunk() {
+        let dir = test_inbox_dir();
+        deposit_test_transfer(&dir, "tgt-corrupt", "xfer-c", "report.txt", 3);
+        let xfer_dir = dir.join("tgt-corrupt").join("xfer-c");
+
+        // Corrupt one chunk: overwrite with non-JSON so read_entry → None.
+        std::fs::write(xfer_dir.join("chunk-0001.json"), b"}{ this is not json").unwrap();
+
+        assert!(
+            ordered_chunk_paths_checked(&xfer_dir).is_none(),
+            "a corrupt chunk must abort delivery planning (retain spool), not be skipped"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// T-2489: with all chunks readable, planning returns every chunk path in
+    /// delivery order.
+    #[test]
+    fn ordered_chunk_paths_checked_returns_all_when_readable() {
+        let dir = test_inbox_dir();
+        deposit_test_transfer(&dir, "tgt-ok", "xfer-ok", "report.txt", 3);
+        let xfer_dir = dir.join("tgt-ok").join("xfer-ok");
+
+        let paths = ordered_chunk_paths_checked(&xfer_dir)
+            .expect("all-readable chunks must plan successfully");
+        assert_eq!(paths.len(), 3, "all 3 chunks should be planned");
+        // Ordered: chunk-0000 before chunk-0001 before chunk-0002.
+        let names: Vec<String> = paths
+            .iter()
+            .map(|p| p.file_name().unwrap().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(
+            names,
+            vec!["chunk-0000.json", "chunk-0001.json", "chunk-0002.json"]
+        );
 
         let _ = std::fs::remove_dir_all(&dir);
     }
