@@ -2724,3 +2724,10 @@ learnings:
   date: 2026-08-02
   context: Added via context agent
   application: TBD
+- id: PL-281
+  learning: "A circuit breaker's failure handler must (RE)OPEN on EVERY threshold failure, not just the first. CircuitState::record_failure guarded the opened_at stamp with 'opened_at.is_none()' — an innocent-looking 'only open once' idempotency — but for a time-DECAYING state (half-open = elapsed>=COOLDOWN) that guard is fatal: a failed half-open probe never re-stamped opened_at, so the circuit stayed half-open forever and should_skip returned false forever, silently defeating the breaker (dead session re-paid full timeout on every route). Rule: any state whose meaning changes with elapsed time must be re-stamped on each triggering event; 'set once' is only correct for monotonic/latching state. Test the half-open->FAIL re-probe transition, not just open/close/reach-half-open. Sibling class to PL-280 (T-2494): a guard/default that looks like an optimization is the bug when it collapses a state that must stay live."
+  source: P-001
+  task: T-2495
+  date: 2026-08-02
+  context: Added via context agent
+  application: TBD
