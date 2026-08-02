@@ -383,6 +383,43 @@ fn ordered_chunk_paths_checked(xfer_dir: &Path) -> Option<Vec<std::path::PathBuf
     Some(paths)
 }
 
+/// Verify a transfer's chunk set is COMPLETE: exactly the contiguous indices
+/// `0..total_chunks`. T-2508: `ordered_chunk_paths_checked` guarantees every
+/// listed chunk is READABLE but NOT that the set is complete — a chunk whose
+/// `deposit` was lost (hub blip) or rejected (T-2505 bad-index) is simply absent
+/// from `read_dir` with no error, so a transfer missing `chunk-0003` would be
+/// delivered as a hole and the caller would `remove_dir_all` the only copy
+/// (unrecoverable loss + sha256 failure on the receiver). `complete.json` is
+/// written by `deposit` the instant a `file.complete` event arrives, independent
+/// of chunk arrival, so its presence is NOT proof of completeness.
+///
+/// `total_chunks == 0` returns `true` (back-compat: senders that omit the field —
+/// the previous behaviour delivered whatever was present). `chunk_paths` is
+/// pre-sorted by numeric index (see `ordered_chunk_paths_checked`), so we verify
+/// slot `i` holds index `i` AND the count matches — together this is exactly the
+/// contiguous set `{0..total_chunks}` (pigeonhole: N distinct in-range indices).
+/// Pure, no I/O, unit-testable. Sibling of T-2489 (unreadable chunk) and
+/// T-2490/T-2505 (bad index) — the MISSING-chunk class those left open.
+fn chunk_set_is_complete(chunk_paths: &[std::path::PathBuf], total_chunks: u64) -> bool {
+    if total_chunks == 0 {
+        return true;
+    }
+    if chunk_paths.len() as u64 != total_chunks {
+        return false;
+    }
+    for (i, path) in chunk_paths.iter().enumerate() {
+        let name = path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        match chunk_index(&name) {
+            Some(idx) if idx == i as u64 => {}
+            _ => return false,
+        }
+    }
+    true
+}
+
 /// Deliver a single transfer's events to a session.
 async fn deliver_transfer(addr: &TransportAddr, xfer_dir: &Path) -> bool {
     // Read and deliver init
@@ -415,6 +452,27 @@ async fn deliver_transfer(addr: &TransportAddr, xfer_dir: &Path) -> bool {
             return false;
         }
     };
+
+    // T-2508: readable != complete. A lost/rejected chunk deposit leaves a gap
+    // that `read_dir` reports as absence (no error), so `chunk_paths` may be a
+    // sparse set (e.g. [0,1,2,4]). Delivering that hole and letting the caller
+    // `remove_dir_all` the spool is unrecoverable loss (the receiver's sha256
+    // then fails). Gate on the contiguous `0..total_chunks` set and RETAIN the
+    // spool on a gap — same loud-and-never-destroy convention as T-2489.
+    let total_chunks = init_entry
+        .payload
+        .get("total_chunks")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+    if !chunk_set_is_complete(&chunk_paths, total_chunks) {
+        tracing::warn!(
+            transfer_id = %init_entry.transfer_id,
+            total_chunks = total_chunks,
+            chunks_present = chunk_paths.len(),
+            "Inbox: chunk set incomplete (missing/gap) — RETAINING spool, NOT delivering partial transfer"
+        );
+        return false;
+    }
 
     for path in chunk_paths {
         let entry: InboxEntry = match read_entry(&path) {
@@ -926,6 +984,66 @@ mod tests {
         assert_eq!(chunk_index("chunk-abc.json"), None);
         assert_eq!(chunk_index("init.json"), None);
         assert_eq!(chunk_index("complete.json"), None);
+    }
+
+    /// T-2508: the completeness gate that decides RETAIN-vs-DELIVER. A sparse
+    /// chunk set (a lost/rejected intermediate deposit) must be reported
+    /// incomplete so `deliver_transfer` retains the spool instead of delivering a
+    /// hole and destroying the only copy.
+    #[test]
+    fn chunk_set_is_complete_rejects_missing_intermediate_chunk() {
+        // 5-chunk transfer with chunk-0003 missing (deposit lost during a blip).
+        let paths: Vec<std::path::PathBuf> = ["chunk-0000.json", "chunk-0001.json", "chunk-0002.json", "chunk-0004.json"]
+            .iter()
+            .map(std::path::PathBuf::from)
+            .collect();
+        assert!(
+            !chunk_set_is_complete(&paths, 5),
+            "a transfer missing chunk-0003 must be reported incomplete (retain spool, do not deliver a hole)"
+        );
+    }
+
+    /// T-2508: a count-matches-but-gap set (defensive — e.g. an out-of-range
+    /// index) is caught by the per-slot check even when the count equals
+    /// total_chunks.
+    #[test]
+    fn chunk_set_is_complete_rejects_count_match_with_gap() {
+        // len == 5 but slot 3 holds index 4, slot 4 holds index 5 → gap at 3.
+        let paths: Vec<std::path::PathBuf> = ["chunk-0000.json", "chunk-0001.json", "chunk-0002.json", "chunk-0004.json", "chunk-0005.json"]
+            .iter()
+            .map(std::path::PathBuf::from)
+            .collect();
+        assert!(
+            !chunk_set_is_complete(&paths, 5),
+            "a same-count-but-non-contiguous set must still be reported incomplete"
+        );
+    }
+
+    /// T-2508: the full contiguous set delivers.
+    #[test]
+    fn chunk_set_is_complete_accepts_full_contiguous_set() {
+        let paths: Vec<std::path::PathBuf> = ["chunk-0000.json", "chunk-0001.json", "chunk-0002.json", "chunk-0003.json", "chunk-0004.json"]
+            .iter()
+            .map(std::path::PathBuf::from)
+            .collect();
+        assert!(
+            chunk_set_is_complete(&paths, 5),
+            "a full contiguous 0..5 set must be reported complete"
+        );
+    }
+
+    /// T-2508: `total_chunks == 0` (sender omitted the field) preserves the
+    /// pre-fix behaviour of delivering whatever is present — back-compat.
+    #[test]
+    fn chunk_set_is_complete_zero_total_is_backcompat() {
+        let paths: Vec<std::path::PathBuf> =
+            ["chunk-0000.json", "chunk-0001.json"].iter().map(std::path::PathBuf::from).collect();
+        assert!(
+            chunk_set_is_complete(&paths, 0),
+            "total_chunks=0 must deliver (back-compat with senders that omit the field)"
+        );
+        // Even an empty set delivers when total_chunks is unknown.
+        assert!(chunk_set_is_complete(&[], 0));
     }
 
     #[test]
