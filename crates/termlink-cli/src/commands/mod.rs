@@ -41,6 +41,27 @@ pub(crate) fn json_error_exit(value: serde_json::Value) -> ! {
     std::process::exit(1);
 }
 
+/// Build the `--json` envelope + effective exit code for an exec-style command
+/// result (`command.execute` / session exec).
+///
+/// A missing or malformed `exit_code` defaults to **-1 (failure)**, matching the
+/// text-output branches (remote.rs/session.rs) and `push.rs::exec_rpc`. The
+/// `--json` branch must never fail OPEN by reporting `ok:true` / exit 0 on an
+/// unknown outcome — that is the surface automation consumes, so a fail-open
+/// default makes a failed-or-unreported remote command look successful (T-2491,
+/// directive-#2 no-silent-failures). Returns `(envelope, exit_code)` where the
+/// envelope is `{"ok": exit_code == 0, ...result}`.
+pub(crate) fn exec_json_envelope(result: &serde_json::Value) -> (serde_json::Value, i64) {
+    let exit_code = result["exit_code"].as_i64().unwrap_or(-1);
+    let mut wrapped = serde_json::json!({ "ok": exit_code == 0 });
+    if let Some(obj) = result.as_object() {
+        for (k, v) in obj {
+            wrapped[k] = v.clone();
+        }
+    }
+    (wrapped, exit_code)
+}
+
 // T-1426 (T-1166 soft deprecation): one-line stderr nudge at the top of every
 // legacy primitive verb. Suppressed when TERMLINK_NO_DEPRECATION_WARN=1 so
 // scripts and CI don't get spammed during the migration window.
@@ -77,5 +98,52 @@ mod deprecation_tests {
         const VALUE: &str = "1";
         assert_eq!(ENV_VAR, "TERMLINK_NO_DEPRECATION_WARN");
         assert_eq!(VALUE, "1");
+    }
+}
+
+#[cfg(test)]
+mod exec_json_envelope_tests {
+    use super::exec_json_envelope;
+    use serde_json::json;
+
+    /// T-2491: a result WITHOUT exit_code must fail CLOSED — ok:false, negative
+    /// exit code — not fail open (the old unwrap_or(0) bug reported ok:true/0).
+    #[test]
+    fn missing_exit_code_fails_closed() {
+        let result = json!({ "stdout": "output", "stderr": "" });
+        let (env, exit_code) = exec_json_envelope(&result);
+        assert_eq!(env["ok"], json!(false), "missing exit_code must not report ok:true");
+        assert!(exit_code < 0, "missing exit_code must yield a negative (failure) code, got {exit_code}");
+    }
+
+    /// T-2491: a non-integer exit_code is malformed → also fail closed.
+    #[test]
+    fn malformed_exit_code_fails_closed() {
+        let result = json!({ "exit_code": "not-a-number" });
+        let (env, exit_code) = exec_json_envelope(&result);
+        assert_eq!(env["ok"], json!(false));
+        assert!(exit_code < 0);
+    }
+
+    /// T-2491: exit_code:0 → ok:true, and the other result fields survive into
+    /// the envelope unchanged.
+    #[test]
+    fn zero_exit_code_ok_and_fields_preserved() {
+        let result = json!({ "exit_code": 0, "stdout": "hi", "stderr": "warn" });
+        let (env, exit_code) = exec_json_envelope(&result);
+        assert_eq!(env["ok"], json!(true));
+        assert_eq!(exit_code, 0);
+        assert_eq!(env["stdout"], json!("hi"));
+        assert_eq!(env["stderr"], json!("warn"));
+        assert_eq!(env["exit_code"], json!(0));
+    }
+
+    /// T-2491: a non-zero exit_code → ok:false, code preserved.
+    #[test]
+    fn nonzero_exit_code_not_ok() {
+        let result = json!({ "exit_code": 42 });
+        let (env, exit_code) = exec_json_envelope(&result);
+        assert_eq!(env["ok"], json!(false));
+        assert_eq!(exit_code, 42);
     }
 }

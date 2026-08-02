@@ -960,13 +960,9 @@ pub(crate) async fn cmd_exec(target: &str, command: &str, cwd: Option<&str>, tim
     match client::unwrap_result(resp) {
         Ok(result) => {
             if json {
-                let exit_code = result["exit_code"].as_i64().unwrap_or(0);
-                let mut wrapped = serde_json::json!({"ok": exit_code == 0});
-                if let Some(obj) = result.as_object() {
-                    for (k, v) in obj {
-                        wrapped[k] = v.clone();
-                    }
-                }
+                // T-2491: fail CLOSED on a missing exit_code (shared helper),
+                // matching the text branch below and push.rs::exec_rpc.
+                let (wrapped, exit_code) = super::exec_json_envelope(&result);
                 println!("{}", wrapped);
                 if exit_code != 0 {
                     std::process::exit(exit_code as i32);
