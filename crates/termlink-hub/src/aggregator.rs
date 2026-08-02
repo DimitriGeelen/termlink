@@ -110,12 +110,18 @@ impl EventAggregator {
                 match poll_action(&outcome) {
                     PollAction::Deliver => {
                         if let PollOutcome::Success(data) = &outcome {
+                            let mut delivered_max_seq: Option<u64> = None;
                             if let Some(events) = data["events"].as_array() {
                                 for event in events {
+                                    let seq = event["seq"].as_u64();
+                                    if let Some(s) = seq {
+                                        delivered_max_seq =
+                                            Some(delivered_max_seq.map_or(s, |m| m.max(s)));
+                                    }
                                     let agg = AggregatedEvent {
                                         session_id: target.id.clone(),
                                         session_name: target.display_name.clone(),
-                                        seq: event["seq"].as_u64().unwrap_or(0),
+                                        seq: seq.unwrap_or(0),
                                         topic: event["topic"]
                                             .as_str()
                                             .unwrap_or("")
@@ -127,9 +133,25 @@ impl EventAggregator {
                                     let _ = tx.send(agg);
                                 }
                             }
-                            if let Some(next) = data["next_seq"].as_u64() {
-                                cursor = next;
+                            // T-2503: advance the cursor via the pure `next_cursor`
+                            // helper. A bare `if let Some(next) = ...next_seq` with
+                            // no else silently stalled the cursor when `next_seq`
+                            // was missing-despite-events → the same batch was
+                            // re-fetched + re-broadcast every poll (silent duplicate
+                            // storm). The fallback advances past what we delivered.
+                            let (new_cursor, used_fallback) =
+                                next_cursor(data, delivered_max_seq, cursor);
+                            if used_fallback {
+                                tracing::warn!(
+                                    session = %target.id,
+                                    from_cursor = cursor,
+                                    to_cursor = new_cursor,
+                                    "aggregator: session poll returned events but no valid next_seq; \
+                                     advancing cursor to max(delivered_seq)+1 to avoid a duplicate \
+                                     re-send storm (a healthy session always stamps next_seq)"
+                                );
                             }
+                            cursor = new_cursor;
                         }
                     }
                     PollAction::Backoff => {
@@ -248,6 +270,32 @@ fn poll_action(outcome: &PollOutcome) -> PollAction {
     }
 }
 
+/// T-2503: pure cursor-advance policy for a delivered poll batch. Factored out so
+/// the "never stall the cursor when events were delivered" rule is unit-testable
+/// without a live session.
+///
+/// Prefer the server-provided `next_seq`. If it is absent or non-integer BUT the
+/// batch delivered at least one event (`delivered_max_seq` is `Some`), fall back
+/// to `max(delivered_seq) + 1` so the loop advances past what it just delivered —
+/// otherwise the cursor stalls and the identical batch is re-fetched and
+/// re-broadcast every poll (a silent duplicate-event storm). With no `next_seq`
+/// and no delivered events there is nothing to advance past, so the cursor is
+/// unchanged. The returned bool is `true` iff the fallback was used (the caller
+/// warns — a healthy server always stamps `next_seq`).
+fn next_cursor(
+    data: &serde_json::Value,
+    delivered_max_seq: Option<u64>,
+    current: u64,
+) -> (u64, bool) {
+    if let Some(next) = data["next_seq"].as_u64() {
+        (next, false)
+    } else if let Some(max_seq) = delivered_max_seq {
+        (max_seq.saturating_add(1), true)
+    } else {
+        (current, false)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -282,5 +330,36 @@ mod tests {
     #[test]
     fn poll_action_idle_retry_on_outer_timeout() {
         assert_eq!(poll_action(&PollOutcome::Idle), PollAction::IdleRetry);
+    }
+
+    // T-2503: next_cursor must never stall the cursor when events were delivered.
+
+    #[test]
+    fn next_cursor_uses_server_next_seq_when_present() {
+        let data = serde_json::json!({"next_seq": 42});
+        // Even with delivered events, an explicit next_seq wins verbatim.
+        assert_eq!(next_cursor(&data, Some(10), 5), (42, false));
+    }
+
+    #[test]
+    fn next_cursor_falls_back_to_max_seq_plus_one_when_next_seq_absent() {
+        // The storm case: events delivered (max seq 10) but no next_seq. Must
+        // advance to 11 (not stall at the current cursor) and flag the fallback.
+        let data = serde_json::json!({"events": [{"seq": 10}]});
+        assert_eq!(next_cursor(&data, Some(10), 5), (11, true));
+    }
+
+    #[test]
+    fn next_cursor_unchanged_when_no_next_seq_and_no_events() {
+        // Nothing delivered and no next_seq → nothing to advance past.
+        let data = serde_json::json!({"events": []});
+        assert_eq!(next_cursor(&data, None, 7), (7, false));
+    }
+
+    #[test]
+    fn next_cursor_treats_non_integer_next_seq_as_absent() {
+        // A malformed (non-integer) next_seq must not be trusted — fall back.
+        let data = serde_json::json!({"next_seq": "not-a-number"});
+        assert_eq!(next_cursor(&data, Some(3), 1), (4, true));
     }
 }
