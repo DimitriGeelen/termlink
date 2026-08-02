@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2491: remote-exec and session-exec --json branches fail open reporting ok:true exit 0 when exit_code is missing
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-02T09:10:18Z
+# ============================================================================
+
+task_id: T-2491
+task_name: "remote-exec and session-exec --json branches fail open reporting ok:true exit 0 when exit_code is missing"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-02T09:03:56Z
+completed: 2026-08-02T09:09:30Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-02T11:09:22+02:00
+last_commit: 2026-08-02T11:09:22+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  exec --json fails CLOSED on missing exit_code (shared helper), not ok:true/0
+
+# Key outcomes
+outcomes:
+  - 'A single shared fail-closed helper (`exec_json_envelope`, commands/mod.rs) computes the exec'
+  - 'Both `cmd_remote_exec` (remote.rs) and `cmd_exec` (session.rs) `--json` branches use the shared'
+  - 'New unit test: the helper on a result WITHOUT `exit_code` yields `ok:false` and a non-zero'
+  - 'New unit test: the helper on a result with `exit_code:0` yields `ok:true` and preserves the'
+  - '`cargo test -p termlink --bin termlink exec_json_envelope` passes (4/4); `cargo check -p termlink` clean.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/mod.rs'
+  - 'crates/termlink-cli/src/commands/remote.rs'
+  - 'crates/termlink-cli/src/commands/session.rs'
+  - '.tasks/active/T-2491-remote-exec-and-session-exec---json-bran.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-02T11:09:22"
+    action: "T-2491: exec --json fails CLOSED on missing exit_code (shared helper), not ok:true/0"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 4
+  lines_added: 294
+  lines_removed: 14
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2491-remote-exec-and-session-exec---json-bran.md
+generated_by: context-agent-hybrid

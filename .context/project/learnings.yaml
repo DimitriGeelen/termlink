@@ -2710,3 +2710,10 @@ learnings:
   date: 2026-08-02
   context: Added via context agent
   application: TBD
+- id: PL-279
+  learning: "When a fallible read is defaulted inline at multiple call sites (e.g. result[\"exit_code\"].as_i64().unwrap_or(N) duplicated across json/text branches + helpers), a WRONG default hides among the right ones and no site can catch it. Here two --json exec branches defaulted a missing exit_code to 0 (fail OPEN => ok:true) while the text branches + push.rs used -1 (fail closed) — and the --json surface is the machine-consumed one, least likely to be eyeballed. Fix: extract ONE helper so 'what does a missing field mean?' is answered once, fail-closed. Same directive-#2 no-silent-failures class as PL-274/PL-276 and the T-2489/T-2490 inbox sweep."
+  source: P-001
+  task: T-2491
+  date: 2026-08-02
+  context: Added via context agent
+  application: TBD

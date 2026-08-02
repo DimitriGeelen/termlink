@@ -2344,3 +2344,9 @@ Firin'
   command: 'git add -A && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2490: complete — episodic + learning (zero-pad filename sort has a hidden magnitude ceiling)
 
 Firing #13: drained the sibli'
+- timestamp: '2026-08-02T09:10:47Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2491'
+  command: 'git add -A && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2491: complete — episodic + learning (inline-defaulted fallible read hides a wrong default; extract one fail-closed helper)'

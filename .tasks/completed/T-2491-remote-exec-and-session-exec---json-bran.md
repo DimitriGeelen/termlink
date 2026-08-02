@@ -4,20 +4,20 @@ name: "remote-exec and session-exec --json branches fail open reporting ok:true 
 description: >
   remote-exec and session-exec --json branches fail open reporting ok:true exit 0 when exit_code is missing
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/mod.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/commands/session.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-02T09:03:56Z
-last_update: 2026-08-02T09:03:56Z
-date_finished: null
+last_update: 2026-08-02T09:09:30Z
+date_finished: 2026-08-02T09:09:30Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -218,3 +218,20 @@ extract one helper so "what does a missing field mean?" is answered once, fail-c
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2491-remote-exec-and-session-exec---json-bran.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-5897c259
+- **Timestamp:** 2026-08-02T09:10:15Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — A single shared fail-closed helper (`exec_json_envelope`, commands/mod.rs) computes the exec
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=commands/mod.rs in: A single shared fail-closed helper (`exec_json_envelope`, commands/mod.rs) computes the exec`
+
+### 2026-08-02T09:09:30Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
