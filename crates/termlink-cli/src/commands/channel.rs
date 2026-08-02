@@ -2977,16 +2977,18 @@ pub(crate) fn sort_dm_inbox(rows: &mut [DmInboxRow]) {
 }
 
 /// T-1338: walk one DM topic and produce the inbox row for it. Reuses the
-/// T-1329 hub-side aggregation when available, falling back to up_to=0
-/// if the receipts call fails (then ALL content counts as unread, which
-/// is the correct conservative answer).
+/// T-1329 hub-side aggregation when available, falling back to `up_to = None`
+/// (never acked) if no receipt row is found — then ALL content counts as
+/// unread, which is the correct conservative answer (T-2494: previously this
+/// fell back to `0`, which the inclusive skip mis-read as "acked through
+/// offset 0" and silently hid the never-acked first DM).
 async fn compute_dm_inbox_row(
     sock: &TransportAddr,
     topic: &str,
     peer: &str,
     my_id: &str,
 ) -> Result<DmInboxRow> {
-    let mut up_to: u64 = 0;
+    let mut up_to: Option<u64> = None;
     let server_resp = rpc_call_authed(
         sock,
         method::CHANNEL_RECEIPTS,
@@ -2997,7 +2999,9 @@ async fn compute_dm_inbox_row(
     if let termlink_protocol::jsonrpc::RpcResponse::Success(r) = server_resp {
         for entry in r.result["receipts"].as_array().cloned().unwrap_or_default() {
             if entry.get("sender_id").and_then(|v| v.as_str()) == Some(my_id) {
-                up_to = entry.get("up_to").and_then(|v| v.as_u64()).unwrap_or(0);
+                // T-2494: a malformed (non-numeric) up_to stays None →
+                // conservative count-all, never an under-count.
+                up_to = entry.get("up_to").and_then(|v| v.as_u64());
                 break;
             }
         }
@@ -4205,13 +4209,22 @@ pub(crate) async fn cmd_channel_reply(
 /// offset) and the caller's last-acked `up_to`, return (count_unread,
 /// first_unread_offset). "Unread" = offset > up_to AND msg_type not in
 /// `UNREAD_META_TYPES`.
-pub(crate) fn count_unread(msgs: &[Value], up_to: u64) -> (u64, Option<u64>) {
+///
+/// T-2494: `up_to` is `Option<u64>`. `None` means the caller found NO receipt
+/// row (never acked) — every content envelope counts, INCLUDING offset 0.
+/// `Some(b)` means "acked through offset b inclusive" — skip `off <= b`. The
+/// previous `u64` with a `0` default collided these two states: a never-acked
+/// FIRST DM (offset 0, since `record_append` starts offsets at 0) was silently
+/// skipped as if it had been acked, hiding it from the RECEIVE surface.
+pub(crate) fn count_unread(msgs: &[Value], up_to: Option<u64>) -> (u64, Option<u64>) {
     let mut count: u64 = 0;
     let mut first: Option<u64> = None;
     for m in msgs {
         let off = m.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
-        if off <= up_to {
-            continue;
+        if let Some(bound) = up_to {
+            if off <= bound {
+                continue;
+            }
         }
         let mt = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
         if UNREAD_META_TYPES.contains(&mt) {
@@ -4243,7 +4256,11 @@ pub(crate) async fn cmd_channel_unread(
     let sock = hub_socket_or_json_exit(hub, json_output)?;
 
     // T-1329: prefer hub-side aggregation; fall back gracefully if old hub.
-    let mut up_to: u64 = 0;
+    // T-2494: `None` = no receipt row found (never acked). A `0` default here
+    // would collide with a real "acked through offset 0" receipt and, via the
+    // `up_to+1` cursor start below, silently skip the never-acked first message
+    // (offset 0). Keeping it `Option` distinguishes the two states.
+    let mut up_to: Option<u64> = None;
     let server_resp = rpc_call_authed(
         &sock,
         method::CHANNEL_RECEIPTS,
@@ -4254,21 +4271,26 @@ pub(crate) async fn cmd_channel_unread(
     if let termlink_protocol::jsonrpc::RpcResponse::Success(r) = server_resp {
         for entry in r.result["receipts"].as_array().cloned().unwrap_or_default() {
             if entry.get("sender_id").and_then(|v| v.as_str()) == Some(sender_id.as_str()) {
-                up_to = entry.get("up_to").and_then(|v| v.as_u64()).unwrap_or(0);
+                // Malformed (non-numeric) up_to stays None → conservative count-all.
+                up_to = entry.get("up_to").and_then(|v| v.as_u64());
                 break;
             }
         }
     }
     // (If the hub returned MethodNotFound or any error, we silently treat
-    //  the sender as having no receipt — equivalent to up_to=0. The unread
-    //  count then defaults to "everything", which is the correct
-    //  conservative answer when receipts are unavailable.)
+    //  the sender as having no receipt — up_to stays None. The unread count
+    //  then defaults to "everything", which is the correct conservative
+    //  answer when receipts are unavailable.)
 
-    // Walk topic from up_to+1 onwards, count content envelopes.
+    // Walk topic. Never-acked (None) starts at offset 0 so the first message is
+    // counted; acked starts at up_to+1 (the first offset after the ack).
     let mut total_count: u64 = 0;
     let mut total_first: Option<u64> = None;
     let mut last_offset: u64 = 0;
-    let start_cursor: u64 = up_to.saturating_add(1);
+    let start_cursor: u64 = match up_to {
+        Some(b) => b.saturating_add(1),
+        None => 0,
+    };
     let mut cursor: u64 = start_cursor;
     let limit: u64 = 1000;
     loop {
@@ -4298,6 +4320,11 @@ pub(crate) async fn cmd_channel_unread(
         }
     }
 
+    // T-2494: never-acked serializes as `up_to: null` (JSON) / "none" (text) —
+    // the honest representation of "no receipt row", distinct from a real 0.
+    let up_to_disp = up_to
+        .map(|v| v.to_string())
+        .unwrap_or_else(|| "none".to_string());
     if json_output {
         println!(
             "{}",
@@ -4313,12 +4340,12 @@ pub(crate) async fn cmd_channel_unread(
         return Ok(());
     }
     if total_count == 0 {
-        println!("Topic '{topic}': up to date for {sender_id} (last receipt up_to={up_to})");
+        println!("Topic '{topic}': up to date for {sender_id} (last receipt up_to={up_to_disp})");
     } else {
-        let first = total_first.unwrap_or(up_to + 1);
+        let first = total_first.unwrap_or(start_cursor);
         println!(
             "Topic '{topic}': {total_count} unread for {sender_id} \
-             (first new offset {first}, last {last_offset}, last receipt up_to={up_to})"
+             (first new offset {first}, last {last_offset}, last receipt up_to={up_to_disp})"
         );
     }
     Ok(())
@@ -14045,7 +14072,7 @@ mod tests {
     #[test]
     fn count_unread_empty_returns_zero() {
         let msgs: Vec<Value> = vec![];
-        let (c, f) = count_unread(&msgs, 0);
+        let (c, f) = count_unread(&msgs, Some(0));
         assert_eq!(c, 0);
         assert_eq!(f, None);
     }
@@ -14057,7 +14084,7 @@ mod tests {
             json!({"offset": 1, "msg_type": "chat"}),
             json!({"offset": 2, "msg_type": "chat"}),
         ];
-        let (c, f) = count_unread(&msgs, 1);
+        let (c, f) = count_unread(&msgs, Some(1));
         assert_eq!(c, 1);
         assert_eq!(f, Some(2));
     }
@@ -14073,7 +14100,7 @@ mod tests {
             json!({"offset": 6, "msg_type": "receipt"}),
             json!({"offset": 7, "msg_type": "chat"}),
         ];
-        let (c, f) = count_unread(&msgs, 0);
+        let (c, f) = count_unread(&msgs, Some(0));
         assert_eq!(c, 2, "only offsets 1 and 7 are content");
         assert_eq!(f, Some(1));
     }
@@ -14085,9 +14112,31 @@ mod tests {
             json!({"offset": 6, "msg_type": "chat"}),
             json!({"offset": 7, "msg_type": "chat"}),
         ];
-        let (c, f) = count_unread(&msgs, 4);
+        let (c, f) = count_unread(&msgs, Some(4));
         assert_eq!(c, 2);
         assert_eq!(f, Some(6));
+    }
+
+    /// T-2494 regression: a never-acked topic (up_to = None) whose FIRST message
+    /// sits at offset 0 must report that message as unread. The old `u64`/`0`
+    /// sentinel skipped it (`0 <= 0`), silently hiding the durable DM.
+    #[test]
+    fn count_unread_never_acked_counts_offset_zero() {
+        let msgs = vec![json!({"offset": 0, "msg_type": "chat"})];
+        let (c, f) = count_unread(&msgs, None);
+        assert_eq!(c, 1, "never-acked offset-0 message must be unread");
+        assert_eq!(f, Some(0));
+    }
+
+    /// T-2494: the OTHER side of the sentinel — a real "acked through offset 0"
+    /// (Some(0)) correctly skips offset 0. This pins the distinction the old
+    /// overloaded `0` could not express.
+    #[test]
+    fn count_unread_acked_through_zero_skips_offset_zero() {
+        let msgs = vec![json!({"offset": 0, "msg_type": "chat"})];
+        let (c, f) = count_unread(&msgs, Some(0));
+        assert_eq!(c, 0, "acked-through-0 must skip offset 0");
+        assert_eq!(f, None);
     }
 
     #[test]

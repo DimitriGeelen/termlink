@@ -2710,14 +2710,21 @@ fn dm_list_filter_mcp(topics: &[String], my_id: &str) -> Vec<(String, String)> {
 /// T-1719: count content envelopes whose `offset > up_to`. Skips meta msg
 /// types (reaction/edit/redaction/topic_metadata/receipt — same set as
 /// `META_MSG_TYPES`). Returns `(unread_count, first_unread_offset)`. Pure
-/// mirror of CLI's `count_unread` (commands/channel.rs:3042).
-fn count_unread_mcp(msgs: &[serde_json::Value], up_to: u64) -> (u64, Option<u64>) {
+/// mirror of CLI's `count_unread` (commands/channel.rs).
+///
+/// T-2494: `up_to` is `Option<u64>` — `None` (never acked, no receipt row)
+/// counts every content envelope INCLUDING offset 0; `Some(b)` skips
+/// `off <= b`. The previous `u64`/`0` default hid a never-acked first DM
+/// (offset 0) on the `agent_dms` unread surface — see the CLI mirror.
+fn count_unread_mcp(msgs: &[serde_json::Value], up_to: Option<u64>) -> (u64, Option<u64>) {
     let mut count: u64 = 0;
     let mut first: Option<u64> = None;
     for m in msgs {
         let off = m.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
-        if off <= up_to {
-            continue;
+        if let Some(bound) = up_to {
+            if off <= bound {
+                continue;
+            }
         }
         let mt = m.get("msg_type").and_then(|v| v.as_str()).unwrap_or("");
         if META_MSG_TYPES.contains(&mt) {
@@ -18246,7 +18253,10 @@ impl TermLinkTools {
         let mut rows: Vec<serde_json::Value> = Vec::with_capacity(dms.len());
         for (topic, peer) in &dms {
             // channel.receipts → caller's ack frontier `up_to`.
-            let mut up_to: u64 = 0;
+            // T-2494: `None` = no receipt row (never acked) → count from offset 0;
+            // a `0` default would collide with a real "acked through 0" and hide
+            // the never-acked first DM. Malformed up_to stays None (count-all).
+            let mut up_to: Option<u64> = None;
             let receipts_resp = termlink_session::client::rpc_call(
                 &hub_socket,
                 termlink_protocol::control::method::CHANNEL_RECEIPTS,
@@ -18259,12 +18269,12 @@ impl TermLinkTools {
             {
                 for entry in entries {
                     if entry.get("sender_id").and_then(|v| v.as_str()) == Some(my_id.as_str()) {
-                        up_to = entry.get("up_to").and_then(|v| v.as_u64()).unwrap_or(0);
+                        up_to = entry.get("up_to").and_then(|v| v.as_u64());
                         break;
                     }
                 }
             }
-            // (Receipts failure → up_to stays 0 → all content counts as unread,
+            // (Receipts failure → up_to stays None → all content counts as unread,
             // matching CLI's conservative fallback.)
 
             let envelopes = match walk_topic_full_mcp(&hub_socket, topic).await {
@@ -30611,7 +30621,7 @@ YW\tJ
             serde_json::json!({"offset": 15, "msg_type": "chat"}),
         ];
         // up_to=10 → 5 and 10 are read (5 < 10 and 10 ≤ 10), 15 is unread.
-        let (count, first) = count_unread_mcp(&msgs, 10);
+        let (count, first) = count_unread_mcp(&msgs, Some(10));
         assert_eq!(count, 1);
         assert_eq!(first, Some(15));
     }
@@ -30626,16 +30636,32 @@ YW\tJ
             serde_json::json!({"offset": 15, "msg_type": "topic_metadata"}),
             serde_json::json!({"offset": 16, "msg_type": "chat"}),
         ];
-        let (count, first) = count_unread_mcp(&msgs, 10);
+        let (count, first) = count_unread_mcp(&msgs, Some(10));
         assert_eq!(count, 1, "only one real content envelope");
         assert_eq!(first, Some(16));
     }
 
     #[test]
     fn agent_dms_count_unread_empty_returns_zero() {
-        let (count, first) = count_unread_mcp(&[], 0);
+        let (count, first) = count_unread_mcp(&[], Some(0));
         assert_eq!(count, 0);
         assert!(first.is_none());
+    }
+
+    /// T-2494 regression (MCP mirror): never-acked (up_to=None) topic whose
+    /// first DM is at offset 0 must count it as unread on the `agent_dms`
+    /// surface; a real "acked through 0" (Some(0)) must skip it. Pins both
+    /// sides of the sentinel the old `u64`/`0` default collapsed.
+    #[test]
+    fn agent_dms_count_unread_never_acked_counts_offset_zero() {
+        let msgs = vec![serde_json::json!({"offset": 0, "msg_type": "chat"})];
+        let (count, first) = count_unread_mcp(&msgs, None);
+        assert_eq!(count, 1, "never-acked offset-0 must be unread");
+        assert_eq!(first, Some(0));
+
+        let (count0, first0) = count_unread_mcp(&msgs, Some(0));
+        assert_eq!(count0, 0, "acked-through-0 must skip offset 0");
+        assert!(first0.is_none());
     }
 
     // === T-1729 agent_inbox tests ===
