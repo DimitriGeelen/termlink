@@ -2,13 +2,14 @@
 id: T-2505
 name: "Inbox file.chunk deposit unwrap_or(0) silently clobbers chunk 0 on malformed index"
 description: "A file.chunk spool event with a missing/non-integer index defaults to chunk-0000.json and fs::write silently overwrites the legitimate chunk 0 — data corruption in the durable offline-inbox path. Reject loud (warn + Ok(false)) like the sibling missing-transfer_id arm."
-status: started-work
+status: work-completed
 workflow_type: build
-horizon: now
+horizon: null
 owner: agent
 created: 2026-08-03
-last_update: 2026-08-03
+last_update: 2026-08-02T22:20:52Z
 tags: [reliability, silent-failure, data-corruption, inbox, no-silent-failures]
+components: [crates/termlink-hub/src/inbox.rs]
 ---
 
 ## Context
@@ -60,3 +61,20 @@ out=$(cargo test -p termlink-hub --lib 2>&1); echo "$out" | tail -3; echo "$out"
 
 None — the correct behavior already exists verbatim in the same function (missing
 `transfer_id` → warn + `Ok(false)`); this applies it to the sibling `index` parse.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-f4602cb9
+- **Timestamp:** 2026-08-02T22:21:51Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **l387-sigpipe-risk** (partial, heuristic) @ Verification:line 4
+     - evidence: `! grep -n 'unwrap_or(0)' crates/termlink-hub/src/inbox.rs | grep -q 'index'`
+
+### 2026-08-02T22:20:52Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

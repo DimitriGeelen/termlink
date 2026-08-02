@@ -5724,3 +5724,21 @@ scan_id: R-5854c8f8
 task_id: T-2504
 payload:
   task_file: .tasks/active/T-2504-collect-fan-in-silently-drops-a-panicked.md
+---
+kind: scan_emitted
+timestamp: '2026-08-02T22:21:51Z'
+scan_id: R-f4602cb9
+task_id: T-2505
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-02T22:21:51Z'
+scan_id: R-f4602cb9
+task_id: T-2505
+payload:
+  task_file: .tasks/active/T-2505-inbox-file-chunk-index-unwrap-clobbers-chunk0.md

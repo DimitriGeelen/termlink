@@ -2794,3 +2794,10 @@ learnings:
   date: 2026-08-02
   context: Added via context agent
   application: TBD
+- id: PL-291
+  learning: "Paired parse-boundary fixes must sweep BOTH sides in one pass: T-2490 hardened the file-transfer reassembly side (bad chunk index sorts last via unwrap_or(u64::MAX), never reordering good chunks) but left the deposit side with unwrap_or(0), which actively DESTROYS chunk 0 when a malformed index arrives. A read-side and a write-side of the same durable primitive parse the same field independently — fixing one and not the other leaves a data-corruption residual. When you fix a defaulted-parse defect, grep the whole primitive for sibling parses of the same field."
+  source: P-001
+  task: T-2505
+  date: 2026-08-02
+  context: Added via context agent
+  application: TBD

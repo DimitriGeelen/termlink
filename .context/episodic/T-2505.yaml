@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2505: Inbox file.chunk deposit unwrap_or(0) silently clobbers chunk 0 on malformed index
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-02T22:21:53Z
+# ============================================================================
+
+task_id: T-2505
+task_name: "Inbox file.chunk deposit unwrap_or(0) silently clobbers chunk 0 on malformed index"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-03
+completed: 2026-08-02T22:20:52Z
+duration_days: -1
+updates_count: 0
+first_commit: 2026-08-03T00:20:45+02:00
+last_commit: 2026-08-03T00:20:45+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  reject file.chunk deposit with missing/non-integer index — was unwrap_or(0) silently clobbering chunk 0 (data corruption); deposit-side sibling of T-2490 reassembly fix
+
+# Key outcomes
+outcomes:
+  - '`file.chunk` deposit with a missing `index` field returns `Ok(false)` + `tracing::warn!` instead of writing `chunk-0000.json`'
+  - '`file.chunk` deposit with a non-integer `index` (e.g. a string) is rejected the same way'
+  - 'A valid `file.chunk` with an integer `index` still spools to `chunk-{index:04}.json` (no regression)'
+  - 'A regression test proves a malformed-index deposit does NOT overwrite a previously-spooled chunk 0'
+  - '`cargo test -p termlink-hub --lib` passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'reject file.chunk deposit with missing/non-integer index — was unwrap_or(0) silently clobbering chunk 0 (data corruption); deposit-side sibling of T-2490 reassembly fix'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-hub/src/inbox.rs'
+  - '.tasks/active/T-2505-inbox-file-chunk-index-unwrap-clobbers-chunk0.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-03T00:20:45"
+    action: "T-2505: reject file.chunk deposit with missing/non-integer index — was unwrap_or(0) silently clobbering chunk 0 (data corruption); deposit-side sibling of T-2490 reassembly fix"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 20 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [reliability, silent-failure, data-corruption, inbox, no-silent-failures]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 20
+  commits: 1
+  files_changed: 2
+  lines_added: 166
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2505-inbox-file-chunk-index-unwrap-clobbers-chunk0.md
+generated_by: context-agent-hybrid
