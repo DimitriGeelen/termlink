@@ -2787,3 +2787,10 @@ learnings:
   date: 2026-08-02
   context: Added via context agent
   application: TBD
+- id: PL-290
+  learning: "A JoinSet drain loop written as 'while let Some(r) = js.join_next().await { if let Ok(Some(x)) = r { .. } }' silently swallows Err(JoinError) — a task that PANICKED or was cancelled — collapsing it into the same no-op as the benign Ok(None). termlink-hub handle_event_collect (router.rs) did this: a panicked per-session collect task dropped its events from the aggregated result with NO log → caller got a partial set, no signal a task died. Fix (T-2504): pure collect_join_action classifier (Ok(Some)=>Deliver, Ok(None)=>Skip, Err=>Failed) + warn! on Failed. Testable seam: a REAL tokio JoinError is obtainable by spawning 'async { panic!() }' into a JoinSet and awaiting join_next — so the classifier IS unit-testable without a live hub (no need for a JoinError public constructor). Rule: never drain a JoinSet with a bare if-let Ok(Some); always handle Err(JoinError) explicitly and log it — a swallowed panic is invisible data loss. Extends PL-289 (bare-if-let silent-drop) to JoinSet results."
+  source: P-001
+  task: T-2504
+  date: 2026-08-02
+  context: Added via context agent
+  application: TBD
