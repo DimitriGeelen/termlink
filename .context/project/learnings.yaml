@@ -2738,3 +2738,10 @@ learnings:
   date: 2026-08-02
   context: Added via context agent
   application: TBD
+- id: PL-283
+  learning: "A bare 'let _ = self.queue.pop(id)' on the flush SUCCESS path discards a fallible durable-queue delete; if the delete fails (disk-full/IO/lock) the head row survives and the loop re-POSTs it every iteration — an unbounded busy-loop that DUPLICATES the durable message. Same no-silent-failures class as PL-276/PL-282: every fallible call on a durable-write path must surface (log) AND control flow (break) on error; harden ALL instances of a class, not just the one that had an incident. Fix pattern: factor the continue-vs-abort decision into a pure classifier (T-2496 poll_action style) so a future revert-to-continue breaks a unit test."
+  source: P-001
+  task: T-2497
+  date: 2026-08-02
+  context: Added via context agent
+  application: TBD
