@@ -2314,3 +2314,9 @@ FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2482: capture affir
   command: 'cd /opt/termlink
 git add .context/project/learnings.yaml .context/working/ 2>/dev/null
 FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2478: capture mirror-existing-deprecation-convention'
+- timestamp: '2026-08-02T06:17:50Z'
+  task: 'T-2486'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2487'
+  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2487: capture PL-274 (durable-log reader must be gap-tolerant) + firing #8 episodic/context" 2>&1 | tail -6'

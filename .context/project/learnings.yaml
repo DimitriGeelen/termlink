@@ -2682,3 +2682,10 @@ learnings:
   date: 2026-08-02
   context: Added via context agent
   application: TBD
+- id: PL-275
+  learning: "Any acquire/release pair split across a tokio::spawn boundary MUST use an RAII Drop guard, never a manual release after the .await — a panic in the spawned task unwinds past the release and leaks the resource permanently (governor slot + gauge -> false HUB_AT_CAPACITY + stalled drain). Tie release to lifetime via Drop; test the panic path (spawn a guard-holding task that panics, await the JoinHandle err, assert resource restored)."
+  source: P-001
+  task: T-2460
+  date: 2026-08-02
+  context: Added via context agent
+  application: TBD

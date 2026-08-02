@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2460: connections_active gauge and governor slot leak on a panic inside handle_connection — add RAII drop-guard (round-14 F4, LOW)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-02T07:12:46Z
+# ============================================================================
+
+task_id: T-2460
+task_name: "connections_active gauge and governor slot leak on a panic inside handle_connection — add RAII drop-guard (round-14 F4, LOW)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-22T18:38:46Z
+completed: 2026-08-02T07:12:35Z
+duration_days: 11
+updates_count: 2
+first_commit: 2026-08-02T09:12:28+02:00
+last_commit: 2026-08-02T09:12:28+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  RAII ConnSlotGuard releases governor slot + gauge on drop — a panic in handle_connection no longer permanently leaks a connection slot (false HUB_AT_CAPACITY + drain stall); 2 new panic/normal-drop tests, 438/438 hub lib green
+
+# Key outcomes
+outcomes:
+  - 'A `ConnSlotGuard` RAII type releases the governor slot + decrements the `active_connections`'
+  - 'Both accept paths (Unix + TCP) construct the guard after a successful `try_acquire()` and no'
+  - 'New unit test: a spawned task holding the guard that PANICS still releases the slot + gauge'
+  - 'New unit test: normal (non-panic) drop releases exactly once (no double-release / underflow). (conn_slot_guard_releases_on_normal_completion.)'
+  - '`cargo test -p termlink-hub --lib` passes (existing + new tests green); `cargo check -p termlink-hub` clean. (438 passed / 0 failed.)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-hub/src/server.rs'
+  - '.tasks/active/T-2460-connectionsactive-gauge-and-governor-slo.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-02T09:12:28"
+    action: "T-2460: RAII ConnSlotGuard releases governor slot + gauge on drop — a panic in handle_connection no longer permanently leaks a connection slot (false HUB_AT_CAPACITY + drain stall); 2 new panic/normal-drop tests, 438/438 hub lib green"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 15153 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 15153
+  commits: 1
+  files_changed: 2
+  lines_added: 138
+  lines_removed: 15
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2460-connectionsactive-gauge-and-governor-slo.md
+generated_by: context-agent-hybrid

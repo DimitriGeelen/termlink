@@ -5436,3 +5436,21 @@ scan_id: R-ccb1d13a
 task_id: T-2487
 payload:
   task_file: .tasks/active/T-2487-bus-reader-skips-corrupt-or-truncated-re.md
+---
+kind: scan_emitted
+timestamp: '2026-08-02T07:12:43Z'
+scan_id: R-dfb28fa3
+task_id: T-2460
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-02T07:12:43Z'
+scan_id: R-dfb28fa3
+task_id: T-2460
+payload:
+  task_file: .tasks/active/T-2460-connectionsactive-gauge-and-governor-slo.md
