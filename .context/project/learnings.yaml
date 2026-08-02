@@ -2801,3 +2801,10 @@ learnings:
   date: 2026-08-02
   context: Added via context agent
   application: TBD
+- id: PL-292
+  learning: "A hub-side reducer fix does NOT propagate to client-side duplicated copies: T-2456 fixed the receipt-frontier merge in the hub authoritative reducer (keep MAX up_to, tie on newer ts) but 5 client-side copies (CLI walker+summary+awaiting-ack, MCP walker+summary) kept the pre-fix latest-ts predicate, silently regressing the monotonic delivery frontier so awaiting-ack over-reported already-read offsets as unread. When you fix a reduce/merge/parse predicate in ONE authoritative place, grep the WHOLE codebase (all crates) for structurally-identical client-side reimplementations of the same logic — thin clients re-derive server semantics and drift. Existing tests that re-implement the buggy predicate locally (instead of calling the production fn) pass regardless of the fix and mask the bug; route tests through the real helper. Extends PL-291 across crate boundaries."
+  source: P-001
+  task: T-2506
+  date: 2026-08-02
+  context: Added via context agent
+  application: TBD

@@ -2,13 +2,14 @@
 id: T-2506
 name: "Client-side receipt-frontier reducers key on latest ts, regressing the delivery frontier"
 description: "The CLI + MCP client-side receipt aggregators keep the receipt with the latest ts instead of the highest up_to. A later-but-lower receipt (out-of-order, or an operator ack --up-to smaller) regresses the monotonic delivery frontier → check-outbox/awaiting-ack over-report already-read offsets as unread. Regression-of-omission: the hub reducer was fixed for this exact class in T-2456; the 5 client-side copies were never brought in line."
-status: started-work
+status: work-completed
 workflow_type: build
-horizon: now
+horizon: null
 owner: agent
 created: 2026-08-03
-last_update: 2026-08-03
+last_update: 2026-08-02T22:41:26Z
 tags: [reliability, correctness, receipts, delivery-confirmation, regression]
+components: [crates/termlink-cli/src/commands/channel.rs, crates/termlink-mcp/src/tools.rs]
 ---
 
 ## Context
@@ -75,3 +76,15 @@ T-2069 duplicated-not-shared convention for tiny pure helpers already used throu
 termlink-mcp/tools.rs. Semantics are already blessed and shipped (T-2456 hub reducer);
 this only brings the client-side copies into line, so there is no user-facing behavior
 change (output values become correct).
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-4a8709df
+- **Timestamp:** 2026-08-02T22:42:44Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-02T22:41:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

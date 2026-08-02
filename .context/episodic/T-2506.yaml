@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2506: Client-side receipt-frontier reducers key on latest ts, regressing the delivery frontier
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-02T22:42:46Z
+# ============================================================================
+
+task_id: T-2506
+task_name: "Client-side receipt-frontier reducers key on latest ts, regressing the delivery frontier"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-03
+completed: 2026-08-02T22:41:26Z
+duration_days: -1
+updates_count: 0
+first_commit: 2026-08-03T00:41:16+02:00
+last_commit: 2026-08-03T00:41:16+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix client-side receipt-frontier reducers keying on latest ts (regressed the monotonic up_to frontier → awaiting-ack over-reported unread); route 5 CLI+MCP sites through a pure receipt_frontier_replaces helper mirroring the T-2456 hub reducer
+
+# Key outcomes
+outcomes:
+  - 'A pure `receipt_frontier_replaces(prev_up_to, prev_ts, up_to, ts)` helper added to CLI (channel.rs) and MCP (tools.rs), mirroring the hub T-2456 semantics (higher up_to wins; ties → newer ts)'
+  - 'All 3 CLI client-side receipt reducers (channel.rs receipts-walker, topic-summary, awaiting-ack fallback) routed through the helper'
+  - 'Both MCP client-side receipt reducers (tools.rs walker fallback + topic-summary) routed through the helper'
+  - 'Regression test proves a later-ts-lower-up_to receipt does NOT regress the frontier (the core bug), in both crates'
+  - 'The two stale MCP tests that re-implemented the buggy ts-keyed predicate are replaced with helper-routed tests'
+  - '`cargo test -p termlink --bin termlink` passes'
+  - '`cargo test -p termlink-mcp --lib` passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix client-side receipt-frontier reducers keying on latest ts (regressed the monotonic up_to frontier → awaiting-ack over-reported unread); route 5 CLI+MCP sites through a pure receipt_frontier_replaces helper mirroring the T-2456 hub reducer'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-2506-client-receipt-frontier-regresses-on-ts-key.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-03T00:41:16"
+    action: "T-2506: fix client-side receipt-frontier reducers keying on latest ts (regressed the monotonic up_to frontier → awaiting-ack over-reported unread); route 5 CLI+MCP sites through a pure receipt_frontier_replaces helper mirroring the T-2456 hub reducer"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 41 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [reliability, correctness, receipts, delivery-confirmation, regression]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 41
+  commits: 1
+  files_changed: 3
+  lines_added: 185
+  lines_removed: 78
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2506-client-receipt-frontier-regresses-on-ts-key.md
+generated_by: context-agent-hybrid
