@@ -37,13 +37,24 @@ impl CircuitState {
         self.opened_at = None;
     }
 
-    /// Record a transport failure. Opens circuit after threshold.
+    /// Record a transport failure. Opens (or RE-arms) the circuit after
+    /// threshold.
+    ///
+    /// T-2495: any failure at/over `FAILURE_THRESHOLD` re-stamps `opened_at`,
+    /// restarting the cooldown. The previous `&& self.opened_at.is_none()`
+    /// guard stamped only on the FIRST open, so a failed half-open probe
+    /// (which runs precisely when `opened_at` is already `Some`) never
+    /// re-armed the cooldown — `is_half_open()` then stayed true forever and
+    /// `should_skip()` returned false forever, silently defeating the breaker.
+    /// `record_failure` is only called on an *attempted* route (router.rs:
+    /// 1511/1528) — sessions in the open (non-half-open) window are skipped
+    /// without an attempt — so re-stamping cannot prematurely extend a
+    /// still-open circuit; it only re-arms after a probe genuinely fails.
     fn record_failure(&mut self) {
         self.consecutive_failures += 1;
-        if self.consecutive_failures >= FAILURE_THRESHOLD
-            && self.opened_at.is_none() {
-                self.opened_at = Some(Instant::now());
-            }
+        if self.consecutive_failures >= FAILURE_THRESHOLD {
+            self.opened_at = Some(Instant::now());
+        }
     }
 }
 
@@ -291,6 +302,58 @@ mod tests {
 
         // Cooldown expired — half-open, should NOT skip (allow probe)
         assert!(!reg.should_skip("sess-4"));
+    }
+
+    /// T-2495 regression: a FAILED half-open probe must re-arm the cooldown.
+    /// Before the fix, `record_failure` only stamped `opened_at` on the first
+    /// open, so after the cooldown the circuit stayed half-open forever and
+    /// `should_skip` returned false forever — silently defeating the breaker.
+    #[test]
+    fn failed_half_open_probe_re_arms_cooldown() {
+        let reg = CircuitBreakerRegistry::new();
+
+        // Open + backdate so the circuit is half-open (cooldown expired).
+        {
+            let mut states = reg.states.lock().expect("circuit breaker lock poisoned");
+            states.insert(
+                "sess-5".to_string(),
+                CircuitState {
+                    consecutive_failures: 3,
+                    opened_at: Some(Instant::now() - COOLDOWN - Duration::from_secs(1)),
+                },
+            );
+        }
+        // Half-open → probe allowed.
+        assert!(!reg.should_skip("sess-5"), "precondition: half-open allows a probe");
+
+        // The probe FAILS → must re-arm: opened_at moves to ~now, cooldown restarts.
+        reg.record_failure("sess-5");
+        assert!(
+            reg.should_skip("sess-5"),
+            "a failed half-open probe must re-open the circuit (re-arm cooldown)"
+        );
+    }
+
+    /// T-2495: same guarantee for the model breaker (shared `CircuitState`).
+    #[test]
+    fn model_failed_half_open_probe_re_arms_cooldown() {
+        let mcb = ModelCircuitBreaker::new();
+        {
+            let mut states = mcb.states.lock().expect("model circuit breaker lock poisoned");
+            states.insert(
+                "opus".to_string(),
+                CircuitState {
+                    consecutive_failures: 3,
+                    opened_at: Some(Instant::now() - COOLDOWN - Duration::from_secs(1)),
+                },
+            );
+        }
+        assert!(!mcb.should_skip("opus"), "precondition: half-open allows a probe");
+        mcb.record_failure("opus");
+        assert!(
+            mcb.should_skip("opus"),
+            "a failed half-open model probe must re-open the circuit"
+        );
     }
 
     #[test]

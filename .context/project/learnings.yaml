@@ -2717,3 +2717,10 @@ learnings:
   date: 2026-08-02
   context: Added via context agent
   application: TBD
+- id: PL-280
+  learning: "An overloaded sentinel (default 0) for an ABSENT fallible read collapses two distinct states into one: 'never observed' vs a legitimate value that happens to equal the sentinel. count_unread defaulted up_to=0 for 'no receipt' AND for 'acked through offset 0' (offsets start at 0; ack of 1 msg writes up_to=count-1=0), and the inclusive off<=up_to skip then silently hid the never-acked first message. Fix: make absence a distinct type (Option<u64>: None=absent=>count all, Some(b)=>bound). The type change makes the illegal 'absent==0' collapse unrepresentable. Sibling to PL(T-2491) inline-default-divergence: when a default value is indistinguishable from a real value on a data-loss/RECEIVE path, the default IS the bug."
+  source: P-001
+  task: T-2494
+  date: 2026-08-02
+  context: Added via context agent
+  application: TBD
