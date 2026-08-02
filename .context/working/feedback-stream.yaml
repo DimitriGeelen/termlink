@@ -5760,3 +5760,21 @@ scan_id: R-4a8709df
 task_id: T-2506
 payload:
   task_file: .tasks/active/T-2506-client-receipt-frontier-regresses-on-ts-key.md
+---
+kind: scan_emitted
+timestamp: '2026-08-02T23:06:14Z'
+scan_id: R-965f5f7c
+task_id: T-2507
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-02T23:06:14Z'
+scan_id: R-965f5f7c
+task_id: T-2507
+payload:
+  task_file: .tasks/active/T-2507-wait-for-peer-ack-count-anchored-read-false-negative.md

@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2507: wait_for_peer_ack reads count-anchored slice, returning false 'delivery unconfirmed' on swept dm topics
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-02T23:06:17Z
+# ============================================================================
+
+task_id: T-2507
+task_name: "wait_for_peer_ack reads count-anchored slice, returning false 'delivery unconfirmed' on swept dm topics"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-03
+completed: 2026-08-02T23:05:17Z
+duration_days: -1
+updates_count: 0
+first_commit: 2026-08-03T01:05:06+02:00
+last_commit: 2026-08-03T01:05:06+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix wait_for_peer_ack reading count-anchored slice (returned false 'delivery unconfirmed' on swept dm topics); poll the true tail via offset-cursor walk_topic_from, sibling of the T-2390/T-2391 presence-read fix
+
+# Key outcomes
+outcomes:
+  - '`wait_for_peer_ack` no longer calls the count-anchored `fetch_topic_msgs`'
+  - 'A `walk_topic_from(sock, topic, start_cursor) -> (Vec<Value>, u64)` offset-cursor helper is added and used by the ack-wait poll loop'
+  - 'The poll loop carries next_cursor across iterations (incremental — no full re-read per poll)'
+  - 'Existing `detect_ack_in_msgs` pure tests still pass (ack-detection logic unchanged)'
+  - '`cargo test -p termlink --bin termlink` passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix wait_for_peer_ack reading count-anchored slice (returned false ''delivery unconfirmed'' on swept dm topics); poll the true tail via offset-cursor walk_topic_from, sibling of the T-2390/T-2391 presence-read fix'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - '.tasks/active/T-2507-wait-for-peer-ack-count-anchored-read-false-negative.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-03T01:05:06"
+    action: "T-2507: fix wait_for_peer_ack reading count-anchored slice (returned false 'delivery unconfirmed' on swept dm topics); poll the true tail via offset-cursor walk_topic_from, sibling of the T-2390/T-2391 presence-read fix"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 65 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [reliability, correctness, delivery-confirmation, ack, retention-sweep, count-vs-offset]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 65
+  commits: 1
+  files_changed: 2
+  lines_added: 130
+  lines_removed: 7
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2507-wait-for-peer-ack-count-anchored-read-false-negative.md
+generated_by: context-agent-hybrid

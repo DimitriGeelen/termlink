@@ -2808,3 +2808,10 @@ learnings:
   date: 2026-08-02
   context: Added via context agent
   application: TBD
+- id: PL-293
+  learning: "count-vs-offset decoupling recurs at EVERY count-anchored read once a topic is front-trimmed: a client that computes a tail cursor as (channel.list count - slice) reads the OLDEST live page after a retention sweep, because count caps at the retention limit while the max offset keeps rising. T-2390/T-2391 fixed this for agent-presence (via cv_index) but the dm ack path (wait_for_peer_ack behind agent contact --ack-required) was an independent caller of the same count-anchored fetch_topic_msgs and silently returned false 'delivery unconfirmed'. The hub's channel.list exposes only count (no max_offset), so the only in-authority client fix is offset-cursor pagination (subscribe from cursor 0; the hub advances a below-window cursor to the oldest live offset and walks to the true tail) — correct under any sweep. Poll incrementally by carrying next_cursor across polls to avoid a per-poll full-topic re-read. When you fix one count-anchored read, grep for ALL callers of the count-anchored helper (fetch_topic_msgs / tail_slice_cursor family). Concrete instance of PL-292."
+  source: P-001
+  task: T-2507
+  date: 2026-08-02
+  context: Added via context agent
+  application: TBD

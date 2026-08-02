@@ -2,13 +2,14 @@
 id: T-2507
 name: "wait_for_peer_ack reads count-anchored slice, returning false 'delivery unconfirmed' on swept dm topics"
 description: "The synchronous ack-wait behind `agent contact --ack-required` reads its tail via fetch_topic_msgs, whose tail_slice_cursor(count,slice)=count-slice treats channel.list count as the max offset. After a retention sweep front-trims a Messages(1000) dm topic, count decouples from the tail offset, the hub returns the OLDEST live page, and the peer's just-posted ack at the tail is missed → false Ok(None) 'delivery unconfirmed'. Fix: poll via offset-cursor pagination (walk_topic_from), correct under any sweep. Sibling of T-2390/T-2391 (which fixed the same count-vs-offset decoupling on the presence read)."
-status: started-work
+status: work-completed
 workflow_type: build
-horizon: now
+horizon: null
 owner: agent
 created: 2026-08-03
-last_update: 2026-08-03
+last_update: 2026-08-02T23:05:17Z
 tags: [reliability, correctness, delivery-confirmation, ack, retention-sweep, count-vs-offset]
+components: [crates/termlink-cli/src/commands/channel.rs]
 ---
 
 ## Context
@@ -87,3 +88,22 @@ below-window cursor to the oldest live offset), so no protocol change is needed.
 fix is an I/O-boundary swap; its revert-guard is mechanical (P-011 greps that the
 count-anchored read is gone and the offset walk is present), since the pure
 ack-detection logic it feeds was already correct and unit-tested.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-965f5f7c
+- **Timestamp:** 2026-08-02T23:06:14Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Verification-level findings:**
+
+  1. **l387-sigpipe-risk** (partial, heuristic) @ Verification:line 4
+     - evidence: `! awk '/async fn wait_for_peer_ack/,/^}/' crates/termlink-cli/src/commands/channel.rs | grep -q 'fetch_topic_msgs('`
+  2. **l387-sigpipe-risk** (partial, heuristic) @ Verification:line 6
+     - evidence: `awk '/async fn wait_for_peer_ack/,/^}/' crates/termlink-cli/src/commands/channel.rs | grep -q 'walk_topic_from(&sock'`
+
+### 2026-08-02T23:05:17Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
