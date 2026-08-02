@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-02T12:37:21Z
-last_update: 2026-08-02T12:37:21Z
+last_update: 2026-08-02T12:40:09Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -51,12 +51,12 @@ with fleet-wide blast radius).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] A read error that is NOT `NotFound` (EACCES/EIO/ESTALE/EINTR) no longer silently regenerates the secret — it propagates LOUD so the hub refuses to overwrite a possibly-valid secret
-- [ ] `NotFound` (genuine first-deploy absence) still generates a fresh secret — no behavior change on the legitimate path
-- [ ] A present-but-invalid secret file (wrong length / non-hex) still regenerates — no behavior change (matches the existing T-933 "regen after corrupt" test)
-- [ ] The read-classification is factored into a pure `classify_secret_read` helper so the "read-error != missing" rule is unit-testable without touching the global runtime_dir
-- [ ] Regression tests pin all four cases (NotFound→generate, other-error→refuse, valid→reuse, invalid→regenerate)
-- [ ] `cargo test -p termlink-hub --lib` passes (existing T-933 persist test + new)
+- [x] A read error that is NOT `NotFound` (EACCES/EIO/ESTALE/EINTR) no longer silently regenerates the secret — it propagates LOUD so the hub refuses to overwrite a possibly-valid secret
+- [x] `NotFound` (genuine first-deploy absence) still generates a fresh secret — no behavior change on the legitimate path
+- [x] A present-but-invalid secret file (wrong length / non-hex) still regenerates — no behavior change (matches the existing T-933 "regen after corrupt" test)
+- [x] The read-classification is factored into a pure `classify_secret_read` helper so the "read-error != missing" rule is unit-testable without touching the global runtime_dir
+- [x] Regression tests pin all four cases (NotFound→generate, other-error→refuse, valid→reuse, invalid→regenerate)
+- [x] `cargo test -p termlink-hub --lib` passes (existing T-933 persist test + new)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
