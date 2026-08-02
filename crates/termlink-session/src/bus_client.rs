@@ -198,8 +198,60 @@ impl BusClient {
     pub async fn flush(&self) -> FlushReport {
         let mut report = FlushReport::default();
         loop {
-            let Ok(Some((id, post, attempts))) = self.queue.peek_oldest_with_attempts() else {
-                break;
+            // T-2498: read the head row. A `let Ok(Some(..)) else { break }` here
+            // collapsed BOTH the empty-queue (`Ok(None)`) case AND a peek FAILURE
+            // (`Err` — `peek_oldest_with_attempts` ends in `serde_json::from_str?`,
+            // so a corrupt / schema-drifted head row returns `Err`) into the same
+            // silent break. That permanently WEDGED the queue: the corrupt row is
+            // never popped/dead-lettered (that machinery all lives below, after a
+            // successful peek), so every tick re-peeks it, breaks, and nothing
+            // behind it ever drains. Disambiguate the three cases explicitly.
+            let (id, post, attempts) = match self.queue.peek_oldest_with_attempts() {
+                Ok(Some(triple)) => triple,
+                Ok(None) => break, // queue empty — normal drain exit
+                Err(e) => {
+                    // Corrupt head row: quarantine it into the durable dead-letter
+                    // store (dead_letter copies the raw post_json blob — no
+                    // deserialize) so the queue drains past it, mirroring the
+                    // T-2243 poison path. Identify the row via the non-
+                    // deserializing peek_head_id.
+                    match self.queue.peek_head_id() {
+                        Ok(Some(bad_id)) => {
+                            tracing::error!(
+                                queue_id = bad_id.0,
+                                error = %e,
+                                "flush: head row failed to deserialize — dead-lettering corrupt post to unwedge the queue"
+                            );
+                            if let Err(de) =
+                                self.queue.dead_letter(bad_id, "corrupt/undeserializable post_json")
+                            {
+                                tracing::error!(
+                                    queue_id = bad_id.0,
+                                    error = %de,
+                                    "flush: dead-letter of corrupt head row failed (disk?) — aborting pass to avoid spin"
+                                );
+                                report.failed += 1;
+                                break;
+                            }
+                            report.dropped_poison += 1;
+                            continue;
+                        }
+                        // Row vanished between the two reads (raced with a
+                        // concurrent delivery) — nothing to quarantine.
+                        Ok(None) => break,
+                        // A genuine DB fault (not just a bad blob) — break loud so
+                        // the loop can't spin; the next tick retries once the DB
+                        // recovers.
+                        Err(he) => {
+                            tracing::error!(
+                                error = %he,
+                                "flush: cannot read queue head id (DB fault) — aborting pass"
+                            );
+                            report.failed += 1;
+                            break;
+                        }
+                    }
+                }
             };
             let params = post_to_params(&post);
             match rpc_call_addr(&self.addr, method::CHANNEL_POST, params).await {
@@ -593,6 +645,55 @@ mod tests {
         let _ = tokio::time::timeout(Duration::from_secs(2), flush_handle).await;
         server_handle.abort();
         let _ = std::fs::remove_file(&socket_path);
+    }
+
+    #[tokio::test]
+    async fn flush_dead_letters_corrupt_head_row_instead_of_wedging() {
+        // T-2498: a corrupt/undeserializable head row must be dead-lettered and
+        // the queue must drain PAST it — not silently wedge (the old
+        // `let Ok(Some(..)) else { break }` collapsed the peek Err into the
+        // empty-queue break, permanently stalling every message behind it).
+        // The corrupt row is quarantined BEFORE any hub RPC, so no live hub is
+        // needed; point the client at an unreachable socket to prove the drain
+        // happens without ever contacting a hub.
+        let dir = tempfile::tempdir().unwrap();
+        let queue_path = dir.path().join("outbound.sqlite");
+
+        // Seed one valid row, then corrupt its post_json out-of-band.
+        let id = {
+            let seed = crate::offline_queue::OfflineQueue::open(&queue_path).unwrap();
+            seed.enqueue(&sample_post("t-corrupt")).unwrap()
+        };
+        {
+            let raw = rusqlite::Connection::open(&queue_path).unwrap();
+            raw.execute(
+                "UPDATE pending_posts SET post_json = '{bad' WHERE id = ?1",
+                rusqlite::params![id.0],
+            )
+            .unwrap();
+        }
+
+        let nonexistent = dir.path().join("nope.sock");
+        let (client, handle) = BusClient::connect_with_interval(
+            TransportAddr::unix(nonexistent),
+            &queue_path,
+            Duration::from_secs(3600), // no auto-flush; we drive flush() manually
+        )
+        .unwrap();
+        assert_eq!(client.queue_size(), 1);
+
+        let report = client.flush().await;
+
+        // The corrupt row was quarantined, not left to wedge the queue.
+        assert_eq!(report.dropped_poison, 1, "corrupt head row dead-lettered");
+        assert_eq!(client.queue_size(), 0, "queue drained past the corrupt row");
+
+        // And it's recoverable in the durable dead-letter store — zero silent loss.
+        let q = crate::offline_queue::OfflineQueue::open(&queue_path).unwrap();
+        assert_eq!(q.dead_letter_count().unwrap(), 1);
+
+        drop(client);
+        let _ = tokio::time::timeout(Duration::from_secs(2), handle).await;
     }
 
     #[tokio::test]

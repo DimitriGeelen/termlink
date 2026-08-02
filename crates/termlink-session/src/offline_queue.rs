@@ -252,6 +252,24 @@ impl OfflineQueue {
         }
     }
 
+    /// T-2498: read ONLY the head row's id, without deserializing `post_json`.
+    /// The flush loop needs this when `peek_oldest_with_attempts` returns `Err`
+    /// (a corrupt/undeserializable head row): it must still identify the row so
+    /// it can quarantine it via `dead_letter` (which copies the raw blob) rather
+    /// than silently wedging the whole queue behind one bad row. Returns
+    /// `Ok(None)` if the queue is empty.
+    pub fn peek_head_id(&self) -> Result<Option<QueueId>> {
+        let conn = self.conn.lock().expect("queue mutex poisoned");
+        let id = conn
+            .query_row(
+                "SELECT id FROM pending_posts ORDER BY id ASC LIMIT 1",
+                [],
+                |r| r.get::<_, i64>(0),
+            )
+            .optional()?;
+        Ok(id.map(QueueId))
+    }
+
     /// Remove the entry with the given id. No-op if not present.
     pub fn pop(&self, id: QueueId) -> Result<()> {
         let conn = self.conn.lock().expect("queue mutex poisoned");
@@ -398,6 +416,39 @@ mod tests {
         let q = OfflineQueue::open_in_memory().unwrap();
         assert_eq!(q.size().unwrap(), 0);
         assert!(q.peek_oldest().unwrap().is_none());
+    }
+
+    #[test]
+    fn peek_head_id_none_on_empty_queue() {
+        let q = OfflineQueue::open_in_memory().unwrap();
+        assert_eq!(q.peek_head_id().unwrap(), None);
+    }
+
+    #[test]
+    fn peek_head_id_reads_id_even_when_post_json_is_corrupt() {
+        // T-2498: a corrupt/undeserializable head row makes
+        // peek_oldest_with_attempts() return Err (serde), but peek_head_id()
+        // must still return the row id (no deserialize) so the flush loop can
+        // quarantine it via dead_letter instead of wedging the whole queue.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("q.sqlite");
+        let q = OfflineQueue::open(&path).unwrap();
+        let id = q.enqueue(&sample_post("t", b"x")).unwrap();
+
+        // Corrupt the head row's post_json out-of-band (schema drift / bit-flip).
+        {
+            let raw = rusqlite::Connection::open(&path).unwrap();
+            raw.execute(
+                "UPDATE pending_posts SET post_json = '{not valid json' WHERE id = ?1",
+                rusqlite::params![id.0],
+            )
+            .unwrap();
+        }
+
+        // The deserializing peek now fails...
+        assert!(q.peek_oldest_with_attempts().is_err());
+        // ...but the id-only peek still works — the flush loop can quarantine it.
+        assert_eq!(q.peek_head_id().unwrap(), Some(id));
     }
 
     #[test]
