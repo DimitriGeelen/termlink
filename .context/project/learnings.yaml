@@ -2654,3 +2654,10 @@ learnings:
   date: 2026-08-01
   context: Added via context agent
   application: TBD
+- id: PL-271
+  learning: "A recurring human 'review X purpose/scope' mandate is itself the symptom of a missing structural drift-detector. When a surface can silently accrete off-charter (T-2468 breadth), the fix is not another manual review but a canary reading the machine-readable classification (termlink help --json {name,deprecated}) firing on live off-charter names — turning a manual chore into a daily automated check (G-019: fix the blindness)."
+  source: P-001
+  task: T-2483
+  date: 2026-08-02
+  context: Added via context agent
+  application: TBD

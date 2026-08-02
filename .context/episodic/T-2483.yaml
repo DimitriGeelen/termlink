@@ -1,0 +1,108 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2483: charter-drift canary — flag live tools that drift from the charter's four verbs (G-019 breadth-accretion prevention)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-02T00:02:01Z
+# ============================================================================
+
+task_id: T-2483
+task_name: "charter-drift canary — flag live tools that drift from the charter's four verbs (G-019 breadth-accretion prevention)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-01T23:30:29Z
+completed: 2026-08-02T00:01:56Z
+duration_days: 1
+updates_count: 3
+first_commit: 2026-08-02T01:34:13+02:00
+last_commit: 2026-08-02T02:01:48+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  charter-drift canary (12th, G-019 breadth-accretion prevention) — built + pattern live-validated (0 live off-charter, 40 deprecated matched, no false positives); test-run/cron/CLAUDE.md PENDING next session. finalize charter-drift canary — tests PASS (8/8), live exit-0 (214 tools, 0 off-charter), cron installed to /etc/cron.d, CLAUDE.md 12th-canary section
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-charter-drift-freshness.sh` exists, is executable, and `--help`'
+  - 'FIRES (exit 1) when a **live** (`deprecated==false`) tool matches the'
+  - '**No false positives:** core primitives (`termlink_ping`, `termlink_hub_start`,'
+  - 'Appends framed entries (`=== <ts> === … ---`) to'
+  - '`scripts/test-charter-drift-freshness.sh` covers healthy / firing / false-'
+  - 'Runs green against the REAL installed binary today: exit 0 (0 live off-charter'
+  - 'Cron file `.context/cron/charter-drift-canary.crontab` created AND installed to'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/audits/2026-08-01.yaml'
+  - '.context/audits/2026-08-02.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/cron/charter-drift-canary.crontab'
+  - '.context/episodic/T-2478.yaml'
+  - '.context/episodic/T-2480.yaml'
+  - '.context/episodic/T-2482.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'scripts/check-charter-drift-freshness.sh'
+  - 'scripts/test-charter-drift-freshness.sh'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2483-charter-drift-canary--flag-live-tools-th.md'
+  - '.tasks/completed/T-2478-p4-stage-2--retire-cli-entangled-analyti.md'
+  - '.tasks/completed/T-2480-p3a--arc-closure-capability-live-gate-t-.md'
+  - '.tasks/completed/T-2482-comms-round-trip-self-test--staged-disco.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-02T01:34:13"
+    action: "T-2483: charter-drift canary (12th, G-019 breadth-accretion prevention) — built + pattern live-validated (0 live off-charter, 40 deprecated matched, no false positives); test-run/cron/CLAUDE.md PENDING next session"
+  - time: "2026-08-02T02:01:48"
+    action: "T-2483: finalize charter-drift canary — tests PASS (8/8), live exit-0 (214 tools, 0 off-charter), cron installed to /etc/cron.d, CLAUDE.md 12th-canary section"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 31 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 31
+  commits: 2
+  files_changed: 28
+  lines_added: 1110
+  lines_removed: 170
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2483-charter-drift-canary--flag-live-tools-th.md
+generated_by: context-agent-hybrid
