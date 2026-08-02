@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2501: TOFU pin store save_result uses non-atomic truncate-write — crash mid-write truncates known_hubs, silent trust downgrade
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-02T16:43:19Z
+# ============================================================================
+
+task_id: T-2501
+task_name: "TOFU pin store save_result uses non-atomic truncate-write — crash mid-write truncates known_hubs, silent trust downgrade"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-02T16:40:50Z
+completed: 2026-08-02T16:43:14Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-02T18:43:05+02:00
+last_commit: 2026-08-02T18:43:05+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  TOFU pin store writes atomically (temp+rename) instead of truncate-in-place
+
+# Key outcomes
+outcomes:
+  - '`save_result` writes to a sibling temp path then atomically `rename`s it over `self.path` (mirrors `registration.rs::write_atomic`) — no more truncate-in-place of the live file. (tofu.rs:157 — `fs::write(&tmp)?; fs::rename(&tmp, &self.path)`)'
+  - 'The parent-dir creation and the exact on-disk file format (header comments + `host_port fp first_seen last_seen` lines + trailing newline) are unchanged — only the write mechanism changes. (`lines.join` unchanged; `create_dir_all` retained)'
+  - 'Existing tofu tests stay green: `save_result_persists_and_reloads_pin` (T-2438 happy path), `save_result_errs_on_unwritable_path` (failure still surfaces), `store_persists_to_disk`, `remove_persists_to_disk`. (17/17 tofu tests pass)'
+  - 'A test proves an atomic write: after `save_result`, no leftover temp file remains beside `self.path`, and the store round-trips (write → new store from same path → pin present). (`save_result_is_atomic_no_leftover_temp`)'
+  - '`cargo test -p termlink-session --lib tofu` passes. (17 passed; full lib 397 passed, 0 failed)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-session/src/tofu.rs'
+  - '.tasks/active/T-2501-tofu-pin-store-saveresult-uses-non-atomi.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-02T18:43:05"
+    action: "T-2501: TOFU pin store writes atomically (temp+rename) instead of truncate-in-place"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 2
+  lines_added: 262
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2501-tofu-pin-store-saveresult-uses-non-atomi.md
+generated_by: context-agent-hybrid
