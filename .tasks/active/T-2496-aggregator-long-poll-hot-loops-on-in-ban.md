@@ -4,10 +4,10 @@ name: "aggregator long-poll hot-loops on in-band RPC error (no backoff)"
 description: >
   crates/termlink-hub/src/aggregator.rs (~:96-118) long-poll loop does 'if let Ok(data) = client::unwrap_result(resp)' — silently drops the Err (in-band JSON-RPC error) branch with NO sleep/backoff. The transport-error branch (Ok(Err(_))) sleeps 2s, but a session that responds with a JSON-RPC ERROR is re-polled in a tight hot loop (CPU spin + hammering the failing session). Fix: treat the dropped Err like the transport-error branch (log + same backoff). directive-#2 (observable, no silent tight-loop). Runner-up from firing-#15 adversarial audit (round 2). Verify in code before building (confirm the two branches + that Err currently has no sleep).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-02T09:57:22Z
-last_update: 2026-08-02T09:57:22Z
+last_update: 2026-08-02T10:17:12Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -36,12 +36,22 @@ date_finished: null
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
+## Context
+
+The hub event aggregator (`crates/termlink-hub/src/aggregator.rs`) spawns a per-session
+long-poll loop over `event.subscribe`. On a Success transport response carrying an in-band
+JSON-RPC **error**, `if let Ok(data) = client::unwrap_result(resp)` dropped the `Err` with
+no log and NO backoff — and an RPC error returns immediately (vs the 5s server-side
+long-poll on success), so the loop hot-spins, hammering the failing session. The transport-
+error arm (`Ok(Err(e))`) already sleeps 2s; the in-band-error path had no equivalent.
+
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The `Ok(Ok(resp))` arm handles the `unwrap_result` `Err` (in-band RPC error) case — logs it and sleeps the same backoff as the transport-error arm (no silent hot-loop)
+- [x] The backoff decision is factored into a pure `poll_action(&PollOutcome) -> PollAction` that the loop actually dispatches on (single source of truth), so the rule is unit-testable without a live hub
+- [x] Unit tests assert `poll_action` returns `Backoff` for BOTH `RpcError` and `Transport`, `Deliver` for `Success`, `IdleRetry` for the outer-timeout (idle) case
+- [x] Event delivery + cursor advance on the success path are unchanged (no behavior change for the healthy case)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -76,6 +86,9 @@ date_finished: null
 
 ## Verification
 
+cargo test -p termlink-hub --lib aggregator
+cargo check -p termlink-hub
+
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
@@ -109,19 +122,25 @@ date_finished: null
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** A session whose hub answers `event.subscribe` with a JSON-RPC error (auth
+denied, bad params, session in a bad state) is re-polled in a tight CPU-spinning loop by
+the aggregator, hammering the failing session, with no log line — invisible.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** the `Ok(Ok(resp))` (transport-OK) arm used `if let Ok(data) = unwrap_result`
+and let the `Err` (in-band RPC error) fall through the `if let` with no `else` — no log, no
+sleep. Unlike a success (where the server holds the long-poll ~5s), an RPC error returns
+immediately, so the loop re-issues instantly → hot-loop. The symmetric transport-error arm
+did sleep 2s; the two failure modes were treated asymmetrically.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** `if let Ok(x) = fallible()` with no `else` is the classic
+silent-drop shape (sibling of PL-276) — it reads as "process on success" and hides the
+error branch entirely. No test drove the in-band-error path (the loop had no tests and no
+seam).
+
+**Prevention:** the backoff decision is now a pure `poll_action(&PollOutcome)` the loop
+dispatches on, with unit tests pinning that BOTH failure kinds map to `Backoff`. A future
+change that re-drops the RPC-error branch fails the suite. Learning: treat transport and
+in-band RPC errors symmetrically in any retry loop — both are failures that need backoff.
 
 ## Evolution
 
@@ -174,3 +193,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2496-aggregator-long-poll-hot-loops-on-in-ban.md
 - **Context:** Initial task creation
+
+### 2026-08-02T10:17:12Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)

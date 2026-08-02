@@ -92,9 +92,24 @@ impl EventAggregator {
                 )
                 .await;
 
-                match result {
-                    Ok(Ok(resp)) => {
-                        if let Ok(data) = client::unwrap_result(resp) {
+                // T-2496: reduce the layered timeout/transport/rpc result into
+                // one PollOutcome, then dispatch on the pure `poll_action`
+                // classifier. This closes the silent hot-loop: an in-band
+                // JSON-RPC error (transport OK, hub returned an error) now backs
+                // off like a transport error instead of falling through a bare
+                // `if let Ok(..)` with no sleep and re-spinning immediately.
+                let outcome = match result {
+                    Ok(Ok(resp)) => match client::unwrap_result(resp) {
+                        Ok(data) => PollOutcome::Success(data),
+                        Err(e) => PollOutcome::RpcError(e),
+                    },
+                    Ok(Err(e)) => PollOutcome::Transport(e.to_string()),
+                    Err(_) => PollOutcome::Idle,
+                };
+
+                match poll_action(&outcome) {
+                    PollAction::Deliver => {
+                        if let PollOutcome::Success(data) = &outcome {
                             if let Some(events) = data["events"].as_array() {
                                 for event in events {
                                     let agg = AggregatedEvent {
@@ -117,16 +132,21 @@ impl EventAggregator {
                             }
                         }
                     }
-                    Ok(Err(e)) => {
+                    PollAction::Backoff => {
+                        let reason = match &outcome {
+                            PollOutcome::RpcError(e) => format!("session returned RPC error: {e}"),
+                            PollOutcome::Transport(e) => format!("session unreachable: {e}"),
+                            _ => String::new(),
+                        };
                         tracing::debug!(
                             session = %target.id,
-                            error = %e,
-                            "Aggregator: session unreachable, retrying"
+                            reason = %reason,
+                            "Aggregator: backing off before retry"
                         );
                         tokio::time::sleep(Duration::from_secs(2)).await;
                     }
-                    Err(_) => {
-                        // Timeout — normal for idle sessions, just retry
+                    PollAction::IdleRetry => {
+                        // Outer timeout — normal for idle sessions, just retry.
                         tracing::trace!(session = %target.id, "Aggregator: subscribe timeout (idle)");
                     }
                 }
@@ -185,5 +205,82 @@ impl EventAggregator {
 impl Default for EventAggregator {
     fn default() -> Self {
         Self::new(1024)
+    }
+}
+
+/// T-2496: reduced outcome of one long-poll `event.subscribe` attempt, with the
+/// raw timeout/transport/rpc layers collapsed into one value. Carries the
+/// payload on success and the error text on failure (for the backoff log).
+enum PollOutcome {
+    /// Transport OK and the hub returned a Success result.
+    Success(serde_json::Value),
+    /// Transport OK but the hub returned an in-band JSON-RPC error. This
+    /// returns immediately (no server-side long-poll wait), so it MUST back
+    /// off — otherwise the loop hot-spins hammering the failing session.
+    RpcError(String),
+    /// Client-layer transport failure (connection refused, reset, etc.).
+    Transport(String),
+    /// The outer 10s timeout elapsed — a normal idle long-poll expiry.
+    Idle,
+}
+
+/// T-2496: the loop's action for one attempt. Factored out so the
+/// "in-band RPC error backs off, not hot-loops" rule is unit-testable
+/// without a live hub.
+#[derive(Debug, PartialEq, Eq)]
+enum PollAction {
+    /// Deliver the payload's events and advance the cursor.
+    Deliver,
+    /// A failure (transport OR in-band RPC error) — log + sleep before retry.
+    Backoff,
+    /// Idle long-poll expiry — retry immediately (no backoff needed).
+    IdleRetry,
+}
+
+/// Pure classifier: both failure kinds (transport AND in-band RPC error) back
+/// off; only the outer idle-timeout retries immediately. This is the single
+/// source of truth the long-poll loop dispatches on.
+fn poll_action(outcome: &PollOutcome) -> PollAction {
+    match outcome {
+        PollOutcome::Success(_) => PollAction::Deliver,
+        PollOutcome::RpcError(_) | PollOutcome::Transport(_) => PollAction::Backoff,
+        PollOutcome::Idle => PollAction::IdleRetry,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// T-2496 regression: an in-band JSON-RPC error MUST back off, not hot-loop.
+    /// This is the exact defect — before the fix the RPC-error branch fell
+    /// through a bare `if let Ok(..)` with no sleep and re-spun immediately.
+    #[test]
+    fn poll_action_backs_off_on_in_band_rpc_error() {
+        assert_eq!(
+            poll_action(&PollOutcome::RpcError("hub rejected subscribe".into())),
+            PollAction::Backoff
+        );
+    }
+
+    #[test]
+    fn poll_action_backs_off_on_transport_error() {
+        assert_eq!(
+            poll_action(&PollOutcome::Transport("connection refused".into())),
+            PollAction::Backoff
+        );
+    }
+
+    #[test]
+    fn poll_action_delivers_on_success() {
+        assert_eq!(
+            poll_action(&PollOutcome::Success(serde_json::json!({"events": []}))),
+            PollAction::Deliver
+        );
+    }
+
+    #[test]
+    fn poll_action_idle_retry_on_outer_timeout() {
+        assert_eq!(poll_action(&PollOutcome::Idle), PollAction::IdleRetry);
     }
 }
