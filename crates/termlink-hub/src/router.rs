@@ -663,10 +663,30 @@ async fn handle_event_collect(
     let mut cursors = json!({});
 
     while let Some(result) = join_set.join_next().await {
-        if let Ok(Some((sid, events, next_seq))) = result {
-            all_events.extend(events);
-            if let Some(next) = next_seq {
-                cursors[sid] = next;
+        // T-2504: classify the join outcome explicitly. A bare
+        // `if let Ok(Some(..))` silently collapsed `Err(JoinError)` (a panicked
+        // /cancelled collector task) into the same no-op as `Ok(None)` (a benign
+        // already-logged unreachable session) — so a task panic dropped that
+        // session's events from the collect with no log. Surface the panic loudly.
+        match collect_join_action(&result) {
+            CollectJoinAction::Deliver => {
+                if let Ok(Some((sid, events, next_seq))) = result {
+                    all_events.extend(events);
+                    if let Some(next) = next_seq {
+                        cursors[sid] = next;
+                    }
+                }
+            }
+            // Session unreachable/timeout — the task already logged it at debug.
+            CollectJoinAction::Skip => {}
+            CollectJoinAction::Failed => {
+                if let Err(e) = &result {
+                    tracing::warn!(
+                        error = %e,
+                        "collect: a session poll task failed to join (panicked or cancelled); \
+                         its events are dropped from this collect pass"
+                    );
+                }
             }
         }
     }
@@ -692,6 +712,35 @@ async fn handle_event_collect(
         }),
     )
     .into()
+}
+
+/// T-2504: the collect drain loop's action for one joined task result. Factored
+/// out so the "a panicked/cancelled task is surfaced, not silently dropped" rule
+/// is unit-testable without a live hub (a real `JoinError` is obtainable by
+/// joining a panicking task in a `JoinSet`).
+#[derive(Debug, PartialEq, Eq)]
+enum CollectJoinAction {
+    /// The task returned `Ok(Some(payload))` — deliver its events.
+    Deliver,
+    /// The task returned `Ok(None)` — a benign unreachable/timed-out session
+    /// that already logged itself inside the task; nothing more to do.
+    Skip,
+    /// The task returned `Err(JoinError)` — it panicked or was cancelled. Its
+    /// events are lost from this pass; the caller must surface it loudly.
+    Failed,
+}
+
+/// Pure classifier for one `JoinSet` result in the collect drain loop. This is
+/// the single source of truth the loop dispatches on so the `Err(JoinError)`
+/// case can never again be silently collapsed into the `Ok(None)` no-op.
+fn collect_join_action<T>(
+    result: &Result<Option<T>, tokio::task::JoinError>,
+) -> CollectJoinAction {
+    match result {
+        Ok(Some(_)) => CollectJoinAction::Deliver,
+        Ok(None) => CollectJoinAction::Skip,
+        Err(_) => CollectJoinAction::Failed,
+    }
 }
 
 /// Handle `session.register_remote` — register a TCP session in the hub's memory.
@@ -1839,6 +1888,34 @@ mod tests {
     use termlink_session::registration::SessionConfig;
     use termlink_session::Registration;
     use termlink_session::server;
+
+    // T-2504: the collect drain loop must classify a panicked/cancelled task
+    // (Err(JoinError)) as Failed — NOT silently collapse it into the Ok(None)
+    // no-op the way the old bare `if let Ok(Some(..))` did.
+    #[tokio::test]
+    async fn collect_join_action_classifies_panicked_task_as_failed() {
+        let mut js: tokio::task::JoinSet<Option<(String, Vec<serde_json::Value>, Option<serde_json::Value>)>> =
+            tokio::task::JoinSet::new();
+        js.spawn(async { panic!("collector task boom") });
+        let result = js.join_next().await.expect("one task");
+        assert!(result.is_err(), "a panicking task must yield Err(JoinError)");
+        assert_eq!(collect_join_action(&result), CollectJoinAction::Failed);
+    }
+
+    #[tokio::test]
+    async fn collect_join_action_classifies_ok_some_as_deliver_and_ok_none_as_skip() {
+        let mut js: tokio::task::JoinSet<Option<(String, Vec<serde_json::Value>, Option<serde_json::Value>)>> =
+            tokio::task::JoinSet::new();
+        js.spawn(async { Some(("s1".to_string(), vec![json!({"seq": 1})], Some(json!(2)))) });
+        let delivered = js.join_next().await.expect("one task");
+        assert_eq!(collect_join_action(&delivered), CollectJoinAction::Deliver);
+
+        let mut js2: tokio::task::JoinSet<Option<(String, Vec<serde_json::Value>, Option<serde_json::Value>)>> =
+            tokio::task::JoinSet::new();
+        js2.spawn(async { None });
+        let skipped = js2.join_next().await.expect("one task");
+        assert_eq!(collect_join_action(&skipped), CollectJoinAction::Skip);
+    }
 
     use crate::test_util::ENV_LOCK;
     static TEST_COUNTER: AtomicU32 = AtomicU32::new(0);
