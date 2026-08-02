@@ -2759,3 +2759,10 @@ learnings:
   date: 2026-08-02
   context: Added via context agent
   application: TBD
+- id: PL-286
+  learning: "An Option at a data-integrity boundary must not be unwrap_or'd into a fabricated default. termlink-bus create_topic parsed a stored retention row with Retention::from_parts(..).unwrap_or(Retention::Forever): a None (corrupt/unknown-kind/out-of-range-value row) was silently manufactured into Forever, then either reported a phantom 'existing: Forever' TopicPolicyMismatch (misdiagnosis) or accepted the corrupt topic as valid Forever (bounded topic → unbounded growth, T-1991 class). The sibling reader topic_retention already propagated None correctly — the two readers of the same table diverged. Fix: explicit match returning loud BusError::CorruptRetention. Rule: when parse-None means 'stored bytes are not valid data', that IS the corruption signal — surface it, never unwrap_or a plausible-looking substitute. Sibling of PL-284/PL-285."
+  source: P-001
+  task: T-2500
+  date: 2026-08-02
+  context: Added via context agent
+  application: TBD
