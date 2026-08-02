@@ -121,7 +121,21 @@ pub fn deposit(target: &str, topic: &str, payload: &Value, from: Option<&str>) -
     let filename = match topic {
         "file.init" => "init.json".to_string(),
         "file.chunk" => {
-            let index = payload.get("index").and_then(|v| v.as_u64()).unwrap_or(0);
+            // T-2505: a missing/non-integer index MUST NOT default to 0 — that
+            // silently overwrites the legitimately-spooled chunk-0000.json (data
+            // corruption). Reject loud + non-destructive, mirroring the
+            // missing-transfer_id arm above. Sibling of T-2490, which hardened the
+            // reassembly side (a bad index sorts last via unwrap_or(u64::MAX)); here
+            // on the deposit side a bad index must never eat a good chunk.
+            let Some(index) = payload.get("index").and_then(|v| v.as_u64()) else {
+                tracing::warn!(
+                    target = target,
+                    topic = topic,
+                    transfer_id = %transfer_id,
+                    "Inbox deposit: file.chunk missing/non-integer index — rejecting to avoid clobbering chunk 0"
+                );
+                return Ok(false);
+            };
             format!("chunk-{index:04}.json")
         }
         "file.complete" => "complete.json".to_string(),
@@ -934,5 +948,94 @@ mod tests {
         assert!(!name.contains('.'));
         assert!(!name.contains(':'));
         assert!(name.contains("my_session_name_test"));
+    }
+
+    /// T-2505: a `file.chunk` deposit whose `index` is MISSING must be rejected
+    /// (Ok(false) + warn), NOT defaulted to chunk-0000.json — that would silently
+    /// overwrite a legitimately-spooled chunk 0 (data corruption). Sibling of the
+    /// T-2490 reassembly-side fix; this guards the deposit side.
+    #[tokio::test]
+    async fn deposit_rejects_file_chunk_with_missing_index_no_clobber() {
+        let _lock = crate::test_util::ENV_LOCK.lock().await;
+        let base = test_inbox_dir();
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &base) };
+
+        let target = "offline-sess";
+        let xfer = "xfer-clobber";
+
+        // Spool a legitimate chunk 0.
+        let good = json!({ "transfer_id": xfer, "index": 0, "data": "R09PRA==" }); // "GOOD"
+        assert_eq!(
+            deposit(target, "file.chunk", &good, Some("sender")).unwrap(),
+            true,
+            "valid chunk 0 should spool"
+        );
+        let chunk0 = transfer_dir(target, xfer).join("chunk-0000.json");
+        let before = std::fs::read_to_string(&chunk0).unwrap();
+
+        // A malformed chunk with NO index must be rejected, not overwrite chunk 0.
+        let bad = json!({ "transfer_id": xfer, "data": "QkFE" }); // "BAD", no index
+        assert_eq!(
+            deposit(target, "file.chunk", &bad, Some("sender")).unwrap(),
+            false,
+            "missing-index chunk must be rejected"
+        );
+
+        let after = std::fs::read_to_string(&chunk0).unwrap();
+        assert_eq!(before, after, "chunk 0 must NOT be clobbered by a malformed chunk");
+        assert!(after.contains("R09PRA=="), "chunk 0 must retain its original bytes");
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// T-2505: a `file.chunk` deposit whose `index` is a non-integer (e.g. a
+    /// string) is rejected the same way — as_u64() returns None.
+    #[tokio::test]
+    async fn deposit_rejects_file_chunk_with_noninteger_index() {
+        let _lock = crate::test_util::ENV_LOCK.lock().await;
+        let base = test_inbox_dir();
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &base) };
+
+        let target = "offline-sess2";
+        let xfer = "xfer-noninteger";
+        let bad = json!({ "transfer_id": xfer, "index": "seven", "data": "QkFE" });
+        assert_eq!(
+            deposit(target, "file.chunk", &bad, Some("sender")).unwrap(),
+            false,
+            "non-integer index must be rejected"
+        );
+        assert!(
+            !transfer_dir(target, xfer).join("chunk-0000.json").exists(),
+            "no chunk-0000.json must be written for a non-integer index"
+        );
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// T-2505: a valid integer index still spools to chunk-{index:04}.json (no
+    /// regression on the happy path).
+    #[tokio::test]
+    async fn deposit_accepts_valid_file_chunk_index() {
+        let _lock = crate::test_util::ENV_LOCK.lock().await;
+        let base = test_inbox_dir();
+        unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", &base) };
+
+        let target = "offline-sess3";
+        let xfer = "xfer-happy";
+        let good = json!({ "transfer_id": xfer, "index": 42, "data": "dGVzdA==" });
+        assert_eq!(
+            deposit(target, "file.chunk", &good, Some("sender")).unwrap(),
+            true,
+            "valid chunk should spool"
+        );
+        assert!(
+            transfer_dir(target, xfer).join("chunk-0042.json").exists(),
+            "valid index 42 must spool to chunk-0042.json"
+        );
+
+        unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+        let _ = std::fs::remove_dir_all(&base);
     }
 }
