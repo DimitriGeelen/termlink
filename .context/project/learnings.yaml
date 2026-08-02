@@ -2773,3 +2773,10 @@ learnings:
   date: 2026-08-02
   context: Added via context agent
   application: TBD
+- id: PL-288
+  learning: "When you fix a truncate-in-place (non-atomic) write on one integrity-sensitive file, SWEEP the codebase for OTHER truncate-in-place fs::write of integrity files in the same pass — siblings tend to share the divergence. T-2501 fixed the TOFU pin store (tofu.rs), but an adversarial sweep then found the SAME defect on the highest-value file of all: the fleet HMAC secret (termlink-hub server.rs generate_and_write_hub_secret used std::fs::write of hub.secret). A crash/OOM/power-loss/ENOSPC mid-write leaves hub.secret truncated → next boot rejects (len!=64) → regenerates → silent fleet-wide re-auth (PL-021/G-058 — the most-documented recurring pain here). Fix (T-2502): 0600-temp + atomic rename, mirroring known_peers.rs/registration.rs/agent_identity.rs. For a SECRET, create the temp at 0600 up-front so it is never world-readable even briefly. Generalizes PL-287: don't fix atomic-write defects one file at a time reactively — grep  across crates and audit every integrity/auth/pin file at once."
+  source: P-001
+  task: T-2502
+  date: 2026-08-02
+  context: Added via context agent
+  application: TBD
