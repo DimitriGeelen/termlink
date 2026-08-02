@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-02T07:30:38Z
-last_update: 2026-08-02T07:30:38Z
+last_update: 2026-08-02T07:32:42Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -122,6 +122,40 @@ registered target reaches this path. Found by firing-#10 adversarial audit; veri
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 cargo test -p termlink-hub --lib emit_to
 cargo check -p termlink-hub
+
+## Ready-to-apply fix (verified against router.rs — apply verbatim next session)
+
+In `crates/termlink-hub/src/router.rs`, inside `handle_event_emit_to`'s `Err(_) => { … }` arm,
+replace the `if let Ok(true) = crate::inbox::deposit(...)` block (and the trailing SESSION_NOT_FOUND
+return stays as-is AFTER the match) with an explicit 3-arm match:
+
+```rust
+match crate::inbox::deposit(target, topic, &payload, from) {
+    Ok(true) => {
+        crate::channel::mirror_inbox_deposit(target, topic, &payload, from).await;
+        return Response::success(id, json!({
+            "ok": true, "spooled": true, "target": target,
+            "message": format!("Target '{}' offline — file event spooled to inbox", target),
+        })).into();
+    }
+    Ok(false) => { /* not a spoolable file event — fall through to SESSION_NOT_FOUND below */ }
+    Err(e) => {
+        tracing::warn!(target = target, topic = topic, error = %e,
+            "event.emit_to: inbox spool FAILED (I/O error) — returning internal_error, not SESSION_NOT_FOUND");
+        return ErrorResponse::internal_error(
+            id, &format!("inbox spool failed for target '{target}' topic '{topic}': {e}")).into();
+    }
+}
+// existing SESSION_NOT_FOUND return stays here (reached only on Ok(false))
+```
+
+Then add a unit test near `emit_to_unknown_target_returns_error` (router.rs ~3240): set the inbox
+runtime dir (via `discovery::runtime_dir` env override) to an unwritable path, call
+`handle_event_emit_to` with a `file.init` payload + `transfer_id` at an unknown target, assert the
+response code is `INTERNAL_ERROR` (−32603), not `SESSION_NOT_FOUND`. Verify: `cargo test -p
+termlink-hub --lib emit_to` + `cargo check -p termlink-hub`, then tick ACs + `fw task update
+T-2488 --status work-completed`. `ErrorResponse::internal_error` confirmed to exist at
+termlink-protocol/src/jsonrpc.rs:137.
 
 ## RCA
 
