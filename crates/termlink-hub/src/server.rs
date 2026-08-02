@@ -678,9 +678,14 @@ pub async fn run_accept_loop(
 
                         // Unix same-UID connections get full access (no auth needed)
                         let secret = token_secret.clone();
-                        let counter = active_connections.clone();
-                        counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        // T-2460: RAII guard owns releasing the governor slot +
+                        // gauge on EVERY exit (incl. a panic in handle_connection).
+                        let slot = ConnSlotGuard::new(
+                            crate::governor::conn_governor(),
+                            active_connections.clone(),
+                        );
                         tokio::spawn(async move {
+                            let _slot = slot; // released on drop — normal OR unwind
                             // T-1409: Unix connections have no TCP address; pass None.
                             handle_connection(
                                 stream,
@@ -690,8 +695,6 @@ pub async fn run_accept_loop(
                                 None,
                             )
                             .await;
-                            crate::governor::conn_governor().release();
-                            counter.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
                         });
                     }
                     Err(e) => {
@@ -736,10 +739,16 @@ pub async fn run_accept_loop(
                         // TCP connections start with zero scope (unauthenticated)
                         let secret = token_secret.clone();
                         let acceptor = tls_acceptor.clone();
-                        let counter = active_connections.clone();
-                        counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        // T-2460: RAII guard owns releasing the governor slot +
+                        // gauge on EVERY exit (incl. a panic in handle_connection
+                        // or the TLS accept future).
+                        let slot = ConnSlotGuard::new(
+                            crate::governor::conn_governor(),
+                            active_connections.clone(),
+                        );
                         let peer_addr_str = peer_addr.to_string();
                         tokio::spawn(async move {
+                            let _slot = slot; // released on drop — normal OR unwind
                             // T-1407: TCP/TLS connections are network-remote; no
                             // local PID exists, pass None.
                             // T-1409: pass peer_addr so audit + warn carry the
@@ -771,8 +780,6 @@ pub async fn run_accept_loop(
                                 )
                                 .await;
                             }
-                            crate::governor::conn_governor().release();
-                            counter.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
                         });
                     }
                     Err(e) => {
@@ -862,6 +869,41 @@ fn ws_idle_timeout() -> std::time::Duration {
         200,
         3_600_000,
     ))
+}
+
+/// RAII guard for one accepted connection's capacity accounting (T-2460).
+///
+/// The accept loop reserves a `ConnGovernor` slot via `try_acquire()` BEFORE
+/// spawning the per-connection task. Previously the release (`conn_governor()
+/// .release()` + `active_connections.fetch_sub(1)`) ran on the line *after*
+/// `handle_connection(...).await` inside the spawned task — so a panic anywhere
+/// in `handle_connection` unwound past both lines and leaked the governor slot
+/// AND the gauge permanently. That drifts the hub toward false `HUB_AT_CAPACITY`
+/// refusals (-32019) and stalls the drain loop, which blocks on the gauge
+/// reaching 0. Moving both releases into `Drop` makes them run on normal
+/// completion AND on unwind. Construct AFTER a successful `try_acquire()`; the
+/// guard then owns releasing that one slot + the gauge exactly once.
+struct ConnSlotGuard<'a> {
+    governor: &'a crate::governor::ConnGovernor,
+    counter: std::sync::Arc<std::sync::atomic::AtomicU32>,
+}
+
+impl<'a> ConnSlotGuard<'a> {
+    fn new(
+        governor: &'a crate::governor::ConnGovernor,
+        counter: std::sync::Arc<std::sync::atomic::AtomicU32>,
+    ) -> Self {
+        counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        Self { governor, counter }
+    }
+}
+
+impl Drop for ConnSlotGuard<'_> {
+    fn drop(&mut self) {
+        self.governor.release();
+        self.counter
+            .fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+    }
 }
 
 async fn handle_connection<S>(
@@ -1466,6 +1508,48 @@ mod tests {
     use crate::test_util::ENV_LOCK;
 
     static TEST_COUNTER: AtomicU32 = AtomicU32::new(0);
+
+    // ── T-2460: ConnSlotGuard releases the governor slot + gauge on EVERY exit ──
+    // A panic inside a spawned handle_connection task must NOT leak the reserved
+    // capacity slot (which would drift the hub toward false HUB_AT_CAPACITY and
+    // stall the drain loop). These lock the RAII contract on both exit paths.
+
+    #[test]
+    fn conn_slot_guard_releases_on_normal_completion() {
+        let gov = crate::governor::ConnGovernor::new(4);
+        let counter = Arc::new(AtomicU32::new(0));
+        gov.try_acquire().expect("slot available"); // mirror accept-loop reservation
+        {
+            let _slot = ConnSlotGuard::new(&gov, counter.clone());
+            assert_eq!(counter.load(Ordering::Relaxed), 1, "new() increments the gauge");
+            assert_eq!(gov.current(), 1, "one slot reserved while guard is live");
+        } // guard drops here
+        assert_eq!(counter.load(Ordering::Relaxed), 0, "gauge released once on normal drop");
+        assert_eq!(gov.current(), 0, "governor slot released once on normal drop (no underflow)");
+    }
+
+    #[tokio::test]
+    async fn conn_slot_guard_releases_on_panic() {
+        // Leak a dedicated governor so the guard can be 'static and moved into a
+        // spawned task (the real production path). Test-only; process exits after.
+        let gov: &'static crate::governor::ConnGovernor =
+            Box::leak(Box::new(crate::governor::ConnGovernor::new(4)));
+        let counter = Arc::new(AtomicU32::new(0));
+        gov.try_acquire().expect("slot available"); // mirror accept-loop reservation
+        let slot = ConnSlotGuard::new(gov, counter.clone());
+        assert_eq!(counter.load(Ordering::Relaxed), 1);
+        assert_eq!(gov.current(), 1);
+
+        let handle = tokio::spawn(async move {
+            let _slot = slot; // exactly as the accept loop moves it in
+            panic!("simulated handle_connection panic");
+        });
+        let joined = handle.await;
+        assert!(joined.is_err(), "the spawned task must have panicked");
+        // The whole point: release ran on unwind, not only after a clean .await.
+        assert_eq!(counter.load(Ordering::Relaxed), 0, "gauge released on panic unwind (no leak)");
+        assert_eq!(gov.current(), 0, "governor slot released on panic unwind (no leak)");
+    }
 
     // ── T-2448 (T-2447 F1): fail-closed Unix peer-cred policy ──────────────
     // These assert the fail-CLOSED decision without needing SO_PEERCRED to

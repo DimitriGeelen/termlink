@@ -4,10 +4,10 @@ name: "connections_active gauge and governor slot leak on a panic inside handle_
 description: >
   Panic-only connection-slot leak. handle_connection increments connections_active + reserves a governor slot on accept (server.rs:682/694), releasing via fetch_sub/release after the match (server.rs:740/775). A panic inside the spawned task skips the release (no Drop guard) — the gauge and governor slot leak permanently. LOW: panic-only. Fix: wrap acquire in an RAII scope-guard that releases on drop. Round-14 F4.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-22T18:38:46Z
-last_update: 2026-07-22T18:38:46Z
+last_update: 2026-08-02T07:07:09Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,27 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+`run_accept_loop` reserves a `ConnGovernor` slot via `conn_governor().try_acquire()` before
+spawning each per-connection task, then releases it (`conn_governor().release()` +
+`active_connections.fetch_sub(1)`) on the line AFTER `handle_connection(...).await` inside the
+spawned task (`server.rs` Unix path L682/693-694; TCP path L740/774-775). A panic anywhere in
+`handle_connection` unwinds past both release lines → the governor slot and the `active_connections`
+gauge (`Arc<AtomicU32>`, L627) leak **permanently**. Consequences: the hub drifts toward false
+`HUB_AT_CAPACITY` (-32019) refusals as phantom slots accumulate, and the graceful-drain loop (L801,
+blocks on the gauge reaching 0) stalls. Fix: an RAII `ConnSlotGuard` whose `Drop` releases both,
+so release runs on normal completion AND on unwind. Round-14 F4; verified current in firing #9.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] A `ConnSlotGuard` RAII type releases the governor slot + decrements the `active_connections`
+      gauge in its `Drop` impl (release runs on unwind, not only after the `.await`). (server.rs — struct + Drop before handle_connection.)
+- [x] Both accept paths (Unix + TCP) construct the guard after a successful `try_acquire()` and no
+      longer carry the trailing manual `release()`/`fetch_sub(1)` lines (single correctness invariant).
+- [x] New unit test: a spawned task holding the guard that PANICS still releases the slot + gauge
+      (governor `current()` and the gauge both return to baseline after the task unwinds). (conn_slot_guard_releases_on_panic.)
+- [x] New unit test: normal (non-panic) drop releases exactly once (no double-release / underflow). (conn_slot_guard_releases_on_normal_completion.)
+- [x] `cargo test -p termlink-hub --lib` passes (existing + new tests green); `cargo check -p termlink-hub` clean. (438 passed / 0 failed.)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -106,8 +119,30 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+cargo test -p termlink-hub --lib conn_slot_guard
+cargo check -p termlink-hub
 
 ## RCA
+
+**Symptom:** Over a long-lived hub's uptime, `hub.governor_status` reports `connections_active`
+higher than the real count, and eventually connections are refused with `HUB_AT_CAPACITY` (-32019)
+despite few real connections; graceful shutdown can also hang. Trigger: any panic inside a spawned
+`handle_connection` task.
+
+**Root cause:** capacity release was expressed imperatively as the last two statements of the
+spawned task (`conn_governor().release()` + `active_connections.fetch_sub(1)`) — *after* the
+`.await`. Rust unwinds a panicking task past those statements, so the reserved governor slot and the
+gauge were never returned. Release was not tied to the connection's lifetime, only to the
+happy-path control flow.
+
+**Why structurally allowed:** the acquire/release pair was hand-balanced across a spawn boundary
+with no RAII guard, so the type system couldn't enforce "release on every exit including unwind."
+No test exercised a panicking handler, so the leak was invisible (the existing governor-leak test
+covered only the idle-timeout path, not panic).
+
+**Prevention:** the `ConnSlotGuard` moves release into `Drop`, so the compiler now guarantees it
+runs on every scope exit (return, error, or panic). The new panic-path unit test locks the
+contract so a future refactor that reintroduces manual release is caught.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -174,3 +209,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2460-connectionsactive-gauge-and-governor-slo.md
 - **Context:** Initial task creation
+
+### 2026-08-02T07:07:09Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
