@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-02T11:22:18Z
-last_update: 2026-08-02T11:22:18Z
+last_update: 2026-08-02T11:25:04Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -49,11 +49,11 @@ already breaks on — the success-path instance was simply missed. Directive-#2 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Success-path pop failure surfaces LOUD (`tracing::error!` with `queue_id` + error) instead of a bare `let _ =`
-- [ ] On success-path pop failure the flush pass `break`s (yields) rather than re-POSTing the undeleted head row unboundedly — mirrors the T-2452 fallback-pop guard
-- [ ] The "pop-failed ⇒ abort the pass, pop-ok ⇒ continue" decision is factored into a pure classifier (mirrors T-2496 `poll_action`) so the rule is unit-testable without a live hub or a queue fault-injection seam
-- [ ] Regression tests assert the classifier aborts on pop-error and continues on pop-success
-- [ ] `cargo test -p termlink-session --lib bus_client` passes (existing + new)
+- [x] Success-path pop failure surfaces LOUD (`tracing::error!` with `queue_id` + error) instead of a bare `let _ =`
+- [x] On success-path pop failure the flush pass `break`s (yields) rather than re-POSTing the undeleted head row unboundedly — mirrors the T-2452 fallback-pop guard
+- [x] The "pop-failed ⇒ abort the pass, pop-ok ⇒ continue" decision is factored into a pure classifier (mirrors T-2496 `poll_action`) so the rule is unit-testable without a live hub or a queue fault-injection seam
+- [x] Regression tests assert the classifier aborts on pop-error and continues on pop-success
+- [x] `cargo test -p termlink-session --lib bus_client` passes (existing + new)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
