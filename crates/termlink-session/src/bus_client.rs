@@ -205,8 +205,25 @@ impl BusClient {
             match rpc_call_addr(&self.addr, method::CHANNEL_POST, params).await {
                 Ok(resp) => match parse_post_response(resp) {
                     Ok(_offset) => {
-                        let _ = self.queue.pop(id);
                         report.sent += 1;
+                        // T-2497: the hub accepted the post; the local row must now
+                        // be removed. If the DELETE fails (disk-full / IO / lock) the
+                        // SAME row is still at head, and the loop would re-POST it on
+                        // every iteration — an unbounded busy-loop that DUPLICATES the
+                        // message on the durable topic (T-2049 dedupe absorbs it only
+                        // when a client_msg_id is set; the hot-spin remains regardless).
+                        // Surface it LOUD and break the pass (mirrors the T-2452
+                        // fallback-pop guard below); the next flush tick retries the
+                        // pop once the disk recovers.
+                        let pop_result = self.queue.pop(id);
+                        if pop_action(&pop_result) == PopAction::AbortPass {
+                            tracing::error!(
+                                queue_id = id.0,
+                                error = %pop_result.expect_err("AbortPass implies Err"),
+                                "flush: post delivered but queue pop failed (disk?) — aborting flush pass to avoid unbounded re-POST/duplication"
+                            );
+                            break;
+                        }
                     }
                     Err(e) => {
                         // T-2450 (round-11 F1): a TRANSIENT hub reject
@@ -322,6 +339,30 @@ impl Drop for BusClient {
     }
 }
 
+/// T-2497: the flush loop's action after a queued post was DELIVERED and we
+/// attempt to remove its local row. Factored out so the load-bearing rule
+/// "pop failed ⇒ abort the pass (do NOT re-POST the undeleted head row)" is
+/// unit-testable without a live hub or a queue fault-injection seam — mirrors
+/// the T-2496 `poll_action` pattern.
+#[derive(Debug, PartialEq, Eq)]
+enum PopAction {
+    /// pop succeeded (row removed) — keep draining the queue.
+    Continue,
+    /// pop failed (disk?) — the head row is still present; abort this flush
+    /// pass so the loop cannot re-POST it unboundedly. The next tick retries.
+    AbortPass,
+}
+
+/// Pure classifier: a failed pop after a delivered post aborts the pass; a
+/// successful pop keeps draining. Single source of truth the flush loop
+/// dispatches on.
+fn pop_action(pop_result: &crate::offline_queue::Result<()>) -> PopAction {
+    match pop_result {
+        Ok(()) => PopAction::Continue,
+        Err(_) => PopAction::AbortPass,
+    }
+}
+
 fn post_to_params(p: &PendingPost) -> Value {
     use base64::Engine as _;
     let payload_b64 = base64::engine::general_purpose::STANDARD.encode(&p.payload);
@@ -387,6 +428,22 @@ mod tests {
             metadata: Default::default(),
             client_msg_id: None,
         }
+    }
+
+    /// T-2497 regression: a failed pop after a DELIVERED post MUST abort the
+    /// flush pass, not fall through and re-POST the undeleted head row. Before
+    /// the fix the success arm ran `let _ = self.queue.pop(id)` and looped,
+    /// hot-spinning + duplicating the durable message on any pop failure.
+    #[test]
+    fn pop_action_aborts_pass_on_pop_failure() {
+        let err: crate::offline_queue::Result<()> =
+            Err(crate::offline_queue::QueueError::QueueFull { cap: 0 });
+        assert_eq!(pop_action(&err), PopAction::AbortPass);
+    }
+
+    #[test]
+    fn pop_action_continues_on_pop_success() {
+        assert_eq!(pop_action(&Ok(())), PopAction::Continue);
     }
 
     #[test]
