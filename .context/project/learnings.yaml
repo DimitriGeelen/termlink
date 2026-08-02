@@ -2661,3 +2661,10 @@ learnings:
   date: 2026-08-02
   context: Added via context agent
   application: TBD
+- id: PL-272
+  learning: "A 'single owned statement / single source of truth' doc claim (P1 charter) is aspirational unless a drift-canary enforces it — markdown has no transclusion, so 'the docs follow by reference' actually means N independent copies that silently fork. When a doc CLAIMS SSOT, verify the claim is mechanically true (one canary comparing the copies) and fix the wording if it isn't. Sibling to the tool-surface charter-drift check: guard both the sentence and the surface."
+  source: P-001
+  task: T-2484
+  date: 2026-08-02
+  context: Added via context agent
+  application: TBD

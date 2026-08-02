@@ -1,0 +1,95 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2484: charter canonical-sentence sync canary — guard the one blessed purpose sentence across CHARTER README ARCHITECTURE
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-02T00:15:47Z
+# ============================================================================
+
+task_id: T-2484
+task_name: "charter canonical-sentence sync canary — guard the one blessed purpose sentence across CHARTER README ARCHITECTURE"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-02T00:10:41Z
+completed: 2026-08-02T00:15:42Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-08-02T02:15:36+02:00
+last_commit: 2026-08-02T02:15:36+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  charter canonical-sentence sync canary (13th) — guard the P1 blessed sentence across CHARTER/README/ARCHITECTURE + fix false 'by reference' claim; tests 7/7, live in-sync
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-charter-sentence-drift.sh` exists, is executable, and `--help`'
+  - 'Extracts the canonical sentence from all three files and NORMALIZES away the'
+  - 'FIRES (exit 1) when any one file''s sentence diverges — proven for BOTH a'
+  - 'Returns tooling error (exit 2) when a source file is missing or the sentence'
+  - 'Touches `.context/working/.charter-sentence-drift-canary.heartbeat` and appends'
+  - '`scripts/test-charter-sentence-drift.sh` covers in-sync / README-drift /'
+  - 'Runs green against the REAL repo today: exit 0 (three copies currently agree)'
+  - '`docs/CHARTER.md` header wording fixed: the false "the docs follow by reference"'
+  - 'Cron file `.context/cron/charter-sentence-drift-canary.crontab` created (main'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'charter canonical-sentence sync canary (13th) — guard the P1 blessed sentence across CHARTER/README/ARCHITECTURE + fix false ''by reference'' claim; tests 7/7, live in-sync'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/cron/charter-sentence-drift-canary.crontab'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'docs/CHARTER.md'
+  - 'scripts/check-charter-sentence-drift.sh'
+  - 'scripts/test-charter-sentence-drift.sh'
+  - '.tasks/active/T-2484-charter-canonical-sentence-sync-canary--.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-02T02:15:36"
+    action: "T-2484: charter canonical-sentence sync canary (13th) — guard the P1 blessed sentence across CHARTER/README/ARCHITECTURE + fix false 'by reference' claim; tests 7/7, live in-sync"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 14
+  lines_added: 591
+  lines_removed: 41
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2484-charter-canonical-sentence-sync-canary--.md
+generated_by: context-agent-hybrid
