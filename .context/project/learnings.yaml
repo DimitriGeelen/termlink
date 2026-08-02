@@ -2780,3 +2780,10 @@ learnings:
   date: 2026-08-02
   context: Added via context agent
   application: TBD
+- id: PL-289
+  learning: "A bare 'if let Some(x) = payload[field]' on a value the LOOP'S FORWARD PROGRESS depends on is the same silent-failure class as a bare 'if let Ok(..)' on an outcome — when the field is missing/malformed the branch silently no-ops and the loop stalls or re-spins. termlink-hub aggregator (aggregator.rs) advanced its poll cursor only via 'if let Some(next) = data[next_seq].as_u64() { cursor = next }': a poll returning events but no valid next_seq left the cursor unchanged → next poll re-fetched + re-broadcast the SAME batch every 5s forever (silent duplicate-event storm to Watchtower/mirror-grid). T-2496 had fixed the sibling bare-if-let on the RPC OUTCOME in the same function but left this one on the payload FIELD. Fix (T-2503): pure next_cursor() helper — server next_seq when present, else max(delivered_seq)+1 so the loop always advances past what it delivered, + warn!. Rule: any bare if-let whose else-branch would stall/re-spin a loop must become an explicit, tested decision with a guaranteed-progress fallback; audit ALL such sites in a function together, not just the one that bit you (T-2496 fixed one, missed this)."
+  source: P-001
+  task: T-2503
+  date: 2026-08-02
+  context: Added via context agent
+  application: TBD
