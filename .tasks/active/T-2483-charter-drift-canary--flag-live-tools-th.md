@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-01T23:30:29Z
-last_update: 2026-08-01T23:30:29Z
+last_update: 2026-08-01T23:34:14Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -62,25 +62,25 @@ core primitives (ping/hub_start/thread_starters/event_poll) correctly excluded.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `scripts/check-charter-drift-freshness.sh` exists, is executable, and `--help`
+- [x] `scripts/check-charter-drift-freshness.sh` exists, is executable, and `--help`
       documents purpose (charter-drift / breadth-accretion detection), `--quiet`,
       `--json`, and exit codes (0 healthy / 1 firing / 2 tooling).
-- [ ] FIRES (exit 1) when a **live** (`deprecated==false`) tool matches the
+- [x] FIRES (exit 1) when a **live** (`deprecated==false`) tool matches the
       social-analytics pattern; exits 0 when none do (proven via PL-213 fixtures, no
       live binary needed).
-- [ ] **No false positives:** core primitives (`termlink_ping`, `termlink_hub_start`,
+- [x] **No false positives:** core primitives (`termlink_ping`, `termlink_hub_start`,
       `termlink_agent_top_thread_starters`, `termlink_event_poll`) do NOT fire even
       though naive substring patterns (`_pin`⊂`_ping`, `_star`⊂`_start`) would — proven
       by a fixture that includes them as live tools and expects exit 0.
-- [ ] Appends framed entries (`=== <ts> === … ---`) to
+- [x] Appends framed entries (`=== <ts> === … ---`) to
       `.context/working/.charter-drift-canary.log` on firing and touches a
       `.heartbeat` companion, matching the 11-canary convention (empty log = healthy,
       `/canaries` auto-discovers it).
-- [ ] `scripts/test-charter-drift-freshness.sh` covers healthy / firing / false-
+- [x] `scripts/test-charter-drift-freshness.sh` covers healthy / firing / false-
       positive-exclusion / tooling-error via fixtures; prints `PASS`/`FAIL`; all pass.
-- [ ] Runs green against the REAL installed binary today: exit 0 (0 live off-charter
+- [x] Runs green against the REAL installed binary today: exit 0 (0 live off-charter
       tools) — recorded in the task Updates.
-- [ ] Cron file `.context/cron/charter-drift-canary.crontab` created AND installed to
+- [x] Cron file `.context/cron/charter-drift-canary.crontab` created AND installed to
       `/etc/cron.d/` (pre-push audit requires installed canary crontabs), and a
       CLAUDE.md §"charter-drift canary" section added matching the other 11.
 
@@ -137,6 +137,19 @@ test -f .context/cron/charter-drift-canary.crontab
   to `/etc/cron.d/termlink-charter-drift-canary` (+ meta-canary line); (3) add the
   CLAUDE.md §"charter-drift canary" section. Do NOT mark work-completed until (1)-(3)
   done and the completion gate (P-011) passes. Committed under this task for safety.
+
+### 2026-08-02 — verification COMPLETE (all 3 pending steps done)
+- **(1) Tests:** `bash scripts/test-charter-drift-freshness.sh` → `test-charter-drift: PASS`
+  (8/8 cases: healthy / firing-react / firing-star-undeprecated / false-positive-guard /
+  unparseable / empty / json-firing-envelope / --help-documents-charter). Live
+  `check-charter-drift-freshness.sh --quiet` → exit 0; verbose → `healthy — 0 live
+  off-charter tools (214 live tools scanned)` (confirms P4 deprecation is live in the
+  installed binary).
+- **(2) Cron:** `.context/cron/charter-drift-canary.crontab` created (main check 08:17 UTC
+  + meta-canary aliveness 08:47 UTC) and installed to
+  `/etc/cron.d/termlink-charter-drift-canary`.
+- **(3) Docs:** CLAUDE.md §"Charter-drift canary (T-2483, G-019...)" added as the 12th canary.
+- All 7 Agent ACs ticked; P-011 Verification block passes. Ready for work-completed.
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.

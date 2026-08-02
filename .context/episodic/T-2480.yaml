@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2480: P3a — arc-closure capability-live gate (T-2477, G-069)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-01T21:54:25Z
+# ============================================================================
+
+task_id: T-2480
+task_name: "P3a — arc-closure capability-live gate (T-2477, G-069)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-01T21:18:36Z
+completed: 2026-08-01T21:54:20Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-08-01T23:54:13+02:00
+last_commit: 2026-08-01T23:54:13+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  arc-live-probe.sh — shipped==live gate (P3a, G-069); reuses T-2359/T-2415 probes, fail-closed, 14/14 tests, live-validated
+
+# Key outcomes
+outcomes:
+  - '`scripts/arc-live-probe.sh` exists, is executable, and `--help` documents the'
+  - 'Version assertion: with `--min-version X`, the probe exits **1** when the'
+  - 'Capability assertion: with `--capability <cv-keys|field:NAME>`, the'
+  - '**Fail-closed:** an unreachable or unparseable hub exits **2** (tooling'
+  - '`scripts/test-arc-live-probe.sh` covers all three assertion types + the'
+  - '`docs/operations/shipped-equals-live-gate.md` documents the convention'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'docs/operations/shipped-equals-live-gate.md'
+  - 'scripts/arc-live-probe.sh'
+  - 'scripts/test-arc-live-probe.sh'
+  - '.tasks/active/T-2480-p3a--arc-closure-capability-live-gate-t-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-01T23:54:13"
+    action: "T-2480: arc-live-probe.sh — shipped==live gate (P3a, G-069); reuses T-2359/T-2415 probes, fail-closed, 14/14 tests, live-validated"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 35 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 35
+  commits: 1
+  files_changed: 5
+  lines_added: 505
+  lines_removed: 7
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2480-p3a--arc-closure-capability-live-gate-t-.md
+generated_by: context-agent-hybrid

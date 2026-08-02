@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2482: comms round-trip self-test — staged discover/send/consume PASS-FAIL prover
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-01T22:55:04Z
+# ============================================================================
+
+task_id: T-2482
+task_name: "comms round-trip self-test — staged discover/send/consume PASS-FAIL prover"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-01T22:47:36Z
+completed: 2026-08-01T22:54:59Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-02T00:54:23+02:00
+last_commit: 2026-08-02T00:54:58+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  comms-selftest.sh — staged discover/send/consume round-trip prover (affirmative complement to the 11 canaries); 13/13 tests, live-validated (broken_stage=CONSUME vs aef). add RCA (observability was all after-the-fact; no affirmative round-trip prover)
+
+# Key outcomes
+outcomes:
+  - '`scripts/comms-selftest.sh` exists, is executable, and `--help` documents the'
+  - 'Emits a **per-stage PASS/FAIL** breakdown (DISCOVER, SEND, CONSUME) and, on'
+  - '**DISCOVER attribution:** a dead/absent peer → DISCOVER=FAIL(dead) and STOP'
+  - '**SEND+CONSUME attribution:** maps `agent-send.sh`''s collapsed exit code —'
+  - '`--discover-only` runs the side-effect-free DISCOVER stage alone (asserts the'
+  - '`scripts/test-comms-selftest.sh` covers all-green, each stage-fail, discover'
+  - 'Documented: `docs/operations/comms-selftest.md` (what it proves, how it'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'docs/operations/comms-selftest.md'
+  - 'scripts/comms-selftest.sh'
+  - 'scripts/test-comms-selftest.sh'
+  - '.tasks/active/T-2482-comms-round-trip-self-test--staged-disco.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-02T00:54:23"
+    action: "T-2482: comms-selftest.sh — staged discover/send/consume round-trip prover (affirmative complement to the 11 canaries); 13/13 tests, live-validated (broken_stage=CONSUME vs aef)"
+  - time: "2026-08-02T00:54:58"
+    action: "T-2482: add RCA (observability was all after-the-fact; no affirmative round-trip prover)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 2
+  files_changed: 5
+  lines_added: 653
+  lines_removed: 14
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2482-comms-round-trip-self-test--staged-disco.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,30 @@
+# T-2483 — Charter-drift detection canary (G-019 breadth-accretion prevention)
+# Source of truth: /opt/termlink/.context/cron/charter-drift-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-charter-drift-canary (USER field syntax — do NOT load into a user crontab)
+#
+# WHY: the T-2468 purpose review found TermLink "over-built in breadth". P4
+# (T-2471 delete + T-2478 deprecate) pruned 52 charter-untraceable social-analytics
+# tools (reactions / emoji / stars / pins / typing / polls). NOTHING prevented that
+# breadth from re-accreting — the only correction was a human periodically asking for
+# a hand review, and that recurring manual review IS the symptom of a missing
+# structural check (G-019: fix why the framework was blind, not just the instance).
+#
+# This is the 12th canary (empty log = healthy). It reads `termlink help --json`
+# and FIRES (exit 1, log entry) when any LIVE (deprecated==false) MCP tool name
+# matches the off-charter social-analytics pattern — i.e. a new such tool was added
+# OR a deprecated one got its flag un-marked. After P4 that set is empty.
+#
+# Operator action on firing: deprecate the named tool(s) (mirror the remote_inbox_*
+# T-1166 convention per docs/operations/p4-surface-reduction.md), or — if one
+# genuinely traces to a charter verb — rename it / adjust the pattern. See docs/CHARTER.md.
+# Ad-hoc check: `bash scripts/check-charter-drift-freshness.sh`. /canaries auto-discovers this log.
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 08:17 UTC — offset from the :13 stale-waker-code / :33 fleet-binary
+# neighbours in the 08:00 hour.
+17 8 * * * root cd /opt/termlink && bash scripts/check-charter-drift-freshness.sh --quiet >> .context/working/.charter-drift-canary.log 2>&1
+
+# Meta-canary (T-1723): a second daily run 30m later verifies THIS canary is still
+# firing at all — the aliveness log grows when the heartbeat is stale (canary broke).
+47 8 * * * root cd /opt/termlink && HEARTBEAT_FILE=.context/working/.charter-drift-canary.heartbeat CANARY_NAME="charter-drift canary" CANARY_PROBE_CMD="bash scripts/check-charter-drift-freshness.sh --quiet --no-heartbeat" CANARY_CRON_PATH=/etc/cron.d/termlink-charter-drift-canary bash scripts/check-canary-aliveness.sh --quiet >> .context/working/.canary-aliveness.log 2>&1

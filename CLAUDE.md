@@ -399,6 +399,40 @@ that host; or, if the hub is legitimately not a doorbell participant, set
 `FLEET_CAP_EXEMPT=<hub-name>`. `/canaries` auto-discovers the log. Pair with the ten
 canaries above — all eleven follow the same "empty-log = healthy" convention.
 
+### Charter-drift canary (T-2483, G-019 breadth-accretion prevention)
+
+The T-2468 purpose review found TermLink **over-built in breadth**. P4 (T-2471
+delete + T-2478 deprecate) pruned 52 charter-untraceable social-analytics MCP
+tools (reactions / emoji / stars / pins / typing / polls) — none of which trace
+to the charter's four verbs (discover / exchange durable messages / claim work /
+control terminal sessions). But **nothing prevented that breadth from
+re-accreting**: the only correction was a human periodically asking for a hand
+review, and that recurring manual review IS the symptom of a missing structural
+check (G-019: fix why the framework was blind, not just the instance). A daily
+cron runs `scripts/check-charter-drift-freshness.sh --quiet` (see
+`.context/cron/charter-drift-canary.crontab`) and appends to
+`.context/working/.charter-drift-canary.log`. Empty log = healthy.
+
+The canary reads `termlink help --json` — each tool object carries
+`{name, deprecated}`, where `deprecated` is derived from the registry's own
+`is_deprecated()` (so it trusts the binary's own classification and applies only
+the name pattern). It FIRES (exit 1) when any **LIVE** (`deprecated==false`) tool
+name matches the off-charter social-analytics pattern — i.e. a new such tool was
+added OR a deprecated one got its flag un-marked. After P4 that live set is empty
+(214 live tools scanned, 0 off-charter). The pattern is anchored to avoid
+false-positives on core primitives (`_pin$` not `_ping`; `_star$` not `_start` /
+`_starters`; `_poll_(start|vote|end|results)` not `event_poll`). Ad-hoc check:
+`bash scripts/check-charter-drift-freshness.sh` (exit 0 = healthy, 1 = a live
+off-charter tool, 2 = tooling error); add `--json` for scripting (carries
+`firing[]` with each offending `name`), `--no-heartbeat` (meta-canary uses it).
+Test hook `TERMLINK_CHARTER_DRIFT_TEST_JSON=<file>` feeds a canned
+`termlink help --json` for binary-independent verification (PL-213). Operator
+action on firing: deprecate the named tool(s) (mirror the `remote_inbox_*` T-1166
+convention per `docs/operations/p4-surface-reduction.md`), or — if one genuinely
+traces to a charter verb — rename it / adjust the pattern. `/canaries`
+auto-discovers the log. Pair with the eleven canaries above — all twelve follow
+the same "empty-log = healthy" convention.
+
 ## Project-Specific Rules
 
 ### Hub Auth Rotation Protocol

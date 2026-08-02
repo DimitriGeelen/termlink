@@ -4,10 +4,10 @@ name: "P3a — arc-closure capability-live gate (T-2477, G-069)"
 description: >
   T-2477 P3 part (a), GO recorded. Add a capability-live check to arc closure so 'shipped' means capability-live not just code-merged. Gate point is AEF tooling (.agentic-framework/lib/arc.sh arc_close, human-invoked per G-062) — so this is a cross-repo change via the upstream-mirror pattern, NOT a pure termlink edit. Design: arc-closing task's ## Verification gains a one-line live-probe against the primary hub (fleet doctor / cv-keys capability probe). Bounded + reversible. Scope carefully: mandatory-block vs advisory-warn is a human call (IW-1).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-01T21:18:36Z
-last_update: 2026-08-01T21:49:23Z
-date_finished: null
+last_update: 2026-08-01T21:54:20Z
+date_finished: 2026-08-01T21:54:20Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -219,3 +219,15 @@ grep -q "arc-live-probe.sh" CLAUDE.md
 ### 2026-08-01T21:49:23Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-d94d8eb2
+- **Timestamp:** 2026-08-01T21:54:21Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-01T21:54:20Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

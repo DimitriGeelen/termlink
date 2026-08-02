@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2478: P4 Stage 2 — retire CLI-entangled analytics tools (Groups A/B/D)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-01T23:14:42Z
+# ============================================================================
+
+task_id: T-2478
+task_name: "P4 Stage 2 — retire CLI-entangled analytics tools (Groups A/B/D)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-01T20:17:38Z
+completed: 2026-08-01T23:14:16Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-08-02T01:14:05+02:00
+last_commit: 2026-08-02T01:14:05+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  P4 Stage 2 — deprecate (not delete) 40 social-analytics MCP tools + 15 CLI twins; [DEPRECATED]+hint markers, hide=true, 880 tests green, zero consumers
+
+# Key outcomes
+outcomes:
+  - 'Every MCP tool in Groups A (reactions/emoji=13), B (stars/pins=16), and'
+  - 'The corresponding `help_categories()` entries carry a'
+  - 'CLI twins of the deprecated tools are hidden from `--help` via'
+  - '`cargo build -p termlink-mcp` and `cargo build -p termlink` (CLI package) both'
+  - '`cargo test -p termlink-mcp --lib` passes: **880 passed, 0 failed**; both the'
+  - 'No non-analytics consumer is broken: grep of `.claude/commands/` and `scripts/`'
+  - 'Deprecation recorded in `docs/operations/p4-surface-reduction.md` (per-group'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - 'docs/operations/p4-surface-reduction.md'
+  - '.tasks/active/T-2478-p4-stage-2--retire-cli-entangled-analyti.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-02T01:14:05"
+    action: "T-2478: P4 Stage 2 — deprecate (not delete) 40 social-analytics MCP tools + 15 CLI twins; [DEPRECATED]+hint markers, hide=true, 880 tests green, zero consumers"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 176 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 176
+  commits: 1
+  files_changed: 4
+  lines_added: 212
+  lines_removed: 86
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2478-p4-stage-2--retire-cli-entangled-analyti.md
+generated_by: context-agent-hybrid
