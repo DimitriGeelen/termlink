@@ -2745,3 +2745,10 @@ learnings:
   date: 2026-08-02
   context: Added via context agent
   application: TBD
+- id: PL-284
+  learning: "A 'let Ok(Some(x)) = fallible_read() else { break }' (let-else with a refutable Ok(Some) pattern) silently COLLAPSES three cases into 'stop': Err (read failed), Ok(None) (no more items), Ok(Some) (got one). When the read is a durable-queue head peek that deserializes (serde_json::from_str?), a single corrupt/schema-drifted head row makes peek return Err → break → the loop re-peeks it every tick and NOTHING behind it ever drains: the whole queue wedges silently behind one bad row, and the poison/dead-letter machinery (which lives AFTER a successful peek) can never reach it. Fix: replace the let-else with an explicit 3-arm match; route Err to quarantine (a non-deserializing peek_head_id + dead_letter that copies the raw blob) so the queue drains PAST the corrupt row. Rule: match ALL arms of a fallible read that gates a loop — never let a terse let-else fold 'read failed' into 'end of data'. Same no-silent-failures class as PL-283/PL-276."
+  source: P-001
+  task: T-2498
+  date: 2026-08-02
+  context: Added via context agent
+  application: TBD
