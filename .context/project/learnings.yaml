@@ -2815,3 +2815,10 @@ learnings:
   date: 2026-08-02
   context: Added via context agent
   application: TBD
+- id: PL-294
+  learning: "Hardening a durable chunked/segmented path requires THREE distinct gates, not one: element-validity (corrupt chunk, T-2489), element-naming (bad index, T-2490/T-2505), AND set-completeness (missing chunk, T-2508). 'every present element is readable' is NOT 'the set is complete' — read_dir reports a missing chunk as absence, not error, so a sparse set [0,1,2,4] passes a per-element check and gets delivered as a hole then the only copy is destroyed. When a completeness signal (complete.json) is written independently of element arrival, its presence is not proof; gate destruction on the contiguous 0..total set via a pure unit-testable helper."
+  source: P-001
+  task: T-2508
+  date: 2026-08-02
+  context: Added via context agent
+  application: TBD
