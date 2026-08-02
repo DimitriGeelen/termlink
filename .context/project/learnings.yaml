@@ -2766,3 +2766,10 @@ learnings:
   date: 2026-08-02
   context: Added via context agent
   application: TBD
+- id: PL-287
+  learning: "Integrity-sensitive files must be persisted atomically (write-temp-then-rename), never truncate-in-place — the Err-return path is necessary but not sufficient. termlink-session TOFU KnownHubStore::save_result used std::fs::write, which O_TRUNCs the live known_hubs file BEFORE writing; a crash/OOM-kill/power-loss/ENOSPC between truncate and write-completion leaves the file truncated on disk (NOT an Err — process death, so T-2438's Err-path warning can't catch it). Next start loads the partial file → pins vanish → next connection silently re-TOFUs (trust downgrade / MITM window). Fix: fs::write(&tmp)? then fs::rename(&tmp, &path) — POSIX rename is atomic within one fs, reader sees whole-old-or-whole-new. The crate already had this idiom (registration.rs::write_atomic, known_peers.rs, agent_identity.rs); the TOFU store was the divergent one. Rule: when hardening a persistence path against 'lost write', cover BOTH the Err return AND the mid-write-crash truncation — the second needs atomic rename, not error handling. Sibling of PL-286 (data-integrity boundary)."
+  source: P-001
+  task: T-2501
+  date: 2026-08-02
+  context: Added via context agent
+  application: TBD
