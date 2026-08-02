@@ -1,0 +1,28 @@
+# T-2484 — Charter canonical-sentence sync canary (G-019 charter-fork prevention)
+# Source of truth: /opt/termlink/.context/cron/charter-sentence-drift-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-charter-sentence-drift-canary (USER field syntax — do NOT load into a user crontab)
+#
+# WHY: P1 (T-2470) shipped docs/CHARTER.md as "the single owned statement of what
+# TermLink is". The canonical purpose sentence exists as THREE copies —
+# docs/CHARTER.md (bold), README.md (plain), docs/ARCHITECTURE.md (blockquote) —
+# and markdown has no transclusion, so editing one silently strands the other two.
+# Nothing verified they stay identical: the charter, anchor of the whole T-2468 arc,
+# was not load-bearing for its own consistency claim (G-019).
+#
+# This is the 13th canary (empty log = healthy). It extracts + normalizes the
+# sentence from all three files and FIRES (exit 1, log entry) if they diverge.
+# Sibling of the P8 charter-drift canary (T-2483): P8 guards the TOOL SURFACE
+# against off-charter breadth; THIS guards the CHARTER SENTENCE against forking.
+#
+# Operator action on firing: docs/CHARTER.md is authoritative (human-blessed) — bring
+# README.md + docs/ARCHITECTURE.md back into agreement with it. Ad-hoc check:
+# `bash scripts/check-charter-sentence-drift.sh`. /canaries auto-discovers this log.
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 09:07 UTC — offset from the 08:17/08:47 charter-drift (P8) neighbours.
+7 9 * * * root cd /opt/termlink && bash scripts/check-charter-sentence-drift.sh --quiet >> .context/working/.charter-sentence-drift-canary.log 2>&1
+
+# Meta-canary (T-1723): a second daily run 30m later verifies THIS canary is still
+# firing at all — the aliveness log grows when the heartbeat is stale (canary broke).
+37 9 * * * root cd /opt/termlink && HEARTBEAT_FILE=.context/working/.charter-sentence-drift-canary.heartbeat CANARY_NAME="charter-sentence-drift canary" CANARY_PROBE_CMD="bash scripts/check-charter-sentence-drift.sh --quiet --no-heartbeat" CANARY_CRON_PATH=/etc/cron.d/termlink-charter-sentence-drift-canary bash scripts/check-canary-aliveness.sh --quiet >> .context/working/.canary-aliveness.log 2>&1

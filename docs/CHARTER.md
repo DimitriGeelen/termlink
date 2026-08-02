@@ -1,8 +1,11 @@
 # TermLink Charter
 
 > The single owned statement of what TermLink is — and deliberately is not.
-> README and `docs/ARCHITECTURE.md` both quote the canonical sentence below; edit
-> it here and the docs follow by reference. Origin: T-2468 P1 / T-2470.
+> README and `docs/ARCHITECTURE.md` both carry a copy of the canonical sentence
+> below (markdown has no transclusion, so they are copies, not references). The
+> three copies are kept in sync by a canary — `scripts/check-charter-sentence-drift.sh`
+> (T-2484) fires if any diverges. Edit the sentence here (it is authoritative), then
+> re-sync the two copies. Origin: T-2468 P1 / T-2470.
 
 ## Canonical purpose
 

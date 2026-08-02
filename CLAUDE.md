@@ -433,6 +433,39 @@ traces to a charter verb — rename it / adjust the pattern. `/canaries`
 auto-discovers the log. Pair with the eleven canaries above — all twelve follow
 the same "empty-log = healthy" convention.
 
+### Charter canonical-sentence drift canary (T-2484, G-019 charter-fork prevention)
+
+P1 (T-2470) shipped `docs/CHARTER.md` as "the single owned statement of what
+TermLink is". The canonical purpose sentence exists as **three copies** —
+`docs/CHARTER.md` (bold, line-wrapped), `README.md` (plain), `docs/ARCHITECTURE.md`
+(blockquote `> …`) — and markdown has no transclusion, so editing one silently
+strands the other two. The charter's header even *claimed* "the docs follow by
+reference" (mechanically false — they are copies). **Nothing verified the three
+stayed identical**, so the charter — anchor of the entire T-2468 arc — was not
+load-bearing for its own consistency claim (G-019: fix why the framework was blind).
+A daily cron runs `scripts/check-charter-sentence-drift.sh --quiet` (see
+`.context/cron/charter-sentence-drift-canary.crontab`) and appends to
+`.context/working/.charter-sentence-drift-canary.log`. Empty log = healthy.
+
+The canary extracts the canonical sentence from all three files, **normalizes** away
+the per-file decorations (CHARTER's `**bold**` + line-wrapping, ARCHITECTURE's
+blockquote prefix, whitespace/newline collapse), and FIRES (exit 1) if they diverge.
+Extraction is by a unique anchor phrase truncated at the first `machines` (pure bash
+param-expansion, no PCRE) — deliberately NOT a hardcoded full sentence (that would
+be a 4th copy to drift) and robust to README's second `…machines.`-terminated
+sentence (the greedy-match trap). A missing/unextractable file returns exit 2
+(fail-closed — never a false "in-sync"). This is the **sibling of the P8
+charter-drift canary** (T-2483): P8 guards the TOOL SURFACE against off-charter
+breadth; this guards the CHARTER SENTENCE against its three copies forking —
+together they make the charter load-bearing in both directions. Ad-hoc check:
+`bash scripts/check-charter-sentence-drift.sh` (exit 0 = in-sync, 1 = drift,
+2 = tooling); add `--no-heartbeat` (meta-canary uses it). Test hook
+`CHARTER_SENTENCE_REPO_ROOT=<dir>` points the three-file read at a fixture repo for
+host-independent verification (PL-213). Operator action on firing: `docs/CHARTER.md`
+is authoritative (human-blessed) — bring `README.md` + `docs/ARCHITECTURE.md` back
+into agreement. `/canaries` auto-discovers the log. Pair with the twelve canaries
+above — all thirteen follow the same "empty-log = healthy" convention.
+
 ## Project-Specific Rules
 
 ### Hub Auth Rotation Protocol
