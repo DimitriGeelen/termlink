@@ -60,6 +60,9 @@ pub struct PtySession {
     scrollback: Arc<Mutex<ScrollbackBuffer>>,
     /// Whether the terminal is in alternate screen buffer mode.
     alternate_screen: Arc<Mutex<bool>>,
+    /// Rolling tail of the last read (< one escape-sequence length) so an
+    /// alternate-screen sequence split across a read boundary is still detected.
+    scan_carry: Arc<Mutex<Vec<u8>>>,
     /// Last known terminal mode (for change detection).
     last_mode: Arc<Mutex<Option<TerminalMode>>>,
 }
@@ -179,6 +182,7 @@ impl PtySession {
             child_pid: pid as u32,
             scrollback: Arc::new(Mutex::new(ScrollbackBuffer::new(scrollback_bytes))),
             alternate_screen: Arc::new(Mutex::new(false)),
+            scan_carry: Arc::new(Mutex::new(Vec::new())),
             last_mode: Arc::new(Mutex::new(None)),
         })
     }
@@ -224,7 +228,8 @@ impl PtySession {
                     let chunk = &buf[..n];
 
                     // Scan for alternate screen buffer escape sequences
-                    Self::scan_alternate_screen(chunk, &self.alternate_screen).await;
+                    Self::scan_alternate_screen(chunk, &self.alternate_screen, &self.scan_carry)
+                        .await;
 
                     let mut scrollback = self.scrollback.lock().await;
                     scrollback.append(chunk);
@@ -377,19 +382,50 @@ impl PtySession {
     /// Scan output bytes for alternate screen buffer escape sequences.
     ///
     /// `\x1b[?1049h` enters alternate screen, `\x1b[?1049l` leaves it.
-    async fn scan_alternate_screen(chunk: &[u8], alt_screen: &Arc<Mutex<bool>>) {
-        // Look for the escape sequences in the chunk
+    ///
+    /// A single PTY read may deliver one of these 8-byte sequences in a chunk
+    /// shorter than the sequence, or split across a read boundary. Scanning each
+    /// chunk in isolation (`chunk.windows(8)`) would silently miss both cases, so
+    /// we prepend a rolling carry of the trailing `seq_len - 1` bytes from prior
+    /// reads and scan `[carry || chunk]`. Because the carry is strictly shorter
+    /// than a full sequence, no 8-byte window can lie entirely within it — a
+    /// sequence already applied in a previous chunk can never be re-detected, so
+    /// there is no double-counting.
+    async fn scan_alternate_screen(
+        chunk: &[u8],
+        alt_screen: &Arc<Mutex<bool>>,
+        carry: &Arc<Mutex<Vec<u8>>>,
+    ) {
         let enter_seq = b"\x1b[?1049h";
         let leave_seq = b"\x1b[?1049l";
+        let seq_len = enter_seq.len(); // 8
+
+        let mut carry_guard = carry.lock().await;
+
+        // Combined = trailing bytes carried from prior reads, then this read.
+        let mut combined = Vec::with_capacity(carry_guard.len() + chunk.len());
+        combined.extend_from_slice(&carry_guard);
+        combined.extend_from_slice(chunk);
 
         let mut changed = None;
-        for window in chunk.windows(enter_seq.len()) {
+        for window in combined.windows(seq_len) {
             if window == enter_seq {
                 changed = Some(true);
             } else if window == leave_seq {
                 changed = Some(false);
             }
         }
+
+        // Retain the last seq_len-1 bytes so a sequence straddling the next read
+        // boundary is still completed on the following call.
+        let keep = seq_len - 1;
+        if combined.len() > keep {
+            let start = combined.len() - keep;
+            *carry_guard = combined[start..].to_vec();
+        } else {
+            *carry_guard = combined;
+        }
+        drop(carry_guard);
 
         if let Some(new_state) = changed {
             let mut state = alt_screen.lock().await;
@@ -568,14 +604,68 @@ mod tests {
     #[tokio::test]
     async fn alternate_screen_detection() {
         let alt_screen = Arc::new(Mutex::new(false));
+        let carry = Arc::new(Mutex::new(Vec::new()));
 
         // Simulate entering alternate screen
-        PtySession::scan_alternate_screen(b"\x1b[?1049h", &alt_screen).await;
+        PtySession::scan_alternate_screen(b"\x1b[?1049h", &alt_screen, &carry).await;
         assert!(*alt_screen.lock().await, "Should detect alternate screen enter");
 
         // Simulate leaving alternate screen
-        PtySession::scan_alternate_screen(b"\x1b[?1049l", &alt_screen).await;
+        PtySession::scan_alternate_screen(b"\x1b[?1049l", &alt_screen, &carry).await;
         assert!(!*alt_screen.lock().await, "Should detect alternate screen leave");
+    }
+
+    /// T-2513: the enter sequence split across two reads must still be detected.
+    /// FAILS against the old per-chunk `chunk.windows(8)` logic (neither chunk
+    /// contains the whole 8-byte sequence).
+    #[tokio::test]
+    async fn alternate_screen_detection_split_across_reads() {
+        let alt_screen = Arc::new(Mutex::new(false));
+        let carry = Arc::new(Mutex::new(Vec::new()));
+
+        // "\x1b[?1049h" split as "\x1b[?104" (6 bytes) then "9h" (2 bytes).
+        PtySession::scan_alternate_screen(b"\x1b[?104", &alt_screen, &carry).await;
+        assert!(
+            !*alt_screen.lock().await,
+            "Partial sequence must not trigger detection yet"
+        );
+        PtySession::scan_alternate_screen(b"9h", &alt_screen, &carry).await;
+        assert!(
+            *alt_screen.lock().await,
+            "Sequence completed across the read boundary should flip state to true"
+        );
+
+        // Same for the leave sequence, split differently.
+        PtySession::scan_alternate_screen(b"\x1b[?10", &alt_screen, &carry).await;
+        PtySession::scan_alternate_screen(b"49l", &alt_screen, &carry).await;
+        assert!(
+            !*alt_screen.lock().await,
+            "Leave sequence completed across the read boundary should flip state to false"
+        );
+    }
+
+    /// T-2513: the sequence delivered one byte per read (each chunk < seq_len, so
+    /// `windows(8)` yields an empty iterator) must still be detected.
+    #[tokio::test]
+    async fn alternate_screen_detection_byte_at_a_time() {
+        let alt_screen = Arc::new(Mutex::new(false));
+        let carry = Arc::new(Mutex::new(Vec::new()));
+
+        for b in b"\x1b[?1049h" {
+            PtySession::scan_alternate_screen(&[*b], &alt_screen, &carry).await;
+        }
+        assert!(
+            *alt_screen.lock().await,
+            "Byte-at-a-time enter sequence should flip state to true"
+        );
+
+        for b in b"\x1b[?1049l" {
+            PtySession::scan_alternate_screen(&[*b], &alt_screen, &carry).await;
+        }
+        assert!(
+            !*alt_screen.lock().await,
+            "Byte-at-a-time leave sequence should flip state to false"
+        );
     }
 
     #[tokio::test]

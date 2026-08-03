@@ -1,8 +1,8 @@
-# Audit Results - 2026-08-03-0043
-timestamp: 2026-08-02T22:43:51Z
+# Audit Results - 2026-08-03-1849
+timestamp: 2026-08-03T16:49:17Z
 sections: "structure"
 summary:
-  pass: 35
+  pass: 34
   warn: 3
   fail: 0
 findings:
@@ -83,5 +83,3 @@ findings:
     check: "Hook threshold: no hooks failing over threshold"
   - level: PASS
     check: "Secret scan: tracked tree clean"
-  - level: PASS
-    check: "Large-file gate: tracked tree clean"

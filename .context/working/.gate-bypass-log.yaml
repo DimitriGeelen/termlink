@@ -2350,3 +2350,11 @@ Firing #13: drained the sibli'
   caller: 'check-active-task focus-drift'
   target: 'T-2491'
   command: 'git add -A && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2491: complete — episodic + learning (inline-defaulted fallible read hides a wrong default; extract one fail-closed helper)'
+- timestamp: '2026-08-02T23:51:37Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2508'
+  command: 'cd /opt/termlink
+git add .context/project/learnings.yaml
+FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2508: capture PL-294 (durable chunked paths need 3 gates — validity/naming/compl'

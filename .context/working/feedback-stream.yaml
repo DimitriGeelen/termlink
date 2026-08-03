@@ -5778,3 +5778,93 @@ scan_id: R-965f5f7c
 task_id: T-2507
 payload:
   task_file: .tasks/active/T-2507-wait-for-peer-ack-count-anchored-read-false-negative.md
+---
+kind: scan_emitted
+timestamp: '2026-08-02T23:50:54Z'
+scan_id: R-8a4026ca
+task_id: T-2508
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-02T23:50:54Z'
+scan_id: R-8a4026ca
+task_id: T-2508
+payload:
+  task_file: .tasks/active/T-2508-inbox-delivers-partial-transfer-when-a-c.md
+---
+kind: scan_emitted
+timestamp: '2026-08-03T12:14:02Z'
+scan_id: R-a273fffb
+task_id: T-2509
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-03T12:14:02Z'
+scan_id: R-a273fffb
+task_id: T-2509
+payload:
+  task_file: .tasks/active/T-2509-termlink-exec-orphans-child-on-timeout--.md
+---
+kind: scan_emitted
+timestamp: '2026-08-03T12:25:58Z'
+scan_id: R-921fc353
+task_id: T-2510
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-03T12:25:58Z'
+scan_id: R-921fc353
+task_id: T-2510
+payload:
+  task_file: .tasks/active/T-2510-channel-renew-can-shorten-an-active-clai.md
+---
+kind: scan_emitted
+timestamp: '2026-08-03T16:31:04Z'
+scan_id: R-6b70a707
+task_id: T-2512
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-03T16:31:04Z'
+scan_id: R-6b70a707
+task_id: T-2512
+payload:
+  task_file: .tasks/active/T-2512-channel-post-accept-positional-body-as--.md
+---
+kind: scan_emitted
+timestamp: '2026-08-03T16:31:56Z'
+scan_id: R-f4066c61
+task_id: T-2511
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-03T16:31:56Z'
+scan_id: R-f4066c61
+task_id: T-2511
+payload:
+  task_file: .tasks/active/T-2511-e2e-charter-verb-validation-walkthrough-.md
