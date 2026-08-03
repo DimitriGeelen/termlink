@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2518: hub line transport buffers request lines unbounded (pre-auth OOM DoS) — no max-line cap on BufReader::lines
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-03T22:01:48Z
+# ============================================================================
+
+task_id: T-2518
+task_name: "hub line transport buffers request lines unbounded (pre-auth OOM DoS) — no max-line cap on BufReader::lines"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-03T21:56:25Z
+completed: 2026-08-03T22:01:39Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-08-04T00:01:33+02:00
+last_commit: 2026-08-04T00:01:33+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  bound hub line-transport request lines at MAX_PAYLOAD_SIZE — fixes pre-auth unbounded-line OOM DoS (campaign firing #37)
+
+# Key outcomes
+outcomes:
+  - '`handle_line_connection` no longer uses uncapped `.lines()`/`next_line()`;'
+  - 'Existing line-transport behaviour preserved for well-formed clients:'
+  - 'A load-bearing unit test (`read_capped_line_rejects_overlong`) feeds a'
+  - 'A companion test (`read_capped_line_reads_normal_lines`) asserts normal'
+  - '`cargo build --release -p termlink-hub` compiles and the new'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'bound hub line-transport request lines at MAX_PAYLOAD_SIZE — fixes pre-auth unbounded-line OOM DoS (campaign firing #37)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-hub/src/server.rs'
+  - '.tasks/active/T-2518-hub-line-transport-buffers-request-lines.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-04T00:01:33"
+    action: "T-2518: bound hub line-transport request lines at MAX_PAYLOAD_SIZE — fixes pre-auth unbounded-line OOM DoS (campaign firing #37)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 2
+  lines_added: 366
+  lines_removed: 3
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2518-hub-line-transport-buffers-request-lines.md
+generated_by: context-agent-hybrid
