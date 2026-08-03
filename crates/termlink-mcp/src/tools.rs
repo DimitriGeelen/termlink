@@ -10983,6 +10983,21 @@ fn latest_description_mcp(msgs: &[serde_json::Value]) -> Option<(u64, String)> {
 // Cargo.toml) fails with:
 //   error[E0624]: associated function `tool_router` is private
 //
+/// T-2519: boundary-safe "output since a prior snapshot" for `termlink_interact`.
+/// `pre_len` is the byte length of an independently `from_utf8_lossy`-decoded
+/// pre-injection snapshot, so it may fall mid-multibyte-char inside `full` — a raw
+/// `&full[pre_len..]` slice would then panic ("byte index N is not a char
+/// boundary"). `str::get` returns `None` for an out-of-range OR non-boundary index,
+/// so we fall back to the full string instead of panicking. Behaviour preserved
+/// for the common case (a valid boundary ≤ len yields exactly the suffix).
+fn output_delta(full: &str, pre_len: usize) -> &str {
+    if full.len() > pre_len {
+        full.get(pre_len..).unwrap_or(full)
+    } else {
+        full
+    }
+}
+
 // Explicit `vis = "pub(crate)"` makes the generated method callable from the
 // impl block in server.rs, regardless of which rmcp-macros version resolves.
 // Works under rmcp-macros 1.3.x (field-access path ignores the method) AND
@@ -12060,12 +12075,10 @@ impl TermLinkTools {
                 Err(e) => return json_err(format!("poll failed: {e}")),
             };
 
-            // Diff against pre-injection snapshot
-            let output = if full_output.len() > pre_len {
-                &full_output[pre_len..]
-            } else {
-                &full_output
-            };
+            // Diff against pre-injection snapshot (T-2519: boundary-safe — pre_len
+            // is the byte-len of an independently utf8-lossy-decoded snapshot and
+            // may fall mid-char in full_output; a raw byte slice would panic).
+            let output = output_delta(&full_output, pre_len);
 
             let marker_with_exit = format!("{marker} exit=");
             let has_marker = output.contains(&marker_with_exit) && {
@@ -37116,6 +37129,26 @@ YW\tJ
         });
         let p: InteractParams = serde_json::from_value(json).unwrap();
         assert_eq!(p.task_id.as_deref(), Some("T-300"));
+    }
+
+    // T-2519: output_delta must never panic on a pre_len that falls mid-char.
+    // Load-bearing: revert the helper body to `&full[pre_len..]` and the
+    // non-boundary case below panics ("byte index 3 is not a char boundary").
+    #[test]
+    fn output_delta_handles_non_char_boundary() {
+        let full = "éé"; // 4 bytes: [C3 A9][C3 A9]
+        // pre_len=3 lands inside the second 'é' — must NOT panic, falls back to full.
+        assert_eq!(output_delta(full, 3), full);
+        // Valid boundary after the first 'é' (2 bytes) → exact suffix.
+        assert_eq!(output_delta(full, 2), "é");
+        // Boundary 0 → whole string.
+        assert_eq!(output_delta(full, 0), full);
+        // pre_len == len → nothing new after; the `> pre_len` guard returns full.
+        assert_eq!(output_delta(full, 4), full);
+        // pre_len past end → fall back to full (no panic).
+        assert_eq!(output_delta(full, 99), full);
+        // ASCII sanity: normal suffix slice.
+        assert_eq!(output_delta("hello world", 6), "world");
     }
 
     #[test]
