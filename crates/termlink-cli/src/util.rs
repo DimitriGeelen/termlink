@@ -52,11 +52,14 @@ pub(crate) fn strip_ansi_codes(s: &str) -> String {
 }
 
 pub(crate) fn truncate(s: &str, max: usize) -> String {
-    if s.len() <= max {
-        s.to_string()
-    } else {
-        format!("{}…", &s[..max - 1])
+    if s.chars().count() <= max {
+        return s.to_string();
     }
+    if max == 0 {
+        return String::new();
+    }
+    let head: String = s.chars().take(max - 1).collect();
+    format!("{head}…")
 }
 
 pub(crate) fn parse_signal(s: &str) -> Option<i32> {
@@ -257,6 +260,24 @@ mod tests {
     #[test]
     fn truncate_empty_string() {
         assert_eq!(truncate("", 10), "");
+    }
+
+    /// T-2514: a multi-byte char straddling the byte cut point must not panic.
+    /// The old `&s[..max-1]` byte-slice panics ("not a char boundary") here.
+    #[test]
+    fn truncate_multibyte_no_panic() {
+        // 17 ASCII 'a', then 'é' (2 bytes) straddling byte index 18.
+        let s = "aaaaaaaaaaaaaaaaaé more";
+        let out = truncate(s, 19);
+        assert_eq!(out.chars().count(), 19);
+        assert!(out.ends_with('…'));
+    }
+
+    /// T-2514: max == 0 must not underflow `max - 1`.
+    #[test]
+    fn truncate_zero_max_no_underflow() {
+        assert_eq!(truncate("", 0), "");
+        assert_eq!(truncate("abc", 0), "");
     }
 
     // --- parse_signal tests ---

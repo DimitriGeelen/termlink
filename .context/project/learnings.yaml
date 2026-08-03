@@ -2850,3 +2850,10 @@ learnings:
   date: 2026-08-03
   context: Added via context agent
   application: TBD
+- id: PL-299
+  learning: "A display/format helper that compares a BYTE length (s.len()) then byte-slices a &str (&s[..n]) is a latent UTF-8 panic: any multi-byte char straddling index n crashes with 'not a char boundary', and n from max-1 underflows at max==0. Operate in CHAR units (s.chars().count() / s.chars().take()). ASCII-only tests never exercise the panic path — the load-bearing regression test MUST feed a multi-byte char straddling the cut point. User-controlled strings (session name/capability/role, hubs.toml profile names) reach these helpers on everyday list/pick commands."
+  source: P-001
+  task: T-2514
+  date: 2026-08-03
+  context: Added via context agent
+  application: TBD
