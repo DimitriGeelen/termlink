@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-03T18:40:48Z
-last_update: 2026-08-03T18:40:48Z
+last_update: 2026-08-03T18:44:06Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -85,10 +85,10 @@ the rest of the HTTP upgrade; assert the hub closes within the handshake timeout
 ## Acceptance Criteria
 
 ### Agent
-- [ ] AC1: `tokio_tungstenite::accept_async(stream)` in `handle_ws_connection` (server.rs ~1067) is wrapped in `tokio::time::timeout(conn_handshake_timeout(), ...)` — a stalled WS upgrade can no longer pin the task or its `ConnSlotGuard`.
-- [ ] AC2: The timeout arm emits a `tracing::warn!` carrying the unique marker `T-2516 conn-cap DoS guard`; on timeout the stream is dropped and the governor slot is reclaimed on task return.
-- [ ] AC3: Regression test `ws_handshake_timeout_reclaims_slot` — raw-TCP accept loop + a client that sends only `'G'` then withholds the rest of the upgrade — asserts the hub closes the connection within the handshake timeout (EOF/reset within 2s). Proven load-bearing: temp-revert to the un-timed `accept_async` makes it hang to its 2s read-timeout and FAIL.
-- [ ] AC4: `cargo build --release -p termlink-hub` clean AND the new test passes (`cargo test -p termlink-hub --lib ws_handshake_timeout_reclaims_slot`).
+- [x] AC1: `tokio_tungstenite::accept_async(stream)` in `handle_ws_connection` (server.rs ~1067) is wrapped in `tokio::time::timeout(conn_handshake_timeout(), ...)` — a stalled WS upgrade can no longer pin the task or its `ConnSlotGuard`.
+- [x] AC2: The timeout arm emits a `tracing::warn!` carrying the unique marker `T-2516 conn-cap DoS guard`; on timeout the stream is dropped and the governor slot is reclaimed on task return.
+- [x] AC3: Regression test `ws_handshake_timeout_reclaims_slot` — raw-TCP accept loop + a client that sends only `'G'` then withholds the rest of the upgrade — asserts the hub closes the connection within the handshake timeout (EOF/reset within 2s). Proven load-bearing: temp-revert to the un-timed `accept_async` makes it hang to its 2s read-timeout and FAIL.
+- [x] AC4: `cargo build --release -p termlink-hub` clean AND the new test passes (`cargo test -p termlink-hub --lib ws_handshake_timeout_reclaims_slot`).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
