@@ -1711,6 +1711,27 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn renew_claim_never_shortens_long_lease() {
+        // Regression (T-2510): a renew must NEVER move the deadline earlier.
+        // Worker grabs a slot with a LONG ttl (1h), then renews with a SMALL
+        // additional_ttl_ms (the 30s CLI/`/renew` default). The old absolute-set
+        // (`now + additional`) would cut the 1h lease down to ~30s, reopening the
+        // slot mid-work → double-dispatch. With the monotonic clamp the deadline
+        // must not regress.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("work", Retention::Forever).unwrap();
+        bus.post("work", &env("work", b"m0")).await.unwrap();
+        let initial = bus.claim_offset("work", 0, "worker-A", 3_600_000).unwrap();
+        let renewed = bus.renew_claim(&initial.claim_id, "worker-A", 30_000).unwrap();
+        assert!(
+            renewed.claimed_until >= initial.claimed_until,
+            "renew SHORTENED the lease: old={}, new={} (must be monotonic-forward)",
+            initial.claimed_until,
+            renewed.claimed_until,
+        );
+    }
+
+    #[tokio::test]
     async fn renew_on_expired_claim_returns_claim_expired() {
         // 1ms TTL + 20ms sleep guarantees we cross the deadline. Renew
         // must refuse with ClaimExpired (NOT ClaimNotFound — the client

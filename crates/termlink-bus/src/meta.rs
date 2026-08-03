@@ -607,8 +607,9 @@ impl Meta {
     /// (1) row must exist, (2) row must NOT be past `claimed_until` (else
     /// `ClaimExpired` — and the stale row is lazily evicted so a follow-up
     /// `claim_offset` can succeed), (3) `claimed_by == claimer`. On success
-    /// sets `claimed_until = now_ms + additional_ttl_ms` and returns the
-    /// refreshed `ClaimInfo`.
+    /// sets `claimed_until = max(now_ms + additional_ttl_ms, old_until)` —
+    /// monotonic-forward, so a renew never shortens an active lease (T-2510) —
+    /// and returns the refreshed `ClaimInfo`.
     pub(crate) fn renew_claim(
         &self,
         claim_id: &str,
@@ -652,7 +653,14 @@ impl Meta {
                 attempted_by: claimer.to_string(),
             });
         }
-        let new_until = now_ms.saturating_add(i64::from(additional_ttl_ms));
+        // Monotonic-forward: a renew must never move the deadline EARLIER. Setting
+        // `now + additional_ttl_ms` absolutely would SHORTEN a long-lived lease when
+        // additional_ttl_ms is small (e.g. the 30s CLI default renewing a 1h lease),
+        // reopening the slot mid-work → double-dispatch. Clamp to old_until so renew
+        // only ever extends (same invariant as the cursor MAX-upsert). T-2510.
+        let new_until = now_ms
+            .saturating_add(i64::from(additional_ttl_ms))
+            .max(old_until);
         tx.execute(
             "UPDATE claims SET claimed_until = ?1 WHERE claim_id = ?2",
             params![new_until, claim_id],
