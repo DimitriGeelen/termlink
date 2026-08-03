@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-03T12:23:16Z
-last_update: 2026-08-03T12:23:16Z
+last_update: 2026-08-03T12:25:23Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -45,12 +45,13 @@ TTL (where now+additional happens to exceed old_until), so the shortening case i
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `renew_claim` computes `new_until = (now_ms + additional_ttl_ms).max(old_until)` — a renew
+- [x] `renew_claim` computes `new_until = (now_ms + additional_ttl_ms).max(old_until)` — a renew
       never moves the deadline earlier (monotonic-forward, matching the cursor MAX-upsert invariant)
-- [ ] Regression test: claim with a LONG ttl, renew with a SMALL additional_ttl_ms shortly after;
+- [x] Regression test: claim with a LONG ttl, renew with a SMALL additional_ttl_ms shortly after;
       assert `renewed.claimed_until >= initial.claimed_until` (today it is SMALLER)
-- [ ] Existing `renew_claim_extends_claimed_until_past_original_deadline` still passes
-- [ ] `cargo test -p termlink-bus --lib` passes
+      (`renew_claim_never_shortens_long_lease`; proven load-bearing — FAILS without the clamp)
+- [x] Existing `renew_claim_extends_claimed_until_past_original_deadline` still passes
+- [x] `cargo test -p termlink-bus --lib` passes (101 passed)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -121,15 +122,27 @@ grep -q "max(old_until)" crates/termlink-bus/src/meta.rs
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** A worker holding a long lease (e.g. `claim ... --ttl-ms 3600000`) that calls
+`channel renew` with the default small extension (`/renew` defaults `additional_ttl_ms=30000`)
+has its lease *shortened* from 1h to 30s. The slot then lazily expires ~30s later while the
+worker is still processing; another `find-idle`→`claim` worker acquires the same offset and the
+unit is processed twice — the exact double-dispatch the claim primitive exists to prevent.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** `renew_claim` set `claimed_until = now_ms + additional_ttl_ms` absolutely,
+discarding the existing `old_until`. "renew/extend" is only a true extension when
+`additional_ttl_ms` exceeds the *remaining* lease; for a long lease + small renew it moves the
+deadline backward. The doc comment's own headline said "extend the lease by additional_ttl_ms"
+and the param name says "additional" — the implementation contradicted its stated contract.
+
+**Why structurally allowed:** the sole renew test (`..._extends_..._past_original_deadline`)
+claimed a *short* 200ms TTL and renewed with a *large* 60s extension — the one regime where
+`now+additional` always exceeds `old_until`, so the absolute-set and the correct monotonic
+behavior are indistinguishable. The shortening regime (long lease, small renew) was never exercised.
+
+**Prevention:** `renew_claim_never_shortens_long_lease` claims a 1h TTL and renews with the 30s
+default, asserting `claimed_until` never regresses — it FAILS if the `.max(old_until)` clamp is
+removed (verified). Guards the "renew is monotonic-forward" invariant that mirrors the cursor
+MAX-upsert and receipt monotonic-frontier already in the codebase (PL-296).
 
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
