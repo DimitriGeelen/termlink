@@ -2864,3 +2864,10 @@ learnings:
   date: 2026-08-03
   context: Added via context agent
   application: TBD
+- id: PL-301
+  learning: "Inbound size-bounding must be a SHARED invariant across ALL transports, not per-transport. TermLink bounded the binary codec (MAX_PAYLOAD_SIZE) and WS (tungstenite cap) but the default newline line-transport used uncapped BufReader::lines()/next_line() — a pre-auth unbounded-line OOM DoS (T-2518). When adding/extracting a transport, verify it enforces the same inbound cap as siblings; auth-after-buffering means the cap must apply BEFORE auth."
+  source: P-001
+  task: T-1452
+  date: 2026-08-03
+  context: Added via context agent
+  application: TBD
