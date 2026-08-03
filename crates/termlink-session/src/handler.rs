@@ -126,7 +126,7 @@ pub async fn dispatch(req: &Request, ctx: &SessionContext) -> Option<RpcResponse
         }
         control::method::COMMAND_INJECT => handle_command_inject(id, &req.params, ctx).await,
         control::method::COMMAND_SIGNAL => {
-            handle_command_signal(id, &req.params, &ctx.registration)
+            handle_command_signal(id, &req.params, ctx)
         }
         control::method::COMMAND_RESIZE => {
             handle_command_resize(id, &req.params, ctx)
@@ -534,10 +534,18 @@ async fn handle_command_inject(
 }
 
 /// Handle `command.signal` — send a POSIX signal to the session's process.
+///
+/// For a PTY (`--shell`) session the signal must reach the spawned shell
+/// **child** (`ctx.pty.child_pid()`), NOT `ctx.registration.pid` — the latter is
+/// `std::process::id()` (the termlink host RPC server itself, set in
+/// `Registration::new`). Targeting the host meant `signal <s> KILL` SIGKILLed the
+/// server, skipping `Drop for PtySession` and orphaning the child + leaking its
+/// PTY fd (T-2517). Non-PTY registrations (`pty: None`) keep targeting `reg.pid`,
+/// which for an external registrant is the correct, intended target.
 fn handle_command_signal(
     id: serde_json::Value,
     params: &serde_json::Value,
-    reg: &Registration,
+    ctx: &SessionContext,
 ) -> RpcResponse {
     let signal = match params
         .get("signal")
@@ -555,13 +563,20 @@ fn handle_command_signal(
         }
     };
 
-    match executor::send_signal(reg.pid, signal) {
+    // PTY sessions: target the shell child, not the host RPC server (T-2517).
+    let target_pid = ctx
+        .pty
+        .as_ref()
+        .map(|p| p.child_pid())
+        .unwrap_or(ctx.registration.pid);
+
+    match executor::send_signal(target_pid, signal) {
         Ok(()) => Response::success(
             id,
             json!({
                 "status": "sent",
                 "signal": signal,
-                "pid": reg.pid,
+                "pid": target_pid,
             }),
         )
         .into(),
@@ -1137,6 +1152,67 @@ mod tests {
             pty: None,
             events: Arc::new(Mutex::new(EventBus::new())),
             kv: HashMap::new(),
+        }
+    }
+
+    // T-2517: command.signal must target the PTY child, never the host RPC
+    // server (reg.pid == std::process::id()). Drives the full dispatch → handler
+    // path with signal 0 (a non-lethal existence probe) and asserts the resolved
+    // target reported back is the shell child, not this test process itself.
+    // Load-bearing: revert the fix (target `ctx.registration.pid`) and the
+    // returned `pid` becomes `std::process::id()` → both asserts fail.
+    #[tokio::test]
+    async fn signal_targets_pty_child_not_host() {
+        let pty = Arc::new(crate::pty::PtySession::spawn(Some("/bin/sh"), 1024).unwrap());
+        let child_pid = pty.child_pid();
+        let host_pid = std::process::id();
+        assert_ne!(child_pid, host_pid, "child must be a distinct process");
+
+        let ctx = SessionContext::with_pty(test_registration(), pty);
+        // reg.pid is the host process id — the WRONG target for a --shell session.
+        assert_eq!(ctx.registration.pid, host_pid);
+
+        let req = Request::new(
+            control::method::COMMAND_SIGNAL,
+            json!("req-sig"),
+            json!({ "signal": 0 }),
+        );
+        let resp = dispatch(&req, &ctx).await.unwrap();
+
+        match resp {
+            RpcResponse::Success(resp) => {
+                assert_eq!(resp.result["status"], "sent");
+                assert_eq!(
+                    resp.result["pid"].as_u64().unwrap(),
+                    child_pid as u64,
+                    "signal must target the PTY child, not the host"
+                );
+                assert_ne!(
+                    resp.result["pid"].as_u64().unwrap(),
+                    host_pid as u64,
+                    "signal must NOT target the termlink host process"
+                );
+            }
+            RpcResponse::Error(e) => panic!("expected success, got error: {:?}", e.error),
+        }
+    }
+
+    // T-2517: the non-PTY path (external registrant) must keep targeting reg.pid.
+    #[tokio::test]
+    async fn signal_non_pty_targets_registration_pid() {
+        let ctx = test_ctx(); // pty: None
+        let expected = ctx.registration.pid; // == std::process::id() here
+        let req = Request::new(
+            control::method::COMMAND_SIGNAL,
+            json!("req-sig-2"),
+            json!({ "signal": 0 }),
+        );
+        let resp = dispatch(&req, &ctx).await.unwrap();
+        match resp {
+            RpcResponse::Success(resp) => {
+                assert_eq!(resp.result["pid"].as_u64().unwrap(), expected as u64);
+            }
+            RpcResponse::Error(e) => panic!("expected success, got error: {:?}", e.error),
         }
     }
 
