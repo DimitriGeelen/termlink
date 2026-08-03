@@ -174,3 +174,41 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2464-log-payload-write-has-no-fsync-while-ind.md
 - **Context:** Initial task creation
+
+### 2026-08-03 — severity sharpening: durability inversion is not just loss, it is silent WRONG-CONTENT aliasing (T-2468 campaign firing #35, independent re-discovery)
+- **What the original description under-states:** the frontmatter framing tops out at
+  "log bytes gone → `ReaderIter::next` read fails → skip/loss" (and predates T-2487's
+  reader-skip, which already fixed the *stream-wall* half). The genuinely worse
+  consequence — which nothing tracks — is **byte-position reuse / offset aliasing**:
+- **Mechanism.** `LogAppender::append` (`log.rs:52-65`) does `seek(SeekFrom::End(0))`
+  to derive the record's start byte, writes payload with `write_all` + `flush()`
+  (a no-op for `std::fs::File` — never fsync'd), and returns that start. `post()`
+  (`lib.rs:190-192`) then durably commits the index row (SQLite `synchronous=FULL`,
+  `record_append` fsyncs) mapping the fresh monotonic offset J → `byte_pos = start_J`.
+  On **power/kernel loss** after the index commit but before J's payload writeback,
+  the physical EOF **regresses to `start_J`** (J's bytes never reached stable storage;
+  J's index row did). On restart, the next `post` R does `seek(End(0)) == start_J`,
+  writes R's `[len_R][payload_R]` there, and `record_append` stores a *second* row
+  offset M (>J) → `byte_pos = start_J`. Two distinct logical offsets now alias one
+  byte region.
+- **Silent corruption path.** Reading offset J seeks to `start_J + 8` and reads
+  `len_J` bytes = the first `len_J` bytes of R's payload. **If `len_J == len_R`**
+  (common for same-shaped envelopes — heartbeats, fixed-form DMs), `read_exact`
+  succeeds and `decode_envelope` succeeds → offset J durably returns **R's content**.
+  No error, no skip, no gap-marker.
+- **T-2487 does NOT cover this.** The reader-skip only fires on `UnexpectedEof`
+  (truncation) or decode failure. On a length match both succeed, so the skip never
+  triggers — the mitigation for the loss half is structurally blind to the aliasing
+  half. Unequal sizes degrade to the already-documented skip (still loss).
+- **Impact on the go/no-go this task gates:** this reclassifies the defect from a
+  durability/availability concern (a message may be lost, loudly) to a **correctness/
+  integrity** one (a durable read may silently return a *different* message). That is a
+  stronger argument for fix (a) — fsync-payload-before-index — since fix (b) (the skip
+  path, shipped as T-2487) provably cannot mask it. A cheaper alternative worth
+  costing during the human call: on `LogAppender::open`/restart, reconcile the append
+  cursor to the index's highest durable `byte_pos + 8 + length` (and truncate any
+  bytes beyond a validated tail) so a regressed physical EOF can never be re-filled
+  under a live index row — closes the aliasing window without a per-post fsync.
+- **Disposition unchanged:** still human-gated (durability-vs-throughput / ADR
+  single-supervised-hub power-loss-scope call). No code changed. This entry only
+  sharpens the severity picture the eventual go/no-go decision rests on.
