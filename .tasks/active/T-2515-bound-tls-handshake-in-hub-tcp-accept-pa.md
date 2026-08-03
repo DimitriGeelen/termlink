@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-03T18:29:13Z
-last_update: 2026-08-03T18:29:13Z
+last_update: 2026-08-03T18:34:17Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -93,10 +93,10 @@ task returns → `ConnSlotGuard::Drop` reclaims the slot. Test mirrors
 ## Acceptance Criteria
 
 ### Agent
-- [ ] AC1: `tls.accept(tcp_stream)` in the accept-loop spawned task (server.rs ~807) is wrapped in `tokio::time::timeout(conn_handshake_timeout(), ...)` — a stalled TLS handshake can no longer pin the task or its `ConnSlotGuard` indefinitely.
-- [ ] AC2: The timeout arm emits a `tracing::warn!` carrying the unique marker `T-2515 conn-cap DoS guard`; on timeout the `tcp_stream` is dropped and the governor slot is reclaimed on task return (via `ConnSlotGuard::Drop`).
-- [ ] AC3: Regression test `tls_handshake_timeout_reclaims_slot` — TLS acceptor configured + a silent TCP client — asserts the hub closes the connection within the handshake timeout (EOF/reset within 2s). Proven load-bearing: temp-revert to the un-timed `tls.accept()` makes the test hang to its 2s read-timeout and FAIL.
-- [ ] AC4: `cargo build --release -p termlink-hub` clean AND the new test passes (`cargo test -p termlink-hub --lib tls_handshake_timeout_reclaims_slot`).
+- [x] AC1: `tls.accept(tcp_stream)` in the accept-loop spawned task (server.rs ~807) is wrapped in `tokio::time::timeout(conn_handshake_timeout(), ...)` — a stalled TLS handshake can no longer pin the task or its `ConnSlotGuard` indefinitely.
+- [x] AC2: The timeout arm emits a `tracing::warn!` carrying the unique marker `T-2515 conn-cap DoS guard`; on timeout the `tcp_stream` is dropped and the governor slot is reclaimed on task return (via `ConnSlotGuard::Drop`).
+- [x] AC3: Regression test `tls_handshake_timeout_reclaims_slot` — TLS acceptor configured + a silent TCP client — asserts the hub closes the connection within the handshake timeout (EOF/reset within 2s). Proven load-bearing: temp-revert to the un-timed `tls.accept()` makes the test hang to its 2s read-timeout and FAIL.
+- [x] AC4: `cargo build --release -p termlink-hub` clean AND the new test passes (`cargo test -p termlink-hub --lib tls_handshake_timeout_reclaims_slot`).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
