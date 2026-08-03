@@ -2822,3 +2822,24 @@ learnings:
   date: 2026-08-02
   context: Added via context agent
   application: TBD
+- id: PL-295
+  learning: "A timeout test that asserts only the return value (Err(Timeout)) can pass while the child process leaks — assert an observable side-effect (a marker the child would create after its work) so the guard fails if kill_on_drop is removed. Tokio Command defaults kill_on_drop=false; any spawn awaited under tokio::time::timeout must set kill_on_drop(true)."
+  source: P-001
+  task: T-2509
+  date: 2026-08-03
+  context: Added via context agent
+  application: TBD
+- id: PL-296
+  learning: "A 'renew/extend/keep-alive' lease operation must be monotonic-forward: clamp new deadline to max(now+delta, old_until) so it can never move earlier. now+delta absolute-set silently SHORTENS a long lease renewed with a small delta -> slot reopens mid-work -> double-dispatch. Test renew with a SMALL delta on a LONG lease (not just delta>>ttl, which hides the bug). Mirrors cursor MAX-upsert / receipt monotonic-frontier."
+  source: P-001
+  task: T-2510
+  date: 2026-08-03
+  context: Added via context agent
+  application: TBD
+- id: PL-297
+  learning: "E2E-surfaced findings must be reproduced in isolation before being called bugs: an apparent 'tmux env-inheritance mis-routes spawn' finding was actually the SUN_LEN long-path failure misattributed — both symptoms were 'Timeout waiting for session to register'. spawn already exports TERMLINK_RUNTIME_DIR into the tmux command (execution.rs build_spawn_shell_cmd). Verify-in-code + reproduce-on-clean-setup disproved it before any fix was written."
+  source: P-001
+  task: T-2511
+  date: 2026-08-03
+  context: Added via context agent
+  application: TBD

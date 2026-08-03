@@ -185,18 +185,19 @@ $BIN clean --json                                  # reaps the session
 `stdout`. That is the inject→run→capture round-trip.
 
 **Footguns:**
-1. **`termlink spawn --backend tmux` + a divergent tmux server env.** If a tmux
-   *server* is already running (common on multi-agent hosts) with a different
-   `TERMLINK_RUNTIME_DIR` in its **global** environment, new tmux sessions inherit
-   the *server's* value, not your shell's export. The child `register` then writes
-   to the wrong hub and the parent times out ("Timeout waiting for session to
-   register"). For an isolated runtime_dir, use `--backend background` (inherits the
-   caller's env directly). To use tmux anyway, first
-   `tmux setenv -g TERMLINK_RUNTIME_DIR <dir>` or start a dedicated tmux server.
-2. **Session roster verb is `termlink list`** — not `status --json` (different
+1. **Session roster verb is `termlink list`** — not `status --json` (different
    command) and not `list-sessions` (does not exist).
-3. `signal <sid> TERM` may return "Session not found" if a prior signal already
+2. `signal <sid> TERM` may return "Session not found" if a prior signal already
    terminated the shell — send one signal and let `clean` reap the rest.
+
+**Not a footgun (verified 2026-08-03):** `spawn --backend tmux` correctly reaches
+an isolated runtime_dir even when a pre-existing tmux *server* carries a different
+`TERMLINK_RUNTIME_DIR` in its global environment. `build_spawn_shell_cmd`
+(execution.rs) prepends an explicit `export TERMLINK_RUNTIME_DIR=<dir>;` to the
+command tmux runs, which overrides the server's global value inside the session's
+shell. If `spawn` times out ("Timeout waiting for session to register"), suspect
+the **SUN_LEN** path-length limit (§0) — a runtime_dir too long for a per-session
+socket — not tmux env inheritance.
 
 ---
 
@@ -222,7 +223,16 @@ was found broken**:
 | 2 | Deep runtime_dir → session register dies on SUN_LEN | env/setup | §0 |
 | 3 | `agent listeners` CLI verb does not exist (use `find-idle`) | naming | STEP 1 |
 | 4 | `channel post <topic> <body>` positional fails (use `--payload`) | CLI UX | STEP 2 |
-| 5 | tmux-server env inheritance mis-routes `spawn --backend tmux` | env/setup | STEP 4 |
-| 6 | Session roster verb is `list`, not `status`/`list-sessions` | naming | STEP 4 |
+| 5 | Session roster verb is `list`, not `status`/`list-sessions` | naming | STEP 4 |
+
+**Investigated and DISPROVEN** (not a bug): "tmux-server env inheritance
+mis-routes `spawn --backend tmux`." Reproduced against a short-path scratch hub:
+tmux backend spawns, registers on the isolated hub, and exec round-trips exactly.
+`build_spawn_shell_cmd` already exports the runtime_dir into the tmux command. The
+original apparent failure was the SUN_LEN long-path issue (#2), misattributed to
+tmux. Kept here as a record so it is not "rediscovered".
 
 **T-2510 clamp** (renew never shortens a lease) is proven live in STEP 3.
+All four charter verbs' core mechanics are correct on HEAD — **no verb, and no
+underlying mechanic, was found broken.** Every surviving finding is CLI naming,
+build UX, or an OS/env setup constraint.
