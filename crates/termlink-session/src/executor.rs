@@ -88,6 +88,12 @@ pub async fn execute(
     cmd.stdout(std::process::Stdio::piped());
     cmd.stderr(std::process::Stdio::piped());
 
+    // Kill the spawned child if the `output()` future is dropped (e.g. on timeout).
+    // Without this, a timed-out command orphans the child, which keeps running to
+    // its natural completion — a resource leak on the "control terminal sessions"
+    // path (`termlink exec`, session RPC, MCP exec/batch all route through here).
+    cmd.kill_on_drop(true);
+
     let timeout_dur = timeout.unwrap_or(Duration::from_secs(30));
 
     let output = tokio::time::timeout(timeout_dur, cmd.output())
@@ -324,6 +330,30 @@ mod tests {
         )
         .await;
         assert!(matches!(result, Err(ExecError::Timeout(_))));
+    }
+
+    #[tokio::test]
+    async fn execute_timeout_kills_child() {
+        // Regression (T-2509): a timed-out command must have its child KILLED, not
+        // left orphaned to run to completion. The command sleeps, then would create
+        // a marker file. If the child survives the timeout, the marker appears.
+        let dir = std::env::temp_dir();
+        let marker = dir.join(format!("tl-t2509-{}.marker", std::process::id()));
+        let _ = std::fs::remove_file(&marker);
+        let cmd = format!("sleep 1 && touch {}", marker.display());
+
+        let result = execute(&cmd, None, None, Some(Duration::from_millis(150)), None).await;
+        assert!(matches!(result, Err(ExecError::Timeout(_))));
+
+        // Wait well past the child's natural completion (1s sleep). If kill_on_drop
+        // did NOT fire, the orphaned child would create the marker within this window.
+        tokio::time::sleep(Duration::from_millis(1500)).await;
+        let leaked = marker.exists();
+        let _ = std::fs::remove_file(&marker);
+        assert!(
+            !leaked,
+            "timed-out child was not killed — it survived and created the marker (kill_on_drop missing)"
+        );
     }
 
     #[test]
