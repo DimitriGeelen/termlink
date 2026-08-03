@@ -804,8 +804,16 @@ pub async fn run_accept_loop(
                             // T-1409: pass peer_addr so audit + warn carry the
                             // network source for callers without a `from` tag.
                             if let Some(tls) = acceptor.as_ref() {
-                                match tls.accept(tcp_stream).await {
-                                    Ok(tls_stream) => {
+                                // T-2515: bound the TLS handshake itself. `tls.accept().await`
+                                // has no built-in deadline — a peer that completes the TCP
+                                // handshake but stalls the TLS ClientHello would pin this task
+                                // (and its ConnGovernor slot) forever, exhausting the cap and
+                                // DoS-ing new fleet connections. This is the pre-handshake twin
+                                // of T-2442's first-byte timeout, which lives inside
+                                // handle_connection and only runs AFTER accept returns.
+                                let hs_timeout = conn_handshake_timeout();
+                                match tokio::time::timeout(hs_timeout, tls.accept(tcp_stream)).await {
+                                    Ok(Ok(tls_stream)) => {
                                         handle_connection(
                                             tls_stream,
                                             None,
@@ -815,8 +823,15 @@ pub async fn run_accept_loop(
                                         )
                                         .await;
                                     }
-                                    Err(e) => {
+                                    Ok(Err(e)) => {
                                         tracing::warn!(%peer_addr, error = %e, "Hub: TLS handshake failed");
+                                    }
+                                    Err(_) => {
+                                        tracing::warn!(
+                                            %peer_addr,
+                                            timeout_ms = hs_timeout.as_millis(),
+                                            "Hub: TLS handshake timed out — slot reclaimed (T-2515 conn-cap DoS guard)"
+                                        );
                                     }
                                 }
                             } else {
@@ -2318,6 +2333,82 @@ mod tests {
         match prev {
             Some(v) => unsafe { std::env::set_var("TERMLINK_CONN_HANDSHAKE_TIMEOUT_MS", v) },
             None => unsafe { std::env::remove_var("TERMLINK_CONN_HANDSHAKE_TIMEOUT_MS") },
+        }
+    }
+
+    /// T-2515: the pre-handshake twin of the test above. With TLS configured, a
+    /// peer that completes the TCP handshake but never sends a TLS ClientHello
+    /// stalls `tls.accept()` — which (before T-2515) had NO deadline, so the
+    /// spawned task and its `ConnGovernor` slot were pinned forever (slot-leak
+    /// DoS). The hub must now bound `tls.accept()` with `conn_handshake_timeout()`
+    /// and drop the connection, reclaiming the slot. Proven by observing EOF/reset
+    /// on the client side within the timeout. (Temp-reverting the timeout wrap on
+    /// `tls.accept()` makes this test hang to its 2s read-timeout and FAIL.)
+    #[tokio::test]
+    async fn tls_handshake_timeout_reclaims_slot() {
+        use tokio::io::AsyncReadExt;
+        let _lock = ENV_LOCK.lock().await;
+        let dir = test_dir();
+        let prev_to = std::env::var("TERMLINK_CONN_HANDSHAKE_TIMEOUT_MS").ok();
+        let prev_rt = std::env::var("TERMLINK_RUNTIME_DIR").ok();
+        unsafe {
+            std::env::set_var("TERMLINK_CONN_HANDSHAKE_TIMEOUT_MS", "400");
+            // Point the cert generator at our temp dir so it mints a fresh
+            // self-signed cert here rather than touching a real runtime_dir.
+            std::env::set_var("TERMLINK_RUNTIME_DIR", &dir);
+        }
+
+        // Build a real server-side TLS acceptor (self-signed, generated into `dir`).
+        let acceptor = crate::tls::load_or_generate_cert().expect("generate test TLS acceptor");
+
+        let hub_socket = hub_sock(&dir);
+        let (tx, rx) = watch::channel(false);
+        let socket_clone = hub_socket.clone();
+        let hub_handle = tokio::spawn(async move {
+            let _ = std::fs::remove_file(&socket_clone);
+            let unix_listener = UnixListener::bind(&socket_clone).unwrap();
+            let tcp_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let tcp_port = tcp_listener.local_addr().unwrap().port();
+            std::fs::write(socket_clone.with_extension("tcp_port"), tcp_port.to_string()).unwrap();
+            run_accept_loop(unix_listener, Some(tcp_listener), Some(acceptor), None, rx).await;
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        let tcp_port: u16 = std::fs::read_to_string(hub_socket.with_extension("tcp_port"))
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap();
+
+        // Complete the TCP handshake, then send NOTHING — no TLS ClientHello.
+        // `tls.accept()` on the server blocks reading the handshake; without the
+        // T-2515 timeout it would await forever, pinning the governor slot.
+        let mut tcp = tokio::net::TcpStream::connect(format!("127.0.0.1:{}", tcp_port))
+            .await
+            .unwrap();
+
+        // The hub must close us within the handshake timeout (400ms) + slack.
+        let mut buf = [0u8; 1];
+        let read = tokio::time::timeout(std::time::Duration::from_secs(2), tcp.read(&mut buf)).await;
+        match read {
+            Ok(Ok(0)) => { /* EOF — hub closed the stalled TLS handshake. Slot released. */ }
+            Ok(Ok(n)) => panic!("expected EOF from TLS-handshake timeout close, got {n} byte(s)"),
+            Ok(Err(_)) => { /* reset by peer — also an acceptable close signal */ }
+            Err(_) => {
+                panic!("hub did NOT close a stalled-TLS-handshake connection within 2s — slot would leak")
+            }
+        }
+
+        tx.send(true).unwrap();
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(3), hub_handle).await;
+        unsafe {
+            match prev_to {
+                Some(v) => std::env::set_var("TERMLINK_CONN_HANDSHAKE_TIMEOUT_MS", v),
+                None => std::env::remove_var("TERMLINK_CONN_HANDSHAKE_TIMEOUT_MS"),
+            }
+            match prev_rt {
+                Some(v) => std::env::set_var("TERMLINK_RUNTIME_DIR", v),
+                None => std::env::remove_var("TERMLINK_RUNTIME_DIR"),
+            }
         }
     }
 
