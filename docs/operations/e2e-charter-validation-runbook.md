@@ -116,9 +116,12 @@ $BIN channel unread e2e-chat --json     # unread_count=0, up_to=1
 - Unread drops from 2 → 0 after ack, and `up_to` advances `null → 1`
   (the receipt frontier moves forward).
 
-**Footgun — `channel post <topic> <message>` (positional body) fails.** The body is
-a flag: `--payload "<text>"` (or piped on stdin). A topic must exist first; use
-`--ensure-topic` on the first post.
+**Body input (T-2512):** the body may be given **positionally**
+(`channel post <topic> "<text>"`), via `--payload "<text>"`, or piped on stdin —
+in that precedence. Positional and `--payload` are mutually exclusive (clap errors
+if both are supplied). A topic must exist first; use `--ensure-topic` on the first
+post. *(Before T-2512 a positional body errored "unexpected argument" — E2E finding
+#4, now fixed.)*
 
 ---
 
@@ -222,7 +225,7 @@ was found broken**:
 | 1 | `cargo build -p termlink-cli` fails (package is `termlink`) | build UX | §0 |
 | 2 | Deep runtime_dir → session register dies on SUN_LEN | env/setup | §0 |
 | 3 | `agent listeners` CLI verb does not exist (use `find-idle`) | naming | STEP 1 |
-| 4 | `channel post <topic> <body>` positional fails (use `--payload`) | CLI UX | STEP 2 |
+| 4 | `channel post <topic> <body>` positional fails (use `--payload`) — **FIXED T-2512** | CLI UX | STEP 2 |
 | 5 | Session roster verb is `list`, not `status`/`list-sessions` | naming | STEP 4 |
 
 **Investigated and DISPROVEN** (not a bug): "tmux-server env inheritance
