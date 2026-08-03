@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2517: command.signal targets host pid not PTY child — self-DoS + child orphan on --shell sessions
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-03T21:50:32Z
+# ============================================================================
+
+task_id: T-2517
+task_name: "command.signal targets host pid not PTY child — self-DoS + child orphan on --shell sessions"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-03T21:45:49Z
+completed: 2026-08-03T21:50:27Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-08-03T23:50:19+02:00
+last_commit: 2026-08-03T23:50:19+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  command.signal targets PTY child not host pid — fixes --shell self-DoS + child/fd leak (campaign firing #36)
+
+# Key outcomes
+outcomes:
+  - '`handle_command_signal` takes `&SessionContext` and targets'
+  - 'The `COMMAND_SIGNAL` dispatch arm passes full `ctx` (not `&ctx.registration`).'
+  - 'A load-bearing regression test (`signal_targets_pty_child_not_host`) builds'
+  - 'Non-PTY path unchanged: `signal_non_pty_targets_registration_pid` asserts a'
+  - '`cargo build --release -p termlink-session` compiles and both new tests pass'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'command.signal targets PTY child not host pid — fixes --shell self-DoS + child/fd leak (campaign firing #36)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-session/src/handler.rs'
+  - '.tasks/active/T-2517-commandsignal-targets-host-pid-not-pty-c.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-03T23:50:19"
+    action: "T-2517: command.signal targets PTY child not host pid — fixes --shell self-DoS + child/fd leak (campaign firing #36)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 2
+  lines_added: 314
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2517-commandsignal-targets-host-pid-not-pty-c.md
+generated_by: context-agent-hybrid
