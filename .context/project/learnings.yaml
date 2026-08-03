@@ -2857,3 +2857,10 @@ learnings:
   date: 2026-08-03
   context: Added via context agent
   application: TBD
+- id: PL-300
+  learning: "PTY-affecting RPC handlers must receive full SessionContext and branch on ctx.pty — a handler taking only &ctx.registration silently scopes the shell child out of reach (targets reg.pid==std::process::id(), the host). command.signal had this asymmetry vs its siblings inject/resize (T-2517). No non-PTY test catches it (reg.pid==target masks the bug)."
+  source: P-001
+  task: T-2517
+  date: 2026-08-03
+  context: Added via context agent
+  application: TBD
