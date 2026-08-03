@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2514: Fix UTF-8 char-boundary panic in CLI truncate() (byte-slice on multibyte name/cap/role)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-03T17:50:48Z
+# ============================================================================
+
+task_id: T-2514
+task_name: "Fix UTF-8 char-boundary panic in CLI truncate() (byte-slice on multibyte name/cap/role)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-03T17:35:36Z
+completed: 2026-08-03T17:39:10Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-03T19:39:01+02:00
+last_commit: 2026-08-03T19:39:01+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix UTF-8 char-boundary panic in CLI truncate() (char-aware slice + max==0 guard); PL-299
+
+# Key outcomes
+outcomes:
+  - '`truncate` counts and slices by `char`, never by raw byte index — no `&s[..n]` byte-slice remains in the function'
+  - '`truncate` handles `max == 0` without underflow/panic (returns empty string)'
+  - 'A regression test truncates a string with a multi-byte char straddling the cut point and asserts the result is a valid `String` of the expected char count — FAILS (panics) against the old byte-slice code (proven load-bearing by temp-revert)'
+  - 'A regression test covers `truncate("", 0)` and `truncate("abc", 0)` (underflow guard)'
+  - 'Existing ASCII `truncate` tests still pass; `cargo test -p termlink --bins util` (or the crate''s test target) passes; `cargo build --release -p termlink` succeeds'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix UTF-8 char-boundary panic in CLI truncate() (char-aware slice + max==0 guard); PL-299'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-08-03.yaml'
+  - '.context/project/learnings.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-cli/src/util.rs'
+  - '.tasks/active/T-2514-fix-utf-8-char-boundary-panic-in-cli-tru.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-03T19:39:01"
+    action: "T-2514: fix UTF-8 char-boundary panic in CLI truncate() (char-aware slice + max==0 guard); PL-299"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 12
+  lines_added: 325
+  lines_removed: 37
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2514-fix-utf-8-char-boundary-panic-in-cli-tru.md
+generated_by: context-agent-hybrid
