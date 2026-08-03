@@ -1017,8 +1017,66 @@ async fn handle_connection<S>(
     }
 }
 
+/// Max bytes for a single newline-delimited JSON-RPC request line (T-2518).
+/// Mirrors the binary codec's `MAX_PAYLOAD_SIZE` so both inbound transports
+/// enforce the same 16 MiB bound; a peer that streams bytes without a newline is
+/// aborted here instead of buffering unboundedly (a pre-auth OOM DoS).
+const MAX_LINE_BYTES: usize = termlink_protocol::MAX_PAYLOAD_SIZE as usize;
+
+/// Outcome of one bounded line read (T-2518).
+#[derive(Debug)]
+enum LineRead {
+    /// A full line was read into the buffer (newline consumed, or final line at EOF).
+    Line,
+    /// Clean EOF with no pending bytes.
+    Eof,
+    /// The line exceeded the cap before a newline — caller must abort the connection.
+    TooLong,
+    /// Underlying read error.
+    Io(std::io::Error),
+}
+
+/// Read one `\n`-delimited line into `buf` (excluding the newline), enforcing a
+/// hard byte cap so an unterminated stream cannot exhaust memory (T-2518). Reads
+/// through the `AsyncBufRead` fill/consume interface so the cap is checked as
+/// bytes arrive — never after buffering an unbounded amount, which is exactly the
+/// failure mode of `next_line()` this replaces.
+async fn read_capped_line<R>(reader: &mut R, buf: &mut Vec<u8>, max: usize) -> LineRead
+where
+    R: tokio::io::AsyncBufRead + Unpin,
+{
+    buf.clear();
+    loop {
+        let available = match reader.fill_buf().await {
+            Ok(b) => b,
+            Err(e) => return LineRead::Io(e),
+        };
+        if available.is_empty() {
+            return if buf.is_empty() {
+                LineRead::Eof
+            } else {
+                LineRead::Line
+            };
+        }
+        let (to_copy, consume_n, found) = match available.iter().position(|&b| b == b'\n') {
+            Some(i) => (i, i + 1, true),
+            None => (available.len(), available.len(), false),
+        };
+        if buf.len() + to_copy > max {
+            return LineRead::TooLong;
+        }
+        buf.extend_from_slice(&available[..to_copy]);
+        reader.consume(consume_n);
+        if found {
+            return LineRead::Line;
+        }
+    }
+}
+
 /// T-2305: the legacy newline-delimited JSON-RPC transport (extracted verbatim
 /// from the old `handle_connection` body — behaviour unchanged for line clients).
+/// T-2518: the uncapped `.lines()` read was replaced with `read_capped_line` to
+/// bound a single request line at `MAX_LINE_BYTES` (pre-auth unbounded-line DoS).
 async fn handle_line_connection<S>(
     stream: S,
     initial_scope: Option<PermissionScope>,
@@ -1029,12 +1087,40 @@ async fn handle_line_connection<S>(
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     let (reader, mut writer) = tokio::io::split(stream);
-    let mut lines = BufReader::new(reader).lines();
+    let mut reader = BufReader::new(reader);
     let mut granted_scope = initial_scope;
+    let mut line_buf: Vec<u8> = Vec::new();
 
-    while let Ok(Some(line)) = lines.next_line().await {
+    loop {
+        match read_capped_line(&mut reader, &mut line_buf, MAX_LINE_BYTES).await {
+            LineRead::Line => {}
+            LineRead::Eof => break,
+            LineRead::TooLong => {
+                tracing::warn!(
+                    peer = ?peer_addr,
+                    max = MAX_LINE_BYTES,
+                    "Hub: request line exceeded max length before newline — closing (T-2518 unbounded-line pre-auth DoS guard)"
+                );
+                break;
+            }
+            LineRead::Io(e) => {
+                tracing::debug!(error = %e, "Hub: line read error");
+                break;
+            }
+        }
+        // Match `next_line()` semantics: strip a trailing CR from a CRLF line.
+        if line_buf.last() == Some(&b'\r') {
+            line_buf.pop();
+        }
+        let line = match std::str::from_utf8(&line_buf) {
+            Ok(s) => s,
+            Err(_) => {
+                tracing::debug!(peer = ?peer_addr, "Hub: non-UTF8 request line — closing");
+                break;
+            }
+        };
         if let Some(mut json) =
-            process_request_message(&line, &token_secret, &mut granted_scope, peer_pid, &peer_addr)
+            process_request_message(line, &token_secret, &mut granted_scope, peer_pid, &peer_addr)
                 .await
         {
             json.push('\n');
@@ -1591,6 +1677,43 @@ mod tests {
     use crate::test_util::ENV_LOCK;
 
     static TEST_COUNTER: AtomicU32 = AtomicU32::new(0);
+
+    // ── T-2518: the line transport must bound a single request line so an
+    // unterminated pre-auth stream cannot exhaust hub memory. ──
+    #[tokio::test]
+    async fn read_capped_line_rejects_overlong() {
+        // 20 bytes, no newline, cap 8 → abort as TooLong, do NOT buffer it all.
+        let data = vec![b'x'; 20];
+        let mut reader = BufReader::new(&data[..]);
+        let mut buf = Vec::new();
+        match read_capped_line(&mut reader, &mut buf, 8).await {
+            LineRead::TooLong => {}
+            other => panic!("expected TooLong for an over-cap unterminated line, got {:?}", other),
+        }
+    }
+
+    #[tokio::test]
+    async fn read_capped_line_reads_normal_lines() {
+        // Happy-path regression guard: multi-line + EOF still work under the cap.
+        let data = b"hello\r\nworld\n";
+        let mut reader = BufReader::new(&data[..]);
+        let mut buf = Vec::new();
+        // CRLF line: the raw read stops at LF, leaving the CR for the caller to strip.
+        assert!(matches!(
+            read_capped_line(&mut reader, &mut buf, 1024).await,
+            LineRead::Line
+        ));
+        assert_eq!(buf, b"hello\r");
+        assert!(matches!(
+            read_capped_line(&mut reader, &mut buf, 1024).await,
+            LineRead::Line
+        ));
+        assert_eq!(buf, b"world");
+        assert!(matches!(
+            read_capped_line(&mut reader, &mut buf, 1024).await,
+            LineRead::Eof
+        ));
+    }
 
     // ── T-2460: ConnSlotGuard releases the governor slot + gauge on EVERY exit ──
     // A panic inside a spawned handle_connection task must NOT leak the reserved
