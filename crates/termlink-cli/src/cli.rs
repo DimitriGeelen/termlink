@@ -1904,11 +1904,17 @@ pub(crate) enum ChannelAction {
         /// Topic name
         topic: String,
 
+        /// Message body (positional convenience alias for `--payload`, T-2512).
+        /// Mutually exclusive with `--payload`. If neither is given, the payload
+        /// is read from stdin.
+        #[arg(conflicts_with = "payload")]
+        body: Option<String>,
+
         /// Message type (free-form string, e.g. "note", "learning", "artifact")
         #[arg(long, default_value = "note")]
         msg_type: String,
 
-        /// Payload (inline). If omitted, read from stdin.
+        /// Payload (inline). If omitted, positional body or stdin is used.
         #[arg(long)]
         payload: Option<String>,
 

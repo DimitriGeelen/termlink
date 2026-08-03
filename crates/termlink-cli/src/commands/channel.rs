@@ -876,6 +876,15 @@ impl Default for AwaitAckOpts {
     }
 }
 
+/// Resolve the effective post payload from the `--payload` flag and the
+/// positional `body` argument (T-2512, E2E finding #4). The flag wins if both
+/// are somehow present (clap `conflicts_with` normally prevents that); otherwise
+/// the positional body is used; `None` from both means "read from stdin"
+/// downstream. Pure so the precedence is unit-testable independent of clap.
+pub(crate) fn resolve_post_body(flag: Option<String>, positional: Option<String>) -> Option<String> {
+    flag.or(positional)
+}
+
 pub(crate) async fn cmd_channel_post(
     topic: &str,
     msg_type: &str,
@@ -12184,6 +12193,38 @@ fn render_claims_summary_text_with_annotation(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ---- T-2512: positional body <-> --payload precedence -------------------
+
+    #[test]
+    fn resolve_post_body_positional_used_when_no_flag() {
+        // The E2E finding #4 case: `channel post <topic> <body>` — positional
+        // body must become the payload when --payload is absent.
+        assert_eq!(
+            resolve_post_body(None, Some("hello".to_string())),
+            Some("hello".to_string())
+        );
+    }
+
+    #[test]
+    fn resolve_post_body_flag_preserved_and_wins() {
+        // Backward compat: --payload still works; and if both are present the
+        // flag wins (clap conflicts_with normally prevents both, this is defense).
+        assert_eq!(
+            resolve_post_body(Some("flag".to_string()), None),
+            Some("flag".to_string())
+        );
+        assert_eq!(
+            resolve_post_body(Some("flag".to_string()), Some("pos".to_string())),
+            Some("flag".to_string())
+        );
+    }
+
+    #[test]
+    fn resolve_post_body_none_means_stdin() {
+        // Neither given -> None -> downstream reads stdin (unchanged fallback).
+        assert_eq!(resolve_post_body(None, None), None);
+    }
 
     // ---- T-2451 (round-11 F3): parse_post_offset false-confirm guard -------
 

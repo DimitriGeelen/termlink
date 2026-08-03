@@ -785,6 +785,7 @@ async fn main() -> Result<()> {
             }
             ChannelAction::Post {
                 topic,
+                body,
                 msg_type,
                 payload,
                 artifact_ref,
@@ -805,6 +806,8 @@ async fn main() -> Result<()> {
                 if !mentions.is_empty() {
                     metadata.push(format!("mentions={}", mentions.join(",")));
                 }
+                // T-2512: positional body is a convenience alias for --payload.
+                let payload = commands::channel::resolve_post_body(payload, body);
                 commands::channel::cmd_channel_post(
                     &topic,
                     &msg_type,
