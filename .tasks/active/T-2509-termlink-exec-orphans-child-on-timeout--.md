@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-03T12:10:59Z
-last_update: 2026-08-03T12:10:59Z
+last_update: 2026-08-03T12:13:24Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -46,11 +46,12 @@ test only asserts `Err(Timeout)` is returned; it never verifies the child was ki
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `executor::execute()` sets `cmd.kill_on_drop(true)` before awaiting `cmd.output()`
-- [ ] A regression test proves a timed-out command's child is actually killed: the
+- [x] `executor::execute()` sets `cmd.kill_on_drop(true)` before awaiting `cmd.output()`
+- [x] A regression test proves a timed-out command's child is actually killed: the
       command would create a marker file *after* its sleep; on timeout the marker
       must NOT exist after the child's natural duration elapses
-- [ ] `cargo test -p termlink-session --lib` passes (existing + new test green)
+      (`execute_timeout_kills_child`; proven load-bearing — FAILS without the fix)
+- [x] `cargo test -p termlink-session --lib` passes (existing + new test green — 398 passed)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -121,19 +122,27 @@ grep -q "kill_on_drop(true)" crates/termlink-session/src/executor.rs
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** A `termlink exec` (or session-RPC / MCP exec / MCP batch) command that
+exceeds its timeout returns `Timeout` to the caller, but the underlying shell child
+keeps running to its natural completion — orphaned. A `sleep 3600` "killed" by a
+200ms timeout still occupies a process slot and any resources it holds for an hour.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** `executor::execute()` awaits `cmd.output()` under
+`tokio::time::timeout` without setting `kill_on_drop(true)` on the `Command`. When
+the timeout elapses, the `output()` future is dropped; tokio's default is to NOT
+reap the child on drop, so it detaches and survives. The single shared helper is the
+choke point for all four exec call sites, so every one inherited the leak.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** the existing `execute_timeout` test asserted only the
+*return value* (`Err(Timeout)`) — it never observed a side-effect proving the child
+died. A timeout that returns the right error while leaking the process passes that
+test, so the gap was invisible to the suite.
+
+**Prevention:** `execute_timeout_kills_child` observes a real side-effect (a marker
+file the child would `touch` *after* its sleep) and asserts it never appears — a
+guard that FAILS if `kill_on_drop` is removed (verified by temporarily reverting the
+fix). Tests that assert only return values, not observable effects, are the class
+this closes (PL-295).
 
 ## Evolution
 
