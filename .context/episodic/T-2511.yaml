@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2511: E2E charter-verb validation walkthrough + runbook
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-03T16:31:58Z
+# ============================================================================
+
+task_id: T-2511
+task_name: "E2E charter-verb validation walkthrough + runbook"
+workflow_type: test
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-03T13:12:21Z
+completed: 2026-08-03T16:31:55Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-03T17:54:31+02:00
+last_commit: 2026-08-03T18:31:54+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  E2E charter-verb validation runbook — all 4 verbs proven live on HEAD 0.11.807 (scratch hub); T-2510 clamp verified E2E; 6 operator footguns captured, 0 verbs broken. correct runbook — 'tmux env mis-routes spawn' DISPROVEN on reproduction (was SUN_LEN misattributed); spawn already exports runtime_dir. 0 charter mechanics broken on HEAD. harden verification (grep files directly, L-387); finalize T-2512 move
+
+# Key outcomes
+outcomes:
+  - 'All four charter verbs exercised live with real commands + observed output (not mocked) — DISCOVER/EXCHANGE/CLAIM/CONTROL all ✓ on HEAD 0.11.807 against an isolated scratch hub'
+  - 'Each step states an explicit PASS criterion the operator can check against'
+  - 'Durable runbook `docs/operations/e2e-charter-validation-runbook.md` captures every step (command + expected output + PASS gate), repeatable by hand'
+  - 'Runbook cross-references the existing automated provers (comms-selftest / substrate-smoke / session-selftest) so operator knows the manual vs automated path'
+  - 'Any mechanic that fails validation during the walkthrough is recorded — 6 footguns/naming gaps captured in the Findings scorecard; T-2510 clamp proven live; NO charter verb found broken'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/learnings.yaml'
+  - 'docs/operations/e2e-charter-validation-runbook.md'
+  - '.tasks/active/T-2511-e2e-charter-verb-validation-walkthrough-.md'
+  - '.tasks/completed/T-2512-channel-post-accept-positional-body-as--.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-03T17:54:31"
+    action: "T-2511: E2E charter-verb validation runbook — all 4 verbs proven live on HEAD 0.11.807 (scratch hub); T-2510 clamp verified E2E; 6 operator footguns captured, 0 verbs broken"
+  - time: "2026-08-03T18:10:16"
+    action: "T-2511: correct runbook — 'tmux env mis-routes spawn' DISPROVEN on reproduction (was SUN_LEN misattributed); spawn already exports runtime_dir. 0 charter mechanics broken on HEAD"
+  - time: "2026-08-03T18:31:54"
+    action: "T-2511: harden verification (grep files directly, L-387); finalize T-2512 move"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 199 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 199
+  commits: 3
+  files_changed: 4
+  lines_added: 487
+  lines_removed: 22
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2511-e2e-charter-verb-validation-walkthrough-.md
+generated_by: context-agent-hybrid

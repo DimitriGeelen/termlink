@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2510: channel renew can SHORTEN an active claim lease (renew_claim absolute set, not monotonic) - double-dispatch
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-03T12:26:02Z
+# ============================================================================
+
+task_id: T-2510
+task_name: "channel renew can SHORTEN an active claim lease (renew_claim absolute set, not monotonic) - double-dispatch"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-03T12:23:16Z
+completed: 2026-08-03T12:25:57Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-03T14:25:23+02:00
+last_commit: 2026-08-03T14:25:57+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  renew_claim must not shorten an active lease — clamp claimed_until to max(now+additional, old_until) + regression test. tick agent ACs + RCA (monotonic renew clamp verified, test proven load-bearing)
+
+# Key outcomes
+outcomes:
+  - '`renew_claim` computes `new_until = (now_ms + additional_ttl_ms).max(old_until)` — a renew'
+  - 'Regression test: claim with a LONG ttl, renew with a SMALL additional_ttl_ms shortly after;'
+  - 'Existing `renew_claim_extends_claimed_until_past_original_deadline` still passes'
+  - '`cargo test -p termlink-bus --lib` passes (101 passed)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-bus/src/lib.rs'
+  - 'crates/termlink-bus/src/meta.rs'
+  - '.tasks/active/T-2510-channel-renew-can-shorten-an-active-clai.md'
+  - '.tasks/completed/T-2509-termlink-exec-orphans-child-on-timeout--.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-03T14:25:23"
+    action: "T-2510: renew_claim must not shorten an active lease — clamp claimed_until to max(now+additional, old_until) + regression test"
+  - time: "2026-08-03T14:25:57"
+    action: "T-2510: tick agent ACs + RCA (monotonic renew clamp verified, test proven load-bearing)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 2
+  files_changed: 4
+  lines_added: 247
+  lines_removed: 17
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2510-channel-renew-can-shorten-an-active-clai.md
+generated_by: context-agent-hybrid

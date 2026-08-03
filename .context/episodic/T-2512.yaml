@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2512: channel post: accept positional body as --payload alias (E2E finding #4)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-03T16:31:07Z
+# ============================================================================
+
+task_id: T-2512
+task_name: "channel post: accept positional body as --payload alias (E2E finding #4)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-03T16:14:12Z
+completed: 2026-08-03T16:30:37Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-03T18:27:33+02:00
+last_commit: 2026-08-03T18:30:36+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  channel post accepts positional body as --payload alias (E2E finding #4); conflicts_with guards double-supply; 3 load-bearing tests; stdin fallback preserved. update E2E runbook — finding #4 (positional channel post body) now FIXED. fix verification lines (grep files directly; echo-pipe-grep SIGPIPEd on large files, L-387)
+
+# Key outcomes
+outcomes:
+  - '`channel post <topic> <body>` (positional) posts the body as payload'
+  - '`channel post <topic> --payload <body>` still works (backward compatible)'
+  - 'Passing BOTH positional body and `--payload` is a clap error (conflicts_with)'
+  - 'Neither given → still reads from stdin (unchanged fallback)'
+  - 'Unit test covers positional-body → payload resolution, proven load-bearing'
+  - '`cargo build --release -p termlink` green'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix verification lines (grep files directly; echo-pipe-grep SIGPIPEd on large files, L-387)'
+    source: git-mined
+  - description: 'update E2E runbook — finding #4 (positional channel post body) now FIXED'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/main.rs'
+  - 'docs/operations/e2e-charter-validation-runbook.md'
+  - '.tasks/active/T-2512-channel-post-accept-positional-body-as--.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-03T18:27:33"
+    action: "T-2512: channel post accepts positional body as --payload alias (E2E finding #4); conflicts_with guards double-supply; 3 load-bearing tests; stdin fallback preserved"
+  - time: "2026-08-03T18:28:14"
+    action: "T-2512: update E2E runbook — finding #4 (positional channel post body) now FIXED"
+  - time: "2026-08-03T18:30:36"
+    action: "T-2512: fix verification lines (grep files directly; echo-pipe-grep SIGPIPEd on large files, L-387)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 16 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 16
+  commits: 3
+  files_changed: 5
+  lines_added: 250
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2512-channel-post-accept-positional-body-as--.md
+generated_by: context-agent-hybrid

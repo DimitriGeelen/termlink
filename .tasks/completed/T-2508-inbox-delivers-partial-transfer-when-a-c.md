@@ -4,20 +4,20 @@ name: "Inbox delivers partial transfer when a chunk is missing"
 description: >
   deliver_transfer verifies chunks are readable but not that the set is contiguous 0..total_chunks; a missing chunk is delivered as a hole and the only copy is destroyed
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-hub/src/inbox.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-02T23:46:11Z
-last_update: 2026-08-02T23:50:27Z
-date_finished: null
+last_update: 2026-08-02T23:50:48Z
+date_finished: 2026-08-02T23:50:48Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -226,3 +226,15 @@ no-breadth): this is the in-code gate on the one function that destroys the spoo
 
 ### 2026-08-02T23:47:17Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-8a4026ca
+- **Timestamp:** 2026-08-02T23:50:54Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-02T23:50:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2509: termlink exec orphans child on timeout - executor::execute missing kill_on_drop
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-03T12:14:05Z
+# ============================================================================
+
+task_id: T-2509
+task_name: "termlink exec orphans child on timeout - executor::execute missing kill_on_drop"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-03T12:10:59Z
+completed: 2026-08-03T12:13:59Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-03T14:13:23+02:00
+last_commit: 2026-08-03T14:13:53+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix termlink exec orphaning child on timeout — kill_on_drop(true) on shared executor + regression test. tick agent ACs + RCA (kill_on_drop fix verified, test proven load-bearing)
+
+# Key outcomes
+outcomes:
+  - '`executor::execute()` sets `cmd.kill_on_drop(true)` before awaiting `cmd.output()`'
+  - 'A regression test proves a timed-out command''s child is actually killed: the'
+  - '`cargo test -p termlink-session --lib` passes (existing + new test green — 398 passed)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'tick agent ACs + RCA (kill_on_drop fix verified, test proven load-bearing)'
+    source: git-mined
+  - description: 'fix termlink exec orphaning child on timeout — kill_on_drop(true) on shared executor + regression test'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-session/src/executor.rs'
+  - '.tasks/active/T-2509-termlink-exec-orphans-child-on-timeout--.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-03T14:13:23"
+    action: "T-2509: fix termlink exec orphaning child on timeout — kill_on_drop(true) on shared executor + regression test"
+  - time: "2026-08-03T14:13:53"
+    action: "T-2509: tick agent ACs + RCA (kill_on_drop fix verified, test proven load-bearing)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 2
+  files_changed: 2
+  lines_added: 244
+  lines_removed: 17
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2509-termlink-exec-orphans-child-on-timeout--.md
+generated_by: context-agent-hybrid
