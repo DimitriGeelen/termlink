@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-03T13:12:21Z
-last_update: 2026-08-03T13:12:21Z
+last_update: 2026-08-03T16:10:16Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -114,10 +114,11 @@ so any future operator can re-run the same end-to-end proof by hand.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 test -f docs/operations/e2e-charter-validation-runbook.md
-rb=$(cat docs/operations/e2e-charter-validation-runbook.md); echo "$rb" | grep -qi "DISCOVER"
-rb=$(cat docs/operations/e2e-charter-validation-runbook.md); echo "$rb" | grep -qi "EXCHANGE"
-rb=$(cat docs/operations/e2e-charter-validation-runbook.md); echo "$rb" | grep -qi "CLAIM"
-rb=$(cat docs/operations/e2e-charter-validation-runbook.md); echo "$rb" | grep -qi "CONTROL"
+# grep the file directly — echo-pipe-grep SIGPIPEs on large content (L-387/T-2090)
+grep -qi "DISCOVER" docs/operations/e2e-charter-validation-runbook.md
+grep -qi "EXCHANGE" docs/operations/e2e-charter-validation-runbook.md
+grep -qi "CLAIM" docs/operations/e2e-charter-validation-runbook.md
+grep -qi "CONTROL" docs/operations/e2e-charter-validation-runbook.md
 
 ## Verification-runbook
 

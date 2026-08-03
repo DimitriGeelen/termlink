@@ -4,20 +4,20 @@ name: "channel post: accept positional body as --payload alias (E2E finding #4)"
 description: >
   channel post: accept positional body as --payload alias (E2E finding #4)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-03T16:14:12Z
-last_update: 2026-08-03T16:28:14Z
-date_finished: null
+last_update: 2026-08-03T16:30:37Z
+date_finished: 2026-08-03T16:30:37Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -186,3 +186,15 @@ grep -q 'conflicts_with = "payload"' crates/termlink-cli/src/cli.rs
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2512-channel-post-accept-positional-body-as--.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-6b70a707
+- **Timestamp:** 2026-08-03T16:31:04Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-03T16:30:37Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
