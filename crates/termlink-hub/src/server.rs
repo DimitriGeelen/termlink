@@ -1064,10 +1064,28 @@ async fn handle_ws_connection<S>(
     use futures_util::{SinkExt, StreamExt};
     use tokio_tungstenite::tungstenite::Message;
 
-    let ws = match tokio_tungstenite::accept_async(stream).await {
-        Ok(ws) => ws,
-        Err(e) => {
+    // T-2516: bound the WS upgrade handshake. `accept_async` reads the full HTTP
+    // upgrade request off the wire with no built-in deadline — a peer that sends
+    // the sniff byte 'G' (passing T-2442's first-byte guard) then withholds the
+    // rest would pin this task and its ConnGovernor slot forever. Sibling of
+    // T-2515 (tls.accept) — the third and final handshake await on the
+    // slot-holding path.
+    let ws = match tokio::time::timeout(
+        conn_handshake_timeout(),
+        tokio_tungstenite::accept_async(stream),
+    )
+    .await
+    {
+        Ok(Ok(ws)) => ws,
+        Ok(Err(e)) => {
             tracing::debug!(error = %e, "Hub: WebSocket handshake failed");
+            return;
+        }
+        Err(_) => {
+            tracing::warn!(
+                peer = ?peer_addr,
+                "Hub: WebSocket handshake timed out — slot reclaimed (T-2516 conn-cap DoS guard)"
+            );
             return;
         }
     };
@@ -2409,6 +2427,71 @@ mod tests {
                 Some(v) => std::env::set_var("TERMLINK_RUNTIME_DIR", v),
                 None => std::env::remove_var("TERMLINK_RUNTIME_DIR"),
             }
+        }
+    }
+
+    /// T-2516: the third handshake-await twin. A peer that passes T-2442's first-byte
+    /// guard by sending the WS sniff byte `'G'`, then withholds the rest of the HTTP
+    /// upgrade request, stalls `accept_async` — which (before T-2516) had NO deadline,
+    /// so the spawned task and its `ConnGovernor` slot were pinned forever. The hub
+    /// must now bound `accept_async` with `conn_handshake_timeout()` and drop the
+    /// connection. Proven by observing EOF/reset on the client side within the timeout.
+    /// (Temp-reverting the timeout wrap makes this test hang to its 2s read-timeout
+    /// and FAIL.)
+    #[tokio::test]
+    async fn ws_handshake_timeout_reclaims_slot() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let _lock = ENV_LOCK.lock().await;
+        let prev = std::env::var("TERMLINK_CONN_HANDSHAKE_TIMEOUT_MS").ok();
+        unsafe { std::env::set_var("TERMLINK_CONN_HANDSHAKE_TIMEOUT_MS", "400") };
+
+        let dir = test_dir();
+        let hub_socket = hub_sock(&dir);
+        let (tx, rx) = watch::channel(false);
+        let socket_clone = hub_socket.clone();
+        // No TLS (None acceptor) → raw-TCP branch → handle_connection → first-byte
+        // read → is_ws (sees 'G') → handle_ws_connection → accept_async.
+        let hub_handle = tokio::spawn(async move {
+            let _ = std::fs::remove_file(&socket_clone);
+            let unix_listener = UnixListener::bind(&socket_clone).unwrap();
+            let tcp_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let tcp_port = tcp_listener.local_addr().unwrap().port();
+            std::fs::write(socket_clone.with_extension("tcp_port"), tcp_port.to_string()).unwrap();
+            run_accept_loop(unix_listener, Some(tcp_listener), None, None, rx).await;
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        let tcp_port: u16 = std::fs::read_to_string(hub_socket.with_extension("tcp_port"))
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap();
+
+        // Send exactly the WS sniff byte 'G', then withhold the rest of the upgrade
+        // request. `accept_async` keeps awaiting the header terminator (\r\n\r\n);
+        // without the T-2516 timeout it would await forever, pinning the slot.
+        let mut tcp = tokio::net::TcpStream::connect(format!("127.0.0.1:{}", tcp_port))
+            .await
+            .unwrap();
+        tcp.write_all(b"G").await.unwrap();
+        tcp.flush().await.unwrap();
+
+        // The hub must close us within the handshake timeout (400ms) + slack.
+        let mut buf = [0u8; 1];
+        let read = tokio::time::timeout(std::time::Duration::from_secs(2), tcp.read(&mut buf)).await;
+        match read {
+            Ok(Ok(0)) => { /* EOF — hub closed the stalled WS handshake. Slot released. */ }
+            Ok(Ok(n)) => panic!("expected EOF from WS-handshake timeout close, got {n} byte(s)"),
+            Ok(Err(_)) => { /* reset by peer — also an acceptable close signal */ }
+            Err(_) => {
+                panic!("hub did NOT close a stalled-WS-handshake connection within 2s — slot would leak")
+            }
+        }
+
+        tx.send(true).unwrap();
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(3), hub_handle).await;
+        match prev {
+            Some(v) => unsafe { std::env::set_var("TERMLINK_CONN_HANDSHAKE_TIMEOUT_MS", v) },
+            None => unsafe { std::env::remove_var("TERMLINK_CONN_HANDSHAKE_TIMEOUT_MS") },
         }
     }
 
