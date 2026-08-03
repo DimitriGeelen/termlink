@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-03T16:14:12Z
-last_update: 2026-08-03T16:14:12Z
+last_update: 2026-08-03T16:28:14Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -114,9 +114,10 @@ fallback when neither is given.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
-out=$(cargo test -p termlink --bins resolve_post_body 2>&1); echo "$out" | grep -q "test result: ok. 3 passed"
-src=$(cat crates/termlink-cli/src/commands/channel.rs); echo "$src" | grep -q "fn resolve_post_body"
-src=$(cat crates/termlink-cli/src/cli.rs); echo "$src" | grep -q "conflicts_with = \"payload\""
+# NOTE: grep the files directly — `echo "$(cat bigfile)" | grep -q` SIGPIPEs (exit 141, L-387/T-2090)
+out=$(cargo test -p termlink --bins resolve_post_body 2>&1); case "$out" in *"test result: ok. 3 passed"*) true ;; *) false ;; esac
+grep -q "fn resolve_post_body" crates/termlink-cli/src/commands/channel.rs
+grep -q 'conflicts_with = "payload"' crates/termlink-cli/src/cli.rs
 
 ## RCA
 
