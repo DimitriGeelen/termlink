@@ -1,0 +1,98 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2513: Fix split-read alt-screen detection in PtySession::scan_alternate_screen
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-03T17:18:00Z
+# ============================================================================
+
+task_id: T-2513
+task_name: "Fix split-read alt-screen detection in PtySession::scan_alternate_screen"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-03T16:53:34Z
+completed: 2026-08-03T17:07:32Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-03T19:07:19+02:00
+last_commit: 2026-08-03T19:07:19+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix split-read alt-screen detection in PtySession (rolling carry buffer); PL-298
+
+# Key outcomes
+outcomes:
+  - '`scan_alternate_screen` scans across read boundaries via a rolling carry buffer (`scan_carry` field), not `chunk.windows(8)` in isolation'
+  - 'A regression test drives detection with the sequence SPLIT across two calls (`\x1b[?104` then `9h`) and asserts the state flips — and FAILS against the old per-chunk logic (proven load-bearing by temp-revert)'
+  - 'A regression test feeds the sequence one byte at a time and asserts the state flips'
+  - 'The existing `alternate_screen_detection` (whole-sequence-in-one-call) test still passes (no double-count / no regression)'
+  - '`cargo test -p termlink-session --lib pty` passes; `cargo build --release -p termlink` succeeds'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix split-read alt-screen detection in PtySession (rolling carry buffer); PL-298'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-08-03.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/project/learnings.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.gate-bypass-log.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-session/src/pty.rs'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2513-fix-split-read-alt-screen-detection-in-p.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-03T19:07:19"
+    action: "T-2513: fix split-read alt-screen detection in PtySession (rolling carry buffer); PL-298"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 13 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 13
+  commits: 1
+  files_changed: 21
+  lines_added: 3238
+  lines_removed: 2706
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2513-fix-split-read-alt-screen-detection-in-p.md
+generated_by: context-agent-hybrid

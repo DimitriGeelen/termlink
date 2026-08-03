@@ -5868,3 +5868,21 @@ scan_id: R-f4066c61
 task_id: T-2511
 payload:
   task_file: .tasks/active/T-2511-e2e-charter-verb-validation-walkthrough-.md
+---
+kind: scan_emitted
+timestamp: '2026-08-03T17:17:57Z'
+scan_id: R-cda3bcee
+task_id: T-2513
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-03T17:17:57Z'
+scan_id: R-cda3bcee
+task_id: T-2513
+payload:
+  task_file: .tasks/active/T-2513-fix-split-read-alt-screen-detection-in-p.md
