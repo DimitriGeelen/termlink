@@ -486,6 +486,22 @@ fn select_newest_artifact(
     artifacts.iter().max_by_key(|a| a.channel_offset)
 }
 
+/// T-2520: reduce a wire-supplied filename to a trusted final basename before it is
+/// joined onto the receive output dir. `FileInit.filename` / `ArtifactManifest.filename`
+/// are documented "basename only, no path" (protocol events.rs:499) but arrive verbatim
+/// from an untrusted peer. Without this, an absolute or `..`-bearing name escapes
+/// `out_path` via `Path::join` (arbitrary file write outside `-o <dir>`). `Path::file_name`
+/// returns the final component only and yields `None` for `""`, `.`, `..`, and path-only
+/// inputs (e.g. `foo/..`, `a/b/`), so a rejected name never produces a parent/absolute path.
+fn sanitize_recv_filename(wire_name: &str) -> Option<String> {
+    let base = std::path::Path::new(wire_name).file_name()?;
+    let s = base.to_string_lossy();
+    if s.is_empty() || s == "." || s == ".." {
+        return None;
+    }
+    Some(s.into_owned())
+}
+
 /// Process a batch of received artifact envelopes; on the NEWEST writable artifact
 /// (T-2473), write it to disk and return the summary. Idempotency: if
 /// `<out_path>/<filename>` already exists with matching sha256, skip the
@@ -499,10 +515,12 @@ async fn process_artifact_batch(
     if let Some(a) = select_newest_artifact(artifacts) {
         let (bytes, sha256_hex, filename, via) = if let Some(sha) = &a.artifact_ref {
             // Chunked path: manifest carries filename, bytes via artifact.get.
+            // T-2520: sanitize wire filename to a basename; a missing/traversal/absolute
+            // name falls back to the safe synthesized default, never escaping out_path.
             let manifest_filename = a
                 .manifest
                 .as_ref()
-                .map(|m| m.filename.clone())
+                .and_then(|m| sanitize_recv_filename(&m.filename))
                 .unwrap_or_else(|| format!("received-{}.bin", &sha[..16.min(sha.len())]));
             let dest = out_path.join(&manifest_filename);
             // Idempotency check: if dest already has matching sha, skip download.
@@ -854,8 +872,12 @@ pub(crate) async fn cmd_file_receive(
                                                         anyhow::bail!("{}", msg);
                                                     }
                                                 }
-                                                let fname = filename.as_deref().unwrap_or("received-file");
-                                                let dest = out_path.join(fname);
+                                                // T-2520: confine wire filename to a basename before join.
+                                                let fname = filename
+                                                    .as_deref()
+                                                    .and_then(sanitize_recv_filename)
+                                                    .unwrap_or_else(|| "received-file".to_string());
+                                                let dest = out_path.join(&fname);
                                                 if let Err(e) = std::fs::write(&dest, &file_data) {
                                                     if json {
                                                         super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to write file '{}': {}", dest.display(), e)}));
@@ -971,8 +993,12 @@ pub(crate) async fn cmd_file_receive(
                                                     anyhow::bail!("{}", msg);
                                                 }
                                             }
-                                            let fname = filename.as_deref().unwrap_or("received-file");
-                                            let dest = out_path.join(fname);
+                                            // T-2520: confine wire filename to a basename before join.
+                                            let fname = filename
+                                                .as_deref()
+                                                .and_then(sanitize_recv_filename)
+                                                .unwrap_or_else(|| "received-file".to_string());
+                                            let dest = out_path.join(&fname);
                                             if let Err(e) = std::fs::write(&dest, &file_data) {
                                                 if json {
                                                     super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to write file '{}': {}", dest.display(), e)}));
@@ -1050,6 +1076,49 @@ pub(crate) async fn cmd_file_receive(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // T-2520: wire filenames must confine to a basename — a traversal/absolute name
+    // must never yield a parent/absolute path that out_path.join would follow.
+    #[test]
+    fn sanitize_recv_filename_confines_to_basename() {
+        use std::path::Path;
+        let out = Path::new("/out/dir");
+
+        // Traversal: reduces to the final component; join stays under out_path.
+        let s = sanitize_recv_filename("../../etc/cron.d/x").expect("basename recovered");
+        assert_eq!(s, "x");
+        assert_eq!(out.join(&s), Path::new("/out/dir/x"));
+
+        // Absolute path: reduces to basename, does NOT replace the base.
+        let s = sanitize_recv_filename("/etc/passwd").expect("basename recovered");
+        assert_eq!(s, "passwd");
+        assert_eq!(out.join(&s), Path::new("/out/dir/passwd"));
+
+        // Nested relative: only the leaf survives.
+        let s = sanitize_recv_filename("a/b/c.txt").expect("basename recovered");
+        assert_eq!(s, "c.txt");
+        assert_eq!(out.join(&s), Path::new("/out/dir/c.txt"));
+
+        // Path-only / degenerate inputs yield None (caller falls back to a safe default).
+        assert_eq!(sanitize_recv_filename(""), None);
+        assert_eq!(sanitize_recv_filename("."), None);
+        assert_eq!(sanitize_recv_filename(".."), None);
+        assert_eq!(sanitize_recv_filename("foo/.."), None);
+        // Trailing slash is stripped by file_name(); leaf survives, still confined.
+        assert_eq!(sanitize_recv_filename("a/b/").as_deref(), Some("b"));
+
+        // Ordinary name passes through unchanged.
+        assert_eq!(sanitize_recv_filename("report.pdf").as_deref(), Some("report.pdf"));
+
+        // Invariant: no accepted name ever escapes out_path.
+        for probe in ["../../../root/.ssh/authorized_keys", "/tmp/evil", "x/../../../y", "normal.bin"] {
+            if let Some(base) = sanitize_recv_filename(probe) {
+                let joined = out.join(&base);
+                assert!(joined.starts_with(out), "escaped out_path: {probe} -> {joined:?}");
+                assert!(!base.contains('/'), "basename retained a separator: {base}");
+            }
+        }
+    }
 
     // T-2472 (OBS-108): the digest-reconcile contract that kills the false-green.
     const A: &str = "093858aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
