@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use serde_json::json;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, RwLock};
 
 use termlink_protocol::control::{self, KeyEntry};
 use termlink_protocol::jsonrpc::{ErrorResponse, Request, Response, RpcResponse};
@@ -85,6 +85,47 @@ pub fn needs_write(req: &Request) -> bool {
     )
 }
 
+/// A long-poll method that must be dispatched DETACHED from the session lock:
+/// holding the session guard across its wait would deadlock concurrent write-scoped
+/// emitters (`kv.set`/`kv.delete`) for the full timeout (T-2521). Currently only
+/// `event.subscribe`.
+pub fn is_detached_longpoll(req: &Request) -> bool {
+    matches!(req.method.as_str(), control::method::EVENT_SUBSCRIBE)
+}
+
+/// Dispatch a request with the correct session-lock scope — the single source of
+/// truth for lock scoping, called by `server.rs` after the permission-scope check.
+/// Three classes:
+///   - write-scoped (`needs_write`): hold the write guard for the whole handler.
+///   - detached long-poll (`is_detached_longpoll`): clone the `Arc<Mutex<EventBus>>`
+///     under a brief read lock, RELEASE the session guard, then run the long-poll
+///     wait — so a concurrent write-scoped emitter is not blocked and the watch can
+///     actually observe the change it emits (T-2521).
+///   - read-scoped (default): hold the read guard for the handler.
+pub async fn dispatch_scoped(
+    session: &Arc<RwLock<SessionContext>>,
+    req: &Request,
+) -> Option<RpcResponse> {
+    if needs_write(req) {
+        let mut ctx = session.write().await;
+        dispatch_mut(req, &mut ctx).await
+    } else if is_detached_longpoll(req) {
+        // Retain ONLY the event bus handle; drop the session guard before the wait.
+        let events = {
+            let ctx = session.read().await;
+            ctx.events.clone()
+        };
+        if req.is_notification() {
+            return None;
+        }
+        let id = req.id.clone().unwrap_or(serde_json::Value::Null);
+        Some(handle_event_subscribe(id, &req.params, events).await)
+    } else {
+        let ctx = session.read().await;
+        dispatch(req, &ctx).await
+    }
+}
+
 /// Dispatch a mutable request (requires write lock on session context).
 pub async fn dispatch_mut(req: &Request, ctx: &mut SessionContext) -> Option<RpcResponse> {
     if req.is_notification() {
@@ -133,7 +174,9 @@ pub async fn dispatch(req: &Request, ctx: &SessionContext) -> Option<RpcResponse
         }
         control::method::EVENT_EMIT => handle_event_emit(id, &req.params, ctx).await,
         control::method::EVENT_POLL => handle_event_poll(id, &req.params, ctx).await,
-        control::method::EVENT_SUBSCRIBE => handle_event_subscribe(id, &req.params, ctx).await,
+        control::method::EVENT_SUBSCRIBE => {
+            handle_event_subscribe(id, &req.params, ctx.events.clone()).await
+        }
         control::method::EVENT_TOPICS => handle_event_topics(id, ctx).await,
         control::method::PTY_MODE => handle_pty_mode(id, ctx).await,
         control::method::KV_GET => handle_kv_get(id, &req.params, ctx),
@@ -705,10 +748,14 @@ async fn handle_event_poll(
 /// This is dramatically lower latency than `event.poll` (which requires a
 /// fixed sleep interval on the client side) because the server blocks until
 /// an event actually arrives.
-async fn handle_event_subscribe(
+/// Long-poll subscribe. Takes the event bus handle DIRECTLY (not `&SessionContext`)
+/// so it can be dispatched detached from the session `RwLock` — see `dispatch_scoped`
+/// and T-2521: holding the session read guard across this wait deadlocks concurrent
+/// write-scoped emitters (`kv.set`/`kv.delete`).
+pub async fn handle_event_subscribe(
     id: serde_json::Value,
     params: &serde_json::Value,
-    ctx: &SessionContext,
+    events: Arc<Mutex<EventBus>>,
 ) -> RpcResponse {
     let timeout_ms = params
         .get("timeout_ms")
@@ -731,7 +778,7 @@ async fn handle_event_subscribe(
 
     // Acquire subscriber + optionally replay historical events (single lock).
     let (mut rx, historical, gap_detected, events_lost) = {
-        let bus = ctx.events.lock().await;
+        let bus = events.lock().await;
         let rx = bus.subscribe();
 
         if let Some(since_seq) = since_param {
@@ -1139,6 +1186,66 @@ mod tests {
 
     fn test_ctx() -> SessionContext {
         SessionContext::new(test_registration())
+    }
+
+    // T-2521: a live event.subscribe must NOT hold the session lock across its wait.
+    // If it does, a concurrent write-scoped kv.set both (a) can't acquire the write
+    // lock (stalls for the whole timeout) and (b) is never observed by the watch.
+    // Drives BOTH RPCs through dispatch_scoped — the real lock-scoping path.
+    #[tokio::test]
+    async fn event_subscribe_does_not_block_concurrent_kv_set() {
+        let session = Arc::new(RwLock::new(test_ctx()));
+
+        // Task A: live watch on kv.change (no `since` → pure live), 2s budget.
+        let sub_session = session.clone();
+        let watcher = tokio::spawn(async move {
+            let req = Request::new(
+                "event.subscribe",
+                json!("sub-1"),
+                json!({"topic": "kv.change", "timeout_ms": 2000}),
+            );
+            dispatch_scoped(&sub_session, &req).await
+        });
+
+        // Let the watcher register its broadcast subscription before we emit.
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        // Task B: concurrent write-scoped kv.set — must acquire the write lock promptly.
+        let set_req = Request::new("kv.set", json!("set-1"), json!({"key": "k", "value": "v"}));
+        let started = tokio::time::Instant::now();
+        let set_resp = dispatch_scoped(&session, &set_req)
+            .await
+            .expect("kv.set has a response");
+        let set_elapsed = started.elapsed();
+
+        // (b) The writer must NOT be starved by the watcher's read guard.
+        assert!(
+            set_elapsed < Duration::from_millis(1000),
+            "kv.set was blocked by the live watch (took {:?}) — the read guard starved the writer",
+            set_elapsed
+        );
+        match set_resp {
+            RpcResponse::Success(r) => assert_eq!(r.result["key"], "k"),
+            RpcResponse::Error(e) => panic!("kv.set errored: {:?}", e.error),
+        }
+
+        // (a) The watch must have OBSERVED the concurrent change.
+        let watch_resp = watcher
+            .await
+            .expect("watcher task panicked")
+            .expect("watcher response");
+        match watch_resp {
+            RpcResponse::Success(r) => {
+                assert_eq!(
+                    r.result["count"].as_u64(),
+                    Some(1),
+                    "live watch missed the concurrent kv.change: {:?}",
+                    r.result
+                );
+                assert_eq!(r.result["events"][0]["topic"], "kv.change");
+            }
+            RpcResponse::Error(e) => panic!("subscribe errored: {:?}", e.error),
+        }
     }
 
     fn test_ctx_with_scrollback(data: &[u8]) -> SessionContext {

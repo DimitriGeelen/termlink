@@ -71,12 +71,11 @@ pub async fn handle_connection(
                             )
                             .into(),
                         )
-                    } else if handler::needs_write(&req) {
-                        let mut ctx = session.write().await;
-                        handler::dispatch_mut(&req, &mut ctx).await
                     } else {
-                        let ctx = session.read().await;
-                        handler::dispatch(&req, &ctx).await
+                        // T-2521: single source of truth for session-lock scope.
+                        // event.subscribe is dispatched detached from the session
+                        // lock so it can't deadlock concurrent kv.set/kv.delete.
+                        handler::dispatch_scoped(&session, &req).await
                     }
                 }
             }
