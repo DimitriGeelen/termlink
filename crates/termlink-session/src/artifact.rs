@@ -483,13 +483,51 @@ pub async fn recv_artifacts_via_client(
     })
 }
 
+/// Default absolute ceiling (2 GiB) on a single artifact download. Artifacts are
+/// the large-payload channel (the inline path caps at ~64 KB), so this is
+/// generous but finite — it exists only to bound the in-memory reassembly against
+/// a peer streaming an unbounded blob (T-2524 OOM DoS). Override with
+/// `TERMLINK_MAX_ARTIFACT_BYTES` (positive integer). Mirrors the codebase's
+/// env-tunable-cap convention (`TERMLINK_MAX_CONNECTIONS`, `TERMLINK_CV_INDEX_CAP_PER_TOPIC`).
+const DEFAULT_MAX_ARTIFACT_BYTES: u64 = 2 * 1024 * 1024 * 1024;
+
+/// Parse the artifact-download ceiling from an optional env value. Pure (no env
+/// read) so it is unit-testable. A missing / non-numeric / zero value falls back
+/// to the 2 GiB default (zero is rejected so an operator can't accidentally
+/// disable the guard entirely).
+fn parse_artifact_cap(var: Option<String>) -> u64 {
+    var.and_then(|s| s.trim().parse::<u64>().ok())
+        .filter(|&n| n > 0)
+        .unwrap_or(DEFAULT_MAX_ARTIFACT_BYTES)
+}
+
+/// Effective artifact-download ceiling for this process.
+fn max_artifact_download_bytes() -> u64 {
+    parse_artifact_cap(std::env::var("TERMLINK_MAX_ARTIFACT_BYTES").ok())
+}
+
+/// Would accumulating `incoming` more bytes onto `current` exceed `cap`?
+/// Saturating add so a hostile `current`/`incoming` near `u64::MAX` can never
+/// wrap to a small value and slip past the guard.
+fn artifact_download_would_exceed(current: u64, incoming: u64, cap: u64) -> bool {
+    current.saturating_add(incoming) > cap
+}
+
 /// Download an artifact's bytes by sha256 via chunked `artifact.get`. Verifies
 /// the returned bytes hash to the requested key; returns an error on mismatch.
+///
+/// Reassembly is bounded by `max_artifact_download_bytes()` (T-2524): the loop
+/// bails with an error the moment accumulating the next chunk would exceed the
+/// ceiling, BEFORE the copy — so a peer that sets `eof` late (or never) cannot
+/// drive the in-memory `out` buffer to OOM-kill the receiver. The trailing SHA
+/// verify is a post-read integrity check, not a size guard, so the cap must live
+/// inside the loop.
 pub async fn download_artifact_via_client(
     client: &mut Client,
     sha256: &str,
 ) -> io::Result<Vec<u8>> {
     const CHUNK: usize = 256 * 1024;
+    let cap = max_artifact_download_bytes();
     let mut out: Vec<u8> = Vec::new();
     let mut offset: u64 = 0;
     loop {
@@ -521,6 +559,12 @@ pub async fn download_artifact_via_client(
         let bytes = B64
             .decode(chunk_b64)
             .map_err(|e| io::Error::other(format!("artifact.get chunk_b64 decode: {e}")))?;
+        if artifact_download_would_exceed(out.len() as u64, bytes.len() as u64, cap) {
+            return Err(io::Error::other(format!(
+                "artifact.get exceeded max download size {cap} bytes \
+                 (raise TERMLINK_MAX_ARTIFACT_BYTES if this is a legitimate transfer)"
+            )));
+        }
         out.extend_from_slice(&bytes);
         offset += bytes.len() as u64;
         let eof = result.get("eof").and_then(|v| v.as_bool()).unwrap_or(false);
@@ -553,6 +597,39 @@ mod tests {
     use serde_json::Value;
     use std::sync::{Arc, Mutex};
     use termlink_protocol::TransportAddr;
+
+    // === T-2524: artifact-download ceiling guards the reassembly OOM ===
+
+    #[test]
+    fn artifact_download_would_exceed_guards_extremes() {
+        let cap = 256u64;
+        // Under the cap: allowed.
+        assert!(!artifact_download_would_exceed(0, 100, cap));
+        assert!(!artifact_download_would_exceed(100, 100, cap));
+        // Exactly at the cap: allowed (256 == 256 is not > 256).
+        assert!(!artifact_download_would_exceed(156, 100, cap));
+        // One byte over: refused.
+        assert!(artifact_download_would_exceed(157, 100, cap));
+        assert!(artifact_download_would_exceed(256, 1, cap));
+        // Saturating add: a hostile near-u64::MAX accumulation must NOT wrap to a
+        // small value and slip past the guard — it must be refused.
+        assert!(artifact_download_would_exceed(u64::MAX, 1, cap));
+        assert!(artifact_download_would_exceed(u64::MAX - 10, 100, cap));
+    }
+
+    #[test]
+    fn parse_artifact_cap_defaults_and_overrides() {
+        // Absent / non-numeric / zero / negative → 2 GiB default (guard never disabled).
+        assert_eq!(parse_artifact_cap(None), DEFAULT_MAX_ARTIFACT_BYTES);
+        assert_eq!(parse_artifact_cap(Some("nonsense".into())), DEFAULT_MAX_ARTIFACT_BYTES);
+        assert_eq!(parse_artifact_cap(Some("0".into())), DEFAULT_MAX_ARTIFACT_BYTES);
+        assert_eq!(parse_artifact_cap(Some("-5".into())), DEFAULT_MAX_ARTIFACT_BYTES);
+        // Valid positive integer (with surrounding whitespace) is honored.
+        assert_eq!(parse_artifact_cap(Some("1048576".into())), 1_048_576);
+        assert_eq!(parse_artifact_cap(Some("  4096  ".into())), 4096);
+        // The default is a sane 2 GiB.
+        assert_eq!(DEFAULT_MAX_ARTIFACT_BYTES, 2 * 1024 * 1024 * 1024);
+    }
 
     fn manifest(name: &str, size: u64) -> ArtifactManifest {
         ArtifactManifest {
