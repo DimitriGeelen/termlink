@@ -6030,3 +6030,21 @@ scan_id: R-5e85327e
 task_id: T-2521
 payload:
   task_file: .tasks/active/T-2521-kv-watch-deadlock-eventsubscribe-holds-s.md
+---
+kind: scan_emitted
+timestamp: '2026-08-04T10:58:12Z'
+scan_id: R-40a114f9
+task_id: T-2523
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-04T10:58:12Z'
+scan_id: R-40a114f9
+task_id: T-2523
+payload:
+  task_file: .tasks/active/T-2523-batchexecbatchrun-maxparallel-unclamped-.md
