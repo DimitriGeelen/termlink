@@ -1,12 +1,12 @@
 ---
-id: T-2521
-name: "KV watch deadlock: event.subscribe holds session read guard across long-poll, blocking kv.set/kv.delete"
+id: T-2522
+name: "Retention Days mode prunes on client-supplied timestamp (message loss + unbounded-growth vectors)"
 description: >
-  event.subscribe (termlink_kv_watch / termlink kv watch) is read-scoped, so server.rs holds the session RwLock read guard across the entire long-poll wait (up to timeout_ms, default 5000). kv.set/kv.delete are write-scoped (session.write().await) and cannot acquire while the read guard is held, so a live KV watch never observes a concurrent kv.change AND the write stalls for the full timeout (per-session write DoS). Fix: dispatch event.subscribe detached from the session lock — clone the Arc<Mutex<EventBus>> under a brief read lock, release the session guard, then wait.
+  Retention::Days sweep deletes records WHERE records.ts_unix_ms < now - d*86400000 (bus/meta.rs:319). That column is populated from env.ts_unix_ms (bus/lib.rs:192), which channel.post takes from client params.ts (server_now only as fallback, channel.rs:617). So Days is the ONLY retention mode keyed off a client-supplied, non-monotonic value. Consequence (a) over-reclaim: a message posted now but carrying an old client ts is deleted on the next sweep before any consumer reads it — durability violation / message loss. (b) never-fires: a message with a FUTURE client ts is never < cutoff, survives forever, pins the topic (T-1991-class unbounded growth from one poison record). NEEDS HUMAN DECISION: does Days(N) mean keep-N-days-by-content-time (current) or by-hub-receive-time? Existing tests (bus/lib.rs:1306/1321/1356) encode content-time; agent-presence stale-eviction leans on it. See RCA for the durability argument for receive-time + the fix.
 
-status: started-work
+status: captured
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-04T10:07:32Z
-last_update: 2026-08-04T10:12:23Z
+created: 2026-08-04T10:12:58Z
+last_update: 2026-08-04T10:12:58Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,32 +30,18 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2521: KV watch deadlock: event.subscribe holds session read guard across long-poll, blocking kv.set/kv.delete
+# T-2522: Retention Days mode prunes on client-supplied timestamp (message loss + unbounded-growth vectors)
 
 ## Context
 
-Campaign firing #40 (T-2468 subtract-and-deepen review, KV-store lens). `event.subscribe`
-(what `termlink_kv_watch` / `termlink kv watch` call) is read-scoped, so `server.rs`
-holds the session `RwLock` **read** guard across the entire long-poll wait
-(`handle_event_subscribe`, up to `timeout_ms`, default 5000). `kv.set`/`kv.delete` are
-the only write-scoped *event emitters* (`needs_write`, handler.rs:81), so they must
-`session.write().await` — which cannot proceed while the subscribe holds the read guard.
-Result: a live KV watch **never observes a concurrent `kv.change`** (returns empty), AND
-the `kv.set` stalls for the watch's full remaining timeout (per-session write DoS). The
-handler itself already scopes the *bus* mutex correctly (locks `ctx.events` only to
-`subscribe()`+replay, then waits on the detached `rx`); the defect is purely that the
-*caller* holds the session guard across the wait. It went unnoticed because `event.emit`
-is read-scoped (two readers coexist), so ordinary event watches work — only write-scoped
-emitters expose it. Fix: dispatch `event.subscribe` **detached** from the session lock —
-clone the `Arc<Mutex<EventBus>>` under a brief read lock, drop the session guard, then wait.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] The post-auth lock-scoping branch is extracted into a testable `handler::dispatch_scoped(session, req)` with three arms: write-scoped (`needs_write`), detached long-poll (`event.subscribe`), and read-scoped (default); `server.rs` calls it.
-- [x] `event.subscribe` is dispatched detached: the session read guard is released (only the `Arc<Mutex<EventBus>>` is retained) before the long-poll wait, so a concurrent `kv.set`/`kv.delete` can acquire the write lock and emit while the watch waits.
-- [x] A regression test `event_subscribe_does_not_block_concurrent_kv_set` drives a live subscribe + a concurrent `kv.set` through `dispatch_scoped` and asserts (a) the subscribe receives the `kv.change` (count==1) and (b) the `kv.set` completes well under the watch timeout. Proven load-bearing (FAILS when the detached arm is reverted to the read-guarded path).
-- [x] `cargo test -p termlink-session --lib` passes (403 tests); `cargo build --release -p termlink-hub` succeeds (exit 0).
+<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -89,8 +75,6 @@ clone the `Arc<Mutex<EventBus>>` under a brief read lock, drop the session guard
 -->
 
 ## Verification
-cargo test -p termlink-session --lib event_subscribe_does_not_block_concurrent_kv_set > /tmp/.t2521-test.out 2>&1 && grep -q "test result: ok" /tmp/.t2521-test.out
-grep -q "fn dispatch_scoped" crates/termlink-session/src/handler.rs
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -125,28 +109,19 @@ grep -q "fn dispatch_scoped" crates/termlink-session/src/handler.rs
 
 ## RCA
 
-**Symptom:** A live KV watch (`termlink_kv_watch` / `event.subscribe {topic:"kv.change"}`)
-never reports a concurrent `kv.set`/`kv.delete` — it returns `{events:[],count:0}` — and the
-`kv.set` itself hangs for the watch's full `timeout_ms` before applying (per-session write DoS).
+<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
+     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
+     Non-bug-class tasks may leave this section empty or remove it.
 
-**Root cause:** `event.subscribe` is not in `needs_write`, so `server.rs` dispatches it via the
-read-scoped path, holding the session `RwLock` **read** guard for the whole
-`handle_event_subscribe` long-poll. `kv.set`/`kv.delete` are write-scoped and block on
-`session.write().await` for the entire wait; their `kv.change` emit therefore lands only after
-the watcher's guard drops — i.e. after the watcher has already returned empty. A reader/writer
-lock inversion: the *reader* (a passive long-poll) starves the *writer* (the event source).
+     For bug-class, fill in:
+       **Symptom:** what was observed (the user-facing manifestation).
+       **Root cause:** the specific structural/logical gap — not "the code was wrong".
+       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
+       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
 
-**Why structurally allowed:** `event.emit` (the usual emitter) is also read-scoped, and two
-`RwLock` readers coexist — so every ordinary event watch works, masking the defect. Only a
-*write-scoped* emitter (`kv.set`/`kv.delete`) collides with the read guard, and no test paired a
-live subscribe with a concurrent write-scoped emit. The lock scope is decided per-method by a
-coarse `needs_write` boolean that conflates "mutates session state" with "may hold the session
-lock for a long time" — a long-poll needs neither a write lock nor a *held* read lock.
-
-**Prevention:** `dispatch_scoped` makes the long-poll a distinct third dispatch class that is
-structurally detached from the session lock, plus a regression test that pairs a live subscribe
-with a concurrent `kv.set` and asserts both make progress. Any future long-poll method added to
-the detached set inherits the non-blocking guarantee; forgetting it is a visible omission.
+     The completion gate (T-1550, G-019) blocks --status work-completed when
+     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
+-->
 
 ## Evolution
 
@@ -195,10 +170,7 @@ the detached set inherits the non-blocking guarantee; forgetting it is a visible
 
 ## Updates
 
-### 2026-08-04T10:07:32Z — task-created [task-create-agent]
+### 2026-08-04T10:12:58Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2521-kv-watch-deadlock-eventsubscribe-holds-s.md
+- **Output:** /opt/termlink/.tasks/active/T-2522-retention-days-mode-prunes-on-client-sup.md
 - **Context:** Initial task creation
-
-### 2026-08-04T10:08:46Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work

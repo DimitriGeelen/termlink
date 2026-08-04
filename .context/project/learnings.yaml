@@ -2878,3 +2878,10 @@ learnings:
   date: 2026-08-04
   context: Added via context agent
   application: TBD
+- id: PL-303
+  learning: "Lock scope must distinguish 'mutates state' from 'holds the lock a long time'. T-2521: event.subscribe (a passive long-poll) was read-scoped, so the dispatcher held the session RwLock read guard for the FULL wait (5s). A write-scoped emitter on the SAME session (kv.set/kv.delete) then starved on session.write().await — reader starves writer — so a live KV watch never saw the change it was waiting for AND the write DoS'd for the timeout. Masked because event.emit is ALSO read-scoped (readers coexist), so ordinary watches worked; only a write-scoped emitter exposed it, and no test paired live-subscribe with a concurrent write. Fix: make long-poll a THIRD dispatch class (dispatch_scoped) that clones the Arc<Mutex<EventBus>> under a brief read lock then RELEASES the session guard before waiting. A coarse needs_write boolean is the wrong axis for lock-hold-duration. Sibling to T-2519/T-2518 (shared-invariant class)."
+  source: P-001
+  task: T-2521
+  date: 2026-08-04
+  context: Added via context agent
+  application: TBD
