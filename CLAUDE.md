@@ -513,6 +513,46 @@ Ad-hoc check: `bash scripts/check-alloc-sink-clamps.sh`. Fixtures (no live binar
 bounded-by-construction — add the site's signature to the allowlist with a cited
 reason.
 
+### Unbounded peer-driven drain-sink static check (T-2531, G-019 prevention for the T-2518/2524/2525/2529 class)
+
+The sibling of the T-2527 alloc-sink check, for the *accumulation* half of the
+same class. Four fixes in one campaign each closed ONE instance of "peer-influenced
+/ externally-driven bytes accumulated UNBOUNDED into the long-lived daemon's OWN
+address space, risking OOM of the supervisor": `read_capped_line` (T-2518 bus line
+reader), artifact download (T-2524), hub staging (T-2525), and `executor::execute`'s
+`cmd.output()` child drain (T-2529). T-2527 made the *pre-allocation* clamp
+convention load-bearing; the *drain* sinks (`.output()` full child-output capture,
+`read_to_end`/`read_to_string` stream drains, full `collect::<Vec<u8>>()`) were still
+unguarded — invisible until a human read that exact line. G-019: fix the four caps,
+then fix why the framework was blind.
+
+`scripts/check-drain-sink-caps.sh` is a grep/AST-lite **source-level static check**
+(NOT a runtime cron canary — same tier as T-2527) over the daemon crates
+(`crates/termlink-{mcp,hub,session,bus,protocol}/src`). It flags each
+`<cmd>.output()`, `<reader>.read_to_end(...)`, `<reader>.read_to_string(...)`,
+`<iter>.collect::<Vec<u8>>()`, and `<iter>.bytes().collect` — skipping `//`-comment
+lines and clearing a `<reader>.take(N).read_to_*(...)` bounded read on the same line.
+Confirmed-safe sites are acknowledged in `.context/working/.drain-sink-allowlist` by
+a **drift-stable `<relpath>::<enclosing-fn>::<sink>` signature** (fn-name-based, so it
+survives line moves; a fn RENAME re-fires the site — intended re-review on meaningful
+change, mirroring T-2527's line-independence trade-off). The current tree is clean:
+6 `.output()` sink calls scanned, all 6 allowlisted — every one runs the SELF binary
+(`Command::new(&std::env::current_exe())`) on a fixed trusted subcommand (or a
+`TERMLINK_SCRIPTS_DIR` `bash <script>`) with `kill_on_drop(true)` + `stdin(null)` +
+`tokio::time::timeout`, so the captured output is bounded by the subcommand's own JSON
+emission, not by peer bytes (INTERNAL by the T-2529 threat model). Zero `read_to_end`/
+`read_to_string`/`collect::<Vec<u8>>` drains exist in scope, so the first one added
+fires. **Load-bearing:** reintroducing a `.output()` into `execute_capped` (the
+pre-T-2529 shape) makes the check fire on `executor.rs::execute_capped::output`;
+restoring returns it to clean. Exit codes: 0 = clean, 1 = an unacknowledged drain
+sink, 2 = tooling error; `--json` for scripting; `--root` (repeatable) + `--allowlist`
+for fixtures; `--quiet` / `--no-heartbeat` for cron. Ad-hoc check:
+`bash scripts/check-drain-sink-caps.sh`. Fixtures (no live binary):
+`bash tests/drain-sink-check-fixtures.sh`. Operator action on firing: cap the code
+(chunked read + size check like `executor::execute_capped`, or `reader.take(N)`) OR —
+if confirmed a trusted-arg subprocess / trusted fixed source — add the site's
+signature to the allowlist with a cited reason.
+
 ## Project-Specific Rules
 
 ### Hub Auth Rotation Protocol

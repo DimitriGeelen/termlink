@@ -4,20 +4,20 @@ name: "clamp caller-supplied exec timeout — unbounded timeout defeats the time
 description: >
   Caller-supplied exec timeout (handler.rs:450) has no upper clamp; executor.rs:130 applies it verbatim. Clamp at the single chokepoint (executor) to a sane max; mirrors the repo clamp-every-caller-param convention and prevents tokio Instant+Duration overflow on u64::MAX.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-session/src/executor.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-04T13:55:52Z
-last_update: 2026-08-04T13:56:39Z
-date_finished: null
+last_update: 2026-08-04T14:00:44Z
+date_finished: 2026-08-04T14:00:44Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -208,3 +208,15 @@ T-2527 / the forthcoming drain-sink canary.
 
 ### 2026-08-04T13:56:39Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-c66a3139
+- **Timestamp:** 2026-08-04T14:01:18Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-04T14:00:44Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
