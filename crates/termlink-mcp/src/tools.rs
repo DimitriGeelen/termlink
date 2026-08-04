@@ -404,6 +404,33 @@ fn clamp_max_parallel(v: Option<usize>) -> usize {
     v.unwrap_or(10).clamp(1, 256)
 }
 
+/// Upper bound on `termlink_dispatch`'s worker `count` (T-2526). 256 mirrors the
+/// fleet worker/connection cap (and `clamp_max_parallel`'s ceiling).
+const MAX_DISPATCH_COUNT: u32 = 256;
+
+/// Validate a `termlink_dispatch` worker `count`. Returns `Some(error message)`
+/// when out of the accepted range `[1, MAX_DISPATCH_COUNT]`, `None` when ok.
+///
+/// Unlike `clamp_max_parallel` — a concurrency *hint* where a silent clamp is
+/// harmless — `count` is the number of workers actually spawned AND is eagerly
+/// pre-allocated (`Vec::with_capacity(count)` / `vec![false; count]`). An
+/// unbounded `u32` (e.g. `u32::MAX` ≈ 4.3e9 → ~103 GB reservation) OOM-aborts the
+/// MCP server before any worker spawns. We therefore LOUD-REJECT an over-max
+/// count rather than silently clamp it (silently doing fewer workers than the
+/// caller asked would hide the truncation). Pure — unit-testable without a hub.
+fn validate_dispatch_count(count: u32) -> Option<String> {
+    if count == 0 {
+        Some("count must be at least 1".to_string())
+    } else if count > MAX_DISPATCH_COUNT {
+        Some(format!(
+            "count {count} exceeds maximum {MAX_DISPATCH_COUNT} \
+             (guards against unbounded pre-allocation; dispatch fewer workers or loop)"
+        ))
+    } else {
+        None
+    }
+}
+
 /// Build the `{kind, value?}` retention JSON for the channel.* RPCs from an
 /// MCP-supplied kind string. Shared by channel.create / channel.set_retention
 /// so a new retention kind lands in both without a silent strip (PL-172).
@@ -12856,9 +12883,12 @@ impl TermLinkTools {
             return e;
         }
 
-        // Validate inputs
-        if p.count == 0 {
-            return json_err("count must be at least 1");
+        // Validate inputs. T-2526: bound `count` (both == 0 and the upper limit)
+        // BEFORE it reaches the eager `Vec::with_capacity(count)` /
+        // `vec![false; count]` allocations below — an unbounded u32 pre-allocates
+        // ~100 GB and OOM-aborts the server before any worker spawns.
+        if let Some(msg) = validate_dispatch_count(p.count) {
+            return json_err(msg);
         }
         if p.command.is_empty() {
             return json_err("command is required");
@@ -29471,6 +29501,25 @@ impl TermLinkTools {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // === T-2526: dispatch count upper-bound guards the ~100 GB pre-alloc ===
+
+    #[test]
+    fn validate_dispatch_count_bounds() {
+        // Zero rejected (lower guard preserved).
+        assert!(validate_dispatch_count(0).is_some());
+        // In-range accepted.
+        assert!(validate_dispatch_count(1).is_none());
+        assert!(validate_dispatch_count(100).is_none());
+        assert!(validate_dispatch_count(MAX_DISPATCH_COUNT).is_none()); // exactly 256 ok
+        // Over the max rejected — this is the pre-alloc OOM guard.
+        assert!(validate_dispatch_count(MAX_DISPATCH_COUNT + 1).is_some());
+        // The worst-case caller value (~103 GB reservation) must be rejected.
+        assert!(
+            validate_dispatch_count(u32::MAX).is_some(),
+            "u32::MAX count must be refused before Vec::with_capacity"
+        );
+    }
 
     // === T-2523: max_parallel clamp guards Semaphore::new panic + 0-hang ===
 
