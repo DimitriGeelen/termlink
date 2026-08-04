@@ -19,6 +19,34 @@ use std::path::{Path, PathBuf};
 
 use crate::error::{BusError, Result};
 
+/// Default absolute ceiling (2 GiB) on a single streamed artifact (T-2525).
+/// Artifacts are the large-payload channel, so this is generous but finite — it
+/// bounds the per-sha staging file (hub disk) and, transitively, the finalize
+/// `fs::read` hash pass (hub RAM). Same knob + default as the client-side
+/// download cap (T-2524) so send / stage / receive share one symmetric bound.
+const DEFAULT_MAX_ARTIFACT_BYTES: u64 = 2 * 1024 * 1024 * 1024;
+
+/// Parse the artifact-size ceiling from an optional env value. Pure (no env
+/// read) so it is unit-testable. Missing / non-numeric / zero → 2 GiB default
+/// (zero is rejected so the guard can't be silently disabled).
+fn parse_artifact_cap(var: Option<String>) -> u64 {
+    var.and_then(|s| s.trim().parse::<u64>().ok())
+        .filter(|&n| n > 0)
+        .unwrap_or(DEFAULT_MAX_ARTIFACT_BYTES)
+}
+
+/// Effective artifact-size ceiling for this process.
+fn max_artifact_bytes() -> u64 {
+    parse_artifact_cap(std::env::var("TERMLINK_MAX_ARTIFACT_BYTES").ok())
+}
+
+/// Would appending `chunk_len` more bytes onto a staging file of `current_len`
+/// exceed `cap`? Saturating add so a hostile near-`u64::MAX` accumulation can
+/// never wrap to a small value and slip past the guard.
+fn staging_would_exceed(current_len: u64, chunk_len: u64, cap: u64) -> bool {
+    current_len.saturating_add(chunk_len) > cap
+}
+
 /// Content-addressed blob store rooted at a directory.
 #[derive(Clone, Debug)]
 pub struct ArtifactStore {
@@ -101,6 +129,29 @@ impl ArtifactStore {
         is_final: bool,
         expected_sha256: Option<&str>,
     ) -> Result<StreamingPutOutcome> {
+        self.put_streaming_capped(
+            staging_id,
+            offset,
+            chunk,
+            is_final,
+            expected_sha256,
+            max_artifact_bytes(),
+        )
+    }
+
+    /// Cap-parameterized body of `put_streaming` (T-2525). Split out so the
+    /// size-guard can be exercised with a low cap in tests without touching the
+    /// process-global `TERMLINK_MAX_ARTIFACT_BYTES` env (which would race
+    /// parallel tests). The public `put_streaming` passes the env-derived cap.
+    fn put_streaming_capped(
+        &self,
+        staging_id: &str,
+        offset: u64,
+        chunk: &[u8],
+        is_final: bool,
+        expected_sha256: Option<&str>,
+        cap: u64,
+    ) -> Result<StreamingPutOutcome> {
         let staging_path = self.staging_path(staging_id);
         if let Some(parent) = staging_path.parent() {
             fs::create_dir_all(parent)?;
@@ -114,6 +165,18 @@ impl ArtifactStore {
             return Err(BusError::ArtifactOffsetMismatch {
                 expected: current_len,
                 got: offset,
+            });
+        }
+        // T-2525: bound cumulative staged size BEFORE writing, so a peer
+        // streaming an unbounded chunk sequence cannot exhaust hub disk (or OOM
+        // the hub at the finalize `fs::read`). Remove the partial staging file
+        // on rejection — the transfer can never complete, so leaving cruft would
+        // just pin disk. Cap is tunable via TERMLINK_MAX_ARTIFACT_BYTES.
+        if staging_would_exceed(current_len, chunk.len() as u64, cap) {
+            let _ = fs::remove_file(&staging_path);
+            return Err(BusError::ArtifactTooLarge {
+                limit: cap,
+                got: current_len.saturating_add(chunk.len() as u64),
             });
         }
         // Append chunk
@@ -292,6 +355,65 @@ fn fastrand_hex_suffix() -> String {
 mod tests {
     use super::*;
     use tempfile::TempDir;
+
+    // === T-2525: artifact staging size cap ===
+
+    #[test]
+    fn staging_would_exceed_guards_extremes() {
+        let cap = 50u64;
+        assert!(!staging_would_exceed(0, 40, cap)); // under
+        assert!(!staging_would_exceed(10, 40, cap)); // exactly at cap (50 == 50)
+        assert!(staging_would_exceed(11, 40, cap)); // one over
+        assert!(staging_would_exceed(50, 1, cap));
+        // Saturating add: a hostile near-u64::MAX accumulation must be refused,
+        // never wrap to a small value that slips past the guard.
+        assert!(staging_would_exceed(u64::MAX, 1, cap));
+        assert!(staging_would_exceed(u64::MAX - 5, 100, cap));
+    }
+
+    #[test]
+    fn parse_artifact_cap_defaults_and_overrides() {
+        assert_eq!(parse_artifact_cap(None), DEFAULT_MAX_ARTIFACT_BYTES);
+        assert_eq!(parse_artifact_cap(Some("junk".into())), DEFAULT_MAX_ARTIFACT_BYTES);
+        assert_eq!(parse_artifact_cap(Some("0".into())), DEFAULT_MAX_ARTIFACT_BYTES);
+        assert_eq!(parse_artifact_cap(Some("-9".into())), DEFAULT_MAX_ARTIFACT_BYTES);
+        assert_eq!(parse_artifact_cap(Some("1048576".into())), 1_048_576);
+        assert_eq!(parse_artifact_cap(Some("  4096  ".into())), 4096);
+        assert_eq!(DEFAULT_MAX_ARTIFACT_BYTES, 2 * 1024 * 1024 * 1024);
+    }
+
+    #[test]
+    fn streaming_put_rejects_over_cap_and_cleans_staging() {
+        let dir = TempDir::new().unwrap();
+        let store = ArtifactStore::open(dir.path()).unwrap();
+        let cap = 50u64;
+        // First chunk fits under the cap → staging file created with 40 bytes.
+        let out = store
+            .put_streaming_capped("big", 0, &[7u8; 40], false, None, cap)
+            .unwrap();
+        assert!(matches!(
+            out,
+            StreamingPutOutcome::InProgress { bytes_received: 40 }
+        ));
+        let staging = store.staging_path("big");
+        assert!(staging.is_file(), "staging file should exist after first chunk");
+        // Second chunk would push cumulative to 80 > 50 → ArtifactTooLarge, and
+        // the partial staging file must be removed (not left pinning disk).
+        let err = store
+            .put_streaming_capped("big", 40, &[7u8; 40], false, None, cap)
+            .unwrap_err();
+        match err {
+            BusError::ArtifactTooLarge { limit, got } => {
+                assert_eq!(limit, 50);
+                assert_eq!(got, 80);
+            }
+            other => panic!("expected ArtifactTooLarge, got {other:?}"),
+        }
+        assert!(
+            !staging.is_file(),
+            "partial staging file must be removed on over-cap rejection"
+        );
+    }
 
     #[test]
     fn put_and_get_roundtrip() {

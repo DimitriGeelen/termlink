@@ -40,6 +40,13 @@ pub enum BusError {
     #[error("artifact hash mismatch: declared {expected}, computed {got}")]
     ArtifactHashMismatch { expected: String, got: String },
 
+    // T-2525: artifact streaming exceeded the per-artifact size ceiling. Loud
+    // typed refusal (not a silent truncation) so a peer streaming an unbounded
+    // blob cannot exhaust hub disk / OOM the hub at finalize. Cap is tunable via
+    // TERMLINK_MAX_ARTIFACT_BYTES (default 2 GiB).
+    #[error("artifact too large: staged {got} bytes exceeds limit {limit} (raise TERMLINK_MAX_ARTIFACT_BYTES for legitimate large transfers)")]
+    ArtifactTooLarge { limit: u64, got: u64 },
+
     // T-2029 (arc-parallel-substrate Slice 1): claim semantics errors.
     #[error("offset {offset} of topic {topic:?} is already claimed by another worker")]
     ClaimConflict { topic: String, offset: u64 },
