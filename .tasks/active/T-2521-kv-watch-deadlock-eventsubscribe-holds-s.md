@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-04T10:07:32Z
-last_update: 2026-08-04T10:08:46Z
+last_update: 2026-08-04T10:12:23Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -55,7 +55,7 @@ clone the `Arc<Mutex<EventBus>>` under a brief read lock, drop the session guard
 - [x] The post-auth lock-scoping branch is extracted into a testable `handler::dispatch_scoped(session, req)` with three arms: write-scoped (`needs_write`), detached long-poll (`event.subscribe`), and read-scoped (default); `server.rs` calls it.
 - [x] `event.subscribe` is dispatched detached: the session read guard is released (only the `Arc<Mutex<EventBus>>` is retained) before the long-poll wait, so a concurrent `kv.set`/`kv.delete` can acquire the write lock and emit while the watch waits.
 - [x] A regression test `event_subscribe_does_not_block_concurrent_kv_set` drives a live subscribe + a concurrent `kv.set` through `dispatch_scoped` and asserts (a) the subscribe receives the `kv.change` (count==1) and (b) the `kv.set` completes well under the watch timeout. Proven load-bearing (FAILS when the detached arm is reverted to the read-guarded path).
-- [ ] `cargo test -p termlink-session --lib` passes; `cargo build --release -p termlink-hub` succeeds.
+- [x] `cargo test -p termlink-session --lib` passes (403 tests); `cargo build --release -p termlink-hub` succeeds (exit 0).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
