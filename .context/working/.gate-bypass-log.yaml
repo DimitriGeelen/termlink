@@ -2358,3 +2358,8 @@ Firing #13: drained the sibli'
   command: 'cd /opt/termlink
 git add .context/project/learnings.yaml
 FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2508: capture PL-294 (durable chunked paths need 3 gates — validity/naming/compl'
+- timestamp: '2026-08-04T09:57:05Z'
+  task: 'T-2520'
+  flag: '--skip-human-ownership'
+  caller: 'owner_change'
+  reason: ''

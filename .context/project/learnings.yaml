@@ -2871,3 +2871,10 @@ learnings:
   date: 2026-08-03
   context: Added via context agent
   application: TBD
+- id: PL-302
+  learning: "Receive-side handlers must ENFORCE, not just trust, a wire field's documented invariant. T-2520: FileInit.filename / ArtifactManifest.filename were documented 'basename only, no path' (events.rs:499) but arrived verbatim from an untrusted peer and were fed to out_path.join()->fs::write at 4 sites — an absolute or ..-bearing name escaped the -o dir (arbitrary file write / RCE). A documented-but-unenforced type contract is a latent vuln; the field name reading innocuous ('filename') and send-side sanitization existing (line 200, cosmetic) both masked it. Reduce every wire path/name to a trusted basename (Path::file_name) at each write site via a shared helper before join. Sibling to T-2518 (inbound size cap must be a shared cross-transport invariant)."
+  source: P-001
+  task: T-2520
+  date: 2026-08-04
+  context: Added via context agent
+  application: TBD

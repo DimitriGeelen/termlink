@@ -4,20 +4,20 @@ name: "file receive: sanitize wire filename to basename (path-traversal / arbitr
 description: >
   Receiver-side FileInit.filename / ArtifactManifest.filename is deserialized from the wire and passed unsanitized into out_path.join() -> fs::write at 4 sites (file.rs:507,537,858,975). An absolute or ..-bearing filename escapes the -o output dir (arbitrary file write). The protocol type already documents the invariant (events.rs:499 'basename only, no path') but the receiver never enforced it. Reduce to a trusted basename before join.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: human
-horizon: now
+owner: agent
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/file.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-04T09:39:27Z
-last_update: 2026-08-04T09:44:58Z
-date_finished: null
+last_update: 2026-08-04T09:57:06Z
+date_finished: 2026-08-04T09:57:06Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -198,3 +198,23 @@ visible omission against this now-existing helper.
 
 ### 2026-08-04T09:40:20Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-08-04T09:57:05Z — status-update [task-update-agent]
+- **Change:** owner: human → agent
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-1644e4b2
+- **Timestamp:** 2026-08-04T09:57:37Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#3 (Agent)** — A regression test `sanitize_recv_filename_confines_to_basename` asserts traversal (`../escape`), absolute (`/etc/x`), and nested (`a/b/c.txt`) inputs all reduce to a bare basename (or `None`) and neve
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=a/b/c.txt in: A regression test `sanitize_recv_filename_confines_to_basename` asserts traversal (`../escape`), absolute (`/etc/x`), and nested (`a/b/c.txt`) inputs `
+
+### 2026-08-04T09:57:06Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

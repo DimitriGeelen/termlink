@@ -5904,3 +5904,111 @@ scan_id: R-fde252e5
 task_id: T-2514
 payload:
   task_file: .tasks/active/T-2514-fix-utf-8-char-boundary-panic-in-cli-tru.md
+---
+kind: scan_emitted
+timestamp: '2026-08-03T18:35:06Z'
+scan_id: R-b7e14cfa
+task_id: T-2515
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-03T18:35:06Z'
+scan_id: R-b7e14cfa
+task_id: T-2515
+payload:
+  task_file: .tasks/active/T-2515-bound-tls-handshake-in-hub-tcp-accept-pa.md
+---
+kind: scan_emitted
+timestamp: '2026-08-03T18:44:41Z'
+scan_id: R-29317b25
+task_id: T-2516
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-03T18:44:41Z'
+scan_id: R-29317b25
+task_id: T-2516
+payload:
+  task_file: .tasks/active/T-2516-bound-ws-upgrade-handshake-acceptasync-i.md
+---
+kind: scan_emitted
+timestamp: '2026-08-03T21:50:28Z'
+scan_id: R-5447ff4e
+task_id: T-2517
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-03T21:50:28Z'
+scan_id: R-5447ff4e
+task_id: T-2517
+payload:
+  task_file: .tasks/active/T-2517-commandsignal-targets-host-pid-not-pty-c.md
+---
+kind: scan_emitted
+timestamp: '2026-08-03T22:01:44Z'
+scan_id: R-2b85bcda
+task_id: T-2518
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-03T22:01:44Z'
+scan_id: R-2b85bcda
+task_id: T-2518
+payload:
+  task_file: .tasks/active/T-2518-hub-line-transport-buffers-request-lines.md
+---
+kind: scan_emitted
+timestamp: '2026-08-03T22:17:21Z'
+scan_id: R-85ca0083
+task_id: T-2519
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-03T22:17:21Z'
+scan_id: R-85ca0083
+task_id: T-2519
+payload:
+  task_file: .tasks/active/T-2519-termlinkinteract-panics-on-utf-8-output-.md
+---
+kind: scan_emitted
+timestamp: '2026-08-04T09:57:37Z'
+scan_id: R-1644e4b2
+task_id: T-2520
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-04T09:57:37Z'
+scan_id: R-1644e4b2
+task_id: T-2520
+payload:
+  task_file: .tasks/active/T-2520-file-receive-sanitize-wire-filename-to-b.md
