@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2525: put_streaming has no staging size cap — peer exhausts hub disk + OOMs hub at finalize fs::read
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-04T11:15:53Z
+# ============================================================================
+
+task_id: T-2525
+task_name: "put_streaming has no staging size cap — peer exhausts hub disk + OOMs hub at finalize fs::read"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-04T11:10:44Z
+completed: 2026-08-04T11:15:47Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-04T13:15:38+02:00
+last_commit: 2026-08-04T13:15:38+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  cap artifact put_streaming staging size — prevent peer hub-disk exhaustion + finalize-OOM (ArtifactTooLarge)
+
+# Key outcomes
+outcomes:
+  - '`put_streaming` rejects a chunk that would push cumulative staged bytes over the cap *before* writing it, and removes the partial staging file on rejection (no orphaned partial blob)'
+  - 'New typed error `BusError::ArtifactTooLarge { limit, got }` returned on over-cap; cap default 2 GiB, overridable via `TERMLINK_MAX_ARTIFACT_BYTES` (positive int; zero/invalid/absent → default)'
+  - 'Pure guard predicate `staging_would_exceed(current_len, chunk_len, cap)` uses saturating add; unit-tested under/at/over/overflow, proven load-bearing via temp-revert (always-false → test FAILS)'
+  - 'Integration test: a streamed transfer exceeding a low test cap (injected via the private `put_streaming_capped` cap param — avoids racing the process-global env in parallel tests; the env→cap wiring is covered by `parse_artifact_cap`) returns `ArtifactTooLarge` and leaves no staging file'
+  - '`cargo test -p termlink-bus --lib` passes; `cargo build -p termlink-bus` clean'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-bus/src/artifact_store.rs'
+  - 'crates/termlink-bus/src/error.rs'
+  - '.tasks/active/T-2525-putstreaming-has-no-staging-size-cap--pe.md'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-04T13:15:38"
+    action: "T-2525: cap artifact put_streaming staging size — prevent peer hub-disk exhaustion + finalize-OOM (ArtifactTooLarge)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 4
+  lines_added: 313
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2525-putstreaming-has-no-staging-size-cap--pe.md
+generated_by: context-agent-hybrid
