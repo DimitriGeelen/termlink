@@ -6174,3 +6174,21 @@ scan_id: R-c66a3139
 task_id: T-2530
 payload:
   task_file: .tasks/active/T-2530-clamp-caller-supplied-exec-timeout--unbo.md
+---
+kind: scan_emitted
+timestamp: '2026-08-04T14:10:10Z'
+scan_id: R-4f459d4a
+task_id: T-2531
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-04T14:10:10Z'
+scan_id: R-4f459d4a
+task_id: T-2531
+payload:
+  task_file: .tasks/active/T-2531-static-check-for-unbounded-peer-driven-d.md

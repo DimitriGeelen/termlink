@@ -1,13 +1,13 @@
 ---
-id: T-2531
-name: "static check for unbounded peer-driven drain-sinks in daemon crates (G-019 prevention for T-2518/2524/2525/2529 class)"
+id: T-2532
+name: "per-host live-session cap — no MAX_SESSIONS bound on the spawn path (orchestrator fork-bomb safety)"
 description: >
-  Sibling of T-2527 alloc-sink check. Flag .output()/read_to_end/read_to_string/collect::<Vec<u8>> drain-sinks in daemon crates; allowlist confirmed-safe (trusted-arg subprocess) by drift-stable signature. Baseline clean (6 .output() allowlisted, 0 read-drains). Keeps the peer-driven-accumulation class closed structurally.
+  No MAX_SESSIONS cap exists on any of the 3 local session-spawn entry points (session.rs:246 register, execution.rs:312 spawn, tools.rs:11574 MCP termlink_spawn). A buggy orchestrator loop exhausts host PIDs/FDs/mem (1 process + forked shell + PTY FD pair + 1MiB scrollback per session). NOT remote-peer reachable (register_remote only stores metadata; no hub-side PTY spawn) — orchestrator-safety, not adversarial defense. Turnkey: needs a per-host-vs-per-caller policy decision (caller identity absent at spawn site → only per-host expressible) + default value + whether-to-cap-at-all call given local-only severity.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
-horizon: now
+horizon: later
 tags: []
 components: []
 related_tasks: []
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-04T14:03:04Z
-last_update: 2026-08-04T14:03:54Z
+created: 2026-08-04T14:14:51Z
+last_update: 2026-08-04T14:14:51Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,22 +30,62 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2531: static check for unbounded peer-driven drain-sinks in daemon crates (G-019 prevention for T-2518/2524/2525/2529 class)
+# T-2532: per-host live-session cap — no MAX_SESSIONS bound on the spawn path (orchestrator fork-bomb safety)
 
 ## Context
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
+## Context
+
+Filed by the T-2468 purpose-review campaign (session-spawn reliability lens). An
+adversarial hunter + in-code verification confirmed **no `MAX_SESSIONS` cap exists**
+on any session-spawn path. Sessions are decentralized OS processes (not a hub-held
+map): each is 1 `termlink register` process + a `fork()`ed child shell + a PTY
+master/slave FD pair + a 1 MiB scrollback ring + ~2 tokio tasks (`pty.rs:106/120`,
+`session.rs:246`, `scrollback.rs:14`). `Drop for PtySession` (`pty.rs:456`) SIGKILLs
+the child, so cleanly-dropped sessions reap — but a loop holds them all live.
+
+**Threat scope (honest):** NOT remote-peer reachable. No hub RPC spawns a PTY —
+`session.register_remote` (`router.rs:749`) only stores metadata of a session running
+elsewhere. The only vector is a LOCAL buggy/hostile orchestrator calling MCP
+`termlink_spawn` (`tools.rs:11574`) or CLI `spawn` (`execution.rs:312`) in an unbounded
+loop, exhausting host PIDs/FDs/memory — on a host the agent already controls (and
+`remote_exec` Execute-scope is strictly more powerful). So this is **orchestrator
+fork-bomb safety, not adversarial-peer defense** — lower severity than a remote DoS.
+
+## Decisions
+
+### OPEN — policy decisions required before build (why this is a turnkey, not an autonomous fix)
+- **Cap at all?** Given the DoS is local/self-inflicted (no remote session-spawn RPC),
+  is a cap warranted, or is documenting the footgun + gating the MCP tool enough?
+- **Per-host vs per-caller?** Caller identity (T-1427 fingerprint / PermissionScope) is
+  **absent at the spawn site** (spawn is not an authenticated hub RPC), so only a
+  **per-host** total-session cap is naturally expressible. Per-caller would need
+  threading identity into the register path. Human call.
+- **Default value?** e.g. `TERMLINK_MAX_SESSIONS` default 256 — needs an operator's
+  sense of realistic fleet session counts. Do NOT guess-and-ship.
+- **Enforcement point.** No single `sessions.insert()` exists — three independent
+  entry points. A cap must count live session files (`termlink_session::discovery::
+  sessions_dir()/*.json`) at each `register` entry (a racy filesystem-count gate) or a
+  shared helper must be introduced. Structural decision.
+
 ## Acceptance Criteria
 
 ### Agent
-- [x] `scripts/check-drain-sink-caps.sh` exists, scans the daemon crates (hub/session/mcp/bus/protocol), flags `.output()` / `.read_to_end(` / `.read_to_string(` / `.collect::<Vec<u8>>(` / `.bytes().collect` sinks, skips `//` comments, and clears sites listed in `.context/working/.drain-sink-allowlist` by drift-stable `relpath::fn::sink` signature
-- [x] Baseline is clean: the 6 trusted-subprocess `.output()` sites are allowlisted with cited reasons; the check exits 0 on the current tree
-- [x] Load-bearing proof: reverting T-2529 (`execute_capped` → `cmd.output()`) makes the check FIRE on the new uncapped `sh -c` drain; restoring returns it to clean
-- [x] `tests/drain-sink-check-fixtures.sh` covers: unclamped `.output()`/`read_to_end` fires, comment skipped, allowlist suppresses, `.take(N)`-bounded read is not flagged — all pass
-- [x] `--json`, `--quiet`, `--no-heartbeat` flags work; CLAUDE.md documents the check as a sibling of T-2527
+<!-- Fill after the OPEN policy decisions above are resolved by a human. Draft turnkey: -->
+- [ ] A shared `enforce_session_cap()` helper counts live sessions (`sessions_dir()/*.json`, filtering dead PIDs) and refuses over `TERMLINK_MAX_SESSIONS` (env, default DECIDED) with a loud `TOO_MANY_SESSIONS` error
+- [ ] The cap is enforced at all three register entry points (`session.rs:246`, via `execution.rs:312 spawn`, `tools.rs:11574 termlink_spawn`)
+- [ ] A test spawns up to the cap, asserts the (cap+1)th refuses loudly, and asserts a dropped/dead session frees a slot (dead-PID filtering works)
+- [ ] `cargo build` + `cargo test -p termlink-session` clean; docs note the remote-peer vector does NOT exist (orchestrator-safety framing)
 
 ### Human
+- [ ] [REVIEW] Resolve the four OPEN policy decisions in `## Decisions` (cap-at-all / per-host-vs-per-caller / default value / enforcement structure) before the Agent ACs are actioned
+      **Steps:** Read the Context + Decisions sections; decide each of the four questions.
+      **Expected:** Each OPEN decision replaced with a chosen value + rationale.
+      **If not:** Leave `horizon: later`; this is not urgent (local-only, low severity).
+
+### Human — legacy
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
@@ -77,9 +117,6 @@ date_finished: null
 -->
 
 ## Verification
-
-bash scripts/check-drain-sink-caps.sh --no-heartbeat
-bash tests/drain-sink-check-fixtures.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -113,28 +150,6 @@ bash tests/drain-sink-check-fixtures.sh
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
 ## RCA
-
-**Symptom:** Four separate fixes (T-2518 bus line reader, T-2524 artifact download,
-T-2525 hub staging, T-2529 exec output) each closed one instance of the same class —
-peer-influenced / externally-driven bytes accumulated unbounded into the long-lived
-daemon's OWN address space, risking OOM of the supervisor. Each was invisible until a
-human read that exact line.
-
-**Root cause (class):** the daemon crates buffer externally-driven bytes at several
-sinks (`.output()`, stream drains, full collects) and the "always cap externally-driven
-accumulation" convention is by discipline, not enforced — so the next such sink ships
-undetected, exactly as the four prior ones did.
-
-**Why structurally allowed:** no structural check existed for the drain-sink class.
-T-2527 made the *pre-allocation* clamp convention load-bearing (`with_capacity` /
-`Semaphore::new` / `vec![_;n]`); the *accumulation* sinks (`.output()` / read-drains)
-were still unguarded.
-
-**Prevention:** `scripts/check-drain-sink-caps.sh` — a source-level static check
-(sibling of T-2527) flagging the drain-sink class in daemon crates, allowlisting
-confirmed-safe (trusted-arg subprocess) sites by drift-stable signature. The next
-uncapped `.output()`/`read_to_end` on an externally-driven stream fires the check
-before it ships. Load-bearing: reverting T-2529 makes it fire.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -197,10 +212,7 @@ before it ships. Load-bearing: reverting T-2529 makes it fire.
 
 ## Updates
 
-### 2026-08-04T14:03:04Z — task-created [task-create-agent]
+### 2026-08-04T14:14:51Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2531-static-check-for-unbounded-peer-driven-d.md
+- **Output:** /opt/termlink/.tasks/active/T-2532-per-host-live-session-cap--no-maxsession.md
 - **Context:** Initial task creation
-
-### 2026-08-04T14:03:54Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
