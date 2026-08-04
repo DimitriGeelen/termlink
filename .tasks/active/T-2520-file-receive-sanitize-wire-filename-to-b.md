@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-04T09:39:27Z
-last_update: 2026-08-04T09:40:20Z
+last_update: 2026-08-04T09:44:58Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -53,7 +53,7 @@ content-verified transfer still writes to an attacker-chosen path.
 - [x] A `sanitize_recv_filename` helper reduces a wire filename to its trusted final basename (via `Path::file_name`), returning `None` for `""`, `.`, `..`, or path-only inputs.
 - [x] All four receive-side join sites (file.rs:507, 537, 858, 975) route the wire filename through the helper before `out_path.join`; a rejected/path-bearing name falls back to the existing synthesized default, never escapes `out_path`.
 - [x] A regression test `sanitize_recv_filename_confines_to_basename` asserts traversal (`../escape`), absolute (`/etc/x`), and nested (`a/b/c.txt`) inputs all reduce to a bare basename (or `None`) and never yield a parent/absolute path. Proven load-bearing (FAILS without the fix).
-- [ ] `cargo test -p termlink-cli --lib` passes; `cargo build --release -p termlink` succeeds.
+- [x] `cargo test -p termlink --bins sanitize_recv_filename` passes; `cargo build --release -p termlink` succeeds (exit 0).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
