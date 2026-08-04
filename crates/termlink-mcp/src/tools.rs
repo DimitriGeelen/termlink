@@ -389,6 +389,21 @@ fn json_err(msg: impl std::fmt::Display) -> String {
         .unwrap_or_else(|e| format!("{{\"ok\":false,\"error\":\"{e}\"}}" ))
 }
 
+/// Clamp a caller-supplied `max_parallel` into a safe permit count for
+/// `tokio::sync::Semaphore::new`. Mirrors the `max_depth.clamp(1, 1024)`
+/// convention used everywhere else in this file (T-2523). Two failure modes
+/// this guards, both reachable from untrusted MCP params:
+///   - a value `> Semaphore::MAX_PERMITS` (usize::MAX >> 3) makes
+///     `Semaphore::new` `assert!`-panic the async tool handler (DoS);
+///   - `0` yields a zero-permit semaphore whose `acquire().await` never
+///     resolves, wedging the batch call forever and leaking spawned tasks.
+/// Lower bound 1 fixes the hang; upper bound 256 fixes the panic (and matches
+/// the fleet's 256 connection-cap convention). An upper bound above the actual
+/// item count is harmless — the semaphore simply never blocks.
+fn clamp_max_parallel(v: Option<usize>) -> usize {
+    v.unwrap_or(10).clamp(1, 256)
+}
+
 /// Build the `{kind, value?}` retention JSON for the channel.* RPCs from an
 /// MCP-supplied kind string. Shared by channel.create / channel.set_retention
 /// so a new retention kind lands in both without a silent strip (PL-172).
@@ -14394,7 +14409,7 @@ impl TermLinkTools {
         }
 
         let timeout_secs = p.timeout.unwrap_or(30);
-        let max_parallel = p.max_parallel.unwrap_or(10);
+        let max_parallel = clamp_max_parallel(p.max_parallel);
         let command = p.command.clone();
         let cwd = std::sync::Arc::new(p.cwd);
         let env = std::sync::Arc::new(p.env);
@@ -14720,7 +14735,7 @@ impl TermLinkTools {
         }
 
         let timeout = std::time::Duration::from_secs(p.timeout.unwrap_or(30));
-        let max_parallel = p.max_parallel.unwrap_or(10);
+        let max_parallel = clamp_max_parallel(p.max_parallel);
         let env = p.env.unwrap_or_default();
         let cwd = p.cwd;
 
@@ -29456,6 +29471,36 @@ impl TermLinkTools {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // === T-2523: max_parallel clamp guards Semaphore::new panic + 0-hang ===
+
+    #[test]
+    fn clamp_max_parallel_guards_semaphore_extremes() {
+        // Zero-permit hang: 0 must become >=1 so acquire() can resolve.
+        assert_eq!(clamp_max_parallel(Some(0)), 1, "0 must clamp up to 1 (else acquire hangs forever)");
+        // Panic guard: a value above Semaphore::MAX_PERMITS (usize::MAX>>3)
+        // must be capped so Semaphore::new does not assert!-panic the handler.
+        assert_eq!(
+            clamp_max_parallel(Some(9_000_000_000_000_000_000)),
+            256,
+            "huge value must cap at 256 (else Semaphore::new panics)"
+        );
+        // usize::MAX is the worst case a serde-parsed usize can carry.
+        assert_eq!(clamp_max_parallel(Some(usize::MAX)), 256);
+        // Default preserved when the caller omits the param.
+        assert_eq!(clamp_max_parallel(None), 10, "absent param keeps the documented default of 10");
+        // In-range values pass through untouched — the clamp must not distort
+        // legitimate parallelism requests.
+        assert_eq!(clamp_max_parallel(Some(1)), 1);
+        assert_eq!(clamp_max_parallel(Some(50)), 50);
+        assert_eq!(clamp_max_parallel(Some(256)), 256);
+        // The clamped result is always a valid permit count for Semaphore::new:
+        // never 0 (no hang) and never above the cap (no panic).
+        for v in [None, Some(0), Some(1), Some(255), Some(usize::MAX)] {
+            let c = clamp_max_parallel(v);
+            assert!((1..=256).contains(&c), "clamp({v:?}) = {c} escaped 1..=256");
+        }
+    }
 
     // === T-2417: transfer_id is unique per send, never per process ===
 
