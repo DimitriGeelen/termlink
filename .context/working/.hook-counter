@@ -1,11 +1,7 @@
-commit-cadence=4
+audit-task-tools=10
 
-check-active-task=54
-error-watchdog=5
-check-tier0=7
-budget-gate=8
-check-project-boundary=8
-loop-detect=7
-checkpoint=7
-audit-task-tools=7
-check-human-ac-tick=1
+error-watchdog=1
+check-tier0=1
+budget-gate=1
+check-project-boundary=1
+check-active-task=1

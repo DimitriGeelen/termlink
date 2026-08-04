@@ -6084,3 +6084,21 @@ scan_id: R-7318186d
 task_id: T-2525
 payload:
   task_file: .tasks/active/T-2525-putstreaming-has-no-staging-size-cap--pe.md
+---
+kind: scan_emitted
+timestamp: '2026-08-04T11:25:42Z'
+scan_id: R-792529d8
+task_id: T-2526
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-04T11:25:42Z'
+scan_id: R-792529d8
+task_id: T-2526
+payload:
+  task_file: .tasks/active/T-2526-termlinkdispatch-count-unbounded--u32-pr.md
