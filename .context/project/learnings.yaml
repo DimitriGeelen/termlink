@@ -2885,3 +2885,10 @@ learnings:
   date: 2026-08-04
   context: Added via context agent
   application: TBD
+- id: PL-304
+  learning: "Peer-driven byte accumulation into the long-lived daemon heap (Command::output() full child-drain, read_to_end/read_to_string stream drains, collect::<Vec<u8>>) is a recurring OOM class (T-2518/2524/2525/2529); the 'always cap externally-driven accumulation' convention is now enforced by a source-level static check (scripts/check-drain-sink-caps.sh, T-2531) — the drain-sink sibling of T-2527's alloc-sink clamp check. Pre-allocation clamps AND accumulation caps are both load-bearing now."
+  source: P-001
+  task: T-2531
+  date: 2026-08-04
+  context: Added via context agent
+  application: TBD
