@@ -9,10 +9,23 @@ pub struct ExecResult {
     pub exit_code: i32,
     pub stdout: String,
     pub stderr: String,
+    /// T-2529: `true` iff stdout or stderr hit `MAX_OUTPUT_BYTES` and the child was
+    /// killed to stop unbounded capture into the daemon heap. `#[serde(default)]`
+    /// keeps the wire format backward-compatible with pre-T-2529 producers.
+    #[serde(default)]
+    pub truncated: bool,
 }
 
 /// Maximum command length to prevent abuse (64 KiB).
 const MAX_COMMAND_LEN: usize = 65_536;
+
+/// Maximum captured output per stream (stdout / stderr) before the child is killed and
+/// the result flagged `truncated` (16 MiB — mirrors the bus `MAX_LINE_BYTES` /
+/// `MAX_PAYLOAD_SIZE` convention). T-2529: `Command::output()` reads the child's ENTIRE
+/// stdout+stderr into `Vec<u8>` with no bound, so a single `execute` of an unbounded
+/// producer (`yes`, `cat /dev/zero`) — or an ACCIDENTAL `cat biglog` / `find /` — grew
+/// the long-lived hub/session daemon heap at pipe speed until OOM. This caps it.
+const MAX_OUTPUT_BYTES: usize = 16 * 1024 * 1024;
 
 /// Validate a command string for safe shell execution.
 /// Rejects null bytes, invalid UTF-8 control sequences, and oversized commands.
@@ -69,6 +82,26 @@ pub async fn execute(
     timeout: Option<Duration>,
     allowed_commands: Option<&[String]>,
 ) -> Result<ExecResult, ExecError> {
+    execute_capped(command, cwd, env, timeout, allowed_commands, MAX_OUTPUT_BYTES).await
+}
+
+/// T-2529: `execute` with an explicit per-stream output cap. `Command::output()` reads
+/// the child's ENTIRE stdout+stderr into memory with no bound — so instead we spawn with
+/// piped stdio and read both streams CONCURRENTLY in a chunked `select!` loop, killing
+/// the child the instant either buffer exceeds `max_output_bytes` (so an unbounded
+/// producer can never grow the daemon heap past the cap, and a flood on ONE stream does
+/// not block on the OTHER stream's EOF). `execute` delegates with `MAX_OUTPUT_BYTES`; the
+/// cap is a parameter so tests inject a tiny bound without emitting 16 MiB.
+async fn execute_capped(
+    command: &str,
+    cwd: Option<&str>,
+    env: Option<&std::collections::HashMap<String, String>>,
+    timeout: Option<Duration>,
+    allowed_commands: Option<&[String]>,
+    max_output_bytes: usize,
+) -> Result<ExecResult, ExecError> {
+    use tokio::io::AsyncReadExt;
+
     validate_command(command)?;
     validate_allowlist(command, allowed_commands)?;
 
@@ -88,24 +121,66 @@ pub async fn execute(
     cmd.stdout(std::process::Stdio::piped());
     cmd.stderr(std::process::Stdio::piped());
 
-    // Kill the spawned child if the `output()` future is dropped (e.g. on timeout).
-    // Without this, a timed-out command orphans the child, which keeps running to
-    // its natural completion — a resource leak on the "control terminal sessions"
-    // path (`termlink exec`, session RPC, MCP exec/batch all route through here).
+    // Kill the spawned child if the run future is dropped (e.g. on timeout). Without
+    // this, a timed-out command orphans the child, which keeps running to its natural
+    // completion — a resource leak on the "control terminal sessions" path (`termlink
+    // exec`, session RPC, MCP exec/batch all route through here). T-2509.
     cmd.kill_on_drop(true);
 
     let timeout_dur = timeout.unwrap_or(Duration::from_secs(30));
 
-    let output = tokio::time::timeout(timeout_dur, cmd.output())
+    let run = async {
+        let mut child = cmd.spawn().map_err(ExecError::Spawn)?;
+        let mut cout = child.stdout.take().expect("stdout piped above");
+        let mut cerr = child.stderr.take().expect("stderr piped above");
+
+        let mut obuf: Vec<u8> = Vec::new();
+        let mut ebuf: Vec<u8> = Vec::new();
+        let mut chunk_o = [0u8; 8192];
+        let mut chunk_e = [0u8; 8192];
+        let mut o_done = false;
+        let mut e_done = false;
+        let mut truncated = false;
+
+        // Read whichever stream is ready; check the cap after each chunk. A chunked
+        // select loop (not `join!` on `read_to_end`) is what lets a flood on one stream
+        // trigger an immediate kill instead of blocking on the other stream's EOF.
+        while !(o_done && e_done) {
+            tokio::select! {
+                r = cout.read(&mut chunk_o), if !o_done => match r {
+                    Ok(0) => o_done = true,
+                    Ok(n) => obuf.extend_from_slice(&chunk_o[..n]),
+                    Err(e) => return Err(ExecError::Spawn(e)),
+                },
+                r = cerr.read(&mut chunk_e), if !e_done => match r {
+                    Ok(0) => e_done = true,
+                    Ok(n) => ebuf.extend_from_slice(&chunk_e[..n]),
+                    Err(e) => return Err(ExecError::Spawn(e)),
+                },
+            }
+            if obuf.len() > max_output_bytes || ebuf.len() > max_output_bytes {
+                truncated = true;
+                obuf.truncate(max_output_bytes);
+                ebuf.truncate(max_output_bytes);
+                // Stop the (now pipe-blocked) child; we will read no more from it.
+                let _ = child.kill().await;
+                break;
+            }
+        }
+
+        let status = child.wait().await.map_err(ExecError::Spawn)?;
+
+        Ok::<ExecResult, ExecError>(ExecResult {
+            exit_code: status.code().unwrap_or(-1),
+            stdout: String::from_utf8_lossy(&obuf).into_owned(),
+            stderr: String::from_utf8_lossy(&ebuf).into_owned(),
+            truncated,
+        })
+    };
+
+    tokio::time::timeout(timeout_dur, run)
         .await
         .map_err(|_| ExecError::Timeout(timeout_dur))?
-        .map_err(ExecError::Spawn)?;
-
-    Ok(ExecResult {
-        exit_code: output.status.code().unwrap_or(-1),
-        stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
-        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
-    })
 }
 
 /// Resolve a symbolic key name to its raw byte sequence.
@@ -354,6 +429,64 @@ mod tests {
             !leaked,
             "timed-out child was not killed — it survived and created the marker (kill_on_drop missing)"
         );
+    }
+
+    // ── T-2529: captured output must be bounded so a huge-output command cannot
+    // OOM the long-lived daemon. `Command::output()` (the old impl) had no cap. ──
+
+    #[tokio::test]
+    async fn execute_truncates_over_cap() {
+        // A BOUNDED producer that still exceeds a tiny injected cap: 500 KB of NUL.
+        // Bounded on purpose so the load-bearing revert proof (cap check disabled →
+        // full read) buffers 500 KB, not gigabytes. Fixed impl: truncated at the first
+        // chunk. Reverted impl: reads all 500 KB, truncated=false → this test FAILS.
+        let cap = 256usize;
+        let res = execute_capped(
+            "head -c 500000 /dev/zero",
+            None,
+            None,
+            Some(Duration::from_secs(10)),
+            None,
+            cap,
+        )
+        .await
+        .expect("exec ok");
+        assert!(
+            res.truncated,
+            "output exceeding the cap must be flagged truncated (T-2529)"
+        );
+        assert!(
+            res.stdout.len() <= cap,
+            "captured stdout must be bounded to the cap ({cap}); got {}",
+            res.stdout.len()
+        );
+    }
+
+    #[tokio::test]
+    async fn execute_no_truncate_under_cap() {
+        let res = execute_capped("echo hi", None, None, None, None, 1024)
+            .await
+            .expect("exec ok");
+        assert!(!res.truncated, "small output must not be flagged truncated");
+        assert_eq!(res.stdout.trim(), "hi");
+    }
+
+    #[tokio::test]
+    async fn execute_kills_infinite_producer_promptly() {
+        // The real DoS scenario: an UNBOUNDED producer must be killed at the cap and
+        // return promptly (not after the 30s timeout, and without OOMing us). The outer
+        // 5s bound asserts promptness — the chunked kill fires on the first over-cap
+        // chunk. (Not the revert-proof target — a reverted cap would buffer `yes`
+        // without limit; the bounded test above is the safe revert target.)
+        let res = tokio::time::timeout(
+            Duration::from_secs(5),
+            execute_capped("yes", None, None, Some(Duration::from_secs(30)), None, 4096),
+        )
+        .await
+        .expect("execute_capped must return promptly for an unbounded producer, not hang")
+        .expect("exec ok");
+        assert!(res.truncated, "an infinite producer must be flagged truncated");
+        assert!(res.stdout.len() <= 4096, "captured output must be capped");
     }
 
     #[test]
