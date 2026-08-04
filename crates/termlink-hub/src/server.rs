@@ -936,6 +936,25 @@ fn ws_idle_timeout() -> std::time::Duration {
     ))
 }
 
+/// T-2528: how long the line-protocol read loop may block waiting for the next
+/// request line before the hub closes the connection and releases its governor
+/// slot. The WS twin of this (`ws_idle_timeout`) was added by T-2442; the line
+/// path's inbound-idle bound was missed, leaving a pre-auth slowloris: a peer that
+/// sends the sniff byte `{` (passing T-2442's first-byte guard) then stalls parks
+/// forever in `read_capped_line`'s `fill_buf().await`, pinning its `ConnSlotGuard`;
+/// `TERMLINK_MAX_CONNECTIONS` such idle connections deny the whole hub. Bounds only
+/// the between-/initial-request read — a line long-poll blocks later inside dispatch
+/// (`process_request_message`), so this never truncates a legitimate long-poll.
+/// Default symmetric with `ws_idle_timeout` (120s).
+fn line_idle_timeout() -> std::time::Duration {
+    std::time::Duration::from_millis(crate::governor::parse_env_u64_clamped(
+        "TERMLINK_LINE_IDLE_TIMEOUT_MS",
+        120_000,
+        200,
+        3_600_000,
+    ))
+}
+
 /// RAII guard for one accepted connection's capacity accounting (T-2460).
 ///
 /// The accept loop reserves a `ConnGovernor` slot via `try_acquire()` BEFORE
@@ -1092,7 +1111,29 @@ async fn handle_line_connection<S>(
     let mut line_buf: Vec<u8> = Vec::new();
 
     loop {
-        match read_capped_line(&mut reader, &mut line_buf, MAX_LINE_BYTES).await {
+        // T-2528: bound the inbound-idle read. Without this a peer that sends the
+        // sniff byte `{` (passing T-2442's first-byte guard) then withholds the rest
+        // parks in `fill_buf().await` forever, pinning its ConnSlotGuard — the line
+        // twin of the WS idle timeout (T-2442). Covers only the between-/initial-
+        // request read; a line long-poll blocks later inside process_request_message,
+        // so this never truncates a legitimate long-poll. On elapse: drop the guard.
+        let read = match tokio::time::timeout(
+            line_idle_timeout(),
+            read_capped_line(&mut reader, &mut line_buf, MAX_LINE_BYTES),
+        )
+        .await
+        {
+            Ok(r) => r,
+            Err(_) => {
+                tracing::warn!(
+                    peer = ?peer_addr,
+                    idle_ms = line_idle_timeout().as_millis(),
+                    "Hub: line connection idle beyond timeout — closing, slot reclaimed (T-2528 conn-cap DoS guard)"
+                );
+                break;
+            }
+        };
+        match read {
             LineRead::Line => {}
             LineRead::Eof => break,
             LineRead::TooLong => {
@@ -1690,6 +1731,45 @@ mod tests {
             LineRead::TooLong => {}
             other => panic!("expected TooLong for an over-cap unterminated line, got {:?}", other),
         }
+    }
+
+    // ── T-2528: the line transport must reclaim a connection whose peer stalls
+    // mid-stream (the pre-auth slowloris). A peer that sends the sniff byte `{`
+    // then withholds the newline parks the read in fill_buf() forever; without an
+    // idle timeout its ConnSlotGuard is never released and TERMLINK_MAX_CONNECTIONS
+    // such connections deny the whole hub. This drives handle_line_connection over
+    // a duplex stream that sends `{` and never a newline (client half kept ALIVE so
+    // the read blocks Pending, NOT EOF — EOF would let the handler return even
+    // without the fix, making the test a false pass) and asserts the handler RETURNS
+    // once the short idle timeout fires. Reverting the timeout wrap makes it hang →
+    // the outer bound elapses → this assertion FAILS (load-bearing). ──
+    #[tokio::test]
+    async fn line_idle_timeout_reclaims_stalled_slot() {
+        let _lock = ENV_LOCK.lock().await;
+        // Min clamp is 200ms; use it so the test is fast but the guard genuinely fires.
+        unsafe { std::env::set_var("TERMLINK_LINE_IDLE_TIMEOUT_MS", "200") };
+
+        let (mut client, server) = tokio::io::duplex(1024);
+        // Sniff byte, no newline. Keep `client` alive across the handler run below so
+        // the server side sees Pending (a stalled peer), not EOF (a closed peer).
+        client.write_all(b"{").await.unwrap();
+
+        let res = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            handle_line_connection(server, None, None, None, None),
+        )
+        .await;
+
+        // Hold the client until AFTER the handler completes, then release it.
+        drop(client);
+        unsafe { std::env::remove_var("TERMLINK_LINE_IDLE_TIMEOUT_MS") };
+
+        assert!(
+            res.is_ok(),
+            "handle_line_connection must return when a line connection goes idle \
+             (T-2528 idle-timeout reclaims the governor slot); it hung — the idle \
+             timeout wrap is missing/ineffective"
+        );
     }
 
     #[tokio::test]
