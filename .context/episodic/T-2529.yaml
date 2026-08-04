@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2529: command.execute captures child output unbounded — daemon-OOM on a huge-output command (no MAX_LINE_BYTES twin for exec)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-04T13:18:03Z
+# ============================================================================
+
+task_id: T-2529
+task_name: "command.execute captures child output unbounded — daemon-OOM on a huge-output command (no MAX_LINE_BYTES twin for exec)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-04T13:05:53Z
+completed: 2026-08-04T13:17:55Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-08-04T15:16:19+02:00
+last_commit: 2026-08-04T15:16:19+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  cap command.execute captured output — daemon-OOM on huge-output command
+
+# Key outcomes
+outcomes:
+  - '`executor::execute` no longer uses uncapped `cmd.output()`; it spawns with piped stdio and reads stdout+stderr concurrently (chunked `tokio::select!` loop), each bounded to `MAX_OUTPUT_BYTES` (16 MiB, mirroring `MAX_LINE_BYTES`), killing the child on overflow'
+  - '`ExecResult` gains a `truncated: bool` field (`#[serde(default)]` for wire back-compat); it is `true` iff either stream hit the cap, `false` on normal completion'
+  - 'A private `execute_capped(..., max_output_bytes)` carries the cap; `execute()` delegates with `MAX_OUTPUT_BYTES` — so a test injects a tiny cap without emitting 16 MiB'
+  - 'Load-bearing test: `execute_kills_infinite_producer_promptly` (`yes`, cap 4096) returns `truncated==true` + bounded output within a 5s outer bound (child killed, no hang); `execute_truncates_over_cap` (bounded 500KB, cap 256) → `truncated==true`, `stdout.len()<=256`; `execute_no_truncate_under_cap` (`echo hi`) → `truncated==false`, full output'
+  - 'Load-bearing proof: neutralizing the cap check (`if false`) made `execute_truncates_over_cap` FAIL on its assertion; restore → 27/27 executor tests green. `cargo build -p termlink-session` clean; existing exec tests (echo/env/cwd/timeout/kill) pass; dependent crates termlink-mcp/termlink/termlink-hub build clean (new field broke no consumer)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-session/src/executor.rs'
+  - '.tasks/active/T-2529-commandexecute-captures-child-output-unb.md'
+  - '.tasks/completed/T-2528-line-protocol-read-loop-has-no-idle-time.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-04T15:16:19"
+    action: "T-2529: cap command.execute captured output — daemon-OOM on huge-output command"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 12 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 12
+  commits: 1
+  files_changed: 3
+  lines_added: 375
+  lines_removed: 12
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2529-commandexecute-captures-child-output-unb.md
+generated_by: context-agent-hybrid

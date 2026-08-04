@@ -6102,3 +6102,57 @@ scan_id: R-792529d8
 task_id: T-2526
 payload:
   task_file: .tasks/active/T-2526-termlinkdispatch-count-unbounded--u32-pr.md
+---
+kind: scan_emitted
+timestamp: '2026-08-04T12:47:54Z'
+scan_id: R-d3466d1b
+task_id: T-2527
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-04T12:47:54Z'
+scan_id: R-d3466d1b
+task_id: T-2527
+payload:
+  task_file: .tasks/active/T-2527-static-check-for-unclamped-caller-param-.md
+---
+kind: scan_emitted
+timestamp: '2026-08-04T13:00:29Z'
+scan_id: R-550b4eaf
+task_id: T-2528
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-04T13:00:29Z'
+scan_id: R-550b4eaf
+task_id: T-2528
+payload:
+  task_file: .tasks/active/T-2528-line-protocol-read-loop-has-no-idle-time.md
+---
+kind: scan_emitted
+timestamp: '2026-08-04T13:18:00Z'
+scan_id: R-09afbb08
+task_id: T-2529
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-04T13:18:00Z'
+scan_id: R-09afbb08
+task_id: T-2529
+payload:
+  task_file: .tasks/active/T-2529-commandexecute-captures-child-output-unb.md

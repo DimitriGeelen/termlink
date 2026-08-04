@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2527: Static check for unclamped caller-param to allocation sinks (G-019 prevention for T-2523/T-2526 class)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-04T12:47:58Z
+# ============================================================================
+
+task_id: T-2527
+task_name: "Static check for unclamped caller-param to allocation sinks (G-019 prevention for T-2523/T-2526 class)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-04T12:22:21Z
+completed: 2026-08-04T12:47:50Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-08-04T14:25:12+02:00
+last_commit: 2026-08-04T14:47:43+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file turnkey — static check for unclamped caller-param to alloc sinks (G-019 prevention for T-2523/T-2526 class). build static check for unclamped caller-param → alloc sinks (G-019 prevention for T-2523/T-2526 class)
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-alloc-sink-clamps.sh` scans the handler crates and flags `with_capacity` / `vec![_;n]` / `Semaphore::new` / `.repeat(n)` sites whose size arg is a bare identifier or `p.<field>` (not a literal / not `.clamp`/`.min`/`.take`-bounded)'
+  - 'Running it against the CURRENT tree (post T-2523/T-2526) reports 0 firing sites, OR reports only sites acknowledged in `.context/working/.alloc-sink-allowlist` — i.e. the known-good baseline is clean (98 sinks scanned, 5 confirmed-safe allowlisted, 0 firing)'
+  - 'A deliberately-planted un-clamped `Vec::with_capacity(some_caller_param)` in a test fixture IS flagged (proving the detector fires), and the same site wrapped in `.clamp(1,256)` is NOT flagged (proving it recognizes the fix) — `tests/alloc-sink-check-fixtures.sh` (a)+(b), 6/6 pass'
+  - 'Exit codes: 0 = clean, 1 = unacknowledged candidate(s), 2 = tooling error; `--json` envelope; documented in CLAUDE.md alongside the canary set'
+  - 'Load-bearing proof: temp-revert one of the T-2523/T-2526 clamps in a scratch copy and confirm the check flags it (the check would have caught the original defect) — reverting `clamp_max_parallel(p.max_parallel)` → `p.max_parallel.unwrap_or(10)` in a scratch copy made both `Semaphore::new(max_parallel)` sites fire (absent before the revert, binding-cleared)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'scripts/check-alloc-sink-clamps.sh'
+  - '.tasks/active/T-2527-static-check-for-unclamped-caller-param-.md'
+  - 'tests/alloc-sink-check-fixtures.sh'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-04T14:25:12"
+    action: "T-2527: file turnkey — static check for unclamped caller-param to alloc sinks (G-019 prevention for T-2523/T-2526 class)"
+  - time: "2026-08-04T14:47:43"
+    action: "T-2527: build static check for unclamped caller-param → alloc sinks (G-019 prevention for T-2523/T-2526 class)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 25 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 25
+  commits: 2
+  files_changed: 5
+  lines_added: 589
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2527-static-check-for-unclamped-caller-param-.md
+generated_by: context-agent-hybrid

@@ -27,6 +27,42 @@ const MAX_COMMAND_LEN: usize = 65_536;
 /// the long-lived hub/session daemon heap at pipe speed until OOM. This caps it.
 const MAX_OUTPUT_BYTES: usize = 16 * 1024 * 1024;
 
+/// Default exec timeout applied when the caller supplies none.
+const DEFAULT_EXEC_TIMEOUT_SECS: u64 = 30;
+
+/// Hard upper bound on a caller-supplied exec timeout (1 hour). T-2530: the timeout
+/// arrives as a caller-controlled JSON u64 (`handler.rs` `payload.timeout` →
+/// `Duration::from_secs`, reachable via Execute-scope RPC / `termlink_remote_exec` /
+/// MCP `termlink_exec` / `termlink_dispatch`) and was previously applied verbatim.
+/// An unbounded timeout defeats the timeout: a low-output long-runner (`sleep
+/// 99999999`) is never reclaimed — the session task and child are held indefinitely —
+/// and `Duration::from_secs(u64::MAX)` fed to `tokio::time::timeout` risks an
+/// `Instant + Duration` overflow panic. Mirrors the repo "clamp every caller numeric
+/// param" convention (the size twin, `MAX_OUTPUT_BYTES`, shipped in T-2529).
+/// Overridable via `TERMLINK_MAX_EXEC_TIMEOUT_SECS` (clamped `[1, 86_400]`) for
+/// operator tuning / tests. Synchronous captured-output exec has no legitimate need
+/// to run longer than this — long work belongs on an async session, not a blocking
+/// `execute`.
+const MAX_EXEC_TIMEOUT_SECS: u64 = 3_600;
+
+/// Resolve the effective upper bound on an exec timeout, honoring the env override.
+fn max_exec_timeout() -> Duration {
+    let secs = std::env::var("TERMLINK_MAX_EXEC_TIMEOUT_SECS")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .map(|v| v.clamp(1, 86_400))
+        .unwrap_or(MAX_EXEC_TIMEOUT_SECS);
+    Duration::from_secs(secs)
+}
+
+/// Clamp a caller-supplied exec timeout to the `[_, max_exec_timeout()]` band,
+/// applying `DEFAULT_EXEC_TIMEOUT_SECS` when absent. T-2530.
+fn effective_exec_timeout(timeout: Option<Duration>) -> Duration {
+    timeout
+        .unwrap_or(Duration::from_secs(DEFAULT_EXEC_TIMEOUT_SECS))
+        .min(max_exec_timeout())
+}
+
 /// Validate a command string for safe shell execution.
 /// Rejects null bytes, invalid UTF-8 control sequences, and oversized commands.
 fn validate_command(command: &str) -> Result<(), ExecError> {
@@ -127,7 +163,7 @@ async fn execute_capped(
     // exec`, session RPC, MCP exec/batch all route through here). T-2509.
     cmd.kill_on_drop(true);
 
-    let timeout_dur = timeout.unwrap_or(Duration::from_secs(30));
+    let timeout_dur = effective_exec_timeout(timeout);
 
     let run = async {
         let mut child = cmd.spawn().map_err(ExecError::Spawn)?;
@@ -487,6 +523,66 @@ mod tests {
         .expect("exec ok");
         assert!(res.truncated, "an infinite producer must be flagged truncated");
         assert!(res.stdout.len() <= 4096, "captured output must be capped");
+    }
+
+    // ── T-2530: a caller-supplied exec timeout must be clamped to a sane upper bound.
+    // An unbounded timeout defeats the timeout (a low-output long-runner is never
+    // reclaimed) and `Duration::from_secs(u64::MAX)` risks a tokio overflow panic. ──
+
+    /// Serializes the few tests that mutate `TERMLINK_MAX_EXEC_TIMEOUT_SECS`.
+    static EXEC_TIMEOUT_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    #[test]
+    fn effective_exec_timeout_clamps_huge_value() {
+        let _g = EXEC_TIMEOUT_ENV_LOCK.lock().unwrap();
+        unsafe { std::env::remove_var("TERMLINK_MAX_EXEC_TIMEOUT_SECS") };
+        // The load-bearing assertion: an astronomically large caller value is clamped
+        // to the default max (3600s), NOT applied verbatim. Temp-reverting the `.min()`
+        // in `effective_exec_timeout` makes this fail (returns u64::MAX seconds).
+        assert_eq!(
+            effective_exec_timeout(Some(Duration::from_secs(u64::MAX))),
+            Duration::from_secs(MAX_EXEC_TIMEOUT_SECS),
+            "a huge caller timeout must be clamped to the max, not applied verbatim"
+        );
+    }
+
+    #[test]
+    fn effective_exec_timeout_default_and_passthrough() {
+        let _g = EXEC_TIMEOUT_ENV_LOCK.lock().unwrap();
+        unsafe { std::env::remove_var("TERMLINK_MAX_EXEC_TIMEOUT_SECS") };
+        // Absent → default; a sub-max value passes through unchanged.
+        assert_eq!(
+            effective_exec_timeout(None),
+            Duration::from_secs(DEFAULT_EXEC_TIMEOUT_SECS)
+        );
+        assert_eq!(
+            effective_exec_timeout(Some(Duration::from_secs(5))),
+            Duration::from_secs(5)
+        );
+    }
+
+    #[tokio::test]
+    #[allow(clippy::await_holding_lock)] // env must stay set across the exec await; lock serializes it
+    async fn exec_huge_timeout_is_reclaimed_not_hung() {
+        // Behavioral proof that the clamp neutralizes the infinite-timeout DoS AND
+        // does not panic: with the max clamped tiny (1s) via env, a command that
+        // requests `u64::MAX` seconds and would otherwise hang forever is reclaimed by
+        // the clamped deadline. The outer 6s bound asserts it returns; the inner result
+        // must be `Err(Timeout)`. Without the clamp, `execute_capped` would await
+        // `sleep 30` (or panic on the u64::MAX Instant addition) and blow the 6s bound.
+        let _g = EXEC_TIMEOUT_ENV_LOCK.lock().unwrap();
+        unsafe { std::env::set_var("TERMLINK_MAX_EXEC_TIMEOUT_SECS", "1") };
+        let res = tokio::time::timeout(
+            Duration::from_secs(6),
+            execute("sleep 30", None, None, Some(Duration::from_secs(u64::MAX)), None),
+        )
+        .await;
+        unsafe { std::env::remove_var("TERMLINK_MAX_EXEC_TIMEOUT_SECS") };
+        let inner = res.expect("clamped exec must return well within 6s, not hang");
+        assert!(
+            matches!(inner, Err(ExecError::Timeout(_))),
+            "a huge caller timeout must be clamped and time out, got {inner:?}"
+        );
     }
 
     #[test]

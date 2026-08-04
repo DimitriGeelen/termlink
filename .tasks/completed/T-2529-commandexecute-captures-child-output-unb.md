@@ -4,20 +4,20 @@ name: "command.execute captures child output unbounded — daemon-OOM on a huge-
 description: >
   executor::execute uses cmd.output() which drains child stdout+stderr fully into Vec<u8> with no size cap; a yes/cat-/dev/zero (or accidental cat biglog) grows the long-lived daemon's heap until OOM. Command string is capped (MAX_COMMAND_LEN) but output is not. Fix: cap captured output at MAX_OUTPUT_BYTES, kill child + flag truncated on overflow.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-session/src/executor.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-04T13:05:53Z
-last_update: 2026-08-04T13:06:06Z
-date_finished: null
+last_update: 2026-08-04T13:17:55Z
+date_finished: 2026-08-04T13:17:55Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -228,3 +228,15 @@ alloc-sink check; logged as a thought, not built here — one-bug-one-task).
 - **Load-bearing:** `execute_truncates_over_cap` (bounded 500KB producer, cap 256 — bounded on purpose so the revert proof can't OOM) asserts `truncated==true` + `stdout.len()<=256`; neutralizing the cap check (`if false`) → full read, `truncated==false` → test FAILS; restored → 27/27 executor tests green. Plus `execute_kills_infinite_producer_promptly` (`yes`) proves the real DoS scenario (infinite producer killed within 5s), and `execute_no_truncate_under_cap` proves normal output is unaffected.
 - **Scope honesty:** the caller-supplied `timeout` still has no upper clamp (handler.rs) — an AMPLIFIER of this bug, not independent; the output cap neutralizes the OOM vector regardless of timeout. Noted as a distinct one-bug-one-task item, not bundled.
 - **Follow-up thought (NOT built, one-bug-one-task):** the class is "peer-influenced unbounded accumulation into the daemon's own address space" (T-2524 artifact-download / T-2525 hub-staging / T-2518 bus-line / this). A canary flagging `Command::output()` / unbounded `read_to_end` on externally-driven streams in daemon crates would surface it whole (sibling of T-2527's alloc-sink check).
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-09afbb08
+- **Timestamp:** 2026-08-04T13:18:00Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-04T13:17:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

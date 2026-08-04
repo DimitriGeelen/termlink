@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2528: Line-protocol read loop has no idle timeout — pre-auth slowloris pins governor slot forever (WS twin of T-2442 missed)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-04T13:00:33Z
+# ============================================================================
+
+task_id: T-2528
+task_name: "Line-protocol read loop has no idle timeout — pre-auth slowloris pins governor slot forever (WS twin of T-2442 missed)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-04T12:53:20Z
+completed: 2026-08-04T13:00:15Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-08-04T15:00:08+02:00
+last_commit: 2026-08-04T15:00:08+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  add idle timeout to line-protocol read loop (pre-auth slowloris DoS — WS twin of T-2442)
+
+# Key outcomes
+outcomes:
+  - '`handle_line_connection`''s `read_capped_line` call (server.rs:1095) is wrapped in `tokio::time::timeout(line_idle_timeout(), ...)`; on elapse it logs a warn and `break`s (dropping the `ConnSlotGuard` so the governor slot is reclaimed)'
+  - 'A `line_idle_timeout()` helper is added reading `TERMLINK_LINE_IDLE_TIMEOUT_MS` (default 120_000, clamped via `parse_env_u64_clamped`), symmetric with `ws_idle_timeout()`'
+  - 'A load-bearing async test drives `handle_line_connection` over a duplex stream that sends `{` then stalls (never a newline), under a short `TERMLINK_LINE_IDLE_TIMEOUT_MS`, and asserts the function RETURNS (slot reclaimed) within a generous outer bound rather than hanging forever — `line_idle_timeout_reclaims_stalled_slot` passes in 0.20s'
+  - 'Load-bearing proof: temp-reverting the timeout wrap makes that test FAIL (the handler no longer returns — the pre-fix slowloris hang), restore → green — neutralizing the guard (idle→1h) made the test hang 5.00s then fail on its assertion; restored → ok'
+  - '`cargo test -p termlink-hub` green (472 + 4 pass, 0 fail); `cargo build -p termlink-hub` clean; long-poll paths unaffected (the wrap covers only the line read, not `process_request_message`)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-hub/src/server.rs'
+  - '.tasks/active/T-2528-line-protocol-read-loop-has-no-idle-time.md'
+  - '.tasks/completed/T-2527-static-check-for-unclamped-caller-param-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-04T15:00:08"
+    action: "T-2528: add idle timeout to line-protocol read loop (pre-auth slowloris DoS — WS twin of T-2442)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 3
+  lines_added: 316
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2528-line-protocol-read-loop-has-no-idle-time.md
+generated_by: context-agent-hybrid

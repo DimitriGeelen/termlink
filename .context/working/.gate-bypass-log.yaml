@@ -2372,3 +2372,10 @@ FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2508: capture PL-29
 echo "=== finalize push status ==="; tail -3 /tmp/.push-2521.out 2>/dev/null
 git add .tasks/active/T-2522-retention-days-mode-prunes-on-client-sup.md
 FW_SWITCH_FOCUS=1 .agentic-framew'
+- timestamp: '2026-08-04T12:25:11Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2527'
+  command: 'git add .tasks/active/T-2527-static-check-for-unclamped-caller-param-.md VERSION
+FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2527: file turnkey — static check for unclamped caller-p'

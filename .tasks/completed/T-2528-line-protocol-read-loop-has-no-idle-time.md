@@ -4,20 +4,20 @@ name: "Line-protocol read loop has no idle timeout — pre-auth slowloris pins g
 description: >
   handle_line_connection reads request lines with no tokio::time::timeout; a peer that sends one byte then stalls blocks in fill_buf().await forever, holding its ConnSlotGuard; cap-many such idle line connections deny the whole hub. WS path already has ws_idle_timeout (T-2442); line path is the missed twin.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-hub/src/server.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-04T12:53:20Z
-last_update: 2026-08-04T12:53:34Z
-date_finished: null
+last_update: 2026-08-04T13:00:15Z
+date_finished: 2026-08-04T13:00:15Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -233,3 +233,15 @@ check — logged as a follow-up thought, not built here to keep one-bug-one-task
 - **Load-bearing:** `line_idle_timeout_reclaims_stalled_slot` drives `handle_line_connection` over a duplex stream that sends `{` then keeps the client half ALIVE (Pending, not EOF — an EOF would let the handler return even without the fix, a false pass) and asserts it returns within 5s. Neutralizing the guard (idle→1h) → test hangs 5.00s → FAILS on its assertion; restored → passes in 0.20s.
 - **No regressions:** full `cargo test -p termlink-hub` = 472 + 4 pass, 0 fail; build clean.
 - **Follow-up thought (NOT built, one-bug-one-task):** the class is "a slot-holding `.await` with no deadline on a pre-auth path"; TLS/first-byte/WS-upgrade/WS-read were each hardened one-by-one (T-2515/T-2442/T-2516) and this closes the line-read loop — a grep-canary for un-timeout'd slot-holding awaits on the accept→dispatch path would surface the whole class (sibling of T-2527's alloc-sink check).
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-550b4eaf
+- **Timestamp:** 2026-08-04T13:00:29Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-04T13:00:15Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
