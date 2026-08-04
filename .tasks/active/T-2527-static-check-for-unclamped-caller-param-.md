@@ -4,7 +4,7 @@ name: "Static check for unclamped caller-param to allocation sinks (G-019 preven
 description: >
   Heuristic detector flagging Vec::with_capacity / vec![_;n] / Semaphore::new / String::with_capacity on caller-supplied params without a clamp, in MCP/hub handler files
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-04T12:22:21Z
-last_update: 2026-08-04T12:22:21Z
+last_update: 2026-08-04T12:39:58Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -70,11 +70,11 @@ the 13 `*-canary` checks documented in CLAUDE.md.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `scripts/check-alloc-sink-clamps.sh` scans the handler crates and flags `with_capacity` / `vec![_;n]` / `Semaphore::new` / `.repeat(n)` sites whose size arg is a bare identifier or `p.<field>` (not a literal / not `.clamp`/`.min`/`.take`-bounded)
-- [ ] Running it against the CURRENT tree (post T-2523/T-2526) reports 0 firing sites, OR reports only sites acknowledged in `.context/working/.alloc-sink-allowlist` — i.e. the known-good baseline is clean
-- [ ] A deliberately-planted un-clamped `Vec::with_capacity(some_caller_param)` in a test fixture IS flagged (proving the detector fires), and the same site wrapped in `.clamp(1,256)` is NOT flagged (proving it recognizes the fix)
-- [ ] Exit codes: 0 = clean, 1 = unacknowledged candidate(s), 2 = tooling error; `--json` envelope; documented in CLAUDE.md alongside the canary set
-- [ ] Load-bearing proof: temp-revert one of the T-2523/T-2526 clamps in a scratch copy and confirm the check flags it (the check would have caught the original defect)
+- [x] `scripts/check-alloc-sink-clamps.sh` scans the handler crates and flags `with_capacity` / `vec![_;n]` / `Semaphore::new` / `.repeat(n)` sites whose size arg is a bare identifier or `p.<field>` (not a literal / not `.clamp`/`.min`/`.take`-bounded)
+- [x] Running it against the CURRENT tree (post T-2523/T-2526) reports 0 firing sites, OR reports only sites acknowledged in `.context/working/.alloc-sink-allowlist` — i.e. the known-good baseline is clean (98 sinks scanned, 5 confirmed-safe allowlisted, 0 firing)
+- [x] A deliberately-planted un-clamped `Vec::with_capacity(some_caller_param)` in a test fixture IS flagged (proving the detector fires), and the same site wrapped in `.clamp(1,256)` is NOT flagged (proving it recognizes the fix) — `tests/alloc-sink-check-fixtures.sh` (a)+(b), 6/6 pass
+- [x] Exit codes: 0 = clean, 1 = unacknowledged candidate(s), 2 = tooling error; `--json` envelope; documented in CLAUDE.md alongside the canary set
+- [x] Load-bearing proof: temp-revert one of the T-2523/T-2526 clamps in a scratch copy and confirm the check flags it (the check would have caught the original defect) — reverting `clamp_max_parallel(p.max_parallel)` → `p.max_parallel.unwrap_or(10)` in a scratch copy made both `Semaphore::new(max_parallel)` sites fire (absent before the revert, binding-cleared)
 
 <!-- Human section removed — fully agent-verifiable (a shell check + fixtures). -->
 
@@ -187,3 +187,13 @@ framework was blind?" — this is the "no").
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2527-static-check-for-unclamped-caller-param-.md
 - **Context:** Initial task creation
+
+### 2026-08-04 — built + closed [T-2468 subtract-and-deepen campaign]
+- **Shipped:** `scripts/check-alloc-sink-clamps.sh` (grep/AST-lite static check), `tests/alloc-sink-check-fixtures.sh` (6 fixtures), `.context/working/.alloc-sink-allowlist` (5 cited-safe sites), CLAUDE.md doc section.
+- **Design:** flags bare-ident / `p.field` size args at `with_capacity`/`Semaphore::new`/`vec![_;n]`/`.repeat`; skips literals/`.len()`/inline-`.clamp/.min/.take`; **binding-aware** (clears sites whose ident is `let`-bound with a clamp/min/take/validate_ RHS); skips `//` comments and out-of-scope compound exprs; allowlist by drift-stable `relpath::sink(normalized-arg)` signature.
+- **First-run dividend (validates the check's value):** the detector immediately surfaced a THIRD instance of the class beyond the two known — `crates/termlink-session/src/codec.rs:38 vec![0u8; payload_len]` in the data-plane `FrameReader::read_frame`, allocating a wire-supplied `payload_length` before reading the payload (frame-bomb shape). Verified NOT a live defect: `FrameHeader::decode()` (crates/termlink-protocol/src/data.rs:102) rejects `payload_length > MAX_PAYLOAD_SIZE` (16 MiB) one line above, so it is bounded-by-construction — allowlisted with that cited reason. A clean confirm-and-acknowledge cycle, exactly the intended workflow.
+- **Load-bearing:** temp-reverting the T-2523 clamp in a scratch copy made both `Semaphore::new(max_parallel)` sites fire (absent before revert). Fixtures prove planted-fires / clamped-doesn't / binding-clears / allowlist-suppresses / comment+compound-skip / Semaphore-shape.
+- **Verification:** both Verification commands exit 0; real tree clean (candidates=0).
+
+### 2026-08-04T12:39:58Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

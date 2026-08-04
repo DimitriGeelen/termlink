@@ -466,6 +466,53 @@ is authoritative (human-blessed) — bring `README.md` + `docs/ARCHITECTURE.md` 
 into agreement. `/canaries` auto-discovers the log. Pair with the twelve canaries
 above — all thirteen follow the same "empty-log = healthy" convention.
 
+### Unclamped caller-param → allocation-sink static check (T-2527, G-019 prevention for the T-2523/T-2526 class)
+
+Twice in one window an adversarial hunter found a caller-supplied param reaching an
+eager allocation / resource sink with no upper bound: `max_parallel` →
+`tokio::sync::Semaphore::new(max_parallel)` (T-2523 — `permits > MAX_PERMITS` panics,
+`0` hangs forever) and `count` → `Vec::with_capacity(count as usize)` (T-2526 — a
+`u32::MAX` field pre-allocates ~100 GB, OOM-aborting the MCP server from one JSON
+field). Each was a one-line omission, invisible until someone read that exact line.
+The repo has a strong "clamp every numeric caller param" convention
+(`clamp_max_parallel`, `max_depth.clamp(1,1024)`, `since_days.clamp(1,365)`, …) but
+the convention is **by discipline, not enforced** — two instances in one window means
+the mechanism recurs. G-019: fix the symptom (the two clamps), then fix why the
+framework was blind. This check makes the convention load-bearing.
+
+`scripts/check-alloc-sink-clamps.sh` is a grep/AST-lite scanner (NOT a runtime cron
+canary — a **source-level static check**, sibling to the thirteen canaries above) over
+the handler crates (`crates/termlink-mcp/src`, `crates/termlink-hub/src`,
+`crates/termlink-session/src`). It flags each `Vec/String/HashMap/…::with_capacity(<x>)`,
+`Semaphore::new(<x>)`, `vec![_; <x>]`, and `<expr>.repeat(<x>)` whose size arg `<x>`
+is a **bare identifier or `p.<field>`** (optionally `<x> as usize`) and is NOT a
+literal / not `.len()` of a materialized collection / not inline
+`.clamp(`/`.min(`/`.take(`/`.saturating_`-bounded. Compound expressions (`m + 1`)
+are OUT OF SCOPE (conservative — fewer false positives), and `//`-comment mentions
+are skipped. **Binding-aware clear:** for a bare-ident site `foo(x)`, if the file
+binds `let [mut] x = <…clamp…|…min(…|…take(…|validate_…>` the site is treated as
+clamped-at-binding and cleared — this is why the T-2523 sites
+(`let max_parallel = clamp_max_parallel(p.max_parallel);`) read clean, and why
+reverting that clamp makes them fire again (the load-bearing property).
+
+Output is a **REVIEW list, not a hard gate** — false positives are expected; the
+value is surfacing NEW sinks for a human/agent to confirm-and-clamp. Confirmed-safe
+sites (upstream guard, internally-derived count, library constructor param) are
+acknowledged in `.context/working/.alloc-sink-allowlist`, one drift-stable signature
+per line (`<relpath>::<sink>(<normalized-arg>)`, `as usize` casts stripped); the
+check trends toward empty. The current tree is clean (98 sink calls scanned, 5
+confirmed-safe sites allowlisted with cited reasons — including one, the data-plane
+`codec.rs` frame reader, whose `payload_len` bound is enforced at the
+`FrameHeader::decode()?` boundary via `MAX_PAYLOAD_SIZE`, one line above the
+allocation, not by a `let`-clamp the grep can see). Exit codes: 0 = clean, 1 =
+unacknowledged candidate(s), 2 = tooling error; `--json` for scripting; `--root`
+(repeatable) + `--allowlist` for fixtures; `--quiet` / `--no-heartbeat` for cron.
+Ad-hoc check: `bash scripts/check-alloc-sink-clamps.sh`. Fixtures (no live binary):
+`bash tests/alloc-sink-check-fixtures.sh`. Operator action on firing: clamp the code
+(`.clamp(1, N)` inline, or a `let x = clamp_*(...)` binding) OR — if confirmed
+bounded-by-construction — add the site's signature to the allowlist with a cited
+reason.
+
 ## Project-Specific Rules
 
 ### Hub Auth Rotation Protocol
