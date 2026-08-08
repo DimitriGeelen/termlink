@@ -58,7 +58,10 @@ What the substrate promises (and, honestly, what it does not):
   a message; use receipts/acks for that.
 - **Exactly-once post** — client retries are absorbed by hub-side
   `(sender, client_msg_id)` dedupe; the CLI's offline queue persists unsent posts
-  across hub blips and replays them safely.
+  across hub blips and replays them safely. The dedupe recogniser is in-memory,
+  so exactly-once holds within a hub lifetime, **not across a hub restart** — a
+  durably-queued retry replayed after the hub restarts can double-apply
+  (tracked as gap G-088).
 - **Delivery confirmation is explicit, not implicit** — `post --await-ack` writes a
   durable obligation; `channel awaiting-ack` surfaces sends nobody confirmed.
   Nothing is silently assumed delivered.
