@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2535: MCP channel_subscribe from_latest uses count-1 — returns stale envelope after sweep (T-2533 sibling)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-08T08:09:12Z
+# ============================================================================
+
+task_id: T-2535
+task_name: "MCP channel_subscribe from_latest uses count-1 — returns stale envelope after sweep (T-2533 sibling)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-08T08:03:28Z
+completed: 2026-08-08T08:08:49Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-08-08T10:08:42+02:00
+last_commit: 2026-08-08T10:08:42+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  MCP channel_subscribe from_latest uses latest_offset, not count-1
+
+# Key outcomes
+outcomes:
+  - '`termlink_channel_subscribe` `from_latest` resolves the latest offset via `latest_offset_from_list_entry_mcp` (prefers `latest_offset`, falls back to `count-1` for pre-T-2533 hubs; `None`/empty topic → empty marker) instead of raw `count-1` (tools.rs:28126)'
+  - 'Pure helper `latest_offset_from_list_entry_mcp(entry)` (mirror of CLI `latest_offset_from_list_entry`) + unit test `latest_offset_from_list_entry_mcp_swept_topic_prefers_latest_offset`: swept (count 10, latest_offset 4999) → 4999; legacy no-field (count 10) → 9; count 0 / None → None'
+  - 'Load-bearing PROVEN: temp-revert the helper to `count-1` → swept unit test FAILS `left:Some(9) right:Some(4999)`; restore → green'
+  - '`cargo build -p termlink-mcp` clean; `cargo test -p termlink-mcp --lib` 887 pass (886 + 1 new)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-2535-mcp-channelsubscribe-fromlatest-uses-cou.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-08T10:08:42"
+    action: "T-2535: MCP channel_subscribe from_latest uses latest_offset, not count-1"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 2
+  lines_added: 275
+  lines_removed: 11
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2535-mcp-channelsubscribe-fromlatest-uses-cou.md
+generated_by: context-agent-hybrid

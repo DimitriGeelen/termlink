@@ -4,20 +4,20 @@ name: "MCP channel_subscribe from_latest uses count-1 — returns stale envelope
 description: >
   MCP termlink_channel_subscribe from_latest=true path (tools.rs:28126-28137) computes latest offset as count-1 from channel.list, ignoring the authoritative latest_offset field (T-2533). On a swept topic (offsets 4990..4999, count=10, latest_offset=4999) it sets cursor=count-1=9, limit=1; hub records_from returns the FIRST survivor (offset 4990) as 'the single latest envelope' — silent stale-data read on exactly the broadcast-with-replay topics (agent-presence, cv-keyed rooms) that get swept. The CLI twin (channel.rs:9044) was fixed via resolve_latest_offset; this is the 4th sibling, the only unfixed inline site. Fix: prefer latest_offset, fall back to count-1 (back-compat). Small, buildable.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-08T08:03:28Z
-last_update: 2026-08-08T08:03:42Z
-date_finished: null
+last_update: 2026-08-08T08:08:49Z
+date_finished: 2026-08-08T08:08:49Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -220,3 +220,15 @@ follow-up thought, not built here (one-bug-one-task).
 
 ### 2026-08-08T08:03:42Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-fcaefe8c
+- **Timestamp:** 2026-08-08T08:09:09Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-08T08:08:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
