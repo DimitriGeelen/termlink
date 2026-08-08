@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-08T14:32:20Z
-last_update: 2026-08-08T14:33:14Z
+last_update: 2026-08-08T14:42:28Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -64,12 +64,12 @@ Found by adversarial session-control hunter during the T-2468 purpose-review cam
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `handle_command_execute` (handler.rs) emits `truncated` in the `command.execute` success response.
-- [ ] `termlink exec --json` envelope (execution.rs) emits `truncated`.
-- [ ] MCP `termlink_run` (tools.rs) emits `truncated`.
-- [ ] MCP `termlink_batch_run` per-command result (tools.rs) emits `truncated`.
-- [ ] A deterministic test proves the emission is load-bearing: a pure response-builder helper (or equivalent) is unit-tested to include `truncated` from a capped `ExecResult`, and removing the field-forwarding makes that test FAIL (temp-revert proof).
-- [ ] `cargo build -p termlink-session -p termlink -p termlink-mcp` succeeds; new/changed tests pass.
+- [x] `handle_command_execute` (handler.rs) emits `truncated` in the `command.execute` success response.
+- [x] `termlink exec --json` envelope (execution.rs) emits `truncated`.
+- [x] MCP `termlink_run` (tools.rs) emits `truncated`.
+- [x] MCP `termlink_batch_run` per-command result (tools.rs) emits `truncated`.
+- [x] A deterministic test proves the emission is load-bearing: a pure response-builder helper (or equivalent) is unit-tested to include `truncated` from a capped `ExecResult`, and removing the field-forwarding makes that test FAIL (temp-revert proof). Proven: session/CLI/MCP tests each FAILED on neutralized helper, green after restore.
+- [x] `cargo build -p termlink-session -p termlink -p termlink-mcp` succeeds; new/changed tests pass.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
