@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2536: find_idle LIVE window has no upper bound — future-dated (clock-skew) heartbeat keeps a dead worker on the idle roster
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-08T08:22:42Z
+# ============================================================================
+
+task_id: T-2536
+task_name: "find_idle LIVE window has no upper bound — future-dated (clock-skew) heartbeat keeps a dead worker on the idle roster"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-08T08:18:30Z
+completed: 2026-08-08T08:22:38Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-08-08T10:21:16+02:00
+last_commit: 2026-08-08T10:21:16+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  clamp find_idle presence ts upper bound — future-dated heartbeat no longer keeps a dead worker LIVE
+
+# Key outcomes
+outcomes:
+  - 'Both `find_idle_agents` (lib.rs:604) and `find_idle_agents_from_hint` (lib.rs:704) reject heartbeats with `last_heartbeat_ms > now_ms + live_window_ms.max(0)` (symmetric `future_cutoff_ms` bound) in addition to the existing lower bound'
+  - 'Unit test `find_idle_filters_future_dated_heartbeat`: 60s window — `now-1_000` (fresh) + `now+5_000` (sub-window skew) BOTH returned; `now+600_000` (gross future / dead) EXCLUDED; total 2'
+  - 'Load-bearing PROVEN: temp-revert (remove walk-path upper-bound clause) → `future_dead` reappears → test FAILS "gross-future-dated heartbeat must be excluded (corpse-looks-live bug)"; restore → green'
+  - '`cargo build -p termlink-bus` clean; `cargo test -p termlink-bus --lib find_idle` 18/18 pass (existing stale/anti-join/overflow tests unaffected)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-bus/src/lib.rs'
+  - '.tasks/active/T-2536-findidle-live-window-has-no-upper-bound-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-08T10:21:16"
+    action: "T-2536: clamp find_idle presence ts upper bound — future-dated heartbeat no longer keeps a dead worker LIVE"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 2
+  lines_added: 286
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2536-findidle-live-window-has-no-upper-bound-.md
+generated_by: context-agent-hybrid

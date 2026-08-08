@@ -4,20 +4,20 @@ name: "find_idle LIVE window has no upper bound — future-dated (clock-skew) he
 description: >
   Bus find_idle_agents (lib.rs:604) and find_idle_agents_from_hint (lib.rs:704) filter presence heartbeats with only a lower bound (last_heartbeat_ms > now-window); no upper bound. env.ts_unix_ms is client-signed (hub cannot substitute its clock without breaking sig verify), so a host with a fast/skewed clock posts a future ts; when that process dies the dead worker stays on the find-idle roster until real-time catches up — orchestrator dispatches to a corpse, work silently stalls (G-063/G-069 'why no response?' class). Repo already establishes the convention: tools.rs:3555 'future-clock safety' (ts>now_ms skip) + tools.rs:30133 clock-skew age clamp; find_idle omits it. Fix: symmetric bound reusing live_window_ms as skew tolerance (ts <= now+window) so gross-future corpses are excluded but sub-window-skewed LIVE workers are not falsely dropped. Small, in-authority, buildable.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-bus/src/lib.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-08T08:18:30Z
-last_update: 2026-08-08T08:18:42Z
-date_finished: null
+last_update: 2026-08-08T08:22:38Z
+date_finished: 2026-08-08T08:22:38Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -230,3 +230,15 @@ sibling; deferred (one-bug-one-task).
 
 ### 2026-08-08T08:18:42Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-ecd3cea3
+- **Timestamp:** 2026-08-08T08:22:39Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-08T08:22:38Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
