@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2552: ack_retry module doc overclaims auto-resume of interrupted awaits (doc-vs-code drift)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-08T19:49:59Z
+# ============================================================================
+
+task_id: T-2552
+task_name: "ack_retry module doc overclaims auto-resume of interrupted awaits (doc-vs-code drift)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-08T19:48:16Z
+completed: 2026-08-08T19:49:53Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-08T21:49:48+02:00
+last_commit: 2026-08-08T21:49:48+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  clarify ack_retry doc — interrupted awaits are retained+observable (awaiting-ack/T-2295), re-drive is caller/AEF-initiated not auto (non-goal #4); doc-only
+
+# Key outcomes
+outcomes:
+  - 'ack_retry.rs module doc no longer implies automatic resumption of interrupted awaits'
+  - 'Doc states the tracker is durable + surfaced (`channel awaiting-ack`, T-2295 canary) and that re-drive is caller/AEF-initiated (non-goal #4 boundary)'
+  - 'Docs-only change; `cargo build -p termlink-session` still compiles (doc comment)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-session/src/ack_retry.rs'
+  - '.tasks/active/T-2552-ackretry-module-doc-overclaims-auto-resu.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-08T21:49:48"
+    action: "T-2552: clarify ack_retry doc — interrupted awaits are retained+observable (awaiting-ack/T-2295), re-drive is caller/AEF-initiated not auto (non-goal #4); doc-only"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 2
+  lines_added: 200
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2552-ackretry-module-doc-overclaims-auto-resu.md
+generated_by: context-agent-hybrid
