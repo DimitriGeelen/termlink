@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2537: Surface ExecResult.truncated at all exec boundaries (T-2529 signal dropped)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-08T14:46:23Z
+# ============================================================================
+
+task_id: T-2537
+task_name: "Surface ExecResult.truncated at all exec boundaries (T-2529 signal dropped)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-08T14:32:20Z
+completed: 2026-08-08T14:45:20Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-08-08T16:42:27+02:00
+last_commit: 2026-08-08T16:43:04+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  surface ExecResult.truncated at all exec boundaries (RPC/CLI/MCP). tick agent ACs (all verified, temp-revert proven)
+
+# Key outcomes
+outcomes:
+  - '`handle_command_execute` (handler.rs) emits `truncated` in the `command.execute` success response.'
+  - '`termlink exec --json` envelope (execution.rs) emits `truncated`.'
+  - 'MCP `termlink_run` (tools.rs) emits `truncated`.'
+  - 'MCP `termlink_batch_run` per-command result (tools.rs) emits `truncated`.'
+  - 'A deterministic test proves the emission is load-bearing: a pure response-builder helper (or equivalent) is unit-tested to include `truncated` from a capped `ExecResult`, and removing the field-forwarding makes that test FAIL (temp-revert proof). Proven: session/CLI/MCP tests each FAILED on neutralized helper, green after restore.'
+  - '`cargo build -p termlink-session -p termlink -p termlink-mcp` succeeds; new/changed tests pass.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'tick agent ACs (all verified, temp-revert proven)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/execution.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - 'crates/termlink-session/src/executor.rs'
+  - 'crates/termlink-session/src/handler.rs'
+  - '.tasks/active/T-2537-surface-execresulttruncated-at-all-exec-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-08T16:42:27"
+    action: "T-2537: surface ExecResult.truncated at all exec boundaries (RPC/CLI/MCP)"
+  - time: "2026-08-08T16:43:04"
+    action: "T-2537: tick agent ACs (all verified, temp-revert proven)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 13 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 13
+  commits: 2
+  files_changed: 5
+  lines_added: 399
+  lines_removed: 32
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2537-surface-execresulttruncated-at-all-exec-.md
+generated_by: context-agent-hybrid

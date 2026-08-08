@@ -6192,3 +6192,93 @@ scan_id: R-4f459d4a
 task_id: T-2531
 payload:
   task_file: .tasks/active/T-2531-static-check-for-unbounded-peer-driven-d.md
+---
+kind: scan_emitted
+timestamp: '2026-08-08T07:51:19Z'
+scan_id: R-8bf22265
+task_id: T-2533
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-08T07:51:19Z'
+scan_id: R-8bf22265
+task_id: T-2533
+payload:
+  task_file: .tasks/active/T-2533-unreadack-use-count-1-as-latest-offset--.md
+---
+kind: scan_emitted
+timestamp: '2026-08-08T08:09:09Z'
+scan_id: R-fcaefe8c
+task_id: T-2535
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-08T08:09:09Z'
+scan_id: R-fcaefe8c
+task_id: T-2535
+payload:
+  task_file: .tasks/active/T-2535-mcp-channelsubscribe-fromlatest-uses-cou.md
+---
+kind: scan_emitted
+timestamp: '2026-08-08T08:22:39Z'
+scan_id: R-ecd3cea3
+task_id: T-2536
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-08T08:22:39Z'
+scan_id: R-ecd3cea3
+task_id: T-2536
+payload:
+  task_file: .tasks/active/T-2536-findidle-live-window-has-no-upper-bound-.md
+---
+kind: scan_emitted
+timestamp: '2026-08-08T14:46:19Z'
+scan_id: R-15a3e609
+task_id: T-2537
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-08T14:46:19Z'
+scan_id: R-15a3e609
+task_id: T-2537
+payload:
+  task_file: .tasks/active/T-2537-surface-execresulttruncated-at-all-exec-.md
+---
+kind: scan_emitted
+timestamp: '2026-08-08T14:57:44Z'
+scan_id: R-60f574f3
+task_id: T-2538
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-08T14:57:44Z'
+scan_id: R-60f574f3
+task_id: T-2538
+payload:
+  task_file: .tasks/active/T-2538-fix-push-waker-dm-rail-dedup-collision-p.md

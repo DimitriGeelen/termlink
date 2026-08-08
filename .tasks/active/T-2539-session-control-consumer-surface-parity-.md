@@ -1,13 +1,13 @@
 ---
-id: T-2538
-name: "Fix push-waker dm-rail dedup collision (per-topic offsets aliased)"
+id: T-2539
+name: "Session-control consumer surface parity (deepen founding charter verb)"
 description: >
-  The push-waker dm rail dedups wakes by message_offset alone, but dm offsets are per-topic (each dm:self:peer starts at 0), so a second peer's offset-0 wake within the TTL is silently dropped as a duplicate — the why-no-response latency class. Key dedup on (channel, offset).
+  T-2468 deepen-the-core: the founding charter verb 'control terminal sessions' is capability-complete (register/list/spawn/exec/interact/run/pty attach|inject|output|stream/mirror/signal/clean) but surface-starved — 0 of 33 skills touch it and the cold-start on-ramp (substrate-getting-started.md, /substrate digest) omits it entirely, while its 3 sibling verbs each have rich skill+doc surfaces. Give verb #4 proportionate surface parity WITHOUT adding breadth: an on-ramp doc + cold-start integration + one flagship read-tier skill (/sessions), each thin over existing CLI. Purpose-review finding, in-authority (same category as the 33 existing skills), no non-goal tripped.
 
-status: work-completed
+status: started-work
 workflow_type: build
 owner: agent
-horizon: null
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -15,9 +15,9 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-08T14:55:07Z
-last_update: 2026-08-08T14:57:42Z
-date_finished: 2026-08-08T14:57:42Z
+created: 2026-08-08T16:10:42Z
+last_update: 2026-08-08T16:10:58Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -30,55 +30,57 @@ date_finished: 2026-08-08T14:57:42Z
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2538: Fix push-waker dm-rail dedup collision (per-topic offsets aliased)
+# T-2539: Session-control consumer surface parity (deepen founding charter verb)
 
 ## Context
 
-arc-004's push-waker (`scripts/be-reachable-pushwaker.sh`) has two rails that ring
-an idle agent's PTY when a durable message arrives: the **inbox rail** (aggregates
-one `inbox:<id>` topic) and the **dm rail** (T-2324, aggregates the single global
-`dm.queued` topic, matching `addressee == self_fp`).
+Purpose-review finding (T-2468 "deepen the incomplete core" half). A charter-fulfillment
+hunter assessed all four charter verbs (`docs/CHARTER.md`): **discover / exchange durable
+messages / claim work** are richly fulfilled across CLI+MCP+skill+doc tiers; the **fourth
+and FOUNDING verb — "control terminal sessions"** (the charter's Origin: "TermLink *began*
+as a cross-terminal session-control tool") — is **capability-complete but surface-starved**.
 
-**Defect:** the dm rail funnels EVERY `dm:<self>:<peer>` thread through the one
-aggregator, but each thread has its OWN offset sequence starting at 0. The rail
-dedups wakes with `seen[$offset]` keyed on `message_offset` ALONE
-(`be-reachable-pushwaker.sh:183,199-202`). So:
+Verified in code:
+- The top-level CLI is literally headed "Cross-terminal session communication" with a
+  first-class surface: `register`, `list`, `ping`, `status`, `interact`, `exec`, `signal`,
+  `pty` (attach/inject/output/resize/stream), `mirror`, `run`, `spawn`, `dispatch`, `discover`,
+  `clean` (`crates/termlink-cli/src/cli.rs:240-916`); MCP exposes ~11 session tools.
+- **0 of 33** `.claude/commands/*.md` skills touch session control (the 3 sibling verbs have
+  ~20). The cold-start on-ramp ignores it: `docs/operations/substrate-getting-started.md` is a
+  polished on-ramp for discover/exchange/claim only, and its cold-start sequence
+  (`/preflight → /substrate → /canaries`) never surfaces the founding verb. Only 2 ops docs
+  touch it (`session-selftest.md`, `injectable-listener-spawn-recipe.md`).
+- The framework already flagged the neglect (T-2485 added a session-selftest *prover* but not
+  the ergonomic/consumer layer).
 
-- peerA DMs on `dm:self:peerA` offset 0 → waker rings the PTY.
-- Within the TTL window (default 120s), peerB DMs on `dm:self:peerB` offset 0 →
-  `pushwaker_dedup_ok` sees `seen[0]` set recently → `continue` → **peerB's wake
-  is silently dropped** as a "duplicate," though it is a distinct message from a
-  distinct peer on a distinct topic.
+**This is DEEPEN, not breadth-add** (T-2468 thesis-critical distinction): every deliverable
+thin-wraps EXISTING charter-core capability to give verb #4 *proportionate surface parity*
+with its three siblings. No new primitive, no new capability, no non-goal tripped. Same
+category as the 33 existing skills → in-authority.
 
-Low-traffic dm threads all sit at small offsets (0,1,2…), so collisions are the
-COMMON case, not a corner. The design note at lines 173-175 only reasons about
-inbox-offset-N vs dm-offset-N (cross-rail) and is blind to dm-topic-vs-dm-topic
-WITHIN the one dm rail. The inbox rail is unaffected (single topic → unique offsets).
+Deliverables (one coherent unit):
+1. `docs/operations/session-control-getting-started.md` — on-ramp for verb #4, sibling of
+   substrate-getting-started.md. Daily-verb table + 5-minute first-session walkthrough
+   (spawn → exec → output → clean, the session-selftest known-good sequence) + prover +
+   where-to-go-next (doorbell-wake, injectable-listener).
+2. `.claude/commands/sessions.md` — `/sessions` flagship read-tier skill, thin over
+   `termlink list --json`, loud empty-state, per-session next-step hints (exec/attach/mirror/
+   inject). Parallels `/peers` and `/claims` (read verbs); gives verb #4 a skill-tier presence.
+3. Cold-start integration — session-control pointer added to substrate-getting-started.md so a
+   new operator learns TermLink controls terminals, not just messages.
 
-**Class: LATENCY, not data-loss.** peerB's turn is durably on `dm:self:peerB` and
-will be seen on the next `/check-arc` poll — but this rail exists precisely for the
-non-live-sender path (raw `channel post` / cron / remote peer / MCP) where nothing
-ELSE rings the PTY. For an otherwise-idle agent the wake is delayed indefinitely
-until an unrelated message happens to ring it — the exact G-063/G-069 "why is there
-still no response?" symptom.
-
-**Fix:** the `dm.queued` emit already carries `"channel": &topic` (channel.rs:856),
-as does the inbox emit (channel.rs:212). Key dedup on `(channel, offset)` via a
-pure `pushwaker_dedup_key` helper, with bare-offset fallback for channel-less
-legacy frames. ~10-line shell change + a load-bearing fixture in
-`scripts/test-pushwaker-filter.sh`.
-
-Predecessor: T-2324 (dm rail), T-2316 (pure-helper test harness). Found by an
-adversarial push-wake hunter during the T-2468 purpose-review campaign.
+Noted follow-up (NOT this task, one-task-one-deliverable): SUBTRACT candidate — ~37 deprecated
+social-analytics MCP tools still ship as dead code/descriptions (~39k tokens/agent); overlaps
+arc-005 mcp-slimming; riskier (registry, consumer-check) → separate unit.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] A pure `pushwaker_dedup_key` helper keys on `(channel, offset)` and falls back to bare offset when the frame carries no `channel`.
-- [x] `pushwaker_rail_loop` uses the composite key for its `seen` dedup map (both rails).
-- [x] The design note (lines ~173-175) is corrected to reflect per-(channel,offset) dedup.
-- [x] A load-bearing fixture in `scripts/test-pushwaker-filter.sh` asserts two distinct dm channels at the same offset get DISTINCT dedup keys (and same channel+offset collide, and a channel-less frame → bare offset key). Removing the channel from the key makes the distinct-channels assertion FAIL (temp-revert proof). Proven: offset-only key → `FAIL: dm-rail collision`, restore → PASS.
-- [x] `bash scripts/test-pushwaker-filter.sh` prints `RESULT: PASS`.
+- [x] `docs/operations/session-control-getting-started.md` exists, names the founding verb, and documents the spawn → exec → output → clean lifecycle with copy-pasteable commands
+- [x] `.claude/commands/sessions.md` exists as a read-only `/sessions` skill wrapping `termlink list --json`, with loud empty-state + next-step hints, and does NOT mutate session state
+- [x] `docs/operations/substrate-getting-started.md` links to the new session-control on-ramp so the founding verb is reachable from the cold-start path
+- [x] The documented session round-trip actually works: `scripts/session-selftest.sh` exits 0 (spawn+exec proven) — the doc's core sequence is known-good
+- [x] The charter canonical sentence is untouched: `scripts/check-charter-sentence-drift.sh --no-heartbeat` exits 0
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -112,9 +114,13 @@ adversarial push-wake hunter during the T-2468 purpose-review campaign.
 -->
 
 ## Verification
-
-bash scripts/test-pushwaker-filter.sh 2>&1 | tail -8
-bash -n scripts/be-reachable-pushwaker.sh
+test -f docs/operations/session-control-getting-started.md
+test -f .claude/commands/sessions.md
+grep -q "session-control-getting-started" docs/operations/substrate-getting-started.md
+out=$(cat docs/operations/session-control-getting-started.md); echo "$out" | grep -q "control terminal sessions"
+out=$(cat .claude/commands/sessions.md); echo "$out" | grep -q "termlink list --json"
+bash scripts/session-selftest.sh >/tmp/.t2539-selftest.out 2>&1; grep -qiE "proven|PASS|ok" /tmp/.t2539-selftest.out
+bash scripts/check-charter-sentence-drift.sh --no-heartbeat
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -148,28 +154,6 @@ bash -n scripts/be-reachable-pushwaker.sh
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
 ## RCA
-
-**Symptom:** An idle agent does not get its PTY rung for peerB's DM when peerA
-already DMed within the last TTL window and both messages landed at the same
-per-topic offset (typically offset 0 on fresh threads). The message is durable
-but the wake — the whole point of the non-live-sender rail — never fires.
-
-**Root cause:** the dm rail dedups on `message_offset` alone, but `message_offset`
-is per-`dm:<a>:<b>`-topic; the single `dm.queued` aggregator multiplexes many such
-topics, so offsets collide across peers. `seen[$offset]` treats peerB@0 as a
-duplicate of peerA@0.
-
-**Why structurally allowed:** the design note (be-reachable-pushwaker.sh:173-175)
-explicitly reasoned that "an inbox offset N and a dm offset N are distinct messages
-on distinct topics, so per-rail dedup is correct and collision-free" — correct for
-CROSS-rail, but it never considered that the dm rail itself aggregates MANY topics.
-The pure-helper test harness (T-2316) tested `pushwaker_dedup_ok` with scalar
-offsets, so the multi-topic aliasing was outside the tested surface.
-
-**Prevention:** the load-bearing fixture asserting distinct-channel/same-offset →
-distinct keys fails if dedup ever regresses to offset-only. The dedup key now
-derives from the same `channel` field the hub already emits, so key and topic
-cannot drift.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -232,22 +216,10 @@ cannot drift.
 
 ## Updates
 
-### 2026-08-08T14:55:07Z — task-created [task-create-agent]
+### 2026-08-08T16:10:42Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2538-fix-push-waker-dm-rail-dedup-collision-p.md
+- **Output:** /opt/termlink/.tasks/active/T-2539-session-control-consumer-surface-parity-.md
 - **Context:** Initial task creation
 
-### 2026-08-08T14:56:03Z — status-update [task-update-agent]
+### 2026-08-08T16:10:58Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
-
-## Reviewer Verdict (v1.5)
-
-- **Scan ID:** R-60f574f3
-- **Timestamp:** 2026-08-08T14:57:44Z
-- **Catalogue:** v1.3-seed
-- **Overall:** PASS
-- **Needs Human:** no
-- **Findings:** none
-
-### 2026-08-08T14:57:42Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed

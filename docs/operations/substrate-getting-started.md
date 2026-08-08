@@ -170,6 +170,13 @@ Pick whichever question you have:
   on-ramp for.
 - **"What about substrate health overall?"** — `docs/operations/substrate-status.md`
   + the `/substrate` skill.
+- **"Wait — TermLink controls terminal *sessions* too?"** — yes, that is its
+  *founding* verb (`docs/CHARTER.md`). This doc covers the coordination verbs
+  (discover / exchange / claim); the fourth verb — spawn a real PTY, exec into
+  it, stream its output, inject keystrokes, doorbell-wake it — has its own
+  on-ramp at `docs/operations/session-control-getting-started.md` and the
+  `/sessions` read skill. If you only learned the message-bus side, start there
+  next.
 
 When you find yourself reaching for a primitive whose docs you've not
 yet read, scan the relevant section above and come back to it later —
