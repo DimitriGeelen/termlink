@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-08T19:43:28Z
-last_update: 2026-08-08T19:43:28Z
+last_update: 2026-08-08T19:47:17Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -51,10 +51,10 @@ Fix is docs-only — no code decision. Found by T-2468 doc-reality-drift review.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] ARCHITECTURE.md "Hub Architecture" no longer claims the hub holds no persistent state; it accurately states routing is stateless but the hub owns durable on-disk bus state under `<runtime_dir>/bus/` (topic logs + SQLite meta + artifacts) plus in-memory caches
-- [ ] The false "Event stores live in sessions, not the hub" line is corrected (durable channel bus is hub-side; only the ephemeral session EventBus ring is session-side)
-- [ ] `termlink-bus` crate added to the Crate Hierarchy and Dependency Graph sections
-- [ ] No code files changed (docs-only); claim cross-checked against server.rs:282 + termlink-bus/src/{log,meta}.rs
+- [x] ARCHITECTURE.md "Hub Architecture" no longer claims the hub holds no persistent state; it accurately states routing is stateless but the hub owns durable on-disk bus state under `<runtime_dir>/bus/` (topic logs + SQLite meta + artifacts) plus in-memory caches
+- [x] The false "Event stores live in sessions, not the hub" line is corrected (durable channel bus is hub-side; only the ephemeral session EventBus ring is session-side)
+- [x] `termlink-bus` crate added to the Crate Hierarchy and Dependency Graph sections
+- [x] No code files changed (docs-only); claim cross-checked against server.rs:282 + termlink-bus/src/{log,meta}.rs
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
