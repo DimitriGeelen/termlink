@@ -2387,3 +2387,11 @@ FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2527: file turnkey 
   command: 'cd /opt/termlink
 git add -A
 FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2540: file inception — orchestrator.route policy-in-substrate is a charter non-goal #4 violation (subtract ca'
+- timestamp: '2026-08-08T16:31:11Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2541'
+  command: 'cd /opt/termlink
+git add -A
+FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2541: file optional charter clarification — strict-star invariant RESPECTED, note local data-plane exception '
