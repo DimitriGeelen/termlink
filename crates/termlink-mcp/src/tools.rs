@@ -2887,6 +2887,22 @@ struct UnreadRowMcp {
 ///
 /// Sort: descending `unread`, then ascending `topic` for tie-break (stable
 /// determinism). Pure — no I/O.
+/// T-2535: resolve a topic's latest offset from a single `channel.list` entry
+/// (MCP mirror of CLI's `latest_offset_from_list_entry`). Prefers the
+/// authoritative `latest_offset` (= next_offset-1, unaffected by sweeps); falls
+/// back to `count-1` only for pre-T-2533 hubs. Returns `None` for a missing
+/// entry or a never-posted topic (no `latest_offset`, `count == 0`). Using
+/// `count-1` on a swept topic is wrong — the caller would subscribe below the
+/// true latest and receive the first survivor as "the latest" (silent stale).
+fn latest_offset_from_list_entry_mcp(entry: Option<&serde_json::Value>) -> Option<u64> {
+    let entry = entry?;
+    if let Some(lo) = entry.get("latest_offset").and_then(|v| v.as_u64()) {
+        return Some(lo);
+    }
+    let count = entry.get("count").and_then(|v| v.as_u64()).unwrap_or(0);
+    if count == 0 { None } else { Some(count - 1) }
+}
+
 fn compute_unread_rows_mcp(
     cursors: &[(String, u64)],
     topic_counts: &std::collections::HashMap<String, u64>,
@@ -28123,18 +28139,21 @@ impl TermLinkTools {
             let entry = topics
                 .into_iter()
                 .find(|t| t.get("name").and_then(|v| v.as_str()) == Some(p.topic.as_str()));
-            let count = entry
-                .as_ref()
-                .and_then(|e| e.get("count").and_then(|v| v.as_u64()))
-                .unwrap_or(0);
-            if count == 0 {
-                return serde_json::to_string_pretty(&serde_json::json!({
-                    "empty": true,
-                    "topic": p.topic,
-                }))
-                .unwrap_or_else(json_err);
+            // T-2535: prefer the authoritative `latest_offset` (= next_offset-1,
+            // unaffected by sweeps); fall back to `count-1` only for pre-T-2533
+            // hubs. `count-1` is WRONG on any swept topic — records_from would
+            // then return the FIRST survivor as "latest" (silent stale read).
+            // Mirrors the CLI twin (resolve_latest_offset / T-2533).
+            match latest_offset_from_list_entry_mcp(entry.as_ref()) {
+                None => {
+                    return serde_json::to_string_pretty(&serde_json::json!({
+                        "empty": true,
+                        "topic": p.topic,
+                    }))
+                    .unwrap_or_else(json_err);
+                }
+                Some(off) => (off, 1u64),
             }
-            (count - 1, 1u64)
         } else {
             (p.cursor.unwrap_or(0), p.limit.unwrap_or(100))
         };
@@ -30899,6 +30918,29 @@ YW\tJ
             rows_fallback.is_empty(),
             "count-1 fallback under-reports on swept topics (the T-2533 bug)"
         );
+    }
+
+    // T-2535 LOAD-BEARING: from_latest must resolve the true latest offset. On a
+    // swept topic (count 10, latest_offset 4999) the helper returns 4999 — with
+    // the buggy count-1 it would return 9, and records_from(offset>=9, limit 1)
+    // would hand back the FIRST survivor (~4990) as "the latest" (silent stale).
+    #[test]
+    fn latest_offset_from_list_entry_mcp_swept_topic_prefers_latest_offset() {
+        let swept = serde_json::json!({"name": "agent-presence", "count": 10, "latest_offset": 4999});
+        assert_eq!(
+            latest_offset_from_list_entry_mcp(Some(&swept)),
+            Some(4999),
+            "from_latest must land on the true latest, not count-1"
+        );
+
+        // Pre-T-2533 hub (no field) → count-1 (the stale-read bug it inherits).
+        let legacy = serde_json::json!({"name": "agent-presence", "count": 10});
+        assert_eq!(latest_offset_from_list_entry_mcp(Some(&legacy)), Some(9));
+
+        // Never-posted / missing entry → None (empty marker path).
+        let empty = serde_json::json!({"name": "t", "count": 0});
+        assert_eq!(latest_offset_from_list_entry_mcp(Some(&empty)), None);
+        assert_eq!(latest_offset_from_list_entry_mcp(None), None);
     }
 
     #[test]
