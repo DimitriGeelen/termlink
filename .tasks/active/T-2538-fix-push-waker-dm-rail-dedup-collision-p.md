@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-08T14:55:07Z
-last_update: 2026-08-08T14:56:03Z
+last_update: 2026-08-08T14:57:25Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -74,11 +74,11 @@ adversarial push-wake hunter during the T-2468 purpose-review campaign.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] A pure `pushwaker_dedup_key` helper keys on `(channel, offset)` and falls back to bare offset when the frame carries no `channel`.
-- [ ] `pushwaker_rail_loop` uses the composite key for its `seen` dedup map (both rails).
-- [ ] The design note (lines ~173-175) is corrected to reflect per-(channel,offset) dedup.
-- [ ] A load-bearing fixture in `scripts/test-pushwaker-filter.sh` asserts two distinct dm channels at the same offset get DISTINCT dedup keys (and same channel+offset collide, and a channel-less frame → bare offset key). Removing the channel from the key makes the distinct-channels assertion FAIL (temp-revert proof).
-- [ ] `bash scripts/test-pushwaker-filter.sh` prints `RESULT: PASS`.
+- [x] A pure `pushwaker_dedup_key` helper keys on `(channel, offset)` and falls back to bare offset when the frame carries no `channel`.
+- [x] `pushwaker_rail_loop` uses the composite key for its `seen` dedup map (both rails).
+- [x] The design note (lines ~173-175) is corrected to reflect per-(channel,offset) dedup.
+- [x] A load-bearing fixture in `scripts/test-pushwaker-filter.sh` asserts two distinct dm channels at the same offset get DISTINCT dedup keys (and same channel+offset collide, and a channel-less frame → bare offset key). Removing the channel from the key makes the distinct-channels assertion FAIL (temp-revert proof). Proven: offset-only key → `FAIL: dm-rail collision`, restore → PASS.
+- [x] `bash scripts/test-pushwaker-filter.sh` prints `RESULT: PASS`.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
