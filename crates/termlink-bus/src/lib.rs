@@ -559,6 +559,16 @@ impl Bus {
         const PRESENCE_TOPIC: &str = "agent-presence";
         let now_ms = now_unix_ms();
         let cutoff_ms = now_ms - live_window_ms.max(0);
+        // T-2536: upper bound on presence ts. `last_heartbeat_ms` is the
+        // client-SIGNED `ts_unix_ms` (the hub can't substitute its own clock
+        // without breaking sig verify), so a fast/skewed host can post a
+        // future-dated heartbeat that would otherwise keep a DEAD worker on the
+        // idle roster indefinitely (corpse-looks-live → dispatch stalls). Reuse
+        // `live_window_ms` as a SYMMETRIC skew tolerance: sub-window clock skew
+        // is accepted (don't drop a genuinely-live worker), gross-future dating
+        // is rejected. Mirrors the "future-clock safety" convention at
+        // tools.rs:3555 / tools.rs:30133.
+        let future_cutoff_ms = now_ms + live_window_ms.max(0);
 
         // Walk presence topic (if it exists). Missing topic = empty fleet.
         if !self.meta.topic_exists(PRESENCE_TOPIC)? {
@@ -601,7 +611,7 @@ impl Bus {
         // LIVE + role + capabilities filter.
         let mut filtered: Vec<IdleAgent> = latest
             .into_values()
-            .filter(|a| a.last_heartbeat_ms > cutoff_ms)
+            .filter(|a| a.last_heartbeat_ms > cutoff_ms && a.last_heartbeat_ms <= future_cutoff_ms)
             .filter(|a| match role_filter {
                 None => true,
                 Some(r) => a.role.as_deref() == Some(r),
@@ -659,6 +669,10 @@ impl Bus {
         const PRESENCE_TOPIC: &str = "agent-presence";
         let now_ms = now_unix_ms();
         let cutoff_ms = now_ms - live_window_ms.max(0);
+        // T-2536: symmetric upper bound on presence ts (see find_idle_agents) —
+        // reject future-dated (clock-skewed) heartbeats that would keep a dead
+        // worker on the idle roster, tolerating sub-window skew.
+        let future_cutoff_ms = now_ms + live_window_ms.max(0);
 
         if !self.meta.topic_exists(PRESENCE_TOPIC)? {
             return Ok(Vec::new());
@@ -701,7 +715,7 @@ impl Bus {
         // Same filter chain as find_idle_agents.
         let mut filtered: Vec<IdleAgent> = latest
             .into_values()
-            .filter(|a| a.last_heartbeat_ms > cutoff_ms)
+            .filter(|a| a.last_heartbeat_ms > cutoff_ms && a.last_heartbeat_ms <= future_cutoff_ms)
             .filter(|a| match role_filter {
                 None => true,
                 Some(r) => a.role.as_deref() == Some(r),
@@ -2067,6 +2081,44 @@ mod tests {
         let idle = bus.find_idle_agents(None, &[], 60_000, None).unwrap();
         assert_eq!(idle.len(), 1);
         assert_eq!(idle[0].agent_id, "fresh");
+    }
+
+    // T-2536: a future-dated (clock-skewed) heartbeat must NOT keep a dead
+    // worker on the idle roster. Symmetric bound: sub-window skew is tolerated
+    // (a genuinely-live worker whose clock is a few seconds ahead stays LIVE),
+    // but gross-future dating (≫ one window ahead) is rejected.
+    #[tokio::test]
+    async fn find_idle_filters_future_dated_heartbeat() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("agent-presence", Retention::Forever).unwrap();
+        let now = now_unix_ms();
+        // Fresh (recent past) — LIVE.
+        bus.post("agent-presence", &heartbeat_env("fresh", now - 1_000, None, None))
+            .await
+            .unwrap();
+        // Sub-window skew (5s ahead, window 60s) — a genuinely-live worker whose
+        // clock is slightly fast; MUST still be returned (no false-negative).
+        bus.post("agent-presence", &heartbeat_env("skewed_live", now + 5_000, None, None))
+            .await
+            .unwrap();
+        // Gross future (10 min ahead, window 60s) — a dead worker on a fast host;
+        // MUST be excluded (the corpse-looks-live bug).
+        bus.post("agent-presence", &heartbeat_env("future_dead", now + 600_000, None, None))
+            .await
+            .unwrap();
+        let idle = bus.find_idle_agents(None, &[], 60_000, None).unwrap();
+        let ids: std::collections::HashSet<&str> =
+            idle.iter().map(|a| a.agent_id.as_str()).collect();
+        assert!(ids.contains("fresh"), "recent-past agent must be LIVE");
+        assert!(
+            ids.contains("skewed_live"),
+            "sub-window future skew must NOT drop a live worker (symmetric tolerance)"
+        );
+        assert!(
+            !ids.contains("future_dead"),
+            "gross-future-dated heartbeat must be excluded (corpse-looks-live bug)"
+        );
+        assert_eq!(idle.len(), 2);
     }
 
     #[tokio::test]
