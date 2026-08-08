@@ -4,20 +4,20 @@ name: "unread/ack use count-1 as latest offset — silently wrong after topic sw
 description: >
   count-1 != latest offset once a topic is swept (offsets monotonic via next_offset; count is COUNT(*)). Three sinks (channel.rs:3081 resolve_latest_offset, channel.rs:8697 compute_unread_rows, tools.rs:2898 compute_unread_rows_mcp) use count-1 as the latest offset. After a sweep (normal path for agent-chat-arc, T-2252), channel inbox silently under-reports unread (drops rows where cursor>=stale-latest) and ack frontiers stick. Fix: add latest_offset (=next_offset-1) to bus (mirror oldest_offset meta.rs:231) + channel.list response + switch the 3 sinks. Agent-buildable, medium (5 files/4 crates+test). Highest-severity campaign find.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-hub/src/channel.rs, crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-04T14:34:47Z
-last_update: 2026-08-08T07:49:49Z
-date_finished: null
+last_update: 2026-08-08T07:50:28Z
+date_finished: 2026-08-08T07:50:28Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -253,3 +253,15 @@ so the swept+unread interaction can never silently regress again.
 
 ### 2026-08-08T07:37:01Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-8bf22265
+- **Timestamp:** 2026-08-08T07:51:19Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-08T07:50:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

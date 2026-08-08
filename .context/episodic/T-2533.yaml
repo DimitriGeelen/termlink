@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2533: unread/ack use count-1 as latest offset — silently wrong after topic sweep (silent unread data-loss on core durable-messages verb)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-08T07:51:23Z
+# ============================================================================
+
+task_id: T-2533
+task_name: "unread/ack use count-1 as latest offset — silently wrong after topic sweep (silent unread data-loss on core durable-messages verb)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-04T14:34:47Z
+completed: 2026-08-08T07:50:28Z
+duration_days: 4
+updates_count: 2
+first_commit: 2026-08-08T09:49:48+02:00
+last_commit: 2026-08-08T09:50:21+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  expose Bus::latest_offset — fix silent unread/ack data-loss on swept topics. add targeted P-011 verification commands
+
+# Key outcomes
+outcomes:
+  - '`Bus::latest_offset(topic)` returns `next_offset - 1` (None when empty), mirroring `oldest_offset`; unit-tested incl. the post-sweep case (offsets 0..4, sweep keeps 3,4 → count 2 but latest_offset still 4, not count-1=1; also survives full trim). `latest_offset_is_monotonic_across_sweep` (bus lib)'
+  - '`channel.list` response carries `latest_offset` (hub channel.rs:1530); all three sinks use it instead of `count-1` with back-compat fallback: `resolve_latest_offset` (via new pure `latest_offset_from_list_entry`), `compute_unread_rows` (new `topic_latest` param), `compute_unread_rows_mcp` (new `topic_latest` param); both `cmd_channel_inbox` + MCP `agent_inbox` callers build the latest map from the response'
+  - 'Load-bearing test: `compute_unread_rows_swept_topic_uses_latest_offset_not_count` (swept: count 1000, latest 4999, cursor 4990 → 9 unread). TEMP-REVERT PROVEN: neutralizing the `topic_latest` branch → test FAILS `left:0 right:1` (silent under-report), restored → green'
+  - 'Symmetric ack test: `latest_offset_from_list_entry_swept_topic_uses_latest_offset` — swept-topic entry resolves frontier to 4999 (true latest), not 999; legacy no-field entry falls back to count-1; never-posted → None'
+  - '`cargo build` clean; `cargo test`: bus 105 pass, hub-channel 90 pass, mcp lib 886 pass, CLI unread 10 pass (incl. 2 new swept + 1 ack-path)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'expose Bus::latest_offset — fix silent unread/ack data-loss on swept topics'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-bus/src/lib.rs'
+  - 'crates/termlink-bus/src/meta.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-2533-unreadack-use-count-1-as-latest-offset--.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-08T09:49:48"
+    action: "T-2533: expose Bus::latest_offset — fix silent unread/ack data-loss on swept topics"
+  - time: "2026-08-08T09:50:21"
+    action: "T-2533: add targeted P-011 verification commands"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 5355 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5355
+  commits: 2
+  files_changed: 6
+  lines_added: 303
+  lines_removed: 51
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2533-unreadack-use-count-1-as-latest-offset--.md
+generated_by: context-agent-hybrid
