@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-08T20:25:11Z
-last_update: 2026-08-08T20:25:11Z
+last_update: 2026-08-08T20:29:14Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -122,19 +122,30 @@ out=$(cargo test -p termlink-mcp hub_down 2>&1); echo "$out" | grep -q "test res
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** MCP callers hitting the "hub socket not found" path received the
+bare error `"Hub is not running (no socket found)"` at 161 sites — the single
+most common MCP failure. It states the failure but names no recovery, so an
+autonomous MCP agent has no cue that `termlink_hub_start` exists to fix it.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** The message was written once as a bare literal and copy-pasted
+across 161 call sites, none routed through a shared helper. No single place
+carried the actionable recovery hint, so the project's own "suggest the next
+command" bar (present in dispatch.rs, fleet doctor, the /claim skill) never
+reached the MCP surface.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** Error-message quality is a discipline convention,
+not an enforced one. There is no gate that a caller-facing error names a
+recovery action, so a descriptive-but-non-directive message ships silently. The
+161-fold duplication also meant the gap scaled with copy-paste rather than being
+fixed once.
+
+**Prevention:** The recovery message now lives in ONE helper (`hub_down_err()`)
+so future call sites inherit the actionable form for free, and a load-bearing
+unit test (`hub_down_err_is_actionable`) asserts the message names
+`termlink_hub_start` — reverting the helper to the bare string fails the test
+(proven this session). Broader enforcement of "caller-facing errors must name a
+fix" across the CLI claim/session/topic paths is filed as T-2554 (the remaining
+usability-lens findings #2–#6).
 
 ## Evolution
 
