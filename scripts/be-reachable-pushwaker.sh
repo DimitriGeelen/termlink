@@ -82,6 +82,25 @@ pushwaker_dedup_ok() {
     return 1
 }
 
+# Compute the per-message dedup key (T-2538). The dm rail funnels MANY
+# dm:<self>:<peer> topics through the ONE `dm.queued` aggregator, and each topic
+# has its OWN offset sequence starting at 0 — so `message_offset` alone is NOT
+# unique across peers: peerA@0 and peerB@0 are distinct messages that the
+# offset-only key aliased, silently dropping peerB's wake as a "duplicate".
+# Key on (channel, offset) so distinct dm topics never collide. The hub emits
+# `.channel` on both the inbox.queued and dm.queued frames (channel.rs); fall
+# back to the bare offset for any channel-less legacy frame (back-compat).
+# Pure: echoes the key, no side effects.
+pushwaker_dedup_key() {
+    local json="$1" offset="$2" channel
+    channel="$(printf '%s' "$json" | jq -r '.channel // empty' 2>/dev/null)"
+    if [ -n "$channel" ]; then
+        printf '%s\t%s' "$channel" "$offset"
+    else
+        printf '%s' "$offset"
+    fi
+}
+
 # Classify the CURRENT state of a Claude Code REPL from a byte-tail snapshot of
 # its PTY (T-2402 Stage 3 — idle-gated injection). Echoes READY | BUSY | UNKNOWN.
 # Pure: caller supplies the already-captured, strip-ansi'd tail text.
@@ -170,9 +189,11 @@ pushwaker_ring_when_ready() {
 # half of the `dm:<a>:<b>` topic — see the hub emit in channel.rs, T-2323). Both
 # rails reuse the SAME pure helpers (pushwaker_extract_payload / pushwaker_decide
 # / pushwaker_dedup_ok); only the push-topic prefix and the addressee to match
-# differ. Each rail keeps its own dedup map — an inbox offset N and a dm offset N
-# are distinct messages on distinct topics, so per-rail dedup is correct and
-# collision-free.
+# differ. Each rail keeps its own dedup map keyed on (channel, offset) via
+# pushwaker_dedup_key (T-2538) — NOT on offset alone: the dm rail aggregates MANY
+# dm:<self>:<peer> topics through one `dm.queued` stream and each has its own
+# offset sequence, so peerA@0 and peerB@0 must NOT alias. The composite key makes
+# distinct topics collision-free both across rails and within the dm rail.
 pushwaker_rail_loop() {
     local push_topic="$1" match_addressee="$2" pty_session="$3" hub="$4" \
           doorbell_text="$5" ttl="$6"
@@ -180,7 +201,7 @@ pushwaker_rail_loop() {
     local sub_args=( channel subscribe "$push_topic" --push )
     [ -n "$hub" ] && sub_args+=( --hub "$hub" )
 
-    declare -A seen   # message_offset -> epoch last rung (per-rail)
+    declare -A seen   # (channel,offset) dedup key -> epoch last rung (per-rail, T-2538)
 
     echo "pushwaker: watching $push_topic for '$match_addressee' -> ring '$pty_session'${hub:+ @ $hub}" >&2
 
@@ -196,10 +217,15 @@ pushwaker_rail_loop() {
             [ "${decision%% *}" = "RING" ] || continue
             offset="${decision#RING }"
             now="$(date +%s)"
-            if ! pushwaker_dedup_ok "$now" "${seen[$offset]:-}" "$ttl"; then
+            # T-2538: dedup on (channel, offset), not offset alone — see
+            # pushwaker_dedup_key. peerA@0 and peerB@0 on distinct dm topics must
+            # not alias, or peerB's wake is silently dropped as a "duplicate".
+            local dkey
+            dkey="$(pushwaker_dedup_key "$json" "$offset")"
+            if ! pushwaker_dedup_ok "$now" "${seen[$dkey]:-}" "$ttl"; then
                 continue
             fi
-            seen[$offset]="$now"
+            seen[$dkey]="$now"
             # Prune stale dedup entries so a long session doesn't grow unbounded.
             local k
             for k in "${!seen[@]}"; do

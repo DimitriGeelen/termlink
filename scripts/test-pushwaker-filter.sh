@@ -61,6 +61,26 @@ pushwaker_dedup_ok 100 "" 120; check_exit "first sighting rings (no last)" 0 $?
 pushwaker_dedup_ok 100 90 120; check_exit "duplicate offset within ttl skips" 1 $?
 pushwaker_dedup_ok 300 90 120; check_exit "same offset after ttl rings again" 0 $?
 
+# --- pushwaker_dedup_key (T-2538: dm-rail per-topic offset collision) ---
+# The dm rail funnels many dm:<self>:<peer> topics through the one dm.queued
+# aggregator; each has its OWN offset sequence starting at 0. Keying dedup on the
+# offset ALONE silently dropped peerB's offset-0 wake as a "duplicate" of peerA's
+# offset-0. The key must include the channel so distinct dm topics never collide.
+# LOAD-BEARING: revert pushwaker_dedup_key to offset-only and kA==kB -> this FAILS.
+kA="$(pushwaker_dedup_key '{"channel":"dm:self:peerA","message_offset":0}' 0)"
+kB="$(pushwaker_dedup_key '{"channel":"dm:self:peerB","message_offset":0}' 0)"
+if [ "$kA" != "$kB" ]; then
+    echo "ok: distinct dm topics at same offset get distinct dedup keys (T-2538)"
+else
+    echo "FAIL: dm-rail collision — peerB offset-0 wake would be deduped away (T-2538)"; fail=1
+fi
+# Same channel + same offset DOES collide (a real duplicate is correctly deduped).
+kA2="$(pushwaker_dedup_key '{"channel":"dm:self:peerA","message_offset":0}' 0)"
+check "same channel+offset -> same key (real dup still dedups)" "$kA" "$kA2"
+# Channel-less legacy frame -> bare offset key (back-compat, inbox rail unaffected).
+kLeg="$(pushwaker_dedup_key '{"message_offset":5}' 5)"
+check "channel-less frame -> bare offset key" "5" "$kLeg"
+
 # --- pushwaker_pty_state (T-2402 Stage 3, idle-gated injection) ---
 # Fixtures mirror the real strip-ansi'd Claude Code footer tails captured from
 # live sessions (workflow-designer / aef): idle prompt, running turn, resume
