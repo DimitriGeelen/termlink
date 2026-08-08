@@ -453,15 +453,9 @@ async fn handle_command_execute(
         .map(Duration::from_secs);
 
     match executor::execute(command, cwd, env.as_ref(), timeout, allowed_commands).await {
-        Ok(result) => Response::success(
-            id,
-            json!({
-                "exit_code": result.exit_code,
-                "stdout": result.stdout,
-                "stderr": result.stderr,
-            }),
-        )
-        .into(),
+        // T-2537: `result.to_json()` carries `truncated` so the caller can tell a
+        // T-2529 cap-hit (`truncated:true`, `exit_code:-1`) from a signal kill.
+        Ok(result) => Response::success(id, result.to_json()).into(),
         Err(e) => ErrorResponse::new(
             id,
             control::error_code::INJECTION_FAILED,

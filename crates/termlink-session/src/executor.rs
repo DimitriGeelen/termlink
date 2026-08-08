@@ -16,6 +16,25 @@ pub struct ExecResult {
     pub truncated: bool,
 }
 
+impl ExecResult {
+    /// Canonical JSON for the exec round-trip surfaced at every boundary
+    /// (`command.execute` RPC, `termlink exec --json` CLI, MCP `termlink_run` /
+    /// `termlink_batch_run`). T-2537: `truncated` MUST be one of the emitted
+    /// fields — without it a caller receiving `exit_code:-1` cannot tell a
+    /// T-2529 cap-hit from a signal kill (both render `-1`), and in the ~64 KiB
+    /// band around the cap a truncated result even reads as `exit_code:0`.
+    /// Callers that add envelope fields (`ok`, `command`, `session_id`,
+    /// `elapsed_ms`) merge them on top of these core fields.
+    pub fn to_json(&self) -> serde_json::Value {
+        serde_json::json!({
+            "exit_code": self.exit_code,
+            "stdout": self.stdout,
+            "stderr": self.stderr,
+            "truncated": self.truncated,
+        })
+    }
+}
+
 /// Maximum command length to prevent abuse (64 KiB).
 const MAX_COMMAND_LEN: usize = 65_536;
 
@@ -363,6 +382,39 @@ mod tests {
             validate_command(""),
             Err(ExecError::Validation(_))
         ));
+    }
+
+    // T-2537: the canonical exec response MUST carry `truncated` so every
+    // boundary (RPC/CLI/MCP) that serializes an ExecResult can disambiguate a
+    // T-2529 cap-hit from a signal kill. Load-bearing: deleting the
+    // `"truncated"` line from `ExecResult::to_json` makes this fail.
+    #[test]
+    fn exec_response_json_includes_truncated() {
+        let capped = ExecResult {
+            exit_code: -1,
+            stdout: "partial".to_string(),
+            stderr: String::new(),
+            truncated: true,
+        };
+        let v = capped.to_json();
+        assert_eq!(
+            v.get("truncated"),
+            Some(&serde_json::Value::Bool(true)),
+            "capped exec must surface truncated=true (T-2537)"
+        );
+        assert_eq!(v["exit_code"], serde_json::json!(-1));
+
+        let clean = ExecResult {
+            exit_code: 0,
+            stdout: "ok".to_string(),
+            stderr: String::new(),
+            truncated: false,
+        };
+        assert_eq!(
+            clean.to_json().get("truncated"),
+            Some(&serde_json::Value::Bool(false)),
+            "clean exec must surface truncated=false, not omit it (T-2537)"
+        );
     }
 
     #[test]

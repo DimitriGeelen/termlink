@@ -2903,6 +2903,25 @@ fn latest_offset_from_list_entry_mcp(entry: Option<&serde_json::Value>) -> Optio
     if count == 0 { None } else { Some(count - 1) }
 }
 
+/// Build the MCP `termlink_run` result JSON. T-2537: carries `truncated` from
+/// the `ExecResult` so an MCP consumer can distinguish a T-2529 cap-hit
+/// (`truncated:true`, `exit_code:-1`) from a signal kill. Extracted as a pure
+/// helper so the field-forwarding is unit-testable (removing `truncated` here
+/// fails `run_result_truncated_is_emitted`).
+fn mcp_run_result_json(
+    r: &termlink_session::executor::ExecResult,
+    command: &str,
+) -> serde_json::Value {
+    serde_json::json!({
+        "ok": r.exit_code == 0,
+        "exit_code": r.exit_code,
+        "stdout": r.stdout,
+        "stderr": r.stderr,
+        "truncated": r.truncated,
+        "command": command,
+    })
+}
+
 fn compute_unread_rows_mcp(
     cursors: &[(String, u64)],
     topic_counts: &std::collections::HashMap<String, u64>,
@@ -11726,13 +11745,7 @@ impl TermLinkTools {
 
         match executor::execute(&p.command, p.cwd.as_deref(), env_ref, Some(timeout), None).await {
             Ok(result) => {
-                let response = serde_json::json!({
-                    "ok": result.exit_code == 0,
-                    "exit_code": result.exit_code,
-                    "stdout": result.stdout,
-                    "stderr": result.stderr,
-                    "command": p.command,
-                });
+                let response = mcp_run_result_json(&result, &p.command);
                 serde_json::to_string_pretty(&response)
                     .unwrap_or_else(json_err)
             }
@@ -14819,6 +14832,9 @@ impl TermLinkTools {
                         "exit_code": result.exit_code,
                         "stdout": result.stdout,
                         "stderr": result.stderr,
+                        // T-2537: surface the T-2529 cap-hit signal so a batch
+                        // consumer can tell truncation from a signal kill.
+                        "truncated": result.truncated,
                     }),
                     Err(e) => serde_json::json!({
                         "index": i,
@@ -30941,6 +30957,38 @@ YW\tJ
         let empty = serde_json::json!({"name": "t", "count": 0});
         assert_eq!(latest_offset_from_list_entry_mcp(Some(&empty)), None);
         assert_eq!(latest_offset_from_list_entry_mcp(None), None);
+    }
+
+    // T-2537 LOAD-BEARING: MCP termlink_run must surface `truncated` so a caller
+    // can tell a T-2529 cap-hit from a signal kill. Removing the field from
+    // `mcp_run_result_json` fails this.
+    #[test]
+    fn run_result_truncated_is_emitted() {
+        let capped = termlink_session::executor::ExecResult {
+            exit_code: -1,
+            stdout: "partial".to_string(),
+            stderr: String::new(),
+            truncated: true,
+        };
+        let v = mcp_run_result_json(&capped, "cat big.log");
+        assert_eq!(
+            v.get("truncated"),
+            Some(&serde_json::Value::Bool(true)),
+            "capped MCP run must surface truncated=true (T-2537)"
+        );
+        assert_eq!(v["ok"], serde_json::json!(false));
+
+        let clean = termlink_session::executor::ExecResult {
+            exit_code: 0,
+            stdout: "ok".to_string(),
+            stderr: String::new(),
+            truncated: false,
+        };
+        assert_eq!(
+            mcp_run_result_json(&clean, "echo ok").get("truncated"),
+            Some(&serde_json::Value::Bool(false)),
+            "clean MCP run must surface truncated=false, not omit it (T-2537)"
+        );
     }
 
     #[test]

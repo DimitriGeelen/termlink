@@ -101,15 +101,12 @@ pub(crate) async fn cmd_run(
     match result {
         Ok(exec_result) => {
             if json {
-                println!("{}", serde_json::json!({
-                    "ok": exec_result.exit_code == 0,
-                    "exit_code": exec_result.exit_code,
-                    "stdout": exec_result.stdout,
-                    "stderr": exec_result.stderr,
-                    "elapsed_ms": elapsed_ms,
-                    "session_id": session_id.as_str(),
-                    "command": command_str,
-                }));
+                println!("{}", exec_json_envelope(
+                    &exec_result,
+                    elapsed_ms,
+                    session_id.as_str(),
+                    &command_str,
+                ));
                 if exec_result.exit_code != 0 {
                     std::process::exit(exec_result.exit_code);
                 }
@@ -555,9 +552,52 @@ fn spawn_via_background(session_name: &str, shell_cmd: &str) -> Result<()> {
     Ok(())
 }
 
+/// Build the `termlink exec --json` result envelope. T-2537: `truncated` is
+/// carried from the `ExecResult` so a CLI consumer can distinguish a T-2529
+/// cap-hit (`truncated:true`, `exit_code:-1`) from a signal kill. Extracted as a
+/// pure helper so the field-forwarding is unit-testable (removing `truncated`
+/// here fails `exec_json_envelope_includes_truncated`).
+pub(crate) fn exec_json_envelope(
+    r: &termlink_session::executor::ExecResult,
+    elapsed_ms: u128,
+    session_id: &str,
+    command: &str,
+) -> serde_json::Value {
+    serde_json::json!({
+        "ok": r.exit_code == 0,
+        "exit_code": r.exit_code,
+        "stdout": r.stdout,
+        "stderr": r.stderr,
+        "truncated": r.truncated,
+        "elapsed_ms": elapsed_ms,
+        "session_id": session_id,
+        "command": command,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // T-2537: the CLI exec envelope must carry `truncated`. Load-bearing —
+    // dropping the field from `exec_json_envelope` fails this.
+    #[test]
+    fn exec_json_envelope_includes_truncated() {
+        let r = termlink_session::executor::ExecResult {
+            exit_code: -1,
+            stdout: "partial".to_string(),
+            stderr: String::new(),
+            truncated: true,
+        };
+        let v = exec_json_envelope(&r, 42, "sess-1", "cat big.log");
+        assert_eq!(
+            v.get("truncated"),
+            Some(&serde_json::Value::Bool(true)),
+            "capped exec must surface truncated=true in the CLI envelope (T-2537)"
+        );
+        assert_eq!(v["exit_code"], serde_json::json!(-1));
+        assert_eq!(v["session_id"], serde_json::json!("sess-1"));
+    }
 
     // -- build_spawn_shell_cmd tests --
 
