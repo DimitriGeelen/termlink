@@ -18,7 +18,13 @@ worker never half-completes a unit silently. Read-only observability
 verbs let an operator inspect the substrate's state without joining the
 work stream. Everything below builds on this picture.
 
-## 2. Is the substrate healthy? Four daily verbs
+## 2. Is the substrate healthy? Four daily health verbs
+
+> Not to be confused with TermLink's **four *core* verbs** (discover / exchange
+> durable messages / claim work / control terminal sessions — see
+> [`README.md`](../../README.md#the-four-core-verbs) and
+> [`docs/CHARTER.md`](../CHARTER.md)). The four below are read-only *health*
+> checks on the running substrate, not the charter identity verbs.
 
 Four read-only Claude Code skills cover the substrate's running state.
 Each takes <2 seconds. Read them in any order; chain them when

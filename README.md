@@ -15,6 +15,24 @@ layer for multi-agent parallel execution (see
 [docs/architecture/parallel-execution-substrate.md](docs/architecture/parallel-execution-substrate.md)
 — the authoritative statement of the substrate design and its invariants).
 
+## The four core verbs
+
+Everything else is built on four verbs. If you read nothing else, read this table —
+it maps each verb to the one command that does it:
+
+| Verb | What it does | Canonical command | Skill |
+|------|--------------|-------------------|-------|
+| **Discover** | find peers/sessions to work with | `termlink discover` | `/peers` |
+| **Exchange durable messages** | post/read on an append-log topic | `termlink channel post` / `channel subscribe` | `/check-arc` |
+| **Claim work** | lease a work unit exclusively | `termlink channel claim` | `/claim` |
+| **Control terminal sessions** | spawn/run/attach a PTY (the founding verb) | `termlink spawn` / `exec` / `pty` | `/sessions` |
+
+New here? Two on-ramps, one per half of the substrate:
+[`docs/operations/substrate-getting-started.md`](docs/operations/substrate-getting-started.md)
+(discover / exchange / claim) and
+[`docs/operations/session-control-getting-started.md`](docs/operations/session-control-getting-started.md)
+(control terminal sessions).
+
 ## Use Cases
 
 - **AI agent coordination** — presence heartbeats, durable DM threads, doorbell
