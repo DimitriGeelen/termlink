@@ -243,6 +243,31 @@ impl Meta {
         }
     }
 
+    /// Largest offset ever assigned for `topic` (= `next_offset - 1`), or
+    /// `None` when the topic has had zero posts (`next_offset == 0`) or is
+    /// unknown. UNLIKE `oldest_offset` (which is `MIN` over LIVE records and
+    /// therefore moves forward on every sweep), this reads the monotonic
+    /// `next_offset` counter — `sweep_records` / `trim_records` shrink
+    /// `COUNT(*)` but never rewind `next_offset`, so this returns the TRUE
+    /// latest offset even after records are swept. T-2533: client unread/ack
+    /// math must use this, never `count - 1` (`count` = `COUNT(*)` shrinks on
+    /// sweep, offsets do not, so `count - 1` under-reports the latest offset by
+    /// exactly the number of swept records → silent unread drop).
+    pub(crate) fn latest_offset(&self, topic: &str) -> Result<Option<u64>> {
+        let conn = self.conn.lock().expect("meta mutex poisoned");
+        let v: rusqlite::Result<i64> = conn.query_row(
+            "SELECT next_offset FROM offsets WHERE topic = ?1",
+            params![topic],
+            |r| r.get(0),
+        );
+        match v {
+            Ok(0) => Ok(None),
+            Ok(n) => Ok(Some((n - 1) as u64)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(BusError::Sqlite(e)),
+        }
+    }
+
     /// Fetch record locators for `topic` with `offset >= cursor`, ordered.
     pub(crate) fn records_from(&self, topic: &str, cursor: u64) -> Result<Vec<RecordLoc>> {
         let conn = self.conn.lock().expect("meta mutex poisoned");

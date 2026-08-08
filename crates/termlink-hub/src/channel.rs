@@ -1528,7 +1528,18 @@ pub(crate) async fn handle_channel_list_with(
             // (e.g. inbox.status replacement). Per-topic count error degrades
             // to 0 rather than failing the whole list.
             let count = bus.topic_record_count(&name).unwrap_or(0);
-            json!({"name": name, "retention": retention_to_json(ret), "count": count})
+            // T-2533: `latest_offset` (= next_offset - 1) is the TRUE latest
+            // offset, unaffected by sweeps — clients must use it for unread/ack
+            // math instead of `count - 1` (which under-reports on swept topics
+            // → silent unread drop). Emitted only when the topic has had at
+            // least one post; absent for never-posted topics (and for pre-T-2533
+            // hubs), where the client falls back to the count-1 path.
+            let mut entry =
+                json!({"name": name, "retention": retention_to_json(ret), "count": count});
+            if let Ok(Some(lo)) = bus.latest_offset(&name) {
+                entry["latest_offset"] = json!(lo);
+            }
+            entry
         })
         .collect();
     Response::success(id, json!({"topics": filtered})).into()

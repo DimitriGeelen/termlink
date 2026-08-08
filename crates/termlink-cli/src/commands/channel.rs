@@ -3077,8 +3077,23 @@ async fn resolve_latest_offset(sock: &TransportAddr, topic: &str) -> Result<Opti
         .into_iter()
         .find(|t| t.get("name").and_then(|v| v.as_str()) == Some(topic))
         .ok_or_else(|| anyhow!("Topic '{topic}' not found"))?;
+    Ok(latest_offset_from_list_entry(&entry))
+}
+
+/// T-2533: pure helper — resolve a topic's latest offset from a single
+/// `channel.list` entry. Prefers the authoritative `latest_offset`
+/// (= next_offset - 1, unaffected by sweeps); falls back to `count - 1` only
+/// for pre-T-2533 hubs that don't emit the field. The fallback is WRONG on any
+/// swept/trimmed topic (count shrinks while offsets are monotonic), which would
+/// silently stick the ack frontier below the true latest (auto-resolve `ack`)
+/// — that is the bug this helper's `latest_offset` branch fixes. Returns `None`
+/// for a never-posted topic (no `latest_offset`, `count == 0`).
+pub(crate) fn latest_offset_from_list_entry(entry: &Value) -> Option<u64> {
+    if let Some(lo) = entry.get("latest_offset").and_then(|v| v.as_u64()) {
+        return Some(lo);
+    }
     let count = entry.get("count").and_then(|v| v.as_u64()).unwrap_or(0);
-    Ok(if count == 0 { None } else { Some(count - 1) })
+    if count == 0 { None } else { Some(count - 1) }
 }
 
 /// T-1337: pure helper — given a slice of envelopes (any order) and a
@@ -8673,28 +8688,46 @@ impl UnreadRow {
 /// rows for topics where new envelopes have arrived since the cursor.
 ///
 /// Rules:
-/// - Topic missing from `topic_counts`: silently dropped (topic was deleted
-///   on the hub or doesn't exist there)
-/// - `count == 0`: latest is undefined; row dropped
-/// - `cursor + 1 >= count`: caller is at-or-ahead; row dropped (no unread)
-/// - Otherwise: `latest = count - 1`, `unread = count - 1 - cursor`
+/// - Topic missing from BOTH `topic_latest` and `topic_counts`: silently
+///   dropped (topic was deleted on the hub or doesn't exist there)
+/// - Otherwise `latest` is resolved as (T-2533):
+///     * `topic_latest[topic]` when present — the authoritative latest offset
+///       (= next_offset - 1), unaffected by sweeps; else
+///     * `count - 1` (back-compat fallback for pre-T-2533 hubs), with the
+///       `count == 0` → row-dropped guard.
+/// - `cursor >= latest`: caller is at-or-ahead; row dropped (no unread)
+/// - Otherwise: `unread = latest - cursor`
+///
+/// Using `count - 1` as `latest` is WRONG on any swept/trimmed topic: `count`
+/// (= `COUNT(*)`) shrinks on sweep while offsets are monotonic, so `count - 1`
+/// under-reports the latest offset by the number of swept records and silently
+/// drops unread rows. `topic_latest` (from `channel.list`'s `latest_offset`
+/// field) is the fix.
 ///
 /// Result is sorted by descending `unread` (highest first); ties break on
 /// topic ascending for determinism. Pure — no I/O.
 pub(crate) fn compute_unread_rows(
     cursors: &[(String, u64)],
     topic_counts: &std::collections::HashMap<String, u64>,
+    topic_latest: &std::collections::HashMap<String, u64>,
 ) -> Vec<UnreadRow> {
     let mut rows: Vec<UnreadRow> = Vec::new();
     for (topic, cursor) in cursors {
-        let count = match topic_counts.get(topic) {
-            Some(c) => *c,
-            None => continue,
+        let latest = match topic_latest.get(topic) {
+            Some(l) => *l,
+            None => {
+                // Pre-T-2533 hub (no latest_offset field): reconstruct from
+                // count, preserving the legacy count==0 → drop guard.
+                let count = match topic_counts.get(topic) {
+                    Some(c) => *c,
+                    None => continue,
+                };
+                if count == 0 {
+                    continue;
+                }
+                count - 1
+            }
         };
-        if count == 0 {
-            continue;
-        }
-        let latest = count - 1;
         if *cursor >= latest {
             continue;
         }
@@ -8742,6 +8775,7 @@ pub(crate) async fn cmd_channel_inbox(
     let result = client::unwrap_result(resp)
         .map_err(|e| anyhow!("Hub returned error for channel.list: {e}"))?;
     let mut counts: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+    let mut latest: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
     if let Some(arr) = result["topics"].as_array() {
         for entry in arr {
             let name = match entry.get("name").and_then(|v| v.as_str()) {
@@ -8749,10 +8783,14 @@ pub(crate) async fn cmd_channel_inbox(
                 None => continue,
             };
             let count = entry.get("count").and_then(|v| v.as_u64()).unwrap_or(0);
-            counts.insert(name, count);
+            counts.insert(name.clone(), count);
+            // T-2533: authoritative latest offset when the hub emits it.
+            if let Some(lo) = entry.get("latest_offset").and_then(|v| v.as_u64()) {
+                latest.insert(name, lo);
+            }
         }
     }
-    let rows = compute_unread_rows(&cursors, &counts);
+    let rows = compute_unread_rows(&cursors, &counts, &latest);
 
     if json_output {
         let arr: Vec<Value> = rows.iter().map(UnreadRow::to_json).collect();
@@ -15831,11 +15869,16 @@ mod tests {
     fn counts_map(items: &[(&str, u64)]) -> std::collections::HashMap<String, u64> {
         items.iter().map(|(k, v)| (k.to_string(), *v)).collect()
     }
+    // T-2533: latest_offset map (from channel.list). Empty `latest_map(&[])`
+    // forces the pre-T-2533 back-compat path (reconstruct latest from count-1).
+    fn latest_map(items: &[(&str, u64)]) -> std::collections::HashMap<String, u64> {
+        items.iter().map(|(k, v)| (k.to_string(), *v)).collect()
+    }
 
     #[test]
     fn compute_unread_rows_empty_cursors() {
         let counts = counts_map(&[("foo", 5)]);
-        assert!(compute_unread_rows(&[], &counts).is_empty());
+        assert!(compute_unread_rows(&[], &counts, &latest_map(&[])).is_empty());
     }
 
     #[test]
@@ -15843,7 +15886,7 @@ mod tests {
         // count=5 → latest=4. cursor=4 → caught up.
         let cursors = vec![("foo".to_string(), 4)];
         let counts = counts_map(&[("foo", 5)]);
-        assert!(compute_unread_rows(&cursors, &counts).is_empty());
+        assert!(compute_unread_rows(&cursors, &counts, &latest_map(&[])).is_empty());
     }
 
     #[test]
@@ -15851,7 +15894,7 @@ mod tests {
         // count=10 → latest=9. cursor=5 → unread = 9-5 = 4.
         let cursors = vec![("foo".to_string(), 5)];
         let counts = counts_map(&[("foo", 10)]);
-        let rows = compute_unread_rows(&cursors, &counts);
+        let rows = compute_unread_rows(&cursors, &counts, &latest_map(&[]));
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].unread, 4);
         assert_eq!(rows[0].latest, 9);
@@ -15862,7 +15905,7 @@ mod tests {
     fn compute_unread_rows_topic_missing_dropped() {
         let cursors = vec![("foo".to_string(), 1), ("bar".to_string(), 0)];
         let counts = counts_map(&[("foo", 5)]);
-        let rows = compute_unread_rows(&cursors, &counts);
+        let rows = compute_unread_rows(&cursors, &counts, &latest_map(&[]));
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].topic, "foo");
     }
@@ -15871,7 +15914,7 @@ mod tests {
     fn compute_unread_rows_zero_count_dropped() {
         let cursors = vec![("foo".to_string(), 0)];
         let counts = counts_map(&[("foo", 0)]);
-        assert!(compute_unread_rows(&cursors, &counts).is_empty());
+        assert!(compute_unread_rows(&cursors, &counts, &latest_map(&[])).is_empty());
     }
 
     #[test]
@@ -15879,7 +15922,7 @@ mod tests {
         // cursor=10, count=5 → latest=4, cursor >= latest. drop.
         let cursors = vec![("foo".to_string(), 10)];
         let counts = counts_map(&[("foo", 5)]);
-        assert!(compute_unread_rows(&cursors, &counts).is_empty());
+        assert!(compute_unread_rows(&cursors, &counts, &latest_map(&[])).is_empty());
     }
 
     #[test]
@@ -15890,7 +15933,7 @@ mod tests {
             ("c".to_string(), 0), // unread=1
         ];
         let counts = counts_map(&[("a", 5), ("b", 10), ("c", 2)]);
-        let rows = compute_unread_rows(&cursors, &counts);
+        let rows = compute_unread_rows(&cursors, &counts, &latest_map(&[]));
         assert_eq!(rows.len(), 3);
         assert_eq!(rows[0].topic, "b");
         assert_eq!(rows[1].topic, "a");
@@ -15905,9 +15948,66 @@ mod tests {
             ("apple".to_string(), 0),
         ];
         let counts = counts_map(&[("zebra", 5), ("apple", 5)]);
-        let rows = compute_unread_rows(&cursors, &counts);
+        let rows = compute_unread_rows(&cursors, &counts, &latest_map(&[]));
         assert_eq!(rows[0].topic, "apple");
         assert_eq!(rows[1].topic, "zebra");
+    }
+
+    // T-2533 LOAD-BEARING: after a sweep, live offsets diverge from count.
+    // e.g. offsets 4000..4999 live, count=1000 (COUNT(*)), latest_offset=4999.
+    // A reader at cursor 4990 has 9 unread (4999-4990). The buggy count-1 path
+    // computes latest=999 and DROPS the row (4990 >= 999) → reports 0 unread
+    // while 9 messages sit unseen (silent data loss). With the authoritative
+    // latest_offset the row is correct.
+    #[test]
+    fn compute_unread_rows_swept_topic_uses_latest_offset_not_count() {
+        let cursors = vec![("agent-chat-arc".to_string(), 4990)];
+        let counts = counts_map(&[("agent-chat-arc", 1000)]); // COUNT(*) after sweep
+        let latest = latest_map(&[("agent-chat-arc", 4999)]); // next_offset - 1
+        let rows = compute_unread_rows(&cursors, &counts, &latest);
+        assert_eq!(rows.len(), 1, "swept topic must report unread, not drop it");
+        assert_eq!(rows[0].latest, 4999);
+        assert_eq!(rows[0].unread, 9);
+        assert_eq!(rows[0].cursor, 4990);
+    }
+
+    // T-2533: proves the guard is load-bearing — WITHOUT the latest_offset
+    // field (pre-T-2533 hub / temp-revert), the same swept-topic input silently
+    // drops the row. This is exactly the failure the fix prevents; it documents
+    // the buggy behaviour so a regression is obvious.
+    #[test]
+    fn compute_unread_rows_swept_topic_count_fallback_underreports() {
+        let cursors = vec![("agent-chat-arc".to_string(), 4990)];
+        let counts = counts_map(&[("agent-chat-arc", 1000)]);
+        // Empty latest map = pre-T-2533 hub → count-1 path → latest=999 → drop.
+        let rows = compute_unread_rows(&cursors, &counts, &latest_map(&[]));
+        assert!(
+            rows.is_empty(),
+            "count-1 fallback under-reports on swept topics (the T-2533 bug)"
+        );
+    }
+
+    // T-2533 ACK PATH: `ack` auto-resolve (no --up-to) resolves the frontier
+    // via `latest_offset_from_list_entry`. On a swept topic (offsets 4000..4999
+    // live, count=1000, latest_offset=4999) the frontier must land on 4999 so a
+    // subsequent `unread` reports 0. The buggy count-1 path would resolve 999,
+    // leaving the frontier stuck below the true latest → unread never clears.
+    #[test]
+    fn latest_offset_from_list_entry_swept_topic_uses_latest_offset() {
+        let entry = json!({"name": "agent-chat-arc", "count": 1000, "latest_offset": 4999});
+        assert_eq!(
+            latest_offset_from_list_entry(&entry),
+            Some(4999),
+            "ack frontier must land on the true latest, not count-1"
+        );
+
+        // Pre-T-2533 hub (no field) → count-1 → 999 (the stuck-frontier bug).
+        let legacy = json!({"name": "agent-chat-arc", "count": 1000});
+        assert_eq!(latest_offset_from_list_entry(&legacy), Some(999));
+
+        // Never-posted topic → None (nothing to ack).
+        let empty = json!({"name": "t", "count": 0});
+        assert_eq!(latest_offset_from_list_entry(&empty), None);
     }
 
     #[test]

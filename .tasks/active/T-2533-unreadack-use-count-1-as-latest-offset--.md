@@ -4,7 +4,7 @@ name: "unread/ack use count-1 as latest offset — silently wrong after topic sw
 description: >
   count-1 != latest offset once a topic is swept (offsets monotonic via next_offset; count is COUNT(*)). Three sinks (channel.rs:3081 resolve_latest_offset, channel.rs:8697 compute_unread_rows, tools.rs:2898 compute_unread_rows_mcp) use count-1 as the latest offset. After a sweep (normal path for agent-chat-arc, T-2252), channel inbox silently under-reports unread (drops rows where cursor>=stale-latest) and ack frontiers stick. Fix: add latest_offset (=next_offset-1) to bus (mirror oldest_offset meta.rs:231) + channel.list response + switch the 3 sinks. Agent-buildable, medium (5 files/4 crates+test). Highest-severity campaign find.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-04T14:34:47Z
-last_update: 2026-08-04T14:34:47Z
+last_update: 2026-08-08T07:37:01Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -88,11 +88,11 @@ and the bus already models the symmetric primitive.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `Bus::latest_offset(topic)` returns `next_offset - 1` (None when empty), mirroring `oldest_offset`; unit-tested incl. the post-sweep case (offsets 4000..4999 after sweep → latest_offset 4999, not 999)
-- [ ] `channel.list` response carries `latest_offset`; the three sinks (channel.rs:3081, channel.rs:8697, tools.rs:2898) use it instead of `count-1` (back-compat fallback to `count-1` when field absent)
-- [ ] Load-bearing test: post N, sweep so live offsets diverge from count, then assert `channel inbox` unread count is CORRECT (temp-revert to `count-1` → test FAILS by under-reporting)
-- [ ] Symmetric ack test: after `ack` (auto-resolve) on a swept topic, `unread` reports 0 (not `count`) — frontier lands on the true latest
-- [ ] `cargo build` + `cargo test -p termlink-bus -p termlink -p termlink-mcp` clean
+- [x] `Bus::latest_offset(topic)` returns `next_offset - 1` (None when empty), mirroring `oldest_offset`; unit-tested incl. the post-sweep case (offsets 0..4, sweep keeps 3,4 → count 2 but latest_offset still 4, not count-1=1; also survives full trim). `latest_offset_is_monotonic_across_sweep` (bus lib)
+- [x] `channel.list` response carries `latest_offset` (hub channel.rs:1530); all three sinks use it instead of `count-1` with back-compat fallback: `resolve_latest_offset` (via new pure `latest_offset_from_list_entry`), `compute_unread_rows` (new `topic_latest` param), `compute_unread_rows_mcp` (new `topic_latest` param); both `cmd_channel_inbox` + MCP `agent_inbox` callers build the latest map from the response
+- [x] Load-bearing test: `compute_unread_rows_swept_topic_uses_latest_offset_not_count` (swept: count 1000, latest 4999, cursor 4990 → 9 unread). TEMP-REVERT PROVEN: neutralizing the `topic_latest` branch → test FAILS `left:0 right:1` (silent under-report), restored → green
+- [x] Symmetric ack test: `latest_offset_from_list_entry_swept_topic_uses_latest_offset` — swept-topic entry resolves frontier to 4999 (true latest), not 999; legacy no-field entry falls back to count-1; never-posted → None
+- [x] `cargo build` clean; `cargo test`: bus 105 pass, hub-channel 90 pass, mcp lib 886 pass, CLI unread 10 pass (incl. 2 new swept + 1 ack-path)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -245,3 +245,6 @@ so the swept+unread interaction can never silently regress again.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2533-unreadack-use-count-1-as-latest-offset--.md
 - **Context:** Initial task creation
+
+### 2026-08-08T07:37:01Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

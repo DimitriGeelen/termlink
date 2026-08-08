@@ -291,6 +291,23 @@ impl Bus {
         self.meta.oldest_offset(topic)
     }
 
+    /// Largest offset ever assigned in `topic` (= `next_offset - 1`), or `None`
+    /// if the topic has had zero posts. UNLIKE `oldest_offset`, this is
+    /// UNAFFECTED by retention sweeps — offsets are monotonic (`sweep`/`trim`
+    /// shrink `COUNT(*)` but never rewind `next_offset`). Client unread/ack math
+    /// must use this, never `count - 1`: `count` shrinks on sweep, offsets do
+    /// not, so `count - 1` under-reports the latest offset by exactly the number
+    /// of swept records, silently dropping unread rows and sticking ack
+    /// frontiers on any swept/trimmed topic (T-2533).
+    ///
+    /// Returns `BusError::UnknownTopic` if the topic was never registered.
+    pub fn latest_offset(&self, topic: &str) -> Result<Option<Offset>> {
+        if !self.meta.topic_exists(topic)? {
+            return Err(BusError::UnknownTopic(topic.to_string()));
+        }
+        self.meta.latest_offset(topic)
+    }
+
     /// Detect whether a subscriber's persisted cursor fell behind the
     /// retention window — the LOUD counterpart to `subscribe`, which silently
     /// jumps a lagging cursor forward to `oldest_offset` (T-2463, round-16 F2).
@@ -1411,6 +1428,54 @@ mod tests {
         // After full trim: None signals empty topic, distinct from "no gap".
         bus.trim_topic("t", None).unwrap();
         assert_eq!(bus.oldest_offset("t").unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn latest_offset_is_monotonic_across_sweep() {
+        // T-2533: latest_offset must be UNAFFECTED by sweeps — it reads the
+        // monotonic next_offset counter, not COUNT(*). This is the primitive
+        // the client unread/ack math needs: after a sweep, count-1 under-states
+        // the latest offset by the number of swept records, silently dropping
+        // unread rows. The test pins the exact divergence.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Messages(2)).unwrap();
+
+        // Registered but never posted → None (distinct from offset 0).
+        assert_eq!(bus.latest_offset("t").unwrap(), None);
+
+        for i in 0..5 {
+            bus.post("t", &env("t", format!("m{i}").as_bytes()))
+                .await
+                .unwrap();
+        }
+        // 5 posts, offsets 0..=4 → latest = 4, count = 5 → count-1 = 4 (agree
+        // while nothing is swept).
+        assert_eq!(bus.latest_offset("t").unwrap(), Some(4));
+        assert_eq!(bus.topic_record_count("t").unwrap(), 5);
+
+        // Sweep — Retention::Messages(2) keeps offsets 3,4. count → 2, so the
+        // buggy count-1 = 1, but the TRUE latest offset is still 4.
+        let pruned = bus.sweep("t", 0).unwrap();
+        assert_eq!(pruned, 3);
+        assert_eq!(bus.topic_record_count("t").unwrap(), 2);
+        assert_eq!(
+            bus.latest_offset("t").unwrap(),
+            Some(4),
+            "latest_offset must survive sweep — count-1 would wrongly say 1"
+        );
+
+        // Even after a FULL trim, latest_offset reflects the last-ever offset
+        // (next_offset is never rewound) — a caught-up reader at cursor 5 is
+        // correctly at-or-ahead; count would have said the topic is empty.
+        bus.trim_topic("t", None).unwrap();
+        assert_eq!(bus.topic_record_count("t").unwrap(), 0);
+        assert_eq!(bus.latest_offset("t").unwrap(), Some(4));
+
+        // Unknown topic errors (mirrors oldest_offset).
+        assert!(matches!(
+            bus.latest_offset("nope"),
+            Err(BusError::UnknownTopic(_))
+        ));
     }
 
     #[tokio::test]

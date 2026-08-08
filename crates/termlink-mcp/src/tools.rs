@@ -2874,28 +2874,39 @@ struct UnreadRowMcp {
 /// new envelopes have arrived since the cursor. Mirror of CLI's
 /// `compute_unread_rows` (commands/channel.rs:7422) one-to-one.
 ///
-/// Rules (identical to CLI):
-/// - Topic missing from `topic_counts`: silently dropped.
-/// - `count == 0`: latest undefined; row dropped.
-/// - `cursor + 1 >= count`: caller is at-or-ahead; row dropped.
-/// - Otherwise: `latest = count - 1`, `unread = count - 1 - cursor`.
+/// Rules (identical to CLI `compute_unread_rows`, T-2533):
+/// - Topic missing from BOTH `topic_latest` and `topic_counts`: dropped.
+/// - `latest` resolved as `topic_latest[topic]` when present (authoritative
+///   `latest_offset` = next_offset - 1, unaffected by sweeps), else `count - 1`
+///   (pre-T-2533 back-compat) with the `count == 0` → drop guard.
+/// - `cursor >= latest`: caller is at-or-ahead; row dropped.
+/// - Otherwise: `unread = latest - cursor`.
+///
+/// `count - 1` under-reports on swept/trimmed topics (count shrinks, offsets
+/// are monotonic) → silent unread drop; `topic_latest` is the fix.
 ///
 /// Sort: descending `unread`, then ascending `topic` for tie-break (stable
 /// determinism). Pure — no I/O.
 fn compute_unread_rows_mcp(
     cursors: &[(String, u64)],
     topic_counts: &std::collections::HashMap<String, u64>,
+    topic_latest: &std::collections::HashMap<String, u64>,
 ) -> Vec<UnreadRowMcp> {
     let mut rows: Vec<UnreadRowMcp> = Vec::new();
     for (topic, cursor) in cursors {
-        let count = match topic_counts.get(topic) {
-            Some(c) => *c,
-            None => continue,
+        let latest = match topic_latest.get(topic) {
+            Some(l) => *l,
+            None => {
+                let count = match topic_counts.get(topic) {
+                    Some(c) => *c,
+                    None => continue,
+                };
+                if count == 0 {
+                    continue;
+                }
+                count - 1
+            }
         };
-        if count == 0 {
-            continue;
-        }
-        let latest = count - 1;
         if *cursor >= latest {
             continue;
         }
@@ -18441,16 +18452,21 @@ impl TermLinkTools {
             Err(e) => return json_err(format!("channel.list error: {e}")),
         };
         let mut counts: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+        let mut latest: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
         if let Some(arr) = list_result["topics"].as_array() {
             for entry in arr {
                 if let Some(name) = entry.get("name").and_then(|v| v.as_str()) {
                     let count = entry.get("count").and_then(|v| v.as_u64()).unwrap_or(0);
                     counts.insert(name.to_string(), count);
+                    // T-2533: authoritative latest offset when the hub emits it.
+                    if let Some(lo) = entry.get("latest_offset").and_then(|v| v.as_u64()) {
+                        latest.insert(name.to_string(), lo);
+                    }
                 }
             }
         }
 
-        let rows = compute_unread_rows_mcp(&cursors, &counts);
+        let rows = compute_unread_rows_mcp(&cursors, &counts, &latest);
         let rows_json: Vec<serde_json::Value> = rows
             .iter()
             .map(|r| serde_json::json!({
@@ -30791,7 +30807,7 @@ YW\tJ
     fn agent_inbox_compute_unread_rows_empty_cursors() {
         let cursors: Vec<(String, u64)> = vec![];
         let counts = std::collections::HashMap::new();
-        let rows = compute_unread_rows_mcp(&cursors, &counts);
+        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new());
         assert!(rows.is_empty());
     }
 
@@ -30800,7 +30816,7 @@ YW\tJ
         let cursors = vec![("alpha".to_string(), 9)];
         let mut counts = std::collections::HashMap::new();
         counts.insert("alpha".to_string(), 10); // latest=9, cursor==latest → drop
-        let rows = compute_unread_rows_mcp(&cursors, &counts);
+        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new());
         assert!(rows.is_empty(), "caller at latest should yield no rows");
     }
 
@@ -30809,7 +30825,7 @@ YW\tJ
         let cursors = vec![("alpha".to_string(), 3)];
         let mut counts = std::collections::HashMap::new();
         counts.insert("alpha".to_string(), 10); // latest=9, cursor=3, unread=6
-        let rows = compute_unread_rows_mcp(&cursors, &counts);
+        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new());
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].topic, "alpha");
         assert_eq!(rows[0].cursor, 3);
@@ -30828,7 +30844,7 @@ YW\tJ
         counts.insert("alpha".to_string(), 5);
         counts.insert("bravo".to_string(), 10);
         counts.insert("charlie".to_string(), 5);
-        let rows = compute_unread_rows_mcp(&cursors, &counts);
+        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new());
         assert_eq!(rows.len(), 3);
         // bravo (9 unread) first, then alpha (alpha<charlie) then charlie
         assert_eq!(rows[0].topic, "bravo");
@@ -30844,7 +30860,7 @@ YW\tJ
         ];
         let mut counts = std::collections::HashMap::new();
         counts.insert("alpha".to_string(), 3);
-        let rows = compute_unread_rows_mcp(&cursors, &counts);
+        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new());
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].topic, "alpha");
     }
@@ -30854,8 +30870,35 @@ YW\tJ
         let cursors = vec![("alpha".to_string(), 0)];
         let mut counts = std::collections::HashMap::new();
         counts.insert("alpha".to_string(), 0); // count==0 → drop
-        let rows = compute_unread_rows_mcp(&cursors, &counts);
+        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new());
         assert!(rows.is_empty());
+    }
+
+    // T-2533 LOAD-BEARING (MCP mirror): after a sweep, live offsets diverge
+    // from count (offsets 4000..4999 live, count=1000, latest_offset=4999). A
+    // reader at cursor 4990 has 9 unread. The buggy count-1 path computes
+    // latest=999 and DROPS the row → `termlink_agent_inbox` silently reports 0
+    // unread while 9 messages sit unseen. With latest_offset the row is correct.
+    #[test]
+    fn agent_inbox_compute_unread_rows_swept_topic_uses_latest_offset() {
+        let cursors = vec![("agent-chat-arc".to_string(), 4990)];
+        let mut counts = std::collections::HashMap::new();
+        counts.insert("agent-chat-arc".to_string(), 1000); // COUNT(*) after sweep
+        let mut latest = std::collections::HashMap::new();
+        latest.insert("agent-chat-arc".to_string(), 4999u64); // next_offset - 1
+        let rows = compute_unread_rows_mcp(&cursors, &counts, &latest);
+        assert_eq!(rows.len(), 1, "swept topic must report unread, not drop it");
+        assert_eq!(rows[0].latest, 4999);
+        assert_eq!(rows[0].unread, 9);
+        assert_eq!(rows[0].cursor, 4990);
+
+        // Pre-T-2533 fallback (empty latest map) → count-1 → latest=999 → drop.
+        let rows_fallback =
+            compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new());
+        assert!(
+            rows_fallback.is_empty(),
+            "count-1 fallback under-reports on swept topics (the T-2533 bug)"
+        );
     }
 
     #[test]
