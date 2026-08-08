@@ -389,6 +389,19 @@ fn json_err(msg: impl std::fmt::Display) -> String {
         .unwrap_or_else(|e| format!("{{\"ok\":false,\"error\":\"{e}\"}}" ))
 }
 
+/// Actionable error for the "hub socket not found" failure — the single most
+/// common MCP failure path (T-2553, usability lens of the T-2468 purpose
+/// review). Constitutional Directive #3: errors must name the fix, not just
+/// the failure. A bare "Hub is not running (no socket found)" gives an MCP
+/// agent no cue to recover; this names `termlink_hub_start` (with the
+/// cross-host `tcp_addr` hint) so the caller can self-heal without a human.
+fn hub_down_err() -> String {
+    json_err(
+        "Hub is not running (no socket found) — start it with termlink_hub_start \
+         (tcp_addr=\"0.0.0.0:9100\" for cross-host access)",
+    )
+}
+
 /// Clamp a caller-supplied `max_parallel` into a safe permit count for
 /// `tokio::sync::Semaphore::new`. Mirrors the `max_depth.clamp(1, 1024)`
 /// convention used everywhere else in this file (T-2523). Two failure modes
@@ -6743,7 +6756,7 @@ async fn curator_top(
 ) -> String {
     let hub_socket = termlink_hub::server::hub_socket_path();
     if !hub_socket.exists() {
-        return json_err("Hub is not running (no socket found)");
+        return hub_down_err();
     }
     let topic = "agent-chat-arc";
     let limit = limit_opt.unwrap_or(20).min(200) as usize;
@@ -15124,7 +15137,7 @@ impl TermLinkTools {
     async fn termlink_inbox_status(&self) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
 
         let addr = termlink_protocol::TransportAddr::unix(&hub_socket);
@@ -15143,7 +15156,7 @@ impl TermLinkTools {
     async fn termlink_inbox_clear(&self, Parameters(p): Parameters<InboxClearParams>) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
 
         let scope = if p.all.unwrap_or(false) {
@@ -15170,7 +15183,7 @@ impl TermLinkTools {
     async fn termlink_inbox_list(&self, Parameters(p): Parameters<InboxListParams>) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
 
         let addr = termlink_protocol::TransportAddr::unix(&hub_socket);
@@ -17599,7 +17612,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let retention = match retention_json(p.retention_kind.as_deref().unwrap_or("forever"), p.retention_value) {
             Ok(r) => r,
@@ -17630,7 +17643,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let retention = match retention_json(&p.retention_kind, p.retention_value) {
             Ok(r) => r,
@@ -17661,7 +17674,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         match termlink_session::client::rpc_call(
             &hub_socket,
@@ -17688,7 +17701,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let payload_bytes = match (p.payload, p.payload_b64) {
             (Some(s), None) => s.into_bytes(),
@@ -17774,7 +17787,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let msg_type = p.msg_type.unwrap_or_else(|| "note".to_string());
@@ -17977,7 +17990,7 @@ impl TermLinkTools {
         let mut conn = match &target_hub {
             None => {
                 if !hub_socket.exists() {
-                    return json_err("Hub is not running (no socket found)");
+                    return hub_down_err();
                 }
                 ContactHub::Local(hub_socket.clone())
             }
@@ -18182,7 +18195,7 @@ impl TermLinkTools {
 
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
 
         // Resolve peer_fp: trust target_fp after hex validation, or look up
@@ -18306,7 +18319,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
 
         // Load identity → my_id (fingerprint).
@@ -18439,7 +18452,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
 
         // Load identity → my_id (fingerprint).
@@ -18527,7 +18540,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let envelopes = match walk_topic_full_mcp(&hub_socket, topic).await {
@@ -18566,7 +18579,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let envelopes = match walk_topic_full_mcp(&hub_socket, topic).await {
@@ -18598,7 +18611,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let envelopes = match walk_topic_full_mcp(&hub_socket, topic).await {
@@ -18665,7 +18678,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         // Default sender to caller's local Identity fingerprint, matching
         // CLI's `load_identity_or_create` fallback (channel.rs:5168).
@@ -18713,7 +18726,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let sender = match p.sender {
             Some(s) => s,
@@ -18759,7 +18772,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let sender = match p.sender {
             Some(s) => s,
@@ -18805,7 +18818,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let envelopes = match walk_topic_full_mcp(&hub_socket, topic).await {
@@ -18848,7 +18861,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let lines = p.lines.unwrap_or(3).clamp(1, 50);
         let topic = "agent-chat-arc";
@@ -18886,7 +18899,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let clamped_n = p.n.unwrap_or(50).clamp(1, 500);
         let clamped_window_secs = p.window_secs.unwrap_or(3_600).clamp(60, 604_800);
@@ -18977,7 +18990,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let clamped_window_secs = p.window_secs.unwrap_or(86_400).clamp(60, 604_800);
         let clamped_top = p.top.unwrap_or(10).clamp(1, 100);
@@ -19024,7 +19037,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let clamped_window_secs = p.window_secs.unwrap_or(3_600).clamp(60, 604_800);
         let clamped_top = p.top.unwrap_or(5).clamp(1, 50);
@@ -19080,7 +19093,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let user = p.user.trim();
         if user.is_empty() {
@@ -19148,7 +19161,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let msg_type = "typing";
@@ -19220,7 +19233,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let msg_type = "reaction";
@@ -19290,7 +19303,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let msg_type = "note";
@@ -19368,7 +19381,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let msg_type = "pin";
@@ -19440,7 +19453,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let msg_type = "star";
@@ -19512,7 +19525,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let msg_type = "redaction";
@@ -19585,7 +19598,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let msg_type = "edit";
@@ -19655,7 +19668,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let msg_type = "receipt";
@@ -19726,7 +19739,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let msg_type = "topic_metadata";
@@ -19796,7 +19809,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = p.topic.clone();
         let msg_type = "topic_metadata";
@@ -19865,7 +19878,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
             Ok(v) => v,
@@ -19923,7 +19936,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
             Ok(v) => v,
@@ -19954,7 +19967,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let now_ms: i64 = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -20000,7 +20013,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let lines = p.lines.unwrap_or(3).clamp(1, 50);
         let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
@@ -20037,7 +20050,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let sender_id = match p.sender_id {
             Some(s) => s,
@@ -20078,7 +20091,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
             Ok(v) => v,
@@ -20107,7 +20120,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
             Ok(v) => v,
@@ -20136,7 +20149,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
             Ok(v) => v,
@@ -20165,7 +20178,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let user = p.user.trim();
         if user.is_empty() {
@@ -20207,7 +20220,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let sender = match p.sender_id {
             Some(s) => s,
@@ -20254,7 +20267,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let sender = match p.sender_id {
             Some(s) => s,
@@ -20299,7 +20312,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
             Ok(v) => v,
@@ -20340,7 +20353,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let msg_type = "typing";
         let ttl_ms = p.ttl_ms.unwrap_or(5000);
@@ -20410,7 +20423,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
             Ok(v) => v,
@@ -20479,7 +20492,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let msg_type = "edit";
         let payload_bytes = p.text.into_bytes();
@@ -20548,7 +20561,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let msg_type = "receipt";
         let payload_str = format!("up_to={}", p.up_to);
@@ -20618,7 +20631,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let msg_type = "chat";
         let payload_bytes = p.text.into_bytes();
@@ -20694,7 +20707,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
             Ok(envs) => envs,
@@ -20757,7 +20770,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let envelopes = match walk_topic_full_mcp(&hub_socket, &p.src_topic).await {
             Ok(envs) => envs,
@@ -20863,7 +20876,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         use std::collections::HashMap;
         struct Receipt {
@@ -20977,7 +20990,7 @@ impl TermLinkTools {
         }
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let msg_type = "poll_start";
         let payload_bytes = p.question.into_bytes();
@@ -21049,7 +21062,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let msg_type = "poll_vote";
         let payload_bytes: Vec<u8> = Vec::new();
@@ -21125,7 +21138,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let msg_type = "poll_end";
         let payload_bytes: Vec<u8> = Vec::new();
@@ -21196,7 +21209,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
             Ok(envs) => envs,
@@ -21242,7 +21255,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         // CHANNEL_LIST with the topic name as exact prefix → retention + count.
         let list_resp = match termlink_session::client::rpc_call(
@@ -21379,7 +21392,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let msg_type = "redaction";
         let payload_bytes: Vec<u8> = Vec::new();
@@ -21451,7 +21464,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let msg_type = "star";
         let payload_bytes: Vec<u8> = Vec::new();
@@ -21522,7 +21535,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let msg_type = "pin";
         let payload_bytes: Vec<u8> = Vec::new();
@@ -21592,7 +21605,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let mut params = serde_json::Map::new();
         params.insert("topic".to_string(), serde_json::Value::String(p.topic));
@@ -21626,7 +21639,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let params = serde_json::json!({
             "claim_id": p.claim_id,
@@ -21658,7 +21671,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let mut params = serde_json::Map::new();
         params.insert("claim_id".to_string(), serde_json::Value::String(p.claim_id));
@@ -21690,7 +21703,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let mut params = serde_json::Map::new();
         params.insert("claim_id".to_string(), serde_json::Value::String(p.claim_id));
@@ -21724,7 +21737,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let mut params = serde_json::Map::new();
         params.insert("claim_id".to_string(), serde_json::Value::String(p.claim_id));
@@ -21757,7 +21770,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let mut params = serde_json::Map::new();
         params.insert("topic".to_string(), serde_json::Value::String(p.topic));
@@ -21789,7 +21802,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let params = serde_json::json!({ "topic": p.topic });
         match termlink_session::client::rpc_call(
@@ -21820,7 +21833,7 @@ impl TermLinkTools {
         let only_stuck = p.only_stuck.unwrap_or(false);
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
 
         // Step 1: enumerate every topic via channel.list.
@@ -21931,7 +21944,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let msg_type = "reaction";
         let payload_bytes = p.emoji.into_bytes();
@@ -21999,7 +22012,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let target = match p.target {
             Some(s) => s,
@@ -22111,7 +22124,7 @@ impl TermLinkTools {
         const META: &[&str] = &["reaction", "edit", "redaction", "topic_metadata", "receipt"];
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let regex = p.regex.unwrap_or(false);
         let case_sensitive = p.case_sensitive.unwrap_or(false);
@@ -22193,7 +22206,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         if p.options.len() < 2 {
             return json_err(format!("poll requires at least 2 options (got {})", p.options.len()));
@@ -22270,7 +22283,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let msg_type = "poll_vote";
@@ -22341,7 +22354,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let msg_type = "poll_end";
@@ -22410,7 +22423,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let limit = p.limit.unwrap_or(20).min(1000);
@@ -22487,7 +22500,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let limit = p.limit.unwrap_or(100).min(1000);
@@ -22566,7 +22579,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let max_depth = p.max_depth.unwrap_or(100);
@@ -22638,7 +22651,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let limit = p.limit.unwrap_or(200).min(1000);
@@ -22713,7 +22726,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let target_sender = match p.sender_id {
@@ -22790,7 +22803,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let now_ms: i64 = std::time::SystemTime::now()
@@ -22885,7 +22898,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let limit = p.limit.unwrap_or(200).min(1000);
@@ -22960,7 +22973,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let mut all: Vec<serde_json::Value> = Vec::new();
@@ -23037,7 +23050,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let limit = p.limit.unwrap_or(50).min(500);
@@ -23111,7 +23124,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let limit = p.limit.unwrap_or(200).min(1000);
@@ -23197,7 +23210,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let target_offset = p.offset;
@@ -23274,7 +23287,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let mut all: Vec<serde_json::Value> = Vec::new();
@@ -23352,7 +23365,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let window_min = p.window_minutes.unwrap_or(60);
@@ -23431,7 +23444,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let limit = p.limit.unwrap_or(50).min(500);
@@ -23520,7 +23533,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let target = p.offset;
@@ -23613,7 +23626,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let mut all: Vec<serde_json::Value> = Vec::new();
@@ -23715,7 +23728,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let limit = p.limit.unwrap_or(100).min(500);
@@ -23783,7 +23796,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let limit = p.limit.unwrap_or(200).min(1000);
@@ -23870,7 +23883,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let sender_id = match p.sender_id {
@@ -23957,7 +23970,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let sender_id = match p.sender_id {
@@ -24044,7 +24057,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let target_str = p.pin_target.to_string();
@@ -24111,7 +24124,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let target_str = p.star_target.to_string();
@@ -24179,7 +24192,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let limit = p.limit.unwrap_or(50).min(500) as usize;
@@ -24270,7 +24283,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let window_days = p.window_days.unwrap_or(7);
@@ -24344,7 +24357,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let limit = p.limit.unwrap_or(50).min(500) as usize;
@@ -24453,7 +24466,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let window_days = p.window_days.unwrap_or(7);
@@ -24556,7 +24569,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let window_days = p.window_days.unwrap_or(14);
@@ -24652,7 +24665,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let target_offset = p.offset;
@@ -24721,7 +24734,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let target_sender = p.sender_id.clone();
@@ -24792,7 +24805,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let root_str = p.root_offset.to_string();
@@ -24897,7 +24910,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let root_str = p.root_offset.to_string();
@@ -24989,7 +25002,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let target_str = p.offset.to_string();
@@ -25090,7 +25103,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let target = p.offset.to_string();
@@ -25171,7 +25184,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let limit = p.limit.unwrap_or(100).min(500) as usize;
@@ -25295,7 +25308,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let root_str = p.root_offset.to_string();
@@ -25402,7 +25415,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let window_days = p.window_days.unwrap_or(14);
@@ -25496,7 +25509,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let root_str = p.root_offset.to_string();
@@ -25613,7 +25626,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let window_days = p.window_days.unwrap_or(14);
@@ -25709,7 +25722,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let window_days = p.window_days.unwrap_or(14);
@@ -25802,7 +25815,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let window_days = p.window_days.unwrap_or(14);
@@ -25895,7 +25908,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let mut all: Vec<serde_json::Value> = Vec::new();
@@ -26003,7 +26016,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let now_ms: i64 = std::time::SystemTime::now()
@@ -26091,7 +26104,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let limit = p.limit.unwrap_or(100).min(500) as usize;
@@ -26187,7 +26200,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let window_days = p.window_days.unwrap_or(14);
@@ -26298,7 +26311,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let limit = p.limit.unwrap_or(50).min(500) as usize;
@@ -26378,7 +26391,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let limit = p.limit.unwrap_or(100).min(500) as usize;
@@ -26467,7 +26480,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let root = p.root_offset.to_string();
@@ -26571,7 +26584,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let hours = p.hours.unwrap_or(6).min(168);
@@ -26657,7 +26670,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let root = p.root_offset.to_string();
@@ -26745,7 +26758,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let max_replies = p.max_replies.unwrap_or(1);
@@ -26846,7 +26859,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let minutes = p.minutes.unwrap_or(60).min(1440);
@@ -26931,7 +26944,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let window_days = p.window_days.unwrap_or(30);
@@ -27009,7 +27022,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let mut all: Vec<serde_json::Value> = Vec::new();
@@ -27111,7 +27124,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let idle_days = p.idle_days.unwrap_or(7);
@@ -27231,7 +27244,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let mut all: Vec<serde_json::Value> = Vec::new();
@@ -27311,7 +27324,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let limit = p.limit.unwrap_or(20).min(200) as usize;
@@ -27427,7 +27440,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let now_ms: i64 = std::time::SystemTime::now()
@@ -27567,7 +27580,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let mut all: Vec<serde_json::Value> = Vec::new();
@@ -27644,7 +27657,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let limit = p.limit.unwrap_or(200).min(1000);
@@ -27712,7 +27725,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let root = p.root_offset.to_string();
@@ -27804,7 +27817,7 @@ impl TermLinkTools {
         use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let target = p.offset.to_string();
@@ -27877,7 +27890,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let target_offset = p.offset;
@@ -27924,7 +27937,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let limit = p.limit.unwrap_or(100).min(1000);
@@ -28023,7 +28036,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let topic = "agent-chat-arc";
         let limit = p.limit.unwrap_or(100).min(1000);
@@ -28131,7 +28144,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         // T-2047: --from-latest path. Resolve latest offset via channel.list,
         // then subscribe with cursor=max, limit=1. Empty-topic → return marker.
@@ -28211,7 +28224,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let params = serde_json::json!({"topic": p.topic});
         match termlink_session::client::rpc_call(
@@ -28402,7 +28415,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let mut params = serde_json::json!({});
         if let Some(r) = p.role {
@@ -28441,7 +28454,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let params = match p.prefix {
             Some(pref) => serde_json::json!({"prefix": pref}),
@@ -28505,7 +28518,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let include_meta = p.include_meta.unwrap_or(false);
         let envelopes = match fetch_topic_msgs_mcp(&hub_socket, &p.topic, 2000).await {
@@ -28536,7 +28549,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let include_redacted = p.include_redacted.unwrap_or(false);
         let envelopes = match fetch_topic_msgs_mcp(&hub_socket, &p.topic, 2000).await {
@@ -28567,7 +28580,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let include_redacted = p.include_redacted.unwrap_or(false);
         let envelopes = match fetch_topic_msgs_mcp(&hub_socket, &p.topic, 2000).await {
@@ -28597,7 +28610,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let include_redacted = p.include_redacted.unwrap_or(false);
         let envelopes = match fetch_topic_msgs_mcp(&hub_socket, &p.topic, 2000).await {
@@ -28628,7 +28641,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let include_redacted = p.include_redacted.unwrap_or(false);
         let include_unchanged = p.include_unchanged.unwrap_or(false);
@@ -28665,7 +28678,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let envelopes = match fetch_topic_msgs_mcp(&hub_socket, &p.topic, 2000).await {
             Ok(m) => m,
@@ -28694,7 +28707,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let envelopes = match fetch_topic_msgs_mcp(&hub_socket, &p.topic, 2000).await {
             Ok(m) => m,
@@ -28728,7 +28741,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let envelopes = match fetch_topic_msgs_mcp(&hub_socket, &p.topic, 2000).await {
             Ok(m) => m,
@@ -28756,7 +28769,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let envelopes = match fetch_topic_msgs_mcp(&hub_socket, &p.topic, 2000).await {
             Ok(m) => m,
@@ -28784,7 +28797,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let envelopes = match fetch_topic_msgs_mcp(&hub_socket, &p.topic, 2000).await {
             Ok(m) => m,
@@ -28816,7 +28829,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let envelopes = match fetch_topic_msgs_mcp(&hub_socket, &p.topic, 2000).await {
             Ok(m) => m,
@@ -28845,7 +28858,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
             Ok(v) => v,
@@ -28885,7 +28898,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let target_sender = match p.sender_id {
             Some(s) => s,
@@ -28963,7 +28976,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
             Ok(v) => v,
@@ -28991,7 +29004,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
             Ok(v) => v,
@@ -29021,7 +29034,7 @@ impl TermLinkTools {
     ) -> String {
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
-            return json_err("Hub is not running (no socket found)");
+            return hub_down_err();
         }
         let envelopes = match walk_topic_full_mcp(&hub_socket, &p.topic).await {
             Ok(v) => v,
@@ -29552,6 +29565,28 @@ impl TermLinkTools {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // === T-2553: hub-down error is actionable (Constitutional Directive #3) ===
+
+    #[test]
+    fn hub_down_err_is_actionable() {
+        let out = hub_down_err();
+        // Still identifies the failure...
+        assert!(
+            out.contains("Hub is not running"),
+            "hub_down_err must still name the failure: {out}"
+        );
+        // ...and now names the fix (the whole point of T-2553). Reverting the
+        // helper body to the bare "Hub is not running (no socket found)" string
+        // fails this assertion — the test is load-bearing.
+        assert!(
+            out.contains("termlink_hub_start"),
+            "hub_down_err must name the recovery tool termlink_hub_start: {out}"
+        );
+        // Valid JSON envelope with ok:false (json_err contract preserved).
+        let v: serde_json::Value = serde_json::from_str(&out).expect("valid json");
+        assert_eq!(v["ok"], serde_json::json!(false));
+    }
 
     // === T-2526: dispatch count upper-bound guards the ~100 GB pre-alloc ===
 
