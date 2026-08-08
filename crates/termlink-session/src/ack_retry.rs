@@ -14,10 +14,16 @@
 //! This module contributes the missing producer-side piece:
 //!
 //!   1. [`AwaitingAckTracker`] — a durable record of posts still awaiting a
-//!      recipient ack, so an await that is interrupted by a client restart
-//!      can be resumed rather than silently abandoned. Mirrors
-//!      [`crate::offline_queue::OfflineQueue`] (rusqlite, single-writer
-//!      `Mutex<Connection>`, `TERMLINK_IDENTITY_DIR`-aware path).
+//!      recipient ack, so an await interrupted by a client restart (or one whose
+//!      retry loop exhausts) is **retained and observable** rather than silently
+//!      abandoned: it is surfaced by `channel awaiting-ack` (T-2287) and the
+//!      T-2295 unconfirmed-delivery canary. Re-driving such a row is
+//!      **caller/AEF-initiated** (re-invoke [`await_ack_with_retry`] with the
+//!      same `client_msg_id`), NOT an automatic substrate behavior — auto-resume
+//!      is orchestration policy that belongs to the AEF layer, not the hub
+//!      (charter non-goal #4). Mirrors [`crate::offline_queue::OfflineQueue`]
+//!      (rusqlite, single-writer `Mutex<Connection>`,
+//!      `TERMLINK_IDENTITY_DIR`-aware path).
 //!   2. [`await_ack_with_retry`] — the retry loop: post with a **stable**
 //!      `client_msg_id`, poll the receipt frontier until the recipient acks
 //!      or a per-attempt deadline elapses, then **re-post the SAME
