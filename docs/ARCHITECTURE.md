@@ -41,12 +41,13 @@ TermLink enables **a fleet of agent/terminal sessions to coordinate** — discov
 
 ```
 termlink-protocol      (foundation — zero dependencies on other crates)
+termlink-bus           (foundation — durable message-bus storage; zero termlink deps)
     ▲
     │
 termlink-session       (core — depends on protocol)
     ▲
     │
-termlink-hub           (coordination — depends on protocol + session)
+termlink-hub           (coordination — depends on protocol + session + bus)
     ▲
     │
 termlink-mcp           (MCP server — depends on protocol + session)
@@ -56,6 +57,11 @@ termlink (CLI)         (user interface — depends on all crates)
 
 termlink-test-utils    (dev-only — shared test helpers, depends on session)
 ```
+
+> `termlink-bus` is the durable-storage foundation for the channel message bus
+> (append-log topic files + SQLite offset/cursor/claim metadata + artifact store).
+> It is owned by the **hub** at runtime — see §3 "Hub Architecture" — not by
+> sessions.
 
 ---
 
@@ -182,10 +188,29 @@ termlink-test-utils    (dev-only — shared test helpers, depends on session)
 
 ### Hub Architecture
 
-The hub is a **stateless routing service** — it holds no persistent state:
-- Session registry is file-based (reads `sessions/*.json` on every discover call)
-- Event stores live in sessions, not the hub
-- Crash recovery is simply "restart"
+The hub's **routing/discovery layer is stateless** — session discovery reads
+`sessions/*.json` from disk on every call and keeps no in-process registry — but
+the hub is **NOT** a stateless service overall. It owns durable state:
+
+- **Session registry** is file-based (reads `sessions/*.json` on every discover
+  call) — stateless, as above.
+- **Durable channel message bus** (the charter's "durable append-log message
+  bus") lives **on the hub**, not in sessions, under `<runtime_dir>/bus/`
+  (initialized at `server.rs` via `init_bus`, crate `termlink-bus`):
+  - topic append logs — `<runtime_dir>/bus/topics/<sha256>.log`
+    (`termlink-bus/src/log.rs`)
+  - a SQLite DB of offsets, per-subscriber cursors, and claims/leases
+    (`termlink-bus/src/meta.rs`)
+  - an artifact store — `<runtime_dir>/bus/artifacts/`
+- **In-memory caches** (G-088): dedupe LRU, cv_index, and governor counters are
+  process-local and cleared on restart (see the note below).
+- **Only the ephemeral session `EventBus`** (a per-session ring buffer for
+  `event.broadcast`/`collect`) lives in sessions, not the hub. Do not confuse it
+  with the durable channel bus above.
+- **Crash recovery:** on restart the hub re-reads the on-disk bus, so durable
+  topics, offsets, cursors, and claims survive — but the in-memory caches (G-088)
+  are rebuilt from scratch. `<runtime_dir>/bus/` is therefore backup-relevant
+  state, not disposable.
 
 ```
 Client → Hub Socket → Router
@@ -319,11 +344,22 @@ Observe (0)  ─── ping, query.*, event.poll, kv.get (read-only)
 $TERMLINK_RUNTIME_DIR/          # /tmp/termlink-$UID or $XDG_RUNTIME_DIR/termlink
 ├── hub.sock                     # Hub control plane socket
 ├── hub.pid                      # Hub daemon pidfile
+├── hub.secret                   # Persistent HMAC secret (T-933/T-945; survives restart)
+├── hub.cert.pem / hub.key.pem   # Persistent TLS cert/key (survives restart)
+├── bus/                         # DURABLE message bus — hub-owned state (termlink-bus)
+│   ├── topics/<sha256>.log      #   per-topic append log (durable messages)
+│   ├── meta.db                  #   SQLite: offsets, per-subscriber cursors, claims/leases
+│   └── artifacts/               #   artifact store (file_send/put payloads)
 └── sessions/
     ├── {session-id}.sock        # Session control plane socket
     ├── {session-id}.sock.data   # Session data plane socket
     └── {session-id}.json        # Registration metadata (name, PID, state, tags, ...)
 ```
+
+> **Backup-relevant:** `bus/`, `hub.secret`, and `hub.cert.pem`/`hub.key.pem` are
+> durable hub state — they must live on a **non-volatile** `runtime_dir` (see the
+> PL-021 volatile-/tmp footgun in CLAUDE.md). Only the sockets/pidfile and the
+> in-memory caches (G-088) are disposable across restarts.
 
 ---
 
@@ -334,10 +370,11 @@ $TERMLINK_RUNTIME_DIR/          # /tmp/termlink-$UID or $XDG_RUNTIME_DIR/termlin
 | termlink-protocol | 79 | JSON-RPC parsing, frame encode/decode, control methods, error types, delegation events, negotiation |
 | termlink-session | 251 | Handlers (19 RPC methods incl. event.subscribe with since/history + KV error cases), events (ring buffer + broadcast subscription), PTY, liveness, auth (tokens), server, executor allowlist, registration, codec |
 | termlink-hub | 145 | Router (discover, broadcast, collect, forward), server, pidfile (edge cases), supervisor, circuit breaker, bypass, remote store (reaper), TLS (cert gen, validation, handshake) |
+| termlink-bus | 102 | Durable message bus: append-log read/write/truncate, SQLite meta (offsets, cursors, claims/renew/release/transfer), retention, cv_index, artifact store |
 | termlink-mcp | 64 | MCP integration tests (37 tools, resources, prompts, event_subscribe, dispatch_status, info, topics, collect, pty_mode, hub_status, hub_start, hub_stop, file_send, agent_ask) |
 | termlink (CLI) | 161 | Unit tests (80) + integration tests (81): register, ping, exec, events, KV, dispatch (workdir, isolate, auto-merge), push, agent, mirror, manifest CRUD, worktree lifecycle (create, commit, merge, conflict), vendor gitignore/MCP config, shell_escape, token inspect, doctor dispatch, secs_to_rfc3339 |
 | termlink-test-utils | 5 | TestDir cleanup, ProcessGuard kill-on-drop, session fixture |
-| **Total** | **705** | + 4 interactive TTY tests (ignored in CI) |
+| **Total** | **807** | + 4 interactive TTY tests (ignored in CI) |
 
 ---
 
