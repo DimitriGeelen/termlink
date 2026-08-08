@@ -119,8 +119,15 @@ pub(crate) async fn cmd_interact(
 
         let full_output = result["output"].as_str().unwrap_or("");
 
+        // `pre_len` is a byte offset from a *different* (earlier) snapshot.
+        // Slicing this later snapshot at that raw offset can land in the middle
+        // of a multi-byte UTF-8 char (emoji, box-drawing chars — routine in TUI
+        // output) and panic with "byte index is not a char boundary". Walk back
+        // to the nearest char boundary so the slice is always valid. The marker
+        // is unique per invocation (pid:nanos), so any minor over-inclusion of
+        // prior bytes is harmless to marker/exit-code extraction.
         let output = if full_output.len() > pre_len {
-            &full_output[pre_len..]
+            &full_output[char_boundary_floor(full_output, pre_len)..]
         } else {
             full_output
         };
@@ -928,9 +935,64 @@ pub(crate) fn compute_output_delta(
     }
 }
 
+/// Return the largest byte index `<= idx` that is a valid char boundary in `s`.
+///
+/// Used to make a byte-offset slice of a `&str` panic-safe when the offset was
+/// derived from a *different* string (e.g. an earlier scrollback snapshot in
+/// `cmd_interact`). Slicing `&s[idx..]` at a non-boundary offset panics; walking
+/// back to the nearest boundary keeps the slice valid. `idx` is clamped to
+/// `s.len()`; index 0 is always a boundary so the loop always terminates.
+pub(crate) fn char_boundary_floor(s: &str, idx: usize) -> usize {
+    let mut i = idx.min(s.len());
+    while i > 0 && !s.is_char_boundary(i) {
+        i -= 1;
+    }
+    i
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // --- char_boundary_floor / interact-slice safety tests ---
+
+    #[test]
+    fn char_boundary_floor_ascii_is_identity() {
+        let s = "hello world";
+        assert_eq!(char_boundary_floor(s, 5), 5);
+    }
+
+    #[test]
+    fn char_boundary_floor_walks_back_into_multibyte() {
+        // "a" + '€' (3 bytes: E2 82 AC) + "b". Byte offset 2 is mid-'€'.
+        let s = "a€b";
+        assert_eq!(s.len(), 5);
+        // offset 2 and 3 are inside the euro sign → floor to 1 (the '€' start).
+        assert_eq!(char_boundary_floor(s, 2), 1);
+        assert_eq!(char_boundary_floor(s, 3), 1);
+        assert_eq!(char_boundary_floor(s, 4), 4); // 'b' start is a boundary
+    }
+
+    #[test]
+    fn char_boundary_floor_clamps_past_end() {
+        let s = "hi";
+        assert_eq!(char_boundary_floor(s, 99), 2);
+    }
+
+    #[test]
+    fn interact_slice_does_not_panic_mid_multibyte() {
+        // Reproduces the cmd_interact scrollback-diff scenario: pre_len is a byte
+        // length from an earlier snapshot that lands mid-UTF-8-char in the later
+        // one. The raw `&full_output[pre_len..]` slice would panic here; the
+        // char-boundary floor makes it safe. LOAD-BEARING: revert the fix (slice
+        // at raw `pre_len`) and this test panics.
+        let full_output = "emoji 🎉 then more output"; // 🎉 is 4 bytes
+        let emoji_start = full_output.find('🎉').unwrap();
+        let pre_len = emoji_start + 2; // mid-emoji byte offset
+        assert!(!full_output.is_char_boundary(pre_len));
+        let slice = &full_output[char_boundary_floor(full_output, pre_len)..];
+        assert!(slice.starts_with('🎉'));
+    }
 
     const MARKER: &str = "___TERMLINK_DONE_abc_123___";
 
