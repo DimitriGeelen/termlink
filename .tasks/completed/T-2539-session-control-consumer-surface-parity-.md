@@ -4,10 +4,10 @@ name: "Session-control consumer surface parity (deepen founding charter verb)"
 description: >
   T-2468 deepen-the-core: the founding charter verb 'control terminal sessions' is capability-complete (register/list/spawn/exec/interact/run/pty attach|inject|output|stream/mirror/signal/clean) but surface-starved — 0 of 33 skills touch it and the cold-start on-ramp (substrate-getting-started.md, /substrate digest) omits it entirely, while its 3 sibling verbs each have rich skill+doc surfaces. Give verb #4 proportionate surface parity WITHOUT adding breadth: an on-ramp doc + cold-start integration + one flagship read-tier skill (/sessions), each thin over existing CLI. Purpose-review finding, in-authority (same category as the 33 existing skills), no non-goal tripped.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-08T16:10:42Z
-last_update: 2026-08-08T16:10:58Z
-date_finished: null
+last_update: 2026-08-08T16:13:49Z
+date_finished: 2026-08-08T16:13:49Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -223,3 +223,15 @@ bash scripts/check-charter-sentence-drift.sh --no-heartbeat
 
 ### 2026-08-08T16:10:58Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-109c4bc7
+- **Timestamp:** 2026-08-08T16:13:50Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-08T16:13:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

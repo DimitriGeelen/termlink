@@ -6282,3 +6282,21 @@ scan_id: R-60f574f3
 task_id: T-2538
 payload:
   task_file: .tasks/active/T-2538-fix-push-waker-dm-rail-dedup-collision-p.md
+---
+kind: scan_emitted
+timestamp: '2026-08-08T16:13:50Z'
+scan_id: R-109c4bc7
+task_id: T-2539
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-08T16:13:50Z'
+scan_id: R-109c4bc7
+task_id: T-2539
+payload:
+  task_file: .tasks/active/T-2539-session-control-consumer-surface-parity-.md

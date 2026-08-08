@@ -1,0 +1,103 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2539: Session-control consumer surface parity (deepen founding charter verb)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-08T16:13:54Z
+# ============================================================================
+
+task_id: T-2539
+task_name: "Session-control consumer surface parity (deepen founding charter verb)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-08T16:10:42Z
+completed: 2026-08-08T16:13:49Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-08-08T18:13:38+02:00
+last_commit: 2026-08-08T18:13:38+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  session-control consumer surface parity — on-ramp doc + /sessions skill + cold-start integration (deepen founding charter verb)
+
+# Key outcomes
+outcomes:
+  - '`docs/operations/session-control-getting-started.md` exists, names the founding verb, and documents the spawn → exec → output → clean lifecycle with copy-pasteable commands'
+  - '`.claude/commands/sessions.md` exists as a read-only `/sessions` skill wrapping `termlink list --json`, with loud empty-state + next-step hints, and does NOT mutate session state'
+  - '`docs/operations/substrate-getting-started.md` links to the new session-control on-ramp so the founding verb is reachable from the cold-start path'
+  - 'The documented session round-trip actually works: `scripts/session-selftest.sh` exits 0 (spawn+exec proven) — the doc''s core sequence is known-good'
+  - 'The charter canonical sentence is untouched: `scripts/check-charter-sentence-drift.sh --no-heartbeat` exits 0'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/commands/sessions.md'
+  - '.context/audits/2026-08-04.yaml'
+  - '.context/audits/2026-08-08.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/audits/orchestrator-LATEST.yaml'
+  - '.context/episodic/T-2537.yaml'
+  - '.context/episodic/T-2538.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'docs/operations/session-control-getting-started.md'
+  - 'docs/operations/substrate-getting-started.md'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2539-session-control-consumer-surface-parity-.md'
+  - '.tasks/completed/T-2537-surface-execresulttruncated-at-all-exec-.md'
+  - '.tasks/completed/T-2538-fix-push-waker-dm-rail-dedup-collision-p.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-08T18:13:38"
+    action: "T-2539: session-control consumer surface parity — on-ramp doc + /sessions skill + cold-start integration (deepen founding charter verb)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 27
+  lines_added: 5198
+  lines_removed: 4229
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2539-session-control-consumer-surface-parity-.md
+generated_by: context-agent-hybrid
