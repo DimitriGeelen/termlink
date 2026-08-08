@@ -2395,3 +2395,13 @@ FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2540: file inceptio
   command: 'cd /opt/termlink
 git add -A
 FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2541: file optional charter clarification — strict-star invariant RESPECTED, note local data-plane exception '
+- timestamp: '2026-08-08T19:34:48Z'
+  task: '<filing: Charter non-goal #4: conversation-analytics MCP tool family subtract-vs-keep>'
+  flag: 'FW_ALLOW_EMPTY_RECOMMENDATION'
+  caller: 'create-task.sh'
+  reason: 'empty-recommendation bypass (create-task.sh inception filing)'
+- timestamp: '2026-08-08T19:37:48Z'
+  task: '<filing: Charter non-goal #4: termlink dispatch orchestration-in-substrate subtract-vs-keep>'
+  flag: 'FW_ALLOW_EMPTY_RECOMMENDATION'
+  caller: 'create-task.sh'
+  reason: 'empty-recommendation bypass (create-task.sh inception filing)'

@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2551: Correct ARCHITECTURE.md stateless-hub claim — hub persists durable bus to disk (T-2545 sibling)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-08T19:47:42Z
+# ============================================================================
+
+task_id: T-2551
+task_name: "Correct ARCHITECTURE.md stateless-hub claim — hub persists durable bus to disk (T-2545 sibling)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-08T19:43:28Z
+completed: 2026-08-08T19:47:37Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-08T21:47:17+02:00
+last_commit: 2026-08-08T21:47:37+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  correct ARCHITECTURE.md stateless-hub claim — hub owns durable on-disk bus (topics/meta.db/artifacts); add termlink-bus crate + runtime bus/ layout (T-2545 sibling, doc-reality drift). tick agent ACs (all satisfied)
+
+# Key outcomes
+outcomes:
+  - 'ARCHITECTURE.md "Hub Architecture" no longer claims the hub holds no persistent state; it accurately states routing is stateless but the hub owns durable on-disk bus state under `<runtime_dir>/bus/` (topic logs + SQLite meta + artifacts) plus in-memory caches'
+  - 'The false "Event stores live in sessions, not the hub" line is corrected (durable channel bus is hub-side; only the ephemeral session EventBus ring is session-side)'
+  - '`termlink-bus` crate added to the Crate Hierarchy and Dependency Graph sections'
+  - 'No code files changed (docs-only); claim cross-checked against server.rs:282 + termlink-bus/src/{log,meta}.rs'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/ARCHITECTURE.md'
+  - '.tasks/active/T-2551-correct-architecturemd-stateless-hub-cla.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-08T21:47:17"
+    action: "T-2551: correct ARCHITECTURE.md stateless-hub claim — hub owns durable on-disk bus (topics/meta.db/artifacts); add termlink-bus crate + runtime bus/ layout (T-2545 sibling, doc-reality drift)"
+  - time: "2026-08-08T21:47:37"
+    action: "T-2551: tick agent ACs (all satisfied)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 2
+  files_changed: 2
+  lines_added: 240
+  lines_removed: 11
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2551-correct-architecturemd-stateless-hub-cla.md
+generated_by: context-agent-hybrid

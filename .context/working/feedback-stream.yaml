@@ -6390,3 +6390,21 @@ scan_id: R-db044ae6
 task_id: T-2547
 payload:
   task_file: .tasks/active/T-2547-fix-utf-8-char-boundary-panic-in-interac.md
+---
+kind: scan_emitted
+timestamp: '2026-08-08T19:47:38Z'
+scan_id: R-2de5da6e
+task_id: T-2551
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-08T19:47:38Z'
+scan_id: R-2de5da6e
+task_id: T-2551
+payload:
+  task_file: .tasks/active/T-2551-correct-architecturemd-stateless-hub-cla.md
