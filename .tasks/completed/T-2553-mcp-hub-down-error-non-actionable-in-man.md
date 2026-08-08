@@ -4,20 +4,20 @@ name: "MCP hub-down error non-actionable in many sites — add start hint"
 description: >
   Usability lens (Constitutional Directive #3): MCP tools return bare 'Hub is not running (no socket found)' with no fix hint. Add an actionable helper naming termlink_hub_start.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-08T20:25:11Z
-last_update: 2026-08-08T20:29:14Z
-date_finished: null
+last_update: 2026-08-08T20:30:04Z
+date_finished: 2026-08-08T20:30:04Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -198,3 +198,20 @@ usability-lens findings #2–#6).
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2553-mcp-hub-down-error-non-actionable-in-man.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-ad8b306f
+- **Timestamp:** 2026-08-08T20:30:28Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — A `hub_down_err()` helper exists in `crates/termlink-mcp/src/tools.rs` returning an error whose message names `termlink_hub_start`
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-mcp/src/tools.rs in: A `hub_down_err()` helper exists in `crates/termlink-mcp/src/tools.rs` returning an error whose message names `termlink_hub_start``
+
+### 2026-08-08T20:30:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

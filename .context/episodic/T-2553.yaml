@@ -1,0 +1,97 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2553: MCP hub-down error non-actionable in many sites — add start hint
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-08T20:30:32Z
+# ============================================================================
+
+task_id: T-2553
+task_name: "MCP hub-down error non-actionable in many sites — add start hint"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-08T20:25:11Z
+completed: 2026-08-08T20:30:04Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-08T22:29:13+02:00
+last_commit: 2026-08-08T22:30:03+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  MCP hub-down error now actionable — hub_down_err() names termlink_hub_start across 161 sites (usability lens, Directive #3). add RCA (error-actionability gap, single-helper prevention + load-bearing test)
+
+# Key outcomes
+outcomes:
+  - 'A `hub_down_err()` helper exists in `crates/termlink-mcp/src/tools.rs` returning an error whose message names `termlink_hub_start`'
+  - 'The bare `"Hub is not running (no socket found)"` sites route through the helper (count of bare literal drops to 0 outside the helper definition)'
+  - 'A unit test asserts the helper''s message contains both "Hub is not running" and "termlink_hub_start" (load-bearing: proven by temp-reverting the helper body to the bare string, which fails the test)'
+  - '`cargo test -p termlink-mcp` passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'add RCA (error-actionability gap, single-helper prevention + load-bearing test)'
+    source: git-mined
+  - description: 'MCP hub-down error now actionable — hub_down_err() names termlink_hub_start across 161 sites (usability lens, Directive #3)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2553-mcp-hub-down-error-non-actionable-in-man.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-08T22:29:13"
+    action: "T-2553: MCP hub-down error now actionable — hub_down_err() names termlink_hub_start across 161 sites (usability lens, Directive #3)"
+  - time: "2026-08-08T22:30:03"
+    action: "T-2553: add RCA (error-actionability gap, single-helper prevention + load-bearing test)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 2
+  files_changed: 17
+  lines_added: 487
+  lines_removed: 248
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2553-mcp-hub-down-error-non-actionable-in-man.md
+generated_by: context-agent-hybrid

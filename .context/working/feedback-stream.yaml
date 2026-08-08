@@ -6426,3 +6426,21 @@ scan_id: R-e41f1a80
 task_id: T-2552
 payload:
   task_file: .tasks/active/T-2552-ackretry-module-doc-overclaims-auto-resu.md
+---
+kind: scan_emitted
+timestamp: '2026-08-08T20:30:28Z'
+scan_id: R-ad8b306f
+task_id: T-2553
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-08T20:30:28Z'
+scan_id: R-ad8b306f
+task_id: T-2553
+payload:
+  task_file: .tasks/active/T-2553-mcp-hub-down-error-non-actionable-in-man.md

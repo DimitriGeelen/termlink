@@ -484,9 +484,9 @@ pub(crate) async fn cmd_emit_to(
             Ok(v) => v,
             Err(e) => {
                 if json {
-                    super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Failed to connect to hub: {}", e)}));
+                    super::json_error_exit(serde_json::json!({"ok": false, "error": format!("Failed to connect to hub: {} — is it running? Start it with: termlink hub start", e)}));
                 }
-                return Err(e).context("Failed to connect to hub");
+                return Err(e).context("Failed to connect to hub — is it running? Start it with: termlink hub start");
             }
         },
         Err(_) => {

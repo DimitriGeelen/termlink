@@ -922,9 +922,9 @@ pub(crate) async fn cmd_exec(target: &str, command: &str, cwd: Option<&str>, tim
         Ok(r) => r,
         Err(e) => {
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {} — run 'termlink list-sessions' to see registered sessions", target, e)}));
             }
-            return Err(e).context(format!("Session '{}' not found", target));
+            return Err(e).context(format!("Session '{}' not found — run 'termlink list-sessions' to see registered sessions", target));
         }
     };
 
@@ -944,9 +944,9 @@ pub(crate) async fn cmd_exec(target: &str, command: &str, cwd: Option<&str>, tim
             Ok(r) => r,
             Err(e) => {
                 if json {
-                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
+                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {} — the session may have exited; run 'termlink clean' to remove stale registrations, or 'termlink list-sessions' to check", e)}));
                 }
-                return Err(e).context("Failed to connect to session");
+                return Err(e).context("Failed to connect to session — the session may have exited; run 'termlink clean' to remove stale registrations, or 'termlink list-sessions' to check");
             }
         },
         Err(_) => {
@@ -1010,9 +1010,9 @@ pub(crate) async fn cmd_send(target: &str, method: &str, params_str: &str, json:
         Ok(r) => r,
         Err(e) => {
             if json {
-                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {}", target, e)}));
+                super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Session '{}' not found: {} — run 'termlink list-sessions' to see registered sessions", target, e)}));
             }
-            return Err(e).context(format!("Session '{}' not found", target));
+            return Err(e).context(format!("Session '{}' not found — run 'termlink list-sessions' to see registered sessions", target));
         }
     };
 
@@ -1023,9 +1023,9 @@ pub(crate) async fn cmd_send(target: &str, method: &str, params_str: &str, json:
             Ok(r) => r,
             Err(e) => {
                 if json {
-                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {}", e)}));
+                    super::json_error_exit(serde_json::json!({"ok": false, "target": target, "error": format!("Failed to connect to session: {} — the session may have exited; run 'termlink clean' to remove stale registrations, or 'termlink list-sessions' to check", e)}));
                 }
-                return Err(e).context("Failed to connect to session");
+                return Err(e).context("Failed to connect to session — the session may have exited; run 'termlink clean' to remove stale registrations, or 'termlink list-sessions' to check");
             }
         },
         Err(_) => {

@@ -10873,6 +10873,37 @@ pub(crate) async fn cmd_channel_search(
 // actionable message; --json emits structured envelopes.
 // ---------------------------------------------------------------------------
 
+/// Map a claim-family `ClaimError` into an actionable anyhow error (T-2554,
+/// usability lens of the T-2468 purpose review). Constitutional Directive #3:
+/// name the recovery command per variant, not just the failure. A bare
+/// "offset 5 is already claimed by another worker" tells the operator WHAT
+/// broke but not what to DO; each variant here appends the next command.
+pub(crate) fn claim_err_actionable(
+    op: &str,
+    e: termlink_session::claim_client::ClaimError,
+) -> anyhow::Error {
+    use termlink_session::claim_client::ClaimError;
+    let hint = match &e {
+        ClaimError::Conflict { topic, .. } => format!(
+            " — run `termlink channel claims {topic}` to see the holder, or claim a different offset"
+        ),
+        ClaimError::NotFound { .. } => {
+            " — the lease lapsed or was released; re-acquire with `termlink channel claim <topic> <offset>`"
+                .to_string()
+        }
+        ClaimError::Expired { .. } => {
+            " — the lease expired (renew refused); re-acquire with `termlink channel claim <topic> <offset>` and renew sooner next time"
+                .to_string()
+        }
+        ClaimError::NotOwned { .. } => {
+            " — you are not the holder; run `termlink channel claims <topic>` to see who is"
+                .to_string()
+        }
+        _ => String::new(),
+    };
+    anyhow!("channel.{op} failed: {e}{hint}")
+}
+
 pub(crate) async fn cmd_channel_claim(
     topic: &str,
     offset: u64,
@@ -10884,7 +10915,7 @@ pub(crate) async fn cmd_channel_claim(
     let addr = hub_socket(hub)?;
     let s = termlink_session::claim_client::channel_claim(&addr, topic, offset, claimer, ttl_ms)
         .await
-        .map_err(|e| anyhow!("channel.claim failed: {e}"))?;
+        .map_err(|e| claim_err_actionable("claim", e))?;
     if json_output {
         println!(
             "{}",
@@ -10925,7 +10956,7 @@ pub(crate) async fn cmd_channel_renew(
         additional_ttl_ms,
     )
     .await
-    .map_err(|e| anyhow!("channel.renew failed: {e}"))?;
+    .map_err(|e| claim_err_actionable("renew", e))?;
     if json_output {
         println!(
             "{}",
@@ -10961,7 +10992,7 @@ pub(crate) async fn cmd_channel_release(
     let addr = hub_socket(hub)?;
     let r = termlink_session::claim_client::channel_release(&addr, claim_id, claimer, ack)
         .await
-        .map_err(|e| anyhow!("channel.release failed: {e}"))?;
+        .map_err(|e| claim_err_actionable("release", e))?;
     if json_output {
         println!(
             "{}",
@@ -12231,6 +12262,39 @@ fn render_claims_summary_text_with_annotation(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ---- T-2554: claim errors are actionable (Constitutional Directive #3) ---
+
+    #[test]
+    fn claim_conflict_error_is_actionable() {
+        use termlink_session::claim_client::ClaimError;
+        let e = ClaimError::Conflict {
+            topic: "work-queue".to_string(),
+            offset: 5,
+        };
+        let msg = claim_err_actionable("claim", e).to_string();
+        // Still names the failure...
+        assert!(msg.contains("already claimed"), "msg: {msg}");
+        // ...and now names the recovery command (the point of T-2554).
+        // Reverting the Conflict hint to String::new() fails this — load-bearing.
+        assert!(
+            msg.contains("termlink channel claims work-queue"),
+            "conflict must point at `termlink channel claims <topic>`: {msg}"
+        );
+    }
+
+    #[test]
+    fn claim_notfound_error_names_reacquire() {
+        use termlink_session::claim_client::ClaimError;
+        let e = ClaimError::NotFound {
+            claim_id: "c-123".to_string(),
+        };
+        let msg = claim_err_actionable("renew", e).to_string();
+        assert!(
+            msg.contains("re-acquire with `termlink channel claim"),
+            "not-found must point at re-claim: {msg}"
+        );
+    }
 
     // ---- T-2512: positional body <-> --payload precedence -------------------
 
