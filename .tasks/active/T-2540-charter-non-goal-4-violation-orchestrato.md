@@ -4,7 +4,7 @@ name: "Charter non-goal #4 violation: orchestrator.route policy-in-substrate (su
 description: >
   Purpose-review (T-2468) non-goal-adherence finding, verified-in-code. The hub carries orchestrator.route backed by ~1981 lines (route_cache.rs/circuit_breaker.rs/bypass.rs) of adaptive routing POLICY — the exact thing charter non-goal #4 reserves for the AEF layer. NOT deprecated; advertised in hub.capabilities. Consumer-check: ZERO first-party callers (advertised-but-uncalled); only refs are 2024 pre-charter design reports (T-233/237/238 'smart routing' lineage). DECISION (human sovereignty): (A) SUBTRACT — remove the RPC + 3 modules + capability advert, relocate needed routing to AEF/client; (B) GRANDFATHER — amend charter for a sanctioned exception; (C) intermediate. GATE: fleet-wide external-consumer check (any peer/AEF raw orchestrator.route RPC?) BEFORE removal. Largest subtract candidate the campaign has surfaced (~2k lines). Owner human: consequential (live advertised capability), sovereignty-level, needs external-consumer verification.
 
-status: captured
+status: started-work
 workflow_type: inception
 owner: human
 horizon: now
@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-08-08T16:20:13Z
-last_update: 2026-08-08T16:21:03Z
+last_update: 2026-08-08T17:39:01Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,45 +28,84 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 ## Problem Statement
 
-<!-- What problem are we exploring? For whom? Why now? -->
+TermLink's charter (docs/CHARTER.md) names a hard NON-GOAL #4: *the substrate is
+mechanism, not policy — workflow/orchestration policy belongs to the AEF layer,
+not the hub.* Yet the hub ships **`orchestrator.route`**: a JSON-RPC method backed
+by ~1981 lines of *adaptive routing policy* (specialist-preference by task_type, a
+confidence-scored learning cache, a circuit breaker, and Tier-3 bypass promotion).
+This is precisely the policy that non-goal #4 reserves for AEF. It is NOT
+deprecated and IS advertised in the hub's capability set, yet has **zero
+first-party callers**. The decision is a product-identity one the human owns:
+does this capability stay (grandfathered with a charter amendment) or leave
+(subtracted to restore the charter)? Now, because the T-2468 purpose review's
+mandate is "subtract-and-deepen" and this is the single largest off-charter
+subtract candidate the campaign has surfaced (~2k lines). See the full brief:
+`docs/reports/T-2540-orchestrator-route-decision-brief.md`.
 
 ## Assumptions
 
-<!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
+- A-1: `orchestrator.route` implements adaptive *policy* (not a mechanism-only
+  primitive). — to confirm by reading the three modules.
+- A-2: There are zero first-party callers in this repo (CLI / MCP / scripts).
+- A-3: The only references are pre-charter (2024) design reports, not live use.
+- A-4 (UNVERIFIABLE from this repo): no *external* peer/AEF process issues the
+  raw `orchestrator.route` RPC across the fleet. This is the GATE and requires a
+  cross-project check (blocked by the T-559 project-boundary from this session).
 
 ## Open Questions
 
-<!-- T-2190 (T-2186 Slice 4): every IW-N question must be disposed before
-     --status work-completed. Disposition gate (agents/task-create/update-task.sh
-     check_disposition_gate) refuses on under-disposed inceptions.
+- **IW-1: Are there any EXTERNAL (non-first-party) consumers of the raw
+  `orchestrator.route` RPC across the fleet or the AEF layer?**
+  confidence: 1
+  disposition: deferred
+  rationale: In-repo first-party callers = zero (verified). External callers
+  cannot be confirmed from /opt/termlink (T-559 boundary blocks cross-project
+  grep of /opt/999-AEF and peer repos). This is the removal GATE — a human or a
+  cross-project session must clear it before any subtract lands.
 
-     Per-question shape:
+- **IW-2: If subtracted, does any NEEDED routing behavior have to be relocated to
+  AEF/client, or is the capability purely dead weight?**
+  confidence: 2
+  disposition: deferred
+  rationale: Zero first-party callers suggests dead weight, but a relocation
+  analysis (what would an AEF orchestrator that wanted this policy have to
+  re-implement?) is part of the GO build scope, not this inception.
 
-       - **IW-1: <question text>**
-         confidence: 0-3      (your confidence in your current answer; 0=guess, 3=verified)
-         disposition: answered | deferred | dissolved
-         rationale: <one-line evidence — file:line, decision id, dialogue ref>
-
-     Never bare yes/no — the gate refuses bare checkboxes. See 050-Inceptions.md
-     §Disposition Gate. Bypass: --skip-disposition-gate "rationale" (direct) or
-     FW_SKIP_DISPOSITION_GATE=1 (env-var, T-1890 producer/consumer parity).
--->
+- **IW-3: Subtract vs grandfather — does the charter get amended for a sanctioned
+  exception, or does the capability leave the substrate?**
+  confidence: 2
+  disposition: deferred
+  rationale: This is the human sovereignty decision. Agent recommendation = GO to
+  subtract (restore charter), because the policy is uncalled and non-goal #4 is a
+  deliberate architectural line. But amending the charter is equally valid if the
+  human judges the routing policy strategically worth keeping in-substrate.
 
 ## Exploration Plan
 
-<!-- How will we validate assumptions? Spikes, prototypes, research? Time-box each. -->
+1. Verify A-1: read route_cache.rs / circuit_breaker.rs / bypass.rs — confirm
+   adaptive-policy nature + line counts. (DONE — see brief.)
+2. Verify A-2/A-3: grep the repo for `orchestrator.route` / `orchestrator_route`
+   callers across CLI, MCP, scripts, docs. (DONE — see brief.)
+3. Clear IW-1 (the GATE): cross-project consumer check — cannot be done from this
+   session (T-559). Hand to human / a cross-project session.
+4. Human decides IW-3 (subtract / grandfather / intermediate).
 
 ## Technical Constraints
 
-<!-- What platform, browser, network, or hardware constraints apply?
-     For web apps: HTTPS requirements, browser API restrictions, CORS, device support.
-     For hardware APIs (mic, camera, GPS, Bluetooth): access requirements, permissions model.
-     For infrastructure: network topology, firewall rules, latency bounds.
-     Fill this BEFORE building. Discovering constraints after implementation wastes sessions. -->
+- **T-559 project-boundary:** this session cannot grep /opt/999-AEF or peer repos
+  for external `orchestrator.route` callers — the GATE check (IW-1) is
+  structurally cross-project and human-gated.
+- **Consequential:** `orchestrator.route` is a LIVE advertised capability;
+  removing it is a breaking change for any (unknown) external caller — hence the
+  gate-before-removal discipline.
 
 ## Scope Fence
 
-<!-- What's IN scope for this exploration? What's explicitly OUT? -->
+**IN scope (this inception):** confirm the violation in code, confirm zero
+first-party callers, frame the subtract-vs-grandfather decision with evidence.
+**OUT of scope:** the actual removal (a GO build task), the cross-project
+external-consumer check (IW-1 gate, human/cross-project), any charter amendment
+(human-blessed sovereignty edit).
 
 ## Acceptance Criteria
 
@@ -90,14 +129,26 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 ## Go/No-Go Criteria
 
-<!-- Fill these BEFORE writing the recommendation. The placeholder detector will block review/decide if left empty. -->
-**GO if:**
-- Root cause identified with bounded fix path
-- Fix is scoped, testable, and reversible
+Full evidence + option analysis: `docs/reports/T-2540-orchestrator-route-decision-brief.md`.
 
-**NO-GO if:**
-- Problem requires fundamental redesign or unbounded scope
-- Fix cost exceeds benefit given current evidence
+**GO (subtract) if:**
+- Charter non-goal #4 ("substrate stays mechanism, not policy") is to remain a
+  load-bearing line, AND
+- The IW-1 gate clears — the fleet-wide external-consumer check finds NO peer/AEF
+  process issuing the raw `orchestrator.route` RPC (first-party callers already
+  verified zero). Then: delete the 3 methods + 3 modules (~1981 lines), keep
+  `session discover` + `channel claim` as the sanctioned mechanism.
+
+**NO-GO (grandfather) if:**
+- The human judges the built routing policy strategically worth keeping
+  in-substrate → amend `docs/CHARTER.md` for a sanctioned exception AND fund the
+  T-247 adversarial-surface paydown (arbitrary-string bypass promotion,
+  concurrency).
+
+**INTERMEDIATE (deprecate-then-remove) if:**
+- IW-1 cannot be cleared quickly → mark the 3 methods deprecated (stop
+  advertising, warn on call, per the T-1166 `remote_inbox_*` pattern), soak one
+  release, then remove.
 
 ## Verification
 
@@ -114,7 +165,7 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 **Recommendation:** GO
 
-**Rationale:** Verified in code: orchestrator.route (router.rs:78/1186, advertised in hub.capabilities, NOT deprecated) + ~1981 lines (route_cache 824 + circuit_breaker 488 + bypass 669) implement adaptive routing POLICY (task_type specialist preference, confidence-scored learning cache, circuit breaker, Tier-3 bypass promotion) — a direct charter non-goal #4 violation ('substrate stays mechanism, not policy'). Consumer-check found ZERO first-party callers (no CLI/MCP/script); only 2024 pre-charter design-report refs (T-233/237/238). Recommend GO to SUBTRACT (relocate to AEF), gated on a fleet-wide external-consumer check first. Human owns the subtract-vs-grandfather product decision.
+**Rationale:** Verified in code: orchestrator.route (router.rs:78/1186, advertised in hub.capabilities, NOT deprecated) + ~1981 lines (route_cache 824 + circuit_breaker 488 + bypass 669) implement adaptive routing POLICY (task_type specialist preference, confidence-scored learning cache, circuit breaker, Tier-3 bypass promotion) — a direct charter non-goal #4 violation ('substrate stays mechanism, not policy'). Consumer-check found ZERO first-party callers (no CLI/MCP/script); only 2024 pre-charter design-report refs (T-233/237/238). Recommend GO to SUBTRACT (relocate to AEF), gated on a fleet-wide external-consumer check first. Human owns the subtract-vs-grandfather product decision. **Full decision brief (options A/B/C with cost/risk/reversibility, the IW-1 gate procedure, and the GO build-task scope): `docs/reports/T-2540-orchestrator-route-decision-brief.md`.** Update (2026-08-08): re-verified in code — line counts exact (824+488+669=1981), advertised at router.rs:1023-1027, NOT deprecated; the subtract surface is THREE methods (orchestrator.route + orchestrator.bypass_status + orchestrator.bypass_invalidate); the pre-charter refs are the T-233/T-239/T-240/T-247 design lineage (not live callers); T-247-scenarios-adversarial.md documents un-remediated bypass-promotion security debt (an argument *for* subtract).
 
 ## Decisions
 
@@ -135,3 +186,6 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-08-08T17:39:01Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
