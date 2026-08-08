@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-04T14:34:47Z
-last_update: 2026-08-08T07:37:01Z
+last_update: 2026-08-08T07:49:49Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -126,6 +126,11 @@ and the bus already models the symmetric primitive.
 -->
 
 ## Verification
+
+cargo test -p termlink-bus --lib latest_offset_is_monotonic_across_sweep
+cargo test -p termlink-mcp --lib agent_inbox_compute_unread_rows_swept_topic_uses_latest_offset
+cargo test -p termlink --bin termlink compute_unread_rows_swept_topic_uses_latest_offset_not_count
+cargo test -p termlink --bin termlink latest_offset_from_list_entry_swept_topic_uses_latest_offset
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
