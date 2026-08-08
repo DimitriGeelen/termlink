@@ -347,6 +347,6 @@ $TERMLINK_RUNTIME_DIR/          # /tmp/termlink-$UID or $XDG_RUNTIME_DIR/termlin
 - **Write-lock dispatch:** `dispatch_mut()` + `needs_write()` — only 3 methods need write lock, rest use read lock
 - **File-based registry:** Session metadata stored as JSON sidecar files, not in-memory — survives hub crash
 - **Ring buffer events:** `EventBus` with monotonic sequence IDs, topic filtering, cursor-based polling
-- **Stateless hub:** Hub reads registry from disk on every call — no cache, no stale state, crash = restart
+- **Stateless session registry:** Hub reads the registry from disk on every call — no cache there, crash = restart. The message-bus subsystem, however, keeps process-global *in-memory* caches (dedupe LRU, cv_index, governor rate-buckets) that are RAM-resident and cleared on restart — so idempotency/discovery state does not survive a hub restart (gap G-088).
 - **Graceful shutdown:** `ShutdownHandle` pattern with `tokio::sync::watch`, 5-second connection drain
 - **Cross-platform auth:** `SO_PEERCRED` (Linux) / `LOCAL_PEERCRED` + `LOCAL_PEERPID` (macOS)
