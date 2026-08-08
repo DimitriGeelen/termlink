@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2542: Charter four-verbs discoverability map — README verb→command table + kill substrate-GS 'four daily verbs' collision
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-08T16:55:11Z
+# ============================================================================
+
+task_id: T-2542
+task_name: "Charter four-verbs discoverability map — README verb→command table + kill substrate-GS 'four daily verbs' collision"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-08T16:53:28Z
+completed: 2026-08-08T16:55:07Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-08T18:55:02+02:00
+last_commit: 2026-08-08T18:55:02+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  add README four-core-verbs map + kill substrate-GS 'four daily verbs' collision (deepen-core discoverability)
+
+# Key outcomes
+outcomes:
+  - 'README.md has a "The four core verbs" section with a table mapping each of'
+  - 'The README four-verbs section cross-links BOTH getting-started on-ramps'
+  - '`docs/operations/substrate-getting-started.md` no longer heads a section'
+  - 'The charter-sentence-drift canary still passes (canonical sentence'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'docs/operations/substrate-getting-started.md'
+  - 'README.md'
+  - '.tasks/active/T-2542-charter-four-verbs-discoverability-map--.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-08T18:55:02"
+    action: "T-2542: add README four-core-verbs map + kill substrate-GS 'four daily verbs' collision (deepen-core discoverability)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 1 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1
+  commits: 1
+  files_changed: 3
+  lines_added: 227
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2542-charter-four-verbs-discoverability-map--.md
+generated_by: context-agent-hybrid
