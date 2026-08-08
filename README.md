@@ -49,7 +49,11 @@ What the substrate promises (and, honestly, what it does not):
   monotonically increasing offsets. Readers replay from any offset.
 - **Durability** — hub-side, reader-oriented: a posted message is durable in the
   topic log under the hub's retention policy (`days` / `messages` / `latest` /
-  `latest-per-cv-key`; nothing is pruned until an explicit `channel sweep`).
+  `latest-per-cv-key`). By default nothing is pruned until an explicit
+  `channel sweep`; if the opt-in periodic sweeper is enabled
+  (`TERMLINK_SWEEP_INTERVAL_SECS`, T-2427) bounded topics are pruned on that
+  cadence instead — so a message is durable until the next sweep, scheduled or
+  explicit.
   Durability is *reader-side* — the hub does not guarantee a recipient consumed
   a message; use receipts/acks for that.
 - **Exactly-once post** — client retries are absorbed by hub-side
