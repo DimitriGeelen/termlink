@@ -6300,3 +6300,93 @@ scan_id: R-109c4bc7
 task_id: T-2539
 payload:
   task_file: .tasks/active/T-2539-session-control-consumer-surface-parity-.md
+---
+kind: scan_emitted
+timestamp: '2026-08-08T16:55:08Z'
+scan_id: R-069bb248
+task_id: T-2542
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-08T16:55:08Z'
+scan_id: R-069bb248
+task_id: T-2542
+payload:
+  task_file: .tasks/active/T-2542-charter-four-verbs-discoverability-map--.md
+---
+kind: scan_emitted
+timestamp: '2026-08-08T17:04:36Z'
+scan_id: R-483585e4
+task_id: T-2543
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-08T17:04:36Z'
+scan_id: R-483585e4
+task_id: T-2543
+payload:
+  task_file: .tasks/active/T-2543-readme-durability-guarantee-overstated--.md
+---
+kind: scan_emitted
+timestamp: '2026-08-08T17:07:23Z'
+scan_id: R-e491c1c7
+task_id: T-2544
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-08T17:07:23Z'
+scan_id: R-e491c1c7
+task_id: T-2544
+payload:
+  task_file: .tasks/active/T-2544-readme-exactly-once-post-guarantee-overs.md
+---
+kind: scan_emitted
+timestamp: '2026-08-08T17:11:21Z'
+scan_id: R-fc34b1c5
+task_id: T-2545
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-08T17:11:21Z'
+scan_id: R-fc34b1c5
+task_id: T-2545
+payload:
+  task_file: .tasks/active/T-2545-architecturemd-stateless-hub--no-cache-a.md
+---
+kind: scan_emitted
+timestamp: '2026-08-08T19:33:39Z'
+scan_id: R-db044ae6
+task_id: T-2547
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-08T19:33:39Z'
+scan_id: R-db044ae6
+task_id: T-2547
+payload:
+  task_file: .tasks/active/T-2547-fix-utf-8-char-boundary-panic-in-interac.md

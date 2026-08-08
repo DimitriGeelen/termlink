@@ -2892,3 +2892,10 @@ learnings:
   date: 2026-08-04
   context: Added via context agent
   application: TBD
+- id: PL-305
+  learning: "Slicing a &str at a byte offset derived from a DIFFERENT string (e.g. an earlier scrollback snapshot's .len()) panics when the offset lands mid-UTF-8-char; use a char_boundary_floor walk-back before any cross-snapshot byte-offset slice"
+  source: P-001
+  task: T-2547
+  date: 2026-08-08
+  context: Added via context agent
+  application: TBD
