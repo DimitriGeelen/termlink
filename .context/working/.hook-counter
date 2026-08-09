@@ -1,13 +1,15 @@
-check-active-task=2
+check-active-task=4
 
-audit-task-tools=100
+audit-task-tools=102
 pre-compact=1
 check-agent-dispatch=3
 check-dispatch=3
 post-compact-resume=1
-budget-gate=2
-loop-detect=1
-commit-cadence=1
-checkpoint=1
-check-tier0=1
-check-project-boundary=1
+budget-gate=4
+loop-detect=3
+commit-cadence=2
+checkpoint=3
+check-tier0=2
+check-project-boundary=3
+error-watchdog=1
+check-human-ac-tick=1

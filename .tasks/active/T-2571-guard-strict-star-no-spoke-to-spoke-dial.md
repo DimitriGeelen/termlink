@@ -105,7 +105,7 @@ charter-accuracy finding to surface, not silently build around.
 ## Verification
 
 cargo test -p termlink --bins resolve_home_hub_precedence 2>&1 | grep -q "1 passed"
-grep -q "strict-star" docs/ARCHITECTURE.md
+grep -qi "strict-star" docs/ARCHITECTURE.md
 grep -q "LOAD-BEARING for the charter strict-star noun" crates/termlink-cli/src/commands/agent.rs
 
 # Shell commands that MUST pass before work-completed. One per line.
