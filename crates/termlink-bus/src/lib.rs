@@ -682,11 +682,21 @@ impl Bus {
         // skipped, never panic. Dedup by agent_id keeping the freshest
         // ts_unix_ms in case the hint carries duplicates.
         let mut latest: HashMap<String, IdleAgent> = HashMap::with_capacity(hint.len());
-        for (agent_id, offset) in hint {
+        for (_cv_key, offset) in hint {
             let env = match self.envelope_at(PRESENCE_TOPIC, *offset)? {
                 Some(e) => e,
                 None => continue,
             };
+            // T-2582: identity comes from the SIGNED envelope metadata, exactly
+            // like the walk path (find_idle_agents, line ~583) — NOT the unsigned,
+            // caller-controllable cv_index key. Without this, a public
+            // agent-presence post carrying only `cv_key` (no `agent_id`) would
+            // surface as a ghost idle dispatch target on the fast path that the
+            // authoritative walk path drops (a path-dependent discovery fork).
+            let Some(agent_id) = env.metadata.get("agent_id").cloned() else {
+                continue;
+            };
+            let agent_id = &agent_id;
             let role = env.metadata.get("role").cloned();
             let capabilities: Vec<String> = env
                 .metadata
@@ -2438,6 +2448,49 @@ mod tests {
         // Sorted freshest-first — must match walk-path behavior.
         assert_eq!(idle[0].agent_id, "agent-a");
         assert_eq!(idle[1].agent_id, "agent-b");
+    }
+
+    #[tokio::test]
+    async fn find_idle_from_hint_ignores_ghost_without_signed_agent_id() {
+        // T-2582 LOAD-BEARING: the hint fast path must derive identity from the
+        // SIGNED env.metadata.agent_id (like the walk), NOT the unsigned cv_index
+        // key. A public agent-presence post carrying only a cv_key (no agent_id)
+        // must NOT surface as an idle dispatch target — the hint and walk paths
+        // must agree. Reverting the fix (identity from the hint key) makes the
+        // ghost appear on the hint path only, failing this.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("agent-presence", Retention::Forever).unwrap();
+        let now = now_unix_ms();
+
+        // Offset 0: a real, signed heartbeat.
+        bus.post("agent-presence", &heartbeat_env("real-agent", now - 1_000, None, None))
+            .await
+            .unwrap();
+
+        // Offset 1: a GHOST — a cv_key in metadata but NO agent_id.
+        let mut ghost = heartbeat_env("ignored", now - 1_000, None, None);
+        ghost.metadata.remove("agent_id");
+        ghost.metadata.insert("cv_key".to_string(), "ghost".to_string());
+        bus.post("agent-presence", &ghost).await.unwrap();
+
+        // Hint as cv_index would build it (keyed on cv_key), covering both.
+        let hint = vec![("real-agent".to_string(), 0u64), ("ghost".to_string(), 1u64)];
+        let via_hint = bus
+            .find_idle_agents_from_hint(None, &[], 60_000, None, &hint)
+            .unwrap();
+        let hint_ids: std::collections::HashSet<&str> =
+            via_hint.iter().map(|a| a.agent_id.as_str()).collect();
+        assert!(hint_ids.contains("real-agent"), "real signed agent must be found");
+        assert!(
+            !hint_ids.contains("ghost"),
+            "ghost (cv_key but no signed agent_id) must NOT be an idle target (T-2582)"
+        );
+
+        // The authoritative walk agrees — the two paths return identical identities.
+        let via_walk = bus.find_idle_agents(None, &[], 60_000, None).unwrap();
+        let walk_ids: std::collections::HashSet<&str> =
+            via_walk.iter().map(|a| a.agent_id.as_str()).collect();
+        assert_eq!(hint_ids, walk_ids, "hint and walk must return the same identities");
     }
 
     #[tokio::test]
