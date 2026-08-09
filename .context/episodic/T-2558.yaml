@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2558: dead-letter canary — durable poison-drop sink has no cron detection (antifragility gap)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-09T07:53:08Z
+# ============================================================================
+
+task_id: T-2558
+task_name: "dead-letter canary — durable poison-drop sink has no cron detection (antifragility gap)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-09T07:50:33Z
+completed: 2026-08-09T07:53:04Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-09T09:53:03+02:00
+last_commit: 2026-08-09T09:53:03+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  dead-letter canary — durable poison-drop sink daily detection (T-2468 antifragility, G-063 class)
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-dead-letter-freshness.sh` exists, is executable, reads `channel queue-status --json`, and FIRES (exit 1) when `dead_letters > 0`; exits 0 (healthy) when `dead_letters == 0` OR the queue file does not exist yet (`exists:false`); exit 2 on tooling error (malformed JSON)'
+  - 'Firing output names each dead-letter row''s topic + reason + attempts (capped display, exact count always shown)'
+  - '`--json`, `--quiet`, `--no-heartbeat` flags present; heartbeat touched FIRST at `.context/working/.dead-letter-canary.heartbeat`'
+  - 'Test hook `TERMLINK_DEAD_LETTER_TEST_JSON=<file>` feeds canned `queue-status --json` for hub-independent verification (PL-213)'
+  - '`.context/cron/dead-letter-canary.crontab` exists, runs the script `--quiet` daily, appends to `.context/working/.dead-letter-canary.log`'
+  - 'Load-bearing PROVEN: a fixture with `dead_letters>0` fires (exit 1); a clean fixture and a `exists:false` fixture both exit 0 (temp-revert the firing gate → the dead-letter fixture stops firing)'
+  - 'CLAUDE.md documents the canary in a new "### Dead-letter canary" section matching the existing convention'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/cron/dead-letter-canary.crontab'
+  - 'scripts/check-dead-letter-freshness.sh'
+  - '.tasks/active/T-2558-dead-letter-canary--durable-poison-drop-.md'
+  - '.tasks/completed/T-2557-session-control-detection-canary--verb-4.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-09T09:53:03"
+    action: "T-2558: dead-letter canary — durable poison-drop sink daily detection (T-2468 antifragility, G-063 class)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 5
+  lines_added: 349
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2558-dead-letter-canary--durable-poison-drop-.md
+generated_by: context-agent-hybrid

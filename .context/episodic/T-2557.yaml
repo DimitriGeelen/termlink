@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2557: session-control detection canary — verb-4 daily-detection gap
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-09T07:50:08Z
+# ============================================================================
+
+task_id: T-2557
+task_name: "session-control detection canary — verb-4 daily-detection gap"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-09T07:46:50Z
+completed: 2026-08-09T07:50:04Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-09T09:50:02+02:00
+last_commit: 2026-08-09T09:50:02+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  session-control canary — verb-4 daily-detection gap (T-2468 charter-verb completeness)
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-session-control-freshness.sh` exists, is executable, runs `session-selftest.sh --json`, and maps: selftest exit 0 → canary exit 0 (healthy); selftest exit 1 → canary exit 1 (FIRE, naming `broken_stage`); selftest exit 2 → canary exit 2 (tooling, non-firing — hub-down/dep-missing is preflight territory, not a verb-4 regression)'
+  - '`--json`, `--quiet`, `--no-heartbeat` flags present; heartbeat touched FIRST at `.context/working/.session-control-canary.heartbeat`'
+  - 'Test hook feeds a canned selftest result (JSON + rc) so all three branches are verifiable without a hub/tmux (`TERMLINK_SESSION_CANARY_TEST_JSON` + `TERMLINK_SESSION_CANARY_TEST_RC`)'
+  - '`.context/cron/session-control-canary.crontab` exists, runs the script `--quiet` daily, appends to `.context/working/.session-control-canary.log`'
+  - 'Load-bearing PROVEN: a canned "broken" selftest result makes the canary exit 1; a "proven" result exits 0; a "tooling" result exits 2 (temp-revert the firing map → the broken fixture stops firing)'
+  - 'CLAUDE.md documents the canary in a new "### Session-control canary" section matching the existing convention'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/cron/session-control-canary.crontab'
+  - 'scripts/check-session-control-freshness.sh'
+  - '.tasks/active/T-2557-session-control-detection-canary--verb-4.md'
+  - '.tasks/completed/T-2556-stuck-claims-detection-canary--verb-3-cl.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-09T09:50:02"
+    action: "T-2557: session-control canary — verb-4 daily-detection gap (T-2468 charter-verb completeness)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 5
+  lines_added: 346
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2557-session-control-detection-canary--verb-4.md
+generated_by: context-agent-hybrid

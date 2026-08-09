@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2556: stuck-claims detection canary — verb-3 claim-work daily-detection gap
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-09T07:46:23Z
+# ============================================================================
+
+task_id: T-2556
+task_name: "stuck-claims detection canary — verb-3 claim-work daily-detection gap"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-09T07:41:27Z
+completed: 2026-08-09T07:46:19Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-09T09:45:45+02:00
+last_commit: 2026-08-09T09:46:18+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  stuck-claims canary — verb-3 (claim work) daily-detection gap (T-2468 charter-verb completeness). fix Verification block — self-contained per-line + grep file directly (L-387)
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-stuck-claims-freshness.sh` exists, is executable, and FIRES (exit 1) when a watched topic has `potentially_stuck` claims; exits 0 (healthy) when `stuck_count==0`; exit 2 on tooling error (hub unreachable / malformed JSON)'
+  - 'Firing gate is `stuck_count > 0` from the `claims-summary --all --only-stuck --json` envelope; per-topic fetch errors (`ok:false` entries) are surfaced but do not themselves fire (parity with the "fetch errors could mask a stuck topic" note)'
+  - '`--json`, `--quiet`, `--no-heartbeat` flags present; heartbeat touched FIRST (before the check) at `.context/working/.stuck-claims-canary.heartbeat` so `/canaries` can prove it ran on a healthy cycle'
+  - 'Test hook `TERMLINK_STUCK_CLAIMS_TEST_JSON=<file>` feeds canned `claims-summary` JSON for hub-independent verification (PL-213)'
+  - '`.context/cron/stuck-claims-canary.crontab` exists, runs the script `--quiet` daily, appends to `.context/working/.stuck-claims-canary.log`'
+  - 'Load-bearing PROVEN: a fixture with a stuck topic makes the script exit 1; a clean fixture exits 0 (temp-revert the firing gate → the stuck fixture stops firing)'
+  - 'CLAUDE.md documents the canary in a new "### Stuck-claims canary" section matching the existing canary-section convention'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix Verification block — self-contained per-line + grep file directly (L-387)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/cron/stuck-claims-canary.crontab'
+  - 'scripts/check-stuck-claims-freshness.sh'
+  - '.tasks/active/T-2556-stuck-claims-detection-canary--verb-3-cl.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-09T09:45:45"
+    action: "T-2556: stuck-claims canary — verb-3 (claim work) daily-detection gap (T-2468 charter-verb completeness)"
+  - time: "2026-08-09T09:46:18"
+    action: "T-2556: fix Verification block — self-contained per-line + grep file directly (L-387)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 2
+  files_changed: 4
+  lines_added: 381
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2556-stuck-claims-detection-canary--verb-3-cl.md
+generated_by: context-agent-hybrid
