@@ -2441,9 +2441,18 @@ pub(crate) async fn cmd_fleet_status(
                     }
                 }
 
-                // Track failure for learning/concern auto-register
-                let _ = maybe_record_auth_mismatch_learning(name, &entry.address, &msg);
-                let _ = maybe_track_fleet_failure(name, &entry.address, auth_mismatch_class(&msg));
+                // Track failure for learning/concern auto-register. A failed WRITE
+                // of this persistent audit record (disk full, permission, corrupt
+                // YAML) must not be silent (Directive #2) — surface it to stderr,
+                // which is safe even in --json mode (JSON goes to stdout). T-2559.
+                if let Err(e) = maybe_record_auth_mismatch_learning(name, &entry.address, &msg) {
+                    eprintln!("  warning: failed to record auth-mismatch learning for {name}: {e}");
+                }
+                if let Err(e) =
+                    maybe_track_fleet_failure(name, &entry.address, auth_mismatch_class(&msg))
+                {
+                    eprintln!("  warning: failed to track fleet-failure concern for {name}: {e}");
+                }
             }
             Err(_) => {
                 down_count += 1;
@@ -5261,7 +5270,10 @@ pub(crate) async fn cmd_fleet_doctor(
                     }
                 }
                 // T-1053: pass resets the auth-failure streak + re-arms concern gating.
-                let _ = maybe_track_fleet_failure(name, &entry.address, None);
+                // T-2559: surface a failed streak-reset write (Directive #2) — stderr, safe in --json.
+                if let Err(e) = maybe_track_fleet_failure(name, &entry.address, None) {
+                    eprintln!("  warning: failed to reset fleet-failure streak for {name}: {e}");
+                }
             }
             Ok(Err(e)) => {
                 total_fail += 1;
@@ -5288,10 +5300,17 @@ pub(crate) async fn cmd_fleet_doctor(
                     }
                 }
                 // T-1052: auto-register a learning for auth/TOFU failure classes so drift
-                // is detectable by future agents (R1). Silent best-effort — never blocks.
-                let _ = maybe_record_auth_mismatch_learning(name, &entry.address, &msg);
+                // is detectable by future agents (R1). Best-effort — never blocks; but a
+                // failed WRITE of the audit record is surfaced to stderr (Directive #2, T-2559).
+                if let Err(e) = maybe_record_auth_mismatch_learning(name, &entry.address, &msg) {
+                    eprintln!("  warning: failed to record auth-mismatch learning for {name}: {e}");
+                }
                 // T-1053: track per-hub streak; register a concern after N failures >24h apart.
-                let _ = maybe_track_fleet_failure(name, &entry.address, auth_mismatch_class(&msg));
+                if let Err(e) =
+                    maybe_track_fleet_failure(name, &entry.address, auth_mismatch_class(&msg))
+                {
+                    eprintln!("  warning: failed to track fleet-failure concern for {name}: {e}");
+                }
             }
             Err(_) => {
                 total_fail += 1;
@@ -5312,7 +5331,10 @@ pub(crate) async fn cmd_fleet_doctor(
                     }
                 }
                 // T-1053: timeouts aren't auth-class failures → reset streak.
-                let _ = maybe_track_fleet_failure(name, &entry.address, None);
+                // T-2559: surface a failed streak-reset write (Directive #2) — stderr, safe in --json.
+                if let Err(e) = maybe_track_fleet_failure(name, &entry.address, None) {
+                    eprintln!("  warning: failed to reset fleet-failure streak for {name}: {e}");
+                }
             }
         }
 
