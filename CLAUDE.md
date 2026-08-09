@@ -529,6 +529,38 @@ with `bash scripts/session-selftest.sh` (names the broken stage), then inspect
 the log. Pair with the fourteen canaries above — all fifteen follow the same
 "empty-log = healthy" convention.
 
+### Dead-letter canary (T-2558, G-063 class — durable poison-drop sink)
+
+T-2243 (R4) stopped *silent* poison-drops on the charter-core "exchange durable
+messages" path: a `channel post` rejected `POISON_THRESHOLD=10` times (unknown
+topic, bad signature, or a governance message rejected during a hub blip) is now
+durably MOVED to the offline queue's `dead_letters` table instead of `DELETE`d —
+converting silent data-loss into a durable, inspectable record. But that record is
+surfaced ONLY if a human runs `/queue-status`: nothing reads it on a schedule (the
+T-2083–2087 queue observability arc fires only on `Drained`/`Pending` transitions,
+never on dead-letter growth). So a poison-dropped *guaranteed* message sits forever
+with nothing firing — the "write-only sink nobody noticed" class (G-063) that the
+unconfirmed-delivery canary (T-2295) closed for the await-ack path. This canary
+closes it for the dead-letter path. A daily cron runs
+`scripts/check-dead-letter-freshness.sh --quiet` (see
+`.context/cron/dead-letter-canary.crontab`) and appends to
+`.context/working/.dead-letter-canary.log`. Empty log = healthy.
+
+The canary reads `channel queue-status --json` (a pure local SQLite read — works
+even when the hub is down, which is exactly when the queue absorbs writes) and
+FIRES (exit 1) when `dead_letters > 0`, naming each row's topic + reject reason +
+attempt count. A never-created queue (`exists:false`, no `dead_letters` field) and
+`dead_letters == 0` both read healthy. Ad-hoc check:
+`bash scripts/check-dead-letter-freshness.sh` (exit 0 = healthy, 1 = firing,
+2 = tooling error); add `--json` for scripting. Test hook
+`TERMLINK_DEAD_LETTER_TEST_JSON=<file>` feeds canned `queue-status --json` for
+hub-independent verification (PL-213). Operator action on firing: a guaranteed post
+was rejected 10× and dead-lettered — fix the reject cause (unknown topic → create
+it; bad signature → `fleet reauth`), re-send via `/agent-handoff`, or drop the row
+from `~/.termlink/outbound.sqlite` if the thread is dead. `/canaries` auto-discovers
+the log. Pair with the fifteen canaries above — all sixteen follow the same
+"empty-log = healthy" convention.
+
 ### Unclamped caller-param → allocation-sink static check (T-2527, G-019 prevention for the T-2523/T-2526 class)
 
 Twice in one window an adversarial hunter found a caller-supplied param reaching an

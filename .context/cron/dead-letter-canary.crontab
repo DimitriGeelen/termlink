@@ -1,0 +1,24 @@
+# T-2558 (T-2468 antifragility lens) — Dead-letter canary (G-063 class, durable poison-drop sink)
+# Source of truth: /opt/termlink/.context/cron/dead-letter-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-dead-letter-canary (USER field syntax — do NOT load into a user crontab)
+#
+# T-2243 (R4) stopped SILENT poison-drops on the "exchange durable messages" path:
+# a `channel post` rejected POISON_THRESHOLD=10 times is now durably MOVED to the
+# offline queue's dead_letters table instead of DELETE'd. But that record is
+# surfaced only if a human runs `/queue-status` — nothing reads it on a schedule
+# (the T-2083–2087 queue observability arc fires only on Drained/Pending, never on
+# dead-letter growth). So a poison-dropped GUARANTEED message sits forever with
+# nothing firing — the "write-only sink nobody noticed" class (G-063). This daily
+# canary reads `channel queue-status --json` and FIRES (exit 1) when dead_letters>0.
+# Empty log = healthy. /canaries auto-discovers this log.
+#
+# Operator action on firing: a guaranteed post was rejected 10x and dead-lettered.
+# Inspect with `/queue-status` (full rows), fix the reject cause (unknown topic →
+# create it; bad signature → `fleet reauth`), re-send via `/agent-handoff`, or drop
+# the row from ~/.termlink/outbound.sqlite if dead. Ad-hoc: bash scripts/check-dead-letter-freshness.sh
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 07:39 UTC — offset from the :27 stuck-claims, :33 session-control,
+# :17 unconfirmed-delivery, :13 mirror canaries.
+39 7 * * * root cd /opt/termlink && bash scripts/check-dead-letter-freshness.sh --quiet >> .context/working/.dead-letter-canary.log 2>&1
