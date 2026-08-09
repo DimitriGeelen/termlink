@@ -4,7 +4,7 @@ name: "fix: termlink_remote_inject reports ok:true on no-PTY resolved (T-2580 tw
 description: >
   termlink_remote_inject (tools.rs:15134-15144 the Ok(Success(r)) arm) hardcodes top-level ok:true and bytes:p.text.len() regardless of what command.inject reported. The RPC has two success shapes (handler.rs:551-558 status:injected; handler.rs:561-570 status:resolved = NO PTY, keys resolved but never injected). Described in-code as the primary cross-host prompt-injection tool, it still asserts unconditional success on the no-PTY path. Failure: orchestrator hands a prompt to a headless remote agent with no PTY, hub returns status:resolved, tool returns ok:true bytes:142, prompt recorded delivered but never received. Fix: reuse the T-2580 mcp_inject_outcome pattern - branch on r.result[status]: injected=ok:true, else ok:false with note. From T-2468 MCP-flattening hunt, twin of T-2580 on the cross-host path.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-09T21:58:12Z
-last_update: 2026-08-09T21:58:50Z
+last_update: 2026-08-09T22:14:28Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -57,12 +57,15 @@ on `r.result["status"]`: `"injected"` → `ok:true`; anything else (`"resolved"`
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `termlink_remote_inject` sets top-level `ok` from the RPC `status` — only
+- [x] `termlink_remote_inject` sets top-level `ok` from the RPC `status` — only
       `status:"injected"` yields `ok:true`; `"resolved"` (no-PTY) yields `ok:false`
-      with the RPC note surfaced (not a hardcoded `ok:true`).
-- [ ] A load-bearing unit test asserts the no-PTY/`resolved` shape maps to
+      with the RPC note surfaced (not a hardcoded `ok:true`). Done via pure helper
+      `mcp_remote_inject_result_json` (tools.rs ~2959).
+- [x] A load-bearing unit test asserts the no-PTY/`resolved` shape maps to
       `ok:false` and `injected` to `ok:true` — proven to FAIL on temp-revert.
-- [ ] `cargo test -p termlink-mcp --lib` passes (no regressions).
+      Test: `remote_inject_no_pty_is_not_reported_as_success` (FAILS when the
+      helper hardcodes `ok:true`; confirmed).
+- [x] `cargo test -p termlink-mcp --lib` passes (no regressions). 893 passed, 0 failed.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -127,22 +130,39 @@ on `r.result["status"]`: `"injected"` → `ok:true`; anything else (`"resolved"`
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+cargo test -p termlink-mcp --lib remote_inject_no_pty_is_not_reported_as_success
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** an orchestrator hands a prompt to a headless remote agent registered
+without `--shell` (no PTY). The hub resolves the keys but writes nothing, returning
+`status:"resolved"` as an RPC *success*. `termlink_remote_inject` reported
+`{ok:true, bytes:142}` — the prompt recorded delivered but never received: the
+"why is there still no response?" cross-host coordination failure, silently.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** the `Ok(Success(r))` arm (tools.rs ~15154) hardcoded top-level
+`"ok": true` and `"bytes": p.text.len()` regardless of `r.result["status"]`. The
+`command.inject` RPC has two success shapes — `status:"injected"` (real PTY write)
+and `status:"resolved"` (no PTY, keys resolved but never injected, with a `note`).
+The handler collapsed both into `ok:true`. It DID nest the full `result` (so
+`status` was recoverable), but orchestrators branch on the top-level `ok`, which
+lied. The MCP-flattening class again: a handler asserts success without inspecting
+the structured RPC result.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** the LOCAL `termlink_inject` had the identical bug and
+was fixed in T-2580 (`mcp_inject_outcome`), but the cross-host `termlink_remote_inject`
+— described in-code as "the primary cross-host prompt-injection tool" — was a
+separate code path with no shared helper and no test pinning its status-awareness,
+so the T-2580 fix did not cover it.
+
+**Prevention:** extracted the response build into a pure helper
+`mcp_remote_inject_result_json` (single testable choke-point, twin of T-2580's
+`mcp_inject_outcome`) + the load-bearing test
+`remote_inject_no_pty_is_not_reported_as_success`, which FAILS if the status branch
+is removed. This closes both inject surfaces (local T-2580 + remote T-2584). The
+recurring MCP-flattening class — found 4× across T-2578/2580/2583/2584 — is captured
+as a learning so a future agent recognises the pattern (handler collapses a
+structured RPC result and drops/ignores a load-bearing field).
 
 ## Evolution
 
@@ -198,3 +218,6 @@ on `r.result["status"]`: `"injected"` → `ok:true`; anything else (`"resolved"`
 
 ### 2026-08-09T21:58:50Z — status-update [task-update-agent]
 - **Change:** status: started-work → captured
+
+### 2026-08-09T22:14:28Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

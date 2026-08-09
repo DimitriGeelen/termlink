@@ -2956,6 +2956,44 @@ fn mcp_inject_outcome(result: &serde_json::Value) -> String {
     }
 }
 
+/// T-2584: Build the `termlink_remote_inject` response from the `command.inject`
+/// RPC result. Twin of T-2580 (`mcp_inject_outcome`) on the cross-host path — the
+/// remote handler hardcoded top-level `ok:true` regardless of what the hub
+/// reported, so a headless remote agent with NO PTY (hub returns
+/// `status:"resolved"`, keys resolved but never injected) read as
+/// `{ok:true, bytes:N}` — a prompt recorded delivered but never received.
+///
+/// Only `status:"injected"` (a real PTY write) is `ok:true`; anything else
+/// (`"resolved"`) is `ok:false` with the RPC note surfaced (Reliability: no
+/// silent success on a no-op). The full `result` is nested unchanged either way.
+/// Pure so the status-awareness is unit-testable (removing the branch fails
+/// `remote_inject_no_pty_is_not_reported_as_success`).
+fn mcp_remote_inject_result_json(
+    hub: &str,
+    session: &str,
+    bytes: usize,
+    enter: bool,
+    result: &serde_json::Value,
+) -> serde_json::Value {
+    let injected = result["status"].as_str() == Some("injected");
+    let mut obj = serde_json::json!({
+        "ok": injected,
+        "hub": hub,
+        "session": session,
+        "bytes": bytes,
+        "enter": enter,
+        "result": result,
+    });
+    if !injected {
+        let status = result["status"].as_str().unwrap_or("unknown");
+        let note = result["note"].as_str().unwrap_or(
+            "session has no PTY — register with `--shell` for PTY-backed injection",
+        );
+        obj["error"] = serde_json::json!(format!("not injected (status: {status}): {note}"));
+    }
+    obj
+}
+
 /// Build the MCP `termlink_exec` result JSON from the `command.execute` RPC
 /// result Value. T-2578: like `mcp_run_result_json` this MUST carry `truncated`
 /// so an MCP consumer can distinguish a T-2529/T-2537 cap-hit (`truncated:true`,
@@ -15152,14 +15190,16 @@ impl TermLinkTools {
                 .await
             {
                 Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => {
-                    serde_json::to_string_pretty(&serde_json::json!({
-                        "ok": true,
-                        "hub": p.hub,
-                        "session": p.session,
-                        "bytes": p.text.len(),
-                        "enter": enter,
-                        "result": r.result,
-                    }))
+                    // T-2584: derive top-level ok from the RPC status — a no-PTY
+                    // session returns status:"resolved" (nothing written) as an RPC
+                    // success and must NOT read ok:true (twin of T-2580 local fix).
+                    serde_json::to_string_pretty(&mcp_remote_inject_result_json(
+                        &p.hub,
+                        &p.session,
+                        p.text.len(),
+                        enter,
+                        &r.result,
+                    ))
                     .unwrap_or_else(json_err)
                 }
                 Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
@@ -31206,6 +31246,48 @@ YW\tJ
             mcp_batch_exec_session_json("sess-3", "worker-c", &legacy).get("truncated"),
             Some(&serde_json::Value::Bool(false)),
             "missing truncated field defaults to false (T-2583)"
+        );
+    }
+
+    // T-2584 LOAD-BEARING: termlink_remote_inject must be status-aware on the
+    // cross-host path — twin of T-2580. A no-PTY remote session returns
+    // status:"resolved" (nothing written) as an RPC success; hardcoding ok:true
+    // reports a prompt delivered that was never received. Removing the status
+    // branch in mcp_remote_inject_result_json fails this.
+    #[test]
+    fn remote_inject_no_pty_is_not_reported_as_success() {
+        // Real inject → ok:true, no error.
+        let injected = serde_json::json!({"status": "injected", "bytes_len": 5});
+        let v = mcp_remote_inject_result_json("hub-a:9100", "sess-1", 5, false, &injected);
+        assert_eq!(v["ok"], serde_json::json!(true), "real inject must be ok:true");
+        assert!(v.get("error").is_none(), "real inject carries no error");
+        assert_eq!(v["result"]["status"], serde_json::json!("injected"));
+
+        // No-PTY resolve → ok:false with the note surfaced, NOT ok:true.
+        let resolved = serde_json::json!({
+            "status": "resolved",
+            "note": "No PTY session. Use `register --shell` for PTY-backed injection.",
+        });
+        let v = mcp_remote_inject_result_json("hub-a:9100", "sess-2", 142, true, &resolved);
+        assert_eq!(
+            v["ok"],
+            serde_json::json!(false),
+            "no-PTY remote inject must NOT read as ok:true (T-2584)"
+        );
+        assert!(
+            v["error"].as_str().unwrap_or("").contains("not injected"),
+            "no-PTY remote inject must carry an honest error: {:?}",
+            v.get("error")
+        );
+        // Full result is still nested for a diligent caller.
+        assert_eq!(v["result"]["status"], serde_json::json!("resolved"));
+
+        // Any unexpected/absent status is also ok:false (fail-safe).
+        let weird = serde_json::json!({"bytes_len": 0});
+        assert_eq!(
+            mcp_remote_inject_result_json("hub-a:9100", "sess-3", 0, false, &weird)["ok"],
+            serde_json::json!(false),
+            "unknown status must be fail-safe ok:false (T-2584)"
         );
     }
 
