@@ -2975,6 +2975,33 @@ fn mcp_exec_result_json(result: &serde_json::Value, target: &str) -> serde_json:
     })
 }
 
+/// T-2583: Build the per-session success object for `termlink_batch_exec` from
+/// the `command.exec` RPC result. Twin of T-2578 (`mcp_exec_result_json`) on the
+/// fleet path — the sibling `termlink_batch_run` already forwards `truncated`
+/// (T-2537), but the RPC-routed batch path dropped it, so a capped session
+/// (`exit_code:-1, truncated:true`) read as complete in the fleet rollup.
+///
+/// NOTE: `ok` here means "the RPC round-trip succeeded" (this arm is reached
+/// only on `Ok(val)`), NOT `exit_code == 0` — preserving the existing
+/// succeeded/failed rollup semantics. Only `truncated` is added.
+fn mcp_batch_exec_session_json(
+    session_id: &str,
+    display_name: &str,
+    val: &serde_json::Value,
+) -> serde_json::Value {
+    serde_json::json!({
+        "session": session_id,
+        "display_name": display_name,
+        "ok": true,
+        "stdout": val.get("stdout").and_then(|v| v.as_str()).unwrap_or(""),
+        "stderr": val.get("stderr").and_then(|v| v.as_str()).unwrap_or(""),
+        "exit_code": val.get("exit_code").and_then(|v| v.as_i64()).unwrap_or(-1),
+        // T-2583: forward the T-2529/T-2537 cap-hit signal so a batch consumer
+        // can tell truncation from a signal kill (mirrors batch_run).
+        "truncated": val.get("truncated").and_then(|v| v.as_bool()).unwrap_or(false),
+    })
+}
+
 fn compute_unread_rows_mcp(
     cursors: &[(String, u64)],
     topic_counts: &std::collections::HashMap<String, u64>,
@@ -14565,14 +14592,7 @@ impl TermLinkTools {
                 .await
                 {
                     Ok(Ok(resp)) => match client::unwrap_result(resp) {
-                        Ok(val) => serde_json::json!({
-                            "session": session_id,
-                            "display_name": display_name,
-                            "ok": true,
-                            "stdout": val.get("stdout").and_then(|v| v.as_str()).unwrap_or(""),
-                            "stderr": val.get("stderr").and_then(|v| v.as_str()).unwrap_or(""),
-                            "exit_code": val.get("exit_code").and_then(|v| v.as_i64()).unwrap_or(-1),
-                        }),
+                        Ok(val) => mcp_batch_exec_session_json(&session_id, &display_name, &val),
                         Err(e) => serde_json::json!({
                             "session": session_id,
                             "display_name": display_name,
@@ -31138,6 +31158,55 @@ YW\tJ
         // Any unexpected/absent status is also treated as not-injected (fail-safe).
         let weird = serde_json::json!({"bytes_len": 0});
         assert_ne!(mcp_inject_outcome(&weird), "Injected successfully");
+    }
+
+    // T-2583 LOAD-BEARING: termlink_batch_exec's per-session rebuild must forward
+    // truncated from the command.exec RPC result — the T-2578 twin on the fleet
+    // path. The direct-executor sibling batch_run already does (T-2537); the
+    // RPC-routed batch path dropped it, so a capped session read as complete in the
+    // fleet rollup. Removing the `truncated` line from mcp_batch_exec_session_json
+    // fails this.
+    #[test]
+    fn batch_exec_session_forwards_truncated() {
+        // Cap-hit shape: exit_code:-1, truncated:true. Without the flag the fleet
+        // rollup sees a partial stdout with no truncation signal.
+        let capped = serde_json::json!({
+            "exit_code": -1,
+            "stdout": "partial",
+            "stderr": "",
+            "truncated": true,
+        });
+        let v = mcp_batch_exec_session_json("sess-1", "worker-a", &capped);
+        assert_eq!(
+            v.get("truncated"),
+            Some(&serde_json::Value::Bool(true)),
+            "capped batch_exec session must surface truncated=true (T-2583)"
+        );
+        // ok stays RPC-success semantics (this arm is only reached on Ok(val)).
+        assert_eq!(v["ok"], serde_json::json!(true));
+        assert_eq!(v["session"], serde_json::json!("sess-1"));
+        assert_eq!(v["exit_code"], serde_json::json!(-1));
+
+        // Clean shape: emit truncated=false, not omit it.
+        let clean = serde_json::json!({
+            "exit_code": 0,
+            "stdout": "ok",
+            "stderr": "",
+            "truncated": false,
+        });
+        assert_eq!(
+            mcp_batch_exec_session_json("sess-2", "worker-b", &clean).get("truncated"),
+            Some(&serde_json::Value::Bool(false)),
+            "clean batch_exec session must surface truncated=false (T-2583)"
+        );
+
+        // Defensive: older session binary missing the field defaults to false.
+        let legacy = serde_json::json!({"exit_code": 0, "stdout": "", "stderr": ""});
+        assert_eq!(
+            mcp_batch_exec_session_json("sess-3", "worker-c", &legacy).get("truncated"),
+            Some(&serde_json::Value::Bool(false)),
+            "missing truncated field defaults to false (T-2583)"
+        );
     }
 
     #[test]

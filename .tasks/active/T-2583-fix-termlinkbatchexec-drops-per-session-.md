@@ -4,7 +4,7 @@ name: "fix: termlink_batch_exec drops per-session truncated flag (T-2578 twin, f
 description: >
   termlink_batch_exec (tools.rs:14568 Ok(val) per-session rebuild arm) selects only stdout/stderr/exit_code and OMITS truncated, unlike its correct sibling batch_run (tools.rs:14884 which forwards it, T-2537). A capped session returns exit_code:-1,truncated:true but the fleet rollup reports ok:true with partial stdout as complete. Fix: add truncated forwarding line, mirror batch_run / mcp_exec_result_json. From T-2468 MCP-flattening hunt, twin of T-2578.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-09T21:57:36Z
-last_update: 2026-08-09T21:58:12Z
+last_update: 2026-08-09T22:09:47Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -57,12 +57,14 @@ load-bearing test that the per-session rebuild carries `truncated`.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `termlink_batch_exec`'s per-session result rebuild (tools.rs ~14568) includes
+- [x] `termlink_batch_exec`'s per-session result rebuild (tools.rs ~14568) includes
       `truncated` forwarded from the RPC result, matching the `batch_run` sibling.
-- [ ] A load-bearing unit test asserts the per-session rebuild carries `truncated`
+      Done via pure helper `mcp_batch_exec_session_json` (tools.rs ~2978).
+- [x] A load-bearing unit test asserts the per-session rebuild carries `truncated`
       (extract a pure helper if needed for testability) — proven to FAIL on
-      temp-revert.
-- [ ] `cargo test -p termlink-mcp --lib` passes (no regressions).
+      temp-revert. Test: `batch_exec_session_forwards_truncated` (FAILS when the
+      `truncated` line is stripped from the helper; confirmed).
+- [x] `cargo test -p termlink-mcp --lib` passes (no regressions). 892 passed, 0 failed.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -127,22 +129,34 @@ load-bearing test that the per-session rebuild carries `truncated`.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+cargo test -p termlink-mcp --lib batch_exec_session_forwards_truncated
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** `termlink_batch_exec` runs a command fleet-wide; a session whose
+output hit the 16 MiB cap returns `{exit_code:-1, truncated:true, stdout:<partial>}`
+from the hub, but the MCP tool reports `{ok:true, exit_code:-1, stdout:<partial>}`
+with no `truncated` field — the fleet `succeeded`/`failed` rollup looks clean and
+the partial output is read as complete.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** the per-session result rebuild arm (`Ok(val)`, tools.rs ~14568)
+hand-selected only `stdout`/`stderr`/`exit_code` from the `command.exec` RPC
+result and omitted `truncated`. The RPC (`ExecResult::to_json`) always carries the
+field; the rebuild dropped it. A classic MCP-flattening omission — a handler
+collapses a structured RPC result and silently drops a load-bearing field.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** the direct-executor sibling `termlink_batch_run`
+DOES forward `truncated` (tools.rs ~14884, T-2537), and the single-session
+`termlink_exec` was fixed in T-2578 — so two of three exec surfaces carried the
+flag and only the RPC-routed batch path dropped it. There was no test pinning the
+batch_exec per-session shape, so the divergence was invisible.
+
+**Prevention:** extracted the rebuild into a pure helper
+`mcp_batch_exec_session_json` (a single testable choke-point) + the load-bearing
+test `batch_exec_session_forwards_truncated`, which FAILS if the `truncated` line
+is removed. This closes the last of the three exec surfaces (single/direct-batch/
+RPC-batch) — the T-2578 twin on the fleet path. The recurring MCP-flattening
+class itself is captured as a learning (found 4× across T-2578/2580/2583/2584).
 
 ## Evolution
 
@@ -198,3 +212,6 @@ load-bearing test that the per-session rebuild carries `truncated`.
 
 ### 2026-08-09T21:58:12Z — status-update [task-update-agent]
 - **Change:** status: started-work → captured
+
+### 2026-08-09T22:09:47Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
