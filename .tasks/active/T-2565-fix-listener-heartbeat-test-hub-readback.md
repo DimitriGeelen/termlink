@@ -127,19 +127,24 @@ out=$(bash scripts/test-listener-heartbeat.sh 2>&1); echo "$out" | grep -q "Resu
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** listener-heartbeat test suite T4/T5/T7 fail on the live hub —
+"envelope not found via subscribe filter" — even though the heartbeat posts fine.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** the readback used `channel subscribe agent-presence --limit 50`.
+agent-presence is `latest_per_cv_key` retention and the live hub holds 451 distinct
+entries; the test's single freshly-posted envelope sits outside the latest-50-by-offset
+window. The heartbeat DID land and WAS retained (visible at `--limit 5000`) — the
+window was simply too small for a populated hub.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** the tests were written against a near-empty
+agent-presence topic where 50 comfortably covered all entries; nothing scaled the
+readback window to the topic's live cardinality, and the suite is not run in CI
+against a populated hub, so the drift went unnoticed until a manual run during T-2564.
+
+**Prevention:** the fix itself (limit 5000, 10x headroom) plus an inline comment
+tying the window to the latest_per_cv_key cardinality, so a future editor sees why a
+small limit is wrong. Broader "readback window should derive from topic count" is a
+larger test-infra change, not warranted for this one suite.
 
 ## Evolution
 
