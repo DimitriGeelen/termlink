@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2565: Fix listener-heartbeat test hub-readback window — limit-50 misses envelope among 451 presence entries (T4/T5/T7)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-09T11:20:41Z
+# ============================================================================
+
+task_id: T-2565
+task_name: "Fix listener-heartbeat test hub-readback window — limit-50 misses envelope among 451 presence entries (T4/T5/T7)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-09T11:18:35Z
+completed: 2026-08-09T11:20:36Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-09T13:20:08+02:00
+last_commit: 2026-08-09T13:20:35+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix listener-heartbeat test hub-readback window (limit-50 vs 451 presence entries). add RCA (test-window drift vs latest_per_cv_key cardinality)
+
+# Key outcomes
+outcomes:
+  - 'The four `channel subscribe agent-presence --limit 50` readback lines in'
+  - 'T4, T5, and T7 PASS against the live local hub (were failing pre-fix).'
+  - 'No behavioural change to scripts/listener-heartbeat.sh itself — this is a'
+  - 'The T8/T9 cases added in T-2564 still PASS (no regression).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix listener-heartbeat test hub-readback window (limit-50 vs 451 presence entries)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'scripts/test-listener-heartbeat.sh'
+  - '.tasks/active/T-2565-fix-listener-heartbeat-test-hub-readback.md'
+  - '.termlink-task'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-09T13:20:08"
+    action: "T-2565: fix listener-heartbeat test hub-readback window (limit-50 vs 451 presence entries)"
+  - time: "2026-08-09T13:20:35"
+    action: "T-2565: add RCA (test-window drift vs latest_per_cv_key cardinality)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 2
+  files_changed: 8
+  lines_added: 243
+  lines_removed: 42
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2565-fix-listener-heartbeat-test-hub-readback.md
+generated_by: context-agent-hybrid
