@@ -2920,3 +2920,17 @@ learnings:
   date: 2026-08-09
   context: Added via context agent
   application: TBD
+- id: PL-309
+  learning: "A write returning rc 0 is not proof of delivery. termlink channel post absorbs a hub-unreachable condition into the offline queue and exits 0 with a {queued:...} envelope (vs {delivered:...}). Producers such as heartbeat loops must inspect the envelope key, not just the exit code, or they report healthy while going dark on the topic — G-063 (write-only sink) from the SENDER side."
+  source: P-001
+  task: T-2564
+  date: 2026-08-09
+  context: Added via context agent
+  application: TBD
+- id: PL-310
+  learning: "A happy-path-only prover cannot catch silent-success regressions. session-selftest only ran echo (always exit 0) and never asserted truncated!=true, so a pinned-exit_code:0 bug or a truncated-reads-as-0 capture would still show PROVEN. A prover must exercise the FAILURE surface (a negative case whose non-zero code/flag must propagate), not just assert success. Also: verify prover assertions against the LIVE path — fixtures encoded ok=true for a failing exec, but live exec --json sets ok=false (ok==command-success), so the real discriminator was exit_code==N not ok."
+  source: P-001
+  task: T-2563
+  date: 2026-08-09
+  context: Added via context agent
+  application: TBD
