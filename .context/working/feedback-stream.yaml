@@ -6552,3 +6552,21 @@ scan_id: R-5aa80033
 task_id: T-2561
 payload:
   task_file: .tasks/active/T-2561-cron-install-drift-check--install-3-dark.md
+---
+kind: scan_emitted
+timestamp: '2026-08-09T11:05:38Z'
+scan_id: R-235eddfa
+task_id: T-2562
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-09T11:05:38Z'
+scan_id: R-235eddfa
+task_id: T-2562
+payload:
+  task_file: .tasks/active/T-2562-forever-topic-archival-growth-canary--no.md

@@ -1,0 +1,101 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2562: Forever-topic archival-growth canary — non-goal #2 (not a durable DB) structural guard
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-09T11:05:42Z
+# ============================================================================
+
+task_id: T-2562
+task_name: "Forever-topic archival-growth canary — non-goal #2 (not a durable DB) structural guard"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-09T11:01:00Z
+completed: 2026-08-09T11:05:37Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-09T13:05:25+02:00
+last_commit: 2026-08-09T13:05:25+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  forever-topic archival-growth canary — charter non-goal #2 (not a durable DB) structural guard
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-forever-archival-freshness.sh` exists and fires (exit 1) on any'
+  - 'Operator-durable allowlist (channel:learnings, policy-decisions,'
+  - 'Test hook `TERMLINK_FOREVER_TEST_JSON` feeds canned `channel list --json` for'
+  - 'Load-bearing proven: a fixture with a large Forever topic FIRES; removing that'
+  - 'Git-tracked crontab `.context/cron/forever-archival-canary.crontab` with an'
+  - 'CLAUDE.md documents the canary in the canary series (empty-log=healthy convention).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/audits/2026-08-09.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/cron/forever-archival-canary.crontab'
+  - '.context/episodic/T-2561.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.gate-bypass-log.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'scripts/check-forever-archival-freshness.sh'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2562-forever-topic-archival-growth-canary--no.md'
+  - '.tasks/completed/T-2561-cron-install-drift-check--install-3-dark.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-09T13:05:25"
+    action: "T-2562: forever-topic archival-growth canary — charter non-goal #2 (not a durable DB) structural guard"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 24
+  lines_added: 3725
+  lines_removed: 3156
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2562-forever-topic-archival-growth-canary--no.md
+generated_by: context-agent-hybrid
