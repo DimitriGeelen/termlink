@@ -66,8 +66,10 @@ else
     offset="$(printf '%s' "$out" | jq -r '.delivered.offset // empty' 2>/dev/null)"
     if [ "$rc" -eq 0 ] && [ -n "$offset" ]; then
         # Now read back from the topic and confirm the envelope.
-        # Limit/scan recent envelopes and filter by metadata.agent_id.
-        found_envelope="$(termlink channel subscribe agent-presence --limit 50 --json 2>/dev/null | jq -c "select(.metadata.agent_id == \"$aid\")" | tail -1)"
+        # T-2565: agent-presence is latest_per_cv_key and a live hub holds hundreds of
+        # distinct entries — a small --limit window (was 50) can exclude our freshly
+        # posted envelope by offset even though retention kept it. Use a generous limit.
+        found_envelope="$(termlink channel subscribe agent-presence --limit 5000 --json 2>/dev/null | jq -c "select(.metadata.agent_id == \"$aid\")" | tail -1)"
         if [ -n "$found_envelope" ]; then
             mt="$(printf '%s' "$found_envelope" | jq -r '.msg_type')"
             mid="$(printf '%s' "$found_envelope" | jq -r '.metadata.agent_id')"
@@ -93,7 +95,7 @@ else
     out="$(bash "$SCRIPT" --agent-id "$aid" --listen-topic foo --listen-topic bar --once --json 2>/dev/null)"
     rc=$?
     if [ "$rc" -eq 0 ]; then
-        found_envelope="$(termlink channel subscribe agent-presence --limit 50 --json 2>/dev/null | jq -c "select(.metadata.agent_id == \"$aid\")" | tail -1)"
+        found_envelope="$(termlink channel subscribe agent-presence --limit 5000 --json 2>/dev/null | jq -c "select(.metadata.agent_id == \"$aid\")" | tail -1)"
         listen_topics_field="$(printf '%s' "$found_envelope" | jq -r '.metadata.listen_topics // ""')"
         # Order is preserved as passed: foo,bar
         if [ "$listen_topics_field" = "foo,bar" ]; then
@@ -126,8 +128,8 @@ else
     bash "$SCRIPT" --agent-id "$aid_with" --pty-session "pty-soak-foo" --once >/dev/null 2>&1
     bash "$SCRIPT" --agent-id "$aid_without" --once >/dev/null 2>&1
 
-    env_with="$(termlink channel subscribe agent-presence --limit 50 --json 2>/dev/null | jq -c "select(.metadata.agent_id == \"$aid_with\")" | tail -1)"
-    env_without="$(termlink channel subscribe agent-presence --limit 50 --json 2>/dev/null | jq -c "select(.metadata.agent_id == \"$aid_without\")" | tail -1)"
+    env_with="$(termlink channel subscribe agent-presence --limit 5000 --json 2>/dev/null | jq -c "select(.metadata.agent_id == \"$aid_with\")" | tail -1)"
+    env_without="$(termlink channel subscribe agent-presence --limit 5000 --json 2>/dev/null | jq -c "select(.metadata.agent_id == \"$aid_without\")" | tail -1)"
 
     pty_with="$(printf '%s' "$env_with" | jq -r '.metadata.pty_session // "ABSENT"')"
     pty_without="$(printf '%s' "$env_without" | jq -r '.metadata.pty_session // "ABSENT"')"
