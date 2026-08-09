@@ -5,6 +5,7 @@
 //! clean text regardless of terminal formatting.
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use regex::Regex;
@@ -36,6 +37,11 @@ pub struct GovernanceConfig {
 /// through an mpsc channel when patterns match.
 pub struct GovernanceSubscriber {
     config: Arc<GovernanceConfig>,
+    /// T-2574: count of matched governance/safety events dropped because the
+    /// downstream `governance_tx` was full or closed. A non-zero value means a
+    /// safety signal did not reach the enforcer — the loss is now countable
+    /// (and `warn!`-logged) instead of silent.
+    dropped_events: Arc<AtomicU64>,
 }
 
 impl GovernanceSubscriber {
@@ -43,7 +49,21 @@ impl GovernanceSubscriber {
     pub fn new(config: GovernanceConfig) -> Self {
         Self {
             config: Arc::new(config),
+            dropped_events: Arc::new(AtomicU64::new(0)),
         }
+    }
+
+    /// T-2574: number of governance/safety events dropped (channel full/closed)
+    /// since this subscriber was created. Monotonic; `> 0` means a safety signal
+    /// was lost before reaching the enforcer.
+    pub fn dropped_events(&self) -> u64 {
+        self.dropped_events.load(Ordering::Relaxed)
+    }
+
+    /// T-2574: a clonable handle to the drop counter, so a caller that moves the
+    /// subscriber into a spawned task can still observe drops.
+    pub fn dropped_events_handle(&self) -> Arc<AtomicU64> {
+        Arc::clone(&self.dropped_events)
     }
 
     /// Run the subscriber, consuming Output frames from `output_rx` and emitting
@@ -84,11 +104,18 @@ impl GovernanceSubscriber {
                             );
                             sequence += 1;
 
-                            // Non-blocking send — drop if receiver is full/gone
+                            // Non-blocking send — drop if receiver is full/gone.
+                            // T-2574: a dropped governance/safety match is a LOST
+                            // safety signal, not a cosmetic event — count it and
+                            // `warn!` (parity with the Lagged-drop branch below),
+                            // never a silent `debug!`.
                             if governance_tx.try_send(frame).is_err() {
-                                tracing::debug!(
+                                let dropped =
+                                    self.dropped_events.fetch_add(1, Ordering::Relaxed) + 1;
+                                tracing::warn!(
                                     pattern = %rule.name,
-                                    "Governance subscriber: event dropped (channel full or closed)"
+                                    dropped_events = dropped,
+                                    "Governance subscriber: SAFETY event dropped (channel full or closed) — enforcer did not receive it"
                                 );
                             }
                         }
@@ -125,6 +152,48 @@ mod tests {
             name: name.to_string(),
             regex: Regex::new(pattern).unwrap(),
         }
+    }
+
+    #[tokio::test]
+    async fn dropped_governance_event_is_counted_not_silent() {
+        // T-2574 (regression): when the governance channel is full, a matched
+        // SAFETY event is dropped — that drop must be COUNTED (and warn!-logged),
+        // never a silent debug!. LOAD-BEARING: remove the `fetch_add` on the
+        // try_send-failure branch and this assert fails (counter stays 0).
+        let config = GovernanceConfig {
+            patterns: vec![make_rule("secret_detect", r"SECRET")],
+        };
+        let subscriber = GovernanceSubscriber::new(config);
+        let counter = subscriber.dropped_events_handle();
+
+        let (output_tx, output_rx) = broadcast::channel::<Vec<u8>>(16);
+        // Capacity-1 governance channel, receiver kept alive but never drained →
+        // the first event fills it, every subsequent event fails try_send (Full).
+        let (gov_tx, _gov_rx) = mpsc::channel::<Frame>(1);
+
+        let handle = tokio::spawn(async move {
+            subscriber.run(output_rx, gov_tx).await;
+        });
+
+        // Two matching output blobs → two governance events. The first enqueues
+        // (fills the capacity-1 channel); the second cannot → dropped + counted.
+        output_tx.send(b"line SECRET one".to_vec()).unwrap();
+        output_tx.send(b"line SECRET two".to_vec()).unwrap();
+
+        // Wait (bounded) for the drop to register.
+        let mut waited = 0;
+        while counter.load(Ordering::Relaxed) == 0 && waited < 100 {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            waited += 1;
+        }
+        assert!(
+            counter.load(Ordering::Relaxed) >= 1,
+            "expected >=1 dropped governance event to be counted, got {}",
+            counter.load(Ordering::Relaxed)
+        );
+
+        drop(output_tx); // close broadcast → subscriber loop exits
+        let _ = handle.await;
     }
 
     #[tokio::test]
