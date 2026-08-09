@@ -4,20 +4,20 @@ name: "BUG: claim-renew loop silently swallows transient failures until lease la
 description: >
   BUG observability: background claim-renew loop swallows transient renew failures at debug and retries silently until the lease lapses. Fix: warn once now_ms past claimed_until. From T-2468 sweep.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-session/src/claim_client.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-09T15:04:08Z
-last_update: 2026-08-09T15:04:08Z
-date_finished: null
+last_update: 2026-08-09T15:09:57Z
+date_finished: 2026-08-09T15:09:57Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -224,3 +224,15 @@ quietly" past a lease expiry hides a correctness hazard (double-ownership).
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2575-bug-claim-renew-loop-silently-swallows-t.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-4bcc24cb
+- **Timestamp:** 2026-08-09T15:10:03Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-09T15:09:57Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

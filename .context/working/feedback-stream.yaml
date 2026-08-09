@@ -6660,3 +6660,21 @@ scan_id: R-187e21e5
 task_id: T-2574
 payload:
   task_file: .tasks/active/T-2574-bug-governance-safety-match-silently-dro.md
+---
+kind: scan_emitted
+timestamp: '2026-08-09T15:10:03Z'
+scan_id: R-4bcc24cb
+task_id: T-2575
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-09T15:10:03Z'
+scan_id: R-4bcc24cb
+task_id: T-2575
+payload:
+  task_file: .tasks/active/T-2575-bug-claim-renew-loop-silently-swallows-t.md
