@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2561: cron-install-drift check + install 3 dark canaries (shipped≠live, G-069)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-09T08:24:45Z
+# ============================================================================
+
+task_id: T-2561
+task_name: "cron-install-drift check + install 3 dark canaries (shipped≠live, G-069)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-09T08:20:25Z
+completed: 2026-08-09T08:24:41Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-09T10:24:39+02:00
+last_commit: 2026-08-09T10:24:39+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  cron-install-drift check + install 3 dark canaries (shipped≠live, G-069)
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-cron-install-drift.sh` exists, is executable, and for each `.context/cron/*.crontab` parses its own `# Installed to: <path>` header (robust to naming exceptions like `agentic-audit` → `/etc/cron.d/agentic-audit-termlink`) and classifies: MISSING (declared path absent) → FIRES (exit 1, the G-069 class); DRIFT (present but content differs) → non-firing WARNING by default, fires only under `--strict`; OK (present + byte-identical); exit 2 on tooling error'
+  - 'On a non-`/etc/cron.d` host (dir absent — macOS/dev) the check is informational, not firing (exit 0 with a skip note); a crontab with no `Installed to:` header is skipped with a note'
+  - '`--json`, `--quiet`, `--strict` flags'
+  - 'Test hooks `CRON_DRIFT_SRC_DIR` + `CRON_DRIFT_INSTALLED_DIR` feed fixture dirs so all branches (missing / drifted / clean) are verifiable without touching the real host'
+  - 'Load-bearing PROVEN: a fixture with a missing crontab fires (exit 1); an all-installed fixture exits 0 (temp-revert the firing gate → the missing fixture stops firing)'
+  - 'Remediation: the 3 dark canaries (dead-letter, session-control, stuck-claims) are installed to `/etc/cron.d/termlink-*`; after install `check-cron-install-drift.sh` exits 0 on the real host'
+  - 'CLAUDE.md documents the check in a brief section (deploy-time / preflight tier, distinct from the cron canaries it guards)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'scripts/check-cron-install-drift.sh'
+  - '.tasks/active/T-2561-cron-install-drift-check--install-3-dark.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-09T10:24:39"
+    action: "T-2561: cron-install-drift check + install 3 dark canaries (shipped≠live, G-069)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 3
+  lines_added: 337
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2561-cron-install-drift-check--install-3-dark.md
+generated_by: context-agent-hybrid

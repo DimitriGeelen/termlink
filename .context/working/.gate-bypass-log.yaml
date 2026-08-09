@@ -2405,3 +2405,31 @@ FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2541: file optional
   flag: 'FW_ALLOW_EMPTY_RECOMMENDATION'
   caller: 'create-task.sh'
   reason: 'empty-recommendation bypass (create-task.sh inception filing)'
+- timestamp: '2026-08-09T07:59:41Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2559'
+  command: 'cd /opt/termlink
+git add .context/project/learnings.yaml
+FW_SWITCH_FOCUS=1 git diff --cached --quiet || FW_SWITCH_FOCUS=1 git commit -q -m "T-2559: capture PL — Directive #2 silent-swallow class + f'
+- timestamp: '2026-08-09T08:07:16Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2560'
+  command: 'cd /opt/termlink
+git add .tasks/active/T-2560*.md
+FW_SWITCH_FOCUS=1 git commit -q -m "T-2560: file PL-021 flap-detector cron-feeder gap (T-2468 antifragility #2, needs design)
+
+Co-Authored-By: Claude '
+- timestamp: '2026-08-09T08:25:28Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2561'
+  command: 'cd /opt/termlink
+git add .context/project/learnings.yaml
+FW_SWITCH_FOCUS=1 git commit -q -m "T-2561: capture PL — shipped!=live at the canary-install layer
+
+Co-Authored-By: Claude Opus 4.8 <noreply@'

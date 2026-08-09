@@ -561,6 +561,44 @@ from `~/.termlink/outbound.sqlite` if the thread is dead. `/canaries` auto-disco
 the log. Pair with the fifteen canaries above — all sixteen follow the same
 "empty-log = healthy" convention.
 
+### Forever-topic archival-growth canary (T-2562, charter non-goal #2 guard)
+
+The charter's non-goal #2 is "**NOT a durable database / system of record**": topics
+are retention-bounded append logs sized for coordination, and "durability" means
+"survives a hub blip and replays", NOT "stored forever". That boundary had a
+structural blind spot. Two existing guards do NOT cover the general archival case:
+the create-time warn (`channel.rs` T-2058) is **warn-only** and only fires when the
+topic NAME matches a high-rate / single-value-state pattern; the **topic-growth
+canary** (T-2252) fires ONLY on watched high-rate patterns (`agent-presence`,
+`agent-listeners-*`, `agent-conv-*`, `dm:*`) and **explicitly excludes** durable
+topics. Net: an arbitrarily-named topic set to `Retention::Forever` and grown
+unboundedly as archival storage matches NO watch pattern → invisible to both — the
+"system of record" non-goal violated with nothing firing. A daily cron runs
+`scripts/check-forever-archival-freshness.sh --quiet` (see
+`.context/cron/forever-archival-canary.crontab`) and appends to
+`.context/working/.forever-archival-canary.log`. Empty log = healthy.
+
+The canary reads `termlink channel list --json` (the same plumbing T-2252 uses) and
+FIRES (exit 1) on ANY topic whose `retention.kind == "forever"` and whose record
+`count` exceeds an archival ceiling (default 50000, `--threshold N`), MINUS the
+operator-durable allowlist (`channel:learnings`, `policy-decisions`,
+`framework:pickup`, `broadcast:global` — intentionally Forever, mirrors the T-2252 /
+T-2057 audit §5 exclusions; override via `TERMLINK_FOREVER_EXCLUDE_TOPICS`). The
+ceiling is deliberately high: a small Forever topic is fine; a Forever topic with
+tens of thousands of records is being used as a database. **Distinct axis from
+T-2252** — T-2252 asks "is a high-rate topic un-swept?" (a hygiene-cron failure);
+this asks "is a Forever topic being used as archival storage?" (a non-goal
+violation) — same read, orthogonal firing gate. Ad-hoc check:
+`bash scripts/check-forever-archival-freshness.sh` (exit 0 = healthy, 1 = firing,
+2 = tooling error); add `--json` for scripting, `--hub ADDR` to target a specific
+hub. Test hook `TERMLINK_FOREVER_TEST_JSON=<file>` feeds canned `channel list --json`
+for hub-independent verification (PL-213). Operator action on firing: bound the topic
+(`termlink channel set-retention <t> --retention messages --retention-value N &&
+termlink channel sweep <t>`), or — if genuinely operator-durable — add it to
+`TERMLINK_FOREVER_EXCLUDE_TOPICS`. `/canaries` auto-discovers the log. Pair with the
+sixteen canaries above — all seventeen follow the same "empty-log = healthy"
+convention.
+
 ### Cron-install-drift check (T-2561, shipped≠live / G-069 for the canary layer)
 
 A canary is only load-bearing if its crontab is actually installed to `/etc/cron.d`.

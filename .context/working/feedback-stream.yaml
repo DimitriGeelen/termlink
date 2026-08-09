@@ -6444,3 +6444,111 @@ scan_id: R-ad8b306f
 task_id: T-2553
 payload:
   task_file: .tasks/active/T-2553-mcp-hub-down-error-non-actionable-in-man.md
+---
+kind: scan_emitted
+timestamp: '2026-08-08T20:37:33Z'
+scan_id: R-efc10cd5
+task_id: T-2554
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-08T20:37:33Z'
+scan_id: R-efc10cd5
+task_id: T-2554
+payload:
+  task_file: .tasks/active/T-2554-cli-error-actionability--claimsessioneve.md
+---
+kind: scan_emitted
+timestamp: '2026-08-09T07:46:20Z'
+scan_id: R-5d952966
+task_id: T-2556
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-09T07:46:20Z'
+scan_id: R-5d952966
+task_id: T-2556
+payload:
+  task_file: .tasks/active/T-2556-stuck-claims-detection-canary--verb-3-cl.md
+---
+kind: scan_emitted
+timestamp: '2026-08-09T07:50:05Z'
+scan_id: R-cda5d9f8
+task_id: T-2557
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-09T07:50:05Z'
+scan_id: R-cda5d9f8
+task_id: T-2557
+payload:
+  task_file: .tasks/active/T-2557-session-control-detection-canary--verb-4.md
+---
+kind: scan_emitted
+timestamp: '2026-08-09T07:53:05Z'
+scan_id: R-960816f2
+task_id: T-2558
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-09T07:53:05Z'
+scan_id: R-960816f2
+task_id: T-2558
+payload:
+  task_file: .tasks/active/T-2558-dead-letter-canary--durable-poison-drop-.md
+---
+kind: scan_emitted
+timestamp: '2026-08-09T07:58:42Z'
+scan_id: R-1eadc4d2
+task_id: T-2559
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-09T07:58:42Z'
+scan_id: R-1eadc4d2
+task_id: T-2559
+payload:
+  task_file: .tasks/active/T-2559-fix-silent-swallow-of-auth-drift-learnin.md
+---
+kind: scan_emitted
+timestamp: '2026-08-09T08:24:42Z'
+scan_id: R-5aa80033
+task_id: T-2561
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-09T08:24:42Z'
+scan_id: R-5aa80033
+task_id: T-2561
+payload:
+  task_file: .tasks/active/T-2561-cron-install-drift-check--install-3-dark.md

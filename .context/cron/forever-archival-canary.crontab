@@ -1,0 +1,24 @@
+# T-2562 (T-2468 purpose-review, non-goal #2) — Forever-topic archival-growth canary
+# Source of truth: /opt/termlink/.context/cron/forever-archival-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-forever-archival-canary (USER field syntax — do NOT load into a user crontab)
+#
+# Charter non-goal #2 is "NOT a durable database / system of record". The create-time
+# warn (channel.rs T-2058) is warn-only + name-pattern-gated; the topic-growth canary
+# (T-2252) fires ONLY on watched high-rate patterns and EXPLICITLY excludes durable
+# topics. So an arbitrarily-named `Retention::Forever` topic grown unboundedly as
+# archival storage is invisible to both. This daily canary reads `channel list --json`
+# and FIRES (exit 1) on ANY non-allowlisted `retention.kind=="forever"` topic whose
+# count exceeds the archival ceiling (default 50000). Empty log = healthy.
+# /canaries auto-discovers this log.
+#
+# Operator action on firing: a Forever topic is being used as archival storage, which
+# TermLink is NOT. Bound it (`termlink channel set-retention <t> --retention messages
+# --retention-value N && termlink channel sweep <t>`), or — if genuinely
+# operator-durable — add it to TERMLINK_FOREVER_EXCLUDE_TOPICS. Ad-hoc check:
+# bash scripts/check-forever-archival-freshness.sh
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 07:51 UTC — offset from the :13 mirror, :17 unconfirmed-delivery,
+# :27 stuck-claims, :33 session-control, :39 dead-letter canaries.
+51 7 * * * root cd /opt/termlink && bash scripts/check-forever-archival-freshness.sh --quiet >> .context/working/.forever-archival-canary.log 2>&1

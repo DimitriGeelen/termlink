@@ -1,10 +1,10 @@
-# Audit Results - 2026-08-09-1001
-timestamp: 2026-08-09T08:01:10Z
+# Audit Results - 2026-08-09-1244
+timestamp: 2026-08-09T10:44:37Z
 sections: "structure"
 summary:
-  pass: 34
+  pass: 37
   warn: 3
-  fail: 3
+  fail: 0
 findings:
   - level: PASS
     check: "Tasks directory exists"
@@ -45,9 +45,8 @@ findings:
     check: "cron(charter-drift-canary): USER-field syntax installed at /etc/cron.d/termlink-charter-drift-canary"
   - level: PASS
     check: "cron(charter-sentence-drift-canary): USER-field syntax installed at /etc/cron.d/termlink-charter-sentence-drift-canary"
-  - level: FAIL
-    check: "cron(dead-letter-canary): USER-field syntax but no install in /etc/cron.d"
-    mitigation: "Install: sudo cp /opt/termlink/.context/cron/dead-letter-canary.crontab /etc/cron.d/termlink-dead-letter-canary && sudo systemctl reload cron"
+  - level: PASS
+    check: "cron(dead-letter-canary): USER-field syntax installed at /etc/cron.d/termlink-dead-letter-canary"
   - level: PASS
     check: "cron(fleet-adoption-snapshot): USER-field syntax installed at /etc/cron.d/termlink-fleet-adoption-snapshot"
   - level: PASS
@@ -68,14 +67,12 @@ findings:
     check: "cron(presence-sweep): USER-field syntax installed at /etc/cron.d/termlink-presence-sweep"
   - level: PASS
     check: "cron(release-mirror-canary): USER-field syntax installed at /etc/cron.d/termlink-release-mirror-canary"
-  - level: FAIL
-    check: "cron(session-control-canary): USER-field syntax but no install in /etc/cron.d"
-    mitigation: "Install: sudo cp /opt/termlink/.context/cron/session-control-canary.crontab /etc/cron.d/termlink-session-control-canary && sudo systemctl reload cron"
+  - level: PASS
+    check: "cron(session-control-canary): USER-field syntax installed at /etc/cron.d/termlink-session-control-canary"
   - level: PASS
     check: "cron(stale-waker-code-canary): USER-field syntax installed at /etc/cron.d/termlink-stale-waker-code-canary"
-  - level: FAIL
-    check: "cron(stuck-claims-canary): USER-field syntax but no install in /etc/cron.d"
-    mitigation: "Install: sudo cp /opt/termlink/.context/cron/stuck-claims-canary.crontab /etc/cron.d/termlink-stuck-claims-canary && sudo systemctl reload cron"
+  - level: PASS
+    check: "cron(stuck-claims-canary): USER-field syntax installed at /etc/cron.d/termlink-stuck-claims-canary"
   - level: PASS
     check: "cron(substrate-preflight-canary): USER-field syntax installed at /etc/cron.d/termlink-substrate-preflight-canary"
   - level: PASS
