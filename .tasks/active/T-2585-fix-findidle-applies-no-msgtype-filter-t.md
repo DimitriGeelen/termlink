@@ -4,7 +4,7 @@ name: "fix: find_idle applies no msg_type filter, trusts any agent-presence enve
 description: >
   find_idle (both hint and walk paths, lib.rs:583-609 and 685-713) applies NO msg_type filter — it trusts any envelope on agent-presence carrying metadata.agent_id, disagreeing with the listeners/peers path which requires msg_type==heartbeat (agent-listeners.sh jq ~line 85). A later non-heartbeat post to agent-presence from a known agent_id is taken as the last heartbeat, so /peers (heartbeat-only) and /find-idle (any-envelope) disagree about who is LIVE; also a trust-the-topic reliability gap. Fix candidate: add msg_type==heartbeat predicate to both find_idle paths so all three discovery surfaces share one liveness definition. VERIFY heartbeat envelopes carry msg_type==heartbeat (heartbeat_env sets it) and that no legit producer posts liveness via a different msg_type before building. From T-2468 verb-1 hunt.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-09T21:59:09Z
-last_update: 2026-08-09T21:59:20Z
+last_update: 2026-08-09T22:21:22Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,37 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+From the T-2468 verb-1 ("discover peers") hunt. `find_idle` (both the walk path
+`find_idle_agents` and the cv_index fast path `find_idle_agents_from_hint`) applied
+NO `msg_type` filter — it trusted any envelope on `agent-presence` carrying
+`metadata.agent_id`, disagreeing with the listeners/peers path
+(`agent-listeners.sh` line ~284: `select(.msg_type == "heartbeat" ...)`). A later
+non-heartbeat post to `agent-presence` from a known `agent_id` was taken as that
+agent's latest heartbeat, so `/peers` (heartbeat-only) and `/find-idle`
+(any-envelope) could disagree about who is LIVE — a trust-the-topic reliability gap.
+
+**Verified before building (go decision):** (1) the heartbeat producer
+`listener-heartbeat.sh:165` posts `--msg-type heartbeat`, and the test helper
+`heartbeat_env` sets `msg_type:"heartbeat"`; (2) the listeners consumer requires
+`msg_type == "heartbeat"`; (3) find_idle both paths filtered neither; (4) the ONLY
+production writer to `agent-presence` is `listener-heartbeat.sh` (msg_type=heartbeat)
+— the MCP `termlink_listener_heartbeat` tool shells out to it, and every other
+reference is a test. So no legit producer posts liveness via a different msg_type;
+the filter is safe and does not exclude any real heartbeat.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Both `find_idle_agents` (walk) and `find_idle_agents_from_hint` (cv_index
+      fast path) skip any `agent-presence` envelope whose `msg_type != "heartbeat"`
+      — matching the listeners/peers liveness definition. One predicate, both paths.
+      (lib.rs ~582 walk, ~690 hint.)
+- [x] A load-bearing unit test posts a heartbeat envelope AND a non-heartbeat
+      envelope carrying an `agent_id` to `agent-presence`, and asserts find_idle
+      counts only the heartbeat — proven to FAIL on temp-revert. Test:
+      `find_idle_ignores_non_heartbeat_presence_envelope` (FAILS with both guards
+      neutralised; confirmed, asserts walk+hint agree).
+- [x] `cargo test -p termlink-bus --lib` passes (no regressions). 110 passed, 0 failed.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -106,9 +129,39 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+cargo test -p termlink-bus --lib find_idle_ignores_non_heartbeat_presence_envelope
 
 ## RCA
 
+**Symptom:** `/peers` (heartbeat-only) and `/find-idle` (any-envelope) could
+disagree about who is LIVE. A non-heartbeat post to `agent-presence` from a known
+`agent_id` was taken by find_idle as that agent's latest heartbeat, so an agent
+that had gone quiet (last real heartbeat old) but had a recent non-heartbeat post
+could show as idle/available to a dispatcher while `/peers` correctly showed it
+STALE/OFFLINE.
+
+**Root cause:** find_idle (both `find_idle_agents` walk and
+`find_idle_agents_from_hint`) deduped/ranked liveness on `metadata.agent_id` +
+`ts_unix_ms` with NO `msg_type` predicate — it trusted the topic. The
+listeners/peers path (`agent-listeners.sh`) had always required
+`msg_type == "heartbeat"`. Two consumers of the same topic used two different
+liveness definitions.
+
+**Why structurally allowed:** the three discovery surfaces (listeners/peers,
+find_idle walk, find_idle hint) grew independently; only the shell listeners path
+encoded the heartbeat predicate. There was no shared definition and no test
+asserting cross-surface agreement on liveness, so the divergence was invisible.
+(Distinct from T-2582, which closed an identity fork between the two find_idle
+paths; this closes a msg_type/liveness fork between find_idle and the peers path.)
+
+**Prevention:** added the `msg_type != "heartbeat"` guard to BOTH find_idle paths
+(one predicate, both paths) + the load-bearing test
+`find_idle_ignores_non_heartbeat_presence_envelope`, which posts a heartbeat AND a
+non-heartbeat envelope and asserts (a) only the heartbeat counts and (b) walk and
+hint agree — failing if either guard is removed. All three discovery surfaces now
+share one liveness definition.
+
+<!-- template guidance retained below -->
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
@@ -177,3 +230,6 @@ date_finished: null
 
 ### 2026-08-09T21:59:20Z — status-update [task-update-agent]
 - **Change:** status: started-work → captured
+
+### 2026-08-09T22:21:22Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

@@ -580,6 +580,17 @@ impl Bus {
         let mut latest: HashMap<String, IdleAgent> = HashMap::new();
         for item in iter {
             let (_offset, env) = item?;
+            // T-2585: only `heartbeat` envelopes signal liveness. The
+            // listeners/peers path (agent-listeners.sh: `select(.msg_type ==
+            // "heartbeat")`) already requires this; without the same predicate
+            // here, a later non-heartbeat post to agent-presence from a known
+            // agent_id would be read as that agent's latest heartbeat, so
+            // `/peers` and `/find-idle` would disagree about who is LIVE
+            // (trust-the-topic reliability gap). One liveness definition across
+            // all three discovery surfaces.
+            if env.msg_type != "heartbeat" {
+                continue;
+            }
             let Some(agent_id) = env.metadata.get("agent_id").cloned() else {
                 continue;
             };
@@ -687,6 +698,14 @@ impl Bus {
                 Some(e) => e,
                 None => continue,
             };
+            // T-2585: only `heartbeat` envelopes signal liveness — same predicate
+            // as the walk path (find_idle_agents) and the listeners/peers path, so
+            // all three discovery surfaces share one liveness definition. A
+            // cv_index offset pointing at a non-heartbeat post must not be read as
+            // a heartbeat.
+            if env.msg_type != "heartbeat" {
+                continue;
+            }
             // T-2582: identity comes from the SIGNED envelope metadata, exactly
             // like the walk path (find_idle_agents, line ~583) — NOT the unsigned,
             // caller-controllable cv_index key. Without this, a public
@@ -2491,6 +2510,58 @@ mod tests {
         let walk_ids: std::collections::HashSet<&str> =
             via_walk.iter().map(|a| a.agent_id.as_str()).collect();
         assert_eq!(hint_ids, walk_ids, "hint and walk must return the same identities");
+    }
+
+    #[tokio::test]
+    async fn find_idle_ignores_non_heartbeat_presence_envelope() {
+        // T-2585 LOAD-BEARING: find_idle (both walk + hint paths) must only trust
+        // `msg_type == "heartbeat"` envelopes for liveness — matching the
+        // listeners/peers path (agent-listeners.sh `select(.msg_type ==
+        // "heartbeat")`). A non-heartbeat post to agent-presence from a known
+        // agent_id must NOT be read as that agent's latest heartbeat, or `/peers`
+        // and `/find-idle` disagree about who is LIVE. Removing the
+        // `msg_type != "heartbeat"` guard from either path makes the noise agent
+        // appear, failing this.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("agent-presence", Retention::Forever).unwrap();
+        let now = now_unix_ms();
+
+        // Offset 0: a real heartbeat.
+        bus.post("agent-presence", &heartbeat_env("live-agent", now - 1_000, None, None))
+            .await
+            .unwrap();
+
+        // Offset 1: a NON-heartbeat envelope carrying an agent_id (e.g. a stray
+        // note / typing / receipt posted to agent-presence). Must be ignored.
+        let mut noise = heartbeat_env("noise-agent", now - 500, None, None);
+        noise.msg_type = "note".to_string();
+        bus.post("agent-presence", &noise).await.unwrap();
+
+        // Walk path: only the heartbeat agent is LIVE.
+        let via_walk = bus.find_idle_agents(None, &[], 60_000, None).unwrap();
+        let walk_ids: std::collections::HashSet<&str> =
+            via_walk.iter().map(|a| a.agent_id.as_str()).collect();
+        assert!(walk_ids.contains("live-agent"), "heartbeat agent must be LIVE");
+        assert!(
+            !walk_ids.contains("noise-agent"),
+            "non-heartbeat presence envelope must NOT count as liveness (T-2585, walk)"
+        );
+
+        // Hint path (cv_index fast path): same predicate, same result.
+        let hint = vec![("live-agent".to_string(), 0u64), ("noise-agent".to_string(), 1u64)];
+        let via_hint = bus
+            .find_idle_agents_from_hint(None, &[], 60_000, None, &hint)
+            .unwrap();
+        let hint_ids: std::collections::HashSet<&str> =
+            via_hint.iter().map(|a| a.agent_id.as_str()).collect();
+        assert!(hint_ids.contains("live-agent"), "heartbeat agent must be LIVE via hint");
+        assert!(
+            !hint_ids.contains("noise-agent"),
+            "non-heartbeat presence envelope must NOT count as liveness (T-2585, hint)"
+        );
+
+        // The two discovery surfaces agree — no path-dependent liveness fork.
+        assert_eq!(hint_ids, walk_ids, "hint and walk must agree on liveness (T-2585)");
     }
 
     #[tokio::test]
