@@ -561,6 +561,29 @@ from `~/.termlink/outbound.sqlite` if the thread is dead. `/canaries` auto-disco
 the log. Pair with the fifteen canaries above — all sixteen follow the same
 "empty-log = healthy" convention.
 
+### Cron-install-drift check (T-2561, shipped≠live / G-069 for the canary layer)
+
+A canary is only load-bearing if its crontab is actually installed to `/etc/cron.d`.
+The canary crontabs live git-tracked under `.context/cron/*.crontab` as the source
+of truth, but installation is a MANUAL operator step — so a freshly-committed canary
+can sit **shipped but dark** (never fires) with nothing detecting it. The
+meta-canary-aliveness check (T-1723) verifies the HEARTBEAT of canaries that ARE
+running; it structurally cannot see one that was never scheduled (T-2556/57/58 were
+committed dark and only a self-review caught it). `scripts/check-cron-install-drift.sh`
+closes that blindness: for every git-tracked crontab it reads the crontab's OWN
+`# Installed to: <path>` header (robust to naming exceptions like `agentic-audit` →
+`/etc/cron.d/agentic-audit-termlink` — the path is self-declared, not derived from a
+naming rule) and classifies MISSING (declared path absent → FIRES exit 1, the G-069
+class), DRIFT (present but content differs from git → non-firing WARNING by default,
+fires under `--strict`), or OK. This is a **deploy-time / preflight check, NOT itself
+a cron canary** — a canary-to-detect-uninstalled-canaries would itself need
+installing (recursive). Run it ad-hoc after committing a new canary. Exit codes:
+0 = healthy, 1 = a crontab is missing (or drift under `--strict`), 2 = tooling.
+`--json` for scripting; a host without `/etc/cron.d` (macOS/dev) is informational,
+never firing. Test hooks `CRON_DRIFT_SRC_DIR` + `CRON_DRIFT_INSTALLED_DIR` feed
+fixture dirs (PL-213). Operator action on firing: install the named crontab with
+`sudo cp .context/cron/<name>.crontab <declared-path>`.
+
 ### Unclamped caller-param → allocation-sink static check (T-2527, G-019 prevention for the T-2523/T-2526 class)
 
 Twice in one window an adversarial hunter found a caller-supplied param reaching an
