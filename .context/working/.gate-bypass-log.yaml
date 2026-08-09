@@ -2473,3 +2473,9 @@ FW_SWITCH_FOCUS=1 git add -A && FW_SWITCH_FOCUS=1 git commit -q -m "T-2567..T-25
   command: 'git add -A && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2584: capture PL-315 MCP-flattening bug class (found 4x across T-2578/2580/2583/2584)" 2>&1 | tail -5
 echo "=== push ==="
 git'
+- timestamp: '2026-08-09T22:38:37Z'
+  task: 'T-1291'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2587'
+  command: 'git add -A && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2587: finalize + file T-2588 (4-sibling msg_type-post sweep) and T-2589 (check-outbox over-count) from verb-2 hunt" 2>&1 | ta'

@@ -1,22 +1,22 @@
 ---
-id: T-2587
-name: "fix termlink_agent_response_received msg_type post filter drops all note-chat content"
+id: T-2588
+name: "fix 4 sibling agent analytics tools sharing legacy msg_type-post filter (T-2587 sweep)"
 description: >
-  fix termlink_agent_response_received msg_type post filter drops all note-chat content
+  Four agent chat-arc analytics MCP tools share the same legacy msg_type==post filter that T-2587 fixed for response_received: termlink_agent_search_by (tools.rs ~24336), termlink_agent_threads_by (~24519), termlink_agent_busiest_threads (~24619), termlink_agent_recent_decisions (~24705). Real content is note/chat/post (agent_post/channel_post default note, bus_client/offline_queue chat) so != Some(post) continue drops all real content and these tools silently return empty/zero. Correct content set is Some(post)|Some(chat)|Some(note) per shared helpers at tools.rs 3444/5383. Scoped sweep: per-tool confirm each genuinely wants CONTENT (not a distinct post-typed subset) then apply the set + load-bearing test each. From T-2468 verb-2 hunt, sibling class of T-2587.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
 horizon: now
-tags: []
+tags: [bug]
 components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-09T22:32:36Z
-last_update: 2026-08-09T22:32:36Z
+created: 2026-08-09T22:38:02Z
+last_update: 2026-08-09T22:38:02Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,42 +30,18 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2587: fix termlink_agent_response_received msg_type post filter drops all note-chat content
+# T-2588: fix 4 sibling agent analytics tools sharing legacy msg_type-post filter (T-2587 sweep)
 
 ## Context
 
-From the T-2468 verb-2 ("exchange durable messages") hunt. `termlink_agent_response_received`
-(tools.rs ~27153) built its author/reply maps ONLY from envelopes whose
-`msg_type == "post"` (`!= Some("post") { continue; }`). But real agent-chat-arc
-content is never the literal `"post"`: `termlink_agent_post` and
-`termlink_channel_post` default to `"note"`; `bus_client`/`offline_queue` write
-`"chat"`. So the walk matched ~nothing → `sender_posts`/`replies` stayed empty →
-the tool returned `{posts_with_replies:0, posts_without_replies:0, p50:0, p90:0,
-fastest:0, slowest:0}` for every sender regardless of real data. A delivery-
-confirmation / reply-latency tool (charter verb-2) that silently always answered
-"zero replies". The sibling analytics helpers (tools.rs ~3444, ~5383) already use
-the correct content set `Some("post")|Some("chat")|Some("note")`; this handler was
-missed in the T-1499 msg_type-convention migration.
-
-**Scope note:** four sibling handlers share the identical `!= Some("post")` filter
-(`termlink_agent_search_by` ~24336, `termlink_agent_threads_by` ~24519,
-`termlink_agent_busiest_threads` ~24619, `termlink_agent_recent_decisions` ~24705)
-— filed separately as a scoped sweep (needs per-tool intent verification). This
-task fixes ONLY `termlink_agent_response_received` (the highest-value / clearly-
-broken delivery-confirmation tool).
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] `termlink_agent_response_received` counts `post`/`chat`/`note` content (the
-      set its sibling helpers use), not only the never-emitted literal `"post"`.
-- [x] The filter+aggregate is extracted into a pure helper
-      (`compute_response_received_stats`) so it is unit-testable.
-- [x] A load-bearing unit test feeds `note`/`chat` posts + a reply and asserts
-      non-zero `posts_with_replies` / latency — proven to FAIL when the filter is
-      narrowed back to only `"post"`. Test:
-      `response_received_counts_note_and_chat_content` (confirmed FAILS on revert).
-- [x] `cargo test -p termlink-mcp --lib` passes (no regressions). 894 passed, 0 failed.
+<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -130,38 +106,8 @@ broken delivery-confirmation tool).
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
-cargo test -p termlink-mcp --lib response_received_counts_note_and_chat_content
 
 ## RCA
-
-**Symptom:** `termlink_agent_response_received` returned all-zeros
-(`posts_with_replies:0, posts_without_replies:0, p50/p90/fastest/slowest:0`) for
-every sender regardless of real chat-arc traffic — a reply-latency /
-delivery-confirmation tool (charter verb-2) that silently always answered "this
-peer receives zero replies."
-
-**Root cause:** the walk filtered `msg_type == "post"` (`!= Some("post") {
-continue; }`), but no producer emits the literal `"post"`: `agent_post` and
-`channel_post` default to `"note"`, `bus_client`/`offline_queue` write `"chat"`.
-The filter matched ~nothing, so the author/reply maps stayed empty and every
-aggregate was 0.
-
-**Why structurally allowed:** the T-1499 msg_type-convention migration updated the
-shared analytics helpers (tools.rs ~3444/~5383 use `post|chat|note`) but missed
-five hand-rolled per-tool loops that kept the legacy `== "post"` assumption. There
-was no test on this tool's aggregation (the async RPC-paginating handler had no
-pure, testable core), so the always-zero output was invisible.
-
-**Prevention:** extracted the aggregation into a pure helper
-`compute_response_received_stats` with the correct content-set filter + the
-load-bearing test `response_received_counts_note_and_chat_content` (FAILS if
-narrowed back to only `"post"`). Four sibling handlers share the same legacy
-filter — filed as a scoped sweep (T-25xx below) with per-tool intent verification,
-per one-bug-one-task. Broader lesson: a msg_type/convention migration must grep for
-EVERY `== "post"` / `!= "post"` site, not just the shared helpers.
-
-<!-- template guidance retained -->
-## RCA-template
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -224,7 +170,7 @@ EVERY `== "post"` / `!= "post"` site, not just the shared helpers.
 
 ## Updates
 
-### 2026-08-09T22:32:36Z — task-created [task-create-agent]
+### 2026-08-09T22:38:02Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2587-fix-termlinkagentresponsereceived-msgtyp.md
+- **Output:** /opt/termlink/.tasks/active/T-2588-fix-4-sibling-agent-analytics-tools-shar.md
 - **Context:** Initial task creation
