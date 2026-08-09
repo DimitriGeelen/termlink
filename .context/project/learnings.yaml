@@ -2962,3 +2962,10 @@ learnings:
   date: 2026-08-09
   context: Added via context agent
   application: TBD
+- id: PL-315
+  learning: "MCP-flattening bug class: an MCP tool handler in termlink-mcp/src/tools.rs calls client::rpc_call/rpc.call then on Ok(result) collapses the structured RPC result — dropping a load-bearing field (truncated/status) or mapping any success to a fixed string/ok:true. Found 4x (T-2578 exec truncated, T-2580 inject no-PTY, T-2583 batch_exec truncated, T-2584 remote_inject no-PTY). Fix pattern: extract a pure mcp_result_json/mcp_outcome helper as a single testable choke-point plus a per-tool load-bearing test proven via temp-revert. When auditing an MCP handler, verify it forwards EVERY load-bearing RPC field (esp. truncated, status) and derives ok from the result, never hardcodes it."
+  source: P-001
+  task: T-2584
+  date: 2026-08-09
+  context: Added via context agent
+  application: TBD

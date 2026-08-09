@@ -6750,3 +6750,39 @@ scan_id: R-82bc6917
 task_id: T-2582
 payload:
   task_file: .tasks/active/T-2582-fix-find-idle-cvindex-hint-path-uses-uns.md
+---
+kind: scan_emitted
+timestamp: '2026-08-09T22:14:16Z'
+scan_id: R-d86626f3
+task_id: T-2583
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-09T22:14:16Z'
+scan_id: R-d86626f3
+task_id: T-2583
+payload:
+  task_file: .tasks/active/T-2583-fix-termlinkbatchexec-drops-per-session-.md
+---
+kind: scan_emitted
+timestamp: '2026-08-09T22:17:50Z'
+scan_id: R-c940e6e3
+task_id: T-2584
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-09T22:17:50Z'
+scan_id: R-c940e6e3
+task_id: T-2584
+payload:
+  task_file: .tasks/active/T-2584-fix-termlinkremoteinject-reports-oktrue-.md
