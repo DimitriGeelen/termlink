@@ -2913,3 +2913,10 @@ learnings:
   date: 2026-08-09
   context: Added via context agent
   application: TBD
+- id: PL-308
+  learning: "shipped != live recurs at the CANARY layer: committing a .context/cron/*.crontab to git does NOT install it to /etc/cron.d (manual step, no detection), so a canary can ship dark and never fire; the meta-canary-aliveness check (T-1723, heartbeat-based) structurally cannot see a canary that was never scheduled. After adding ANY canary run scripts/check-cron-install-drift.sh (T-2561) and install to its declared 'Installed to:' path. Reconciliation pattern: compare git-source vs live-artifact via each file's self-declared install path, fire on MISSING."
+  source: P-001
+  task: T-2561
+  date: 2026-08-09
+  context: Added via context agent
+  application: TBD
