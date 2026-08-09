@@ -6570,3 +6570,21 @@ scan_id: R-235eddfa
 task_id: T-2562
 payload:
   task_file: .tasks/active/T-2562-forever-topic-archival-growth-canary--no.md
+---
+kind: scan_emitted
+timestamp: '2026-08-09T11:12:39Z'
+scan_id: R-9d5c6537
+task_id: T-2563
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-09T11:12:39Z'
+scan_id: R-9d5c6537
+task_id: T-2563
+payload:
+  task_file: .tasks/active/T-2563-harden-session-selftest-against-silent-s.md
