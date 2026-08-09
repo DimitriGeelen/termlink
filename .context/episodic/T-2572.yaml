@@ -1,0 +1,96 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2572: BUG: future-offset claim+ack poisons subscriber cursor (silent data loss)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-09T14:52:36Z
+# ============================================================================
+
+task_id: T-2572
+task_name: "BUG: future-offset claim+ack poisons subscriber cursor (silent data loss)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-09T14:45:34Z
+completed: 2026-08-09T14:52:29Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-09T16:52:27+02:00
+last_commit: 2026-08-09T16:52:27+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  reject future-offset claim (CLAIM_OFFSET_BEYOND_FRONTIER -32022) — fixes silent cursor-poison data loss on the durable-message path
+
+# Key outcomes
+outcomes:
+  - '`claim_offset` rejects a claim whose `offset >= next_offset` (the topic'
+  - 'The hub RPC claim handler maps the new rejection to a stable JSON-RPC error'
+  - 'Load-bearing unit test(s): (a) claim beyond frontier is rejected; (b) claim'
+  - '`cargo test -p termlink-bus` green.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'reject future-offset claim (CLAIM_OFFSET_BEYOND_FRONTIER -32022) — fixes silent cursor-poison data loss on the durable-message path'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-08-09.yaml'
+  - '.context/episodic/T-2571.yaml'
+  - '.context/project/decisions.yaml'
+  - '.context/project/learnings.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-bus/src/error.rs'
+  - 'crates/termlink-bus/src/lib.rs'
+  - 'crates/termlink-bus/src/meta.rs'
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'crates/termlink-protocol/src/control.rs'
+  - '.tasks/active/T-2572-bug-future-offset-claimack-poisons-subsc.md'
+  - '.tasks/completed/T-2571-guard-strict-star-no-spoke-to-spoke-dial.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-09T16:52:27"
+    action: "T-2572: reject future-offset claim (CLAIM_OFFSET_BEYOND_FRONTIER -32022) — fixes silent cursor-poison data loss on the durable-message path"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 1
+  files_changed: 20
+  lines_added: 537
+  lines_removed: 35
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2572-bug-future-offset-claimack-poisons-subsc.md
+generated_by: context-agent-hybrid

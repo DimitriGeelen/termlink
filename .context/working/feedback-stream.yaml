@@ -6624,3 +6624,21 @@ scan_id: R-0f378004
 task_id: T-2571
 payload:
   task_file: .tasks/active/T-2571-guard-strict-star-no-spoke-to-spoke-dial.md
+---
+kind: scan_emitted
+timestamp: '2026-08-09T14:52:33Z'
+scan_id: R-6da1ca1d
+task_id: T-2572
+payload:
+  overall: CONCERN
+  finding_count: 3
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-09T14:52:33Z'
+scan_id: R-6da1ca1d
+task_id: T-2572
+payload:
+  task_file: .tasks/active/T-2572-bug-future-offset-claimack-poisons-subsc.md
