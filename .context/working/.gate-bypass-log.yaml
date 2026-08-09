@@ -2433,3 +2433,29 @@ git add .context/project/learnings.yaml
 FW_SWITCH_FOCUS=1 git commit -q -m "T-2561: capture PL — shipped!=live at the canary-install layer
 
 Co-Authored-By: Claude Opus 4.8 <noreply@'
+- timestamp: '2026-08-09T11:26:02Z'
+  task: 'T-2567'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2570'
+  command: 'cd /opt/termlink
+FW_SWITCH_FOCUS=1 git add -A && FW_SWITCH_FOCUS=1 git commit -q -m "T-2567..T-2570: FILE design/guard findings from T-2468 purpose-review round
+
+- T-2567 DESIGN: exec truncated output'
+- timestamp: '2026-08-09T11:26:21Z'
+  task: 'T-2567'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2570'
+  command: 'cd /opt/termlink
+FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw work-on T-2567 2>&1 | grep -iE "Ready|started" | head -1
+FW_SWITCH_FOCUS=1 git add -A && FW_SWITCH_FOCUS=1 git commit -q -m "T-2567..T-2570'
+- timestamp: '2026-08-09T11:26:38Z'
+  task: 'T-2567'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2570'
+  command: 'cd /opt/termlink
+FW_SWITCH_FOCUS=1 git add -A && FW_SWITCH_FOCUS=1 git commit -q -m "T-2567..T-2570: FILE design/guard findings from T-2468 purpose-review round
+
+- T-2567 DESIGN: exec truncated output'
