@@ -4093,6 +4093,12 @@ mod contact_tests {
     /// wins; `observed_addr` (hub-attested TCP source, ephemeral port) is
     /// deliberately NEVER used for routing; absent/empty addr → None (caller
     /// falls back to the heartbeat-source hub).
+    ///
+    /// LOAD-BEARING for the charter strict-star noun ("spokes never talk
+    /// peer-to-peer", docs/ARCHITECTURE.md § Hub Architecture / T-2571): the
+    /// `observed_addr`-alone → `None` assertion below is what proves routing can
+    /// never target a peer's raw process socket. Do not weaken it without
+    /// revisiting the charter guarantee.
     #[test]
     fn resolve_home_hub_precedence() {
         use super::resolve_home_hub;

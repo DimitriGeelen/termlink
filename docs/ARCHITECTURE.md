@@ -212,6 +212,20 @@ the hub is **NOT** a stateless service overall. It owns durable state:
   are rebuilt from scratch. `<runtime_dir>/bus/` is therefore backup-relevant
   state, not disposable.
 
+**Strict-star topology (charter load-bearing noun "spokes never talk
+peer-to-peer").** This is enforced by construction, not merely safe by absence:
+every client connect targets a *hub* address — `remote.rs::connect_remote_hub`
+takes `conn.hub` (a `hubs.toml` profile, validated as a hub address), and
+cross-host peer contact routes to the peer's declared **home hub**, never its
+process socket. The one place a peer's raw socket is even visible to routing is a
+presence heartbeat's `metadata.observed_addr` (the hub-attested TCP source =
+host + *ephemeral* port, T-2297); `agent.rs::resolve_home_hub` deliberately
+excludes it from routing and falls back to a hub. The load-bearing guard is the
+unit test `resolve_home_hub_precedence` (`agent.rs`), which asserts
+`observed_addr`-alone → `None` (no peer-process routing) — change that function to
+route to `observed_addr` and the test fails. (Contrast non-goal #1 inter-hub
+federation, which is currently safe *only* by absence — see T-2569.)
+
 ```
 Client → Hub Socket → Router
                         ├── session.discover → Read sessions/*.json
