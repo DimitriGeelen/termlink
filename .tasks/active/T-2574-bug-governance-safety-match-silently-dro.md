@@ -91,7 +91,7 @@ try_send drop is the inconsistent one. Fix: elevate to `warn!` and add a monoton
 
 ## Verification
 
-cargo test -p termlink-session dropped_governance_event_is_counted_not_silent 2>&1 | grep -q "1 passed"
+out=$(cargo test -p termlink-session dropped_governance_event_is_counted_not_silent 2>&1); echo "$out" | grep -q "1 passed"
 grep -q "SAFETY event dropped" crates/termlink-session/src/governance_subscriber.rs
 grep -q "dropped_events.fetch_add" crates/termlink-session/src/governance_subscriber.rs
 
