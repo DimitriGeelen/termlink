@@ -466,6 +466,39 @@ is authoritative (human-blessed) — bring `README.md` + `docs/ARCHITECTURE.md` 
 into agreement. `/canaries` auto-discovers the log. Pair with the twelve canaries
 above — all thirteen follow the same "empty-log = healthy" convention.
 
+### Stuck-claims canary (T-2556, verb-3 "claim work" daily-detection gap)
+
+The T-2468 charter-verb-completeness review found the substrate's four core verbs
+each have an affirmative on-demand PROVER, but the daily-detection CANARY axis
+covered only verbs 1 (discover) and 2 (exchange durable messages). **Verb 3 —
+"claim work"** (`channel claim`/`renew`/`release` with lease-based ownership,
+T-2019/T-2029/T-2042/T-2046) — had the RICHEST prover (`scripts/substrate-smoke.sh`
+drives the full claim→renew→release lifecycle with ownership enforcement) yet ZERO
+passive detection: a claim can sit expired, or a work-topic accumulate stuck claims,
+for days with nothing firing (an idle worker's slot never reopens; a crashed
+worker's lease never gets noticed). The substrate already ships the detector
+primitive — `channel claims-summary --all --only-stuck --json` (T-2076) computes
+stuckness via the T-2042 heuristic (`expired_count > 0` OR
+`oldest_active_age_ms > 60_000`) and returns a truthful fleet-wide `stuck_count`.
+A daily cron runs `scripts/check-stuck-claims-freshness.sh --quiet` (see
+`.context/cron/stuck-claims-canary.crontab`) and appends to
+`.context/working/.stuck-claims-canary.log`. Empty log = healthy.
+
+The canary reads the summary envelope and FIRES (exit 1) when `stuck_count > 0`,
+naming each stuck topic with its `active`/`expired`/`oldest_active_age`. Per-topic
+fetch errors (`ok:false` entries) are surfaced as a soft warning but do NOT
+themselves fire (they could mask a stuck topic, so the operator is told — mirrors
+the T-2076 "fetch errors always retained" note). Ad-hoc check:
+`bash scripts/check-stuck-claims-freshness.sh` (exit 0 = healthy, 1 = firing,
+2 = tooling error / hub unreachable); add `--json` for scripting, `--hub ADDR` to
+target a specific hub. Test hook `TERMLINK_STUCK_CLAIMS_TEST_JSON=<file>` feeds
+canned `claims-summary` JSON for hub-independent verification (PL-213). Operator
+action on firing: inspect with `/claims <topic>`; if the holder is dead the lease
+auto-expires, or reassign via `/claim-transfer`, or Tier-0
+`termlink channel claim-force-release`. `/canaries` auto-discovers the log. Pair
+with the thirteen canaries above — all fourteen follow the same "empty-log =
+healthy" convention.
+
 ### Unclamped caller-param → allocation-sink static check (T-2527, G-019 prevention for the T-2523/T-2526 class)
 
 Twice in one window an adversarial hunter found a caller-supplied param reaching an

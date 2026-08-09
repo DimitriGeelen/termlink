@@ -1,0 +1,26 @@
+# T-2556 (T-2468 charter-verb completeness) — Stuck-claims canary (verb-3 detection gap)
+# Source of truth: /opt/termlink/.context/cron/stuck-claims-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-stuck-claims-canary (USER field syntax — do NOT load into a user crontab)
+#
+# TermLink's charter names FOUR core verbs; verb 3 is "claim work" (channel
+# claim/renew/release with lease-based ownership, T-2019/T-2029/T-2042/T-2046).
+# It has the richest affirmative prover (scripts/substrate-smoke.sh drives the
+# full claim→renew→release lifecycle) but had ZERO passive daily detection: a
+# claim can sit expired, or a work-topic accumulate stuck claims, for days with
+# nothing firing (an idle worker's slot never reopens; a crashed worker's lease
+# never noticed). The substrate already ships the detector primitive (`channel
+# claims-summary --all --only-stuck --json`, T-2076, using the T-2042 heuristic:
+# expired_count>0 OR oldest_active_age_ms>60_000). This daily canary wraps it and
+# FIRES (exit 1) when stuck_count > 0. Empty log = healthy. /canaries auto-discovers
+# this log.
+#
+# Operator action on firing: a claim is expired or a slot never reopened. Inspect
+# with `/claims <topic>`; if the holder is dead the lease auto-expires, or reassign
+# via `/claim-transfer`, or Tier-0 `termlink channel claim-force-release`. Ad-hoc
+# check: bash scripts/check-stuck-claims-freshness.sh
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 07:27 UTC — offset from the :13 mirror, :17 unconfirmed-delivery,
+# :37 framework-pickup, :43 frozen-husk, :47 task-finalization canaries.
+27 7 * * * root cd /opt/termlink && bash scripts/check-stuck-claims-freshness.sh --quiet >> .context/working/.stuck-claims-canary.log 2>&1
