@@ -3022,6 +3022,112 @@ fn mcp_exec_result_json(result: &serde_json::Value, target: &str) -> serde_json:
 /// NOTE: `ok` here means "the RPC round-trip succeeded" (this arm is reached
 /// only on `Ok(val)`), NOT `exit_code == 0` — preserving the existing
 /// succeeded/failed rollup semantics. Only `truncated` is added.
+/// T-2587: Compute reply-latency stats for `termlink_agent_response_received`
+/// from the page-materialized `agent-chat-arc` envelopes. The msg_type filter
+/// MUST accept the full CONTENT set (`post`|`chat`|`note`) — real content
+/// defaults to `note` (agent_post / channel_post) or `chat` (bus_client /
+/// offline_queue), NEVER the literal `post`. The prior `!= "post"` guard matched
+/// ~nothing, so `sender_posts`/`replies` stayed empty and EVERY field returned 0
+/// regardless of real data (a delivery-confirmation tool that silently always
+/// answered "zero replies"). Mirrors the content predicate the sibling analytics
+/// helpers already use (tools.rs ~3444 / ~5383). Pure so it is unit-testable
+/// (narrowing the filter back to only `post` fails
+/// `response_received_counts_note_and_chat_content`).
+fn compute_response_received_stats(
+    all: &[serde_json::Value],
+    sender_id: &str,
+) -> serde_json::Value {
+    let mut ts_of: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
+    let mut sender_posts: Vec<String> = Vec::new();
+    let mut replies: std::collections::HashMap<String, Vec<(String, i64)>> =
+        std::collections::HashMap::new();
+    for env in all {
+        // Accept the full content msg_type set — see the doc comment above.
+        let is_content = matches!(
+            env.get("msg_type").and_then(|v| v.as_str()),
+            Some("post") | Some("chat") | Some("note")
+        );
+        if !is_content {
+            continue;
+        }
+        let off = env
+            .get("offset")
+            .and_then(|v| v.as_u64())
+            .map(|o| o.to_string())
+            .unwrap_or_default();
+        if off.is_empty() {
+            continue;
+        }
+        let sender = env
+            .get("sender_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let ts = env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        ts_of.insert(off.clone(), ts);
+        let parent = env
+            .get("metadata")
+            .and_then(|m| m.get("in_reply_to"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        if parent.is_empty() {
+            if sender == sender_id {
+                sender_posts.push(off);
+            }
+        } else {
+            replies
+                .entry(parent.to_string())
+                .or_default()
+                .push((sender.clone(), ts));
+            if sender == sender_id {
+                sender_posts.push(off.clone());
+            }
+        }
+    }
+    let mut latencies_s: Vec<i64> = Vec::new();
+    let mut posts_with: u64 = 0;
+    let mut posts_without: u64 = 0;
+    for off in &sender_posts {
+        let post_ts = *ts_of.get(off).unwrap_or(&0);
+        let mut earliest_other: i64 = i64::MAX;
+        if let Some(rep_list) = replies.get(off) {
+            for (rsender, rts) in rep_list {
+                if rsender == sender_id {
+                    continue;
+                }
+                if *rts < earliest_other {
+                    earliest_other = *rts;
+                }
+            }
+        }
+        if earliest_other == i64::MAX {
+            posts_without += 1;
+        } else {
+            posts_with += 1;
+            latencies_s.push((earliest_other - post_ts) / 1000);
+        }
+    }
+    latencies_s.sort();
+    let n = latencies_s.len();
+    let p50 = if n > 0 { latencies_s[n / 2] } else { 0 };
+    let p90 = if n > 0 { latencies_s[(n * 9 / 10).min(n - 1)] } else { 0 };
+    let fastest = if n > 0 { latencies_s[0] } else { 0 };
+    let slowest = if n > 0 { *latencies_s.last().unwrap() } else { 0 };
+    serde_json::json!({
+        "sender_id": sender_id,
+        "posts_with_replies": posts_with,
+        "posts_without_replies": posts_without,
+        "p50_seconds": p50,
+        "p90_seconds": p90,
+        "fastest_seconds": fastest,
+        "slowest_seconds": slowest,
+    })
+}
+
 fn mcp_batch_exec_session_json(
     session_id: &str,
     display_name: &str,
@@ -27145,66 +27251,10 @@ impl TermLinkTools {
                 break;
             }
         }
-        let mut author_of: std::collections::HashMap<String, String> = std::collections::HashMap::new();
-        let mut ts_of: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
-        let mut sender_posts: Vec<String> = Vec::new();
-        let mut replies: std::collections::HashMap<String, Vec<(String, i64)>> = std::collections::HashMap::new();
-        for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
-            let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
-            if off.is_empty() { continue; }
-            let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
-                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
-                .unwrap_or(0);
-            author_of.insert(off.clone(), sender.clone());
-            ts_of.insert(off.clone(), ts);
-            let parent = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()).unwrap_or("");
-            if parent.is_empty() {
-                if sender == p.sender_id { sender_posts.push(off); }
-            } else {
-                let sender_for_reply = sender.clone();
-                replies.entry(parent.to_string()).or_default().push((sender_for_reply, ts));
-                if sender == p.sender_id {
-                    // also include sender's reply-posts as candidates for receiving replies
-                    sender_posts.push(off.clone());
-                }
-            }
-        }
-        let mut latencies_s: Vec<i64> = Vec::new();
-        let mut posts_with: u64 = 0;
-        let mut posts_without: u64 = 0;
-        for off in &sender_posts {
-            let post_ts = *ts_of.get(off).unwrap_or(&0);
-            let mut earliest_other: i64 = i64::MAX;
-            if let Some(rep_list) = replies.get(off) {
-                for (rsender, rts) in rep_list {
-                    if rsender == &p.sender_id { continue; }
-                    if *rts < earliest_other { earliest_other = *rts; }
-                }
-            }
-            if earliest_other == i64::MAX {
-                posts_without += 1;
-            } else {
-                posts_with += 1;
-                latencies_s.push((earliest_other - post_ts) / 1000);
-            }
-        }
-        latencies_s.sort();
-        let n = latencies_s.len();
-        let p50 = if n > 0 { latencies_s[n/2] } else { 0 };
-        let p90 = if n > 0 { latencies_s[(n*9/10).min(n-1)] } else { 0 };
-        let fastest = if n > 0 { latencies_s[0] } else { 0 };
-        let slowest = if n > 0 { *latencies_s.last().unwrap() } else { 0 };
-        serde_json::to_string_pretty(&serde_json::json!({
-            "sender_id": p.sender_id,
-            "posts_with_replies": posts_with,
-            "posts_without_replies": posts_without,
-            "p50_seconds": p50,
-            "p90_seconds": p90,
-            "fastest_seconds": fastest,
-            "slowest_seconds": slowest,
-        })).unwrap_or_else(json_err)
+        // T-2587: aggregate via the pure helper — accepts the full content
+        // msg_type set (post|chat|note), not the never-emitted literal "post".
+        let stats = compute_response_received_stats(&all, &p.sender_id);
+        serde_json::to_string_pretty(&stats).unwrap_or_else(json_err)
     }
 
     #[tool(
@@ -31288,6 +31338,67 @@ YW\tJ
             mcp_remote_inject_result_json("hub-a:9100", "sess-3", 0, false, &weird)["ok"],
             serde_json::json!(false),
             "unknown status must be fail-safe ok:false (T-2584)"
+        );
+    }
+
+    // T-2587 LOAD-BEARING: termlink_agent_response_received must count the real
+    // content msg_types (note/chat/post), not only the never-emitted literal
+    // "post". Real content defaults to note/chat, so a `!= "post"` filter matched
+    // nothing and the tool silently returned all-zeros. Narrowing the filter back
+    // to only "post" fails this.
+    #[test]
+    fn response_received_counts_note_and_chat_content() {
+        // agent-A posts a `note` at offset 10; agent-B replies with a `chat` at
+        // offset 11 (in_reply_to=10), 5s later. A's reply-latency must be counted.
+        let envs = vec![
+            serde_json::json!({
+                "offset": 10, "sender_id": "agent-A", "msg_type": "note",
+                "ts_unix_ms": 1_000_000i64, "metadata": {}
+            }),
+            serde_json::json!({
+                "offset": 11, "sender_id": "agent-B", "msg_type": "chat",
+                "ts_unix_ms": 1_005_000i64, "metadata": {"in_reply_to": "10"}
+            }),
+        ];
+        let stats = compute_response_received_stats(&envs, "agent-A");
+        assert_eq!(
+            stats["posts_with_replies"], serde_json::json!(1),
+            "a note that got a chat reply must count as 1 with_replies (T-2587)"
+        );
+        assert_eq!(stats["posts_without_replies"], serde_json::json!(0));
+        assert_eq!(
+            stats["p50_seconds"], serde_json::json!(5),
+            "5s reply latency must be measured, not 0 (T-2587)"
+        );
+
+        // A pure-"post"-only tree still works (no regression for that type).
+        let post_only = vec![
+            serde_json::json!({
+                "offset": 1, "sender_id": "agent-A", "msg_type": "post",
+                "ts_unix_ms": 0i64, "metadata": {}
+            }),
+            serde_json::json!({
+                "offset": 2, "sender_id": "agent-B", "msg_type": "post",
+                "ts_unix_ms": 2_000i64, "metadata": {"in_reply_to": "1"}
+            }),
+        ];
+        assert_eq!(
+            compute_response_received_stats(&post_only, "agent-A")["posts_with_replies"],
+            serde_json::json!(1),
+            "post-typed content still counts (T-2587)"
+        );
+
+        // Non-content envelopes (receipt/typing) are correctly ignored.
+        let noise = vec![
+            serde_json::json!({
+                "offset": 5, "sender_id": "agent-A", "msg_type": "receipt",
+                "ts_unix_ms": 0i64, "metadata": {}
+            }),
+        ];
+        assert_eq!(
+            compute_response_received_stats(&noise, "agent-A")["posts_without_replies"],
+            serde_json::json!(0),
+            "receipt envelopes are not content posts (T-2587)"
         );
     }
 
