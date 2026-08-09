@@ -51,12 +51,12 @@ Reliability violation on the charter-core output-capture path.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `termlink_exec`'s response JSON (tools.rs ~11328) includes a `truncated` field
+- [x] `termlink_exec`'s response JSON (tools.rs ~11328) includes a `truncated` field
       forwarded from the RPC result (`result["truncated"].as_bool().unwrap_or(false)`).
-- [ ] A load-bearing unit test asserts the forwarding, mirroring the
+- [x] A load-bearing unit test asserts the forwarding, mirroring the
       `run_result_truncated_is_emitted` convention — removing the `truncated` line
       from the `termlink_exec` response makes the test FAIL (proven via temp-revert).
-- [ ] `cargo test -p termlink-mcp` passes (no regressions).
+- [x] `cargo test -p termlink-mcp` passes (no regressions).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
