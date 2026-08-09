@@ -1,0 +1,95 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2580: fix: termlink_inject reports 'Injected successfully' on no-PTY session where nothing was injected
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-09T21:43:22Z
+# ============================================================================
+
+task_id: T-2580
+task_name: "fix: termlink_inject reports 'Injected successfully' on no-PTY session where nothing was injected"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-09T21:39:00Z
+completed: 2026-08-09T21:42:58Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-09T23:42:53+02:00
+last_commit: 2026-08-09T23:42:53+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_inject is status-aware — no-PTY resolve no longer reads 'Injected successfully'
+
+# Key outcomes
+outcomes:
+  - '`termlink_inject` inspects the RPC result `status` — only `status:"injected"`'
+  - 'The mapping is extracted into a pure, unit-testable helper'
+  - 'A load-bearing unit test asserts `status:"injected"` → success and'
+  - '`cargo test -p termlink-mcp --lib` passes (no regressions).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-08-09.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/episodic/T-2578.yaml'
+  - '.context/episodic/T-2579.yaml'
+  - '.context/project/learnings.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-2580-fix-termlinkinject-reports-injected-succ.md'
+  - '.tasks/completed/T-2579-fix-dedupe-capacity-eviction-can-evict-i.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-09T23:42:53"
+    action: "T-2580: termlink_inject is status-aware — no-PTY resolve no longer reads 'Injected successfully'"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 20
+  lines_added: 798
+  lines_removed: 366
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2580-fix-termlinkinject-reports-injected-succ.md
+generated_by: context-agent-hybrid

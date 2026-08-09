@@ -6714,3 +6714,21 @@ scan_id: R-0c200f4b
 task_id: T-2579
 payload:
   task_file: .tasks/active/T-2579-fix-dedupe-capacity-eviction-can-evict-i.md
+---
+kind: scan_emitted
+timestamp: '2026-08-09T21:43:18Z'
+scan_id: R-918e27c3
+task_id: T-2580
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-09T21:43:18Z'
+scan_id: R-918e27c3
+task_id: T-2580
+payload:
+  task_file: .tasks/active/T-2580-fix-termlinkinject-reports-injected-succ.md
