@@ -499,6 +499,36 @@ auto-expires, or reassign via `/claim-transfer`, or Tier-0
 with the thirteen canaries above — all fourteen follow the same "empty-log =
 healthy" convention.
 
+### Session-control canary (T-2557, verb-4 "control terminal sessions" daily-detection gap)
+
+Sibling of T-2556, closing the last charter-verb canary cell. **Verb 4 — "control
+terminal sessions"** (the founding verb: spawn a PTY-backed session, inject a
+command, capture output) has an affirmative prover (`scripts/session-selftest.sh`,
+T-2485: SPAWN a tmux-backed scratch session → EXEC `echo <sentinel>` verifying the
+inject→run→capture round-trip → CLEANUP) but had ZERO passive daily detection —
+spawn/exec could regress and only a manual run would catch it. The prover is
+deterministic + local (uses `exec --json`, no live peer needed) and self-reaps, so
+it is ideal canary substrate. A daily cron runs
+`scripts/check-session-control-freshness.sh --quiet` (see
+`.context/cron/session-control-canary.crontab`) and appends to
+`.context/working/.session-control-canary.log`. Empty log = healthy.
+
+The canary runs the prover and translates its verdict: selftest exit 0 (proven) →
+canary exit 0 (healthy); selftest exit 1 (broken) → canary exit 1 (FIRE, naming the
+`broken_stage`); selftest exit 2 (tooling — hub down / no tmux / dep missing) →
+canary exit 2 (non-firing — that is a substrate/environment fault, `/preflight`
+territory, NOT a verb-4 regression). This split keeps a firing log meaningful: it
+fills ONLY when session control genuinely broke, never on a transient hub-down.
+Ad-hoc check: `bash scripts/check-session-control-freshness.sh` (exit 0 = healthy,
+1 = firing, 2 = tooling); add `--json` for scripting, `--hub ADDR` to target a
+specific hub. Test hooks `TERMLINK_SESSION_CANARY_TEST_JSON=<file>` +
+`TERMLINK_SESSION_CANARY_TEST_RC=<n>` feed a canned selftest verdict + exit code
+for hub/tmux-independent verification (PL-213). Operator action on firing: reproduce
+with `bash scripts/session-selftest.sh` (names the broken stage), then inspect
+`termlink spawn` / `termlink exec <s> 'echo hi' --json`. `/canaries` auto-discovers
+the log. Pair with the fourteen canaries above — all fifteen follow the same
+"empty-log = healthy" convention.
+
 ### Unclamped caller-param → allocation-sink static check (T-2527, G-019 prevention for the T-2523/T-2526 class)
 
 Twice in one window an adversarial hunter found a caller-supplied param reaching an

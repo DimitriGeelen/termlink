@@ -1,0 +1,24 @@
+# T-2557 (T-2468 charter-verb completeness) — Session-control canary (verb-4 detection gap)
+# Source of truth: /opt/termlink/.context/cron/session-control-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-session-control-canary (USER field syntax — do NOT load into a user crontab)
+#
+# TermLink's charter names FOUR core verbs; verb 4 is "control terminal sessions"
+# — the founding verb (spawn a PTY, inject a command, capture output). It has an
+# affirmative prover (scripts/session-selftest.sh, T-2485: SPAWN + EXEC sentinel
+# round-trip + CLEANUP) but had ZERO passive daily detection: spawn/exec could
+# regress and only a manual run would catch it. This daily canary runs the prover
+# and translates its verdict — selftest exit 0 → healthy, exit 1 → FIRE (verb-4
+# broken, broken_stage named), exit 2 → tooling (hub down / no tmux; NOT a
+# regression — /preflight territory, non-firing). Empty log = healthy. /canaries
+# auto-discovers this log.
+#
+# Operator action on firing: the founding session-control verb failed its
+# spawn→exec→capture round-trip. Reproduce with `bash scripts/session-selftest.sh`
+# (names the broken stage), then inspect `termlink spawn` / `termlink exec <s>
+# 'echo hi' --json`. Ad-hoc check: bash scripts/check-session-control-freshness.sh
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 07:33 UTC — offset from the :27 stuck-claims, :17 unconfirmed-delivery,
+# :13 mirror, :43 frozen-husk, :47 task-finalization canaries.
+33 7 * * * root cd /opt/termlink && bash scripts/check-session-control-freshness.sh --quiet >> .context/working/.session-control-canary.log 2>&1
