@@ -89,12 +89,13 @@ OR oldest_active_age_ms>60_000`). This task wraps it in the standard canary shap
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 test -x scripts/check-stuck-claims-freshness.sh
-# stuck fixture fires (exit 1)
-sp=$(mktemp -d); printf '{"ok":true,"topic_count":3,"stuck_count":1,"shown":1,"only_stuck":true,"topics":[{"ok":true,"topic":"work-queue","active_count":2,"expired_count":1,"oldest_active_age_ms":95000,"potentially_stuck":true}]}' > "$sp/stuck.json"; TERMLINK_STUCK_CLAIMS_TEST_JSON="$sp/stuck.json" bash scripts/check-stuck-claims-freshness.sh --no-heartbeat >/dev/null; test $? -eq 1
+# stuck fixture fires (exit 1) — each line is a self-contained shell (no cross-line vars)
+f=$(mktemp); printf '{"ok":true,"topic_count":3,"stuck_count":1,"shown":1,"only_stuck":true,"topics":[{"ok":true,"topic":"work-queue","active_count":2,"expired_count":1,"oldest_active_age_ms":95000,"potentially_stuck":true}]}' > "$f"; TERMLINK_STUCK_CLAIMS_TEST_JSON="$f" bash scripts/check-stuck-claims-freshness.sh --no-heartbeat >/dev/null; rc=$?; rm -f "$f"; test "$rc" -eq 1
 # clean fixture healthy (exit 0)
-printf '{"ok":true,"topic_count":3,"stuck_count":0,"shown":0,"only_stuck":true,"topics":[]}' > "$sp/clean.json"; TERMLINK_STUCK_CLAIMS_TEST_JSON="$sp/clean.json" bash scripts/check-stuck-claims-freshness.sh --no-heartbeat --quiet; test $? -eq 0
+f=$(mktemp); printf '{"ok":true,"topic_count":3,"stuck_count":0,"shown":0,"only_stuck":true,"topics":[]}' > "$f"; TERMLINK_STUCK_CLAIMS_TEST_JSON="$f" bash scripts/check-stuck-claims-freshness.sh --no-heartbeat --quiet; rc=$?; rm -f "$f"; test "$rc" -eq 0
 test -f .context/cron/stuck-claims-canary.crontab
-out=$(cat CLAUDE.md); echo "$out" | grep -q "Stuck-claims canary (T-2556"
+# grep the file directly (no pipe) to avoid SIGPIPE-141 under pipefail (L-387/T-2090)
+grep -q "Stuck-claims canary (T-2556" CLAUDE.md
 
 ## RCA
 
