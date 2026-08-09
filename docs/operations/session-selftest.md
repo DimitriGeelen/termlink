@@ -28,12 +28,13 @@ bash scripts/session-selftest.sh --ttl 60   # scratch-session lifetime (default 
 bash scripts/session-selftest.sh --hub <addr>
 ```
 
-## What it proves — three staged PASS/FAIL checks
+## What it proves — staged PASS/FAIL checks
 
 | Stage | Proves | How |
 |-------|--------|-----|
 | **SPAWN** | a terminal session can be registered on this host | `termlink spawn --name <s> -- sleep <ttl>` |
-| **EXEC** | a command injects into and runs in that session, output+exit captured | `termlink exec <s> 'echo <sentinel>' --json` → `ok` + `exit_code 0` + sentinel in `stdout` |
+| **EXEC** | a command injects into and runs in that session, output+exit captured, **not truncated** | `termlink exec <s> 'echo <sentinel>' --json` → `ok` + `exit_code 0` + sentinel in `stdout` + `truncated != true` |
+| **EXEC_EXITCODE** | a real non-zero exit code **propagates faithfully** (exit-code fidelity) | `termlink exec <s> 'sh -c "exit 7"' --json` → `exit_code == 7` |
 | **CLEANUP** | best-effort teardown (never fatal) | `signal TERM` + `clean` |
 
 `spawn` returns before the tmux-backed shell is guaranteed exec-ready, so the EXEC
@@ -41,10 +42,21 @@ stage retries up to ~5s (`SESSION_SELFTEST_EXEC_ATTEMPTS` × `SESSION_SELFTEST_E
 to absorb the occasional slow start. A ready session passes on attempt 1 at no cost;
 a genuinely broken verb still FAILs after the budget is spent.
 
+**Why EXEC_EXITCODE + the truncation check (T-2563).** The happy-path EXEC only ever
+runs `echo` (always exit 0), so on its own it cannot catch two silent-success
+regressions: (a) a bug that pins `exit_code:0` for *all* commands — a peer running
+`exec 'deploy.sh'` would then read success on failure; and (b) a truncated capture
+that, in the ~64 KiB band around the output cap, reads back as `exit_code:0` with the
+sentinel still present (executor.rs's own comment admits this). The negative
+EXEC_EXITCODE stage proves the real code propagates; the `truncated != true` assertion
+on EXEC proves the capture was complete. Note: `termlink exec --json` sets `ok` to
+whether the *command* succeeded (exit 0), so the negative stage legitimately sees
+`ok=false` — the discriminator is the exact `exit_code == 7`, not `ok`.
+
 ## Exit codes
 
-- **0** proven — SPAWN and EXEC both PASSed: the verb works now.
-- **1** broken — SPAWN or EXEC FAILed; the broken stage is **named** (not silent).
+- **0** proven — SPAWN, EXEC (incl. not-truncated), and EXEC_EXITCODE all PASSed: the verb works now.
+- **1** broken — a stage FAILed; the broken stage is **named** (not silent).
 - **2** tooling — missing `termlink`/`jq`, or the local hub is down (**fail-closed**:
   an unprovable environment is never reported "proven").
 

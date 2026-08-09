@@ -47,6 +47,48 @@ check "broken at EXEC (sentinel missing) -> 1" 1 "$(run 0 "$NOSENT_JSON")"
 # 5. broken at EXEC — ok:false (no-PTY class). Expect 1.
 check "broken at EXEC (ok:false / no-PTY) -> 1" 1 "$(run 0 "$NOPTY_JSON")"
 
+# --- T-2563: silent-success regression cases -------------------------------
+# runx <spawn_rc> <exec_json> <exitcode_json> -> exit code
+runx() {
+    SESSION_SELFTEST_SENTINEL="$FIX" \
+    TERMLINK_SESSION_SELFTEST_TEST_SPAWN_RC="$1" \
+    TERMLINK_SESSION_SELFTEST_TEST_EXEC_JSON="$2" \
+    TERMLINK_SESSION_SELFTEST_TEST_EXITCODE_JSON="$3" \
+        bash "$SCRIPT" --json >/dev/null 2>&1; echo $?
+}
+TRUNC_JSON="{\"ok\":true,\"exit_code\":0,\"stdout\":\"${FIX}\\n\",\"truncated\":true}"
+ECGOOD_JSON="{\"ok\":false,\"exit_code\":7}"
+ECPINNED0_JSON="{\"ok\":false,\"exit_code\":0}"
+
+# F3: EXEC returns sentinel + exit 0 but truncated:true -> broken at EXEC. Expect 1.
+check "F3 truncated:true -> broken EXEC -> 1" 1 "$(runx 0 "$TRUNC_JSON" "$ECGOOD_JSON")"
+
+# F2: negative stage pins exit_code:0 (fidelity lost) -> broken EXEC_EXITCODE. Expect 1.
+check "F2 pinned exit_code:0 -> broken EXEC_EXITCODE -> 1" 1 "$(runx 0 "$GOOD_JSON" "$ECPINNED0_JSON")"
+
+# F2 happy: negative stage propagates exact code 7 -> proven. Expect 0.
+check "F2 exit_code:7 propagates -> proven -> 0" 0 "$(runx 0 "$GOOD_JSON" "$ECGOOD_JSON")"
+
+# JSON envelope on proven includes the new exec_exitcode stage.
+jx="$(SESSION_SELFTEST_SENTINEL="$FIX" TERMLINK_SESSION_SELFTEST_TEST_SPAWN_RC=0 \
+      TERMLINK_SESSION_SELFTEST_TEST_EXEC_JSON="$GOOD_JSON" \
+      TERMLINK_SESSION_SELFTEST_TEST_EXITCODE_JSON="$ECGOOD_JSON" bash "$SCRIPT" --json 2>/dev/null)"
+if printf '%s' "$jx" | jq -e '.proven==true and .stages.exec_exitcode=="PASS"' >/dev/null 2>&1; then
+    echo "  ok   json proven envelope carries exec_exitcode stage"
+else
+    echo "  FAIL json exec_exitcode stage missing"; fails=$((fails+1))
+fi
+
+# JSON envelope on broken-at-EXEC_EXITCODE names that stage.
+jxb="$(SESSION_SELFTEST_SENTINEL="$FIX" TERMLINK_SESSION_SELFTEST_TEST_SPAWN_RC=0 \
+      TERMLINK_SESSION_SELFTEST_TEST_EXEC_JSON="$GOOD_JSON" \
+      TERMLINK_SESSION_SELFTEST_TEST_EXITCODE_JSON="$ECPINNED0_JSON" bash "$SCRIPT" --json 2>/dev/null)"
+if printf '%s' "$jxb" | jq -e '.proven==false and .broken_stage=="EXEC_EXITCODE"' >/dev/null 2>&1; then
+    echo "  ok   json broken envelope names EXEC_EXITCODE"
+else
+    echo "  FAIL json EXEC_EXITCODE broken stage"; fails=$((fails+1))
+fi
+
 # 6. tooling — unknown arg. Expect 2 (fail-closed exit path).
 bash "$SCRIPT" --bogus-flag >/dev/null 2>&1; check "unknown arg -> tooling(2)" 2 "$?"
 
