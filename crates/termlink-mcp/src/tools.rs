@@ -2935,6 +2935,25 @@ fn mcp_run_result_json(
     })
 }
 
+/// Build the MCP `termlink_exec` result JSON from the `command.execute` RPC
+/// result Value. T-2578: like `mcp_run_result_json` this MUST carry `truncated`
+/// so an MCP consumer can distinguish a T-2529/T-2537 cap-hit (`truncated:true`,
+/// `exit_code:-1`) from a signal kill — the RPC result already carries the field
+/// (`ExecResult::to_json`), it was simply dropped when the response was rebuilt.
+/// Extracted as a pure helper so the field-forwarding is unit-testable (removing
+/// the `truncated` line fails `exec_result_truncated_is_emitted`).
+fn mcp_exec_result_json(result: &serde_json::Value, target: &str) -> serde_json::Value {
+    let exit_code = result["exit_code"].as_i64().unwrap_or(-1);
+    serde_json::json!({
+        "ok": exit_code == 0,
+        "exit_code": exit_code,
+        "stdout": result["stdout"].as_str().unwrap_or(""),
+        "stderr": result["stderr"].as_str().unwrap_or(""),
+        "truncated": result["truncated"].as_bool().unwrap_or(false),
+        "target": target,
+    })
+}
+
 fn compute_unread_rows_mcp(
     cursors: &[(String, u64)],
     topic_counts: &std::collections::HashMap<String, u64>,
@@ -11321,17 +11340,9 @@ impl TermLinkTools {
         match client::rpc_call(reg.socket_path(), "command.execute", params).await {
             Ok(resp) => match client::unwrap_result(resp) {
                 Ok(result) => {
-                    let exit_code = result["exit_code"].as_i64().unwrap_or(-1);
-                    let stdout = result["stdout"].as_str().unwrap_or("");
-                    let stderr = result["stderr"].as_str().unwrap_or("");
-
-                    let response = serde_json::json!({
-                        "ok": exit_code == 0,
-                        "exit_code": exit_code,
-                        "stdout": stdout,
-                        "stderr": stderr,
-                        "target": p.target,
-                    });
+                    // T-2578: forward `truncated` so a T-2529/T-2537 cap-hit is not
+                    // silently indistinguishable from a clean/signal-killed exec.
+                    let response = mcp_exec_result_json(&result, &p.target);
                     serde_json::to_string_pretty(&response)
                         .unwrap_or_else(json_err)
                 }
@@ -31023,6 +31034,52 @@ YW\tJ
             mcp_run_result_json(&clean, "echo ok").get("truncated"),
             Some(&serde_json::Value::Bool(false)),
             "clean MCP run must surface truncated=false, not omit it (T-2537)"
+        );
+    }
+
+    // T-2578 LOAD-BEARING: MCP termlink_exec must ALSO surface `truncated` (it was
+    // the T-2537 boundary that got missed). The `command.execute` RPC result already
+    // carries the field; removing the `truncated` line from `mcp_exec_result_json`
+    // fails this.
+    #[test]
+    fn exec_result_truncated_is_emitted() {
+        // Cap-hit shape: exit_code:-1, truncated:true. The dangerous case — without
+        // the flag this reads as a signal kill, or (near the cap) even a clean run.
+        let capped = serde_json::json!({
+            "exit_code": -1,
+            "stdout": "partial",
+            "stderr": "",
+            "truncated": true,
+        });
+        let v = mcp_exec_result_json(&capped, "sess-1");
+        assert_eq!(
+            v.get("truncated"),
+            Some(&serde_json::Value::Bool(true)),
+            "capped MCP exec must surface truncated=true (T-2578)"
+        );
+        assert_eq!(v["ok"], serde_json::json!(false));
+        assert_eq!(v["target"], serde_json::json!("sess-1"));
+
+        // Clean shape: must emit truncated=false, not omit it.
+        let clean = serde_json::json!({
+            "exit_code": 0,
+            "stdout": "ok",
+            "stderr": "",
+            "truncated": false,
+        });
+        assert_eq!(
+            mcp_exec_result_json(&clean, "sess-2").get("truncated"),
+            Some(&serde_json::Value::Bool(false)),
+            "clean MCP exec must surface truncated=false, not omit it (T-2578)"
+        );
+
+        // Defensive: an RPC result missing the field (older session binary) must
+        // default to false, never panic.
+        let legacy = serde_json::json!({"exit_code": 0, "stdout": "", "stderr": ""});
+        assert_eq!(
+            mcp_exec_result_json(&legacy, "sess-3").get("truncated"),
+            Some(&serde_json::Value::Bool(false)),
+            "missing truncated field defaults to false (T-2578)"
         );
     }
 
