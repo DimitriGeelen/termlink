@@ -140,6 +140,15 @@ pub struct PostDedupe {
     capacity: usize,
     map: Mutex<HashMap<(String, String), DedupeEntry>>,
     hits_total: AtomicU64,
+    /// T-2579: count of capacity-driven evictions of `Committed` entries
+    /// (the design-accepted, TTL-equivalent case). Observability only.
+    evictions_total: AtomicU64,
+    /// T-2579: count of times a capacity eviction was SKIPPED because the
+    /// only candidates were in-flight `Pending` reservations. Evicting one
+    /// would reopen the T-2435 double-apply window, so we allow temporary
+    /// over-capacity instead. A non-zero value is the pressure signal that
+    /// the cache is undersized relative to concurrent in-flight posts.
+    pending_evict_skipped_total: AtomicU64,
 }
 
 impl PostDedupe {
@@ -154,6 +163,8 @@ impl PostDedupe {
             capacity,
             map: Mutex::new(HashMap::new()),
             hits_total: AtomicU64::new(0),
+            evictions_total: AtomicU64::new(0),
+            pending_evict_skipped_total: AtomicU64::new(0),
         }
     }
 
@@ -198,7 +209,7 @@ impl PostDedupe {
         // `record_offset` (success) or `abort_reservation` (post
         // failed); a crashed caller's orphan reservation ages out by
         // TTL.
-        evict_for_capacity_in(&mut map, self.capacity, &key);
+        self.note_capacity_evict(evict_for_capacity_in(&mut map, self.capacity, &key));
         map.insert(
             key,
             DedupeEntry {
@@ -207,6 +218,33 @@ impl PostDedupe {
             },
         );
         DedupeOutcome::Newly
+    }
+
+    /// Record the observability effect of a capacity-eviction attempt
+    /// (T-2579). `warn!`s on the all-Pending skip — the signal that the
+    /// cache is undersized relative to concurrent in-flight posts and the
+    /// exactly-once window would be at risk if we evicted.
+    fn note_capacity_evict(&self, outcome: CapacityEvict) {
+        match outcome {
+            CapacityEvict::NotNeeded => {}
+            CapacityEvict::Evicted => {
+                self.evictions_total.fetch_add(1, Ordering::Relaxed);
+            }
+            CapacityEvict::PendingSkipped => {
+                let n = self
+                    .pending_evict_skipped_total
+                    .fetch_add(1, Ordering::Relaxed)
+                    + 1;
+                tracing::warn!(
+                    dedupe_capacity = self.capacity,
+                    pending_evict_skipped_total = n,
+                    "Hub post-dedupe: capacity reached but ALL entries are in-flight \
+                     Pending reservations — eviction SKIPPED to preserve exactly-once \
+                     (T-2435/T-2579). Cache temporarily over capacity; raise \
+                     TERMLINK_DEDUPE_CAPACITY if this persists."
+                );
+            }
+        }
     }
 
     /// Release a `Pending` reservation after the guarded `bus.post`
@@ -239,7 +277,7 @@ impl PostDedupe {
         let mut map = self.map.lock().expect("dedupe mutex poisoned");
 
         evict_expired_in(&mut map, now_ms, self.ttl_ms);
-        evict_for_capacity_in(&mut map, self.capacity, &key);
+        self.note_capacity_evict(evict_for_capacity_in(&mut map, self.capacity, &key));
 
         // Promote the Pending reservation (normal path) — or insert
         // directly for callers that record without a prior reservation
@@ -273,6 +311,21 @@ impl PostDedupe {
         self.hits_total.load(Ordering::Relaxed)
     }
 
+    /// T-2579: monotonic count of capacity evictions of `Committed` entries.
+    /// Exposed for future `hub.governor_status` surfacing.
+    pub fn evictions_total(&self) -> u64 {
+        self.evictions_total.load(Ordering::Relaxed)
+    }
+
+    /// T-2579: monotonic count of capacity evictions SKIPPED because all
+    /// entries were in-flight `Pending`. A non-zero value means the cache is
+    /// undersized relative to concurrent in-flight posts — the exactly-once
+    /// window would be at risk under LRU-by-age. Exposed for future
+    /// `hub.governor_status` surfacing.
+    pub fn pending_evict_skipped_total(&self) -> u64 {
+        self.pending_evict_skipped_total.load(Ordering::Relaxed)
+    }
+
     /// Configured TTL in milliseconds. Used by `hub.governor_status`.
     pub fn ttl_ms(&self) -> i64 {
         self.ttl_ms
@@ -287,23 +340,51 @@ fn evict_expired_in(
     map.retain(|_, entry| now_ms.saturating_sub(entry.seen_at_ms) <= ttl_ms);
 }
 
+/// Outcome of a capacity-eviction attempt (T-2579). The caller uses it to
+/// bump the right observability counter and, on `PendingSkipped`, `warn!`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CapacityEvict {
+    /// Under capacity, or the incoming key already exists — no eviction.
+    NotNeeded,
+    /// Evicted the oldest `Committed` entry (design-accepted, TTL-equivalent).
+    Evicted,
+    /// At capacity but every candidate is an in-flight `Pending` reservation.
+    /// We do NOT evict — doing so would drop a reservation whose `bus.post`
+    /// has not yet committed, reopening the T-2435 double-apply window the
+    /// cache exists to close. Cache temporarily exceeds capacity; the Pending
+    /// entries drain within one `bus.post` latency.
+    PendingSkipped,
+}
+
 /// LRU eviction when at capacity and the incoming key is not already
-/// present — find the oldest by `seen_at_ms`. O(n) but only fires when
-/// the cache is full, which TTL keeps rare. Shared by the reservation
-/// path (`try_record_or_lookup`, T-2435) and `record_offset`.
+/// present. T-2579: the victim is chosen among `Committed` entries ONLY —
+/// an in-flight `Pending` reservation is never evicted, because losing it
+/// lets a retry of the same (sender, client_msg_id) fall through to a second
+/// `bus.post` (silent double-append of a guaranteed message). O(n) but only
+/// fires when the cache is full, which TTL keeps rare. Shared by the
+/// reservation path (`try_record_or_lookup`, T-2435) and `record_offset`.
 fn evict_for_capacity_in(
     map: &mut HashMap<(String, String), DedupeEntry>,
     capacity: usize,
     incoming: &(String, String),
-) {
-    if map.len() >= capacity && !map.contains_key(incoming) {
-        if let Some(oldest_key) = map
-            .iter()
-            .min_by_key(|(_, v)| v.seen_at_ms)
-            .map(|(k, _)| k.clone())
-        {
-            map.remove(&oldest_key);
+) -> CapacityEvict {
+    if map.len() < capacity || map.contains_key(incoming) {
+        return CapacityEvict::NotNeeded;
+    }
+    // Oldest COMMITTED entry only — Pending reservations are protected.
+    let victim = map
+        .iter()
+        .filter(|(_, v)| matches!(v.state, EntryState::Committed { .. }))
+        .min_by_key(|(_, v)| v.seen_at_ms)
+        .map(|(k, _)| k.clone());
+    match victim {
+        Some(oldest_committed) => {
+            map.remove(&oldest_committed);
+            CapacityEvict::Evicted
         }
+        // Every entry is Pending — refuse to evict, allow temporary
+        // over-capacity rather than corrupt exactly-once.
+        None => CapacityEvict::PendingSkipped,
     }
 }
 
@@ -511,6 +592,77 @@ mod tests {
             d.try_record_or_lookup("a", "m", 400),
             DedupeOutcome::Duplicate { offset: 9, .. }
         ));
+    }
+
+    #[test]
+    fn capacity_eviction_never_drops_in_flight_pending() {
+        // T-2579 LOAD-BEARING: at capacity, the eviction victim must be the
+        // oldest COMMITTED entry — never an in-flight Pending reservation.
+        // Evicting a Pending lets a retry of that pair fall through to a
+        // SECOND bus.post: the exact double-apply the T-2435 reservation
+        // closes. A naive min-by-seen_at_ms evictor drops the oldest entry
+        // regardless of state; reverting the guard makes this test fail.
+        let d = PostDedupe::new(600_000, 2); // capacity = 2
+
+        // Oldest entry: a PENDING reservation for (a, m-inflight) at t=100.
+        assert_eq!(
+            d.try_record_or_lookup("a", "m-inflight", 100),
+            DedupeOutcome::Newly
+        );
+        // Newer entry: a COMMITTED post for (b, m-done) at t=200.
+        d.record_offset("b", "m-done", 200, 1, 200);
+        assert_eq!(d.entries_active(), 2); // at capacity
+
+        // A third distinct pair arrives → capacity eviction fires. The guard
+        // must evict the oldest COMMITTED (b/m-done, t=200), NOT the older
+        // Pending (a/m-inflight, t=100).
+        assert_eq!(
+            d.try_record_or_lookup("c", "m-new", 300),
+            DedupeOutcome::Newly
+        );
+        assert_eq!(d.evictions_total(), 1);
+
+        // THE load-bearing assertion: a retry of the in-flight pair still
+        // collides on its reservation → InFlight, never Newly. Under the bug
+        // (Pending evicted) this returns Newly and the caller double-posts.
+        assert_eq!(
+            d.try_record_or_lookup("a", "m-inflight", 350),
+            DedupeOutcome::InFlight
+        );
+        // The committed entry is the one that was evicted.
+        assert_eq!(
+            d.try_record_or_lookup("b", "m-done", 360),
+            DedupeOutcome::Newly
+        );
+    }
+
+    #[test]
+    fn capacity_eviction_skips_when_all_pending() {
+        // T-2579: when every candidate is an in-flight Pending reservation,
+        // eviction is SKIPPED (temporary over-capacity) rather than corrupt
+        // exactly-once. The skip is counted (and warn!-logged in prod).
+        let d = PostDedupe::new(600_000, 1); // capacity = 1
+
+        assert_eq!(d.try_record_or_lookup("a", "m1", 100), DedupeOutcome::Newly);
+        assert_eq!(d.pending_evict_skipped_total(), 0);
+
+        // Second distinct pair: at capacity, the only candidate (a, m1) is
+        // Pending → skip eviction, let both coexist.
+        assert_eq!(d.try_record_or_lookup("b", "m2", 200), DedupeOutcome::Newly);
+        assert_eq!(d.pending_evict_skipped_total(), 1);
+        assert_eq!(d.evictions_total(), 0);
+        assert_eq!(d.entries_active(), 2); // temporarily over capacity = 1
+
+        // Both reservations intact — a retry of either collides (InFlight),
+        // never falls through to a second post.
+        assert_eq!(
+            d.try_record_or_lookup("a", "m1", 250),
+            DedupeOutcome::InFlight
+        );
+        assert_eq!(
+            d.try_record_or_lookup("b", "m2", 250),
+            DedupeOutcome::InFlight
+        );
     }
 
     #[test]
