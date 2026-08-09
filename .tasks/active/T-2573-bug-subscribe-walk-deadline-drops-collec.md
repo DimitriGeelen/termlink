@@ -4,10 +4,10 @@ name: "BUG: subscribe walk-deadline drops collected messages, resume skips them"
 description: >
   BUG: channel.subscribe walk that hits the WALK_DEADLINE returns an error whose next_cursor is PAST the messages it already collected — a client resuming per the error guidance silently skips that span. Fix: make deadline resume lossless (return partial messages, or set next_cursor to the first uncollected offset). Found in T-2468 verb-2 hunt.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
-horizon: now
+horizon: later
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-09T14:52:50Z
-last_update: 2026-08-09T14:52:50Z
+last_update: 2026-08-09T14:56:32Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -211,3 +211,7 @@ autonomously built, per the T-2468 build/file rule (medium / human-semantics).
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2573-bug-subscribe-walk-deadline-drops-collec.md
 - **Context:** Initial task creation
+
+### 2026-08-09T14:56:32Z — status-update [task-update-agent]
+- **Change:** status: started-work → captured
+- **Change:** horizon: now → later
