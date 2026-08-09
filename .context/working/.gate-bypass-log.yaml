@@ -2459,3 +2459,9 @@ FW_SWITCH_FOCUS=1 git add -A && FW_SWITCH_FOCUS=1 git commit -q -m "T-2567..T-25
 FW_SWITCH_FOCUS=1 git add -A && FW_SWITCH_FOCUS=1 git commit -q -m "T-2567..T-2570: FILE design/guard findings from T-2468 purpose-review round
 
 - T-2567 DESIGN: exec truncated output'
+- timestamp: '2026-08-09T22:00:42Z'
+  task: 'T-1291'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2586'
+  command: 'FW_SWITCH_FOCUS=1 git add .tasks/active/T-2585-fix-findidle-applies-no-msgtype-filter-t.md .tasks/active/T-2586-design-find-idle-fixed-60s-live-window-v.md .context/ && FW_SWITCH_FOCUS=1 git commit -q'
