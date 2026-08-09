@@ -632,6 +632,27 @@ impl Drop for LeasedClaim {
     }
 }
 
+/// T-2575: current wall-clock in epoch-millis (matches the hub's `claimed_until`
+/// units). Local helper — a tiny duplicated primitive per the no-cross-crate-share
+/// convention for such helpers.
+fn now_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
+}
+
+/// T-2575: has the lease deadline passed? A transient renew failure while this is
+/// true means the hub-side lease may already have lapsed (the slot can reopen to
+/// another worker → double-work), so the failure must escalate from `debug!` to
+/// `warn!` — ownership of the offset is now in doubt. While still within the lease
+/// (`now_ms < claimed_until`) a transient failure is genuinely transient and stays
+/// `debug!`. The boundary is inclusive: at `now_ms == claimed_until` the lease is
+/// considered lapsed (the hub's own expiry is `claimed_until <= now`).
+fn transient_renew_lease_at_risk(now_ms: i64, claimed_until: i64) -> bool {
+    now_ms >= claimed_until
+}
+
 fn spawn_renew_task(
     addr: TransportAddr,
     claim_id: String,
@@ -659,11 +680,27 @@ fn spawn_renew_task(
                 }
                 Err(e) => {
                     // Transport / hub blip — keep trying on the next tick.
-                    tracing::debug!(
-                        claim_id = %claim_id,
-                        error = %e,
-                        "renew loop: transient renew failure, will retry"
-                    );
+                    // T-2575: if the lease deadline has already passed, the
+                    // hub may have reopened the slot to another worker — this is
+                    // no longer a benign transient, so escalate to warn! (the
+                    // holder's ownership is now in doubt), else stay debug!.
+                    let until = claimed_until.load(Ordering::Relaxed);
+                    let now = now_ms();
+                    if transient_renew_lease_at_risk(now, until) {
+                        tracing::warn!(
+                            claim_id = %claim_id,
+                            error = %e,
+                            claimed_until = until,
+                            now_ms = now,
+                            "renew loop: transient renew failure AND lease deadline passed — ownership of this offset is in doubt (the hub may have reopened the slot to another worker); will keep retrying"
+                        );
+                    } else {
+                        tracing::debug!(
+                            claim_id = %claim_id,
+                            error = %e,
+                            "renew loop: transient renew failure, will retry (still within lease)"
+                        );
+                    }
                 }
             }
         }
@@ -702,6 +739,21 @@ mod tests {
                 data,
             },
         })
+    }
+
+    #[test]
+    fn transient_renew_lease_at_risk_boundary() {
+        // T-2575 (regression): a transient renew failure escalates to warn! only
+        // once the lease deadline has passed. Boundary is inclusive at
+        // claimed_until (the hub's own expiry is `claimed_until <= now`).
+        // LOAD-BEARING: change `>=` to `>` in transient_renew_lease_at_risk and
+        // the `now == claimed_until` case flips, failing this test.
+        // Strictly before the deadline → still within lease, not at risk.
+        assert!(!transient_renew_lease_at_risk(29_999, 30_000));
+        // Exactly at the deadline → lease lapsed, at risk.
+        assert!(transient_renew_lease_at_risk(30_000, 30_000));
+        // Well past the deadline → at risk.
+        assert!(transient_renew_lease_at_risk(45_000, 30_000));
     }
 
     #[test]

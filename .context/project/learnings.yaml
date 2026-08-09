@@ -2948,3 +2948,10 @@ learnings:
   date: 2026-08-09
   context: Added via context agent
   application: TBD
+- id: PL-313
+  learning: "A retry loop over a lease/TTL-bounded resource must compare the current time against the deadline and ESCALATE log severity (debug to warn) once the deadline is crossed. Retrying quietly past a lease expiry hides a correctness hazard: the resource may already have been reassigned (double-ownership / double-work). The renew loop logged transient failures at debug forever, so a lease silently lapsing under a held claim was invisible to operators and canaries."
+  source: P-001
+  task: T-2575
+  date: 2026-08-09
+  context: Added via context agent
+  application: TBD

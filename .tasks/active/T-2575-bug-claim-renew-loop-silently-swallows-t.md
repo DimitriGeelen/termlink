@@ -1,23 +1,23 @@
 ---
-id: T-2574
-name: "BUG: governance safety-match silently dropped under channel backpressure"
+id: T-2575
+name: "BUG: claim-renew loop silently swallows transient failures until lease lapses"
 description: >
-  BUG: a detected governance/safety pattern match in session output is silently dropped (only a debug! line) when the governance channel is full or closed (governance_subscriber.rs:88, try_send is_err). The safety signal never reaches the enforcer with no warn/metric. Fix: elevate to warn! + a dropped-events counter + load-bearing test. Found in T-2468 silent-swallow sweep.
+  BUG observability: background claim-renew loop swallows transient renew failures at debug and retries silently until the lease lapses. Fix: warn once now_ms past claimed_until. From T-2468 sweep.
 
-status: work-completed
+status: started-work
 workflow_type: build
 owner: agent
-horizon: null
+horizon: now
 tags: []
-components: [crates/termlink-session/src/governance_subscriber.rs]
+components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-09T14:56:52Z
-last_update: 2026-08-09T15:03:09Z
-date_finished: 2026-08-09T15:03:09Z
+created: 2026-08-09T15:04:08Z
+last_update: 2026-08-09T15:04:08Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -30,33 +30,41 @@ date_finished: 2026-08-09T15:03:09Z
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2574: BUG: governance safety-match silently dropped under channel backpressure
+# T-2575: BUG: claim-renew loop silently swallows transient failures until lease lapses
 
 ## Context
 
-Found in T-2468 silent-swallow sweep (Reliability directive: no silent failures).
-`governance_subscriber.rs:88` drops a matched governance/safety event with only a
-`debug!` line when `governance_tx.try_send` fails (channel full or receiver gone).
-The governance frame is the coordination signal that a session emitted something
-requiring intervention (e.g. a `FATAL ERROR` / secret-leak pattern) — on a brief
-consumer stall (bounded channel → `Full`) it never reaches the enforcer, the
-producing side moves on, and nothing at `warn`+ or any counter records it. Note
-the SAME file already uses `warn!` for the Lagged-drop case (line 99) — the
-try_send drop is the inconsistent one. Fix: elevate to `warn!` and add a monotonic
-`dropped_events` counter so the loss is observable.
+Found in T-2468 silent-swallow sweep. The background renew loop
+(`crates/termlink-session/src/claim_client.rs:660-667`, `spawn_renew_task`) logs a
+transient renew failure at `debug!` and retries on the next tick — with NO check of
+whether the lease deadline (`claimed_until`, published to a shared atomic) has
+already passed. Across a prolonged hub blip the lease lapses hub-side (the slot can
+reopen to another worker → double-work) while this loop keeps quietly retrying at
+`debug!`; the holder is not warned that ownership is now in doubt. The holder only
+finds out on the NEXT renew that returns NotFound/Expired/NotOwned (which breaks the
+loop) — by which point the double-work may already have happened.
+
+**Scope of THIS task (observability half only).** Escalate the transient-failure
+log from `debug!` to `warn!` once `now_ms >= claimed_until` (the lease deadline has
+passed → ownership in doubt), keeping `debug!` while still within lease (genuinely
+transient). This is a pure logging-severity change — no behavior/contract change.
+The deeper fix (actively signal the `LeasedClaim` holder that ownership is in doubt,
+e.g. a flag the worker can consult before acting) touches the claim-ownership
+contract and is filed separately as needs-human (T-2576).
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] The try_send-drop branch elevates from `debug!` to `warn!` AND increments a
-      monotonic `dropped_events` counter on the subscriber, so a dropped
-      governance/safety match is both loud and countable (parity with the existing
-      Lagged-drop `warn!`).
-- [x] The counter is observable (a getter) for tests/operators.
-- [x] Load-bearing test: with a capacity-1 governance channel held full, a matching
-      output line drives a try_send failure and the `dropped_events` counter
-      increments; proven load-bearing (removing the increment makes the test fail).
-- [x] `cargo test -p termlink-session governance` green.
+- [x] The transient-renew-failure branch escalates to `warn!` (naming the claim_id,
+      error, claimed_until, now) when `now_ms >= claimed_until` — lease deadline
+      passed, ownership in doubt — and keeps `debug!` while still within lease.
+- [x] The lapse decision is a pure, unit-testable predicate (not inlined `>=`
+      buried in the loop) so it can be asserted at the boundary.
+- [x] Load-bearing test on the predicate: at the deadline (`now == claimed_until`)
+      and past it → at-risk (true); strictly before → not-at-risk (false). Proven
+      load-bearing (flipping the comparison boundary breaks a case).
+- [x] `cargo test -p termlink-session claim` green; no behavior/contract change
+      (renew cadence + retry loop unchanged — only log severity + a predicate added).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -91,9 +99,9 @@ try_send drop is the inconsistent one. Fix: elevate to `warn!` and add a monoton
 
 ## Verification
 
-out=$(cargo test -p termlink-session dropped_governance_event_is_counted_not_silent 2>&1); echo "$out" | grep -q "1 passed"
-grep -q "SAFETY event dropped" crates/termlink-session/src/governance_subscriber.rs
-grep -q "dropped_events.fetch_add" crates/termlink-session/src/governance_subscriber.rs
+out=$(cargo test -p termlink-session transient_renew_lease_at_risk_boundary 2>&1); echo "$out" | grep -q "1 passed"
+grep -q "ownership of this offset is in doubt" crates/termlink-session/src/claim_client.rs
+grep -q "fn transient_renew_lease_at_risk" crates/termlink-session/src/claim_client.rs
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -128,30 +136,28 @@ grep -q "dropped_events.fetch_add" crates/termlink-session/src/governance_subscr
 
 ## RCA
 
-**Symptom:** A governance/safety pattern (e.g. `FATAL ERROR`, a secret-leak
-regex) matched in session output but did not reach the enforcer when the bounded
-governance mpsc was momentarily full or its receiver gone — the producing side
-moved on with only an invisible `debug!` trace; no operator-visible signal, no
-count.
+**Symptom:** During a prolonged hub blip the background renew loop kept retrying
+at `debug!` while the lease deadline silently passed; the holder was never warned
+that the hub may have reopened the offset to another worker (double-work risk).
 
-**Root cause:** The `try_send` failure branch (`governance_subscriber.rs`) logged
-at `debug!` and did nothing else — no counter, no `warn!`. The same file's
-Lagged-drop branch already used `warn!`, so the drop-visibility convention existed
-but was applied inconsistently to the one branch that drops a matched safety event.
+**Root cause:** The transient-failure branch logged `debug!` unconditionally,
+never comparing the current time to the last-known `claimed_until` — so a
+"transient" failure that has actually outlived the lease was indistinguishable
+from a benign one-tick blip.
 
-**Why structurally allowed:** Non-blocking `try_send` correctly chooses to drop
-rather than block the output pump, but "drop silently" was conflated with "drop
-best-effort." A dropped *cosmetic* event is best-effort; a dropped *safety-match*
-event is a lost coordination signal — the two were not distinguished, and nothing
-counted the loss so no canary/metric could ever surface it.
+**Why structurally allowed:** The renew loop was written for the common case
+(one-off blip, next tick succeeds). The tail case (blip outlives the lease) shares
+the same code path, and `debug!` made it invisible — no severity signal, so no
+operator or canary could see a lease silently lapse under a held claim.
 
-**Prevention:** (1) Fix — elevate to `warn!` and increment a monotonic
-`dropped_events` counter (loud + countable). (2) Load-bearing regression test
-`dropped_governance_event_is_counted_not_silent`, proven via temp-revert (removing
-the `fetch_add` fails it). (3) The counter is now an observable getter, so a future
-canary/metric can gate on `dropped_events > 0`. PL captured on the class:
-non-blocking `try_send` drops on the SAFETY/coordination path must be counted +
-`warn!`, never `debug!` — "non-blocking" is not license for "silent."
+**Prevention (this task — observability half):** escalate to `warn!` once
+`now_ms >= claimed_until` via a pure, unit-tested predicate
+`transient_renew_lease_at_risk`, proven load-bearing by temp-flipping the boundary.
+The deeper contract fix (actively signal the `LeasedClaim` holder so a careful
+worker can stop acting on a doubtful claim) is filed as **T-2576** (needs-human —
+touches the ownership contract). PL captured: a retry loop over a lease/TTL must
+compare against the deadline and escalate severity once crossed — "keep retrying
+quietly" past a lease expiry hides a correctness hazard (double-ownership).
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -214,19 +220,7 @@ non-blocking `try_send` drops on the SAFETY/coordination path must be counted +
 
 ## Updates
 
-### 2026-08-09T14:56:52Z — task-created [task-create-agent]
+### 2026-08-09T15:04:08Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2574-bug-governance-safety-match-silently-dro.md
+- **Output:** /opt/termlink/.tasks/active/T-2575-bug-claim-renew-loop-silently-swallows-t.md
 - **Context:** Initial task creation
-
-## Reviewer Verdict (v1.5)
-
-- **Scan ID:** R-187e21e5
-- **Timestamp:** 2026-08-09T15:03:11Z
-- **Catalogue:** v1.3-seed
-- **Overall:** PASS
-- **Needs Human:** no
-- **Findings:** none
-
-### 2026-08-09T15:03:09Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed
