@@ -139,6 +139,26 @@ else
     fi
 fi
 
+# T-2564: queued-post → loud stderr warn (verb-1 silent-dark). Hub-independent via
+# the TERMLINK_HEARTBEAT_TEST_POST_JSON seam — no live hub needed.
+echo "T8: queued envelope → WARNING on stderr, exit 0"
+q_err="$(TERMLINK_HEARTBEAT_TEST_POST_JSON='{"queued":{"queue_id":"q-1","queue_path":"/x"}}' \
+    bash "$SCRIPT" --agent-id "$run_id-T8" --once 2>&1 >/dev/null)"; q_rc=$?
+if [ "$q_rc" -eq 0 ] && printf '%s' "$q_err" | grep -q "QUEUED, not delivered" && printf '%s' "$q_err" | grep -q "OFFLINE"; then
+    pass "T8: queued post warns loudly (OFFLINE) and stays rc 0"
+else
+    fail "T8: rc=$q_rc err=$q_err"
+fi
+
+echo "T9: delivered envelope → NO warn on stderr, exit 0"
+d_err="$(TERMLINK_HEARTBEAT_TEST_POST_JSON='{"delivered":{"offset":9,"ts":1}}' \
+    bash "$SCRIPT" --agent-id "$run_id-T9" --once 2>&1 >/dev/null)"; d_rc=$?
+if [ "$d_rc" -eq 0 ] && ! printf '%s' "$d_err" | grep -q "QUEUED"; then
+    pass "T9: delivered post is silent (no queued warn)"
+else
+    fail "T9: rc=$d_rc err=$d_err"
+fi
+
 echo ""
 echo "Results: $PASS pass / $FAIL fail / $SKIP skip"
 [ "$FAIL" -eq 0 ]

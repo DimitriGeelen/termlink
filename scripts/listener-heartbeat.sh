@@ -189,8 +189,23 @@ post_one() {
     # full heartbeat log). --no-cv-key opts out for tests/migration.
     [ "$no_cv_key" -eq 0 ] && post_args+=(--metadata "cv_key=$agent_id")
     post_args+=(--json)
+    # Test seam (PL-213): feed a canned `channel post --json` envelope instead of
+    # calling the live hub, so the queued-detection warn is verifiable hub-independently.
+    if [ -n "${TERMLINK_HEARTBEAT_TEST_POST_JSON:-}" ]; then
+        printf '%s\n' "$TERMLINK_HEARTBEAT_TEST_POST_JSON"
+        return 0
+    fi
     "$TERMLINK" "${post_args[@]}" 2>&1
 }
+
+# T-2564: consecutive-queued run length across emit_once calls (verb-1 silent-dark).
+# A `channel post` that lands in the offline queue during a hub outage returns exit 0
+# with a `{"queued": {...}}` envelope (channel.rs PostOutcome::Queued). Without this
+# the loop would report success every cycle while NO heartbeat reaches the hub —
+# peers see the agent OFFLINE and the producer is never told (G-063 from the sender's
+# side). We surface it LOUDLY on stderr; queuing is not a hard failure (the queue will
+# flush on reconnect), so rc stays 0 — matching current back-compat loop behaviour.
+queued_run=0
 
 emit_once() {
     local out rc
@@ -199,6 +214,15 @@ emit_once() {
     if [ "$rc" -ne 0 ]; then
         echo "listener-heartbeat: post failed (exit=$rc): $out" >&2
         return 3
+    fi
+    # Detect the queued envelope by its top-level key. grep (not jq) keeps this
+    # dependency-free for the many hosts running the heartbeat loop; the pretty-printed
+    # envelope carries a distinct `"queued":` key line only in the queued case.
+    if printf '%s' "$out" | grep -qE '"queued"[[:space:]]*:'; then
+        queued_run=$((queued_run + 1))
+        echo "listener-heartbeat: WARNING — presence post to '$topic' was QUEUED, not delivered (hub unreachable). Peers will see this agent as OFFLINE until the hub returns and the queue flushes. [consecutive queued cycles: $queued_run]" >&2
+    else
+        queued_run=0
     fi
     if [ "$json" -eq 1 ]; then
         printf '%s\n' "$out"
