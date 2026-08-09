@@ -2899,3 +2899,17 @@ learnings:
   date: 2026-08-08
   context: Added via context agent
   application: TBD
+- id: PL-306
+  learning: "Caller-facing error actionability (Directive #3) is a convention, not enforced — descriptive-but-non-directive errors ship silently. Fix pattern: route the failure class through ONE helper that appends the recovery command (hub_down_err T-2553, claim_err_actionable T-2554) + a load-bearing unit test asserting the recovery command is present (revert-to-bare fails it). Future call sites inherit the actionable form. Candidate Level-C: a lint flagging caller-facing errors lacking a next-command hint."
+  source: P-001
+  task: T-2555
+  date: 2026-08-08
+  context: Added via context agent
+  application: TBD
+- id: PL-307
+  learning: "Directive #2 no-silent-failures is convention-not-enforced: best-effort side-effect idiom let-underscore fn() conflates non-fatal with invisible. Audit-record writes (learnings/concerns/rotation trail) must eprintln on Err even when best-effort. Fix: if-let-Err at EVERY call site (grep ALL sites; they cluster across text+JSON paths) + source-level structural Verification grep asserting zero let-underscore swallows remain (revert-to-fail load-bearing, sibling of alloc/drain static checks). Level-C: unused-Result lint for audit-write helpers."
+  source: P-001
+  task: T-2559
+  date: 2026-08-09
+  context: Added via context agent
+  application: TBD
