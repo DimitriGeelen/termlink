@@ -2934,3 +2934,10 @@ learnings:
   date: 2026-08-09
   context: Added via context agent
   application: TBD
+- id: PL-311
+  learning: "A monotonic never-rewind state advance (e.g. a MAX-upsert subscriber cursor) MUST validate its input against the live frontier at the write boundary. A future-offset claim + release --ack poisoned the cursor arbitrarily far ahead (silent unbounded data loss) because claim_offset never bounded offset < next_offset, and the gap detector (gap_before) only sees a cursor that fell BEHIND, never one ahead of the frontier — so no observability could recover it. Guard the input, do not rely on a one-directional downstream detector."
+  source: P-001
+  task: T-2572
+  date: 2026-08-09
+  context: Added via context agent
+  application: TBD

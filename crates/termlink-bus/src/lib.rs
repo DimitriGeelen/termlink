@@ -1702,6 +1702,63 @@ mod tests {
         assert!(matches!(err, BusError::ClaimNotFound(_)), "got {err:?}");
     }
 
+    #[tokio::test]
+    async fn claim_beyond_frontier_is_rejected_preventing_cursor_poison() {
+        // T-2572 (regression): a claim at/beyond the frontier must be refused.
+        // Before the guard, `claim_offset("work", 1_000_000, ...)` succeeded and
+        // `release --ack` advanced the claimer's cursor to 1_000_001 via a
+        // monotonic-MAX upsert that never rewinds — silently skipping EVERY real
+        // record up to that offset (unbounded data loss `gap_before` can't see).
+        // LOAD-BEARING: delete the `offset >= next_offset` guard in
+        // meta.rs::claim_offset and the two "beyond frontier" asserts below fail.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("work", Retention::Forever).unwrap();
+        for i in 0..5u32 {
+            bus.post("work", &env("work", &i.to_le_bytes())).await.unwrap();
+        }
+        // Frontier is 5 (offsets 0..=4 exist). Claiming far past it is refused…
+        let err = bus
+            .claim_offset("work", 1_000_000, "worker-A", 30_000)
+            .unwrap_err();
+        assert!(
+            matches!(
+                err,
+                BusError::ClaimOffsetBeyondFrontier { ref topic, offset: 1_000_000, frontier: 5 }
+                    if topic == "work"
+            ),
+            "expected ClaimOffsetBeyondFrontier{{frontier:5}}, got {err:?}"
+        );
+        // …and offset == frontier (the next unposted offset) is refused too.
+        let err_eq = bus
+            .claim_offset("work", 5, "worker-A", 30_000)
+            .unwrap_err();
+        assert!(
+            matches!(err_eq, BusError::ClaimOffsetBeyondFrontier { frontier: 5, .. }),
+            "offset == next_offset must be refused, got {err_eq:?}"
+        );
+        // The cursor was never touched by the refused claims — no poison.
+        assert_eq!(bus.get_cursor("worker-A", "work").unwrap(), None);
+        // A within-frontier claim + ack still advances the cursor correctly.
+        let c = bus.claim_offset("work", 4, "worker-A", 30_000).unwrap();
+        bus.release_claim(&c.claim_id, "worker-A", true).unwrap();
+        assert_eq!(bus.get_cursor("worker-A", "work").unwrap(), Some(5));
+    }
+
+    #[tokio::test]
+    async fn claim_on_empty_topic_is_rejected() {
+        // T-2572: a topic with zero posts has next_offset == 0, so NO offset is
+        // claimable — claiming offset 0 must be refused with frontier 0.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("work", Retention::Forever).unwrap();
+        let err = bus
+            .claim_offset("work", 0, "worker-A", 30_000)
+            .unwrap_err();
+        assert!(
+            matches!(err, BusError::ClaimOffsetBeyondFrontier { offset: 0, frontier: 0, .. }),
+            "empty topic must refuse any claim, got {err:?}"
+        );
+    }
+
     // ── T-2044 (arc-parallel-substrate Slice 11): force-release semantics ──
 
     #[tokio::test]

@@ -432,6 +432,18 @@ pub mod error_code {
     /// commits. Data field: `{retry_after_ms: u64}` (best-effort ~250ms
     /// — an in-flight post normally commits within milliseconds).
     pub const POST_IN_FLIGHT: i64 = -32021;
+    /// T-2572 `channel.claim` — the requested `offset` is at or beyond the
+    /// topic frontier (`offset >= next_offset`), i.e. it names work that has
+    /// not been posted yet. Rejected LOUDLY instead of accepted: a
+    /// future-offset claim followed by `release --ack` would advance the
+    /// claimer's cursor arbitrarily far past every real record (the cursor
+    /// upsert is monotonic-MAX and never rewinds), silently skipping all
+    /// genuine messages up to that offset — unbounded data loss on the
+    /// charter-core "durable messages" path with nothing to detect it
+    /// (`gap_before` only fires when a cursor falls BEHIND, never ahead).
+    /// Valid claimable offsets are `[0, next_offset)`. Data field:
+    /// `{topic, offset, frontier}` where `frontier == next_offset`.
+    pub const CLAIM_OFFSET_BEYOND_FRONTIER: i64 = -32022;
 }
 
 /// Default `protocol_version` when the field is missing on the wire.

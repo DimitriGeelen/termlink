@@ -766,3 +766,10 @@ decisions:
     date: 2026-07-19
     task: T-2421
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-089
+    decision: "Record the verdict (guaranteed-by-construction + already tested) and"
+    scope: project
+    date: 2026-08-09
+    task: T-2571
+    rationale: "Auto-captured from task file on completion"

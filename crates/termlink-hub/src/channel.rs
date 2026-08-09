@@ -1611,6 +1611,22 @@ pub(crate) async fn handle_channel_claim_with(
             json!({"topic": t, "offset": o}),
         )
         .into(),
+        // T-2572: a claim at/beyond the frontier names unposted work; accepting
+        // it would let `release --ack` poison the claimer's cursor (silent
+        // data loss). LOUD-refuse with the frontier so the client can correct.
+        Err(termlink_bus::BusError::ClaimOffsetBeyondFrontier {
+            topic: t,
+            offset: o,
+            frontier: f,
+        }) => ErrorResponse::with_data(
+            id,
+            error_code::CLAIM_OFFSET_BEYOND_FRONTIER,
+            &format!(
+                "channel.claim: offset {o} of topic {t:?} is at/beyond the frontier {f} (cannot claim unposted work)"
+            ),
+            json!({"topic": t, "offset": o, "frontier": f}),
+        )
+        .into(),
         Err(e) => ErrorResponse::internal_error(id, &format!("channel.claim: {e}")).into(),
     }
 }

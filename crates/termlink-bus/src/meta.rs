@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, OptionalExtension, params};
 
 use crate::claim::{ClaimInfo, ClaimsSummary, ReleaseInfo, TransferInfo};
 use crate::{BusError, Result, Retention};
@@ -407,6 +407,29 @@ impl Meta {
     ) -> Result<ClaimInfo> {
         let mut conn = self.conn.lock().expect("meta mutex poisoned");
         let tx = conn.transaction()?;
+        // T-2572: reject a claim at/beyond the frontier BEFORE inserting. Valid
+        // claimable offsets are [0, next_offset); an offset >= next_offset names
+        // work that has not been posted. Accepting it and then `release --ack`
+        // would advance the claimer's cursor to offset+1 via a monotonic-MAX
+        // upsert that never rewinds, silently skipping every genuine record up
+        // to that offset (unbounded data loss the gap check cannot see). A topic
+        // with no offsets row has next_offset = 0, so NO offset is claimable.
+        let next_offset: i64 = tx
+            .query_row(
+                "SELECT next_offset FROM offsets WHERE topic = ?1",
+                params![topic],
+                |r| r.get(0),
+            )
+            .optional()?
+            .unwrap_or(0);
+        if offset as i64 >= next_offset {
+            drop(tx);
+            return Err(BusError::ClaimOffsetBeyondFrontier {
+                topic: topic.to_string(),
+                offset,
+                frontier: next_offset as u64,
+            });
+        }
         // Lazy expiry: drop any expired claim on this (topic, offset).
         tx.execute(
             "DELETE FROM claims \

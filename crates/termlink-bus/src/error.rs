@@ -64,4 +64,14 @@ pub enum BusError {
     // T-2030 (arc-parallel-substrate Slice 2): renew-after-expiry.
     #[error("claim {claim_id:?} has expired (claimed_until <= now); cannot renew")]
     ClaimExpired { claim_id: String },
+
+    // T-2572: reject a claim at/beyond the topic frontier. A future-offset
+    // claim + `release --ack` would poison the claimer's cursor (monotonic-MAX
+    // advance past the real frontier → silent skip of every genuine message).
+    #[error("offset {offset} of topic {topic:?} is at/beyond the frontier {frontier} (cannot claim work that has not been posted)")]
+    ClaimOffsetBeyondFrontier {
+        topic: String,
+        offset: u64,
+        frontier: u64,
+    },
 }

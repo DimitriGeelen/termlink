@@ -1,0 +1,96 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2571: GUARD: strict-star no-spoke-to-spoke-dial invariant (charter load-bearing-noun)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-09T14:45:17Z
+# ============================================================================
+
+task_id: T-2571
+task_name: "GUARD: strict-star no-spoke-to-spoke-dial invariant (charter load-bearing-noun)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-09T14:37:55Z
+completed: 2026-08-09T14:44:41Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-09T16:43:54+02:00
+last_commit: 2026-08-09T16:44:41+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  strict-star charter noun verified guarded-by-construction+test; link noun↔guard (ARCHITECTURE note + test doc-comment). fix verification grep to case-insensitive
+
+# Key outcomes
+outcomes:
+  - 'Investigation recorded: the strict-star invariant is **guarded-by-construction'
+  - 'No new low-value test built (AC anticipated this branch). Instead the real'
+  - 'Verdict recorded (see Decisions): guarantee is enforced-by-construction +'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix verification grep to case-insensitive'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-08-09 — strict-star: document-the-guard, do not build a redundant test'
+    chose: 'Record the verdict (guaranteed-by-construction + already tested) and'
+    rationale: 'The routing layer already refuses to use a peer''s process socket'
+    alternatives_rejected: ['(a) Building a fresh topology test — redundant, not load-bearing.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-08-09.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-cli/src/commands/agent.rs'
+  - 'docs/ARCHITECTURE.md'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2571-guard-strict-star-no-spoke-to-spoke-dial.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-09T16:43:54"
+    action: "T-2571: strict-star charter noun verified guarded-by-construction+test; link noun↔guard (ARCHITECTURE note + test doc-comment)"
+  - time: "2026-08-09T16:44:41"
+    action: "T-2571: fix verification grep to case-insensitive"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 2
+  files_changed: 19
+  lines_added: 459
+  lines_removed: 244
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2571-guard-strict-star-no-spoke-to-spoke-dial.md
+generated_by: context-agent-hybrid
