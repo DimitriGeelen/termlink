@@ -4,20 +4,20 @@ name: "fix: find_idle applies no msg_type filter, trusts any agent-presence enve
 description: >
   find_idle (both hint and walk paths, lib.rs:583-609 and 685-713) applies NO msg_type filter — it trusts any envelope on agent-presence carrying metadata.agent_id, disagreeing with the listeners/peers path which requires msg_type==heartbeat (agent-listeners.sh jq ~line 85). A later non-heartbeat post to agent-presence from a known agent_id is taken as the last heartbeat, so /peers (heartbeat-only) and /find-idle (any-envelope) disagree about who is LIVE; also a trust-the-topic reliability gap. Fix candidate: add msg_type==heartbeat predicate to both find_idle paths so all three discovery surfaces share one liveness definition. VERIFY heartbeat envelopes carry msg_type==heartbeat (heartbeat_env sets it) and that no legit producer posts liveness via a different msg_type before building. From T-2468 verb-1 hunt.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-bus/src/lib.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-09T21:59:09Z
-last_update: 2026-08-09T22:21:22Z
-date_finished: null
+last_update: 2026-08-09T22:24:16Z
+date_finished: 2026-08-09T22:24:16Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -233,3 +233,15 @@ share one liveness definition.
 
 ### 2026-08-09T22:21:22Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-fdeb4a68
+- **Timestamp:** 2026-08-09T22:24:17Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-09T22:24:16Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
