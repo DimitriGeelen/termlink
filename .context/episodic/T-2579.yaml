@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2579: fix: dedupe capacity-eviction can evict in-flight Pending reservation, reopening exactly-once double-apply window (T-2435 regression)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-09T21:38:01Z
+# ============================================================================
+
+task_id: T-2579
+task_name: "fix: dedupe capacity-eviction can evict in-flight Pending reservation, reopening exactly-once double-apply window (T-2435 regression)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-09T21:32:59Z
+completed: 2026-08-09T21:37:46Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-09T23:37:42+02:00
+last_commit: 2026-08-09T23:37:42+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  dedupe capacity eviction never drops in-flight Pending reservation (T-2435 exactly-once regression)
+
+# Key outcomes
+outcomes:
+  - '`evict_for_capacity_in` never selects an `EntryState::Pending` entry as the'
+  - 'Capacity evictions are observable: a `warn!` fires on the all-Pending skip'
+  - 'A load-bearing unit test asserts a `Pending` reservation is NOT evicted when'
+  - '`cargo test -p termlink-hub --lib dedupe` passes (no regressions).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-hub/src/dedupe.rs'
+  - '.tasks/active/T-2579-fix-dedupe-capacity-eviction-can-evict-i.md'
+  - '.tasks/completed/T-2578-fix-termlinkexec-mcp-tool-drops-truncate.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-09T23:37:42"
+    action: "T-2579: dedupe capacity eviction never drops in-flight Pending reservation (T-2435 exactly-once regression)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 3
+  lines_added: 379
+  lines_removed: 13
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2579-fix-dedupe-capacity-eviction-can-evict-i.md
+generated_by: context-agent-hybrid

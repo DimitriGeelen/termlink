@@ -2955,3 +2955,10 @@ learnings:
   date: 2026-08-09
   context: Added via context agent
   application: TBD
+- id: PL-314
+  learning: "When a state machine adds a new entry state (e.g. T-2435 Pending reservation vs Committed), audit EVERY code path that removes/mutates entries — not just the obvious one. dedupe had two removal paths: abort_reservation (taught to protect Pending) and evict_for_capacity_in (still evicted by age, blind to state) — asymmetric invariant-awareness silently reopened the exactly-once window. Prevention: a test that exercises the eviction/mutation path against a MIXED-state map, not just single-state maps."
+  source: P-001
+  task: T-2579
+  date: 2026-08-09
+  context: Added via context agent
+  application: TBD

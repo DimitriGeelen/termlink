@@ -6678,3 +6678,39 @@ scan_id: R-4bcc24cb
 task_id: T-2575
 payload:
   task_file: .tasks/active/T-2575-bug-claim-renew-loop-silently-swallows-t.md
+---
+kind: scan_emitted
+timestamp: '2026-08-09T21:31:49Z'
+scan_id: R-4fc8ad9d
+task_id: T-2578
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-09T21:31:49Z'
+scan_id: R-4fc8ad9d
+task_id: T-2578
+payload:
+  task_file: .tasks/active/T-2578-fix-termlinkexec-mcp-tool-drops-truncate.md
+---
+kind: scan_emitted
+timestamp: '2026-08-09T21:37:56Z'
+scan_id: R-0c200f4b
+task_id: T-2579
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-09T21:37:56Z'
+scan_id: R-0c200f4b
+task_id: T-2579
+payload:
+  task_file: .tasks/active/T-2579-fix-dedupe-capacity-eviction-can-evict-i.md

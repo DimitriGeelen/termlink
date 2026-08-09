@@ -2935,6 +2935,27 @@ fn mcp_run_result_json(
     })
 }
 
+/// Map a `command.inject` RPC result to the MCP `termlink_inject` user-facing
+/// string. T-2580: a session with no PTY returns `status:"resolved"` (keys
+/// resolved, nothing written) as an RPC *success* — but that is a FAILURE of the
+/// caller's intent (the command never reached a terminal), so it MUST NOT read
+/// "Injected successfully" (Reliability: no silent success on a no-op). Only
+/// `status:"injected"` is a real inject; anything else returns an honest
+/// `{ok:false,error:...}` carrying the RPC note. Pure so the status-awareness is
+/// unit-testable (removing the check fails `inject_no_pty_is_not_reported_as_success`).
+fn mcp_inject_outcome(result: &serde_json::Value) -> String {
+    match result["status"].as_str() {
+        Some("injected") => "Injected successfully".to_string(),
+        other => json_err(format!(
+            "not injected (status: {}): {}",
+            other.unwrap_or("unknown"),
+            result["note"].as_str().unwrap_or(
+                "session has no PTY — register with `--shell` for PTY-backed injection"
+            )
+        )),
+    }
+}
+
 /// Build the MCP `termlink_exec` result JSON from the `command.execute` RPC
 /// result Value. T-2578: like `mcp_run_result_json` this MUST carry `truncated`
 /// so an MCP consumer can distinguish a T-2529/T-2537 cap-hit (`truncated:true`,
@@ -11392,7 +11413,9 @@ impl TermLinkTools {
 
         match client::rpc_call(reg.socket_path(), "command.inject", serde_json::json!({"keys": keys})).await {
             Ok(resp) => match client::unwrap_result(resp) {
-                Ok(_) => "Injected successfully".to_string(),
+                // T-2580: status-aware — a no-PTY session resolves keys without
+                // writing them and must NOT be reported as a successful inject.
+                Ok(result) => mcp_inject_outcome(&result),
                 Err(e) => json_err(e),
             },
             Err(e) => json_err(format!("connection failed: {e}")),
@@ -31081,6 +31104,40 @@ YW\tJ
             Some(&serde_json::Value::Bool(false)),
             "missing truncated field defaults to false (T-2578)"
         );
+    }
+
+    // T-2580 LOAD-BEARING: termlink_inject must be status-aware. A no-PTY session
+    // returns status:"resolved" (nothing written) as an RPC success — mapping it to
+    // "Injected successfully" is a silent no-op-reported-as-success. Removing the
+    // status check makes this fail.
+    #[test]
+    fn inject_no_pty_is_not_reported_as_success() {
+        // Real inject → success string.
+        let injected = serde_json::json!({"status": "injected", "bytes_len": 5});
+        assert_eq!(mcp_inject_outcome(&injected), "Injected successfully");
+
+        // No-PTY resolve → honest failure, NOT a success string.
+        let resolved = serde_json::json!({
+            "status": "resolved",
+            "note": "No PTY session. Use `register --shell` for PTY-backed injection.",
+        });
+        let out = mcp_inject_outcome(&resolved);
+        assert_ne!(
+            out, "Injected successfully",
+            "no-PTY inject must not read as success (T-2580)"
+        );
+        assert!(
+            out.contains("not injected"),
+            "no-PTY inject must say so plainly: {out}"
+        );
+        // Error-shaped so an MCP consumer can detect the failure.
+        let v: serde_json::Value = serde_json::from_str(&out).expect("json_err is valid JSON");
+        assert_eq!(v["ok"], serde_json::json!(false));
+        assert!(v.get("error").is_some());
+
+        // Any unexpected/absent status is also treated as not-injected (fail-safe).
+        let weird = serde_json::json!({"bytes_len": 0});
+        assert_ne!(mcp_inject_outcome(&weird), "Injected successfully");
     }
 
     #[test]
