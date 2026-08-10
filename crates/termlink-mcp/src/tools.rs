@@ -11084,7 +11084,8 @@ pub struct AgentChatArcRecentParams {
     /// Only include posts whose resolved sender == this value. Resolution
     /// priority (PL-191): metadata.agent_id → metadata._from → sender_id.
     pub filter_sender: Option<String>,
-    /// Override default msg_type filter ('chat'). Use with `all_msg_types=false`.
+    /// Narrow to a single msg_type. When unset (default), the view shows the
+    /// content set {post,chat,note} — every content type, no meta (T-2592).
     pub filter_msg_type: Option<String>,
     /// When true, disable the msg_type filter — include heartbeats/receipts/etc.
     pub all_msg_types: Option<bool>,
@@ -11132,7 +11133,8 @@ pub struct RecentDmParams {
     /// Restrict to one msg_type — useful values: `chat`, `turn`,
     /// `receipt`. Default: show ALL types (DM topics use chat AND
     /// turn for content; T-1862 deliberately differs from
-    /// `termlink_agent_chat_arc_recent` which defaults to `chat`).
+    /// `termlink_agent_chat_arc_recent`, whose default is the content
+    /// set {post,chat,note} — T-2592).
     pub filter_msg_type: Option<String>,
     /// When true, force `--all-msg-types` (redundant with the default
     /// behavior but kept for symmetric parameterization with
@@ -29617,7 +29619,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_chat_arc_recent",
-        description = "Fleet-wide 'what's been said?' on agent-chat-arc. Walks every hub in `~/.termlink/hubs.toml`, merges recent envelopes chronologically, surfaces ts/hub/sender/msg_type/payload_preview per post. Sender resolution priority: metadata.agent_id -> metadata._from -> sender_id (any one alone undercounts). Read-only. Params: `limit` (1..=200, default 20), `since_hours` (1..=720, default 24), `hub`/`hubs_file`, `filter_sender`, `filter_msg_type` (default 'chat'), `all_msg_types` (default false), `timeout_secs` (default 30). Returns `{ok, exit_code, parsed:{ok, window_hours, summary:{total_posts, hubs_scanned, hubs_failed, unique_speakers}, posts}}`. Load conversation context before responding."
+        description = "Fleet-wide 'what's been said?' on agent-chat-arc. Walks every hub in `~/.termlink/hubs.toml`, merges recent envelopes chronologically, surfaces ts/hub/sender/msg_type/payload_preview per post. Sender resolution priority: metadata.agent_id -> metadata._from -> sender_id (any one alone undercounts). Read-only. Params: `limit` (1..=200, default 20), `since_hours` (1..=720, default 24), `hub`/`hubs_file`, `filter_sender`, `filter_msg_type` (unset = default content set {post,chat,note}; set to narrow to one type), `all_msg_types` (default false — true adds meta), `timeout_secs` (default 30). Returns `{ok, exit_code, parsed:{ok, window_hours, summary:{total_posts, hubs_scanned, hubs_failed, unique_speakers}, posts}}`. Load conversation context before responding."
     )]
     async fn termlink_agent_chat_arc_recent(
         &self,

@@ -52,7 +52,8 @@ Usage: agent-chat-arc-recent.sh [OPTIONS]
 
 Read the most-recent agent-chat-arc posts across every hub in
 ~/.termlink/hubs.toml (or one hub via --hub). Merge chronologically,
-filter by msg_type (default 'chat'), surface sender + payload preview.
+filter by msg_type (default: the content set {post,chat,note}), surface
+sender + payload preview.
 
 Options:
   --topic T            Channel topic to read (default: agent-chat-arc).
@@ -64,8 +65,11 @@ Options:
   --hub addr           Restrict to a single hub (bypasses hubs.toml walk)
   --hubs-file P        Override default ~/.termlink/hubs.toml
   --filter-sender ID   Only include posts where metadata.agent_id == ID
-  --filter-msg-type T  Override default msg_type filter (default: chat)
-  --all-msg-types      Disable msg_type filter (include heartbeats, etc.)
+  --filter-msg-type T  Narrow to a single msg_type. Default (unset) shows the
+                       content set {post,chat,note} — every content type, no
+                       meta. Pass e.g. --filter-msg-type note to see only notes.
+  --all-msg-types      Disable msg_type filter ENTIRELY (include meta:
+                       receipts, heartbeats, reactions, etc.)
   --exclude-heartbeats Exclude posts whose resolved sender ends with
                        '-vendored' (T-1832/T-1840 emitter convention).
                        Distinguishes real conversation from systemd
@@ -94,7 +98,10 @@ SINCE_HOURS=24
 HUB=""
 HUBS_FILE="$HUBS_FILE_DEFAULT"
 FILTER_SENDER=""
-FILTER_MSG_TYPE="chat"
+# Empty = the DEFAULT content-set view {post,chat,note} (T-2592). A non-empty
+# value (via --filter-msg-type X) narrows to that single type. --all-msg-types
+# disables the filter entirely (meta included).
+FILTER_MSG_TYPE=""
 ALL_MSG_TYPES=0
 EXCLUDE_HEARTBEATS=0
 FORMAT=text
@@ -264,10 +271,19 @@ done
 
 # Build the merged + filtered + sorted result via one jq pass.
 preview_len=80
+# T-2592 — three-state msg_type filter:
+#   --all-msg-types        → true (everything, incl meta)
+#   --filter-msg-type X     → single-type narrowing (.msg_type == $mtype)
+#   default (both unset)    → the content SET {post,chat,note}, no meta.
+# The old default hardcoded a single 'chat' value, silently hiding every
+# 'note' (termlink_agent_post/agent_reply) and legacy 'post' — a PL-316
+# silent-drop content-filter (violates "no silent failures").
 if [ "$ALL_MSG_TYPES" -eq 1 ]; then
     msg_type_filter='true'
-else
+elif [ -n "$FILTER_MSG_TYPE" ]; then
     msg_type_filter='.msg_type == $mtype'
+else
+    msg_type_filter='(.msg_type == "post" or .msg_type == "chat" or .msg_type == "note")'
 fi
 
 if [ -n "$FILTER_SENDER" ]; then
