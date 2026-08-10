@@ -241,8 +241,14 @@ for i in "${!profile_names[@]}"; do
                 #   2. .metadata._from     (vendored-arc heartbeat convention, T-1438)
                 #   3. .sender_id          (envelope fingerprint, last resort)
                 # T-1848 used #1 only and under-counted vendored-arc posters 75%.
+                # T-2591: count the CONTENT set {post,chat,note}, not just "chat".
+                # termlink_agent_post / agent_reply write msg_type="note" to
+                # agent-chat-arc (the primary progress-broadcast path), so a
+                # "chat"-only whitelist silently dropped every note-poster and
+                # undercounted adoption (PL-316 class). Aligns with the Rust
+                # is_content_msg_type predicate (tools.rs).
                 speakers_payload="$(printf '%s' "$chat_raw" | jq -r -s \
-                    '[.[] | select(.msg_type == "chat") | (.metadata.agent_id // .metadata._from // .sender_id // "") | select(. != "")] | unique | .[]' 2>/dev/null || true)"
+                    '[.[] | select(.msg_type == "post" or .msg_type == "chat" or .msg_type == "note") | (.metadata.agent_id // .metadata._from // .sender_id // "") | select(. != "")] | unique | .[]' 2>/dev/null || true)"
                 if [ -n "$speakers_payload" ]; then
                     unique_speakers="$(printf '%s\n' "$speakers_payload" | sed '/^$/d' | wc -l | tr -d ' ')"
                 fi
