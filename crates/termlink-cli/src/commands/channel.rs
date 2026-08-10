@@ -1508,7 +1508,10 @@ pub(crate) fn evaluate_presence(
             .or_else(|| m.get("ts").and_then(|v| v.as_i64()))
             .unwrap_or(0);
         last_seen = Some(last_seen.map_or(ts, |b| b.max(ts)));
-        if ts >= cutoff {
+        // T-2599: future-clock safety (mirror of evaluate_presence_msgs). A
+        // future-dated ts must NOT count as online, else --require-online
+        // reports a corpse reachable. Mirrors T-2536 / tools.rs:4029.
+        if ts >= cutoff && ts <= now_ms {
             posts_in_window += 1;
         }
     }
@@ -13161,6 +13164,20 @@ mod tests {
         assert!(p.online);
         assert_eq!(p.posts_in_window, 1);
         assert_eq!(p.last_seen_ms, Some(now - 30_000));
+    }
+
+    #[test]
+    fn presence_future_ts_is_not_online() {
+        // T-2599: mirror of the MCP evaluate_presence_msgs future-clock test. A
+        // future-dated post must NOT count as online (else --require-online
+        // reports a corpse reachable). Load-bearing: dropping `&& ts <= now_ms`
+        // makes this fail.
+        let now = 1_700_000_000_000_i64;
+        let window_ms = 300_000_i64;
+        let msgs = vec![presence_msg("peer1", now + 3_600_000, "post")]; // 1h future
+        let p = evaluate_presence(&msgs, "peer1", now, window_ms);
+        assert!(!p.online, "future-dated post must not read as online");
+        assert_eq!(p.posts_in_window, 0);
     }
 
     #[test]

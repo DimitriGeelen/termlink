@@ -6851,7 +6851,11 @@ fn evaluate_presence_msgs(
             .or_else(|| m.get("ts").and_then(|v| v.as_i64()))
             .unwrap_or(0);
         last_seen = Some(last_seen.map_or(ts, |b| b.max(ts)));
-        if ts >= cutoff {
+        // T-2599: future-clock safety. Without the `ts <= now_ms` upper bound a
+        // future-dated envelope (skewed clock / corrupt heartbeat) counts as
+        // online FOREVER, so `--require-online` dispatches work to a corpse.
+        // Mirrors T-2536 (find_idle) and the chat-arc-stats guard (tools.rs:4029).
+        if ts >= cutoff && ts <= now_ms {
             posts_in_window += 1;
         }
     }
@@ -30165,6 +30169,23 @@ mod tests {
         assert_eq!(p.posts_in_window, 0);
         // last_seen still reports outside-window peer
         assert_eq!(p.last_seen_ms, Some(now_ms - 120_000));
+    }
+
+    #[test]
+    fn agent_contact_evaluate_presence_future_ts_is_not_online() {
+        // T-2599: a future-dated post (skewed clock / corrupt heartbeat) must
+        // NOT count as online — otherwise --require-online dispatches to a
+        // corpse. Load-bearing: removing `&& ts <= now_ms` makes this fail.
+        let now_ms: i64 = 1_700_000_000_000;
+        let window_ms: i64 = 60_000;
+        let msgs = vec![serde_json::json!({
+            "msg_type": "chat",
+            "sender_id": "peer123",
+            "ts_unix_ms": now_ms + 3_600_000, // 1h in the FUTURE
+        })];
+        let p = evaluate_presence_msgs(&msgs, "peer123", now_ms, window_ms);
+        assert!(!p.online, "future-dated post must not read as online");
+        assert_eq!(p.posts_in_window, 0);
     }
 
     #[test]
