@@ -2969,3 +2969,10 @@ learnings:
   date: 2026-08-09
   context: Added via context agent
   application: TBD
+- id: PL-316
+  learning: "MCP analytics tools that filter chat-arc envelopes with 'msg_type != Some(\"post\") continue' are silently broken: no producer emits literal 'post' since the T-1499 migration (note = default post, chat = bus/offline). The correct content predicate is Some(post)|Some(chat)|Some(note) — use the shared is_content_msg_type helper (tools.rs T-2588). The migration updated shared helpers but left ~27 hand-rolled per-tool loops on the old convention with no single choke-point. When fixing one, grep 'Some(\"post\")' across tools.rs — the class is large. Verify per-tool: some tools legitimately operate on non-post envelopes (presence_now=heartbeat, reaction tools=reaction) so it is NOT a blind swap. Silent-zero failure (empty result == genuinely-empty topic) means these need unit tests with realistic note/chat envelopes."
+  source: P-001
+  task: T-2588
+  date: 2026-08-10
+  context: Added via context agent
+  application: TBD
