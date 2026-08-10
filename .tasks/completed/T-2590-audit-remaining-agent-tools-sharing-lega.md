@@ -4,20 +4,20 @@ name: "audit remaining agent_* tools sharing legacy msg_type=post filter (T-2588
 description: >
   T-2588 fixed 4 of a broader class. Grep of tools.rs found ~23 more agent_* MCP tools whose post-processing loop still gates on Some("post"): active_in_thread, followups_to, search_thread, unanswered, thread_health(==), response_latency, top_reacted, top_replied, first_post_by, self_replies, first_responders, orphan_replies, thread_authors, recent_window, thread_depth, quiet_threads, presence_now, top_thread_starters, idle_threads, reaction_rate, recent_threads, chat_arc_recent, who_is(==). Per-tool audit required — NOT a blind predicate swap: some genuinely want content (apply is_content_msg_type from tools.rs T-2588), but others operate on non-post envelopes with different semantics (presence_now walks heartbeat; reaction_rate/top_reacted involve reaction envelopes; thread_health/who_is use == Some(post) which may be intentional). For each: confirm intended msg_type set in code, apply is_content_msg_type where it wants content, add a load-bearing test. Decompose if >~6 genuinely-buggy tools. From T-2468 verb-2 hunt, sibling of T-2587/T-2588.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug]
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-10T18:42:54Z
-last_update: 2026-08-10T18:46:21Z
-date_finished: null
+last_update: 2026-08-10T18:57:42Z
+date_finished: 2026-08-10T18:57:42Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -215,3 +215,15 @@ per-tool (some walk non-post topics)" discipline for the next occurrence.
 
 ### 2026-08-10T18:46:21Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-11daa8af
+- **Timestamp:** 2026-08-10T18:58:03Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-10T18:57:42Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
