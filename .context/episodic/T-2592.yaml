@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2592: chat-arc-recent default filter_msg_type=chat hides note/post content
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-10T20:07:31Z
+# ============================================================================
+
+task_id: T-2592
+task_name: "chat-arc-recent default filter_msg_type=chat hides note/post content"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-10T19:36:32Z
+completed: 2026-08-10T20:07:18Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-08-10T22:06:58+02:00
+last_commit: 2026-08-10T22:06:58+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  chat-arc-recent default view = content set {post,chat,note}, not chat-only
+
+# Key outcomes
+outcomes:
+  - 'Engine default (no `--filter-msg-type`, no `--all-msg-types`) includes `note`, `chat`, AND `post` envelopes and excludes meta (e.g. `reaction`, `receipt`).'
+  - '`--filter-msg-type note` narrows to only `note` posts (single-type narrowing preserved).'
+  - '`--all-msg-types` still disables the filter entirely (meta included).'
+  - 'MCP wrapper (`termlink_agent_chat_arc_recent`) default view shows `note`/`post`/`chat` — i.e. it inherits the fixed shell default (passthrough already only pushes `--filter-msg-type` when the caller supplies it); its param doc + tool description no longer claim `default ''chat''`.'
+  - 'Load-bearing test (`tests/chat-arc-recent-fixtures.sh`) asserts a `note` post appears in default output and FAILS against the old `chat`-only default (temp-revert proven).'
+  - '`recent-dm.sh` behavior unchanged (it always passes an explicit `--filter-msg-type` or `--all-msg-types`, so the engine default is not on its path).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-mcp/src/tools.rs'
+  - 'scripts/agent-chat-arc-recent.sh'
+  - '.tasks/active/T-2592-chat-arc-recent-default-filtermsgtypecha.md'
+  - 'tests/chat-arc-recent-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-10T22:06:58"
+    action: "T-2592: chat-arc-recent default view = content set {post,chat,note}, not chat-only"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 30 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 30
+  commits: 1
+  files_changed: 4
+  lines_added: 343
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2592-chat-arc-recent-default-filtermsgtypecha.md
+generated_by: context-agent-hybrid
