@@ -4,7 +4,7 @@ name: "audit remaining agent_* tools sharing legacy msg_type=post filter (T-2588
 description: >
   T-2588 fixed 4 of a broader class. Grep of tools.rs found ~23 more agent_* MCP tools whose post-processing loop still gates on Some("post"): active_in_thread, followups_to, search_thread, unanswered, thread_health(==), response_latency, top_reacted, top_replied, first_post_by, self_replies, first_responders, orphan_replies, thread_authors, recent_window, thread_depth, quiet_threads, presence_now, top_thread_starters, idle_threads, reaction_rate, recent_threads, chat_arc_recent, who_is(==). Per-tool audit required — NOT a blind predicate swap: some genuinely want content (apply is_content_msg_type from tools.rs T-2588), but others operate on non-post envelopes with different semantics (presence_now walks heartbeat; reaction_rate/top_reacted involve reaction envelopes; thread_health/who_is use == Some(post) which may be intentional). For each: confirm intended msg_type set in code, apply is_content_msg_type where it wants content, add a load-bearing test. Decompose if >~6 genuinely-buggy tools. From T-2468 verb-2 hunt, sibling of T-2587/T-2588.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-10T18:42:54Z
-last_update: 2026-08-10T18:42:54Z
+last_update: 2026-08-10T18:46:21Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -39,9 +39,14 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Audit complete: all 23 candidate `agent_*` tools classified (subagent, cross-checked). Result: 22 CONTENT-BUG (walk `agent-chat-arc`, gate content computation on `Some("post")` which no producer emits → silent empty/zero), 1 LEGIT (`chat_arc_recent` — subprocess wrapper, no Rust filter; its script-default `filter_msg_type='chat'` flagged as separate concern), 0 UNSURE.
+- [x] All 23 `!= Some("post") { continue; }` guard sites routed through the shared `is_content_msg_type` predicate (T-2588) via scoped `replace_all` (safe: audit confirmed every such site is CONTENT-BUG).
+- [x] Both `== Some("post") {` increment sites (`who_is` post_count, `thread_health` unique_senders) broadened to `is_content_msg_type` — verified purely additive (no else-branch).
+- [x] BONUS: 2 additional tools found during the fix using the string-compare variant `msg_type == "post"` (not caught by the `Some("post")` audit) — `thread_summary` (found_root/descendant_count/senders/ts) and `topic_summary` (posts_24h/roots) — also routed through `is_content_msg_type`. Verified `.unwrap_or("post")` display sites (21231/23768/23937) are output-only, not filters.
+- [x] No `Some("post")` / `== "post"` content-gate remains in tools.rs handler loops (grep-verified; doc-comment/test mentions excluded).
+- [x] Representative per-tool load-bearing tests: `==` increment shape covered by new `who_is_post_count_counts_note_and_chat` (extracted `compute_who_is` helper, proven via temp-revert); `!=` guard shape already covered by the T-2588 tool tests (all route through `!is_content_msg_type`).
+- [x] `cargo test -p termlink-mcp --lib` passes (900 passed, 0 failed); `cargo build -p termlink-mcp` clean (0 warnings).
+- [x] Follow-up noted for `chat_arc_recent.sh` default `filter_msg_type='chat'` undercounting `note` (out of scope for the Rust-filter fix) — see Updates.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -75,6 +80,11 @@ date_finished: null
 -->
 
 ## Verification
+
+cargo test -p termlink-mcp --lib who_is_post_count_counts_note_and_chat
+cargo test -p termlink-mcp --lib is_content_msg_type_accepts_content_rejects_noise
+# No Some("post")/== "post" content-gate remains in handler loops (comments/tests excluded):
+bash -c 'out=$(grep -nE "(!=|==) Some\(\"post\"\)|(!=|==) \"post\"" crates/termlink-mcp/src/tools.rs | grep -vE "///|// " || true); [ -z "$out" ]'
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -122,6 +132,34 @@ date_finished: null
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** 24 agent chat-arc analytics MCP tools silently returned empty/zero for
+their content-derived fields (thread censuses, participant counts, unanswered/idle
+detection, forensic searches, "who's around", decision surfacing) regardless of real
+traffic — the same silent-zero failure T-2587/T-2588 fixed for 5 sibling tools.
+
+**Root cause:** each gated its content computation on the literal `msg_type="post"`,
+which no producer has emitted since the T-1499 migration (content is `note`/`chat`).
+Two syntactic variants: (a) 23 `!= Some("post") { continue; }` guards; (b) 2
+`== Some("post")` increment conditions (`who_is`, `thread_health`); plus a third
+variant the `Some("post")` audit did not catch — (c) 2 `msg_type == "post"`
+string-var compares on a `.unwrap_or("")` local (`thread_summary`, `topic_summary`).
+
+**Why structurally allowed:** the predicate was inlined ~27× with no single
+choke-point, so the T-1499 migration that updated the shared helpers could not reach
+the hand-rolled loops. None of these tools had a unit test exercising the filter
+against realistic `note`/`chat` envelopes, so an always-empty result was
+indistinguishable from a genuinely-empty topic (Reliability: no silent failures).
+The class was invisible until an adversarial hunter read one tool (T-2587).
+
+**Prevention:** (1) All 27 sites now route through the single shared
+`is_content_msg_type` predicate introduced in T-2588 — one function to migrate next
+time; a `grep` for `Some("post")`/`== "post"` content-gates is now a Verification
+command (fails if any regress). (2) The `==` increment shape gained an extracted
+`compute_who_is` helper + load-bearing test (`who_is_post_count_counts_note_and_chat`),
+proven via temp-revert; the `!=` guard shape was already load-bearing-proven by the
+T-2588 tool tests. (3) PL-316 documents the class + the "grep the whole file, verify
+per-tool (some walk non-post topics)" discipline for the next occurrence.
 
 ## Evolution
 
@@ -174,3 +212,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2590-audit-remaining-agent-tools-sharing-lega.md
 - **Context:** Initial task creation
+
+### 2026-08-10T18:46:21Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

@@ -3360,6 +3360,43 @@ fn compute_recent_decisions(
     hits
 }
 
+/// Pure post-processing for `termlink_agent_who_is` (T-2590). Aggregates
+/// display_name / first_seen / last_seen / post_count for `target_sender`.
+/// `post_count` counts only content envelopes — this is the `==`-increment shape
+/// of the T-2588 msg_type=post class: the old `== Some("post")` gate counted
+/// zero because real content is note/chat, not the never-emitted literal "post".
+fn compute_who_is(all: &[serde_json::Value], target_sender: &str) -> serde_json::Value {
+    let mut display_name: Option<String> = None;
+    let mut display_name_ts: i64 = 0;
+    let mut first_seen: Option<i64> = None;
+    let mut last_seen: Option<i64> = None;
+    let mut post_count: u64 = 0;
+    for env in all {
+        if env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("") != target_sender { continue; }
+        let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        if first_seen.map(|f| ts < f).unwrap_or(true) { first_seen = Some(ts); }
+        if last_seen.map(|l| ts > l).unwrap_or(true) { last_seen = Some(ts); }
+        if is_content_msg_type(env) {
+            post_count += 1;
+        }
+        if let Some(dn) = env.get("metadata").and_then(|m| m.get("display_name")).and_then(|v| v.as_str()) {
+            if ts >= display_name_ts {
+                display_name = Some(dn.to_string());
+                display_name_ts = ts;
+            }
+        }
+    }
+    serde_json::json!({
+        "sender_id": target_sender,
+        "display_name": display_name,
+        "first_seen_ts": first_seen,
+        "last_seen_ts": last_seen,
+        "post_count": post_count,
+    })
+}
+
 fn mcp_batch_exec_session_json(
     session_id: &str,
     display_name: &str,
@@ -25031,35 +25068,8 @@ impl TermLinkTools {
                 break;
             }
         }
-        let mut display_name: Option<String> = None;
-        let mut display_name_ts: i64 = 0;
-        let mut first_seen: Option<i64> = None;
-        let mut last_seen: Option<i64> = None;
-        let mut post_count: u64 = 0;
-        for env in &all {
-            if env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("") != target_sender { continue; }
-            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
-                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
-                .unwrap_or(0);
-            if first_seen.map(|f| ts < f).unwrap_or(true) { first_seen = Some(ts); }
-            if last_seen.map(|l| ts > l).unwrap_or(true) { last_seen = Some(ts); }
-            if env.get("msg_type").and_then(|v| v.as_str()) == Some("post") {
-                post_count += 1;
-            }
-            if let Some(dn) = env.get("metadata").and_then(|m| m.get("display_name")).and_then(|v| v.as_str()) {
-                if ts >= display_name_ts {
-                    display_name = Some(dn.to_string());
-                    display_name_ts = ts;
-                }
-            }
-        }
-        serde_json::to_string_pretty(&serde_json::json!({
-            "sender_id": target_sender,
-            "display_name": display_name,
-            "first_seen_ts": first_seen,
-            "last_seen_ts": last_seen,
-            "post_count": post_count,
-        })).unwrap_or_else(json_err)
+        serde_json::to_string_pretty(&compute_who_is(&all, &target_sender))
+            .unwrap_or_else(json_err)
     }
 
     #[tool(
@@ -25136,9 +25146,9 @@ impl TermLinkTools {
             let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
                 .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
                 .unwrap_or(0);
-            if off == root_str && msg_type == "post" { found_root = true; }
-            if off != root_str && msg_type == "post" { descendant_count += 1; }
-            if msg_type == "post" {
+            if off == root_str && is_content_msg_type(env) { found_root = true; }
+            if off != root_str && is_content_msg_type(env) { descendant_count += 1; }
+            if is_content_msg_type(env) {
                 if first_ts.map(|f| ts < f).unwrap_or(true) { first_ts = Some(ts); }
                 if last_ts.map(|l| ts > l).unwrap_or(true) { last_ts = Some(ts); }
                 let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
@@ -25231,7 +25241,7 @@ impl TermLinkTools {
         collect_descendants(&root_str, &parent_to_children, &mut thread_set);
         let mut by_sender: std::collections::HashMap<String, (u64, i64)> = std::collections::HashMap::new();
         for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            if !is_content_msg_type(env) { continue; }
             let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
             if !thread_set.contains(&off) { continue; }
             let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
@@ -25483,7 +25493,7 @@ impl TermLinkTools {
         }
         let mut sender_posts: std::collections::HashSet<String> = std::collections::HashSet::new();
         for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            if !is_content_msg_type(env) { continue; }
             let s = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("");
             if s != p.sender_id { continue; }
             let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
@@ -25493,7 +25503,7 @@ impl TermLinkTools {
         }
         let mut results: Vec<serde_json::Value> = Vec::new();
         for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            if !is_content_msg_type(env) { continue; }
             let parent = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()).unwrap_or("");
             if !sender_posts.contains(parent) { continue; }
             let reply_off = env.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
@@ -25633,7 +25643,7 @@ impl TermLinkTools {
         collect_descendants(&root_str, &parent_to_children, &mut thread_set);
         let mut results: Vec<serde_json::Value> = Vec::new();
         for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            if !is_content_msg_type(env) { continue; }
             let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
             if !thread_set.contains(&off) { continue; }
             let p_b64 = env.get("payload_b64").and_then(|v| v.as_str()).unwrap_or("");
@@ -25726,7 +25736,7 @@ impl TermLinkTools {
         }
         let mut results: Vec<serde_json::Value> = Vec::new();
         for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            if !is_content_msg_type(env) { continue; }
             let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
             if off.is_empty() { continue; }
             if reply_targets.contains(&off) { continue; }
@@ -25849,7 +25859,7 @@ impl TermLinkTools {
             let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
             if !thread_set.contains(&off) { continue; }
             if off == root_str { found_root = true; }
-            if env.get("msg_type").and_then(|v| v.as_str()) == Some("post") {
+            if is_content_msg_type(env) {
                 let s = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
                 if !s.is_empty() { senders.insert(s); }
             }
@@ -25930,7 +25940,7 @@ impl TermLinkTools {
         }
         let mut parent_ts: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
         for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            if !is_content_msg_type(env) { continue; }
             let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
             if off.is_empty() { continue; }
             let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
@@ -25941,7 +25951,7 @@ impl TermLinkTools {
         }
         let mut min_reply: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
         for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            if !is_content_msg_type(env) { continue; }
             let parent = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()).unwrap_or("");
             if !parent_ts.contains_key(parent) { continue; }
             let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
@@ -26034,7 +26044,7 @@ impl TermLinkTools {
         }
         let mut results: Vec<serde_json::Value> = Vec::new();
         for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            if !is_content_msg_type(env) { continue; }
             let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
             let cnt = match counts.get(&off) { Some(c) => *c, None => continue };
             if cnt == 0 { continue; }
@@ -26120,14 +26130,14 @@ impl TermLinkTools {
         }
         let mut counts: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
         for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            if !is_content_msg_type(env) { continue; }
             if let Some(parent) = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()) {
                 *counts.entry(parent.to_string()).or_insert(0) += 1;
             }
         }
         let mut results: Vec<serde_json::Value> = Vec::new();
         for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            if !is_content_msg_type(env) { continue; }
             let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
             let cnt = match counts.get(&off) { Some(c) => *c, None => continue };
             if cnt == 0 { continue; }
@@ -26319,7 +26329,7 @@ impl TermLinkTools {
         let mut earliest: Option<&serde_json::Value> = None;
         let mut earliest_ts: i64 = i64::MAX;
         for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            if !is_content_msg_type(env) { continue; }
             let s = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("");
             if s != p.sender_id { continue; }
             let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
@@ -26415,7 +26425,7 @@ impl TermLinkTools {
         }
         let mut results: Vec<serde_json::Value> = Vec::new();
         for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            if !is_content_msg_type(env) { continue; }
             let s = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("");
             if s != p.sender_id { continue; }
             let parent = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()).unwrap_or("");
@@ -26506,7 +26516,7 @@ impl TermLinkTools {
         struct Post { off: String, sender: String, ts: i64, parent: Option<String> }
         let mut posts: Vec<Post> = Vec::new();
         for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            if !is_content_msg_type(env) { continue; }
             let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
             if off.is_empty() { continue; }
             let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
@@ -26697,7 +26707,7 @@ impl TermLinkTools {
         }
         let mut results: Vec<serde_json::Value> = Vec::new();
         for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            if !is_content_msg_type(env) { continue; }
             let parent = match env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()) {
                 Some(s) if !s.is_empty() => s,
                 _ => continue,
@@ -26780,7 +26790,7 @@ impl TermLinkTools {
         let mut children: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
         let mut by_offset: std::collections::HashMap<String, &serde_json::Value> = std::collections::HashMap::new();
         for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            if !is_content_msg_type(env) { continue; }
             let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
             if off.is_empty() { continue; }
             by_offset.insert(off.clone(), env);
@@ -26889,7 +26899,7 @@ impl TermLinkTools {
         }
         let mut results: Vec<serde_json::Value> = Vec::new();
         for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            if !is_content_msg_type(env) { continue; }
             let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
                 .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
                 .unwrap_or(0);
@@ -26969,7 +26979,7 @@ impl TermLinkTools {
         }
         let mut children: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
         for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            if !is_content_msg_type(env) { continue; }
             let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
             if off.is_empty() { continue; }
             if let Some(parent) = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()) {
@@ -27065,7 +27075,7 @@ impl TermLinkTools {
         let mut reply_count: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
         let mut roots: Vec<&serde_json::Value> = Vec::new();
         for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            if !is_content_msg_type(env) { continue; }
             let parent = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()).unwrap_or("");
             if parent.is_empty() {
                 roots.push(env);
@@ -27164,7 +27174,7 @@ impl TermLinkTools {
         }
         let mut by_sender: std::collections::HashMap<String, (u64, i64)> = std::collections::HashMap::new();
         for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            if !is_content_msg_type(env) { continue; }
             let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
                 .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
                 .unwrap_or(0);
@@ -27249,7 +27259,7 @@ impl TermLinkTools {
         }
         let mut by_sender: std::collections::HashMap<String, (u64, i64)> = std::collections::HashMap::new();
         for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            if !is_content_msg_type(env) { continue; }
             let parent = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()).unwrap_or("");
             if !parent.is_empty() { continue; }
             let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
@@ -27375,7 +27385,7 @@ impl TermLinkTools {
         let mut ts_of: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
         let mut roots: Vec<&serde_json::Value> = Vec::new();
         for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            if !is_content_msg_type(env) { continue; }
             let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
             if off.is_empty() { continue; }
             let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
@@ -27486,7 +27496,7 @@ impl TermLinkTools {
         }
         let mut sender_posts: std::collections::HashSet<String> = std::collections::HashSet::new();
         for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            if !is_content_msg_type(env) { continue; }
             let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("");
             if sender != p.sender_id { continue; }
             let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
@@ -27573,7 +27583,7 @@ impl TermLinkTools {
         let mut ts_of: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
         let mut roots: Vec<&serde_json::Value> = Vec::new();
         for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
+            if !is_content_msg_type(env) { continue; }
             let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
             if off.is_empty() { continue; }
             let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
@@ -27705,7 +27715,7 @@ impl TermLinkTools {
                 .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
                 .unwrap_or(0);
             if ts > last_activity { last_activity = ts; }
-            if mt == "post" {
+            if is_content_msg_type(env) {
                 if ts >= cutoff_24h { posts_24h += 1; }
                 let off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
                 if !off.is_empty() {
@@ -31587,6 +31597,40 @@ YW\tJ
         // Newest-first: the chat 'go:' at ts 2000 sorts before the note at ts 1000.
         assert_eq!(hits[0]["offset"], serde_json::json!(301));
         assert_eq!(hits[0]["marker"], serde_json::json!("GO:"));
+    }
+
+    // T-2590 LOAD-BEARING: the `==`-increment shape of the msg_type=post class
+    // (who_is/thread_health/thread_summary/topic_summary). who_is.post_count
+    // increments only on content envelopes — the old `== Some("post")` gate
+    // counted zero because content is note/chat. The `!=`-guard shape is already
+    // covered by the T-2588 tool tests (they route through !is_content_msg_type).
+    // Temp-reverting the shared predicate to post-only fails this too.
+    #[test]
+    fn who_is_post_count_counts_note_and_chat() {
+        let envs = vec![
+            serde_json::json!({
+                "offset": 1, "sender_id": "agent-A", "msg_type": "note", "ts_unix_ms": 1_000i64
+            }),
+            serde_json::json!({
+                "offset": 2, "sender_id": "agent-A", "msg_type": "chat", "ts_unix_ms": 2_000i64
+            }),
+            // A receipt by the same sender is activity but not a content post.
+            serde_json::json!({
+                "offset": 3, "sender_id": "agent-A", "msg_type": "receipt", "ts_unix_ms": 3_000i64
+            }),
+            // Another sender's content must not count toward agent-A.
+            serde_json::json!({
+                "offset": 4, "sender_id": "agent-B", "msg_type": "note", "ts_unix_ms": 4_000i64
+            }),
+        ];
+        let who = compute_who_is(&envs, "agent-A");
+        assert_eq!(
+            who["post_count"], serde_json::json!(2),
+            "note+chat by agent-A must count as 2 posts, not 0 (T-2590)"
+        );
+        // first/last_seen span all of agent-A's activity (incl. the receipt).
+        assert_eq!(who["first_seen_ts"], serde_json::json!(1_000));
+        assert_eq!(who["last_seen_ts"], serde_json::json!(3_000));
     }
 
     #[test]
