@@ -281,7 +281,12 @@ rollup="$(printf '%s' "$raw" | jq -s \
     '
     # Input is a single big stream — channel subscribe emits one JSON object
     # per line, so jq -s gives us an array.
-    map(select(.msg_type == "heartbeat" and (.metadata.agent_id // "") != ""))
+    # T-2598: drop FUTURE-dated envelopes before grouping. A future ts (clock
+    # skew / corrupt final heartbeat) would otherwise win max_by(.ts) and yield
+    # a NEGATIVE age -> trivially <= 2*interval -> LIVE forever (a corpse shown
+    # reachable). Mirrors the Rust find_idle future cutoff (T-2536) and the
+    # chat-arc-stats ts>now_ms drop (tools.rs:4029). "no silent failures."
+    map(select(.msg_type == "heartbeat" and (.metadata.agent_id // "") != "" and (.ts // 0) <= $now_ms))
     | group_by(.metadata.agent_id)
     | map(max_by(.ts))
     | map(
