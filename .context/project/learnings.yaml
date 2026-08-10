@@ -2983,3 +2983,10 @@ learnings:
   date: 2026-08-10
   context: Added via context agent
   application: TBD
+- id: PL-318
+  learning: "Fixing a silent-drop content-filter class in ONE language leaves siblings unaudited: the msg_type=='post' sweep (PL-316) fixed the Rust tools.rs analytics but shell read-wrappers (fleet-adoption-snapshot.sh, chat-arc-recent.sh) each re-hardcode their OWN content filter (select(.msg_type=='chat')) because is_content_msg_type lives only in Rust — no shared cross-language source of truth. A class fix must include an adversarial re-hunt across ALL languages/wrappers that reimplement the predicate, not just the crate where it was first found. Consider a shared shell content-predicate or a cross-language lint if a third instance appears."
+  source: P-001
+  task: T-2591
+  date: 2026-08-10
+  context: Added via context agent
+  application: TBD
