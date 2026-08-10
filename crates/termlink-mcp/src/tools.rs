@@ -3128,6 +3128,238 @@ fn compute_response_received_stats(
     })
 }
 
+/// Content-bearing envelope predicate (T-2588). A "content" post is msg_type
+/// `note` (the default for channel/agent posts since the T-1499 migration),
+/// `chat` (bus_client / offline_queue), or the legacy `post` literal. It is NOT
+/// a receipt / heartbeat / typing / reaction / edit / pin / star. No modern
+/// producer emits `"post"`, so the old `msg_type != Some("post")` filter dropped
+/// ALL real content — the analytics tools using it silently returned empty/zero.
+/// Mirrors the predicate the sibling helpers already inline (tools.rs
+/// ~3048 / ~3550 / ~5489).
+fn is_content_msg_type(env: &serde_json::Value) -> bool {
+    matches!(
+        env.get("msg_type").and_then(|v| v.as_str()),
+        Some("post") | Some("chat") | Some("note")
+    )
+}
+
+/// Pure post-processing for `termlink_agent_search_by` (T-2588). Filters `all`
+/// to content posts authored by `sender_id` whose decoded payload contains
+/// `q_lower` (already lowercased), newest-first, capped at `limit`. Extracted
+/// off the RPC path so the content-filter fix is unit-testable — narrowing the
+/// filter back to only `post` makes note/chat hits vanish.
+fn compute_search_by_hits(
+    all: &[serde_json::Value],
+    sender_id: &str,
+    q_lower: &str,
+    limit: usize,
+) -> Vec<serde_json::Value> {
+    use base64::Engine;
+    let mut hits: Vec<serde_json::Value> = Vec::new();
+    for env in all {
+        if !is_content_msg_type(env) { continue; }
+        if env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("") != sender_id { continue; }
+        let payload_b64 = env.get("payload").and_then(|v| v.as_str()).unwrap_or("");
+        let body = match base64::engine::general_purpose::STANDARD.decode(payload_b64) {
+            Ok(b) => String::from_utf8_lossy(&b).to_string(),
+            Err(_) => continue,
+        };
+        if !body.to_lowercase().contains(q_lower) { continue; }
+        let preview: String = body.chars().take(160).collect();
+        let offset = env.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+        let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        hits.push(serde_json::json!({
+            "offset": offset,
+            "sender_id": sender_id,
+            "body_preview": preview,
+            "ts_unix_ms": ts,
+        }));
+    }
+    hits.sort_by(|a, b| {
+        let ta = a.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+        let tb = b.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+        tb.cmp(&ta)
+    });
+    if hits.len() > limit { hits.truncate(limit); }
+    hits
+}
+
+/// Recursive descendant count over an in_reply_to child map (T-2588). Shared by
+/// the two thread-root helpers below.
+fn count_thread_descendants(
+    off: &str,
+    map: &std::collections::HashMap<String, Vec<String>>,
+) -> u64 {
+    let mut total: u64 = 0;
+    if let Some(children) = map.get(off) {
+        for c in children {
+            total += 1 + count_thread_descendants(c, map);
+        }
+    }
+    total
+}
+
+/// Build parent_offset -> [child_offset] map from all envelopes carrying
+/// `metadata.in_reply_to` (T-2588). Reply envelopes of ANY msg_type count as
+/// children — the content filter applies only to root selection, not to the
+/// descendant graph.
+fn build_reply_child_map(
+    all: &[serde_json::Value],
+) -> std::collections::HashMap<String, Vec<String>> {
+    let mut parent_to_children: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
+    for env in all {
+        if let Some(parent) = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()) {
+            let child_off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
+            if !child_off.is_empty() {
+                parent_to_children.entry(parent.to_string()).or_insert_with(Vec::new).push(child_off);
+            }
+        }
+    }
+    parent_to_children
+}
+
+/// Pure post-processing for `termlink_agent_threads_by` (T-2588). Collects
+/// content-post roots (no in_reply_to) authored by `sender_id` with their
+/// transitive descendant count, newest-first, capped at `limit`.
+fn compute_threads_by_roots(
+    all: &[serde_json::Value],
+    sender_id: &str,
+    limit: usize,
+) -> Vec<serde_json::Value> {
+    use base64::Engine;
+    let parent_to_children = build_reply_child_map(all);
+    let mut roots: Vec<serde_json::Value> = Vec::new();
+    for env in all {
+        if !is_content_msg_type(env) { continue; }
+        if env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("") != sender_id { continue; }
+        if env.get("metadata").and_then(|m| m.get("in_reply_to")).is_some() { continue; }
+        let offset = env.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+        let off_str = offset.to_string();
+        let payload_b64 = env.get("payload").and_then(|v| v.as_str()).unwrap_or("");
+        let body = base64::engine::general_purpose::STANDARD.decode(payload_b64)
+            .ok().and_then(|b| String::from_utf8(b).ok()).unwrap_or_default();
+        let preview: String = body.chars().take(120).collect();
+        let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        let descendant_count = count_thread_descendants(&off_str, &parent_to_children);
+        roots.push(serde_json::json!({
+            "root_offset": offset,
+            "body_preview": preview,
+            "ts_unix_ms": ts,
+            "descendant_count": descendant_count,
+        }));
+    }
+    roots.sort_by(|a, b| {
+        let ta = a.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+        let tb = b.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+        tb.cmp(&ta)
+    });
+    if roots.len() > limit { roots.truncate(limit); }
+    roots
+}
+
+/// Pure post-processing for `termlink_agent_busiest_threads` (T-2588). Collects
+/// content-post roots created since `cutoff_ms` with descendant_count > 0,
+/// sorted by descendant_count desc, capped at `limit`.
+fn compute_busiest_threads(
+    all: &[serde_json::Value],
+    cutoff_ms: i64,
+    limit: usize,
+) -> Vec<serde_json::Value> {
+    use base64::Engine;
+    let parent_to_children = build_reply_child_map(all);
+    let mut roots: Vec<serde_json::Value> = Vec::new();
+    for env in all {
+        if !is_content_msg_type(env) { continue; }
+        if env.get("metadata").and_then(|m| m.get("in_reply_to")).is_some() { continue; }
+        let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        if ts < cutoff_ms { continue; }
+        let offset = env.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+        let off_str = offset.to_string();
+        let descendant_count = count_thread_descendants(&off_str, &parent_to_children);
+        if descendant_count == 0 { continue; }
+        let payload_b64 = env.get("payload").and_then(|v| v.as_str()).unwrap_or("");
+        let body = base64::engine::general_purpose::STANDARD.decode(payload_b64)
+            .ok().and_then(|b| String::from_utf8(b).ok()).unwrap_or_default();
+        let preview: String = body.chars().take(120).collect();
+        let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        roots.push(serde_json::json!({
+            "root_offset": offset,
+            "body_preview": preview,
+            "sender_id": sender,
+            "ts_unix_ms": ts,
+            "descendant_count": descendant_count,
+        }));
+    }
+    roots.sort_by(|a, b| {
+        let ca = a.get("descendant_count").and_then(|v| v.as_u64()).unwrap_or(0);
+        let cb = b.get("descendant_count").and_then(|v| v.as_u64()).unwrap_or(0);
+        cb.cmp(&ca)
+    });
+    if roots.len() > limit { roots.truncate(limit); }
+    roots
+}
+
+/// Pure post-processing for `termlink_agent_recent_decisions` (T-2588). Filters
+/// `all` to content posts since `cutoff_ms` whose decoded payload contains a
+/// decision marker (case-insensitive), newest-first, capped at `limit`.
+fn compute_recent_decisions(
+    all: &[serde_json::Value],
+    markers: &[&str],
+    cutoff_ms: i64,
+    limit: usize,
+) -> Vec<serde_json::Value> {
+    use base64::Engine;
+    let mut hits: Vec<serde_json::Value> = Vec::new();
+    for env in all {
+        if !is_content_msg_type(env) { continue; }
+        let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        if ts < cutoff_ms { continue; }
+        let payload_b64 = env.get("payload").and_then(|v| v.as_str()).unwrap_or("");
+        let body = match base64::engine::general_purpose::STANDARD.decode(payload_b64) {
+            Ok(b) => match String::from_utf8(b) {
+                Ok(s) => s,
+                Err(_) => continue,
+            },
+            Err(_) => continue,
+        };
+        let body_upper = body.to_uppercase();
+        let mut marker: Option<String> = None;
+        for m in markers {
+            if body_upper.contains(*m) { marker = Some((*m).to_string()); break; }
+        }
+        let marker = match marker {
+            Some(m) => m,
+            None => continue,
+        };
+        let preview: String = body.chars().take(200).collect();
+        let offset = env.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
+        let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        hits.push(serde_json::json!({
+            "offset": offset,
+            "sender_id": sender,
+            "body_preview": preview,
+            "marker": marker,
+            "ts_unix_ms": ts,
+        }));
+    }
+    hits.sort_by(|a, b| {
+        let ta = a.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+        let tb = b.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
+        tb.cmp(&ta)
+    });
+    if hits.len() > limit { hits.truncate(limit); }
+    hits
+}
+
 fn mcp_batch_exec_session_json(
     session_id: &str,
     display_name: &str,
@@ -24389,7 +24621,6 @@ impl TermLinkTools {
         &self,
         Parameters(p): Parameters<AgentSearchByParams>,
     ) -> String {
-        use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
             return hub_down_err();
@@ -24437,34 +24668,7 @@ impl TermLinkTools {
                 break;
             }
         }
-        let mut hits: Vec<serde_json::Value> = Vec::new();
-        for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
-            if env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("") != sender_id { continue; }
-            let payload_b64 = env.get("payload").and_then(|v| v.as_str()).unwrap_or("");
-            let body = match base64::engine::general_purpose::STANDARD.decode(payload_b64) {
-                Ok(b) => String::from_utf8_lossy(&b).to_string(),
-                Err(_) => continue,
-            };
-            if !body.to_lowercase().contains(&q_lower) { continue; }
-            let preview: String = body.chars().take(160).collect();
-            let offset = env.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
-            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
-                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
-                .unwrap_or(0);
-            hits.push(serde_json::json!({
-                "offset": offset,
-                "sender_id": sender_id,
-                "body_preview": preview,
-                "ts_unix_ms": ts,
-            }));
-        }
-        hits.sort_by(|a, b| {
-            let ta = a.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
-            let tb = b.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
-            tb.cmp(&ta)
-        });
-        if hits.len() > limit { hits.truncate(limit); }
+        let hits = compute_search_by_hits(&all, &sender_id, &q_lower, limit);
         serde_json::to_string_pretty(&serde_json::json!({
             "sender_id": sender_id,
             "query": p.query,
@@ -24554,7 +24758,6 @@ impl TermLinkTools {
         &self,
         Parameters(p): Parameters<AgentThreadsByParams>,
     ) -> String {
-        use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
             return hub_down_err();
@@ -24601,53 +24804,7 @@ impl TermLinkTools {
                 break;
             }
         }
-        // Build child-count map: parent_offset -> direct child count, then transitively expand
-        let mut parent_to_children: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
-        for env in &all {
-            if let Some(parent) = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()) {
-                let child_off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
-                if !child_off.is_empty() {
-                    parent_to_children.entry(parent.to_string()).or_insert_with(Vec::new).push(child_off);
-                }
-            }
-        }
-        fn count_descendants(off: &str, map: &std::collections::HashMap<String, Vec<String>>) -> u64 {
-            let mut total: u64 = 0;
-            if let Some(children) = map.get(off) {
-                for c in children {
-                    total += 1 + count_descendants(c, map);
-                }
-            }
-            total
-        }
-        let mut roots: Vec<serde_json::Value> = Vec::new();
-        for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
-            if env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("") != sender_id { continue; }
-            if env.get("metadata").and_then(|m| m.get("in_reply_to")).is_some() { continue; }
-            let offset = env.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
-            let off_str = offset.to_string();
-            let payload_b64 = env.get("payload").and_then(|v| v.as_str()).unwrap_or("");
-            let body = base64::engine::general_purpose::STANDARD.decode(payload_b64)
-                .ok().and_then(|b| String::from_utf8(b).ok()).unwrap_or_default();
-            let preview: String = body.chars().take(120).collect();
-            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
-                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
-                .unwrap_or(0);
-            let descendant_count = count_descendants(&off_str, &parent_to_children);
-            roots.push(serde_json::json!({
-                "root_offset": offset,
-                "body_preview": preview,
-                "ts_unix_ms": ts,
-                "descendant_count": descendant_count,
-            }));
-        }
-        roots.sort_by(|a, b| {
-            let ta = a.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
-            let tb = b.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
-            tb.cmp(&ta)
-        });
-        if roots.len() > limit { roots.truncate(limit); }
+        let roots = compute_threads_by_roots(&all, &sender_id, limit);
         serde_json::to_string_pretty(&serde_json::json!({
             "sender_id": sender_id,
             "threads": roots,
@@ -24663,7 +24820,6 @@ impl TermLinkTools {
         &self,
         Parameters(p): Parameters<AgentBusiestThreadsParams>,
     ) -> String {
-        use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
             return hub_down_err();
@@ -24702,55 +24858,7 @@ impl TermLinkTools {
                 break;
             }
         }
-        let mut parent_to_children: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
-        for env in &all {
-            if let Some(parent) = env.get("metadata").and_then(|m| m.get("in_reply_to")).and_then(|v| v.as_str()) {
-                let child_off = env.get("offset").and_then(|v| v.as_u64()).map(|o| o.to_string()).unwrap_or_default();
-                if !child_off.is_empty() {
-                    parent_to_children.entry(parent.to_string()).or_insert_with(Vec::new).push(child_off);
-                }
-            }
-        }
-        fn count_descendants(off: &str, map: &std::collections::HashMap<String, Vec<String>>) -> u64 {
-            let mut total: u64 = 0;
-            if let Some(children) = map.get(off) {
-                for c in children {
-                    total += 1 + count_descendants(c, map);
-                }
-            }
-            total
-        }
-        let mut roots: Vec<serde_json::Value> = Vec::new();
-        for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
-            if env.get("metadata").and_then(|m| m.get("in_reply_to")).is_some() { continue; }
-            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
-                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
-                .unwrap_or(0);
-            if ts < cutoff_ms { continue; }
-            let offset = env.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
-            let off_str = offset.to_string();
-            let descendant_count = count_descendants(&off_str, &parent_to_children);
-            if descendant_count == 0 { continue; }
-            let payload_b64 = env.get("payload").and_then(|v| v.as_str()).unwrap_or("");
-            let body = base64::engine::general_purpose::STANDARD.decode(payload_b64)
-                .ok().and_then(|b| String::from_utf8(b).ok()).unwrap_or_default();
-            let preview: String = body.chars().take(120).collect();
-            let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            roots.push(serde_json::json!({
-                "root_offset": offset,
-                "body_preview": preview,
-                "sender_id": sender,
-                "ts_unix_ms": ts,
-                "descendant_count": descendant_count,
-            }));
-        }
-        roots.sort_by(|a, b| {
-            let ca = a.get("descendant_count").and_then(|v| v.as_u64()).unwrap_or(0);
-            let cb = b.get("descendant_count").and_then(|v| v.as_u64()).unwrap_or(0);
-            cb.cmp(&ca)
-        });
-        if roots.len() > limit { roots.truncate(limit); }
+        let roots = compute_busiest_threads(&all, cutoff_ms, limit);
         serde_json::to_string_pretty(&serde_json::json!({
             "window_days": window_days,
             "threads": roots,
@@ -24766,7 +24874,6 @@ impl TermLinkTools {
         &self,
         Parameters(p): Parameters<AgentRecentDecisionsParams>,
     ) -> String {
-        use base64::Engine;
         let hub_socket = termlink_hub::server::hub_socket_path();
         if !hub_socket.exists() {
             return hub_down_err();
@@ -24806,47 +24913,7 @@ impl TermLinkTools {
                 break;
             }
         }
-        let mut hits: Vec<serde_json::Value> = Vec::new();
-        for env in &all {
-            if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }
-            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
-                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
-                .unwrap_or(0);
-            if ts < cutoff_ms { continue; }
-            let payload_b64 = env.get("payload").and_then(|v| v.as_str()).unwrap_or("");
-            let body = match base64::engine::general_purpose::STANDARD.decode(payload_b64) {
-                Ok(b) => match String::from_utf8(b) {
-                    Ok(s) => s,
-                    Err(_) => continue,
-                },
-                Err(_) => continue,
-            };
-            let body_upper = body.to_uppercase();
-            let mut matched: Option<&str> = None;
-            for m in &markers {
-                if body_upper.contains(m) { matched = Some(m); break; }
-            }
-            let marker = match matched {
-                Some(m) => m.to_string(),
-                None => continue,
-            };
-            let preview: String = body.chars().take(200).collect();
-            let offset = env.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
-            let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            hits.push(serde_json::json!({
-                "offset": offset,
-                "sender_id": sender,
-                "body_preview": preview,
-                "marker": marker,
-                "ts_unix_ms": ts,
-            }));
-        }
-        hits.sort_by(|a, b| {
-            let ta = a.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
-            let tb = b.get("ts_unix_ms").and_then(|v| v.as_i64()).unwrap_or(0);
-            tb.cmp(&ta)
-        });
-        if hits.len() > limit { hits.truncate(limit); }
+        let hits = compute_recent_decisions(&all, &markers, cutoff_ms, limit);
         serde_json::to_string_pretty(&serde_json::json!({
             "window_days": window_days,
             "decisions": hits,
@@ -31400,6 +31467,145 @@ YW\tJ
             serde_json::json!(0),
             "receipt envelopes are not content posts (T-2587)"
         );
+    }
+
+    // ── T-2588 LOAD-BEARING: the 4 sibling analytics tools that shared the same
+    // legacy `!= Some("post")` filter must count real content (note/chat), which
+    // is what modern producers emit. Each temp-revert (narrow the shared
+    // `is_content_msg_type` predicate, or the per-tool filter, back to only
+    // "post") empties the result and fails the matching assertion below.
+
+    fn b64_payload(s: &str) -> String {
+        use base64::Engine;
+        base64::engine::general_purpose::STANDARD.encode(s)
+    }
+
+    #[test]
+    fn search_by_finds_note_and_chat_content() {
+        let envs = vec![
+            serde_json::json!({
+                "offset": 10, "sender_id": "agent-A", "msg_type": "note",
+                "ts_unix_ms": 1_000i64, "payload": b64_payload("hello from a note")
+            }),
+            serde_json::json!({
+                "offset": 11, "sender_id": "agent-A", "msg_type": "chat",
+                "ts_unix_ms": 2_000i64, "payload": b64_payload("hello from a chat")
+            }),
+            // Non-content + wrong-sender envelopes must be excluded.
+            serde_json::json!({
+                "offset": 12, "sender_id": "agent-A", "msg_type": "receipt",
+                "ts_unix_ms": 3_000i64, "payload": b64_payload("hello receipt")
+            }),
+            serde_json::json!({
+                "offset": 13, "sender_id": "agent-B", "msg_type": "note",
+                "ts_unix_ms": 4_000i64, "payload": b64_payload("hello other")
+            }),
+        ];
+        let hits = compute_search_by_hits(&envs, "agent-A", "hello", 50);
+        assert_eq!(
+            hits.len(), 2,
+            "note+chat authored by agent-A matching 'hello' must both be found (T-2588)"
+        );
+        // Newest-first ordering preserved.
+        assert_eq!(hits[0]["offset"], serde_json::json!(11));
+    }
+
+    #[test]
+    fn threads_by_finds_note_and_chat_roots() {
+        let envs = vec![
+            serde_json::json!({
+                "offset": 100, "sender_id": "agent-A", "msg_type": "note",
+                "ts_unix_ms": 1_000i64, "payload": b64_payload("root note"), "metadata": {}
+            }),
+            serde_json::json!({
+                "offset": 101, "sender_id": "agent-A", "msg_type": "chat",
+                "ts_unix_ms": 2_000i64, "payload": b64_payload("root chat"), "metadata": {}
+            }),
+            // A reply (has in_reply_to) is NOT a root.
+            serde_json::json!({
+                "offset": 102, "sender_id": "agent-A", "msg_type": "note",
+                "ts_unix_ms": 3_000i64, "payload": b64_payload("a reply"),
+                "metadata": {"in_reply_to": "100"}
+            }),
+        ];
+        let roots = compute_threads_by_roots(&envs, "agent-A", 50);
+        assert_eq!(
+            roots.len(), 2,
+            "note+chat roots by agent-A must be found; the reply is excluded (T-2588)"
+        );
+        // The note root at 100 has one descendant (the reply at 102).
+        let root100 = roots.iter().find(|r| r["root_offset"] == serde_json::json!(100)).unwrap();
+        assert_eq!(root100["descendant_count"], serde_json::json!(1));
+    }
+
+    #[test]
+    fn busiest_threads_counts_note_root_with_reply() {
+        let envs = vec![
+            serde_json::json!({
+                "offset": 200, "sender_id": "agent-A", "msg_type": "note",
+                "ts_unix_ms": 1_000i64, "payload": b64_payload("busy root"), "metadata": {}
+            }),
+            serde_json::json!({
+                "offset": 201, "sender_id": "agent-B", "msg_type": "chat",
+                "ts_unix_ms": 2_000i64, "payload": b64_payload("a reply"),
+                "metadata": {"in_reply_to": "200"}
+            }),
+        ];
+        // cutoff_ms=0 keeps both; the note root has descendant_count 1 (>0).
+        let roots = compute_busiest_threads(&envs, 0, 50);
+        assert_eq!(
+            roots.len(), 1,
+            "a note root with a reply must surface as a busy thread (T-2588)"
+        );
+        assert_eq!(roots[0]["root_offset"], serde_json::json!(200));
+        assert_eq!(roots[0]["descendant_count"], serde_json::json!(1));
+    }
+
+    #[test]
+    fn recent_decisions_finds_note_and_chat_markers() {
+        let markers = ["GO:", "NO-GO:", "DECISION:", "DECIDED:", "RECOMMEND:", "RECOMMENDATION:", "VERDICT:"];
+        let envs = vec![
+            serde_json::json!({
+                "offset": 300, "sender_id": "agent-A", "msg_type": "note",
+                "ts_unix_ms": 1_000i64, "payload": b64_payload("DECISION: ship it")
+            }),
+            serde_json::json!({
+                "offset": 301, "sender_id": "agent-B", "msg_type": "chat",
+                "ts_unix_ms": 2_000i64, "payload": b64_payload("go: launch now")
+            }),
+            // A content post with no marker is excluded.
+            serde_json::json!({
+                "offset": 302, "sender_id": "agent-A", "msg_type": "note",
+                "ts_unix_ms": 3_000i64, "payload": b64_payload("just chatting")
+            }),
+        ];
+        let hits = compute_recent_decisions(&envs, &markers, 0, 50);
+        assert_eq!(
+            hits.len(), 2,
+            "a note DECISION and a chat GO (case-insensitive) must both be found (T-2588)"
+        );
+        // Newest-first: the chat 'go:' at ts 2000 sorts before the note at ts 1000.
+        assert_eq!(hits[0]["offset"], serde_json::json!(301));
+        assert_eq!(hits[0]["marker"], serde_json::json!("GO:"));
+    }
+
+    #[test]
+    fn is_content_msg_type_accepts_content_rejects_noise() {
+        for mt in ["post", "chat", "note"] {
+            assert!(
+                is_content_msg_type(&serde_json::json!({"msg_type": mt})),
+                "{mt} is content (T-2588)"
+            );
+        }
+        for mt in ["receipt", "heartbeat", "typing", "reaction", "edit", "pin", "star"] {
+            assert!(
+                !is_content_msg_type(&serde_json::json!({"msg_type": mt})),
+                "{mt} is not content (T-2588)"
+            );
+        }
+        // Missing msg_type is not content under this predicate (matches the
+        // sibling helpers at ~3048/3550/5489).
+        assert!(!is_content_msg_type(&serde_json::json!({})));
     }
 
     #[test]

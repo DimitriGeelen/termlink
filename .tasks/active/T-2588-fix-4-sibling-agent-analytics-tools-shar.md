@@ -4,7 +4,7 @@ name: "fix 4 sibling agent analytics tools sharing legacy msg_type-post filter (
 description: >
   Four agent chat-arc analytics MCP tools share the same legacy msg_type==post filter that T-2587 fixed for response_received: termlink_agent_search_by (tools.rs ~24336), termlink_agent_threads_by (~24519), termlink_agent_busiest_threads (~24619), termlink_agent_recent_decisions (~24705). Real content is note/chat/post (agent_post/channel_post default note, bus_client/offline_queue chat) so != Some(post) continue drops all real content and these tools silently return empty/zero. Correct content set is Some(post)|Some(chat)|Some(note) per shared helpers at tools.rs 3444/5383. Scoped sweep: per-tool confirm each genuinely wants CONTENT (not a distinct post-typed subset) then apply the set + load-bearing test each. From T-2468 verb-2 hunt, sibling class of T-2587.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-09T22:38:02Z
-last_update: 2026-08-09T22:38:02Z
+last_update: 2026-08-10T18:32:52Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -39,9 +39,12 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Shared pure predicate `is_content_msg_type(&Value) -> bool` added, matching `Some("post")|Some("chat")|Some("note")` (the canonical content set from tools.rs 3048/3550/5489).
+- [x] All 4 named sites (`termlink_agent_search_by`, `termlink_agent_threads_by`, `termlink_agent_busiest_threads`, `termlink_agent_recent_decisions`) no longer use `!= Some("post")`; each verified in code to genuinely want CONTENT (payload-bearing posts), not a distinct post-typed subset.
+- [x] Each of the 4 tools' post-processing loop extracted into a pure helper taking `&[Value]` so it is unit-testable off the RPC path (T-2587 pattern).
+- [x] One load-bearing test per tool: feed a `note`+`chat` envelope, assert the tool surfaces it; proven load-bearing by temp-reverting the filter to post-only → test FAILS → restore.
+- [x] `cargo test -p termlink-mcp --lib` passes (899 passed, 0 failed).
+- [x] Follow-up filed for the remaining `!= Some("post")` sites outside this task's 4-tool scope (class is broader than filed). → T-2590
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -76,6 +79,12 @@ date_finished: null
 
 ## Verification
 
+cargo test -p termlink-mcp --lib search_by_finds_note_and_chat_content
+cargo test -p termlink-mcp --lib threads_by_finds_note_and_chat_roots
+cargo test -p termlink-mcp --lib busiest_threads_counts_note_root_with_reply
+cargo test -p termlink-mcp --lib recent_decisions_finds_note_and_chat_markers
+cargo test -p termlink-mcp --lib is_content_msg_type_accepts_content_rejects_noise
+
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
@@ -109,19 +118,41 @@ date_finished: null
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** Four agent chat-arc analytics MCP tools — `termlink_agent_search_by`,
+`termlink_agent_threads_by`, `termlink_agent_busiest_threads`,
+`termlink_agent_recent_decisions` — silently returned empty/zero regardless of
+real chat-arc traffic. A content search over a busy topic found nothing; the
+"recent decisions" forensic tool answered "no decisions this week" even when
+GO:/DECISION: posts existed.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** each tool's post-processing loop opened with
+`if env.get("msg_type").and_then(|v| v.as_str()) != Some("post") { continue; }`.
+No modern producer emits the literal `msg_type="post"` — the T-1499 migration made
+`note` the default for channel/agent posts and `chat` the value for
+bus_client/offline_queue sends (verified: tools.rs 17915/17993 default to `note`,
+18262/20836 emit `chat`). So the filter dropped every real content envelope and
+kept only the empty set of literal-"post" messages. The canonical content
+predicate is `Some("post") | Some("chat") | Some("note")`, already inlined by the
+sibling helpers at tools.rs ~3048/3550/5489 — these 4 loops were simply never
+migrated.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** the T-1499 migration updated the SHARED content
+helpers but left the hand-rolled per-tool loops on the old `== "post"` convention.
+The predicate was duplicated inline across ~27 sites with no single choke-point, so
+a migration that touched the shared copies could not mechanically reach the inline
+ones. These tools have no unit tests exercising the content filter against realistic
+`note`/`chat` envelopes, so an always-empty result looked identical to a genuinely
+empty topic — the "silent zero" failure mode (Reliability: no silent failures).
+
+**Prevention:** (1) A single shared `is_content_msg_type(&Value)` predicate now
+backs the 4 fixed sites — a future migration changes one function. (2) Each tool's
+loop was extracted into a pure `compute_*` helper with a load-bearing unit test
+that feeds `note`+`chat` envelopes and asserts they surface; each was proven
+load-bearing by temp-reverting the predicate to post-only (all 5 tests FAIL) and
+restoring. (3) The remaining ~23 `!= Some("post")` sites (other agent_* tools) are
+filed as a follow-up for per-tool audit — the class is broader than the 4 named
+here, and some (e.g. `presence_now`, which walks heartbeat envelopes) need
+different semantics, not a blind predicate swap.
 
 ## Evolution
 
@@ -174,3 +205,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2588-fix-4-sibling-agent-analytics-tools-shar.md
 - **Context:** Initial task creation
+
+### 2026-08-10T18:32:52Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
