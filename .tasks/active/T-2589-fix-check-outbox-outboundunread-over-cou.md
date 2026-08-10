@@ -4,7 +4,7 @@ name: "fix check-outbox outbound_unread over-count (peer receipt makes it always
 description: >
   check-outbox.sh:234 computes outbound_unread=(count - 1 - peer_acked) where count is the WHOLE dm topic envelope count (both senders posts + both sides receipt envelopes) but peer_acked is the peer max receipt up_to. A receipt acking up_to=N is posted at an offset greater than N, so the peers own latest receipt forces count-1-peer_acked to be at least 1 even when the peer has read every DM you sent. Result: the all-caught-up state is nearly unreachable once a peer acks, and the operator-facing unread=N line (line 328/331) counts the peers own posts/receipts as your unread mail, prompting needless nudges. The header comment (228-233) self-documents it as an approximation but does not acknowledge the always->=1 false positive. Fix: count only self-authored non-receipt envelopes with offset > peer_acked (filter sender_id==self_fp and msg_type != receipt in the per-topic scan) instead of the whole-count subtraction. Semantics: decide what outbound_unread should mean (posts I sent the peer has not acked). From T-2468 verb-2 hunt.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-09T22:38:21Z
-last_update: 2026-08-09T22:38:21Z
+last_update: 2026-08-10T19:17:51Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -39,9 +39,11 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `scripts/check-outbox.sh` no longer computes `outbound_unread` as `count - 1 - peer_acked` (the whole-topic subtraction that counts the peer's own posts + the peer's own receipt envelope).
+- [x] `outbound_unread` is computed by a per-envelope tail scan: subscribe from `cursor = peer_acked + 1` and count only envelopes where `sender_id == self_fp` AND `msg_type != "receipt"` AND `offset > peer_acked` (the semantic "DMs I sent that the peer has not acked").
+- [x] The peer's latest-receipt-always->=1 false positive is eliminated: a topic where the peer has acked every self-authored post now reports `outbound_unread = 0` and drops out of the report (all-caught-up reachable).
+- [x] A load-bearing fixture test (`tests/check-outbox-fixtures.sh`) drives the whole script through a mock `termlink` (`TERMLINK_BIN`) and asserts the new count. It FAILS against the old `count-1-peer_acked` formula (proven by temp-revert) and PASSES against the fix.
+- [x] The header comment (lines ~228-233) is updated to document the exact semantic instead of the "approximation, close enough" note.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -75,6 +77,10 @@ date_finished: null
 -->
 
 ## Verification
+
+bash tests/check-outbox-fixtures.sh
+bash -c 'out=$(cat scripts/check-outbox.sh); echo "$out" | grep -qF "outbound_unread=\$((count" && exit 1 || exit 0'
+bash -n scripts/check-outbox.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -122,6 +128,34 @@ date_finished: null
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** `/check-outbox` reported `outbound_unread >= 1` for a peer even after
+that peer had acked every DM the operator sent them — the "all peers caught up"
+state was nearly unreachable once any peer posted a single receipt, prompting
+needless `/agent-handoff` nudges.
+
+**Root cause:** `outbound_unread` was `count - 1 - peer_acked`, where `count` is
+the WHOLE dm-topic envelope count (both senders' posts + both sides' receipts +
+reactions/pins/edits) but `peer_acked` is only the peer's receipt `up_to` offset.
+A receipt acking `up_to=N` is itself an envelope stored at an offset **> N**, so
+the peer's own latest receipt is always included in `count` and never subtracted —
+forcing `count-1-peer_acked >= 1` even when zero self-authored posts are unacked.
+The subtraction also miscounts the peer's own posts and both sides' non-content
+envelopes as "your unread mail".
+
+**Why structurally allowed:** the header comment (228-233) self-documented the
+formula as an "approximation … close enough as a backpressure signal" — the
+always->=1 false-positive was accepted as approximation noise rather than
+recognized as a correctness bug, and there was no test asserting the caught-up
+(`outbound_unread == 0`) state was reachable. An approximation that can never
+return 0 is not an approximation of the true value; it is a constant-offset bug.
+
+**Prevention:** replaced the whole-count subtraction with an exact per-envelope
+tail scan (`sender_id == self && msg_type != receipt && offset > peer_acked`) AND
+added `tests/check-outbox-fixtures.sh` — a mock-`termlink` fixture that asserts a
+fully-acked topic yields `outbound_unread = 0` and a partially-acked topic yields
+the exact self-authored count. The test fails against the old formula (temp-revert
+proven), so the caught-up-is-reachable invariant is now load-bearing.
 
 ## Evolution
 
@@ -174,3 +208,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2589-fix-check-outbox-outboundunread-over-cou.md
 - **Context:** Initial task creation
+
+### 2026-08-10T19:17:51Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

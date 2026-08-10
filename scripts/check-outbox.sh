@@ -225,13 +225,27 @@ for i in "${!hub_names[@]}"; do
             2>/dev/null)"
         [ -z "$peer_acked" ] && peer_acked=-1
 
-        # outbound_unread = posts after the offset peer last acked, capped at
-        # the number of posts authored by SELF in that range. Approximation
-        # (without per-envelope scan): use (count-1 - peer_acked) as the
-        # upper bound. In practice for dm:* topics with only two senders,
-        # most posts are mine, and the approximation is close enough as a
-        # backpressure signal.
-        outbound_unread=$((count - 1 - peer_acked))
+        # outbound_unread = DMs I authored that the peer has not yet acked.
+        # (T-2589) The prior approximation `count - 1 - peer_acked` used the
+        # WHOLE-topic envelope count, so it also counted the peer's own posts
+        # AND the peer's own receipt envelope — the latter is stored at an
+        # offset GREATER than the offset it acks, so it can never be subtracted.
+        # That forced the result to be >=1 whenever a peer had ever posted a
+        # receipt, making the "all caught up" state (outbound_unread == 0)
+        # unreachable. We instead scan the tail from cursor = peer_acked + 1
+        # and count only self-authored, non-receipt envelopes beyond the acked
+        # offset — the exact "posts I sent the peer hasn't read" set.
+        # Note: the scan is bounded by --limit 1000; a dm topic with >1000
+        # unacked self posts undercounts (acceptable for a backpressure signal).
+        scan_cursor=$((peer_acked + 1))
+        [ "$scan_cursor" -lt 0 ] && scan_cursor=0
+        outbound_unread="$($TIMEOUT_CMD $TERMLINK channel subscribe "$topic" $hub_flag \
+            --cursor "$scan_cursor" --limit 1000 --json 2>/dev/null \
+            | jq -r --arg s "$self_fp" --argjson pa "$peer_acked" \
+                'select(.sender_id == $s and .msg_type != "receipt" and .offset > $pa) | .offset' \
+                2>/dev/null \
+            | wc -l | tr -d ' ')"
+        [ -z "$outbound_unread" ] && outbound_unread=0
         [ "$outbound_unread" -gt 0 ] || continue
 
         row="$(jq -n -c \
