@@ -2976,3 +2976,10 @@ learnings:
   date: 2026-08-10
   context: Added via context agent
   application: TBD
+- id: PL-317
+  learning: "Unread/backpressure counts computed as (topic_total - peer_acked_offset) over-count by construction in TermLink: a receipt acking up_to=N is ITSELF an envelope at an offset > N included in the topic total, so the difference never reaches 0 once any receipt exists — an approximation that can never return its target value is a constant-offset bug, not noise. Fix: per-envelope tail scan from cursor=peer_acked+1 counting only self-authored non-receipt envelopes; assert caught-up (0) is reachable with a mock-termlink fixture."
+  source: P-001
+  task: T-2589
+  date: 2026-08-10
+  context: Added via context agent
+  application: TBD
