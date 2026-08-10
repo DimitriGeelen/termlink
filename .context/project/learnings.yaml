@@ -2990,3 +2990,10 @@ learnings:
   date: 2026-08-10
   context: Added via context agent
   application: TBD
+- id: PL-319
+  learning: "Presence 'liveness' is computed on FOUR duplicated surfaces with no shared predicate: hub find_idle (DEFAULT_LIVE_WINDOW_MS), chat-arc-stats (tools.rs), agent-listeners.sh (2*interval_secs), and presence-eval MCP+CLI mirrors. A future-clock guard added to ONE (T-2536 find_idle) took THREE follow-up tasks (T-2598 shell, T-2599 both eval mirrors) to propagate, and the surfaces STILL disagree on the stale lower-window (T-2600). Gap/adjustment: extract a single shared liveness predicate (window + upper+lower clock bounds) so a guard added once holds everywhere — the duplication is the structural defect, each fix is only a symptom. Generalizes PL-318 (one-copy-fixed-siblings-unaudited) to presence specifically."
+  source: P-001
+  task: T-2599
+  date: 2026-08-10
+  context: Added via context agent
+  application: TBD
