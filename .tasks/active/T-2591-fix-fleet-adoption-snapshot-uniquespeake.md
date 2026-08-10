@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-10T19:29:36Z
-last_update: 2026-08-10T19:29:36Z
+last_update: 2026-08-10T19:32:34Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -39,10 +39,10 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `scripts/fleet-adoption-snapshot.sh` no longer whitelists only `msg_type == "chat"` for the `unique_speakers` metric; it selects the content set {`post`,`chat`,`note`} (aligned with the canonical `is_content_msg_type` predicate).
-- [ ] A `note`-only speaker (an agent that broadcast via `termlink_agent_post`/`agent_reply`, which write `msg_type="note"`) is counted in `unique_speakers` — previously silently dropped.
-- [ ] A load-bearing fixture test (`tests/fleet-adoption-fixtures.sh`) drives the script through a mock `termlink` and asserts `unique_speakers` counts note + chat + post posters; it FAILS against the old `msg_type == "chat"` whitelist (temp-revert proven) and PASSES against the fix.
-- [ ] Meta envelopes (reaction/pin/heartbeat/etc.) are still excluded from the speaker count (only content types count).
+- [x] `scripts/fleet-adoption-snapshot.sh` no longer whitelists only `msg_type == "chat"` for the `unique_speakers` metric; it selects the content set {`post`,`chat`,`note`} (aligned with the canonical `is_content_msg_type` predicate).
+- [x] A `note`-only speaker (an agent that broadcast via `termlink_agent_post`/`agent_reply`, which write `msg_type="note"`) is counted in `unique_speakers` — previously silently dropped.
+- [x] A load-bearing fixture test (`tests/fleet-adoption-fixtures.sh`) drives the script through a mock `termlink` and asserts `unique_speakers` counts note + chat + post posters; it FAILS against the old `msg_type == "chat"` whitelist (temp-revert proven) and PASSES against the fix.
+- [x] Meta envelopes (reaction/pin/heartbeat/etc.) are still excluded from the speaker count (only content types count).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
