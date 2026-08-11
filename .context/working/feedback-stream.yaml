@@ -6858,3 +6858,129 @@ scan_id: R-11daa8af
 task_id: T-2590
 payload:
   task_file: .tasks/active/T-2590-audit-remaining-agent-tools-sharing-lega.md
+---
+kind: scan_emitted
+timestamp: '2026-08-10T19:22:03Z'
+scan_id: R-4088a033
+task_id: T-2589
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-10T19:22:03Z'
+scan_id: R-4088a033
+task_id: T-2589
+payload:
+  task_file: .tasks/active/T-2589-fix-check-outbox-outboundunread-over-cou.md
+---
+kind: scan_emitted
+timestamp: '2026-08-10T19:32:52Z'
+scan_id: R-19158584
+task_id: T-2591
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-10T19:32:52Z'
+scan_id: R-19158584
+task_id: T-2591
+payload:
+  task_file: .tasks/active/T-2591-fix-fleet-adoption-snapshot-uniquespeake.md
+---
+kind: scan_emitted
+timestamp: '2026-08-10T20:07:28Z'
+scan_id: R-a8598606
+task_id: T-2592
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-10T20:07:28Z'
+scan_id: R-a8598606
+task_id: T-2592
+payload:
+  task_file: .tasks/active/T-2592-chat-arc-recent-default-filtermsgtypecha.md
+---
+kind: scan_emitted
+timestamp: '2026-08-10T20:23:45Z'
+scan_id: R-c3c1dea4
+task_id: T-2598
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-10T20:23:45Z'
+scan_id: R-c3c1dea4
+task_id: T-2598
+payload:
+  task_file: .tasks/active/T-2598-agent-listenerssh-shows-future-dated-hea.md
+---
+kind: scan_emitted
+timestamp: '2026-08-10T20:34:07Z'
+scan_id: R-f9aeae1a
+task_id: T-2599
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-10T20:34:07Z'
+scan_id: R-f9aeae1a
+task_id: T-2599
+payload:
+  task_file: .tasks/active/T-2599-presence-eval---require-online-gate-coun.md
+---
+kind: scan_emitted
+timestamp: '2026-08-11T10:04:24Z'
+scan_id: R-61d11381
+task_id: T-2602
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-11T10:04:24Z'
+scan_id: R-61d11381
+task_id: T-2602
+payload:
+  task_file: .tasks/active/T-2602-mcp-renew-doc-contradicts-monotonic-forw.md
+---
+kind: scan_emitted
+timestamp: '2026-08-11T11:40:34Z'
+scan_id: R-5d736909
+task_id: T-2604
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-11T11:40:34Z'
+scan_id: R-5d736909
+task_id: T-2604
+payload:
+  task_file: .tasks/active/T-2604-claim-ttlms-has-no-lower-clamp--ttlms0-r.md

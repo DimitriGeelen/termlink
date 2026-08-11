@@ -4,10 +4,10 @@ name: "Over-length/whitespace client_msg_id silently downgrades exactly-once to 
 description: >
   Verb-2 hunt F2: channel.rs:722 filters invalid client_msg_id to None with no INVALID_PARAMS
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-11T10:13:18Z
-last_update: 2026-08-11T10:13:18Z
+last_update: 2026-08-11T12:47:27Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -66,19 +66,19 @@ in-memory protection; coordinate the contract wording with T-2606.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] A decision is recorded (see Decisions) on how the hub handles a present-but-invalid
+- [x] A decision is recorded (see Decisions) on how the hub handles a present-but-invalid
       `client_msg_id` (over-length / empty-after-trim) and on the `trim()` collision.
-- [ ] Present-but-invalid `client_msg_id` no longer silently downgrades to no-dedupe:
+- [x] Present-but-invalid `client_msg_id` no longer silently downgrades to no-dedupe:
       the hub returns a clear INVALID_PARAMS (-32602) naming the constraint (≤128 chars,
       non-empty), instead of `filter`-ing to `None`. An ABSENT `client_msg_id` still
       proceeds normally (dedupe is opt-in — only present-but-invalid is an error).
-- [ ] The `trim()` collision is resolved per the decision (either documented as
+- [x] The `trim()` collision is resolved per the decision (either documented as
       intentional normalization, or trailing/leading whitespace preserved so distinct ids
       stay distinct).
-- [ ] A load-bearing unit test proves it: a post with a 200-char `client_msg_id` returns
+- [x] A load-bearing unit test proves it: a post with a 200-char `client_msg_id` returns
       INVALID_PARAMS (not `ok:true`); an absent id still succeeds. Prove load-bearing by
       temp-reverting to the `filter`-to-`None` form and confirming the test FAILS.
-- [ ] `cargo test -p termlink-hub` passes.
+- [x] `cargo test -p termlink-hub` passes.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -144,6 +144,10 @@ in-memory protection; coordinate the contract wording with T-2606.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+out=$(cargo test -p termlink-hub dedupe_ 2>&1); echo "$out" | grep -q "test result: ok"
+grep -q "128-byte maximum" crates/termlink-hub/src/channel.rs
+grep -q "T-2605" crates/termlink-cli/src/cli.rs
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -159,6 +163,35 @@ in-memory protection; coordinate the contract wording with T-2606.
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** A caller on the durable-message path (`channel.post`) who supplies a
+present-but-invalid `client_msg_id` — over-length (>128 bytes) or empty/whitespace-only —
+believes their post is exactly-once-protected, but the hub silently drops the token and
+appends unprotected. On an ack-lost retry the hub sees no dedupe key → **silent double-append**.
+Secondary: `trim()` made `"abc "` and `"abc"` collide, silently dropping a genuinely-distinct
+second post (returned the first's cached offset, never appended).
+
+**Root cause:** The handler resolved the token with
+`.and_then(as_str).map(trim).filter(|s| !s.is_empty() && s.len() <= 128)` — a `filter` that
+maps a *present-but-invalid* value to the SAME `None` as an *absent* value. The two cases are
+semantically opposite (absent = "I don't want dedupe"; invalid = "I want dedupe but sent a bad
+token"), but the code collapsed them, so the invalid case inherited the absent case's silent
+opt-out.
+
+**Why structurally allowed:** `Option::filter` is the idiomatic "coerce invalid to None" combinator,
+and for parse-tolerant *optional* inputs that is usually correct. It is wrong precisely when the
+`None` branch has a *meaningful side-effect* (here: skip dedupe) that the caller did not ask for.
+No lint distinguishes "None = absent" from "None = silently-discarded-invalid". Same silent-downgrade
+class as T-2604 (born-dead claim ttl clamped upper-only) and the T-2527 "clamp/validate every caller
+param on the end that matters" family — a present param whose validation failure is swallowed instead
+of surfaced.
+
+**Prevention:** The three load-bearing reject tests
+(`dedupe_oversized_..._is_rejected_not_silently_ignored`, `dedupe_whitespace_only_..._is_rejected`)
+fail the instant the handler reverts to the `.filter`-to-`None` form (proven by temp-revert:
+"expected error, got success"). Paired with the positive controls (`dedupe_absent_..._still_posts_normally`
+guards the opt-in invariant; `dedupe_..._at_128_byte_ceiling_succeeds` guards the inclusive boundary),
+the contract is pinned in both directions.
 
 ## Evolution
 
@@ -186,22 +219,28 @@ in-memory protection; coordinate the contract wording with T-2606.
 
 ## Decisions
 
-### OPEN — reject vs. accept-and-hash for an over-length client_msg_id?
+### 2026-08-11 — RESOLVED (Option A) — over-length/invalid client_msg_id → loud -32602
 
-- **Option A — loud-reject (recommended).** Present-but-invalid → INVALID_PARAMS naming
-  the ≤128 / non-empty constraint. Honors "no silent failures"; forces the caller to fix
-  the token. The comment at channel.rs:716 already says "longer payloads should hash
-  before submission" — this makes that guidance enforced instead of silently assumed.
-- **Option B — hash over-length ids hub-side.** Deterministically hash a >128-char id to
-  a fixed-width key so the caller's intent (dedupe on this string) is honored. More
-  forgiving, but hides a caller contract violation and adds a hashing dependency. Weaker.
+- **Chose Option A — loud-reject.** Present-but-invalid (non-string / empty /
+  whitespace-only / >128 bytes) → `-32602` naming the constraint. Absent OR JSON-null
+  still proceeds normally (dedupe stays opt-in). Honors "no silent failures"; forces the
+  caller to fix the token; makes the channel.rs:716 "longer payloads should hash before
+  submission" guidance enforced instead of silently assumed.
+- **Rejected Option B (hash over-length ids hub-side)** — hides a caller contract violation,
+  adds a hashing dependency, and a truncated/hashed key can collide across distinct originals.
 
-### OPEN — trim() collision
+### 2026-08-11 — RESOLVED (Option b) — trim() collision → do NOT trim the stored key
 
-Does `"abc "` == `"abc"`? Current `trim()` says yes. Either (a) document trimming as
-intentional normalization, or (b) drop the `trim()` so leading/trailing whitespace keeps
-distinct ids distinct (safer against accidental drop of a legitimately-distinct post).
-Lean (b) unless there is a concrete reason callers pad ids.
+- **Chose (b) — drop `trim()` for the stored key.** Reject whitespace-only up front (via
+  `s.trim().is_empty()`), but for a valid token use the raw string byte-for-byte — `"abc "`
+  and `"abc"` stay distinct keys.
+- **Why:** Trimming for storage silently merged two genuinely-distinct posts, dropping the
+  second (returned the first's cached offset, never appended) — the "silent data loss" class
+  the task flags. Preserving the raw key never silently drops a distinct message; the only
+  cost is a whitespace-mangled retry won't dedupe (loud-on-inspection at-least-once fallback,
+  not a silent drop). "Never silently lose a distinct post" is the stronger Directive #2 guarantee.
+- **Rejected (a) document-trim-as-normalization** — trades a silent-drop risk for marginal
+  whitespace tolerance callers don't actually need.
 
 ## Decision
 
@@ -219,3 +258,7 @@ Lean (b) unless there is a concrete reason callers pad ids.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2605-over-lengthwhitespace-clientmsgid-silent.md
 - **Context:** Initial task creation
+
+### 2026-08-11T12:47:27Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

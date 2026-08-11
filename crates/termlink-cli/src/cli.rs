@@ -1965,7 +1965,10 @@ pub(crate) enum ChannelAction {
         /// short TTL (default 5 min) — a re-post of the same id silently
         /// returns the original offset without re-appending. When omitted,
         /// the CLI mints a fresh random 128-bit id. Set explicitly to
-        /// override (e.g. content-hash idempotency for scripts).
+        /// override (e.g. content-hash idempotency for scripts). Must be a
+        /// non-empty string ≤128 bytes: a present-but-invalid value
+        /// (empty/whitespace-only/over-length) is rejected with -32602
+        /// rather than silently proceeding without dedupe (T-2605).
         #[arg(long = "client-msg-id", value_name = "ID")]
         client_msg_id: Option<String>,
 

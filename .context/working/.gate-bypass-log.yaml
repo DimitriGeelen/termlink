@@ -2479,3 +2479,34 @@ git'
   caller: 'check-active-task focus-drift'
   target: 'T-2587'
   command: 'git add -A && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2587: finalize + file T-2588 (4-sibling msg_type-post sweep) and T-2589 (check-outbox over-count) from verb-2 hunt" 2>&1 | ta'
+- timestamp: '2026-08-10T19:23:39Z'
+  task: 'T-1166'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2589'
+  command: 'cd /opt/termlink
+git add .tasks/completed/T-2589-fix-check-outbox-outboundunread-over-cou.md .tasks/active/T-2589-fix-check-outbox-outboundunread-over-cou.md .context/episodic/T-2589.yaml .context/pro'
+- timestamp: '2026-08-10T19:23:53Z'
+  task: 'T-1166'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2589'
+  command: 'cd /opt/termlink
+git add .context/episodic/T-2589.yaml .context/project/learnings.yaml
+FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2589: add episodic + learnings.yaml entry (L for con'
+- timestamp: '2026-08-10T19:33:21Z'
+  task: 'T-1166'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2591'
+  command: 'cd /opt/termlink
+git add .tasks/completed/T-2591-fix-fleet-adoption-snapshot-uniquespeake.md .tasks/active/T-2591-fix-fleet-adoption-snapshot-uniquespeake.md .context/episodic/T-2591.yaml .context/pro'
+- timestamp: '2026-08-10T19:34:45Z'
+  task: 'T-1166'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2591'
+  command: 'cd /opt/termlink
+git status --short | grep -E episodic/T-2591|learnings || echo "(nothing pending)"
+git add .context/episodic/T-2591.yaml .context/project/learnings.yaml 2>/dev/null
+if ! git diff --'

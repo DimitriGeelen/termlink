@@ -713,13 +713,55 @@ pub(crate) async fn handle_channel_post_with_peer(
 
     // T-2049 Gap A — idempotency via optional client_msg_id. Verified
     // sender_id (T-1427) namespaces the dedupe so the cache cannot be
-    // poisoned across senders. Length-bounded to 1..=128 chars to keep
+    // poisoned across senders. Length-bounded to 1..=128 bytes to keep
     // the cache key small; longer payloads should hash before submission.
-    let client_msg_id = params
-        .get("client_msg_id")
-        .and_then(|v| v.as_str())
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty() && s.len() <= 128);
+    //
+    // T-2605 — a PRESENT-but-invalid client_msg_id (non-string, empty,
+    // whitespace-only, or >128 bytes) is a LOUD -32602 error, NOT silently
+    // filtered to None. Silently dropping it downgraded the caller's
+    // exactly-once request to at-least-once with no signal (Reliability #2
+    // "no silent failures"). ABSENT or JSON-null still proceeds normally —
+    // dedupe is opt-in. The raw value is the key (no trim): trimming made
+    // "abc " and "abc" collide, silently dropping a genuinely-distinct post.
+    let client_msg_id = match params.get("client_msg_id") {
+        None | Some(serde_json::Value::Null) => None,
+        Some(v) => match v.as_str() {
+            Some(s) if s.trim().is_empty() => {
+                return ErrorResponse::with_data(
+                    id,
+                    -32602,
+                    "channel.post: client_msg_id is present but empty or whitespace-only \
+                     — omit it entirely to skip dedupe, or supply a non-empty idempotency token",
+                    json!({ "client_msg_id_len": s.len() }),
+                )
+                .into();
+            }
+            Some(s) if s.len() > 128 => {
+                return ErrorResponse::with_data(
+                    id,
+                    -32602,
+                    &format!(
+                        "channel.post: client_msg_id is {} bytes, exceeding the 128-byte maximum \
+                         — hash the token before submission to keep the dedupe key small",
+                        s.len()
+                    ),
+                    json!({ "client_msg_id_len": s.len(), "max_len": 128 }),
+                )
+                .into();
+            }
+            Some(s) => Some(s.to_string()),
+            None => {
+                return ErrorResponse::with_data(
+                    id,
+                    -32602,
+                    "channel.post: client_msg_id must be a string \
+                     — omit it entirely to skip dedupe",
+                    json!({}),
+                )
+                .into();
+            }
+        },
+    };
     if let Some(ref cid) = client_msg_id {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -4123,23 +4165,82 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn dedupe_oversized_client_msg_id_is_ignored() {
+    async fn dedupe_oversized_client_msg_id_is_rejected_not_silently_ignored() {
+        // T-2605 — a present 129-byte client_msg_id used to be silently
+        // filtered to None (exactly-once request silently downgraded to
+        // at-least-once). It is now a LOUD -32602 error naming the 128-byte
+        // limit. Load-bearing: temp-revert the handler to the `.filter(...)`
+        // form and this assertion fails (post returns ok:true).
         let (_d, bus) = tmp_bus();
         bus.create_topic("dedupe:over", Retention::Forever).unwrap();
         let key = SigningKey::from_bytes(&[54u8; 32]);
 
-        // 129-char id — past the 128 ceiling. Treated as if absent.
         let huge = "x".repeat(129);
         let mut p = post_params(&key, "dedupe:over", "test", b"a", 1_000);
         p.as_object_mut()
             .unwrap()
             .insert("client_msg_id".into(), json!(huge));
 
+        let (code, msg) = unwrap_error(handle_channel_post_with(&bus, json!(1), &p).await);
+        assert_eq!(code, -32602);
+        assert!(
+            msg.contains("128-byte maximum"),
+            "message should name the constraint, got: {msg}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn dedupe_whitespace_only_client_msg_id_is_rejected() {
+        // T-2605 — an all-whitespace id is semantically empty; the old code
+        // trimmed it to "" and filtered to None (silent no-dedupe). Now -32602.
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("dedupe:ws", Retention::Forever).unwrap();
+        let key = SigningKey::from_bytes(&[55u8; 32]);
+
+        let mut p = post_params(&key, "dedupe:ws", "test", b"a", 1_000);
+        p.as_object_mut()
+            .unwrap()
+            .insert("client_msg_id".into(), json!("    "));
+
+        let (code, msg) = unwrap_error(handle_channel_post_with(&bus, json!(1), &p).await);
+        assert_eq!(code, -32602);
+        assert!(msg.contains("empty or whitespace-only"), "got: {msg}");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn dedupe_absent_client_msg_id_still_posts_normally() {
+        // T-2605 — dedupe stays OPT-IN. An absent client_msg_id must still
+        // append normally (two distinct offsets), unaffected by the new
+        // present-but-invalid rejection path.
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("dedupe:absent", Retention::Forever).unwrap();
+        let key = SigningKey::from_bytes(&[56u8; 32]);
+
+        let p = post_params(&key, "dedupe:absent", "test", b"a", 1_000);
         let r1 = unwrap_success(handle_channel_post_with(&bus, json!(1), &p).await);
         let r2 = unwrap_success(handle_channel_post_with(&bus, json!(2), &p).await);
-
-        // Oversized id is filtered out → both posts append normally.
         assert_ne!(r1["offset"], r2["offset"]);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn dedupe_client_msg_id_at_128_byte_ceiling_succeeds() {
+        // T-2605 — the boundary is inclusive: exactly 128 bytes is valid and
+        // still dedupes (a duplicate returns the cached offset).
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("dedupe:ceil", Retention::Forever).unwrap();
+        let key = SigningKey::from_bytes(&[57u8; 32]);
+
+        let id128 = "y".repeat(128);
+        let mut p = post_params(&key, "dedupe:ceil", "test", b"a", 1_000);
+        p.as_object_mut()
+            .unwrap()
+            .insert("client_msg_id".into(), json!(id128));
+
+        let r1 = unwrap_success(handle_channel_post_with(&bus, json!(1), &p).await);
+        let r2 = unwrap_success(handle_channel_post_with(&bus, json!(2), &p).await);
+        // Same (sender_id, client_msg_id) → second is the cached replay.
+        assert_eq!(r1["offset"], r2["offset"]);
+        assert_eq!(r2["deduped"], json!(true));
     }
 
     // ─── T-2104: substrate primitive 9 slice 2 — channel.subscribe ───

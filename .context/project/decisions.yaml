@@ -773,3 +773,10 @@ decisions:
     date: 2026-08-09
     task: T-2571
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-090
+    decision: "Option A — a present `ttl_ms` below `MIN_CLAIM_TTL_MS = 1000` returns"
+    scope: project
+    date: 2026-08-11
+    task: T-2604
+    rationale: "Auto-captured from task file on completion"
