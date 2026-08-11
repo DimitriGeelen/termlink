@@ -4,20 +4,20 @@ name: "release_claim has no lease-expiry check — silent success on lapsed leas
 description: >
   Verb-3 hunt F1: release_claim (bus meta.rs) lacks expiry gate that renew/transfer have
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, crates/termlink-cli/src/cli.rs, crates/termlink-hub/src/channel.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-11T10:05:02Z
-last_update: 2026-08-11T13:00:54Z
-date_finished: null
+last_update: 2026-08-11T13:05:47Z
+date_finished: 2026-08-11T13:05:47Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -265,3 +265,15 @@ gate. Both pin the contract symmetric with the renew/transfer expiry tests.
 ### 2026-08-11T13:00:54Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-db81ae21
+- **Timestamp:** 2026-08-11T13:05:48Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-11T13:05:47Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
