@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2607: Identity/trust plane silently relocates to volatile /tmp when HOME unset (portability + no-silent-failures)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-11T15:32:00Z
+# ============================================================================
+
+task_id: T-2607
+task_name: "Identity/trust plane silently relocates to volatile /tmp when HOME unset (portability + no-silent-failures)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-11T11:14:16Z
+completed: 2026-08-11T15:31:22Z
+duration_days: 0
+updates_count: 3
+first_commit: 2026-08-11T17:31:15+02:00
+last_commit: 2026-08-11T17:31:15+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  unify identity/trust-plane dir resolution — loud UID-namespaced fallback, never silent world-writable /tmp
+
+# Key outcomes
+outcomes:
+  - 'A decision is recorded (see Decisions) on the `HOME`-unset behavior for the'
+  - 'The trust store (`known_hubs_path`) and the ack-retry DB honor'
+  - 'The silent `HOME → "/tmp"` fallback is replaced per the decision: either a'
+  - 'A load-bearing test proves it: with `HOME` unset (and `TERMLINK_IDENTITY_DIR`'
+  - '`cargo test -p termlink-session` passes (and `cargo check -p termlink-mcp`'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: 'RESOLVED (2026-08-11) — Option B: loud, UID-namespaced, infallible'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-session/src/ack_retry.rs'
+  - 'crates/termlink-session/src/identity_dir.rs'
+  - 'crates/termlink-session/src/lib.rs'
+  - 'crates/termlink-session/src/offline_queue.rs'
+  - 'crates/termlink-session/src/tofu.rs'
+  - '.tasks/active/T-2607-identitytrust-plane-silently-relocates-t.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-11T17:31:15"
+    action: "T-2607: unify identity/trust-plane dir resolution — loud UID-namespaced fallback, never silent world-writable /tmp"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 257 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 257
+  commits: 1
+  files_changed: 6
+  lines_added: 345
+  lines_removed: 29
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2607-identitytrust-plane-silently-relocates-t.md
+generated_by: context-agent-hybrid
