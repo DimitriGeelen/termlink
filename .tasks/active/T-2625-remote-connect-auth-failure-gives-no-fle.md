@@ -1,8 +1,8 @@
 ---
-id: T-2624
-name: "list-topics handler omits unreachable sessions from total_topics (silent session omission)"
+id: T-2625
+name: "remote connect auth failure gives no fleet-reauth next step (usability dead-end)"
 description: >
-  list-topics handler omits unreachable sessions from total_topics (silent session omission)
+  remote connect auth failure gives no fleet-reauth next step (usability dead-end)
 
 status: started-work
 workflow_type: build
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-11T22:54:59Z
-last_update: 2026-08-11T22:56:23Z
+created: 2026-08-11T23:02:28Z
+last_update: 2026-08-11T23:02:28Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,42 +30,41 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2624: list-topics handler omits unreachable sessions from total_topics (silent session omission)
+# T-2625: remote connect auth failure gives no fleet-reauth next step (usability dead-end)
 
 ## Context
 
-**FILED, NOT BUILT** (reliability-hunt-2 Finding #4, LOW confidence, async
-fan-out over live sessions — not cleanly unit-testable without extracting the
-per-session aggregation into a pure helper first, and lower-impact than a
-health-gate silent-pass because this is a diagnostic list command).
+reliability/usability-hunt (Directive #3 — "actionable errors") Finding #1,
+HIGH severity / high confidence, verified in code.
 
-`crates/termlink-cli/src/commands/events.rs:1043-1075` — the list-topics
-handler fans out an `event.topics` RPC to every registered session under a
-`timeout_secs` bound, then:
-- line 1059 `Ok(Err(_)) | Err(_) => continue` — drops any session that
-  timed out or whose transport errored;
-- line 1047 `if let Ok(result) = client::unwrap_result(resp)` — drops any
-  session whose RPC returned an error *result* (the `else` is empty);
-- line 1048 `&& let Some(topics)` — drops any response lacking a `topics` array.
+`crates/termlink-cli/src/commands/remote.rs:786` + `:789` — `connect_remote_hub`
+is the single connection helper behind ~15 direct `remote *` subcommands
+(push/exec/inject/inbox/…). Its auth-failure arms emit only the raw hub
+code+message with NO remediation:
 
-None of those three drop paths is counted. `total` (1063) and
-`total_sessions` (1074) reflect ONLY the sessions that answered with a
-non-empty topic list. The JSON envelope and human summary carry no
-"N session(s) unreachable/errored" field. Result: an operator running
-list-topics against a fleet where some sessions are wedged sees a smaller
-topic set with no indication that anything was skipped — a silent omission
-(Directive #2 "no silent failures / observable"). Distinct from a wrong
-green pass: the danger is a *false-complete inventory*, not a false-clean gate.
+```rust
+Ok(RpcResponse::Error(e)) => anyhow::bail!("Authentication failed: {} {}", e.error.code, e.error.message),
+Err(e)                    => anyhow::bail!("Authentication error: {}", e),
+```
+
+Yet the hub-restart / secret-rotation case (PL-021) is the single most-
+documented failure mode in this codebase, and `fleet doctor` DOES hint the
+remedy (`remote.rs:2195` — `"HMAC secret mismatch — run: termlink fleet reauth …"`).
+A user running `termlink remote exec <hub> …` against a hub that rotated its
+secret gets a dead-end `Authentication failed: -32xxx invalid signature` while
+`fleet doctor` on the same hub would tell them to reauth. The inconsistency IS
+the Directive-#3 defect. The `hub` (`host:port`) is in scope at both bail sites,
+so the hint can name it and point at `fleet doctor` (to map addr→profile) then
+`fleet reauth`. Mirrors the T-2554 `claim_err_actionable` convention (pure hint
+helper + load-bearing test).
 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The per-session fan-out accumulates an `unreachable`/`errored` count (sessions dropped at 1059) AND a `no_topics_field`/`bad_result` count (dropped at 1047/1048), distinguished if cheap
-- [ ] The JSON envelope gains `sessions_unreachable` (and/or a combined `sessions_skipped`) so a consumer can tell the inventory is partial
-- [ ] The human-mode summary prints a "N of M session(s) unreachable — inventory may be incomplete" line when any session was skipped
-- [ ] The topic-aggregation logic is extracted into a pure helper that takes per-session `Result`-like outcomes and returns `(session_topics, skipped_count)` so the skip-counting path is unit-testable (prerequisite — the current inline async loop is not testable)
-- [ ] Regression test: a fixture with 5 session outcomes where 2 are `Err`/timeout yields `skipped==2` and a `total_topics` covering only the 3 reachable, plus the summary/envelope surfaces the 2 skips
-- [ ] Test proven load-bearing via temp-revert (restore the bare `continue` with no counter → skipped==0 → test fails)
+- [x] A pure helper builds an actionable auth-failure hint naming the hub, `fleet doctor`, and `fleet reauth` (mirrors T-2554 `claim_err_actionable`)
+- [x] Both auth-failure bail sites (`RpcResponse::Error` and transport `Err`) append the hint
+- [x] Load-bearing unit test asserts the hint names `fleet reauth` + `fleet doctor` + the hub address; proven load-bearing via temp-revert (helper → empty string → test fails)
+- [x] `cargo test -p termlink --bins` passes for the new test
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -100,6 +99,8 @@ green pass: the danger is a *false-complete inventory*, not a false-clean gate.
 
 ## Verification
 
+cargo test -p termlink --bins commands::remote::tests::auth_failure_hint_names_reauth_recovery
+
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
@@ -133,13 +134,13 @@ green pass: the danger is a *false-complete inventory*, not a false-clean gate.
 
 ## RCA
 
-**Symptom:** `list-topics` against a fleet where some registered sessions are wedged (timeout) or errored returns a topic inventory covering only the sessions that answered, with no indication that others were skipped — the operator reads a smaller-than-real inventory as complete.
+**Symptom:** `termlink remote <cmd> <hub>` against a hub that rotated its secret prints a dead-end `Authentication failed: -32xxx invalid signature` with no next step, even though the fix (`fleet reauth`) is well-known and `fleet doctor` hints it for the same condition.
 
-**Root cause:** the per-session fan-out loop (`events.rs:1043-1061`) has three silent drop paths — timeout/transport error (`Ok(Err(_)) | Err(_) => continue`, 1059), error RPC result (`if let Ok(result) = ...`, 1047, empty else), and missing `topics` array (`&& let Some(topics)`, 1048) — none of which increments any counter. `total` (1063) and `total_sessions` (1074) are computed purely from `session_topics`, which by construction excludes every dropped session.
+**Root cause:** `connect_remote_hub`'s auth-failure arms (`remote.rs:786`/`:789`) format only the raw hub code+message; they carry no remediation hint, unlike the fleet-doctor path (`remote.rs:2195`) which names `fleet reauth`. Every direct `remote *` subcommand funnels through this one helper, so the gap is fleet-wide across the direct-connect surface.
 
-**Why structurally allowed:** the loop uses `continue` and `if let` early-exits to skip failures rather than accumulating a skip tally, so the "how many did we not reach?" signal is discarded at the point of failure. The aggregation is inline in an async loop with no pure-helper seam, so no test exercised the partial-fleet path. Same observability-gap family as T-2619/T-2621/T-2623 (silent laundering of failures into a clean-looking count), here for a fan-out inventory rather than a scalar sum.
+**Why structurally allowed:** the actionable-error convention (T-2554 `claim_err_actionable`) was applied to the claim family but never retrofitted to the auth path; there was no test asserting that auth failures name a recovery command, so the inconsistency was invisible. Directive #3 ("actionable errors") is enforced by discipline, not by a gate — so a primary path could regress to a dead-end while a secondary path stayed actionable.
 
-**Prevention:** extract the per-session outcome→aggregate step into a pure helper returning `(session_topics, skipped_count)`; surface `sessions_unreachable` in the JSON envelope and an "N of M session(s) unreachable — inventory may be incomplete" line in human mode; unit-test the partial-fleet path. Failure scenario: 5 registered sessions, 2 time out under `timeout_secs` → output shows topics for 3 with `total_topics`/`total_sessions` covering only those 3, no note that 2 were unreachable.
+**Prevention:** a pure `auth_failure_hint` helper (mirroring T-2554) with a load-bearing unit test asserting the hint names `fleet doctor` + `fleet reauth` + the hub — reverting the helper to empty fails the test. Failure scenario: hub restarts into volatile /tmp (PL-021), rotates secret; `termlink remote exec 192.168.10.122:9100 …` → before: bare "invalid signature"; after: "…— the hub may have rotated its secret (see PL-021). Run `termlink fleet doctor` … then `termlink fleet reauth <profile>`".
 
 ## Evolution
 
@@ -188,7 +189,7 @@ green pass: the danger is a *false-complete inventory*, not a false-clean gate.
 
 ## Updates
 
-### 2026-08-11T22:54:59Z — task-created [task-create-agent]
+### 2026-08-11T23:02:28Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2624-list-topics-handler-omits-unreachable-se.md
+- **Output:** /opt/termlink/.tasks/active/T-2625-remote-connect-auth-failure-gives-no-fle.md
 - **Context:** Initial task creation

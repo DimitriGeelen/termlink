@@ -783,14 +783,35 @@ pub(crate) async fn connect_remote_hub(
     match rpc_client.call("hub.auth", serde_json::json!("auth"), serde_json::json!({"token": token.raw})).await {
         Ok(termlink_protocol::jsonrpc::RpcResponse::Success(_)) => {}
         Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
-            anyhow::bail!("Authentication failed: {} {}", e.error.code, e.error.message);
+            // T-2625: name the recovery path (Directive #3). The hub-restart /
+            // secret-rotation case (PL-021) is the dominant auth failure here.
+            anyhow::bail!("Authentication failed: {} {}{}", e.error.code, e.error.message, auth_failure_hint(hub));
         }
         Err(e) => {
-            anyhow::bail!("Authentication error: {}", e);
+            anyhow::bail!("Authentication error: {}{}", e, auth_failure_hint(hub));
         }
     }
 
     Ok(rpc_client)
+}
+
+/// T-2625: build an actionable auth-failure hint for the remote-connect path
+/// (Constitutional Directive #3, usability lens of the T-2468 purpose review).
+/// `connect_remote_hub` is the single helper behind every direct `remote *`
+/// subcommand, yet its auth-failure arms emitted only the raw hub code+message
+/// with no next step — while `fleet doctor` (remote.rs:2195) already hints the
+/// `fleet reauth` remedy for the very same secret-rotation condition (PL-021).
+/// This names the recovery path so the primary direct-connect surface is as
+/// actionable as fleet-doctor. `hub` is a `host:port` address (not a profile
+/// name), so the hint routes through `fleet doctor` to map address→profile.
+/// Pure function — testable without a live hub (mirrors T-2554
+/// `claim_err_actionable`).
+fn auth_failure_hint(hub: &str) -> String {
+    format!(
+        " — the hub may have rotated its secret (see PL-021). \
+         Run `termlink fleet doctor` to find the profile for {hub}, then \
+         `termlink fleet reauth <profile>` to heal"
+    )
 }
 
 /// Interactive remote session picker — connects to hub, lists sessions, prompts user.
@@ -8382,6 +8403,23 @@ mod tests {
 
     const VALID_SECRET_HEX: &str =
         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+    // T-2625 (load-bearing): the remote-connect auth-failure hint must name a
+    // recovery path (Directive #3), not dead-end on a raw hub code. Reverting
+    // `auth_failure_hint` to `String::new()` fails every assertion here.
+    #[test]
+    fn auth_failure_hint_names_reauth_recovery() {
+        let h = auth_failure_hint("192.168.10.122:9100");
+        assert!(h.contains("fleet reauth"), "must name the reauth remedy: {h}");
+        assert!(
+            h.contains("fleet doctor"),
+            "must route through fleet doctor to map addr→profile: {h}"
+        );
+        assert!(
+            h.contains("192.168.10.122:9100"),
+            "must name the hub the user was connecting to: {h}"
+        );
+    }
 
     #[test]
     fn render_fleet_governor_empty_input_prints_hint() {
