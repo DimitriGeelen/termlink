@@ -9453,7 +9453,10 @@ pub struct ChannelClaimParams {
     /// must be passed back to extend or release the lease.
     pub claimer: String,
     /// Lease duration in milliseconds. Default: 30000 (30s).
-    /// Hub-side hard cap: 3_600_000 (1 hour).
+    /// Hub-side hard cap: 3_600_000 (1 hour). Hub-side FLOOR: 1000 (1s) —
+    /// a present ttl_ms below 1000 is rejected with -32602 (T-2604); a
+    /// sub-second lease is born effectively-dead and the hub refuses it
+    /// rather than returning a success for a claim that never lives.
     pub ttl_ms: Option<u64>,
 }
 

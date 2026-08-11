@@ -3410,8 +3410,9 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         claimer: String,
         /// Lease TTL in milliseconds (default 30_000 = 30s; hub clamps to
-        /// 1h max). Pick this for "how long can this worker plausibly take
-        /// to either ack the work, nack it, or renew the lease?".
+        /// 1h max, and rejects anything below a 1s floor — T-2604). Pick this
+        /// for "how long can this worker plausibly take to either ack the
+        /// work, nack it, or renew the lease?".
         #[arg(long, default_value_t = 30_000)]
         ttl_ms: u32,
         /// Target hub address (unix path or host:port). Default: local hub.

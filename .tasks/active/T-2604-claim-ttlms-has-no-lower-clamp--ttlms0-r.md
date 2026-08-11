@@ -4,10 +4,10 @@ name: "claim ttl_ms has no lower clamp — ttl_ms=0 returns instantly-dead claim
 description: >
   Verb-3 hunt F2: hub channel.rs ttl_ms clamps upper-only; 0 yields dead-but-success claim
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-11T10:05:11Z
-last_update: 2026-08-11T10:05:11Z
+last_update: 2026-08-11T11:28:07Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -60,21 +60,32 @@ values) SHOULD do is a deliberate contract call → owner:agent, design-first.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] A deliberate decision on sub-floor `ttl_ms` handling is recorded (see Decisions)
+- [x] A deliberate decision on sub-floor `ttl_ms` handling is recorded (see Decisions)
       and implemented at the hub claim handler (`channel.rs`), covering `ttl_ms=0` and
-      any chosen minimum floor.
-- [ ] If "loud-reject": `claim` with `ttl_ms=0` (or below the floor) returns a clear
-      error (e.g. -32602 invalid-params naming the minimum), NOT `ok:true`. If "floor to
-      a sane minimum": the effective TTL is raised to a documented floor (e.g. 1000 ms)
-      AND the response reflects the effective (floored) `claimed_until` so the client is
-      not misled — with the floor documented at the hub + MCP + CLI doc surfaces.
-- [ ] The chosen behavior is consistent across the claim entry points that accept
-      `ttl_ms` (hub RPC handler; verify the MCP/CLI defaults path is unaffected or
-      updated to match).
-- [ ] A load-bearing test proves it: a claim request with `ttl_ms=0` yields the chosen
-      outcome (error, or floored-and-live claim), NOT a born-dead success. Prove
-      load-bearing by temp-reverting the clamp and confirming the test FAILS.
-- [ ] `cargo test -p termlink-hub` passes.
+      any chosen minimum floor. **Decided: Option A — loud-reject below a 1000ms floor.**
+- [x] If "loud-reject": `claim` with `ttl_ms=0` (or below the floor) returns a clear
+      error (-32602 invalid-params naming the minimum), NOT `ok:true`. **Implemented:**
+      `channel.rs:handle_channel_claim_with` now matches on the parsed `ttl_ms` —
+      `Some(t) if t < MIN_CLAIM_TTL_MS (1000)` → `-32602` with
+      `data={ttl_ms, min_ttl_ms}`; `Some(t)` → upper-clamp; `None` → 30_000 default.
+- [x] The chosen behavior is consistent across the claim entry points that accept
+      `ttl_ms`. The hub RPC handler is THE enforcement point (MCP/CLI both send RPC to
+      it). Verified MCP claim omits `ttl_ms` when unset (→ hub default 30_000) and CLI
+      claim `default_value_t = 30_000` — neither default sends sub-floor. Both doc
+      surfaces updated to state the 1s floor (`tools.rs` ChannelClaimParams::ttl_ms,
+      `cli.rs` Claim::ttl_ms).
+- [x] A load-bearing test proves it: `claim_ttl_zero_is_rejected_not_born_dead` +
+      `claim_ttl_sub_floor_is_rejected` assert `-32602`; positive controls
+      `claim_ttl_absent_defaults_and_succeeds` (asserts `claimed_until > claimed_at`)
+      and `claim_ttl_at_floor_succeeds`. Proven load-bearing: disabling the guard arm
+      (`if false && …`) makes both reject tests FAIL with "expected error, got success"
+      (the exact born-dead `ok:true` bug) while the positive controls still pass.
+- [x] `cargo test -p termlink-hub` passes — the 4 new tests pass deterministically
+      (`cargo test -p termlink-hub claim_ttl` → 4 passed). Full-suite run: 477 passed;
+      the single failure (`channel_subscribe_no_hang_under_concurrent_walks_t2258`) is a
+      pre-existing slow timing/concurrency stress test that PASSES in isolation (83.6s)
+      and flaked under parallel-suite CPU contention — logically orthogonal to a
+      claim-ttl parse guard. See Evolution.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -140,61 +151,77 @@ values) SHOULD do is a deliberate contract call → owner:agent, design-first.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+# The 4 new tests are deterministic + fast (targeted, not the flaky full suite).
+cargo test -p termlink-hub claim_ttl 2>&1 | tail -8
+# The guard constant must be present (regression lock against silent removal).
+grep -q "MIN_CLAIM_TTL_MS" crates/termlink-hub/src/channel.rs
+# The doc floor must be reflected at the MCP + CLI surfaces (contract consistency).
+grep -q "FLOOR: 1000" crates/termlink-mcp/src/tools.rs
+grep -q "1s floor" crates/termlink-cli/src/cli.rs
+
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** `channel.claim` with `ttl_ms=0` returned `{ok:true, claim_id, …}` for a
+claim whose `claimed_until = now_ms.saturating_add(0) = now` — an instantly-expired
+lease. The client believed it owned the slot; the very next `renew` returned
+`ClaimExpired`, and `claims-summary` counted it `expired` from the first read (a
+hostile/buggy client could quietly poison a topic's `expired_count`).
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** the hub claim handler (`channel.rs:handle_channel_claim_with`) clamped
+`ttl_ms` on the **upper bound only** (`.map(|t| t.min(60*60*1000))`), with no lower
+bound. Zero (and any sub-second value) flowed straight through to `claim_offset`,
+producing a success envelope for a lease that never lived.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** the upper clamp was added deliberately (forever-stuck
+claims from a bug/hostile client) but the symmetric lower risk — a born-dead lease —
+was never considered. No test exercised `ttl_ms=0`, and the success-envelope shape
+made the defect invisible to any read that didn't immediately renew.
+
+**Prevention:** (1) the lower-bound guard itself (`-32602` below a 1000ms floor);
+(2) a load-bearing regression test (`claim_ttl_zero_is_rejected_not_born_dead` +
+sub-floor + two positive controls) proven to fail if the guard is removed; (3) the
+floor documented at the MCP + CLI doc surfaces so the contract is discoverable.
+Broader class: a caller-supplied numeric bound clamped on only ONE side — sibling of
+the T-2527 unclamped-alloc-sink class (there: upper; here: lower). Both are
+"clamp every numeric caller param on BOTH ends that matter."
 
 ## Evolution
 
-<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
-     understanding evolved during build — what was learned that wasn't known at
-     filing, what in the original plan no longer fits, what triggered pivots
-     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
-     before --status work-completed.
-
-     Origin: T-1717 grill Q4 — "the understanding of what we need and want
-     evolves with the process of materialisation." Structural counter to §ACD:
-     spec-vs-build divergence is logged as soon as it happens, not lost as
-     folklore.
-
-     Format (one entry per slice boundary or significant insight):
-       ### YYYY-MM-DD — [topic]
-       - **What changed:** [what we learned that we didn't know at filing]
-       - **Plan impact:** [what in the plan no longer fits]
-       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
-
-     The completion gate (T-1718) blocks --status work-completed when this
-     section exists but is empty/template-only. Use --skip-evolution to bypass
-     (logged Tier-2). Non-arc tasks may leave this empty.
--->
+### 2026-08-11 — full-suite flake surfaced, not caused
+- **What changed:** the full `cargo test -p termlink-hub` run showed 477 passed / 1
+  failed, but the failure was `channel_subscribe_no_hang_under_concurrent_walks_t2258`
+  — a slow (83s) deadline/concurrency stress test that PASSES in isolation and flaked
+  under parallel-suite CPU contention. It is logically orthogonal to a claim-ttl parse
+  guard.
+- **Plan impact:** the Verification block uses the deterministic targeted test
+  (`cargo test -p termlink-hub claim_ttl`) as the gate command rather than the full
+  suite, so P-011 does not flake on an unrelated timing test. The full-suite result is
+  recorded here honestly rather than hidden.
+- **Triggered:** no new task — noted as a known-slow/flaky test. If it flakes again in
+  another task it may warrant a `#[ignore]`-under-load or a serialization guard, but
+  that is out of scope here.
 
 ## Decisions
 
-### OPEN — what should a sub-floor `ttl_ms` (esp. 0) do?
+### RESOLVED (2026-08-11) — Option A, loud-reject below a 1000ms floor.
 
-- **Option A — loud-reject.** `ttl_ms` below a minimum floor returns invalid-params
-  naming the minimum. Cleanest honoring of "no silent failures"; a zero-lifetime claim
-  is nonsensical so refusing it is defensible. Cost: a wire-contract change (previously
-  `ok:true`, now an error) — but the prior success was itself the bug.
-- **Option B — floor to a sane minimum (e.g. 1000 ms) and reflect it.** Backward-
-  compatible (still `ok:true`), but the response MUST carry the effective floored
-  `claimed_until` and the floor MUST be documented, else it silently substitutes a value
-  the caller didn't ask for (a different silent-behavior smell).
-
-Note: `.max(1)` alone is NOT acceptable — a 1 ms lease is still effectively born dead;
-it moves the bug by 1 ms rather than fixing it. Owner to confirm A vs B before coding.
+- **Chose:** Option A — a present `ttl_ms` below `MIN_CLAIM_TTL_MS = 1000` returns
+  `-32602` (invalid-params) naming the minimum, with `data={ttl_ms, min_ttl_ms}`. An
+  absent `ttl_ms` still defaults to 30_000; the 1h upper clamp is unchanged.
+- **Floor = 1000ms, rationale:** a lease shorter than 1s cannot survive a
+  claim→work→release round-trip (a local RPC hop plus minimal work exceeds it; remote
+  RTT alone can approach it), so any sub-second ttl is a bug or abuse. 1000ms is
+  meaningfully above born-dead — it directly answers the task's ".max(1) is not
+  acceptable" note (a 1ms lease is still effectively born dead; a 1s floor is not).
+- **Why not Option B (floor-and-reflect):** silently substituting a TTL the caller
+  did not ask for is itself a "silent-behavior smell" (the response would carry a
+  `claimed_until` the caller never requested). Option A honors "no silent failures"
+  more cleanly — the caller is TOLD to pick a sane TTL rather than having one imposed.
+- **Wire-contract impact:** `ttl_ms < 1000` went from `ok:true` (born-dead claim) to
+  `-32602`. No real caller depends on the old behavior — the only clients that would
+  trip it were already receiving an instantly-expired claim (the bug). Both defaults
+  (CLI 30_000, MCP →hub 30_000) are far above the floor, so the common path is
+  untouched. Floor documented at the MCP + CLI doc surfaces.
 
 ### Cross-reference
 Sibling of T-2603 (F1, release expiry gate) — both are claim-lifecycle "no silent
@@ -217,3 +244,7 @@ release-expiry semantics together for a coherent claim-lifecycle contract.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2604-claim-ttlms-has-no-lower-clamp--ttlms0-r.md
 - **Context:** Initial task creation
+
+### 2026-08-11T11:28:07Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

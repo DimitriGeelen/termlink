@@ -1574,13 +1574,36 @@ pub(crate) async fn handle_channel_claim_with(
         Some(c) if !c.is_empty() => c,
         _ => return ErrorResponse::new(id, -32602, "Missing 'claimer' in params").into(),
     };
-    // Default TTL: 30s. Clamp upper bound to 1 hour to avoid forever-stuck claims
-    // from a bug or hostile client.
-    let ttl_ms = params
-        .get("ttl_ms")
-        .and_then(|v| v.as_u64())
-        .map(|t| t.min(60 * 60 * 1000) as u32)
-        .unwrap_or(30_000);
+    // Default TTL: 30s. Clamp upper bound to 1 hour to avoid forever-stuck
+    // claims from a bug or hostile client. LOWER bound (T-2604): a present
+    // ttl_ms below MIN_CLAIM_TTL_MS is loud-rejected — the previous code
+    // clamped only the upper bound, so ttl_ms=0 produced `claimed_until = now`
+    // (an instantly-expired claim) yet was still returned as {ok:true, ...}.
+    // A sub-second lease cannot survive a claim→work→release round-trip; it is
+    // born effectively-dead and would silently poison the topic's expired_count
+    // from the first read (violates Reliability #2 "no silent failures"). An
+    // ABSENT ttl_ms still defaults to 30s — only a present-but-sub-floor value
+    // is an error. Floor is deliberately > 1ms (a `.max(1)` would just move the
+    // born-dead bug by a millisecond).
+    const MIN_CLAIM_TTL_MS: u64 = 1_000;
+    const MAX_CLAIM_TTL_MS: u64 = 60 * 60 * 1000;
+    let ttl_ms = match params.get("ttl_ms").and_then(|v| v.as_u64()) {
+        Some(t) if t < MIN_CLAIM_TTL_MS => {
+            return ErrorResponse::with_data(
+                id,
+                -32602,
+                &format!(
+                    "channel.claim: ttl_ms {t} is below the minimum {MIN_CLAIM_TTL_MS}ms \
+                     (a shorter lease is born effectively-dead — pick a TTL you can plausibly \
+                     ack or renew within)"
+                ),
+                json!({"ttl_ms": t, "min_ttl_ms": MIN_CLAIM_TTL_MS}),
+            )
+            .into();
+        }
+        Some(t) => t.min(MAX_CLAIM_TTL_MS) as u32,
+        None => 30_000,
+    };
     match bus.claim_offset(topic, offset, claimer, ttl_ms) {
         Ok(info) => Response::success(
             id,
@@ -4363,6 +4386,86 @@ mod tests {
             }
             _ => panic!("expected CHANNEL_TOPIC_UNKNOWN error response"),
         }
+    }
+
+    // ── T-2604: claim ttl_ms lower-bound guard ───────────────────────────
+    // The handler previously clamped ttl_ms upper-only, so ttl_ms=0 yielded
+    // `claimed_until = now` (born-dead) yet returned {ok:true}. The guard
+    // must loud-reject sub-floor ttls (-32602) while leaving absent/default
+    // and normal ttls untouched.
+
+    /// Post one raw record so offset 0 sits below the frontier and is claimable
+    /// (T-2572: a claim at/beyond the frontier is itself refused).
+    async fn seed_claimable_offset(bus: &Bus, topic: &str) {
+        bus.create_topic(topic, Retention::Forever).unwrap();
+        bus.post(topic, &walk_test_env(0, "note", None)).await.unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn claim_ttl_zero_is_rejected_not_born_dead() {
+        // The load-bearing case: ttl_ms=0 must be a loud -32602, NOT ok:true.
+        let (_d, bus) = tmp_bus();
+        seed_claimable_offset(&bus, "claim-ttl-zero").await;
+        let resp = handle_channel_claim_with(
+            &bus,
+            json!(1),
+            &json!({"topic": "claim-ttl-zero", "offset": 0, "claimer": "w1", "ttl_ms": 0}),
+        )
+        .await;
+        let (code, msg) = unwrap_error(resp);
+        assert_eq!(code, -32602, "ttl_ms=0 must be INVALID_PARAMS, got {msg}");
+        assert!(msg.contains("minimum"), "error should name the minimum: {msg}");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn claim_ttl_sub_floor_is_rejected() {
+        // A positive value below the 1000ms floor (e.g. 1ms — the value the
+        // task notes a `.max(1)` would wrongly bless) is still rejected.
+        let (_d, bus) = tmp_bus();
+        seed_claimable_offset(&bus, "claim-ttl-1ms").await;
+        let resp = handle_channel_claim_with(
+            &bus,
+            json!(1),
+            &json!({"topic": "claim-ttl-1ms", "offset": 0, "claimer": "w1", "ttl_ms": 1}),
+        )
+        .await;
+        let (code, _msg) = unwrap_error(resp);
+        assert_eq!(code, -32602, "ttl_ms=1 (sub-floor) must be rejected");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn claim_ttl_absent_defaults_and_succeeds() {
+        // Positive control: an ABSENT ttl_ms still defaults to 30s and yields a
+        // live claim — the guard must not over-reject the common path.
+        let (_d, bus) = tmp_bus();
+        seed_claimable_offset(&bus, "claim-ttl-absent").await;
+        let resp = handle_channel_claim_with(
+            &bus,
+            json!(1),
+            &json!({"topic": "claim-ttl-absent", "offset": 0, "claimer": "w1"}),
+        )
+        .await;
+        let v = unwrap_success(resp);
+        assert_eq!(v["ok"].as_bool(), Some(true));
+        // claimed_until must be strictly in the future of claimed_at (not born-dead).
+        let at = v["claimed_at"].as_i64().unwrap();
+        let until = v["claimed_until"].as_i64().unwrap();
+        assert!(until > at, "default claim must be live: until={until} at={at}");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn claim_ttl_at_floor_succeeds() {
+        // The floor itself (1000ms) is accepted — the boundary is inclusive.
+        let (_d, bus) = tmp_bus();
+        seed_claimable_offset(&bus, "claim-ttl-floor").await;
+        let resp = handle_channel_claim_with(
+            &bus,
+            json!(1),
+            &json!({"topic": "claim-ttl-floor", "offset": 0, "claimer": "w1", "ttl_ms": 1000}),
+        )
+        .await;
+        let v = unwrap_success(resp);
+        assert_eq!(v["ok"].as_bool(), Some(true));
     }
 }
 
