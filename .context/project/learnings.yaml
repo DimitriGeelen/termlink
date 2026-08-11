@@ -3011,3 +3011,10 @@ learnings:
   date: 2026-08-11
   context: Added via context agent
   application: TBD
+- id: PL-322
+  learning: "Symmetric-plane mirror: a documented failure class on one side of a symmetric client/server plane very likely has a twin on the other side. PL-021/G-058 (volatile /tmp wipes the HUB secret/cert → auth rotation) has an unaudited MIRROR on the CLIENT trust plane: HOME-unset → tofu known_hubs + offline_queue + ack_retry silently write to volatile world-writable /tmp/.termlink (T-2607), so TOFU pins are lost every reboot and are cross-user tamperable. When you harden one side of a symmetric plane, immediately audit the other side for the same class. Compounds with PL-320/PL-318 (the identity-plane path helpers are a verb-family where offline_queue honored TERMLINK_IDENTITY_DIR but tofu did not)."
+  source: P-001
+  task: T-2607
+  date: 2026-08-11
+  context: Added via context agent
+  application: TBD
