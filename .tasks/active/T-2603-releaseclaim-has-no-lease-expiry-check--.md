@@ -4,10 +4,10 @@ name: "release_claim has no lease-expiry check — silent success on lapsed leas
 description: >
   Verb-3 hunt F1: release_claim (bus meta.rs) lacks expiry gate that renew/transfer have
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-11T10:05:02Z
-last_update: 2026-08-11T10:05:02Z
+last_update: 2026-08-11T13:00:54Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -60,21 +60,21 @@ claim state-machine change → owner:agent, design-first.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `release_claim` (or its callers) makes a deliberate decision on the late-ack
+- [x] `release_claim` (or its callers) makes a deliberate decision on the late-ack
       semantics (see Decisions) and implements it consistently with `renew`/`transfer`.
-- [ ] If the chosen semantics is "loud-fail on expired lease": `release` against an
+- [x] If the chosen semantics is "loud-fail on expired lease": `release` against an
       expired claim returns `ClaimExpired` (-32018), the cursor is NOT advanced, and the
       stale row is lazily evicted (mirror the renew/transfer reap). If the chosen
       semantics is "late-ack still completes": the behavior is DOCUMENTED as intentional
       at the bus + MCP + CLI layers so it is no longer a silent divergence.
-- [ ] `release_claim` signature/threading of `now_ms` (if added) updated at ALL call
+- [x] `release_claim` signature/threading of `now_ms` (if added) updated at ALL call
       sites: hub `channel.rs` release handler, MCP `termlink_channel_release`, CLI
       `channel release`, and any `LeasedClaim`/helper. No caller left passing a stale time.
-- [ ] A load-bearing unit test in `termlink-bus` proves the new behavior: claim →
+- [x] A load-bearing unit test in `termlink-bus` proves the new behavior: claim →
       force-expire (advance now_ms past claimed_until) → release → assert the chosen
       outcome (ClaimExpired + cursor-unchanged, OR success + documented). Prove
       load-bearing by temp-reverting the guard and confirming the test FAILS.
-- [ ] `cargo test -p termlink-bus` passes.
+- [x] `cargo test -p termlink-bus` passes.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -140,6 +140,10 @@ claim state-machine change → owner:agent, design-first.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+out=$(cargo test -p termlink-bus release 2>&1); echo "$out" | grep -q "test result: ok"
+grep -q "T-2603 — lease-expiry gate" crates/termlink-bus/src/meta.rs
+grep -q "CLAIM_EXPIRED" crates/termlink-hub/src/channel.rs
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -156,7 +160,49 @@ claim state-machine change → owner:agent, design-first.
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** A worker whose lease lapsed (finished late, after `claimed_until`) could call
+`release(ack=true)` and get **SUCCESS** — silently advancing its cursor past an offset that,
+during the expired window, was legitimately claimable/re-processable by another worker. The
+late worker was never told its lease had lapsed → risk of silent double-processing and a
+blessed-but-stale ack.
+
+**Root cause:** `Meta::release_claim` checked ownership (`claimed_by != claimer → ClaimNotOwned`)
+but had **no lease-expiry gate** — it did not even take a `now_ms` parameter, so it *structurally
+could not* consult `claimed_until`. Its two lifecycle siblings both do: `renew_claim` (guard at
+meta.rs:683) and `transfer_claim` (guard at meta.rs:620) each return `ClaimExpired` and lazily
+evict the stale row. Release was the one lifecycle verb missing the gate — an asymmetry in the
+claim state machine.
+
+**Why structurally allowed:** the expiry check requires the current time, and release's signature
+omitted `now_ms` entirely — so the omission was invisible at the type level (nothing forced a
+time in). Lazy reap (a claim row is only evicted on a *re-claim of the same offset*) meant an
+expired-but-not-yet-reclaimed row persisted and looked releasable. No test asserted the
+release-after-expiry path (the existing release tests all release within TTL), so the gap sat
+silent. Same "silent success on a state that should refuse" class as T-2604/T-2605.
+
+**Prevention:** The load-bearing test `release_ack_true_on_expired_claim_returns_expired_and_does_not_advance_cursor`
+fails the instant the `claimed_until <= now_ms` guard is disabled (proven by temp-revert:
+release returns `Ok(ReleaseInfo{ack:true})` and the cursor advances to `Some(1)`). The positive
+control `release_within_ttl_still_succeeds_and_advances_cursor` guards against an over-aggressive
+gate. Both pin the contract symmetric with the renew/transfer expiry tests.
+
 ## Evolution
+
+### 2026-08-11 — the anticipated caller-ripple did not materialize
+- **What changed:** The task feared adding `now_ms` to `release_claim` would "ripple to every
+  caller (hub RPC + MCP + CLI + any Rust `LeasedClaim`)." In fact the sibling verbs already
+  established the pattern that the **public `Bus` wrapper computes `now_ms = now_unix_ms()`
+  internally** and passes it to `Meta` (see `Bus::transfer_claim` lib.rs:472, `Bus::renew_claim`).
+  Mirroring that, only `Meta::release_claim` (a `pub(crate)` fn) gained the param; the public
+  `Bus::release_claim` signature is **unchanged**, so the hub handler, MCP, CLI, and all existing
+  test callers compile untouched. now_ms is computed fresh at the Bus boundary on every call, so
+  the AC's "no caller left passing a stale time" is satisfied by construction.
+- **Plan impact:** The "signature change ripples to all callers" framing that made this a
+  design-first FILE was over-cautious — the change turned out contained (one `pub(crate)` param +
+  one guard + one error-arm in the handler + doc). The only external-visible change is the new
+  `CLAIM_EXPIRED` (-32018) error on the release RPC, which MCP/CLI relay unchanged.
+- **Triggered:** No new sub-tasks. Confirms the "compute time at the Bus boundary" convention as
+  the right place for lifecycle-verb time — worth remembering for any future claim-state verb.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
@@ -184,24 +230,20 @@ claim state-machine change → owner:agent, design-first.
 
 <!-- The core semantic choice this task must resolve BEFORE coding: -->
 
-### OPEN — what should `release(ack=true)` do when the lease already expired?
+### 2026-08-11 — RESOLVED (Option A) — release on an expired lease → loud ClaimExpired
 
-Two defensible options; pick one deliberately (this is why the task is filed, not
-auto-built):
-
-- **Option A — loud-fail (`ClaimExpired`), do NOT advance cursor.** Symmetric with
-  renew/transfer; strictly honors "no silent failures"; forces the late worker to
-  re-`claim` and re-verify before consuming. Risk: a worker that genuinely finished the
-  work but ran slightly over TTL now cannot ack it and the offset may be re-processed —
-  but that double-process risk already exists the moment the lease lapsed, so this option
-  just makes it VISIBLE rather than silently blessing the stale ack.
-- **Option B — allow the late ack to complete, but DOCUMENT it as intentional** at all
-  three layers. Rationale: `ack` means "I did this work"; honoring it (even late) reduces
-  redundant reprocessing when in fact only A touched the offset. Cost: keeps the
-  asymmetry with renew/transfer; must be explicitly documented so it is not read as a bug.
-
-Recommendation leans **Option A** (consistency + the directive), but this is a semantic
-call for the owner to confirm — do not implement before deciding.
+- **Chose Option A — loud-fail (`ClaimExpired`, -32018), do NOT advance cursor.** A release
+  against a lapsed lease returns `ClaimExpired`, leaves the cursor untouched, and lazily evicts
+  the stale row (so the slot becomes cleanly claimable). Expiry is checked BEFORE ownership,
+  exactly mirroring `transfer_claim`.
+- **Why:** Symmetric with the two sibling lifecycle verbs (renew/transfer already gate on expiry);
+  strictly honors "no silent failures"; forces the late worker to re-`claim` and re-verify before
+  consuming. The double-process risk already exists the moment the lease lapses — Option A makes
+  it VISIBLE rather than silently blessing a stale ack.
+- **Rejected Option B (allow the late ack, document it):** keeps the asymmetry with renew/transfer,
+  and "honor the ack even if late" still silently advances a cursor past an offset another worker
+  may have already processed — the exact silent-double-process the directive forbids. Consistency
+  across the claim state machine won.
 
 ## Decision
 
@@ -219,3 +261,7 @@ call for the owner to confirm — do not implement before deciding.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2603-releaseclaim-has-no-lease-expiry-check--.md
 - **Context:** Initial task creation
+
+### 2026-08-11T13:00:54Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

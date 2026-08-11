@@ -486,21 +486,36 @@ impl Meta {
         claim_id: &str,
         claimer: &str,
         ack: bool,
+        now_ms: i64,
     ) -> Result<ReleaseInfo> {
         let mut conn = self.conn.lock().expect("meta mutex poisoned");
         let tx = conn.transaction()?;
-        let row: rusqlite::Result<(String, i64, String)> = tx.query_row(
-            "SELECT topic, offset, claimed_by FROM claims WHERE claim_id = ?1",
+        let row: rusqlite::Result<(String, i64, String, i64)> = tx.query_row(
+            "SELECT topic, offset, claimed_by, claimed_until FROM claims WHERE claim_id = ?1",
             params![claim_id],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
         );
-        let (topic, offset_i, claimed_by) = match row {
+        let (topic, offset_i, claimed_by, claimed_until) = match row {
             Ok(t) => t,
             Err(rusqlite::Error::QueryReturnedNoRows) => {
                 return Err(BusError::ClaimNotFound(claim_id.to_string()));
             }
             Err(e) => return Err(BusError::Sqlite(e)),
         };
+        // T-2603 — lease-expiry gate, symmetric with renew_claim / transfer_claim.
+        // Checked BEFORE ownership (mirrors transfer_claim): a lapsed lease is
+        // lapsed regardless of who calls. Without this, a worker whose lease
+        // expired could still release(ack=true) and silently advance its cursor
+        // past an offset another worker was free to reprocess — a silent
+        // ownership-invariant violation (Reliability #2). The stale row is
+        // lazily evicted here so the slot becomes cleanly claimable.
+        if claimed_until <= now_ms {
+            tx.execute("DELETE FROM claims WHERE claim_id = ?1", params![claim_id])?;
+            tx.commit()?;
+            return Err(BusError::ClaimExpired {
+                claim_id: claim_id.to_string(),
+            });
+        }
         if claimed_by != claimer {
             return Err(BusError::ClaimNotOwned {
                 claim_id: claim_id.to_string(),

@@ -1743,6 +1743,16 @@ pub(crate) async fn handle_channel_release_with(
             json!({"claim_id": cid}),
         )
         .into(),
+        // T-2603 — a release against a lapsed lease is a loud ClaimExpired
+        // (cursor NOT advanced), symmetric with transfer/renew — never a
+        // silent success that blesses a stale ack.
+        Err(termlink_bus::BusError::ClaimExpired { claim_id: cid }) => ErrorResponse::with_data(
+            id,
+            error_code::CLAIM_EXPIRED,
+            &format!("channel.release: claim {cid:?} lease has lapsed — re-claim before releasing"),
+            json!({"claim_id": cid}),
+        )
+        .into(),
         Err(termlink_bus::BusError::ClaimNotOwned {
             claim_id: cid,
             claimed_by,

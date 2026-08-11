@@ -3451,7 +3451,10 @@ pub(crate) enum ChannelAction {
     /// `channel.release` JSON-RPC verb shipped in T-2029. With `--ack`,
     /// advances the claimer's persisted cursor past the offset (work
     /// completed). Without, the slot reopens for the next worker without
-    /// cursor advance (work returned for retry).
+    /// cursor advance (work returned for retry). If the lease has already
+    /// lapsed the hub refuses with CLAIM_EXPIRED (-32018) and does NOT advance
+    /// the cursor (T-2603, symmetric with `renew`/`transfer-claim`) — re-claim
+    /// the offset before releasing.
     Release {
         /// Opaque claim_id returned by `channel claim`.
         #[arg(long = "claim-id")]

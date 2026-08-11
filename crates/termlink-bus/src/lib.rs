@@ -416,15 +416,21 @@ impl Bus {
     /// `get_cursor(claimer, topic)` returns `Some(offset+1)`); when
     /// `ack=false` the cursor is left untouched and another worker can
     /// reclaim the same offset. Returns `BusError::ClaimNotFound` for an
-    /// unknown / already-released claim and `BusError::ClaimNotOwned` when
-    /// the caller is not the original claimer.
+    /// unknown / already-released claim, `BusError::ClaimExpired` when the
+    /// lease has lapsed (`claimed_until <= now` — T-2603, symmetric with
+    /// `renew_claim`/`transfer_claim`; the stale row is lazily evicted in the
+    /// same call), and `BusError::ClaimNotOwned` when the caller is not the
+    /// original claimer. Expiry is checked before ownership. `now_ms` is
+    /// computed fresh at this boundary on every call (matching the sibling
+    /// wrappers), so callers never thread a stale time through.
     pub fn release_claim(
         &self,
         claim_id: &str,
         claimer: &str,
         ack: bool,
     ) -> Result<ReleaseInfo> {
-        self.meta.release_claim(claim_id, claimer, ack)
+        let now_ms = now_unix_ms();
+        self.meta.release_claim(claim_id, claimer, ack, now_ms)
     }
 
     /// T-2044 (arc-parallel-substrate Slice 11): operator-Tier-0 force release
@@ -1915,6 +1921,49 @@ mod tests {
         // Slot is free again — eviction was part of the renew path.
         let recl = bus.claim_offset("work", 0, "worker-B", 30_000).unwrap();
         assert_eq!(recl.claimer, "worker-B");
+    }
+
+    #[tokio::test]
+    async fn release_ack_true_on_expired_claim_returns_expired_and_does_not_advance_cursor() {
+        // T-2603 — the core fix. A worker whose lease lapsed calls
+        // release(ack=true). Before the fix this returned SUCCESS and silently
+        // advanced the cursor past the offset (blessing a stale ack on work
+        // another worker was free to reprocess). Now it must return
+        // ClaimExpired, leave the cursor UNTOUCHED, and lazily evict the stale
+        // row so the slot is cleanly re-claimable. Symmetric with renew/transfer.
+        // Load-bearing: temp-revert the `claimed_until <= now_ms` guard in
+        // Meta::release_claim and this test FAILS (release returns Ok, cursor
+        // advances to Some(1)). 1ms TTL + 20ms sleep guarantees expiry.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("work", Retention::Forever).unwrap();
+        bus.post("work", &env("work", b"m0")).await.unwrap();
+        let c = bus.claim_offset("work", 0, "worker-A", 1).unwrap();
+        tokio::time::sleep(Duration::from_millis(20)).await;
+
+        let err = bus.release_claim(&c.claim_id, "worker-A", true).unwrap_err();
+        assert!(matches!(err, BusError::ClaimExpired { .. }), "got {err:?}");
+        // Cursor NOT advanced — the stale ack was refused, not blessed.
+        assert_eq!(
+            bus.get_cursor("worker-A", "work").unwrap(),
+            None,
+            "expired release(ack=true) must not advance the cursor"
+        );
+        // Row evicted — the slot is cleanly re-claimable by another worker.
+        let recl = bus.claim_offset("work", 0, "worker-B", 30_000).unwrap();
+        assert_eq!(recl.claimer, "worker-B");
+    }
+
+    #[tokio::test]
+    async fn release_within_ttl_still_succeeds_and_advances_cursor() {
+        // T-2603 positive control — the expiry gate must not be over-aggressive:
+        // a release well within the lease still succeeds and advances the cursor.
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("work", Retention::Forever).unwrap();
+        bus.post("work", &env("work", b"m0")).await.unwrap();
+        let c = bus.claim_offset("work", 0, "worker-A", 60_000).unwrap();
+        let info = bus.release_claim(&c.claim_id, "worker-A", true).unwrap();
+        assert!(info.ack);
+        assert_eq!(bus.get_cursor("worker-A", "work").unwrap(), Some(1));
     }
 
     #[tokio::test]
