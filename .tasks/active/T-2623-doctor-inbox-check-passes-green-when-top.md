@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-11T22:37:26Z
-last_update: 2026-08-11T22:37:26Z
+last_update: 2026-08-11T22:38:25Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,8 +34,10 @@ date_finished: null
 
 ## Context
 
-**FILED, NOT BUILT** (reliability-hunt-2 Finding #3, medium-low confidence,
-async doctor path — not cleanly unit-testable without a refactor first).
+**BUILT** (reliability-hunt-2 Finding #3). The async doctor inbox block's
+count-summing was extracted into the pure helper `sum_inbox_counts()` so the
+null-count path became unit-testable; the doctor arm now downgrades to `warn`
+and names the unreadable topics instead of silent-passing.
 
 `crates/termlink-cli/src/commands/infrastructure.rs:451-460` — the `fw doctor`
 inbox probe computes `total = topics.iter().filter_map(|t| t["count"].as_u64()).sum()`,
@@ -50,11 +52,11 @@ surface, which is the worst place for one.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The inbox check tracks a `dropped` count for topics whose `count` is missing/non-u64
-- [ ] When `total==0 && target_count>0` (or any count was unreadable), the arm downgrades from `pass` to `warn` naming the unreadable topics
-- [ ] The count-summing logic is extracted into a pure helper so it can be unit-tested (prerequisite — the current inline async block is not testable)
-- [ ] Regression test: a topic list with one `count: null` topic and no others yields a `warn`, not `pass`
-- [ ] Test proven load-bearing via temp-revert
+- [x] The inbox check tracks a `dropped` count for topics whose `count` is missing/non-u64 (helper returns `Vec<String>` of dropped topic names)
+- [x] When any count was unreadable, the arm downgrades from `pass` to `warn` naming the unreadable topics (`Ok((total, targets, dropped)) if !dropped.is_empty()` guard fires before the `Ok((0, _, _))` pass arm)
+- [x] The count-summing logic is extracted into a pure helper (`sum_inbox_counts`) so it can be unit-tested
+- [x] Regression test: a topic list with one `count: null` topic and no others flags the topic (dropped.len()==1), so the caller warns instead of passing
+- [x] Test proven load-bearing via temp-revert (old drop-and-launder fold → `dropped: []` → test fails)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -88,6 +90,9 @@ surface, which is the worst place for one.
 -->
 
 ## Verification
+
+cargo test -p termlink --bins commands::infrastructure::tests::sum_inbox_counts_flags_unreadable_counts
+cargo test -p termlink --bins commands::infrastructure::tests::sum_inbox_counts_sums_readable_and_names_unnamed
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.

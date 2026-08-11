@@ -437,7 +437,7 @@ pub(crate) async fn cmd_doctor(json_output: bool, fix: bool, strict: bool) -> Re
     // always fail on the inbox.status leg. channel.list is the only
     // load-bearing path now.
     if hub_socket.exists() {
-        let outcome: Result<(u64, usize), String> = async {
+        let outcome: Result<(u64, usize, Vec<String>), String> = async {
             let resp = termlink_session::client::rpc_call(
                 &hub_socket,
                 "channel.list",
@@ -448,17 +448,28 @@ pub(crate) async fn cmd_doctor(json_output: bool, fix: bool, strict: bool) -> Re
             let result = termlink_session::client::unwrap_result(resp)?;
             let topics = result["topics"].as_array().cloned().unwrap_or_default();
             let target_count = topics.len();
-            let total: u64 = topics
-                .iter()
-                .filter_map(|t| t["count"].as_u64())
-                .sum();
-            Ok::<(u64, usize), String>((total, target_count))
+            // T-2623: helper tracks unreadable counts instead of dropping them,
+            // so the caller can downgrade to `warn` rather than silent-pass.
+            let (total, dropped) = sum_inbox_counts(&topics);
+            Ok::<(u64, usize, Vec<String>), String>((total, target_count, dropped))
         }
         .await;
 
         match outcome {
-            Ok((0, _)) => check!("inbox", pass, "no pending transfers"),
-            Ok((total, targets)) => {
+            // T-2623: an unreadable count is NOT a clean inbox — surface it
+            // loudly and name the offending topics rather than reporting green.
+            Ok((total, targets, dropped)) if !dropped.is_empty() => check!(
+                "inbox",
+                warn,
+                format!(
+                    "{n} inbox topic(s) with unreadable count(s): {names} \
+                     ({total} readable pending across {targets} target(s))",
+                    n = dropped.len(),
+                    names = dropped.join(", "),
+                )
+            ),
+            Ok((0, _, _)) => check!("inbox", pass, "no pending transfers"),
+            Ok((total, targets, _)) => {
                 check!("inbox", warn, format!("{total} pending transfer(s) for {targets} target(s)"))
             }
             Err(e) => check!("inbox", warn, format!("inbox query failed: {e}")),
@@ -1626,9 +1637,34 @@ fn group_sessions_by_identity(
     by_fp.into_iter().collect()
 }
 
+/// T-2623: sum the inbox topics' pending `count` fields, tracking the NAMES of
+/// any topic whose `count` is missing or non-u64. The prior inline fold used
+/// `filter_map(|t| t["count"].as_u64()).sum()`, which silently DROPPED an
+/// unreadable count — laundering it into a `0` that the doctor's `Ok((0, _))`
+/// arm reported as a green "no pending transfers" PASS while inbox targets
+/// existed whose counts could not be read (Directive #2 "no silent failures",
+/// in the worst place for one — a health check). Returning the dropped names
+/// lets the caller downgrade to `warn` and name what it could not read.
+/// Pure function — testable without a live hub. Same 0/None-laundering family
+/// as T-2619 / T-2621.
+fn sum_inbox_counts(topics: &[serde_json::Value]) -> (u64, Vec<String>) {
+    let mut total: u64 = 0;
+    let mut dropped: Vec<String> = Vec::new();
+    for t in topics {
+        match t["count"].as_u64() {
+            Some(c) => total += c,
+            None => {
+                let name = t["name"].as_str().unwrap_or("<unnamed>").to_string();
+                dropped.push(name);
+            }
+        }
+    }
+    (total, dropped)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{audit_secret_cache, render_governor_section};
+    use super::{audit_secret_cache, render_governor_section, sum_inbox_counts};
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
 
@@ -1670,6 +1706,37 @@ mod tests {
         assert!(s.contains("cv_index: 5 entries across 2 topic(s) (overflow_total=0, cap_per_topic=1000)"));
         // T-2335: webhook line.
         assert!(s.contains("webhook: enabled=true targets=2 (retry_depth=1, enqueued_total=7, retry_success_total=6, dropped_full_total=0, dead_letter_total=1)"));
+    }
+
+    // T-2623 (load-bearing): the doctor inbox probe must NOT launder an
+    // unreadable `count` into a clean "0 pending". A single topic whose count
+    // is `null` used to sum to 0 and hit the green `Ok((0, _))` PASS arm; the
+    // helper now reports it as a dropped name so the caller can `warn`.
+    // Revert-proof: restoring the old `filter_map(...).sum()` fold makes the
+    // dropped vec empty and this assertion fails.
+    #[test]
+    fn sum_inbox_counts_flags_unreadable_counts() {
+        // One topic with an unreadable (null) count, and no readable pending.
+        let topics = vec![serde_json::json!({"name": "inbox:worker-a", "count": null})];
+        let (total, dropped) = sum_inbox_counts(&topics);
+        assert_eq!(total, 0, "no readable pending counts");
+        assert_eq!(dropped.len(), 1, "the null-count topic must be flagged, not dropped");
+        assert_eq!(dropped[0], "inbox:worker-a", "the unreadable topic is named");
+    }
+
+    // T-2623: readable counts sum normally and produce zero drops — the
+    // healthy path stays green. A missing `name` on a dropped topic falls back
+    // to the `<unnamed>` sentinel rather than panicking.
+    #[test]
+    fn sum_inbox_counts_sums_readable_and_names_unnamed() {
+        let topics = vec![
+            serde_json::json!({"name": "inbox:a", "count": 3}),
+            serde_json::json!({"name": "inbox:b", "count": 4}),
+            serde_json::json!({"count": "not-a-number"}), // unreadable + no name
+        ];
+        let (total, dropped) = sum_inbox_counts(&topics);
+        assert_eq!(total, 7, "readable counts sum");
+        assert_eq!(dropped, vec!["<unnamed>".to_string()], "unreadable+unnamed → sentinel");
     }
 
     // T-2060: missing fields render as "n/a" rather than panic — the
