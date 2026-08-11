@@ -290,10 +290,22 @@ fn retention_from_json(val: &Value) -> Option<Retention> {
         "forever" => Some(Retention::Forever),
         "days" => {
             let d = val.get("value").and_then(|v| v.as_u64())?;
+            // T-2610: Days(0) makes sweep's cutoff `now`, pruning every record —
+            // a born-dead retention that silently wipes the topic. Floor to >=1
+            // (matches the repo's count-param convention); Retention::Latest is
+            // the legitimate "keep newest" value, never 0.
+            if d == 0 {
+                return None;
+            }
             Some(Retention::Days(d.min(u64::from(u32::MAX)) as u32))
         }
         "messages" => {
             let n = val.get("value").and_then(|v| v.as_u64())?;
+            // T-2610: Messages(0) → sweep keep_last=0 → deletes every record.
+            // Born-dead — reject (None surfaces the handlers' -32602).
+            if n == 0 {
+                return None;
+            }
             Some(Retention::Messages(n))
         }
         "latest" => Some(Retention::Latest),
@@ -383,10 +395,26 @@ pub(crate) async fn handle_channel_create_with(
         Some(n) if !n.is_empty() => n,
         _ => return ErrorResponse::new(id, -32602, "Missing 'name' in params").into(),
     };
-    let retention = params
-        .get("retention")
-        .and_then(retention_from_json)
-        .unwrap_or_else(|| {
+    let retention = match params.get("retention") {
+        // T-2610: an explicit, non-null retention MUST parse — otherwise reject
+        // loudly rather than silently falling back to the default. This covers
+        // both the born-dead `value:0` case and an unknown `kind`. (set_retention
+        // already rejects via None → -32602; create now matches it.)
+        Some(r) if !r.is_null() => match retention_from_json(r) {
+            Some(ret) => ret,
+            None => {
+                return ErrorResponse::new(
+                    id,
+                    -32602,
+                    "invalid 'retention' in params — for kind 'days'/'messages' the value must be >= 1 \
+                     (0 wipes the topic on sweep; use channel.delete to remove a topic); \
+                     valid kinds: forever, days, messages, latest, latest_per_cv_key",
+                )
+                .into();
+            }
+        },
+        // Absent or explicit null — apply the default.
+        _ => {
             // T-2426: debris namespaces born without an explicit retention
             // default to Days(7) instead of Forever — prevents the T-2424
             // debris class from re-accumulating. Explicit retention wins.
@@ -400,7 +428,8 @@ pub(crate) async fn handle_channel_create_with(
             } else {
                 Retention::Forever
             }
-        });
+        }
+    };
     // T-2058: loud-not-silent warn at create time for the known-high-rate
     // operator-default vector. Topic still created with requested
     // retention — this is informational, not a refusal.
@@ -3106,6 +3135,72 @@ mod tests {
         let resp = handle_channel_set_retention_with(&bus, json!(1), &json!({"name": "t"})).await;
         let (code, _) = unwrap_error(resp);
         assert_eq!(code, -32602);
+    }
+
+    // === T-2610: born-dead retention (value:0) is rejected, not a silent wipe ===
+    // Messages(0) → sweep keep_last=0 (deletes all); Days(0) → cutoff=now (prunes
+    // all). LOAD-BEARING: revert either `if d == 0`/`if n == 0` guard in
+    // retention_from_json and the assertions below FAIL.
+
+    #[test]
+    fn retention_from_json_rejects_zero_value() {
+        assert!(
+            retention_from_json(&json!({"kind": "messages", "value": 0})).is_none(),
+            "messages:0 is born-dead (wipes topic on sweep)"
+        );
+        assert!(
+            retention_from_json(&json!({"kind": "days", "value": 0})).is_none(),
+            "days:0 prunes everything on sweep"
+        );
+        // value >= 1 still parses (the guard is a floor, not a rejection of the kind).
+        assert_eq!(
+            retention_from_json(&json!({"kind": "messages", "value": 1})),
+            Some(Retention::Messages(1))
+        );
+        assert_eq!(
+            retention_from_json(&json!({"kind": "days", "value": 1})),
+            Some(Retention::Days(1))
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn set_retention_zero_messages_is_rejected_not_a_silent_wipe() {
+        let (_d, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+        let resp = handle_channel_set_retention_with(
+            &bus,
+            json!(1),
+            &json!({"name": "t", "retention": {"kind": "messages", "value": 0}}),
+        )
+        .await;
+        let (code, _) = unwrap_error(resp);
+        assert_eq!(code, -32602, "messages:0 must be rejected");
+        // The retention must NOT have been switched to a wipe-on-sweep policy.
+        assert_eq!(bus.topic_retention("t").unwrap(), Some(Retention::Forever));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn create_zero_messages_retention_is_rejected() {
+        let (_d, bus) = tmp_bus();
+        let resp = handle_channel_create_with(
+            &bus,
+            json!(1),
+            &json!({"name": "born-dead", "retention": {"kind": "messages", "value": 0}}),
+        )
+        .await;
+        let (code, _) = unwrap_error(resp);
+        assert_eq!(code, -32602, "create with messages:0 must be rejected, not silently defaulted");
+        // Must NOT have stealth-created the topic.
+        assert!(!bus.list_topics().unwrap().contains(&"born-dead".to_string()));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn create_absent_retention_still_defaults() {
+        // Backward-compat: no retention key → default (Forever for non-debris), not an error.
+        let (_d, bus) = tmp_bus();
+        let resp = handle_channel_create_with(&bus, json!(1), &json!({"name": "plain-topic"})).await;
+        let _ = unwrap_success(resp);
+        assert_eq!(bus.topic_retention("plain-topic").unwrap(), Some(Retention::Forever));
     }
 
     // === T-2245 (R2b): latest_per_cv_key retention + channel.sweep trigger ===
