@@ -4,20 +4,20 @@ name: "presence eval (--require-online gate) counts future-dated posts as online
 description: >
   T-2468 verb-1 (discover) hunt (2026-08-10, CONFIRMED + self-verified). evaluate_presence_msgs (crates/termlink-mcp/src/tools.rs:6854) AND its one-to-one CLI mirror evaluate_presence (crates/termlink-cli/src/commands/channel.rs:1511) both do 'if ts >= cutoff { posts_in_window += 1 }' with NO 'ts <= now_ms' upper bound. A future-dated envelope (clock skew / corrupt heartbeat) satisfies ts>=cutoff forever -> online=true forever -> agent contact --require-online gate passes -> orchestrator dispatches work to a corpse. Same class as T-2536 (find_idle) / T-2598 (agent-listeners.sh) / tools.rs:4029 chat-arc-stats 'ts>now_ms drop'. Sibling mirrors maintained one-to-one (docstring asserts it), so BOTH get the guard in one task (PL-318 cross-copy audit). Fix: 'if ts >= cutoff && ts <= now_ms'. Both are pure helpers with existing unit-test harnesses (tools.rs:30147+, channel.rs) — add a future-ts test to each asserting online==false. Load-bearing via temp-revert.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug, verb1, silent-failure]
-components: []
+components: [crates/termlink-cli/src/commands/channel.rs, crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-10T20:26:19Z
-last_update: 2026-08-10T20:26:32Z
-date_finished: null
+last_update: 2026-08-10T20:33:11Z
+date_finished: 2026-08-10T20:33:11Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -47,11 +47,11 @@ this one task (PL-318 cross-copy audit).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `evaluate_presence_msgs` (MCP) treats a future-dated post (`ts > now_ms`) as NOT counting toward `online`/`posts_in_window`.
-- [ ] `evaluate_presence` (CLI mirror) gets the identical guard (`ts <= now_ms`).
-- [ ] A unit test in each crate constructs a future-dated post and asserts `online == false` (load-bearing: FAILS pre-fix, temp-revert proven).
-- [ ] Normal in-window posts still count as online (guard does not over-drop); existing presence tests still pass.
-- [ ] `cargo test -p termlink-mcp` and `cargo test -p termlink-cli` for the presence tests pass.
+- [x] `evaluate_presence_msgs` (MCP) treats a future-dated post (`ts > now_ms`) as NOT counting toward `online`/`posts_in_window`.
+- [x] `evaluate_presence` (CLI mirror) gets the identical guard (`ts <= now_ms`).
+- [x] A unit test in each crate constructs a future-dated post and asserts `online == false` (load-bearing: FAILS pre-fix, temp-revert proven).
+- [x] Normal in-window posts still count as online (guard does not over-drop); existing presence tests still pass.
+- [x] `cargo test -p termlink-mcp` and `cargo test -p termlink-cli` for the presence tests pass.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -205,3 +205,15 @@ one-to-one mirrors — so the omission was duplicated and invisible.
 
 ### 2026-08-10T20:26:32Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-f9aeae1a
+- **Timestamp:** 2026-08-10T20:34:07Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-10T20:33:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

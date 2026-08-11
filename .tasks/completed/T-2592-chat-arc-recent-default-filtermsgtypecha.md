@@ -4,20 +4,20 @@ name: "chat-arc-recent default filter_msg_type=chat hides note/post content"
 description: >
   scripts/agent-chat-arc-recent.sh defaults FILTER_MSG_TYPE='chat' and applies it as single-value equality (.msg_type == $mtype), so /recent-chat and the MCP wrapper termlink_agent_chat_arc_recent (default filter_msg_type='chat') default to showing ONLY chat-type posts — hiding all 'note' content (termlink_agent_post/agent_reply write note) and 'post' content from the default 'what's been said?' view. Same PL-316/T-2591 content-set class. The --all-msg-types escape hatch exists but disables the filter ENTIRELY (includes heartbeats/reactions/meta noise), so there is NO clean 'all content' view. FILED not auto-built (T-2468 boundary): changes the DEFAULT of a user-facing viewer AND a wire-facing MCP tool, and requires converting single-value equality to content-set membership {post,chat,note} while preserving --filter-msg-type <X> single-type narrowing and --all-msg-types (everything incl meta). Design: default=content-set, --filter-msg-type X = narrow to one type, --all-msg-types = no filter. Load-bearing test: a note post appears in default output. Touch both shell script AND tools.rs MCP wrapper default + its JSON tool schema/description. From T-2468 verb-2/reliability hunt (hunter LIKELY-BUG).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs, scripts/agent-chat-arc-recent.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-10T19:36:32Z
-last_update: 2026-08-10T20:02:30Z
-date_finished: null
+last_update: 2026-08-10T20:07:18Z
+date_finished: 2026-08-10T20:07:18Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -50,12 +50,12 @@ sentinel (mirrors the pattern `recent-dm.sh` already uses at its line 110).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Engine default (no `--filter-msg-type`, no `--all-msg-types`) includes `note`, `chat`, AND `post` envelopes and excludes meta (e.g. `reaction`, `receipt`).
-- [ ] `--filter-msg-type note` narrows to only `note` posts (single-type narrowing preserved).
-- [ ] `--all-msg-types` still disables the filter entirely (meta included).
-- [ ] MCP wrapper (`termlink_agent_chat_arc_recent`) default view shows `note`/`post`/`chat` — i.e. it inherits the fixed shell default (passthrough already only pushes `--filter-msg-type` when the caller supplies it); its param doc + tool description no longer claim `default 'chat'`.
-- [ ] Load-bearing test (`tests/chat-arc-recent-fixtures.sh`) asserts a `note` post appears in default output and FAILS against the old `chat`-only default (temp-revert proven).
-- [ ] `recent-dm.sh` behavior unchanged (it always passes an explicit `--filter-msg-type` or `--all-msg-types`, so the engine default is not on its path).
+- [x] Engine default (no `--filter-msg-type`, no `--all-msg-types`) includes `note`, `chat`, AND `post` envelopes and excludes meta (e.g. `reaction`, `receipt`).
+- [x] `--filter-msg-type note` narrows to only `note` posts (single-type narrowing preserved).
+- [x] `--all-msg-types` still disables the filter entirely (meta included).
+- [x] MCP wrapper (`termlink_agent_chat_arc_recent`) default view shows `note`/`post`/`chat` — i.e. it inherits the fixed shell default (passthrough already only pushes `--filter-msg-type` when the caller supplies it); its param doc + tool description no longer claim `default 'chat'`.
+- [x] Load-bearing test (`tests/chat-arc-recent-fixtures.sh`) asserts a `note` post appears in default output and FAILS against the old `chat`-only default (temp-revert proven).
+- [x] `recent-dm.sh` behavior unchanged (it always passes an explicit `--filter-msg-type` or `--all-msg-types`, so the engine default is not on its path).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -216,3 +216,15 @@ shell siblings unaudited — this task closes the last known live instance.
 
 ### 2026-08-10T20:02:30Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-a8598606
+- **Timestamp:** 2026-08-10T20:07:28Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-10T20:07:18Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

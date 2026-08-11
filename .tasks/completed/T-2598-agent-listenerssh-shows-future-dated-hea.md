@@ -4,10 +4,10 @@ name: "agent-listeners.sh shows future-dated heartbeat as LIVE forever (missing 
 description: >
   T-2468 verb-1 (discover) adversarial hunt (2026-08-10, CONFIRMED + self-verified). scripts/agent-listeners.sh ~284-291: heartbeats are filtered on msg_type+agent_id, grouped, max_by(.ts) per agent, then age=((now_ms-.ts)/1000)|floor and 'LIVE if age<=2*interval'. A FUTURE-dated ts (clock skew or corrupt final heartbeat) makes now_ms-.ts NEGATIVE -> negative age -> age<=2*interval trivially true -> the agent shows LIVE FOREVER in /peers, /agent-listeners, and (via merge) agent-listeners-fleet.sh. The Rust find_idle path already guards this (T-2536 future_cutoff_ms) and chat-arc-stats drops ts>now_ms (tools.rs:4029 'future-clock safety'), but this shell surface never got the guard -> discovery surfaces DISAGREE on the same agent; orchestrator dispatches work to a corpse /find-idle already retired. Violates 'no silent failures'. Fix: drop future-dated envelopes before group_by (add '(.ts // 0) <= $now_ms' to the heartbeat select) so max_by picks a valid recent envelope, or the agent falls to OFFLINE/absent. Mirrors T-2536. Load-bearing test via TERMLINK_LISTENERS_TEST_JSON seam: a future-dated heartbeat must NOT classify LIVE.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug, verb1, silent-failure]
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-10T20:21:13Z
-last_update: 2026-08-10T20:21:29Z
-date_finished: null
+last_update: 2026-08-10T20:23:44Z
+date_finished: 2026-08-10T20:23:44Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -48,10 +48,10 @@ LIVE.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] A heartbeat whose `ts` is in the future (now + 1h) does NOT classify as `LIVE` (it is dropped → agent absent, or falls to a real classification from an older valid envelope).
-- [ ] A normal recent heartbeat (age within `2*interval`) still classifies `LIVE` (fix does not over-drop).
-- [ ] When an agent has BOTH a future-dated envelope and an older valid recent one, the valid one wins and the agent classifies `LIVE` at the real age (max_by no longer picks the future envelope).
-- [ ] Load-bearing test (`tests/agent-listeners-liveness-fixtures.sh`) via the `TERMLINK_LISTENERS_TEST_JSON` seam asserts the above and FAILS against the pre-fix script (temp-revert proven).
+- [x] A heartbeat whose `ts` is in the future (now + 1h) does NOT classify as `LIVE` (it is dropped → agent absent, or falls to a real classification from an older valid envelope).
+- [x] A normal recent heartbeat (age within `2*interval`) still classifies `LIVE` (fix does not over-drop).
+- [x] When an agent has BOTH a future-dated envelope and an older valid recent one, the valid one wins and the agent classifies `LIVE` at the real age (max_by no longer picks the future envelope).
+- [x] Load-bearing test (`tests/agent-listeners-liveness-fixtures.sh`) via the `TERMLINK_LISTENERS_TEST_JSON` seam asserts the above and FAILS against the pre-fix script (temp-revert proven).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -207,3 +207,15 @@ adds `(.ts // 0) <= $now_ms` to the heartbeat select, mirroring T-2536.
 
 ### 2026-08-10T20:21:29Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-c3c1dea4
+- **Timestamp:** 2026-08-10T20:23:45Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-10T20:23:44Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

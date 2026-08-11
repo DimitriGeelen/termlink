@@ -4,10 +4,10 @@ name: "fix check-outbox outbound_unread over-count (peer receipt makes it always
 description: >
   check-outbox.sh:234 computes outbound_unread=(count - 1 - peer_acked) where count is the WHOLE dm topic envelope count (both senders posts + both sides receipt envelopes) but peer_acked is the peer max receipt up_to. A receipt acking up_to=N is posted at an offset greater than N, so the peers own latest receipt forces count-1-peer_acked to be at least 1 even when the peer has read every DM you sent. Result: the all-caught-up state is nearly unreachable once a peer acks, and the operator-facing unread=N line (line 328/331) counts the peers own posts/receipts as your unread mail, prompting needless nudges. The header comment (228-233) self-documents it as an approximation but does not acknowledge the always->=1 false positive. Fix: count only self-authored non-receipt envelopes with offset > peer_acked (filter sender_id==self_fp and msg_type != receipt in the per-topic scan) instead of the whole-count subtraction. Semantics: decide what outbound_unread should mean (posts I sent the peer has not acked). From T-2468 verb-2 hunt.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [bug]
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-09T22:38:21Z
-last_update: 2026-08-10T19:17:51Z
-date_finished: null
+last_update: 2026-08-10T19:22:02Z
+date_finished: 2026-08-10T19:22:02Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -211,3 +211,15 @@ proven), so the caught-up-is-reachable invariant is now load-bearing.
 
 ### 2026-08-10T19:17:51Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-4088a033
+- **Timestamp:** 2026-08-10T19:22:03Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-10T19:22:02Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

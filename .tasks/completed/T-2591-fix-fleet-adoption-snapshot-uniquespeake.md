@@ -4,20 +4,20 @@ name: "fix fleet-adoption-snapshot unique_speakers drops note posters (msg_type=
 description: >
   scripts/fleet-adoption-snapshot.sh:245 computes unique_speakers via jq select(.msg_type == "chat"), whitelisting only the 'chat' msg_type. But termlink_agent_post / agent_reply write msg_type='note' to agent-chat-arc (the primary agent progress-broadcast path), so a hub where agents broadcast via agent_post but nobody used /broadcast-chat shows unique_speakers=0 — silently undercounting adoption, indistinguishable from genuine low adoption (violates 'no silent failures'). Same PL-316 class as msg_type=='post' (T-2588/T-2590), now in an adoption-analytics path. Fix: select the content set {post,chat,note} (align with is_content_msg_type). Also surfaced via MCP termlink_fleet_adoption_snapshot. From T-2468 verb-2/reliability hunt.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/fleet-adoption-snapshot.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-10T19:29:36Z
-last_update: 2026-08-10T19:32:34Z
-date_finished: null
+last_update: 2026-08-10T19:32:50Z
+date_finished: 2026-08-10T19:32:50Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -187,3 +187,19 @@ bash -n scripts/fleet-adoption-snapshot.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2591-fix-fleet-adoption-snapshot-uniquespeake.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-19158584
+- **Timestamp:** 2026-08-10T19:32:52Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** yes
+- **Findings:** none
+
+- **Layer-1 escalations:** 1
+  1. **external-publish** (high) — External publish or release
+     - matched: `broadcast`
+
+### 2026-08-10T19:32:50Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
