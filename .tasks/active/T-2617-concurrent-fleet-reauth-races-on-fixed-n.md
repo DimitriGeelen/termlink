@@ -98,7 +98,7 @@ before rename).
 # *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
-cargo test -p termlink --bins remote::tests::verify_persisted_secret_refuses_when_disk_holds_foreign_bytes remote::tests::concurrent_write_secret_file_never_corrupts_target remote::tests::write_secret_file_returns_confirmed_hex remote::tests::fleet_reauth_bootstrap_file_source_happy_path
+cargo test -p termlink --bins commands::remote::tests
 #
 # Pipefail/SIGPIPE hint (L-387): P-011 runs each command under `set -eo pipefail`.
 # `cmd | grep -q PATTERN` exits 141 (SIGPIPE) when grep matches and closes stdin
