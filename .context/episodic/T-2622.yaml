@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2622: route_cache parse_iso_epoch accepts impossible calendar days (T-2618 class)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-11T22:32:05Z
+# ============================================================================
+
+task_id: T-2622
+task_name: "route_cache parse_iso_epoch accepts impossible calendar days (T-2618 class)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-11T22:29:21Z
+completed: 2026-08-11T22:31:57Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-12T00:31:53+02:00
+last_commit: 2026-08-12T00:31:53+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  route_cache parse_iso_epoch rejects impossible calendar days (T-2618 class)
+
+# Key outcomes
+outcomes:
+  - '`parse_iso_epoch` rejects (returns 0 for) Feb 30, Apr 31, Jun 31, Sep 31, Nov 31'
+  - '`parse_iso_epoch` rejects Feb 29 in a non-leap year but accepts Feb 29 in a leap year'
+  - 'Valid dates (incl. month-end boundaries like Jan 31, Apr 30) still parse correctly'
+  - 'Regression test covering both the rejected impossible days and the accepted valid boundaries'
+  - 'Test proven load-bearing via temp-revert (restore `d > 31` → test fails)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-hub/src/route_cache.rs'
+  - '.tasks/active/T-2622-routecache-parseisoepoch-accepts-impossi.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-12T00:31:53"
+    action: "T-2622: route_cache parse_iso_epoch rejects impossible calendar days (T-2618 class)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 2
+  lines_added: 235
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2622-routecache-parseisoepoch-accepts-impossi.md
+generated_by: context-agent-hybrid
