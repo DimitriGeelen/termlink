@@ -3004,3 +3004,10 @@ learnings:
   date: 2026-08-11
   context: Added via context agent
   application: TBD
+- id: PL-321
+  learning: "Durability and exactly-once can be in tension: TermLink's offline-queue REPLAY is durable across hub restart (outbound.sqlite) but the dedupe that makes replay exactly-once is IN-MEMORY only (PostDedupe LRU, wiped on restart) and the durable Envelope carries no client_msg_id — so a hub restart during an ack-loss window silently double-applies a guaranteed message, undetectable downstream (T-2606, verb-2 hunt F1/F3). Lesson for adversarial review: when a system claims BOTH a durability guarantee AND an idempotency guarantee, check they live at the SAME durability tier — a durable replay path under an ephemeral dedupe is a silent at-least-once downgrade. Also: present-but-invalid idempotency tokens must loud-reject, not filter-to-None (T-2605 F2). The durable-message failure machinery (poison->dead-letter, corrupt-row quarantine, cap loud-fail, await-ack exhaustion) verified strong; the hole was specifically the guarantee-tier mismatch."
+  source: P-001
+  task: T-2606
+  date: 2026-08-11
+  context: Added via context agent
+  application: TBD
