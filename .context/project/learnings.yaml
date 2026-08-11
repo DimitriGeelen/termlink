@@ -2997,3 +2997,10 @@ learnings:
   date: 2026-08-10
   context: Added via context agent
   application: TBD
+- id: PL-320
+  learning: "Claim-lifecycle verbs (claim/renew/release/transfer) were not audited as a SET for consistent expiry-gating or doc/behavior agreement. Verb-3 hunt found: renew (meta.rs:683) + transfer (meta.rs:620) gate on claimed_until<=now and return ClaimExpired, but release (meta.rs:484) has NO expiry gate and doesn't even take now_ms (T-2603: silent success + cursor-advance on a lapsed lease); the hub ttl_ms clamp is upper-only so ttl_ms=0 returns a born-dead claim as ok:true (T-2604: silent-failure); and the MCP renew doc claimed absolute-can-shorten while the code is monotonic-forward (T-2602, fixed). Generalizes PL-318 to a state-machine VERB FAMILY: when one verb of a lifecycle gets a guard or a behavior change, audit ALL sibling verbs for the same invariant AND audit the doc at every layer (bus doc was right, MCP doc lied). A state machine's verbs must be checked as a set, not one-at-a-time."
+  source: P-001
+  task: T-2602
+  date: 2026-08-11
+  context: Added via context agent
+  application: TBD
