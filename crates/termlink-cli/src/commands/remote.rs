@@ -6670,7 +6670,19 @@ fn parse_iso8601_utc(s: &str) -> Option<u64> {
     let h: u32 = s.get(11..13)?.parse().ok()?;
     let mi: u32 = s.get(14..16)?.parse().ok()?;
     let se: u32 = s.get(17..19)?.parse().ok()?;
-    if !(1..=12).contains(&mo) || !(1..=31).contains(&d) || h > 23 || mi > 59 || se > 60 {
+    // Validate month/time first; the day bound must be month-aware. A blanket
+    // `1..=31` silently accepts impossible dates like 2026-02-30 and rolls them
+    // into the next month — a wrong-but-plausible epoch rather than a rejection.
+    if !(1..=12).contains(&mo) || h > 23 || mi > 59 || se > 60 {
+        return None;
+    }
+
+    let leap = y % 4 == 0 && (y % 100 != 0 || y % 400 == 0);
+    let mdays: [u32; 12] = [31, if leap { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    // mo is known 1..=12 so the index is in-bounds; reject a day past the actual
+    // length of this specific month (e.g. Feb 30, Apr 31, or Feb 29 in a non-leap year).
+    let max_day = mdays[(mo - 1) as usize];
+    if !(1..=max_day).contains(&d) {
         return None;
     }
 
@@ -6679,8 +6691,6 @@ fn parse_iso8601_utc(s: &str) -> Option<u64> {
     for yr in 1970..y {
         days += if yr % 4 == 0 && (yr % 100 != 0 || yr % 400 == 0) { 366 } else { 365 };
     }
-    let leap = y % 4 == 0 && (y % 100 != 0 || y % 400 == 0);
-    let mdays = [31, if leap { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
     for (i, &md) in mdays.iter().enumerate() {
         if (i as u32) + 1 == mo {
             break;
@@ -9627,6 +9637,33 @@ mod tests {
         assert!(parse_iso8601_utc("2026-13-01T00:00:00Z").is_none(), "month > 12 must fail");
         assert!(parse_iso8601_utc("2026-04-14T25:00:00Z").is_none(), "hour > 23 must fail");
         assert!(parse_iso8601_utc("not-a-date").is_none());
+    }
+
+    // LOAD-BEARING (T-2618): day-of-month must be validated against the actual
+    // length of the parsed month, not a blanket 1..=31. Temp-revert the
+    // month-aware `max_day` check in parse_iso8601_utc back to `1..=31` and the
+    // impossible-day assertions below FAIL (the parser rolls them into the next
+    // month and returns a wrong-but-plausible epoch instead of None).
+    #[test]
+    fn parse_iso8601_utc_rejects_impossible_calendar_days() {
+        // Impossible days must be rejected, not silently rolled over.
+        assert!(parse_iso8601_utc("2026-02-30T00:00:00Z").is_none(), "Feb 30 must fail");
+        assert!(parse_iso8601_utc("2026-02-29T00:00:00Z").is_none(), "Feb 29 non-leap must fail");
+        assert!(parse_iso8601_utc("2026-04-31T00:00:00Z").is_none(), "Apr 31 must fail");
+        assert!(parse_iso8601_utc("2026-06-31T00:00:00Z").is_none(), "Jun 31 must fail");
+        assert!(parse_iso8601_utc("2026-01-00T00:00:00Z").is_none(), "day 0 must fail");
+
+        // Valid boundary days must still parse.
+        assert!(parse_iso8601_utc("2024-02-29T00:00:00Z").is_some(), "Feb 29 leap year is valid");
+        assert!(parse_iso8601_utc("2026-01-31T00:00:00Z").is_some(), "Jan 31 is valid");
+        assert!(parse_iso8601_utc("2026-04-30T00:00:00Z").is_some(), "Apr 30 is valid");
+        assert!(parse_iso8601_utc("2026-12-31T00:00:00Z").is_some(), "Dec 31 is valid");
+
+        // Feb 28 (non-leap) parses to exactly one day before Mar 1 of the same year,
+        // confirming the rollover math didn't shift when the guard was added.
+        let feb28 = parse_iso8601_utc("2026-02-28T00:00:00Z").expect("Feb 28 valid");
+        let mar01 = parse_iso8601_utc("2026-03-01T00:00:00Z").expect("Mar 1 valid");
+        assert_eq!(mar01 - feb28, 86_400, "Mar 1 must be exactly one day after Feb 28");
     }
 
     #[test]
