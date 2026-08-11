@@ -4,20 +4,20 @@ name: "claim ttl_ms has no lower clamp — ttl_ms=0 returns instantly-dead claim
 description: >
   Verb-3 hunt F2: hub channel.rs ttl_ms clamps upper-only; 0 yields dead-but-success claim
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-hub/src/channel.rs, crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-11T10:05:11Z
-last_update: 2026-08-11T11:28:07Z
-date_finished: null
+last_update: 2026-08-11T11:40:28Z
+date_finished: 2026-08-11T11:40:28Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -248,3 +248,15 @@ release-expiry semantics together for a coherent claim-lifecycle contract.
 ### 2026-08-11T11:28:07Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-5d736909
+- **Timestamp:** 2026-08-11T11:40:34Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-11T11:40:28Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

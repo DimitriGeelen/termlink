@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2604: claim ttl_ms has no lower clamp — ttl_ms=0 returns instantly-dead claim as ok:true (silent failure)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-11T11:40:38Z
+# ============================================================================
+
+task_id: T-2604
+task_name: "claim ttl_ms has no lower clamp — ttl_ms=0 returns instantly-dead claim as ok:true (silent failure)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-11T10:05:11Z
+completed: 2026-08-11T11:40:28Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-08-11T13:40:19+02:00
+last_commit: 2026-08-11T13:40:19+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  reject sub-1s claim ttl_ms (loud -32602) — no more born-dead ok:true claims
+
+# Key outcomes
+outcomes:
+  - 'A deliberate decision on sub-floor `ttl_ms` handling is recorded (see Decisions)'
+  - 'If "loud-reject": `claim` with `ttl_ms=0` (or below the floor) returns a clear'
+  - 'The chosen behavior is consistent across the claim entry points that accept'
+  - 'A load-bearing test proves it: `claim_ttl_zero_is_rejected_not_born_dead` +'
+  - '`cargo test -p termlink-hub` passes — the 4 new tests pass deterministically'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: 'RESOLVED (2026-08-11) — Option A, loud-reject below a 1000ms floor.'
+    chose: 'Option A — a present `ttl_ms` below `MIN_CLAIM_TTL_MS = 1000` returns'
+  - decision: 'Cross-reference'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-2604-claim-ttlms-has-no-lower-clamp--ttlms0-r.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-11T13:40:19"
+    action: "T-2604: reject sub-1s claim ttl_ms (loud -32602) — no more born-dead ok:true claims"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 95 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 95
+  commits: 1
+  files_changed: 4
+  lines_added: 212
+  lines_removed: 74
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2604-claim-ttlms-has-no-lower-clamp--ttlms0-r.md
+generated_by: context-agent-hybrid
