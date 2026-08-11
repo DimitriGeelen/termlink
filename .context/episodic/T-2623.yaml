@@ -1,0 +1,96 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2623: doctor inbox check passes green when topic counts are unparseable (silent-pass)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-11T22:54:48Z
+# ============================================================================
+
+task_id: T-2623
+task_name: "doctor inbox check passes green when topic counts are unparseable (silent-pass)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-11T22:37:26Z
+completed: 2026-08-11T22:54:13Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-12T00:38:24+02:00
+last_commit: 2026-08-12T00:54:08+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file reliability-hunt-2 Finding #3 (doctor inbox silent-pass on unparseable counts) — FILED not built. fix doctor inbox silent-pass on unreadable counts (sum_inbox_counts helper + warn-downgrade + load-bearing tests)
+
+# Key outcomes
+outcomes:
+  - 'The inbox check tracks a `dropped` count for topics whose `count` is missing/non-u64 (helper returns `Vec<String>` of dropped topic names)'
+  - 'When any count was unreadable, the arm downgrades from `pass` to `warn` naming the unreadable topics (`Ok((total, targets, dropped)) if !dropped.is_empty()` guard fires before the `Ok((0, _, _))` pass arm)'
+  - 'The count-summing logic is extracted into a pure helper (`sum_inbox_counts`) so it can be unit-tested'
+  - 'Regression test: a topic list with one `count: null` topic and no others flags the topic (dropped.len()==1), so the caller warns instead of passing'
+  - 'Test proven load-bearing via temp-revert (old drop-and-launder fold → `dropped: []` → test fails)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix doctor inbox silent-pass on unreadable counts (sum_inbox_counts helper + warn-downgrade + load-bearing tests)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-08-12.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-cli/src/commands/infrastructure.rs'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2623-doctor-inbox-check-passes-green-when-top.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-12T00:38:24"
+    action: "T-2623: file reliability-hunt-2 Finding #3 (doctor inbox silent-pass on unparseable counts) — FILED not built"
+  - time: "2026-08-12T00:54:08"
+    action: "T-2623: fix doctor inbox silent-pass on unreadable counts (sum_inbox_counts helper + warn-downgrade + load-bearing tests)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 16 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 16
+  commits: 2
+  files_changed: 17
+  lines_added: 376
+  lines_removed: 86
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2623-doctor-inbox-check-passes-green-when-top.md
+generated_by: context-agent-hybrid

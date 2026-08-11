@@ -1,8 +1,8 @@
 ---
-id: T-2623
-name: "doctor inbox check passes green when topic counts are unparseable (silent-pass)"
+id: T-2624
+name: "list-topics handler omits unreachable sessions from total_topics (silent session omission)"
 description: >
-  doctor inbox check passes green when topic counts are unparseable (silent-pass)
+  list-topics handler omits unreachable sessions from total_topics (silent session omission)
 
 status: started-work
 workflow_type: build
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-11T22:37:26Z
-last_update: 2026-08-11T22:38:25Z
+created: 2026-08-11T22:54:59Z
+last_update: 2026-08-11T22:54:59Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,33 +30,42 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2623: doctor inbox check passes green when topic counts are unparseable (silent-pass)
+# T-2624: list-topics handler omits unreachable sessions from total_topics (silent session omission)
 
 ## Context
 
-**BUILT** (reliability-hunt-2 Finding #3). The async doctor inbox block's
-count-summing was extracted into the pure helper `sum_inbox_counts()` so the
-null-count path became unit-testable; the doctor arm now downgrades to `warn`
-and names the unreadable topics instead of silent-passing.
+**FILED, NOT BUILT** (reliability-hunt-2 Finding #4, LOW confidence, async
+fan-out over live sessions — not cleanly unit-testable without extracting the
+per-session aggregation into a pure helper first, and lower-impact than a
+health-gate silent-pass because this is a diagnostic list command).
 
-`crates/termlink-cli/src/commands/infrastructure.rs:451-460` — the `fw doctor`
-inbox probe computes `total = topics.iter().filter_map(|t| t["count"].as_u64()).sum()`,
-which silently DROPS any topic whose `count` is missing/non-u64, while
-`target_count = topics.len()` still counts it. The match then hits
-`Ok((0, _)) => check!("inbox", pass, "no pending transfers")` — the `_` ignores
-a non-zero target count. Result: `fw doctor` prints a green PASS "no pending
-transfers" even though inbox topics exist whose pending counts could not be
-read. A silent-pass (Directive #2 "no silent failures") in a health-check
-surface, which is the worst place for one.
+`crates/termlink-cli/src/commands/events.rs:1043-1075` — the list-topics
+handler fans out an `event.topics` RPC to every registered session under a
+`timeout_secs` bound, then:
+- line 1059 `Ok(Err(_)) | Err(_) => continue` — drops any session that
+  timed out or whose transport errored;
+- line 1047 `if let Ok(result) = client::unwrap_result(resp)` — drops any
+  session whose RPC returned an error *result* (the `else` is empty);
+- line 1048 `&& let Some(topics)` — drops any response lacking a `topics` array.
+
+None of those three drop paths is counted. `total` (1063) and
+`total_sessions` (1074) reflect ONLY the sessions that answered with a
+non-empty topic list. The JSON envelope and human summary carry no
+"N session(s) unreachable/errored" field. Result: an operator running
+list-topics against a fleet where some sessions are wedged sees a smaller
+topic set with no indication that anything was skipped — a silent omission
+(Directive #2 "no silent failures / observable"). Distinct from a wrong
+green pass: the danger is a *false-complete inventory*, not a false-clean gate.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] The inbox check tracks a `dropped` count for topics whose `count` is missing/non-u64 (helper returns `Vec<String>` of dropped topic names)
-- [x] When any count was unreadable, the arm downgrades from `pass` to `warn` naming the unreadable topics (`Ok((total, targets, dropped)) if !dropped.is_empty()` guard fires before the `Ok((0, _, _))` pass arm)
-- [x] The count-summing logic is extracted into a pure helper (`sum_inbox_counts`) so it can be unit-tested
-- [x] Regression test: a topic list with one `count: null` topic and no others flags the topic (dropped.len()==1), so the caller warns instead of passing
-- [x] Test proven load-bearing via temp-revert (old drop-and-launder fold → `dropped: []` → test fails)
+- [ ] The per-session fan-out accumulates an `unreachable`/`errored` count (sessions dropped at 1059) AND a `no_topics_field`/`bad_result` count (dropped at 1047/1048), distinguished if cheap
+- [ ] The JSON envelope gains `sessions_unreachable` (and/or a combined `sessions_skipped`) so a consumer can tell the inventory is partial
+- [ ] The human-mode summary prints a "N of M session(s) unreachable — inventory may be incomplete" line when any session was skipped
+- [ ] The topic-aggregation logic is extracted into a pure helper that takes per-session `Result`-like outcomes and returns `(session_topics, skipped_count)` so the skip-counting path is unit-testable (prerequisite — the current inline async loop is not testable)
+- [ ] Regression test: a fixture with 5 session outcomes where 2 are `Err`/timeout yields `skipped==2` and a `total_topics` covering only the 3 reachable, plus the summary/envelope surfaces the 2 skips
+- [ ] Test proven load-bearing via temp-revert (restore the bare `continue` with no counter → skipped==0 → test fails)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -91,9 +100,6 @@ surface, which is the worst place for one.
 
 ## Verification
 
-cargo test -p termlink --bins commands::infrastructure::tests::sum_inbox_counts_flags_unreadable_counts
-cargo test -p termlink --bins commands::infrastructure::tests::sum_inbox_counts_sums_readable_and_names_unnamed
-
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
@@ -127,27 +133,13 @@ cargo test -p termlink --bins commands::infrastructure::tests::sum_inbox_counts_
 
 ## RCA
 
-**Symptom:** `fw doctor` prints green PASS "no pending transfers" while inbox topics exist whose pending `count` could not be parsed — the operator is falsely told the inbox is clean.
+**Symptom:** `list-topics` against a fleet where some registered sessions are wedged (timeout) or errored returns a topic inventory covering only the sessions that answered, with no indication that others were skipped — the operator reads a smaller-than-real inventory as complete.
 
-**Root cause:** `total` is a `filter_map(...as_u64()).sum()` that silently drops unreadable counts, but `target_count = topics.len()` includes them; the success arm `Ok((0, _))` ignores `target_count` via the `_` wildcard, so `total==0` reads as "clean" even when targets exist.
+**Root cause:** the per-session fan-out loop (`events.rs:1043-1061`) has three silent drop paths — timeout/transport error (`Ok(Err(_)) | Err(_) => continue`, 1059), error RPC result (`if let Ok(result) = ...`, 1047, empty else), and missing `topics` array (`&& let Some(topics)`, 1048) — none of which increments any counter. `total` (1063) and `total_sessions` (1074) are computed purely from `session_topics`, which by construction excludes every dropped session.
 
-**Why structurally allowed:** the fold discards parse failures instead of counting them (same 0/None-laundering family as T-2619/T-2621, here in an async health check), and the match arm doesn't cross-check `total==0` against `target_count>0`. The logic is inline in an async RPC block with no pure-helper seam, so no test exercised the null-count path.
+**Why structurally allowed:** the loop uses `continue` and `if let` early-exits to skip failures rather than accumulating a skip tally, so the "how many did we not reach?" signal is discarded at the point of failure. The aggregation is inline in an async loop with no pure-helper seam, so no test exercised the partial-fleet path. Same observability-gap family as T-2619/T-2621/T-2623 (silent laundering of failures into a clean-looking count), here for a fan-out inventory rather than a scalar sum.
 
-**Prevention:** extract the sum into a pure helper returning `(total, dropped)`; downgrade to `warn` when `dropped>0` or `total==0 && target_count>0`; unit-test the null-count path. Failure scenario: `channel.list(prefix="inbox:")` returns one topic with `count: null` → `total=0, targets=1` → currently PASS, should WARN.
-
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
-
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
-
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Prevention:** extract the per-session outcome→aggregate step into a pure helper returning `(session_topics, skipped_count)`; surface `sessions_unreachable` in the JSON envelope and an "N of M session(s) unreachable — inventory may be incomplete" line in human mode; unit-test the partial-fleet path. Failure scenario: 5 registered sessions, 2 time out under `timeout_secs` → output shows topics for 3 with `total_topics`/`total_sessions` covering only those 3, no note that 2 were unreachable.
 
 ## Evolution
 
@@ -196,7 +188,7 @@ cargo test -p termlink --bins commands::infrastructure::tests::sum_inbox_counts_
 
 ## Updates
 
-### 2026-08-11T22:37:26Z — task-created [task-create-agent]
+### 2026-08-11T22:54:59Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2623-doctor-inbox-check-passes-green-when-top.md
+- **Output:** /opt/termlink/.tasks/active/T-2624-list-topics-handler-omits-unreachable-se.md
 - **Context:** Initial task creation
