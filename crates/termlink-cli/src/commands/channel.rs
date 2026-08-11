@@ -10163,8 +10163,19 @@ pub(crate) fn parse_queue_log(
                 continue;
             }
         };
-        let ts_str = match v.get("ts").and_then(|t| t.as_str()) {
-            Some(s) => s,
+        // T-2621: validate the `ts` field's structural integrity here — a
+        // missing OR present-but-unparseable `ts` is a corrupt row and counts
+        // as malformed, at the same gate and before any selection filter.
+        // (T-2619 sibling: the old 0-sentinel laundered a parse failure into a
+        // silent below-cutoff drop.)
+        let entry_secs = match v.get("ts").and_then(|t| t.as_str()) {
+            Some(s) => match rfc3339_to_unix_secs_queue(s) {
+                Some(secs) => secs,
+                None => {
+                    malformed += 1;
+                    continue;
+                }
+            },
             None => {
                 malformed += 1;
                 continue;
@@ -10182,7 +10193,6 @@ pub(crate) fn parse_queue_log(
                 continue;
             }
         }
-        let entry_secs = rfc3339_to_unix_secs_queue(ts_str);
         if entry_secs < cutoff_secs {
             continue;
         }
@@ -10194,11 +10204,13 @@ pub(crate) fn parse_queue_log(
 /// T-2086: stdlib-only RFC3339→epoch parser. Duplicated from T-2081's
 /// `rfc3339_to_unix_secs_local` per T-2069 convention (pure helpers
 /// duplicated per crate, ~30 lines is cheaper than introducing a
-/// cross-module dependency). Returns 0 on any parse error (caller
-/// treats 0 as "very old").
-fn rfc3339_to_unix_secs_queue(ts: &str) -> i64 {
+/// cross-module dependency). Returns `None` on any parse error so the
+/// caller can classify a corrupt `ts` as malformed instead of laundering
+/// it through a 0-sentinel into a silent below-cutoff drop (T-2621, the
+/// T-2619 sibling fix).
+fn rfc3339_to_unix_secs_queue(ts: &str) -> Option<i64> {
     if ts.len() < 20 || !ts.ends_with('Z') {
-        return 0;
+        return None;
     }
     let bytes = ts.as_bytes();
     let parse_u = |start: usize, len: usize| -> Option<u32> {
@@ -10215,7 +10227,7 @@ fn rfc3339_to_unix_secs_queue(ts: &str) -> i64 {
         parse_u(14, 2),
         parse_u(17, 2),
     ) else {
-        return 0;
+        return None;
     };
     let y = y as i64;
     let mo = mo as i64;
@@ -10231,7 +10243,7 @@ fn rfc3339_to_unix_secs_queue(ts: &str) -> i64 {
     let doy = (153 * mp + 2) / 5 + d - 1;
     let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
     let days = era * 146_097 + doe - 719_468;
-    days * 86_400 + (h as i64) * 3600 + (mi as i64) * 60 + s as i64
+    Some(days * 86_400 + (h as i64) * 3600 + (mi as i64) * 60 + s as i64)
 }
 
 /// T-2086: pure helper — aggregate parsed entries into per-kind
@@ -11713,8 +11725,18 @@ pub(crate) fn parse_claims_log(
         };
         // Required field check: ts + topic + kind. Lines missing any are
         // malformed by definition of T-2073's schema.
-        let ts_str = match v.get("ts").and_then(|t| t.as_str()) {
-            Some(s) => s,
+        // T-2621: fold parseability INTO the ts gate — a present-but-unparseable
+        // `ts` is a corrupt row and counts as malformed here, before any
+        // selection filter (the T-2619 sibling fix; the old 0-sentinel dropped
+        // it silently below cutoff).
+        let entry_secs = match v.get("ts").and_then(|t| t.as_str()) {
+            Some(s) => match rfc3339_to_unix_secs_local(s) {
+                Some(secs) => secs,
+                None => {
+                    malformed += 1;
+                    continue;
+                }
+            },
             None => {
                 malformed += 1;
                 continue;
@@ -11737,12 +11759,8 @@ pub(crate) fn parse_claims_log(
                 continue;
             }
         }
-        // Time window. RFC3339 → epoch seconds via the same manual parser
-        // used by `cmd_fleet_history` / `parse_governor_log` — stdlib-only
-        // by deliberate convention across this crate (see `remote.rs`
-        // rfc3339_to_unix_secs). 0 on parse failure → entry classified
-        // as "older than cutoff" and skipped silently (not malformed).
-        let entry_secs = rfc3339_to_unix_secs_local(ts_str);
+        // Time window. `entry_secs` was computed (and validated) at the ts
+        // gate above (T-2621).
         if entry_secs < cutoff_secs {
             continue;
         }
@@ -11754,11 +11772,13 @@ pub(crate) fn parse_claims_log(
 /// T-2074: local copy of the stdlib RFC3339→epoch parser used elsewhere
 /// in the crate. Kept module-private; T-2068's mirror in remote.rs is
 /// private too, and duplicating ~30 lines is cheaper than introducing a
-/// cross-module dependency just for this. Returns 0 on any parse error
-/// (caller treats 0 as "very old").
-fn rfc3339_to_unix_secs_local(ts: &str) -> i64 {
+/// cross-module dependency just for this. Returns `None` on any parse
+/// error so the caller classifies a corrupt `ts` as malformed rather than
+/// laundering it through a 0-sentinel into a silent below-cutoff drop
+/// (T-2621, the T-2619 sibling fix).
+fn rfc3339_to_unix_secs_local(ts: &str) -> Option<i64> {
     if ts.len() < 20 || !ts.ends_with('Z') {
-        return 0;
+        return None;
     }
     let bytes = ts.as_bytes();
     let parse_u = |start: usize, len: usize| -> Option<u32> {
@@ -11775,7 +11795,7 @@ fn rfc3339_to_unix_secs_local(ts: &str) -> i64 {
         parse_u(14, 2),
         parse_u(17, 2),
     ) else {
-        return 0;
+        return None;
     };
     let y = y as i64;
     let mo = mo as i64;
@@ -11791,7 +11811,7 @@ fn rfc3339_to_unix_secs_local(ts: &str) -> i64 {
     let doy = (153 * mp + 2) / 5 + d - 1;
     let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
     let days = era * 146_097 + doe - 719_468;
-    days * 86_400 + (h as i64) * 3600 + (mi as i64) * 60 + s as i64
+    Some(days * 86_400 + (h as i64) * 3600 + (mi as i64) * 60 + s as i64)
 }
 
 /// T-2074: pure helper — aggregate parsed entries into per-topic counters.
@@ -12754,10 +12774,34 @@ mod tests {
         );
         // Cutoff = 2026-06-01T00:00:00Z (matching the field-by-field
         // parser, this means anything before that epoch second is dropped).
-        let cutoff = rfc3339_to_unix_secs_local("2026-06-01T00:00:00Z");
+        let cutoff = rfc3339_to_unix_secs_local("2026-06-01T00:00:00Z").unwrap();
         let (entries, _) = parse_claims_log(&text, cutoff, None);
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0]["topic"], "new");
+    }
+
+    // T-2621: LOAD-BEARING. A present-but-unparseable `ts` must be counted
+    // malformed, NOT silently swept below cutoff via the old 0-sentinel.
+    // Temp-revert proof: restore `rfc3339_to_unix_secs_local` to `-> i64`
+    // returning `0` on failure and reinstate the post-gate
+    // `let entry_secs = rfc3339_to_unix_secs_local(ts_str);` → the bad-ts
+    // assertion (`malformed == 1`) fails (the 0-sentinel drops it silently,
+    // leaving malformed == 0).
+    #[test]
+    fn claims_history_parse_counts_unparseable_ts_as_malformed() {
+        // Valid JSON, all required fields present, but `ts` is not RFC3339.
+        let bad = json!({"ts":"not-a-date","topic":"a","kind":"new"}).to_string();
+        let cutoff = 1_000_000i64;
+        let (entries, malformed) = parse_claims_log(&bad, cutoff, None);
+        assert_eq!(entries.len(), 0, "unparseable-ts row must not be returned");
+        assert_eq!(malformed, 1, "unparseable ts must be counted malformed");
+
+        // Regression guard: a genuine below-cutoff timestamp is a legitimate
+        // old row — dropped by the cutoff, but NOT malformed. (epoch 345600)
+        let old = synth_log_line("1970-01-05T00:00:00Z", "a", "new");
+        let (entries, malformed) = parse_claims_log(&old, cutoff, None);
+        assert_eq!(entries.len(), 0, "old row is below cutoff");
+        assert_eq!(malformed, 0, "genuine-old ts must NOT be misclassified");
     }
 
     #[test]
@@ -19145,6 +19189,29 @@ not json at all
         assert_eq!(entries[1]["kind"], "drained");
     }
 
+    // T-2621: LOAD-BEARING. A present-but-unparseable `ts` must be counted
+    // malformed, NOT silently swept below cutoff via the old 0-sentinel.
+    // Temp-revert proof: restore `rfc3339_to_unix_secs_queue` to `-> i64`
+    // returning `0` on failure and reinstate the post-gate
+    // `let entry_secs = rfc3339_to_unix_secs_queue(ts_str);` → the bad-ts
+    // assertion (`malformed == 1`) fails (the 0-sentinel drops it silently).
+    #[test]
+    fn queue_history_parse_counts_unparseable_ts_as_malformed() {
+        // Valid JSON, required fields present, but `ts` is not RFC3339.
+        let bad = "{\"ts\":\"not-a-date\",\"kind\":\"pending\",\"old_pending\":0,\"new_pending\":3}";
+        let cutoff = 1_000_000i64;
+        let (entries, malformed) = parse_queue_log(bad, cutoff, None);
+        assert_eq!(entries.len(), 0, "unparseable-ts row must not be returned");
+        assert_eq!(malformed, 1, "unparseable ts must be counted malformed");
+
+        // Regression guard: a genuine below-cutoff timestamp (epoch 345600)
+        // is a legitimate old row — dropped by cutoff, but NOT malformed.
+        let old = "{\"ts\":\"1970-01-05T00:00:00Z\",\"kind\":\"pending\",\"old_pending\":0,\"new_pending\":3}";
+        let (entries, malformed) = parse_queue_log(old, cutoff, None);
+        assert_eq!(entries.len(), 0, "old row is below cutoff");
+        assert_eq!(malformed, 0, "genuine-old ts must NOT be misclassified");
+    }
+
     #[test]
     fn queue_history_parse_applies_kind_filter() {
         let text = "\
@@ -19171,7 +19238,7 @@ not json at all
 ";
         // Cutoff = 2026-06-09T10:30:00Z (Unix secs).
         // The 10:00:00 entry is older → dropped. 11:00:00 entry is newer → kept.
-        let cutoff = rfc3339_to_unix_secs_queue("2026-06-09T10:30:00Z");
+        let cutoff = rfc3339_to_unix_secs_queue("2026-06-09T10:30:00Z").unwrap();
         let (entries, _) = parse_queue_log(text, cutoff, None);
         assert_eq!(entries.len(), 1, "only the post-cutoff entry survives");
         assert_eq!(entries[0]["kind"], "drained");
