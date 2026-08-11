@@ -1,8 +1,8 @@
 ---
-id: T-2625
-name: "remote connect auth failure gives no fleet-reauth next step (usability dead-end)"
+id: T-2626
+name: "file-transfer timeout collapses to bare 'timeout' — no duration/target/next-step"
 description: >
-  remote connect auth failure gives no fleet-reauth next step (usability dead-end)
+  file-transfer timeout collapses to bare 'timeout' — no duration/target/next-step
 
 status: started-work
 workflow_type: build
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-11T23:02:28Z
-last_update: 2026-08-11T23:02:28Z
+created: 2026-08-11T23:06:15Z
+last_update: 2026-08-11T23:06:15Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,41 +30,39 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2625: remote connect auth failure gives no fleet-reauth next step (usability dead-end)
+# T-2626: file-transfer timeout collapses to bare 'timeout' — no duration/target/next-step
 
 ## Context
 
-reliability/usability-hunt (Directive #3 — "actionable errors") Finding #1,
-HIGH severity / high confidence, verified in code.
+**FILED, NOT BUILT** (usability-hunt Directive #3 Finding #2, MED severity /
+high confidence, verified in code; filed rather than built because this window
+hit critical budget).
 
-`crates/termlink-cli/src/commands/remote.rs:786` + `:789` — `connect_remote_hub`
-is the single connection helper behind ~15 direct `remote *` subcommands
-(push/exec/inject/inbox/…). Its auth-failure arms emit only the raw hub
-code+message with NO remediation:
+`crates/termlink-cli/src/commands/file.rs:47` and `:70`:
 
 ```rust
-Ok(RpcResponse::Error(e)) => anyhow::bail!("Authentication failed: {} {}", e.error.code, e.error.message),
-Err(e)                    => anyhow::bail!("Authentication error: {}", e),
+.await
+.map_err(|_| anyhow::anyhow!("timeout"))?
+.context("RPC call failed")?;
 ```
 
-Yet the hub-restart / secret-rotation case (PL-021) is the single most-
-documented failure mode in this codebase, and `fleet doctor` DOES hint the
-remedy (`remote.rs:2195` — `"HMAC secret mismatch — run: termlink fleet reauth …"`).
-A user running `termlink remote exec <hub> …` against a hub that rotated its
-secret gets a dead-end `Authentication failed: -32xxx invalid signature` while
-`fleet doctor` on the same hub would tell them to reauth. The inconsistency IS
-the Directive-#3 defect. The `hub` (`host:port`) is in scope at both bail sites,
-so the hint can name it and point at `fleet doctor` (to map addr→profile) then
-`fleet reauth`. Mirrors the T-2554 `claim_err_actionable` convention (pure hint
-helper + load-bearing test).
+On a timeout the outer `Elapsed` fires the `?` at the `.map_err`, so the
+trailing `.context("RPC call failed")` is NEVER reached — the user sees only
+the bare word `timeout`. The configured `Duration` and the target session/hub
+are both in scope but discarded. `termlink file send <session> big.bin` to an
+offline peer therefore prints `Error: timeout` with no way to tell whether the
+session is down, the hub is unreachable, or the file is too big. Compare
+`events.rs:75` which at least names the operation (`"channel.post timed out"`).
+A Directive-#3 dead-end (opaque error, no next step).
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] A pure helper builds an actionable auth-failure hint naming the hub, `fleet doctor`, and `fleet reauth` (mirrors T-2554 `claim_err_actionable`)
-- [x] Both auth-failure bail sites (`RpcResponse::Error` and transport `Err`) append the hint
-- [x] Load-bearing unit test asserts the hint names `fleet reauth` + `fleet doctor` + the hub address; proven load-bearing via temp-revert (helper → empty string → test fails)
-- [x] `cargo test -p termlink --bins` passes for the new test
+- [ ] Both timeout `map_err` sites name the operation, the configured timeout `Duration`, and the target session/hub in the error message
+- [ ] The message suggests a next step (e.g. "is the session/hub reachable? retry, or check `/peers`")
+- [ ] The timeout-message construction is extracted into a pure helper (or a testable format fn) so the text is unit-testable without a live hub — mirrors the T-2554 / T-2625 actionable-error convention
+- [ ] Load-bearing unit test asserts the message names the duration + target + a next step; proven via temp-revert (helper → bare "timeout" → test fails)
+- [ ] `cargo test -p termlink --bins` passes for the new test
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -99,8 +97,6 @@ helper + load-bearing test).
 
 ## Verification
 
-cargo test -p termlink --bins commands::remote::tests::auth_failure_hint_names_reauth_recovery
-
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
@@ -134,13 +130,24 @@ cargo test -p termlink --bins commands::remote::tests::auth_failure_hint_names_r
 
 ## RCA
 
-**Symptom:** `termlink remote <cmd> <hub>` against a hub that rotated its secret prints a dead-end `Authentication failed: -32xxx invalid signature` with no next step, even though the fix (`fleet reauth`) is well-known and `fleet doctor` hints it for the same condition.
+**Symptom:** `termlink file send/receive` against an offline peer hangs then prints `Error: timeout` — no duration, no target, no next step; the user can't tell if the session is down, the hub is unreachable, or the transfer is too big.
 
-**Root cause:** `connect_remote_hub`'s auth-failure arms (`remote.rs:786`/`:789`) format only the raw hub code+message; they carry no remediation hint, unlike the fleet-doctor path (`remote.rs:2195`) which names `fleet reauth`. Every direct `remote *` subcommand funnels through this one helper, so the gap is fleet-wide across the direct-connect surface.
+**Root cause:** `file.rs:47`/`:70` use `.map_err(|_| anyhow::anyhow!("timeout"))` on the `tokio::time::timeout` `Elapsed`, discarding the in-scope `Duration` and target. The trailing `.context("RPC call failed")` is dead code on the timeout path (the `?` already returned at the `map_err`).
 
-**Why structurally allowed:** the actionable-error convention (T-2554 `claim_err_actionable`) was applied to the claim family but never retrofitted to the auth path; there was no test asserting that auth failures name a recovery command, so the inconsistency was invisible. Directive #3 ("actionable errors") is enforced by discipline, not by a gate — so a primary path could regress to a dead-end while a secondary path stayed actionable.
+**Why structurally allowed:** the actionable-error convention (T-2554 → T-2625) was applied to claim and auth paths but never to the file-transfer timeout; the `|_|` closure throws away the error and the operation identity, and no test asserted the timeout message content. Directive #3 is enforced by discipline, not a gate.
 
-**Prevention:** a pure `auth_failure_hint` helper (mirroring T-2554) with a load-bearing unit test asserting the hint names `fleet doctor` + `fleet reauth` + the hub — reverting the helper to empty fails the test. Failure scenario: hub restarts into volatile /tmp (PL-021), rotates secret; `termlink remote exec 192.168.10.122:9100 …` → before: bare "invalid signature"; after: "…— the hub may have rotated its secret (see PL-021). Run `termlink fleet doctor` … then `termlink fleet reauth <profile>`".
+**Prevention:** extract the timeout message into a pure/testable fn naming the duration + target + a next step; load-bearing unit test (revert to bare "timeout" fails it). Failure scenario: `termlink file send <offline-session> big.bin` → before: `Error: timeout`; after: `file event delivery timed out after 30s (target: <session>) — is the session/hub reachable? check /peers`.
+
+<!-- (template guidance retained below)
+     For bug-class, fill in:
+       **Symptom:** what was observed (the user-facing manifestation).
+       **Root cause:** the specific structural/logical gap — not "the code was wrong".
+       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
+       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+
+     The completion gate (T-1550, G-019) blocks --status work-completed when
+     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
+-->
 
 ## Evolution
 
@@ -189,7 +196,7 @@ cargo test -p termlink --bins commands::remote::tests::auth_failure_hint_names_r
 
 ## Updates
 
-### 2026-08-11T23:02:28Z — task-created [task-create-agent]
+### 2026-08-11T23:06:15Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2625-remote-connect-auth-failure-gives-no-fle.md
+- **Output:** /opt/termlink/.tasks/active/T-2626-file-transfer-timeout-collapses-to-bare-.md
 - **Context:** Initial task creation
