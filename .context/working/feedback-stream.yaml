@@ -6984,3 +6984,21 @@ scan_id: R-5d736909
 task_id: T-2604
 payload:
   task_file: .tasks/active/T-2604-claim-ttlms-has-no-lower-clamp--ttlms0-r.md
+---
+kind: scan_emitted
+timestamp: '2026-08-11T12:52:06Z'
+scan_id: R-5358c5d2
+task_id: T-2605
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-11T12:52:06Z'
+scan_id: R-5358c5d2
+task_id: T-2605
+payload:
+  task_file: .tasks/active/T-2605-over-lengthwhitespace-clientmsgid-silent.md

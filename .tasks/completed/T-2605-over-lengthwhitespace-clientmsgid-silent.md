@@ -4,20 +4,20 @@ name: "Over-length/whitespace client_msg_id silently downgrades exactly-once to 
 description: >
   Verb-2 hunt F2: channel.rs:722 filters invalid client_msg_id to None with no INVALID_PARAMS
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-hub/src/channel.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-11T10:13:18Z
-last_update: 2026-08-11T12:47:27Z
-date_finished: null
+last_update: 2026-08-11T12:52:00Z
+date_finished: 2026-08-11T12:52:00Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -262,3 +262,15 @@ the contract is pinned in both directions.
 ### 2026-08-11T12:47:27Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-5358c5d2
+- **Timestamp:** 2026-08-11T12:52:06Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-11T12:52:00Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
