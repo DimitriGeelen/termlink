@@ -934,7 +934,10 @@ pub(crate) async fn handle_channel_post_with_peer(
             ErrorResponse::new(
                 id,
                 error_code::CHANNEL_TOPIC_UNKNOWN,
-                &format!("unknown topic: {t}"),
+                &format!(
+                    "channel.post: unknown topic '{t}' — create it first with channel.create \
+                     (posts do not auto-create topics)"
+                ),
             )
             .into()
         }
@@ -1111,7 +1114,10 @@ pub(crate) async fn handle_channel_subscribe_with(
                 return ErrorResponse::new(
                     id,
                     error_code::CHANNEL_TOPIC_UNKNOWN,
-                    &format!("unknown topic: {t}"),
+                    &format!(
+                        "channel.subscribe: unknown topic '{t}' — create it first with \
+                         channel.create or check the name with channel.list"
+                    ),
                 )
                 .into();
             }
@@ -1130,7 +1136,10 @@ pub(crate) async fn handle_channel_subscribe_with(
                 return ErrorResponse::new(
                     id,
                     error_code::CHANNEL_TOPIC_UNKNOWN,
-                    &format!("unknown topic: {t}"),
+                    &format!(
+                        "channel.subscribe: unknown topic '{t}' — create it first with \
+                         channel.create or check the name with channel.list"
+                    ),
                 )
                 .into();
             }
@@ -1359,7 +1368,10 @@ pub(crate) async fn handle_channel_receipts_with(
             return ErrorResponse::new(
                 id,
                 error_code::CHANNEL_TOPIC_UNKNOWN,
-                &format!("unknown topic: {t}"),
+                &format!(
+                    "channel.subscribe: unknown topic '{t}' — create it first with \
+                     channel.create or check the name with channel.list"
+                ),
             )
             .into();
         }
@@ -1663,7 +1675,10 @@ pub(crate) async fn handle_channel_claim_with(
         Err(termlink_bus::BusError::UnknownTopic(_)) => ErrorResponse::new(
             id,
             error_code::CHANNEL_TOPIC_UNKNOWN,
-            &format!("channel.claim: topic {topic:?} not found"),
+            &format!(
+                "channel.claim: topic {topic:?} not found — create it and post work \
+                 before claiming (channel.create / channel.post)"
+            ),
         )
         .into(),
         Err(termlink_bus::BusError::ClaimConflict {
@@ -2042,7 +2057,9 @@ pub(crate) async fn handle_channel_claims_with(
         Err(termlink_bus::BusError::UnknownTopic(_)) => ErrorResponse::new(
             id,
             error_code::CHANNEL_TOPIC_UNKNOWN,
-            &format!("channel.claims: topic {topic:?} not found"),
+            &format!(
+                "channel.claims: topic {topic:?} not found — check the name with channel.list"
+            ),
         )
         .into(),
         Err(e) => ErrorResponse::internal_error(id, &format!("channel.claims: {e}")).into(),
@@ -2088,7 +2105,9 @@ pub(crate) async fn handle_channel_claims_summary_with(
         Err(termlink_bus::BusError::UnknownTopic(_)) => ErrorResponse::new(
             id,
             error_code::CHANNEL_TOPIC_UNKNOWN,
-            &format!("channel.claims_summary: topic {topic:?} not found"),
+            &format!(
+                "channel.claims_summary: topic {topic:?} not found — check the name with channel.list"
+            ),
         )
         .into(),
         Err(e) => ErrorResponse::internal_error(
@@ -3193,6 +3212,95 @@ mod tests {
         let (code, msg) = unwrap_error(resp);
         assert_eq!(code, -32602);
         assert!(msg.contains("unknown topic"), "got: {msg}");
+    }
+
+    // === T-2609: charter-core unknown-topic errors are ACTIONABLE (Usability #3) ===
+    // Each of the four charter verbs must, on an unknown topic, name a concrete
+    // next step — matching the sibling channel.sweep/channel.delete convention.
+    // LOAD-BEARING: revert any one message to its bare `unknown topic: {t}` /
+    // `topic {topic:?} not found` form and the matching assertion below FAILS.
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn post_unknown_topic_error_names_next_step() {
+        let (_d, bus) = tmp_bus();
+        let key = signing_key();
+        let resp = handle_channel_post_with(
+            &bus,
+            json!(1),
+            &post_params(&key, "no-such-topic", "note", b"hi", 1),
+        )
+        .await;
+        let (code, msg) = unwrap_error(resp);
+        assert_eq!(code, error_code::CHANNEL_TOPIC_UNKNOWN);
+        assert!(msg.contains("unknown topic"), "got: {msg}");
+        assert!(
+            msg.contains("channel.create"),
+            "post unknown-topic error must name the next step: {msg}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn subscribe_unknown_topic_error_names_next_step() {
+        let (_d, bus) = tmp_bus();
+        let resp = handle_channel_subscribe_with(
+            &bus,
+            json!(1),
+            &json!({"topic": "no-such-topic", "cursor": 0}),
+        )
+        .await;
+        let (code, msg) = unwrap_error(resp);
+        assert_eq!(code, error_code::CHANNEL_TOPIC_UNKNOWN);
+        assert!(
+            msg.contains("channel.create"),
+            "subscribe unknown-topic error must name the next step: {msg}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn claim_unknown_topic_error_names_next_step() {
+        let (_d, bus) = tmp_bus();
+        let resp = handle_channel_claim_with(
+            &bus,
+            json!(1),
+            &json!({"topic": "no-such-topic", "offset": 0, "claimer": "w1", "ttl_ms": 5000}),
+        )
+        .await;
+        let (code, msg) = unwrap_error(resp);
+        assert_eq!(code, error_code::CHANNEL_TOPIC_UNKNOWN);
+        assert!(
+            msg.contains("channel.create"),
+            "claim unknown-topic error must name the next step: {msg}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn claims_unknown_topic_error_names_next_step() {
+        let (_d, bus) = tmp_bus();
+        let resp =
+            handle_channel_claims_with(&bus, json!(1), &json!({"topic": "no-such-topic"})).await;
+        let (code, msg) = unwrap_error(resp);
+        assert_eq!(code, error_code::CHANNEL_TOPIC_UNKNOWN);
+        assert!(
+            msg.contains("channel.list"),
+            "claims unknown-topic error must name the next step: {msg}"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn claims_summary_unknown_topic_error_names_next_step() {
+        let (_d, bus) = tmp_bus();
+        let resp = handle_channel_claims_summary_with(
+            &bus,
+            json!(1),
+            &json!({"topic": "no-such-topic"}),
+        )
+        .await;
+        let (code, msg) = unwrap_error(resp);
+        assert_eq!(code, error_code::CHANNEL_TOPIC_UNKNOWN);
+        assert!(
+            msg.contains("channel.list"),
+            "claims_summary unknown-topic error must name the next step: {msg}"
+        );
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
