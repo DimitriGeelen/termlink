@@ -286,16 +286,17 @@ pub type TrackerResult<T> = std::result::Result<T, TrackerError>;
 /// File name of the on-disk tracker under `~/.termlink/`.
 pub const DEFAULT_FILE_NAME: &str = "awaiting_ack.sqlite";
 
-/// Resolve the default tracker path: `$TERMLINK_IDENTITY_DIR/awaiting_ack.sqlite`
-/// when that env is set (per-fleet test isolation, mirrors
-/// [`crate::offline_queue::default_queue_path`]), else
-/// `$HOME/.termlink/awaiting_ack.sqlite`.
+/// Resolve the default tracker path, e.g. `$HOME/.termlink/awaiting_ack.sqlite`.
+///
+/// T-2607: resolves through the unified
+/// [`crate::identity_dir::resolve_identity_dir`] ladder
+/// (`TERMLINK_IDENTITY_DIR` → `$XDG_STATE_HOME/termlink` → `$HOME/.termlink`
+/// → loud UID-namespaced tmp), matching
+/// [`crate::offline_queue::default_queue_path`] so the whole identity plane
+/// resolves to one dir and never silently lands in a world-writable
+/// `/tmp/.termlink`. The `TERMLINK_IDENTITY_DIR` override is preserved.
 pub fn default_tracker_path() -> std::path::PathBuf {
-    if let Ok(dir) = std::env::var("TERMLINK_IDENTITY_DIR") {
-        return std::path::PathBuf::from(dir).join(DEFAULT_FILE_NAME);
-    }
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
-    std::path::PathBuf::from(home).join(".termlink").join(DEFAULT_FILE_NAME)
+    crate::identity_dir::resolve_identity_dir().join(DEFAULT_FILE_NAME)
 }
 
 const SCHEMA: &str = r#"

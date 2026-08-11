@@ -5,6 +5,7 @@ pub mod auth;
 pub mod known_peers;
 pub mod endpoint;
 pub mod identity;
+pub mod identity_dir;
 pub mod discovery;
 pub mod lifecycle;
 pub mod liveness;

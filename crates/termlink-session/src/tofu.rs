@@ -14,10 +14,15 @@ use rustls::pki_types::{CertificateDer, ServerName, UnixTime};
 use rustls::{DigitallySignedStruct, Error, SignatureScheme};
 use sha2::{Digest, Sha256};
 
-/// Return the path to the known_hubs file: `~/.termlink/known_hubs`.
+/// Return the path to the known_hubs trust store, e.g. `~/.termlink/known_hubs`.
+///
+/// T-2607: resolves through the unified [`crate::identity_dir::resolve_identity_dir`]
+/// ladder (`TERMLINK_IDENTITY_DIR` → `$XDG_STATE_HOME/termlink` → `$HOME/.termlink`
+/// → loud UID-namespaced tmp), so the trust store now honors
+/// `TERMLINK_IDENTITY_DIR` and never silently lands in a world-writable
+/// `/tmp/.termlink` when `HOME` is unset.
 pub fn known_hubs_path() -> PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-    PathBuf::from(home).join(".termlink").join("known_hubs")
+    crate::identity_dir::resolve_identity_dir().join("known_hubs")
 }
 
 /// Compute SHA-256 fingerprint of a DER-encoded certificate.

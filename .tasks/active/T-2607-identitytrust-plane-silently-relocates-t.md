@@ -4,10 +4,10 @@ name: "Identity/trust plane silently relocates to volatile /tmp when HOME unset 
 description: >
   Verb-portability hunt F1 (HIGH): tofu.rs known_hubs_path + offline_queue + ack_retry fall back to /tmp when HOME unset; tofu ignores TERMLINK_IDENTITY_DIR
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-11T11:14:16Z
-last_update: 2026-08-11T11:17:16Z
+last_update: 2026-08-11T14:06:16Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -85,23 +85,23 @@ tell one consistent story.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] A decision is recorded (see Decisions) on the `HOME`-unset behavior for the
+- [x] A decision is recorded (see Decisions) on the `HOME`-unset behavior for the
       identity/trust plane, AND on unifying `TERMLINK_IDENTITY_DIR` resolution
       across `tofu.rs` / `offline_queue.rs` / `ack_retry.rs` (+ the MCP mirrors).
-- [ ] The trust store (`known_hubs_path`) and the ack-retry DB honor
+- [x] The trust store (`known_hubs_path`) and the ack-retry DB honor
       `TERMLINK_IDENTITY_DIR` before any HOME-based path — matching the existing
       `offline_queue::default_queue_path` convention, so the whole identity plane
       resolves to one dir.
-- [ ] The silent `HOME → "/tmp"` fallback is replaced per the decision: either a
+- [x] The silent `HOME → "/tmp"` fallback is replaced per the decision: either a
       loud refusal (the trust store is NOT written to a world-writable volatile
       dir without an explicit opt-in), or an XDG-style `$XDG_STATE_HOME`/documented
       fallback — NOT a bare `unwrap_or("/tmp")`. Whatever is chosen is identical
       across all identity-plane path helpers (no per-file divergence).
-- [ ] A load-bearing test proves it: with `HOME` unset (and `TERMLINK_IDENTITY_DIR`
+- [x] A load-bearing test proves it: with `HOME` unset (and `TERMLINK_IDENTITY_DIR`
       unset) the resolver yields the chosen outcome (error / XDG path), NOT
       `/tmp/.termlink/...`. Prove load-bearing by temp-reverting to the
       `unwrap_or("/tmp")` form and confirming the test FAILS.
-- [ ] `cargo test -p termlink-session` passes (and `cargo check -p termlink-mcp`
+- [x] `cargo test -p termlink-session` passes (and `cargo check -p termlink-mcp`
       if the MCP mirrors are touched).
 
 ### Human
@@ -168,6 +168,18 @@ tell one consistent story.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+cargo test -p termlink-session identity_dir
+# The full plane still resolves correctly (behavior-preserving delegation):
+cargo test -p termlink-session
+# Zero caller ripple — the infallible Option-B resolver keeps downstream clean:
+cargo check -p termlink
+cargo check -p termlink-mcp
+# The load-bearing guard + the unified resolver are present in source:
+grep -q "resolve_identity_dir" crates/termlink-session/src/tofu.rs
+grep -q "resolve_identity_dir" crates/termlink-session/src/offline_queue.rs
+grep -q "resolve_identity_dir" crates/termlink-session/src/ack_retry.rs
+grep -q "never_shared_dot_termlink" crates/termlink-session/src/identity_dir.rs
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -183,6 +195,37 @@ tell one consistent story.
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** On a host where `HOME` is unset (systemd unit without
+`Environment=HOME` / `User=`, `env -i`, minimal container), the client
+identity/trust plane — TOFU `known_hubs` pins, the durable offline outbound
+queue, and the await-ack retry DB — silently relocated to a shared,
+world-writable, reboot-volatile `/tmp/.termlink`. No error surfaced. On the
+trust plane this means recurring TOFU-violation flaps (pins lost every reboot)
+and a cross-user pin-tamper / collision vector.
+
+**Root cause:** Each of the three path helpers independently resolved its
+directory with a bare `std::env::var("HOME").unwrap_or_else(|_| "/tmp".into())`.
+There was **no single fail-loud dir-resolution policy** for the plane: three
+copies of the same silent fallback, and `tofu.rs` did not even honor the
+`TERMLINK_IDENTITY_DIR` override the queue already respected — so the plane
+could not be pinned to one dir, and the `/tmp` fallback was invisible.
+
+**Why structurally allowed:** `unwrap_or("/tmp")` is a compile-clean, test-clean
+one-liner — nothing failed, no test exercised the `HOME`-unset branch, and the
+duplication across three files meant no single place owned "where does the trust
+store live?". Same silent-success class as the sibling T-2603 / T-2604 / T-2605
+fixes (a state that should refuse instead succeeds quietly), here on a
+security/Portability boundary rather than a message/claim one.
+
+**Prevention:** (a) a single shared `identity_dir::resolve_identity_dir()` owns
+the policy — the duplication that let the three copies drift is gone;
+(b) the fallback is now **loud** (one-time `tracing::error!`) and **locked down**
+(`0700`, UID-namespaced), so it can never again be a silent world-writable write;
+(c) a **load-bearing unit test**
+(`all_unset_falls_back_to_uid_namespaced_tmp_never_shared_dot_termlink`) pins the
+`HOME`-unset branch against the shared `/tmp/.termlink` shape — proven to fail if
+the guard is reverted, so the regression cannot re-enter unnoticed.
 
 ## Evolution
 
@@ -208,9 +251,71 @@ tell one consistent story.
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+### 2026-08-11 — in-code cost re-assessment flipped the recommendation A → B
+
+- **What changed:** The filing "leaned Option A" (hard-refuse, never write to
+  `/tmp`) assuming the fix was a contained contract change. Reading the actual
+  callers showed A's true cost: `known_hubs_path()` feeds the **infallible**
+  `KnownHubStore::default_store() -> Self` (13 callers), and the queue/tracker
+  helpers have ~17 more — so making resolution fallible ripples `Result` through
+  **~30 sites across 3 crates**, and hard-fails every real `HOME`-less
+  invocation. Option **B** (infallible, loud, UID-namespaced `0700` last resort)
+  delivers the same directive wins (silent→loud, kills the world-writable
+  cross-user edge, unifies `TERMLINK_IDENTITY_DIR`+XDG) with **zero caller
+  ripple** — confirmed by `cargo check -p termlink` + `-p termlink-mcp` passing
+  with no downstream edits.
+- **Plan impact:** The A-vs-B fork was surfaced to the owner with the new cost
+  data; owner chose B. The "make the helpers fallible" ripple work the filing
+  anticipated is not needed.
+- **Triggered:** Discovered the three "MCP mirrors" the filing listed
+  (`tools.rs:7322/7372/10604`) are actually **read-only `hubs.toml` config
+  lookups**, NOT identity-plane *writes* — a missing `/tmp` path there yields a
+  graceful "no config", not a silent trust-material write. They are a distinct,
+  lower-severity **config-location** concern (relocating `hubs.toml` must be done
+  atomically across CLI **and** MCP to avoid divergence), so they are
+  deliberately **out of scope** for this security fix to keep one root cause per
+  task. Follow-up (if warranted): a small task to unify the `hubs.toml` config
+  path across CLI+MCP. This task fixes the identity/trust **write** plane only.
+
 ## Decisions
 
-### OPEN — what should the identity/trust plane do when `HOME` is unset?
+### RESOLVED (2026-08-11) — Option B: loud, UID-namespaced, infallible
+
+**Decision: Option B**, chosen by the owner after an in-code cost re-assessment
+that materially changed the trade-off the filing assumed (see Evolution).
+
+Resolution ladder, unified across `tofu.rs` / `offline_queue.rs` /
+`ack_retry.rs` via a single shared helper
+`termlink_session::identity_dir::resolve_identity_dir()`:
+
+1. `$TERMLINK_IDENTITY_DIR` (verbatim, honored everywhere — fixes defect #2)
+2. `$XDG_STATE_HOME/termlink`
+3. `$HOME/.termlink` (behavior-preserving for the common case)
+4. **last resort (all unset):** `<tmpdir>/termlink-<uid>`, created mode `0700`,
+   with a one-time loud `tracing::error!`. **Never** the shared world-writable
+   `/tmp/.termlink`.
+
+**Why B over the filed-recommended A.** A ("hard error, never write to /tmp")
+is strictest but my in-code investigation showed its true cost: making the path
+helpers fallible ripples `Result` through the **infallible**
+`KnownHubStore::default_store() -> Self` (13 callers) plus the queue/tracker
+helpers — **~30 caller edits across 3 crates** — and every real `HOME`-less
+invocation would then hard-fail. B keeps the resolver **infallible → zero
+caller ripple** (confirmed: `cargo check -p termlink` + `-p termlink-mcp` both
+clean with no edits), while still:
+- killing the **sharpest security edge** — the world-writable cross-user
+  `/tmp/.termlink` tamper vector (defect 1b) — via `0700` + UID-namespacing;
+- converting the **silent** fallback to a **loud** one (Reliability #2) via the
+  one-time `tracing::error!`;
+- **unifying `TERMLINK_IDENTITY_DIR`** (and adding XDG) across the whole plane
+  (Portability #4, defect #2).
+
+The only thing B gives up vs A is the hard refusal — which is largely moot,
+because when `HOME`/`XDG`/override are ALL unset there is **no persistent
+directory to write to anyway**; A would not create persistence, only refuse to
+run. B degrades loudly instead of failing hard.
+
+### (superseded) OPEN — what should the identity/trust plane do when `HOME` is unset?
 
 Three defensible options; pick one deliberately (this is why the task is filed,
 not auto-built — it is a security-plane contract change).
@@ -263,3 +368,7 @@ walk) and is filed separately.
 
 ### 2026-08-11T11:15:40Z — status-update [task-update-agent]
 - **Change:** horizon: now → next
+
+### 2026-08-11T14:06:16Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

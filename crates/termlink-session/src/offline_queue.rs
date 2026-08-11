@@ -107,15 +107,16 @@ pub const DEFAULT_CAP: u64 = 1000;
 /// File name of the on-disk queue under `~/.termlink/` (spec'd by T-1155/T-1161).
 pub const DEFAULT_FILE_NAME: &str = "outbound.sqlite";
 
-/// Resolve the default queue path: `$HOME/.termlink/outbound.sqlite` (or
-/// `$TERMLINK_IDENTITY_DIR/outbound.sqlite` when that env is set — keeps
-/// per-fleet test isolation alongside the identity key).
+/// Resolve the default queue path, e.g. `$HOME/.termlink/outbound.sqlite`.
+///
+/// T-2607: resolves through the unified
+/// [`crate::identity_dir::resolve_identity_dir`] ladder
+/// (`TERMLINK_IDENTITY_DIR` → `$XDG_STATE_HOME/termlink` → `$HOME/.termlink`
+/// → loud UID-namespaced tmp) so the whole identity plane resolves to one dir
+/// and never silently falls back to a world-writable `/tmp/.termlink`. The
+/// `TERMLINK_IDENTITY_DIR` override (per-fleet test isolation) is preserved.
 pub fn default_queue_path() -> std::path::PathBuf {
-    if let Ok(dir) = std::env::var("TERMLINK_IDENTITY_DIR") {
-        return std::path::PathBuf::from(dir).join(DEFAULT_FILE_NAME);
-    }
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
-    std::path::PathBuf::from(home).join(".termlink").join(DEFAULT_FILE_NAME)
+    crate::identity_dir::resolve_identity_dir().join(DEFAULT_FILE_NAME)
 }
 
 const SCHEMA: &str = r#"
