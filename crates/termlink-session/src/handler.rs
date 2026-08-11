@@ -742,6 +742,40 @@ async fn handle_event_poll(
 /// This is dramatically lower latency than `event.poll` (which requires a
 /// fixed sleep interval on the client side) because the server blocks until
 /// an event actually arrives.
+/// T-2611: upper bound on an `event.subscribe` long-poll timeout, in milliseconds.
+/// Mirrors the exec-path ceiling (`executor::MAX_EXEC_TIMEOUT_SECS` = 3_600s, the
+/// T-2530 clamp that cites this exact `Instant + Duration` overflow-panic class):
+/// `3_600 * 1000`. A caller-supplied `timeout_ms` fed verbatim into
+/// `Instant::now() + Duration::from_millis(_)` panics on `u64::MAX` overflow and a
+/// merely-large value pins the detached long-poll task open indefinitely — both are
+/// defeated by clamping to this band. Generous enough for every legitimate CLI
+/// long-poll (e.g. a `wait --timeout 300` → 300_000ms) while overflow-safe.
+const MAX_SUBSCRIBE_TIMEOUT_MS: u64 = 3_600_000;
+const DEFAULT_SUBSCRIBE_TIMEOUT_MS: u64 = 5000;
+
+/// T-2611: upper bound on the number of events an `event.subscribe` call accumulates.
+/// Bounds `collected: Vec<Value>` (one heap JSON value per delivered event) so a
+/// large caller `max_events` on a busy topic cannot grow it without ceiling.
+const MAX_SUBSCRIBE_MAX_EVENTS: u64 = 10_000;
+const DEFAULT_SUBSCRIBE_MAX_EVENTS: u64 = 100;
+
+/// Clamp a caller-supplied subscribe timeout to the `[0, MAX_SUBSCRIBE_TIMEOUT_MS]`
+/// band, applying the default when absent. Pure (no env/IO) so the policy is
+/// deterministically unit-testable — mirrors `executor::effective_exec_timeout`.
+fn effective_subscribe_timeout_ms(requested: Option<u64>) -> u64 {
+    requested
+        .unwrap_or(DEFAULT_SUBSCRIBE_TIMEOUT_MS)
+        .min(MAX_SUBSCRIBE_TIMEOUT_MS)
+}
+
+/// Clamp a caller-supplied `max_events` to `[0, MAX_SUBSCRIBE_MAX_EVENTS]`, applying
+/// the default when absent. Pure — same rationale as `effective_subscribe_timeout_ms`.
+fn effective_subscribe_max_events(requested: Option<u64>) -> usize {
+    requested
+        .unwrap_or(DEFAULT_SUBSCRIBE_MAX_EVENTS)
+        .min(MAX_SUBSCRIBE_MAX_EVENTS) as usize
+}
+
 /// Long-poll subscribe. Takes the event bus handle DIRECTLY (not `&SessionContext`)
 /// so it can be dispatched detached from the session `RwLock` — see `dispatch_scoped`
 /// and T-2521: holding the session read guard across this wait deadlocks concurrent
@@ -751,20 +785,19 @@ pub async fn handle_event_subscribe(
     params: &serde_json::Value,
     events: Arc<Mutex<EventBus>>,
 ) -> RpcResponse {
-    let timeout_ms = params
-        .get("timeout_ms")
-        .and_then(|t| t.as_u64())
-        .unwrap_or(5000);
+    // T-2611: clamp caller-supplied numeric params. `timeout_ms` unclamped panics
+    // on `Instant + Duration` overflow (u64::MAX); `max_events` unclamped grows an
+    // unbounded Vec on a busy topic.
+    let timeout_ms =
+        effective_subscribe_timeout_ms(params.get("timeout_ms").and_then(|t| t.as_u64()));
 
     let topic_filter = params
         .get("topic")
         .and_then(|t| t.as_str())
         .map(String::from);
 
-    let max_events = params
-        .get("max_events")
-        .and_then(|m| m.as_u64())
-        .unwrap_or(100) as usize;
+    let max_events =
+        effective_subscribe_max_events(params.get("max_events").and_then(|m| m.as_u64()));
 
     let since_param = params
         .get("since")
@@ -2467,4 +2500,48 @@ mod tests {
         }
     }
 
+    // ── T-2611: caller-param clamps for event.subscribe ──
+
+    // LOAD-BEARING (T-2611): a caller `timeout_ms` of u64::MAX must be clamped to a
+    // ceiling that does NOT overflow `Instant + Duration`. Temp-revert the clamp in
+    // `effective_subscribe_timeout_ms` (return `requested.unwrap_or(5000)` with no
+    // `.min(...)`) and this test FAILS on the equality assertion — proving the clamp
+    // is what prevents the handler-task panic.
+    #[test]
+    fn subscribe_timeout_clamps_huge_value_and_is_overflow_safe() {
+        let clamped = effective_subscribe_timeout_ms(Some(u64::MAX));
+        assert_eq!(
+            clamped, MAX_SUBSCRIBE_TIMEOUT_MS,
+            "u64::MAX timeout must clamp to the ceiling"
+        );
+        // The specific regression guard: the clamped value must not panic the exact
+        // arithmetic the handler performs at handler.rs (Instant::now() + from_millis).
+        let _deadline = tokio::time::Instant::now() + Duration::from_millis(clamped);
+        // A value already within band is passed through unchanged.
+        assert_eq!(effective_subscribe_timeout_ms(Some(1234)), 1234);
+    }
+
+    #[test]
+    fn subscribe_timeout_default_when_absent() {
+        assert_eq!(
+            effective_subscribe_timeout_ms(None),
+            DEFAULT_SUBSCRIBE_TIMEOUT_MS
+        );
+    }
+
+    #[test]
+    fn subscribe_max_events_clamps_huge_value_and_defaults() {
+        assert_eq!(
+            effective_subscribe_max_events(Some(u64::MAX)),
+            MAX_SUBSCRIBE_MAX_EVENTS as usize,
+            "u64::MAX max_events must clamp to the ceiling"
+        );
+        assert_eq!(
+            effective_subscribe_max_events(None),
+            DEFAULT_SUBSCRIBE_MAX_EVENTS as usize,
+            "absent max_events must use the default"
+        );
+        // A value already within band is passed through unchanged.
+        assert_eq!(effective_subscribe_max_events(Some(250)), 250);
+    }
 }
