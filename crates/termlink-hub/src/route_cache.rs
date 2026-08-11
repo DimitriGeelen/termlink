@@ -420,7 +420,24 @@ fn parse_iso_epoch(iso: &str) -> u64 {
     let mm: u64 = parts[4].parse().unwrap_or(0);
     let ss: u64 = parts[5].parse().unwrap_or(0);
 
-    if y < 1970 || m == 0 || m > 12 || d == 0 || d > 31 {
+    // T-2622: guard the day against the month's ACTUAL length (leap-aware for
+    // February), not a flat `d > 31`. A flat check accepts impossible calendar
+    // days (Feb 30, Apr 31, Feb 29 in a non-leap year); the later
+    // `days += d - 1` then silently rolls the date into the next month and
+    // computes a wrong epoch → wrong entry age → wrong TTL/eviction decision.
+    let max_day: u64 = match m {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 => {
+            if is_leap(y) {
+                29
+            } else {
+                28
+            }
+        }
+        _ => 0, // m out of range; combined guard below rejects it
+    };
+    if y < 1970 || m == 0 || m > 12 || d == 0 || d > max_day {
         return 0;
     }
 
@@ -820,5 +837,28 @@ mod tests {
         assert_eq!(opus.successes, 2);
         let sonnet = loaded.model_stats_for("sonnet", "build").unwrap();
         assert_eq!(sonnet.failures, 1);
+    }
+
+    // T-2622: LOAD-BEARING. An impossible calendar day must be rejected
+    // (returns 0), not accepted and silently rolled into the next month.
+    // Temp-revert proof: restore the guard to `d > 31` → the impossible-day
+    // assertions (`parse_iso_epoch(...) == 0`) fail (the day is accepted and
+    // computes a non-zero, wrong epoch).
+    #[test]
+    fn parse_iso_epoch_rejects_impossible_days() {
+        // Impossible days → 0.
+        assert_eq!(parse_iso_epoch("2026-02-30T00:00:00Z"), 0, "Feb 30 impossible");
+        assert_eq!(parse_iso_epoch("2026-04-31T00:00:00Z"), 0, "Apr 31 impossible");
+        assert_eq!(parse_iso_epoch("2026-06-31T00:00:00Z"), 0, "Jun 31 impossible");
+        assert_eq!(parse_iso_epoch("2026-11-31T00:00:00Z"), 0, "Nov 31 impossible");
+        // Feb 29 is year-dependent: 2026 is NOT a leap year → reject.
+        assert_eq!(parse_iso_epoch("2026-02-29T00:00:00Z"), 0, "Feb 29 non-leap impossible");
+
+        // Valid dates (incl. month-end boundaries) still parse (non-zero).
+        assert!(parse_iso_epoch("2026-01-31T00:00:00Z") > 0, "Jan 31 valid");
+        assert!(parse_iso_epoch("2026-04-30T00:00:00Z") > 0, "Apr 30 valid");
+        assert!(parse_iso_epoch("2026-02-28T00:00:00Z") > 0, "Feb 28 valid");
+        // Feb 29 in a leap year (2024) is valid.
+        assert!(parse_iso_epoch("2024-02-29T00:00:00Z") > 0, "Feb 29 leap valid");
     }
 }
