@@ -4,20 +4,20 @@ name: "Concurrent fleet reauth races on fixed-name .hex.tmp/.hex.bak"
 description: >
   remote.rs write_secret_file uses a fixed tmp path (path.with_extension hex.tmp) and fixed .hex.bak; if auto-heal reauth races a manual reauth on one profile, interleaved write+rename can leave the file holding writer B secret while writer A returns Ok reporting its own preview. Unique per-write tmp names fix it.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-11T17:07:20Z
-last_update: 2026-08-11T20:17:23Z
-date_finished: null
+last_update: 2026-08-11T20:21:31Z
+date_finished: 2026-08-11T20:21:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -195,3 +195,15 @@ helper) + a post-write read-back verification, plus a concurrent-writer test.
 ### 2026-08-11T20:17:23Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-cd2b3ef0
+- **Timestamp:** 2026-08-11T20:22:02Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-11T20:21:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

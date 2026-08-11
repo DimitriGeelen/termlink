@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2617: Concurrent fleet reauth races on fixed-name .hex.tmp/.hex.bak
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-11T20:22:05Z
+# ============================================================================
+
+task_id: T-2617
+task_name: "Concurrent fleet reauth races on fixed-name .hex.tmp/.hex.bak"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-11T17:07:20Z
+completed: 2026-08-11T20:21:31Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-08-11T22:21:12+02:00
+last_commit: 2026-08-11T22:21:31+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix concurrent-reauth temp collision + preview-vs-disk lie in write_secret_file. fix Verification command (single test filter)
+
+# Key outcomes
+outcomes:
+  - '`write_secret_file` (and the `.hex.bak` backup) use a UNIQUE temp name per invocation (pid + atomic counter, or `mkstemp`-style), so two concurrent reauths on one profile cannot collide on the temp path'
+  - 'After the write, the function verifies the on-disk bytes match what it is about to report (re-read + compare, or write-then-read-back) so a success preview can never disagree with the file'
+  - 'A test simulates two interleaved `write_secret_file` calls on the same path and asserts the final file equals exactly one writer''s secret and each caller''s reported preview matches the bytes it wrote (or a clear conflict error is returned)'
+  - '`cargo test -p termlink-cli` (or the relevant module test) passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix Verification command (single test filter)'
+    source: git-mined
+  - description: 'fix concurrent-reauth temp collision + preview-vs-disk lie in write_secret_file'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/remote.rs'
+  - '.tasks/active/T-2617-concurrent-fleet-reauth-races-on-fixed-n.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-11T22:21:12"
+    action: "T-2617: fix concurrent-reauth temp collision + preview-vs-disk lie in write_secret_file"
+  - time: "2026-08-11T22:21:31"
+    action: "T-2617: fix Verification command (single test filter)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 194 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 194
+  commits: 3
+  files_changed: 4
+  lines_added: 816
+  lines_removed: 25
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2617-concurrent-fleet-reauth-races-on-fixed-n.md
+generated_by: context-agent-hybrid

@@ -2510,3 +2510,28 @@ git add .tasks/completed/T-2591-fix-fleet-adoption-snapshot-uniquespeake.md .tas
 git status --short | grep -E episodic/T-2591|learnings || echo "(nothing pending)"
 git add .context/episodic/T-2591.yaml .context/project/learnings.yaml 2>/dev/null
 if ! git diff --'
+- timestamp: '2026-08-11T16:54:23Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2614'
+  command: 'cd /opt/termlink
+FW_SWITCH_FOCUS=1 git commit -q -m "T-2612/T-2613/T-2614: file 3 delicate PTY fork/exec/reap findings (T-2468 session-subsystem hunt)
+
+Filed (not built — fork/exec correctness is de'
+- timestamp: '2026-08-11T16:54:30Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2614'
+  command: 'cd /opt/termlink
+git add .tasks/active/T-2612-*.md .tasks/active/T-2613-*.md .tasks/active/T-2614-*.md
+FW_SWITCH_FOCUS=1 git commit -q -m "T-2612/T-2613/T-2614: file 3 delicate PTY fork/exec/reap find'
+- timestamp: '2026-08-11T17:08:40Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2617'
+  command: 'cd /opt/termlink
+git add .tasks/active/T-2615-*.md .tasks/active/T-2616-*.md .tasks/active/T-2617-*.md
+FW_SWITCH_FOCUS=1 git commit -q -m "T-2615/T-2616/T-2617: file 3 durable-delivery/secret-persiste'

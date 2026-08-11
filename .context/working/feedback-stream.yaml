@@ -7092,3 +7092,39 @@ scan_id: R-24d11ef1
 task_id: T-2611
 payload:
   task_file: .tasks/active/T-2611-clamp-eventsubscribe-timeoutms-and-maxev.md
+---
+kind: scan_emitted
+timestamp: '2026-08-11T20:22:02Z'
+scan_id: R-cd2b3ef0
+task_id: T-2617
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-11T20:22:02Z'
+scan_id: R-cd2b3ef0
+task_id: T-2617
+payload:
+  task_file: .tasks/active/T-2617-concurrent-fleet-reauth-races-on-fixed-n.md
+---
+kind: scan_emitted
+timestamp: '2026-08-11T21:04:23Z'
+scan_id: R-058a4d41
+task_id: T-2618
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-11T21:04:23Z'
+scan_id: R-058a4d41
+task_id: T-2618
+payload:
+  task_file: .tasks/active/T-2618-parseiso8601utc-accepts-impossible-calen.md
