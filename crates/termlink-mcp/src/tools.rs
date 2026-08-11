@@ -9509,8 +9509,10 @@ pub struct ChannelRenewParams {
     pub claim_id: String,
     /// Original claimer string (must match the one used at claim time).
     pub claimer: String,
-    /// Additional lease time in milliseconds. The hub overwrites
-    /// `claimed_until = now + additional_ttl_ms` (not "+="). Default: 30000.
+    /// Additional lease time in milliseconds. The hub sets
+    /// `claimed_until = max(now + additional_ttl_ms, current_claimed_until)` —
+    /// monotonic-forward, so a renew never shortens an active lease (T-2510);
+    /// a value smaller than the remaining lease is a no-op. Default: 30000.
     /// Refused with CLAIM_EXPIRED (-32018) if the lease has already lapsed.
     pub additional_ttl_ms: Option<u64>,
 }
@@ -22204,7 +22206,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_renew",
-        description = "Extend the lease on a held claim. Sets `claimed_until = now + additional_ttl_ms` (absolute, NOT a relative add). Returns `{ok, claim_id, topic, offset, claimer, claimed_at, claimed_until}`. Errors: CLAIM_NOT_FOUND (-32016); CLAIM_NOT_OWNED (-32017) on `claimer` mismatch; CLAIM_EXPIRED (-32018) if the lease already lapsed (then re-`claim` fresh). For long-running work call `renew` at ttl/2 cadence (the Rust `LeasedClaim` helper does this automatically). WRITES state."
+        description = "Extend the lease on a held claim. Sets `claimed_until = max(now + additional_ttl_ms, current_claimed_until)` — monotonic-forward, so a renew NEVER shortens an active lease (T-2510): a small `additional_ttl_ms` against a longer-lived lease is a no-op, not a shortening. Returns `{ok, claim_id, topic, offset, claimer, claimed_at, claimed_until}`. Errors: CLAIM_NOT_FOUND (-32016); CLAIM_NOT_OWNED (-32017) on `claimer` mismatch; CLAIM_EXPIRED (-32018) if the lease already lapsed (then re-`claim` fresh). For long-running work call `renew` at ttl/2 cadence (the Rust `LeasedClaim` helper does this automatically). WRITES state."
     )]
     async fn termlink_channel_renew(
         &self,
