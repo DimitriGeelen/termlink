@@ -1149,9 +1149,13 @@ pub(crate) fn default_substrate_log_path() -> PathBuf {
 /// T-2115: stdlib-only RFC3339→epoch parser. Duplicated per T-2069
 /// convention (pure helpers duplicated per crate). Returns 0 on any
 /// parse error (caller treats 0 as "very old" → falls below cutoff).
-fn rfc3339_to_unix_secs_substrate(ts: &str) -> i64 {
+/// T-2619: returns `None` on any parse failure so the caller can classify a
+/// present-but-unparseable `ts` as a *malformed* row, instead of the old
+/// 0-sentinel that laundered a parse failure into a silent age-based drop
+/// below the cutoff (undercounting "malformed lines skipped").
+fn rfc3339_to_unix_secs_substrate(ts: &str) -> Option<i64> {
     if ts.len() < 20 || !ts.ends_with('Z') {
-        return 0;
+        return None;
     }
     let bytes = ts.as_bytes();
     let parse_u = |start: usize, len: usize| -> Option<u32> {
@@ -1168,7 +1172,7 @@ fn rfc3339_to_unix_secs_substrate(ts: &str) -> i64 {
         parse_u(14, 2),
         parse_u(17, 2),
     ) else {
-        return 0;
+        return None;
     };
     let y = y as i64;
     let mo = mo as i64;
@@ -1184,7 +1188,7 @@ fn rfc3339_to_unix_secs_substrate(ts: &str) -> i64 {
     let doy = (153 * mp + 2) / 5 + d - 1;
     let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
     let days = era * 146_097 + doe - 719_468;
-    days * 86_400 + (h as i64) * 3600 + (mi as i64) * 60 + s as i64
+    Some(days * 86_400 + (h as i64) * 3600 + (mi as i64) * 60 + s as i64)
 }
 
 /// T-2115: pure helper — parse the NDJSON log into `(entries,
@@ -1215,8 +1219,20 @@ pub(crate) fn parse_substrate_log(
                 continue;
             }
         };
-        let ts_str = match v.get("ts").and_then(|t| t.as_str()) {
-            Some(s) => s,
+        // T-2619: validate the `ts` field's structural integrity here — a
+        // missing OR present-but-unparseable `ts` is a corrupt row and counts
+        // as malformed, at the same gate and before any selection filter.
+        // Previously an unparseable ts slipped through: the helper returned the
+        // 0-sentinel and the cutoff filter below silently dropped the row WITHOUT
+        // counting it, so the caller's "N malformed lines skipped" undercounted.
+        let entry_secs = match v.get("ts").and_then(|t| t.as_str()) {
+            Some(s) => match rfc3339_to_unix_secs_substrate(s) {
+                Some(secs) => secs,
+                None => {
+                    malformed += 1;
+                    continue;
+                }
+            },
             None => {
                 malformed += 1;
                 continue;
@@ -1234,7 +1250,6 @@ pub(crate) fn parse_substrate_log(
                 continue;
             }
         }
-        let entry_secs = rfc3339_to_unix_secs_substrate(ts_str);
         if entry_secs < cutoff_secs {
             continue;
         }
@@ -1926,6 +1941,39 @@ not json at all
         let future_cutoff = 9_999_999_999i64;
         let (entries, _) = parse_substrate_log(text, future_cutoff, None);
         assert_eq!(entries.len(), 0, "all entries fall below future cutoff");
+    }
+
+    #[test]
+    fn parse_substrate_log_counts_unparseable_ts_as_malformed() {
+        // T-2619 LOAD-BEARING: a line with valid JSON + all required fields but
+        // a present-but-unparseable `ts` must be classified as MALFORMED
+        // (counted + skipped), not silently age-dropped below the cutoff.
+        // Before the fix, rfc3339_to_unix_secs_substrate returned the 0-sentinel
+        // for "not-a-date", 0 < cutoff was always true, and the row vanished
+        // WITHOUT incrementing `malformed` — the caller then reported "0
+        // malformed lines skipped" while a corrupt row disappeared.
+        // Temp-revert proof: restore the `-> i64` 0-sentinel helper + the
+        // `let entry_secs = rfc3339_to_unix_secs_substrate(ts_str)` call site and
+        // this test FAILS on `malformed == 1` (it reads 0).
+        let text =
+            "{\"ts\":\"not-a-date\",\"field\":\"claim_topic_count\",\"old\":\"1\",\"new\":\"2\"}\n";
+        let cutoff = 1_000_000i64; // any positive cutoff exposes the 0-sentinel drop
+        let (entries, malformed) = parse_substrate_log(text, cutoff, None);
+        assert_eq!(entries.len(), 0, "the corrupt-ts row is not returned");
+        assert_eq!(
+            malformed, 1,
+            "an unparseable ts counts as malformed, not a silent age-drop"
+        );
+
+        // A genuine pre-cutoff (old-but-parseable) timestamp is NOT malformed —
+        // it is a legitimate age-based skip. Guards against a false positive
+        // where the fix over-classifies real old entries.
+        // 1970-01-05T00:00:00Z → epoch 345_600, genuinely below the 1_000_000
+        // cutoff (which is ~1970-01-12), so it is a real age-drop.
+        let old = "{\"ts\":\"1970-01-05T00:00:00Z\",\"field\":\"claim_topic_count\",\"old\":\"1\",\"new\":\"2\"}\n";
+        let (entries, malformed) = parse_substrate_log(old, cutoff, None);
+        assert_eq!(entries.len(), 0, "old-but-valid entry is dropped by cutoff");
+        assert_eq!(malformed, 0, "a genuinely old timestamp is NOT malformed");
     }
 
     #[test]

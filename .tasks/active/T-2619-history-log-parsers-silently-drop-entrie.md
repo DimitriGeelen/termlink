@@ -4,7 +4,7 @@ name: "history-log parsers silently drop entries with unparseable ts + undercoun
 description: >
   parse_find_idle_log + parse_substrate_log drop valid-JSON entries whose ts is unparseable, without counting them as malformed
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-11T21:07:00Z
-last_update: 2026-08-11T21:07:00Z
+last_update: 2026-08-11T21:35:21Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -59,11 +59,11 @@ log was clean. Same for `parse_substrate_log`.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] A `ts` value that is present but unparseable is classified as **malformed** (counted + skipped), not silently dropped by the cutoff filter — in BOTH `parse_find_idle_log` and `parse_substrate_log`
-- [ ] Fix distinguishes "ts unparseable" from "ts genuinely old" without a false positive on real old timestamps (do NOT treat a legitimate pre-cutoff entry as malformed). Likely approach: an `Option<i64>`-returning parse variant (None ⇒ malformed) rather than the 0-sentinel; keep the existing "very old" semantics for genuinely-parsed old timestamps
-- [ ] Regression test in each module: valid-JSON-with-required-fields-but-bad-`ts` line ⇒ `entries` empty AND `malformed == 1` (not 0)
-- [ ] Both tests proven load-bearing via temp-revert (revert the classification → test FAILS)
-- [ ] Full suites green: `cargo test -p termlink --bins commands::agent_find_idle::tests` and `cargo test -p termlink --bins commands::substrate::tests`
+- [x] A `ts` value that is present but unparseable is classified as **malformed** (counted + skipped), not silently dropped by the cutoff filter — in BOTH `parse_find_idle_log` and `parse_substrate_log`
+- [x] Fix distinguishes "ts unparseable" from "ts genuinely old" without a false positive on real old timestamps (do NOT treat a legitimate pre-cutoff entry as malformed). Approach used: both `rfc3339_to_unix_secs_*` helpers now return `Option<i64>` (None ⇒ malformed) instead of the lossy 0-sentinel; a genuinely-parsed old timestamp still age-drops via the cutoff without counting malformed (asserted by the 1970-01-05 case)
+- [x] Regression test in each module: valid-JSON-with-required-fields-but-bad-`ts` line ⇒ `entries` empty AND `malformed == 1` (not 0) — `find_idle_history_parse_counts_unparseable_ts_as_malformed` + `parse_substrate_log_counts_unparseable_ts_as_malformed`
+- [x] Both tests proven load-bearing via temp-revert (restored `.unwrap_or(0)` swallow → both tests FAILED on `malformed == 1`; restored fix → green)
+- [x] Full suites green: `cargo test -p termlink --bins commands::agent_find_idle::tests` (16 passed) and `cargo test -p termlink --bins commands::substrate::tests` (21 passed)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -128,6 +128,8 @@ log was clean. Same for `parse_substrate_log`.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+cargo test -p termlink --bins commands::agent_find_idle::tests
+cargo test -p termlink --bins commands::substrate::tests
 
 ## RCA
 
@@ -211,3 +213,6 @@ bad-ts line counts as malformed. Load-bearing via temp-revert.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2619-history-log-parsers-silently-drop-entrie.md
 - **Context:** Initial task creation
+
+### 2026-08-11T21:35:21Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
