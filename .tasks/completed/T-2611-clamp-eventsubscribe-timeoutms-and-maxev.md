@@ -4,20 +4,20 @@ name: "clamp event.subscribe timeout_ms and max_events caller params"
 description: >
   clamp event.subscribe timeout_ms and max_events caller params
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-session/src/handler.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-11T16:47:53Z
-last_update: 2026-08-11T16:47:53Z
-date_finished: null
+last_update: 2026-08-11T16:51:16Z
+date_finished: 2026-08-11T16:51:16Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -204,3 +204,22 @@ Follow-up candidate (not this task): extend the T-2527 static check to flag
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2611-clamp-eventsubscribe-timeoutms-and-maxev.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-24d11ef1
+- **Timestamp:** 2026-08-11T16:51:23Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Verification-level findings:**
+
+  1. **l387-sigpipe-risk** (partial, heuristic) @ Verification:line 1
+     - evidence: `cargo test -p termlink-session --lib effective_subscribe 2>&1 | tail -3 | grep -q "test result: ok"`
+  2. **l387-sigpipe-risk** (partial, heuristic) @ Verification:line 2
+     - evidence: `cargo test -p termlink-session 2>&1 | tail -3 | grep -q "test result: ok"`
+
+### 2026-08-11T16:51:16Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

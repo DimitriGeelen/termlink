@@ -7020,3 +7020,75 @@ scan_id: R-db81ae21
 task_id: T-2603
 payload:
   task_file: .tasks/active/T-2603-releaseclaim-has-no-lease-expiry-check--.md
+---
+kind: scan_emitted
+timestamp: '2026-08-11T15:31:55Z'
+scan_id: R-35ca11e8
+task_id: T-2607
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-11T15:31:55Z'
+scan_id: R-35ca11e8
+task_id: T-2607
+payload:
+  task_file: .tasks/active/T-2607-identitytrust-plane-silently-relocates-t.md
+---
+kind: scan_emitted
+timestamp: '2026-08-11T15:44:52Z'
+scan_id: R-ed427f4e
+task_id: T-2609
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-11T15:44:52Z'
+scan_id: R-ed427f4e
+task_id: T-2609
+payload:
+  task_file: .tasks/active/T-2609-bare-non-actionable-unknown-topic-errors.md
+---
+kind: scan_emitted
+timestamp: '2026-08-11T16:25:34Z'
+scan_id: R-6b4458b1
+task_id: T-2610
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-11T16:25:34Z'
+scan_id: R-6b4458b1
+task_id: T-2610
+payload:
+  task_file: .tasks/active/T-2610-born-dead-retention-setretentioncreate-a.md
+---
+kind: scan_emitted
+timestamp: '2026-08-11T16:51:23Z'
+scan_id: R-24d11ef1
+task_id: T-2611
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-11T16:51:23Z'
+scan_id: R-24d11ef1
+task_id: T-2611
+payload:
+  task_file: .tasks/active/T-2611-clamp-eventsubscribe-timeoutms-and-maxev.md
