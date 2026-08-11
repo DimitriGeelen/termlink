@@ -1,0 +1,99 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2619: history-log parsers silently drop entries with unparseable ts + undercount malformed
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-11T21:42:23Z
+# ============================================================================
+
+task_id: T-2619
+task_name: "history-log parsers silently drop entries with unparseable ts + undercount malformed"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-11T21:07:00Z
+completed: 2026-08-11T21:41:46Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-08-11T23:07:53+02:00
+last_commit: 2026-08-11T23:41:38+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file — history-log parsers silently drop unparseable-ts entries + undercount malformed (T-2468 Reliability hunt). history-log parsers count unparseable ts as malformed (no silent age-drop)
+
+# Key outcomes
+outcomes:
+  - 'A `ts` value that is present but unparseable is classified as **malformed** (counted + skipped), not silently dropped by the cutoff filter — in BOTH `parse_find_idle_log` and `parse_substrate_log`'
+  - 'Fix distinguishes "ts unparseable" from "ts genuinely old" without a false positive on real old timestamps (do NOT treat a legitimate pre-cutoff entry as malformed). Approach used: both `rfc3339_to_unix_secs_*` helpers now return `Option<i64>` (None ⇒ malformed) instead of the lossy 0-sentinel; a genuinely-parsed old timestamp still age-drops via the cutoff without counting malformed (asserted by the 1970-01-05 case)'
+  - 'Regression test in each module: valid-JSON-with-required-fields-but-bad-`ts` line ⇒ `entries` empty AND `malformed == 1` (not 0) — `find_idle_history_parse_counts_unparseable_ts_as_malformed` + `parse_substrate_log_counts_unparseable_ts_as_malformed`'
+  - 'Both tests proven load-bearing via temp-revert (restored `.unwrap_or(0)` swallow → both tests FAILED on `malformed == 1`; restored fix → green)'
+  - 'Full suites green: `cargo test -p termlink --bins commands::agent_find_idle::tests` (16 passed) and `cargo test -p termlink --bins commands::substrate::tests` (21 passed)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-08-11.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/handovers/LATEST.md'
+  - '.context/handovers/S-2026-0811-2338.md'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-cli/src/commands/agent_find_idle.rs'
+  - 'crates/termlink-cli/src/commands/substrate.rs'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2619-history-log-parsers-silently-drop-entrie.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-11T23:07:53"
+    action: "T-2619: file — history-log parsers silently drop unparseable-ts entries + undercount malformed (T-2468 Reliability hunt)"
+  - time: "2026-08-11T23:41:38"
+    action: "T-2619: history-log parsers count unparseable ts as malformed (no silent age-drop)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 34 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 34
+  commits: 2
+  files_changed: 21
+  lines_added: 1477
+  lines_removed: 102
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2619-history-log-parsers-silently-drop-entrie.md
+generated_by: context-agent-hybrid
