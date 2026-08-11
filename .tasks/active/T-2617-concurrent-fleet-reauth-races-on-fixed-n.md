@@ -4,10 +4,10 @@ name: "Concurrent fleet reauth races on fixed-name .hex.tmp/.hex.bak"
 description: >
   remote.rs write_secret_file uses a fixed tmp path (path.with_extension hex.tmp) and fixed .hex.bak; if auto-heal reauth races a manual reauth on one profile, interleaved write+rename can leave the file holding writer B secret while writer A returns Ok reporting its own preview. Unique per-write tmp names fix it.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-11T17:07:20Z
-last_update: 2026-08-11T17:07:20Z
+last_update: 2026-08-11T20:17:23Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -52,10 +52,10 @@ before rename).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `write_secret_file` (and the `.hex.bak` backup) use a UNIQUE temp name per invocation (pid + atomic counter, or `mkstemp`-style), so two concurrent reauths on one profile cannot collide on the temp path
-- [ ] After the write, the function verifies the on-disk bytes match what it is about to report (re-read + compare, or write-then-read-back) so a success preview can never disagree with the file
-- [ ] A test simulates two interleaved `write_secret_file` calls on the same path and asserts the final file equals exactly one writer's secret and each caller's reported preview matches the bytes it wrote (or a clear conflict error is returned)
-- [ ] `cargo test -p termlink-cli` (or the relevant module test) passes
+- [x] `write_secret_file` (and the `.hex.bak` backup) use a UNIQUE temp name per invocation (pid + atomic counter, or `mkstemp`-style), so two concurrent reauths on one profile cannot collide on the temp path
+- [x] After the write, the function verifies the on-disk bytes match what it is about to report (re-read + compare, or write-then-read-back) so a success preview can never disagree with the file
+- [x] A test simulates two interleaved `write_secret_file` calls on the same path and asserts the final file equals exactly one writer's secret and each caller's reported preview matches the bytes it wrote (or a clear conflict error is returned)
+- [x] `cargo test -p termlink-cli` (or the relevant module test) passes
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -98,6 +98,7 @@ before rename).
 # *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
+cargo test -p termlink --bins remote::tests::verify_persisted_secret_refuses_when_disk_holds_foreign_bytes remote::tests::concurrent_write_secret_file_never_corrupts_target remote::tests::write_secret_file_returns_confirmed_hex remote::tests::fleet_reauth_bootstrap_file_source_happy_path
 #
 # Pipefail/SIGPIPE hint (L-387): P-011 runs each command under `set -eo pipefail`.
 # `cmd | grep -q PATTERN` exits 141 (SIGPIPE) when grep matches and closes stdin
@@ -190,3 +191,7 @@ helper) + a post-write read-back verification, plus a concurrent-writer test.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2617-concurrent-fleet-reauth-races-on-fixed-n.md
 - **Context:** Initial task creation
+
+### 2026-08-11T20:17:23Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

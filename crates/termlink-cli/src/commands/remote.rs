@@ -8055,15 +8055,28 @@ pub(crate) fn cmd_fleet_reauth_bootstrap(
         })?;
     }
     if target.exists() {
+        // Back up atomically via a unique temp → rename so two concurrent
+        // reauths cannot produce a torn `.hex.bak` (T-2617). The backup is a
+        // best-effort recovery aid; a failure here still aborts the heal so we
+        // never overwrite the live secret without a preserved prior copy.
         let backup = target.with_extension("hex.bak");
-        std::fs::copy(&target, &backup).with_context(|| {
-            format!("failed to back up existing secret to {}", backup.display())
+        let backup_tmp = unique_secret_tmp_path(&backup);
+        std::fs::copy(&target, &backup_tmp).with_context(|| {
+            format!("failed to stage secret backup at {}", backup_tmp.display())
         })?;
+        if let Err(e) = std::fs::rename(&backup_tmp, &backup) {
+            let _ = std::fs::remove_file(&backup_tmp);
+            return Err(anyhow::Error::new(e)).with_context(|| {
+                format!("failed to promote secret backup to {}", backup.display())
+            });
+        }
     }
-    write_secret_file(&target, &hex)?;
+    // write_secret_file returns the bytes it confirmed on disk, so the preview
+    // below can never disagree with what was actually persisted (T-2617).
+    let persisted = write_secret_file(&target, &hex)?;
 
     // 12-char preview keeps full secret out of terminal history.
-    let preview: String = hex.chars().take(12).collect();
+    let preview: String = persisted.chars().take(12).collect();
     Ok(ReauthBootstrapOutcome {
         profile: profile.to_string(),
         address: entry.address.clone(),
@@ -8145,27 +8158,81 @@ fn normalize_and_validate_secret_hex(raw: &str) -> Result<String> {
     Ok(trimmed.to_string())
 }
 
+/// Monotonic per-process counter so two concurrent `write_secret_file` calls
+/// (e.g. auto-heal racing a manual reauth on one profile — T-2617) never share
+/// a temp path. Paired with the pid it is unique across processes too.
+static SECRET_WRITE_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Build a per-invocation-unique temp path alongside `path`. A fixed
+/// `<path>.hex.tmp` (the pre-T-2617 shape) let two concurrent writers clobber
+/// one another's temp file, so writer A could `rename` writer B's bytes into
+/// place and still report A's own — never-persisted — fingerprint. A pid+seq
+/// suffix makes each writer's temp exclusively its own.
+fn unique_secret_tmp_path(path: &std::path::Path) -> std::path::PathBuf {
+    let pid = std::process::id();
+    let seq = SECRET_WRITE_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    // e.g. <name>.hex.tmp.<pid>.<seq> — stays beside `path` so the rename is
+    // same-directory (atomic) and inherits the parent's perms/fs.
+    let base = path.file_name().map(|f| f.to_string_lossy().into_owned()).unwrap_or_default();
+    path.with_file_name(format!("{base}.tmp.{pid}.{seq}"))
+}
+
+/// Read the secret back from disk and confirm it equals what this call intended
+/// to persist. Returns the confirmed hex (trimmed) or a loud conflict error.
+///
+/// This is the guard that turns a lost concurrent-write race into a clear error
+/// instead of a success preview that disagrees with the bytes on disk (T-2617):
+/// if another writer's `rename` won the target between our promote and this
+/// read-back, the on-disk bytes differ from `expected` and we refuse rather
+/// than report a fingerprint we did not actually leave behind.
+fn verify_persisted_secret(path: &std::path::Path, expected: &str) -> Result<String> {
+    let on_disk = std::fs::read_to_string(path)
+        .with_context(|| format!("failed to read back secret file for verify: {}", path.display()))?;
+    let on_disk = on_disk.trim().to_string();
+    if on_disk != expected {
+        anyhow::bail!(
+            "secret file {} holds different bytes than this reauth wrote — a concurrent \
+             reauth (e.g. auto-heal) won the race. Nothing was corrupted; re-run \
+             `termlink fleet doctor` to confirm the current secret before retrying.",
+            path.display()
+        );
+    }
+    Ok(on_disk)
+}
+
 /// Write a secret file at chmod 600. Creates the file if missing; overwrites
-/// existing content atomically via a `<path>.tmp` → rename dance.
-fn write_secret_file(path: &std::path::Path, hex: &str) -> Result<()> {
-    let tmp = path.with_extension("hex.tmp");
-    // Write content.
-    std::fs::write(&tmp, hex)
-        .with_context(|| format!("failed to write temp secret file: {}", tmp.display()))?;
+/// existing content atomically via a unique-temp → rename dance, then reads the
+/// bytes back to confirm they landed. Returns the confirmed-on-disk hex so the
+/// caller derives its success preview from bytes it actually persisted (T-2617),
+/// not from its input string.
+fn write_secret_file(path: &std::path::Path, hex: &str) -> Result<String> {
+    let tmp = unique_secret_tmp_path(path);
+    // Write content to our private temp.
+    if let Err(e) = std::fs::write(&tmp, hex) {
+        return Err(anyhow::Error::new(e))
+            .with_context(|| format!("failed to write temp secret file: {}", tmp.display()));
+    }
     // Tighten perms on the temp file BEFORE the rename so there is no
     // window in which the final path exists with loose perms.
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
         let perm = std::fs::Permissions::from_mode(0o600);
-        std::fs::set_permissions(&tmp, perm).with_context(|| {
-            format!("failed to chmod 600 on temp secret file: {}", tmp.display())
-        })?;
+        if let Err(e) = std::fs::set_permissions(&tmp, perm) {
+            let _ = std::fs::remove_file(&tmp); // don't leak our unique temp
+            return Err(anyhow::Error::new(e)).with_context(|| {
+                format!("failed to chmod 600 on temp secret file: {}", tmp.display())
+            });
+        }
     }
-    std::fs::rename(&tmp, path).with_context(|| {
-        format!("failed to promote {} → {}", tmp.display(), path.display())
-    })?;
-    Ok(())
+    if let Err(e) = std::fs::rename(&tmp, path) {
+        let _ = std::fs::remove_file(&tmp); // don't leak our unique temp
+        return Err(anyhow::Error::new(e)).with_context(|| {
+            format!("failed to promote {} → {}", tmp.display(), path.display())
+        });
+    }
+    // Confirm the bytes on disk are the ones we just wrote (see helper docs).
+    verify_persisted_secret(path, hex)
 }
 
 pub(crate) async fn cmd_remote_doctor(
@@ -11489,6 +11556,130 @@ secret_file = "/tmp/other.hex"
         for (_, _, _, status, _) in &rows {
             assert_eq!(status, "warn-drift", "broad mode = all rows drift-checked");
         }
+    }
+
+    // ── T-2617: concurrent-reauth temp-collision + preview-vs-disk guards ──
+
+    /// LOAD-BEARING (T-2617): the read-back verify must REFUSE when the bytes on
+    /// disk are not the ones this call intended to persist — the exact case where
+    /// a concurrent reauth's `rename` won the target. Delete the `if on_disk !=
+    /// expected` branch in `verify_persisted_secret` and this test FAILS (the
+    /// mismatching read-back would be reported as success), proving the guard is
+    /// what turns a lost race into a clear error instead of a preview-vs-disk lie.
+    #[test]
+    fn verify_persisted_secret_refuses_when_disk_holds_foreign_bytes() {
+        let dir = std::env::temp_dir().join(format!(
+            "termlink-t2617-verify-{}-{}",
+            std::process::id(),
+            SECRET_WRITE_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+        ));
+        std::fs::create_dir_all(&dir).expect("mk dir");
+        let path = dir.join("hub.hex");
+        let ours = "aa".repeat(32);
+        let theirs = "bb".repeat(32);
+
+        // Simulate a concurrent writer having landed *their* secret on the target.
+        std::fs::write(&path, &theirs).expect("seed foreign bytes");
+
+        // We believe we persisted `ours`; the read-back must catch the mismatch.
+        let err = verify_persisted_secret(&path, &ours)
+            .expect_err("must refuse when on-disk bytes are not ours");
+        let msg = format!("{err:#}");
+        assert!(
+            msg.contains("concurrent reauth") && msg.contains("won the race"),
+            "conflict error must name the concurrent-race cause; got: {msg}"
+        );
+
+        // And the affirmative case: matching bytes verify and return the trimmed hex.
+        std::fs::write(&path, format!("{ours}\n")).expect("seed our bytes");
+        let confirmed = verify_persisted_secret(&path, &ours).expect("matching bytes must verify");
+        assert_eq!(confirmed, ours, "verify returns the confirmed-on-disk hex, trimmed");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Two concurrent `write_secret_file` calls on the SAME target must never
+    /// corrupt the file: the final bytes are exactly one writer's complete
+    /// 64-hex secret (never torn / interleaved), the file is chmod 600, and every
+    /// caller that returned `Ok` reports bytes it genuinely confirmed on disk.
+    /// Under the pre-T-2617 fixed-temp shape the shared `.hex.tmp` could be
+    /// clobbered mid-write, so a promoted target could be torn — this asserts the
+    /// unique-temp fix keeps every promotion atomic and whole.
+    #[test]
+    fn concurrent_write_secret_file_never_corrupts_target() {
+        let dir = std::env::temp_dir().join(format!(
+            "termlink-t2617-conc-{}-{}",
+            std::process::id(),
+            SECRET_WRITE_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+        ));
+        std::fs::create_dir_all(&dir).expect("mk dir");
+        let path = dir.join("hub.hex");
+        let hex_a = "aa".repeat(32);
+        let hex_b = "bb".repeat(32);
+
+        let p1 = path.clone();
+        let a = hex_a.clone();
+        let p2 = path.clone();
+        let b = hex_b.clone();
+        // Each thread hammers the same target; any Ok result must equal the bytes
+        // that same thread wrote (verify guarantees this) OR be a conflict error.
+        let t1 = std::thread::spawn(move || {
+            for _ in 0..200 {
+                if let Ok(confirmed) = write_secret_file(&p1, &a) {
+                    assert_eq!(confirmed, a, "writer A: Ok must return A's own bytes");
+                }
+            }
+        });
+        let t2 = std::thread::spawn(move || {
+            for _ in 0..200 {
+                if let Ok(confirmed) = write_secret_file(&p2, &b) {
+                    assert_eq!(confirmed, b, "writer B: Ok must return B's own bytes");
+                }
+            }
+        });
+        t1.join().expect("A thread");
+        t2.join().expect("B thread");
+
+        // Final target must be exactly one writer's complete secret — never torn.
+        let final_bytes = std::fs::read_to_string(&path).expect("read final target");
+        let final_bytes = final_bytes.trim();
+        assert!(
+            final_bytes == hex_a || final_bytes == hex_b,
+            "final target must be one writer's whole 64-hex secret, not torn: {final_bytes:?}"
+        );
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;
+            assert_eq!(mode, 0o600, "promoted secret must be chmod 600");
+        }
+        // No unique temp files should be left behind after all writers finished.
+        let leaked: Vec<_> = std::fs::read_dir(&dir)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .filter(|e| e.file_name().to_string_lossy().contains(".tmp."))
+            .collect();
+        assert!(leaked.is_empty(), "no unique temp files must leak: {leaked:?}");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The success path: a single write returns the confirmed-on-disk hex so the
+    /// caller's fingerprint preview is derived from persisted bytes (T-2617).
+    #[test]
+    fn write_secret_file_returns_confirmed_hex() {
+        let dir = std::env::temp_dir().join(format!(
+            "termlink-t2617-single-{}-{}",
+            std::process::id(),
+            SECRET_WRITE_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+        ));
+        std::fs::create_dir_all(&dir).expect("mk dir");
+        let path = dir.join("hub.hex");
+        let hex = "cd".repeat(32);
+        let confirmed = write_secret_file(&path, &hex).expect("write must succeed");
+        assert_eq!(confirmed, hex, "returned hex must equal the persisted bytes");
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), hex, "disk matches");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
 
