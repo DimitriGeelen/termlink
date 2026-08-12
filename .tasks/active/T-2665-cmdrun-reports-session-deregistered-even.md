@@ -1,13 +1,13 @@
 ---
-id: T-2663
-name: "discover --first no-match exits 1 with zero output in text mode (json mode prints)"
+id: T-2665
+name: "cmd_run reports session deregistered even when cleanup file removal fails"
 description: >
-  discover --first text-mode silent exit-1 vs json error asymmetry
+  cmd_run cleanup remove_file discarded, false deregistered success
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
-horizon: now
+horizon: next
 tags: []
 components: []
 related_tasks: []
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-12T20:57:23Z
-last_update: 2026-08-12T20:57:37Z
+created: 2026-08-12T21:00:22Z
+last_update: 2026-08-12T21:00:22Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,25 +30,26 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2663: discover --first no-match exits 1 with zero output in text mode (json mode prints)
+# T-2665: cmd_run reports session deregistered even when cleanup file removal fails
 
 ## Context
 
-Verified in code (round-14 hunt, 2026-08-12). `cmd_discover` with `--first` and no
-matching session (metadata.rs:288-293): JSON mode emits
-`{"ok":false,"error":"No matching sessions"}`, but text mode calls
-`std::process::exit(1)` with **no stderr at all**. A human running
-`termlink discover --first --name foo` gets a bare exit-1 and cannot distinguish
-"no match" from a crash. The sibling non-`--first` empty path (metadata.rs:318-327)
-DOES print "No sessions match the specified filters." / "No sessions discovered."
-Directive #2 (no silent failure) — json/text asymmetry.
+Verified in code (round-14 hunt, 2026-08-12). `cmd_run` cleanup (execution.rs:95-98)
+does `let _ = std::fs::remove_file(reg_for_cleanup.socket_path()); let _ =
+std::fs::remove_file(&json_path); ...` then unconditionally prints
+`eprintln!("Session {} deregistered", session_id)`. If either removal fails
+(permission, path moved), the stale socket / registration JSON lingers yet the user
+is told the session was deregistered — a later `discover` / `find_session` may surface
+a **ghost session**. False-success on a discarded fallible (Directive #2). Low
+severity (files usually removable) but a genuine silent-failure. Loud sibling: the
+other cmd_run error paths (register 42-46, exec 127-136) are all loud; cleanup is the
+discarded outlier.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] Text-mode `--first` no-match path emits an actionable stderr line (`No matching sessions.`) before `std::process::exit(1)`, mirroring the non-`--first` empty path + the JSON branch
-- [x] `cargo build -p termlink` clean
-- [x] Structural check: the `--first` empty branch contains an `eprintln!` before its `std::process::exit(1)` (temp-revert-provable — removing the eprintln → check fails; restored)
+- [ ] Each `remove_file` failure in cmd_run cleanup is surfaced (stderr warning naming the leftover path) instead of `let _ =`; the "deregistered" confirmation is only printed when cleanup actually succeeded (or is downgraded to name what lingered)
+- [ ] Proven via a fixture (unwritable path) OR a structural check that the cleanup `remove_file` results are inspected, not `let _ =`-discarded; `cargo build -p termlink` clean
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -82,10 +83,6 @@ Directive #2 (no silent failure) — json/text asymmetry.
 -->
 
 ## Verification
-
-cargo build -p termlink 2>&1 | grep -q "Finished"
-# structural: the --first empty branch eprintln's before exit(1) (temp-revert-provable)
-python3 -c "s=open('crates/termlink-cli/src/commands/metadata.rs').read(); i=s.index('\"error\": \"No matching sessions\"'); w=s.index('std::process::exit(1)', i); import sys; sys.exit(0 if 'eprintln!' in s[i:w] else 1)"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -134,19 +131,20 @@ python3 -c "s=open('crates/termlink-cli/src/commands/metadata.rs').read(); i=s.i
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
-**Symptom:** `termlink discover --first --name <nomatch>` prints nothing and exits 1;
-indistinguishable from a crash. In `--json` the same case prints an error object.
+**Symptom:** `termlink run` prints "Session X deregistered" even when the socket /
+registration file could not be removed → a ghost session can resurface in `discover`.
 
-**Root cause:** the text-mode `--first` empty branch (metadata.rs:292) does a bare
-`std::process::exit(1)` with no `eprintln`; only the JSON sub-branch emits a message.
+**Root cause:** `let _ = std::fs::remove_file(...)` discards the removal Result, and the
+"deregistered" line is unconditional.
 
-**Why structurally allowed:** the empty-result diagnostic was written per-branch, and
-the `--first` text branch was the one that missed it — no convention forces "every
-non-zero exit prints a reason". Same json/text-asymmetry class as T-2657/T-2654.
+**Why structurally allowed:** `let _ =` on a fallible is invisible to the compiler and
+no lint flags a discarded fs-mutation on a cleanup path.
 
-**Prevention:** structural check asserts the branch eprintln's before exit; candidate
-for a round-14+ static check "every `process::exit(non-zero)` on a user path is
-preceded by a stderr/stdout message".
+**Prevention:** round-14 static-check candidate "`let _ = <fs-mutation>` on a
+user-facing cleanup path" (sibling of the T-2527/T-2531 source checks).
+
+**Filed not built:** needs an unwritable-path fixture to prove the surfaced-warning
+path — low severity, fixture class.
 
 ## Evolution
 
@@ -195,10 +193,7 @@ preceded by a stderr/stdout message".
 
 ## Updates
 
-### 2026-08-12T20:57:23Z — task-created [task-create-agent]
+### 2026-08-12T21:00:22Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2663-discover---first-no-match-exits-1-with-z.md
+- **Output:** /opt/termlink/.tasks/active/T-2665-cmdrun-reports-session-deregistered-even.md
 - **Context:** Initial task creation
-
-### 2026-08-12T20:57:37Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work

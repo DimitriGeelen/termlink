@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2659: agent contact fleet-walk missing per-hub timeout that resolve has — dead hub wedges agent-handoff
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-12T20:48:24Z
+# ============================================================================
+
+task_id: T-2659
+task_name: "agent contact fleet-walk missing per-hub timeout that resolve has — dead hub wedges agent-handoff"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-12T20:34:17Z
+completed: 2026-08-12T20:47:44Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-08-12T22:47:39+02:00
+last_commit: 2026-08-12T22:47:39+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  bound the two agent-contact fleet-walks (dead hub no longer wedges /agent-handoff)
+
+# Key outcomes
+outcomes:
+  - 'Both `resolve_contact_via_fleet` and `resolve_contact_fp_via_fleet` wrap each per-hub `fetch_presence_msgs(..)` in `tokio::time::timeout(FLEET_PRESENCE_HUB_TIMEOUT, ..)` with `Ok(Err)/Err(_) => continue`, mirroring `cmd_agent_resolve` (agent.rs:~1138-1142)'
+  - 'The 8s bound is single-sourced via new `const FLEET_PRESENCE_HUB_TIMEOUT` applied to all 3 fleet-walk sites (resolve sibling migrated off its `Duration::from_secs(8)` literal — no magic-number drift possible)'
+  - 'Structural check (async-fixture fallback, per the OR clause): all 3 fleet-walk sites are timeout-wrapped; temp-revert-proven (unwrapping one site drops wraps 3→2 → check fails; restored)'
+  - '`cargo build -p termlink` clean'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/agent.rs'
+  - '.tasks/active/T-2659-agent-contact-fleet-walk-missing-per-hub.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-12T22:47:39"
+    action: "T-2659: bound the two agent-contact fleet-walks (dead hub no longer wedges /agent-handoff)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 13 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 13
+  commits: 1
+  files_changed: 2
+  lines_added: 54
+  lines_removed: 28
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2659-agent-contact-fleet-walk-missing-per-hub.md
+generated_by: context-agent-hybrid

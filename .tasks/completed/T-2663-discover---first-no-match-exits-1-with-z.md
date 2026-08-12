@@ -1,23 +1,23 @@
 ---
-id: T-2659
-name: "agent contact fleet-walk missing per-hub timeout that resolve has — dead hub wedges agent-handoff"
+id: T-2663
+name: "discover --first no-match exits 1 with zero output in text mode (json mode prints)"
 description: >
-  agent contact fleet-walk missing per-hub timeout
+  discover --first text-mode silent exit-1 vs json error asymmetry
 
 status: work-completed
 workflow_type: build
 owner: agent
 horizon: null
 tags: []
-components: [crates/termlink-cli/src/commands/agent.rs]
+components: [crates/termlink-cli/src/commands/metadata.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-12T20:34:17Z
-last_update: 2026-08-12T20:47:44Z
-date_finished: 2026-08-12T20:47:44Z
+created: 2026-08-12T20:57:23Z
+last_update: 2026-08-12T20:59:11Z
+date_finished: 2026-08-12T20:59:11Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -30,31 +30,25 @@ date_finished: 2026-08-12T20:47:44Z
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2659: agent contact fleet-walk missing per-hub timeout that resolve has — dead hub wedges agent-handoff
+# T-2663: discover --first no-match exits 1 with zero output in text mode (json mode prints)
 
 ## Context
 
-Verified in code (round-12 divergence hunt, 2026-08-12). `cmd_agent_contact`'s
-cross-host resolution helpers `resolve_contact_via_fleet` (agent.rs:~813-819) and
-`resolve_contact_fp_via_fleet` (agent.rs:~874-880) call
-`super::channel::fetch_presence_msgs(Some(&entry.address)).await` **raw** inside a
-`for entry in config.hubs.values()` loop — no per-hub timeout. The IDENTICAL
-per-hub presence walk in `cmd_agent_resolve` (agent.rs:~1136-1138) wraps the same
-`fetch_presence_msgs` in `tokio::time::timeout(Duration::from_secs(8), ..)` with a
-comment (~1132-1135) explaining it was added *precisely because* "one unreachable
-hub in hubs.toml stalled resolve". The two `agent contact` siblings never got that
-bound → a single half-open / dead hub in `hubs.toml` wedges the entire cross-host
-contact resolution — i.e. the `/agent-handoff` path — **forever**. Divergence
-class C (hardened in one place, sibling not migrated). HIGH value: `/agent-handoff`
-is a load-bearing daily comms verb.
+Verified in code (round-14 hunt, 2026-08-12). `cmd_discover` with `--first` and no
+matching session (metadata.rs:288-293): JSON mode emits
+`{"ok":false,"error":"No matching sessions"}`, but text mode calls
+`std::process::exit(1)` with **no stderr at all**. A human running
+`termlink discover --first --name foo` gets a bare exit-1 and cannot distinguish
+"no match" from a crash. The sibling non-`--first` empty path (metadata.rs:318-327)
+DOES print "No sessions match the specified filters." / "No sessions discovered."
+Directive #2 (no silent failure) — json/text asymmetry.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] Both `resolve_contact_via_fleet` and `resolve_contact_fp_via_fleet` wrap each per-hub `fetch_presence_msgs(..)` in `tokio::time::timeout(FLEET_PRESENCE_HUB_TIMEOUT, ..)` with `Ok(Err)/Err(_) => continue`, mirroring `cmd_agent_resolve` (agent.rs:~1138-1142)
-- [x] The 8s bound is single-sourced via new `const FLEET_PRESENCE_HUB_TIMEOUT` applied to all 3 fleet-walk sites (resolve sibling migrated off its `Duration::from_secs(8)` literal — no magic-number drift possible)
-- [x] Structural check (async-fixture fallback, per the OR clause): all 3 fleet-walk sites are timeout-wrapped; temp-revert-proven (unwrapping one site drops wraps 3→2 → check fails; restored)
+- [x] Text-mode `--first` no-match path emits an actionable stderr line (`No matching sessions.`) before `std::process::exit(1)`, mirroring the non-`--first` empty path + the JSON branch
 - [x] `cargo build -p termlink` clean
+- [x] Structural check: the `--first` empty branch contains an `eprintln!` before its `std::process::exit(1)` (temp-revert-provable — removing the eprintln → check fails; restored)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -90,8 +84,8 @@ is a load-bearing daily comms verb.
 ## Verification
 
 cargo build -p termlink 2>&1 | grep -q "Finished"
-# structural: all 3 fleet-walk presence sites are timeout-wrapped (temp-revert-provable)
-python3 -c "s=open('crates/termlink-cli/src/commands/agent.rs').read(); import sys; sites=s.count('fetch_presence_msgs(Some(&entry.address))'); wraps=s.count('tokio::time::timeout(FLEET_PRESENCE_HUB_TIMEOUT'); sys.exit(0 if sites==3 and wraps==3 else 1)"
+# structural: the --first empty branch eprintln's before exit(1) (temp-revert-provable)
+python3 -c "s=open('crates/termlink-cli/src/commands/metadata.rs').read(); i=s.index('\"error\": \"No matching sessions\"'); w=s.index('std::process::exit(1)', i); import sys; sys.exit(0 if 'eprintln!' in s[i:w] else 1)"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -140,28 +134,19 @@ python3 -c "s=open('crates/termlink-cli/src/commands/agent.rs').read(); import s
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
-**Symptom:** `termlink agent contact <peer> ...` (and the `/agent-handoff` skill
-that wraps it) hangs indefinitely when any hub listed in `hubs.toml` is up-enough
-to accept a TCP connection but never completes the presence read (half-open / dead
-runner).
+**Symptom:** `termlink discover --first --name <nomatch>` prints nothing and exits 1;
+indistinguishable from a crash. In `--json` the same case prints an error object.
 
-**Root cause:** `resolve_contact_via_fleet` + `resolve_contact_fp_via_fleet` call
-`fetch_presence_msgs` per hub with no `tokio::time::timeout` wrapper; one wedged hub
-blocks the whole loop.
+**Root cause:** the text-mode `--first` empty branch (metadata.rs:292) does a bare
+`std::process::exit(1)` with no `eprintln`; only the JSON sub-branch emits a message.
 
-**Why structurally allowed:** the timeout guard was added to `cmd_agent_resolve`
-(T-2293-era) in response to the exact same stall, but the two `agent contact`
-siblings — which predate or postdate that fix — were never audited against it. Same
-"hardened once, sibling diverged" class as T-2636 / T-2650 / T-2657.
+**Why structurally allowed:** the empty-result diagnostic was written per-branch, and
+the `--first` text branch was the one that missed it — no convention forces "every
+non-zero exit prints a reason". Same json/text-asymmetry class as T-2657/T-2654.
 
-**Prevention:** unify the 3 fleet-walk sites on a shared timeout const; add the
-"every per-hub `fetch_presence_msgs` is timeout-wrapped" invariant to the round-12
-divergence static-check candidate (sibling of T-2527/T-2531).
-
-**BUILT (round-13, 2026-08-12):** took the structural-check fallback from AC #3's
-OR clause rather than standing up a hung-hub async fixture — all 3 fleet-walk sites
-now single-source `FLEET_PRESENCE_HUB_TIMEOUT`; the check counts sites vs wraps
-(3==3) and is temp-revert-proven (unwrapping one site → 3 sites / 2 wraps → fail).
+**Prevention:** structural check asserts the branch eprintln's before exit; candidate
+for a round-14+ static check "every `process::exit(non-zero)` on a user path is
+preceded by a stderr/stdout message".
 
 ## Evolution
 
@@ -210,19 +195,18 @@ now single-source `FLEET_PRESENCE_HUB_TIMEOUT`; the check counts sites vs wraps
 
 ## Updates
 
-### 2026-08-12T20:34:17Z — task-created [task-create-agent]
+### 2026-08-12T20:57:23Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2659-agent-contact-fleet-walk-missing-per-hub.md
+- **Output:** /opt/termlink/.tasks/active/T-2663-discover---first-no-match-exits-1-with-z.md
 - **Context:** Initial task creation
 
-### 2026-08-12T20:44:34Z — status-update [task-update-agent]
+### 2026-08-12T20:57:37Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
-- **Change:** horizon: next → now (auto-sync)
 
 ## Reviewer Verdict (v1.5)
 
-- **Scan ID:** R-dd2e599c
-- **Timestamp:** 2026-08-12T20:48:20Z
+- **Scan ID:** R-74bd546f
+- **Timestamp:** 2026-08-12T20:59:45Z
 - **Catalogue:** v1.3-seed
 - **Overall:** CONCERN
 - **Needs Human:** no
@@ -233,5 +217,5 @@ now single-source `FLEET_PRESENCE_HUB_TIMEOUT`; the check counts sites vs wraps
   1. **l387-sigpipe-risk** (partial, heuristic) @ Verification:line 1
      - evidence: `cargo build -p termlink 2>&1 | grep -q "Finished"`
 
-### 2026-08-12T20:47:44Z — status-update [task-update-agent]
+### 2026-08-12T20:59:11Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed

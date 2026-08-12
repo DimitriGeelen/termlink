@@ -1,23 +1,23 @@
 ---
-id: T-2659
-name: "agent contact fleet-walk missing per-hub timeout that resolve has — dead hub wedges agent-handoff"
+id: T-2664
+name: "termlink request subscribe-loop swallows dead-session error into misleading timeout + busy-spins"
 description: >
-  agent contact fleet-walk missing per-hub timeout
+  request wait-loop swallows subscribe error, no backoff, misleading timeout
 
-status: work-completed
+status: captured
 workflow_type: build
 owner: agent
-horizon: null
+horizon: next
 tags: []
-components: [crates/termlink-cli/src/commands/agent.rs]
+components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-12T20:34:17Z
-last_update: 2026-08-12T20:47:44Z
-date_finished: 2026-08-12T20:47:44Z
+created: 2026-08-12T21:00:09Z
+last_update: 2026-08-12T21:00:09Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -30,31 +30,28 @@ date_finished: 2026-08-12T20:47:44Z
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2659: agent contact fleet-walk missing per-hub timeout that resolve has — dead hub wedges agent-handoff
+# T-2664: termlink request subscribe-loop swallows dead-session error into misleading timeout + busy-spins
 
 ## Context
 
-Verified in code (round-12 divergence hunt, 2026-08-12). `cmd_agent_contact`'s
-cross-host resolution helpers `resolve_contact_via_fleet` (agent.rs:~813-819) and
-`resolve_contact_fp_via_fleet` (agent.rs:~874-880) call
-`super::channel::fetch_presence_msgs(Some(&entry.address)).await` **raw** inside a
-`for entry in config.hubs.values()` loop — no per-hub timeout. The IDENTICAL
-per-hub presence walk in `cmd_agent_resolve` (agent.rs:~1136-1138) wraps the same
-`fetch_presence_msgs` in `tokio::time::timeout(Duration::from_secs(8), ..)` with a
-comment (~1132-1135) explaining it was added *precisely because* "one unreachable
-hub in hubs.toml stalled resolve". The two `agent contact` siblings never got that
-bound → a single half-open / dead hub in `hubs.toml` wedges the entire cross-host
-contact resolution — i.e. the `/agent-handoff` path — **forever**. Divergence
-class C (hardened in one place, sibling not migrated). HIGH value: `/agent-handoff`
-is a load-bearing daily comms verb.
+Verified in code (round-14 hunt, 2026-08-12). `termlink request`'s reply-wait loop
+(execution.rs:233-291) calls `client::rpc_call(.., "event.subscribe", ..)` each
+iteration; the `Err` arm at execution.rs:287-289 does
+`tracing::warn!("Subscribe error: {}", e);` then re-loops with **no sleep**. If the
+target session dies (socket gone → connect refused, returns fast), the loop
+busy-spins (CPU + log flood) until the full `--timeout` elapses, then reports the
+generic `"Timeout waiting for reply on topic '{}'"`. The user sees a benign timeout;
+the real cause (session/socket dead) is discarded. Two defects in one arm: (a)
+busy-spin with no backoff (same class as T-2658), (b) the disconnect cause swallowed
+into a misleading timeout. Loud sibling: the emit `rpc_call` at execution.rs:197-205
+surfaces its error via `bail!("Failed to emit request event: {e}")`.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] Both `resolve_contact_via_fleet` and `resolve_contact_fp_via_fleet` wrap each per-hub `fetch_presence_msgs(..)` in `tokio::time::timeout(FLEET_PRESENCE_HUB_TIMEOUT, ..)` with `Ok(Err)/Err(_) => continue`, mirroring `cmd_agent_resolve` (agent.rs:~1138-1142)
-- [x] The 8s bound is single-sourced via new `const FLEET_PRESENCE_HUB_TIMEOUT` applied to all 3 fleet-walk sites (resolve sibling migrated off its `Duration::from_secs(8)` literal — no magic-number drift possible)
-- [x] Structural check (async-fixture fallback, per the OR clause): all 3 fleet-walk sites are timeout-wrapped; temp-revert-proven (unwrapping one site drops wraps 3→2 → check fails; restored)
-- [x] `cargo build -p termlink` clean
+- [ ] The subscribe-loop `Err` arm either breaks with the real error OR (if transient-tolerant) sleeps a backoff before retry AND preserves the last error so the eventual timeout message names the disconnect cause instead of a generic timeout
+- [ ] Decide + record in `## Decisions`: break-on-disconnect (fail fast, like `cmd_wait` events.rs:998-1008) vs. retry-with-backoff-and-surface (how many consecutive errors before giving up?)
+- [ ] Behavior proven via a dead-session fixture OR a structural check (Err arm has a backoff sleep + non-tracing surfacing); `cargo build -p termlink` clean
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -88,10 +85,6 @@ is a load-bearing daily comms verb.
 -->
 
 ## Verification
-
-cargo build -p termlink 2>&1 | grep -q "Finished"
-# structural: all 3 fleet-walk presence sites are timeout-wrapped (temp-revert-provable)
-python3 -c "s=open('crates/termlink-cli/src/commands/agent.rs').read(); import sys; sites=s.count('fetch_presence_msgs(Some(&entry.address))'); wraps=s.count('tokio::time::timeout(FLEET_PRESENCE_HUB_TIMEOUT'); sys.exit(0 if sites==3 and wraps==3 else 1)"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -140,28 +133,23 @@ python3 -c "s=open('crates/termlink-cli/src/commands/agent.rs').read(); import s
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
-**Symptom:** `termlink agent contact <peer> ...` (and the `/agent-handoff` skill
-that wraps it) hangs indefinitely when any hub listed in `hubs.toml` is up-enough
-to accept a TCP connection but never completes the presence read (half-open / dead
-runner).
+**Symptom:** `termlink request` against a session that dies mid-wait spins a CPU core
++ floods logs, then reports a generic timeout that hides the real cause (session dead).
 
-**Root cause:** `resolve_contact_via_fleet` + `resolve_contact_fp_via_fleet` call
-`fetch_presence_msgs` per hub with no `tokio::time::timeout` wrapper; one wedged hub
-blocks the whole loop.
+**Root cause:** the subscribe-loop `Err` arm (execution.rs:287) logs to `tracing::warn`
+(invisible at default level) and re-loops with no backoff and no error preservation.
 
-**Why structurally allowed:** the timeout guard was added to `cmd_agent_resolve`
-(T-2293-era) in response to the exact same stall, but the two `agent contact`
-siblings — which predate or postdate that fix — were never audited against it. Same
-"hardened once, sibling diverged" class as T-2636 / T-2650 / T-2657.
+**Why structurally allowed:** the busy-loop backoff convention (T-2636/T-2640/T-2658)
+and the loud-disconnect convention (`cmd_wait`) both exist but were never applied to
+this loop — the same "hardened elsewhere, sibling diverged" class.
 
-**Prevention:** unify the 3 fleet-walk sites on a shared timeout const; add the
-"every per-hub `fetch_presence_msgs` is timeout-wrapped" invariant to the round-12
-divergence static-check candidate (sibling of T-2527/T-2531).
+**Prevention:** the round-14 static-check candidate "hub/subscribe-retry `continue` on
+Err with no preceding backoff" (already scoped from T-2658) would catch the busy-spin
+half; a companion "loop-error surfaced to user not just tracing::warn" catches the
+swallow half.
 
-**BUILT (round-13, 2026-08-12):** took the structural-check fallback from AC #3's
-OR clause rather than standing up a hung-hub async fixture — all 3 fleet-walk sites
-now single-source `FLEET_PRESENCE_HUB_TIMEOUT`; the check counts sites vs wraps
-(3==3) and is temp-revert-proven (unwrapping one site → 3 sites / 2 wraps → fail).
+**Filed not built:** dead-session async fixture + a design call (fail-fast vs retry) —
+fixture + design-decision class, consistent with T-2662.
 
 ## Evolution
 
@@ -210,28 +198,7 @@ now single-source `FLEET_PRESENCE_HUB_TIMEOUT`; the check counts sites vs wraps
 
 ## Updates
 
-### 2026-08-12T20:34:17Z — task-created [task-create-agent]
+### 2026-08-12T21:00:09Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2659-agent-contact-fleet-walk-missing-per-hub.md
+- **Output:** /opt/termlink/.tasks/active/T-2664-termlink-request-subscribe-loop-swallows.md
 - **Context:** Initial task creation
-
-### 2026-08-12T20:44:34Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
-- **Change:** horizon: next → now (auto-sync)
-
-## Reviewer Verdict (v1.5)
-
-- **Scan ID:** R-dd2e599c
-- **Timestamp:** 2026-08-12T20:48:20Z
-- **Catalogue:** v1.3-seed
-- **Overall:** CONCERN
-- **Needs Human:** no
-- **Findings:** 1
-
-**Verification-level findings:**
-
-  1. **l387-sigpipe-risk** (partial, heuristic) @ Verification:line 1
-     - evidence: `cargo build -p termlink 2>&1 | grep -q "Finished"`
-
-### 2026-08-12T20:47:44Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed
