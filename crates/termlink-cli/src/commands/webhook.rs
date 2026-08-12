@@ -274,10 +274,20 @@ pub(crate) async fn cmd_webhook_test(
         .as_ref()
         .and_then(|c| c.targets.iter().find(|t| t.url == url));
 
+    let explicit_key = signing_key.is_some();
+    let matched_config = matching.is_some();
     let key = signing_key
         .map(|k| k.to_string())
         .or_else(|| matching.map(|t| t.signing_key.clone()))
         .unwrap_or_else(|| "test-key".to_string());
+
+    // Surface the placeholder-key fallback loudly: a `test` that silently signs with
+    // "test-key" and reports success would let an operator believe a real endpoint is
+    // correctly signed when the consumer will reject the placeholder signature.
+    let placeholder_signing_key = placeholder_key_warning(explicit_key, matched_config);
+    if let Some(warn) = &placeholder_signing_key {
+        eprintln!("{warn}");
+    }
 
     // Build the effective allowlist: config's + operator extras. The URL's own
     // host is NOT auto-added — `test` mirrors production deny-by-default, so a host
@@ -313,7 +323,7 @@ pub(crate) async fn cmd_webhook_test(
     match result {
         Ok(status) => {
             if json {
-                println!("{}", serde_json::json!({"ok": true, "url": url, "http_status": status, "topic": sample_topic}));
+                println!("{}", serde_json::json!({"ok": true, "url": url, "http_status": status, "topic": sample_topic, "placeholder_signing_key": placeholder_signing_key.is_some()}));
             } else {
                 println!("✓ dispatched to {url}");
                 println!("  http_status: {status}");
@@ -328,6 +338,7 @@ pub(crate) async fn cmd_webhook_test(
                 super::json_error_exit(serde_json::json!({
                     "ok": false, "url": url, "error": msg,
                     "host": host, "host_allowlisted": host_allowlisted,
+                    "placeholder_signing_key": placeholder_signing_key.is_some(),
                 }));
             }
             // SSRF refusal is loud, not swallowed.
@@ -342,12 +353,48 @@ pub(crate) async fn cmd_webhook_test(
     }
 }
 
+/// Decide whether `webhook test` fell back to the placeholder signing key.
+///
+/// Returns an actionable warning when NEITHER an explicit `--signing-key` NOR a matching
+/// config target supplied a real key — meaning the test payload was signed with the
+/// literal `"test-key"` placeholder, which the real consumer will reject. `None` when a
+/// real key was resolved. Kept pure so the decision is unit-testable independent of the
+/// async dispatch.
+fn placeholder_key_warning(explicit_key: bool, matched_config: bool) -> Option<String> {
+    if explicit_key || matched_config {
+        return None;
+    }
+    Some(
+        "warning: no signing key resolved — signing the test payload with the placeholder \
+         'test-key'. A real consumer verifying the HMAC will REJECT this signature, so a \
+         2xx here does not prove your signing is correct. Pass --signing-key <key>, or \
+         register the target first: termlink webhook add --url <url> --signing-key <key>."
+            .to_string(),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn mk_target(url: &str) -> WebhookTarget {
         WebhookTarget { url: url.to_string(), signing_key: "k".into(), topics: vec!["*".into()] }
+    }
+
+    #[test]
+    fn placeholder_key_warning_fires_only_on_fallback() {
+        // Both sources absent → placeholder used → actionable warning naming --signing-key.
+        let w = placeholder_key_warning(false, false);
+        assert!(w.is_some());
+        let msg = w.unwrap();
+        assert!(msg.contains("--signing-key"), "warning must name the remedy flag: {msg}");
+        assert!(msg.contains("test-key"), "warning must name the placeholder: {msg}");
+
+        // A real key from either source → no warning (load-bearing: reverting the fallback
+        // arm to None makes the false/false case fail).
+        assert!(placeholder_key_warning(true, false).is_none());
+        assert!(placeholder_key_warning(false, true).is_none());
+        assert!(placeholder_key_warning(true, true).is_none());
     }
 
     #[test]
