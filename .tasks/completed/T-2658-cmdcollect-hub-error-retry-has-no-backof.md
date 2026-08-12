@@ -1,8 +1,8 @@
 ---
-id: T-2657
-name: "cmd_broadcast empty-targets bail discards channel.post cause + gives no next step"
+id: T-2658
+name: "cmd_collect hub-error retry has no backoff — CPU busy-loop, silent in --json"
 description: >
-  cmd_broadcast empty-targets bail discards channel.post cause + gives no next step
+  cmd_collect hub-error retry has no backoff — CPU busy-loop, silent in --json
 
 status: work-completed
 workflow_type: build
@@ -15,9 +15,9 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-12T20:22:40Z
-last_update: 2026-08-12T20:26:41Z
-date_finished: 2026-08-12T20:26:41Z
+created: 2026-08-12T20:29:25Z
+last_update: 2026-08-12T20:32:26Z
+date_finished: 2026-08-12T20:32:26Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -30,32 +30,31 @@ date_finished: 2026-08-12T20:26:41Z
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2657: cmd_broadcast empty-targets bail discards channel.post cause + gives no next step
+# T-2658: cmd_collect hub-error retry has no backoff — CPU busy-loop, silent in --json
 
 ## Context
 
-`cmd_broadcast` (crates/termlink-cli/src/commands/events.rs) — the empty-targets
-path (`termlink broadcast <topic>` with no `--targets`) now routes exclusively
-through `channel.post(broadcast:global)` because `event.broadcast` is retiring
-(T-1166). `try_broadcast_via_channel_post` (events.rs:~60) builds precise error
-causes on failure — `"channel.post timed out"`, `"channel.post connect: {e}"`,
-`"channel.post error: {e}"`, `"channel.post response missing offset"`. But the
-call site at events.rs:~289 uses `if targets.is_empty() && let Ok(offset) = ...`
-which **discards the `Err`**, and the empty-targets bail at events.rs:~321 emits a
-FIXED generic string — `"channel.post(broadcast:global) failed and event.broadcast
-is retiring (T-1166); no usable broadcast path"` — that names neither the cause
-nor a recovery command. Directive #2 (no silent failures) + Directive #3
-(actionable errors) both violated; the loud sibling is the inner `map_err` chain
-whose rich errors never reach the user.
+`cmd_collect` (crates/termlink-cli/src/commands/events.rs:~1261) drives an
+`event.collect` retry loop. Its hub-error arm (events.rs:1338-1343) does
+`eprintln!(...Retrying...); continue;` with **no backoff sleep**. A dead / half-open
+hub socket makes `client::rpc_call("event.collect")` return near-instantly, so the
+`continue` re-dispatches with zero delay and pins a CPU core at 100% until the
+deadline (or forever when `timeout_secs==0` → `deadline=None`). In `--json` mode the
+`eprintln` is gated out, so it also spins **silently**. Every sibling loop in this
+file already backs off 500ms on this exact error: `cmd_watch_hub` (events.rs:898-900),
+the multi-session all-errored tick (events.rs:803-805 via `watch_tick_all_errored`,
+T-2636), and dispatch.rs `COLLECT_ERR_BACKOFF` (T-2640, whose comment literally cites
+"the events.rs T-2636 sleep-on-error convention"). `cmd_collect` is the one hub loop
+that never got the guard — a pure Directive #2 (no-silent-failure / observable)
+divergence.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] Pure helper `broadcast_no_path_msg(cause: Option<&str>) -> String` added, interpolating the captured channel.post cause AND a next-step hint (`fleet doctor` / retry with explicit `--targets`) when a cause is present
-- [x] `cmd_broadcast` empty-targets path restructured from `if let Ok(offset)` naked-discard to a `match` that captures the `Err` string; both the `--json` error branch and the `anyhow::bail!` route through `broadcast_no_path_msg(cause)`
-- [x] Unit test asserts `broadcast_no_path_msg(Some("channel.post timed out"))` contains BOTH the cause substring and the `fleet doctor` hint; `broadcast_no_path_msg(None)` returns the bare base string (back-compat for the non-empty-targets fall-through)
-- [x] Test proven load-bearing via temp-revert (drop the cause interpolation → test fails; restored)
-- [x] `cargo test -p termlink --bins broadcast_no_path` green (2 passed); `cargo build -p termlink` clean
+- [x] `cmd_collect`'s hub-error arm sleeps `Duration::from_millis(500)` before `continue`, mirroring `cmd_watch_hub` (events.rs:898-900) and the T-2636/T-2640 backoff convention
+- [x] A `// T-2658` comment cites the divergence + names the sibling convention so a future reader sees why the sleep is load-bearing (not incidental)
+- [x] `cargo build -p termlink` clean; existing `watch_tick_all_errored` tests still green (2 passed)
+- [x] Structural check: the `cmd_collect` retry loop's Err arm contains a `tokio::time::sleep(` before its `continue` (temp-revert-provable — removing the sleep raised ValueError → non-zero; restored)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -90,9 +89,9 @@ whose rich errors never reach the user.
 
 ## Verification
 
-cargo test -p termlink --bins broadcast_no_path 2>&1 | grep -q "test result: ok"
-# structural check: the empty-targets bail routes through the helper, not a fixed string
-python3 -c "s=open('crates/termlink-cli/src/commands/events.rs').read(); import sys; sys.exit(0 if 'broadcast_no_path_msg(' in s and s.count('broadcast_no_path_msg')>=3 else 1)"
+cargo test -p termlink --bins watch_tick_all_errored 2>&1 | grep -q "test result: ok"
+# structural: within cmd_collect, the retry Err arm sleeps before continue (temp-revert-provable)
+python3 -c "s=open('crates/termlink-cli/src/commands/events.rs').read(); b=s[s.index('async fn cmd_collect'):]; r=b.index('Retrying'); import sys; sys.exit(0 if b.index('tokio::time::sleep(',r) < b.index('continue;',r) else 1)"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -141,27 +140,25 @@ python3 -c "s=open('crates/termlink-cli/src/commands/events.rs').read(); import 
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
-**Symptom:** `termlink broadcast <topic>` (no `--targets`) against a hub where
-channel.post fails (timeout, connect-refused, older hub, signing/identity issue)
-prints only `"channel.post(broadcast:global) failed and event.broadcast is
-retiring (T-1166); no usable broadcast path"` — no cause, no next command. In
-`--json` the same generic string is the only `error` field.
+**Symptom:** `termlink event collect` (esp. `--json`) against a dead / half-open
+hub pins a CPU core at 100% and, in `--json`, does so with no output at all — the
+command appears hung and hot.
 
-**Root cause:** `if targets.is_empty() && let Ok(offset) = try_broadcast_via_channel_post(...)`
-at events.rs:~289 discards the `Err`; the bail at ~321 hardcodes a cause-free,
-hint-free string. The rich `map_err` chain inside `try_broadcast_via_channel_post`
-(`channel.post timed out` / `connect: {e}` / `error: {e}`) is thrown away.
+**Root cause:** the hub-error arm at events.rs:1338-1343 re-dispatches `event.collect`
+via `continue` with no delay. `rpc_call` on a dead socket returns in microseconds, so
+the loop spins as fast as the CPU allows. The `eprintln` diagnostic is `if !json`-gated,
+so `--json` spins silently.
 
-**Why structurally allowed:** the `if let Ok` boolean-guard idiom silently drops
-the `Err` binding — there is no compiler warning for a discarded error in a
-short-circuit `&&` chain, and no lint enforces the PL-306 loud-refuse-with-hint
-convention that sibling paths (`cmd_wait` disconnect bail) already follow.
+**Why structurally allowed:** the backoff was added to sibling loops one at a time
+(`cmd_watch_hub`, the multi-session tick via `watch_tick_all_errored` T-2636,
+dispatch.rs `COLLECT_ERR_BACKOFF` T-2640) but never audited fleet-wide across every
+hub-retry loop in the file — the exact "hardened in one place, sibling not migrated"
+divergence class T-2636's own comment (events.rs:586) warned about.
 
-**Prevention:** the pure `broadcast_no_path_msg` helper makes the failure message
-construction unit-testable + temp-revert-provable; the structural Verification
-check asserts the call site routes through the helper (≥3 references) rather than
-reintroducing a fixed string. Candidate for the round-12 `_ => fixed-string`
-static-check prevention sweep (sibling of T-2527/T-2531 source checks).
+**Prevention:** the structural Verification check asserts the sleep is present in the
+cmd_collect Err arm; this loop is now the last un-guarded hub-retry loop in events.rs.
+A source-level static check "every hub-retry `continue` on Err has a preceding backoff"
+is a candidate for the round-12 prevention sweep (sibling of T-2527/T-2531).
 
 ## Evolution
 
@@ -210,15 +207,15 @@ static-check prevention sweep (sibling of T-2527/T-2531 source checks).
 
 ## Updates
 
-### 2026-08-12T20:22:40Z — task-created [task-create-agent]
+### 2026-08-12T20:29:25Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2657-cmdbroadcast-empty-targets-bail-discards.md
+- **Output:** /opt/termlink/.tasks/active/T-2658-cmdcollect-hub-error-retry-has-no-backof.md
 - **Context:** Initial task creation
 
 ## Reviewer Verdict (v1.5)
 
-- **Scan ID:** R-f1b9a278
-- **Timestamp:** 2026-08-12T20:27:15Z
+- **Scan ID:** R-4bcc711d
+- **Timestamp:** 2026-08-12T20:32:59Z
 - **Catalogue:** v1.3-seed
 - **Overall:** CONCERN
 - **Needs Human:** no
@@ -227,7 +224,7 @@ static-check prevention sweep (sibling of T-2527/T-2531 source checks).
 **Verification-level findings:**
 
   1. **l387-sigpipe-risk** (partial, heuristic) @ Verification:line 1
-     - evidence: `cargo test -p termlink --bins broadcast_no_path 2>&1 | grep -q "test result: ok"`
+     - evidence: `cargo test -p termlink --bins watch_tick_all_errored 2>&1 | grep -q "test result: ok"`
 
-### 2026-08-12T20:26:41Z — status-update [task-update-agent]
+### 2026-08-12T20:32:26Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed

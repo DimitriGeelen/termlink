@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2657: cmd_broadcast empty-targets bail discards channel.post cause + gives no next step
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-12T20:27:18Z
+# ============================================================================
+
+task_id: T-2657
+task_name: "cmd_broadcast empty-targets bail discards channel.post cause + gives no next step"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-12T20:22:40Z
+completed: 2026-08-12T20:26:41Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-12T22:26:23+02:00
+last_commit: 2026-08-12T22:26:41+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  cmd_broadcast empty-targets bail now names channel.post cause + recovery hint. tick agent ACs (all satisfied, evidenced)
+
+# Key outcomes
+outcomes:
+  - 'Pure helper `broadcast_no_path_msg(cause: Option<&str>) -> String` added, interpolating the captured channel.post cause AND a next-step hint (`fleet doctor` / retry with explicit `--targets`) when a cause is present'
+  - '`cmd_broadcast` empty-targets path restructured from `if let Ok(offset)` naked-discard to a `match` that captures the `Err` string; both the `--json` error branch and the `anyhow::bail!` route through `broadcast_no_path_msg(cause)`'
+  - 'Unit test asserts `broadcast_no_path_msg(Some("channel.post timed out"))` contains BOTH the cause substring and the `fleet doctor` hint; `broadcast_no_path_msg(None)` returns the bare base string (back-compat for the non-empty-targets fall-through)'
+  - 'Test proven load-bearing via temp-revert (drop the cause interpolation → test fails; restored)'
+  - '`cargo test -p termlink --bins broadcast_no_path` green (2 passed); `cargo build -p termlink` clean'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/events.rs'
+  - '.tasks/active/T-2657-cmdbroadcast-empty-targets-bail-discards.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-12T22:26:23"
+    action: "T-2657: cmd_broadcast empty-targets bail now names channel.post cause + recovery hint"
+  - time: "2026-08-12T22:26:41"
+    action: "T-2657: tick agent ACs (all satisfied, evidenced)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 2
+  files_changed: 2
+  lines_added: 308
+  lines_removed: 30
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2657-cmdbroadcast-empty-targets-bail-discards.md
+generated_by: context-agent-hybrid

@@ -1,23 +1,23 @@
 ---
-id: T-2657
-name: "cmd_broadcast empty-targets bail discards channel.post cause + gives no next step"
+id: T-2660
+name: "agent ask/negotiate treat --timeout 0 as instant-fail while listen+wire treat 0 as forever"
 description: >
-  cmd_broadcast empty-targets bail discards channel.post cause + gives no next step
+  timeout-0 footgun divergence between ask/negotiate and listen
 
-status: work-completed
+status: captured
 workflow_type: build
 owner: agent
-horizon: null
+horizon: next
 tags: []
-components: [crates/termlink-cli/src/commands/events.rs]
+components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-12T20:22:40Z
-last_update: 2026-08-12T20:26:41Z
-date_finished: 2026-08-12T20:26:41Z
+created: 2026-08-12T20:34:27Z
+last_update: 2026-08-12T20:34:27Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -30,32 +30,42 @@ date_finished: 2026-08-12T20:26:41Z
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2657: cmd_broadcast empty-targets bail discards channel.post cause + gives no next step
+# T-2660: agent ask/negotiate treat --timeout 0 as instant-fail while listen+wire treat 0 as forever
 
 ## Context
 
-`cmd_broadcast` (crates/termlink-cli/src/commands/events.rs) — the empty-targets
-path (`termlink broadcast <topic>` with no `--targets`) now routes exclusively
-through `channel.post(broadcast:global)` because `event.broadcast` is retiring
-(T-1166). `try_broadcast_via_channel_post` (events.rs:~60) builds precise error
-causes on failure — `"channel.post timed out"`, `"channel.post connect: {e}"`,
-`"channel.post error: {e}"`, `"channel.post response missing offset"`. But the
-call site at events.rs:~289 uses `if targets.is_empty() && let Ok(offset) = ...`
-which **discards the `Err`**, and the empty-targets bail at events.rs:~321 emits a
-FIXED generic string — `"channel.post(broadcast:global) failed and event.broadcast
-is retiring (T-1166); no usable broadcast path"` — that names neither the cause
-nor a recovery command. Directive #2 (no silent failures) + Directive #3
-(actionable errors) both violated; the loud sibling is the inner `map_err` chain
-whose rich errors never reach the user.
+Verified in code (round-12 footgun hunt, 2026-08-12). `cmd_agent_ask` (agent.rs)
+encodes `timeout_secs: if timeout > 0 { Some(timeout) } else { None }` (agent.rs:71)
+— i.e. `--timeout 0` tells the PEER the request is **open-ended** — but locally sets
+`timeout_dur = Duration::from_secs(0)` (agent.rs:140) so the very first loop
+iteration hits `remaining.is_zero()` (agent.rs:145-146) and **bails instantly** with
+the timeout message. `cmd_agent_negotiate` has the identical shape (agent.rs:445 wire
+encoding, 468 `timeout_dur`, 616 elapsed check). The sibling `agent listen`
+documents + honors `0 = listen forever` (cli.rs:4519). So a user carrying the
+documented `listen` "0 = forever" convention to `ask`/`negotiate` gets an instant,
+surprising failure — while the peer believes the request is open-ended.
+
+**NOT a mechanical fix — a design decision with 3 defensible resolutions (this is
+why it is FILED, not autobuilt):**
+1. **Make `0 = forever` locally** (loop indefinitely, matching the wire `None` it
+   already sends + the listen convention). Aligns local with the already-shipped
+   wire semantic. Risk: an unbounded CLI hang with no other exit.
+2. **Reject `0` loudly** with an actionable error ("`--timeout 0` is not valid for
+   `ask`; pass a positive value, or use `agent listen` for open-ended waiting").
+   No hang, no wire-contract change — but still contradicts line 71's `None`.
+3. **Fix the wire encoding** so `0` maps to a bounded value (or is validated at the
+   clap layer), making local + wire consistent the other direction.
+Note: `ask` defaults to **30** (not 0) and does NOT document `0 = forever`, so this
+is genuinely ambiguous — a human/owner should pick the resolution.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] Pure helper `broadcast_no_path_msg(cause: Option<&str>) -> String` added, interpolating the captured channel.post cause AND a next-step hint (`fleet doctor` / retry with explicit `--targets`) when a cause is present
-- [x] `cmd_broadcast` empty-targets path restructured from `if let Ok(offset)` naked-discard to a `match` that captures the `Err` string; both the `--json` error branch and the `anyhow::bail!` route through `broadcast_no_path_msg(cause)`
-- [x] Unit test asserts `broadcast_no_path_msg(Some("channel.post timed out"))` contains BOTH the cause substring and the `fleet doctor` hint; `broadcast_no_path_msg(None)` returns the bare base string (back-compat for the non-empty-targets fall-through)
-- [x] Test proven load-bearing via temp-revert (drop the cause interpolation → test fails; restored)
-- [x] `cargo test -p termlink --bins broadcast_no_path` green (2 passed); `cargo build -p termlink` clean
+- [ ] A resolution is chosen (1/2/3 above) — record it in `## Decisions` with rationale before touching code
+- [ ] `cmd_agent_ask` and `cmd_agent_negotiate` handle `--timeout 0` consistently with the chosen resolution AND with each other AND with the wire encoding at agent.rs:71/445
+- [ ] Behavior is unit-testable in-process (no hub) — e.g. a pure helper mapping `timeout: u64 -> Option<Duration>` (or a validation result) that the loop consumes; test both `0` and a positive value; prove load-bearing via temp-revert
+- [ ] If resolution 1 (forever) is chosen, confirm there is a non-timeout exit path (Ctrl-C / peer response) so it cannot hang a script silently
+- [ ] `cargo build -p termlink` clean
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -89,10 +99,6 @@ whose rich errors never reach the user.
 -->
 
 ## Verification
-
-cargo test -p termlink --bins broadcast_no_path 2>&1 | grep -q "test result: ok"
-# structural check: the empty-targets bail routes through the helper, not a fixed string
-python3 -c "s=open('crates/termlink-cli/src/commands/events.rs').read(); import sys; sys.exit(0 if 'broadcast_no_path_msg(' in s and s.count('broadcast_no_path_msg')>=3 else 1)"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -141,27 +147,25 @@ python3 -c "s=open('crates/termlink-cli/src/commands/events.rs').read(); import 
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
-**Symptom:** `termlink broadcast <topic>` (no `--targets`) against a hub where
-channel.post fails (timeout, connect-refused, older hub, signing/identity issue)
-prints only `"channel.post(broadcast:global) failed and event.broadcast is
-retiring (T-1166); no usable broadcast path"` — no cause, no next command. In
-`--json` the same generic string is the only `error` field.
+**Symptom:** `termlink agent ask <peer> <action> --timeout 0` fails instantly with a
+timeout error, even though the peer is told the request is open-ended.
 
-**Root cause:** `if targets.is_empty() && let Ok(offset) = try_broadcast_via_channel_post(...)`
-at events.rs:~289 discards the `Err`; the bail at ~321 hardcodes a cause-free,
-hint-free string. The rich `map_err` chain inside `try_broadcast_via_channel_post`
-(`channel.post timed out` / `connect: {e}` / `error: {e}`) is thrown away.
+**Root cause:** asymmetric handling of `timeout == 0` — the wire encoding
+(agent.rs:71) treats it as "no timeout / forever" (`None`), but the local poll loop
+feeds it into `Duration::from_secs(0)` and bails on the first `remaining.is_zero()`.
 
-**Why structurally allowed:** the `if let Ok` boolean-guard idiom silently drops
-the `Err` binding — there is no compiler warning for a discarded error in a
-short-circuit `&&` chain, and no lint enforces the PL-306 loud-refuse-with-hint
-convention that sibling paths (`cmd_wait` disconnect bail) already follow.
+**Why structurally allowed:** three sibling commands (`ask`, `negotiate`, `listen`)
+each independently chose a `0` semantic; there is no shared timeout-parsing helper
+enforcing one convention, and no test pins the `0` case. `listen` documents
+`0 = forever`; `ask`/`negotiate` silently diverge.
 
-**Prevention:** the pure `broadcast_no_path_msg` helper makes the failure message
-construction unit-testable + temp-revert-provable; the structural Verification
-check asserts the call site routes through the helper (≥3 references) rather than
-reintroducing a fixed string. Candidate for the round-12 `_ => fixed-string`
-static-check prevention sweep (sibling of T-2527/T-2531 source checks).
+**Prevention:** a shared `parse_agent_timeout(u64) -> Option<Duration>` (or a
+validated enum) consumed by all three commands makes the `0` semantic single-sourced
++ unit-testable; add a test asserting the `0` mapping.
+
+**Filed not built:** the resolution is a UX/product design decision (3 options with
+different hang/consistency trade-offs) — must not be picked autonomously per the
+autonomous-mode authority boundary.
 
 ## Evolution
 
@@ -210,24 +214,7 @@ static-check prevention sweep (sibling of T-2527/T-2531 source checks).
 
 ## Updates
 
-### 2026-08-12T20:22:40Z — task-created [task-create-agent]
+### 2026-08-12T20:34:27Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2657-cmdbroadcast-empty-targets-bail-discards.md
+- **Output:** /opt/termlink/.tasks/active/T-2660-agent-asknegotiate-treat---timeout-0-as-.md
 - **Context:** Initial task creation
-
-## Reviewer Verdict (v1.5)
-
-- **Scan ID:** R-f1b9a278
-- **Timestamp:** 2026-08-12T20:27:15Z
-- **Catalogue:** v1.3-seed
-- **Overall:** CONCERN
-- **Needs Human:** no
-- **Findings:** 1
-
-**Verification-level findings:**
-
-  1. **l387-sigpipe-risk** (partial, heuristic) @ Verification:line 1
-     - evidence: `cargo test -p termlink --bins broadcast_no_path 2>&1 | grep -q "test result: ok"`
-
-### 2026-08-12T20:26:41Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed

@@ -1,13 +1,13 @@
 ---
-id: T-2658
-name: "cmd_collect hub-error retry has no backoff — CPU busy-loop, silent in --json"
+id: T-2659
+name: "agent contact fleet-walk missing per-hub timeout that resolve has — dead hub wedges agent-handoff"
 description: >
-  cmd_collect hub-error retry has no backoff — CPU busy-loop, silent in --json
+  agent contact fleet-walk missing per-hub timeout
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
-horizon: now
+horizon: next
 tags: []
 components: []
 related_tasks: []
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-12T20:29:25Z
-last_update: 2026-08-12T20:29:25Z
+created: 2026-08-12T20:34:17Z
+last_update: 2026-08-12T20:34:17Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,31 +30,31 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2658: cmd_collect hub-error retry has no backoff — CPU busy-loop, silent in --json
+# T-2659: agent contact fleet-walk missing per-hub timeout that resolve has — dead hub wedges agent-handoff
 
 ## Context
 
-`cmd_collect` (crates/termlink-cli/src/commands/events.rs:~1261) drives an
-`event.collect` retry loop. Its hub-error arm (events.rs:1338-1343) does
-`eprintln!(...Retrying...); continue;` with **no backoff sleep**. A dead / half-open
-hub socket makes `client::rpc_call("event.collect")` return near-instantly, so the
-`continue` re-dispatches with zero delay and pins a CPU core at 100% until the
-deadline (or forever when `timeout_secs==0` → `deadline=None`). In `--json` mode the
-`eprintln` is gated out, so it also spins **silently**. Every sibling loop in this
-file already backs off 500ms on this exact error: `cmd_watch_hub` (events.rs:898-900),
-the multi-session all-errored tick (events.rs:803-805 via `watch_tick_all_errored`,
-T-2636), and dispatch.rs `COLLECT_ERR_BACKOFF` (T-2640, whose comment literally cites
-"the events.rs T-2636 sleep-on-error convention"). `cmd_collect` is the one hub loop
-that never got the guard — a pure Directive #2 (no-silent-failure / observable)
-divergence.
+Verified in code (round-12 divergence hunt, 2026-08-12). `cmd_agent_contact`'s
+cross-host resolution helpers `resolve_contact_via_fleet` (agent.rs:~813-819) and
+`resolve_contact_fp_via_fleet` (agent.rs:~874-880) call
+`super::channel::fetch_presence_msgs(Some(&entry.address)).await` **raw** inside a
+`for entry in config.hubs.values()` loop — no per-hub timeout. The IDENTICAL
+per-hub presence walk in `cmd_agent_resolve` (agent.rs:~1136-1138) wraps the same
+`fetch_presence_msgs` in `tokio::time::timeout(Duration::from_secs(8), ..)` with a
+comment (~1132-1135) explaining it was added *precisely because* "one unreachable
+hub in hubs.toml stalled resolve". The two `agent contact` siblings never got that
+bound → a single half-open / dead hub in `hubs.toml` wedges the entire cross-host
+contact resolution — i.e. the `/agent-handoff` path — **forever**. Divergence
+class C (hardened in one place, sibling not migrated). HIGH value: `/agent-handoff`
+is a load-bearing daily comms verb.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] `cmd_collect`'s hub-error arm sleeps `Duration::from_millis(500)` before `continue`, mirroring `cmd_watch_hub` (events.rs:898-900) and the T-2636/T-2640 backoff convention
-- [x] A `// T-2658` comment cites the divergence + names the sibling convention so a future reader sees why the sleep is load-bearing (not incidental)
-- [x] `cargo build -p termlink` clean; existing `watch_tick_all_errored` tests still green (2 passed)
-- [x] Structural check: the `cmd_collect` retry loop's Err arm contains a `tokio::time::sleep(` before its `continue` (temp-revert-provable — removing the sleep raised ValueError → non-zero; restored)
+- [ ] Both `resolve_contact_via_fleet` and `resolve_contact_fp_via_fleet` wrap each per-hub `fetch_presence_msgs(..)` in `tokio::time::timeout(Duration::from_secs(8), ..)` with `Err(_) => continue`, mirroring `cmd_agent_resolve` (agent.rs:~1138-1142)
+- [ ] The 8s bound is sourced consistently with the resolve sibling (extract a shared `const FLEET_PRESENCE_HUB_TIMEOUT` if it reduces magic-number drift across the 3 sites)
+- [ ] Regression proof: a slow/hung-hub fixture (a hubs.toml entry pointing at an accept-but-never-respond socket) confirms contact resolution returns/continues within ~N×8s instead of hanging — OR, if no clean async fixture seam exists, a structural check asserting all 3 fleet-walk sites are timeout-wrapped (temp-revert-provable)
+- [ ] `cargo build -p termlink` clean
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -88,10 +88,6 @@ divergence.
 -->
 
 ## Verification
-
-cargo test -p termlink --bins watch_tick_all_errored 2>&1 | grep -q "test result: ok"
-# structural: within cmd_collect, the retry Err arm sleeps before continue (temp-revert-provable)
-python3 -c "s=open('crates/termlink-cli/src/commands/events.rs').read(); b=s[s.index('async fn cmd_collect'):]; r=b.index('Retrying'); import sys; sys.exit(0 if b.index('tokio::time::sleep(',r) < b.index('continue;',r) else 1)"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -140,25 +136,26 @@ python3 -c "s=open('crates/termlink-cli/src/commands/events.rs').read(); b=s[s.i
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
-**Symptom:** `termlink event collect` (esp. `--json`) against a dead / half-open
-hub pins a CPU core at 100% and, in `--json`, does so with no output at all — the
-command appears hung and hot.
+**Symptom:** `termlink agent contact <peer> ...` (and the `/agent-handoff` skill
+that wraps it) hangs indefinitely when any hub listed in `hubs.toml` is up-enough
+to accept a TCP connection but never completes the presence read (half-open / dead
+runner).
 
-**Root cause:** the hub-error arm at events.rs:1338-1343 re-dispatches `event.collect`
-via `continue` with no delay. `rpc_call` on a dead socket returns in microseconds, so
-the loop spins as fast as the CPU allows. The `eprintln` diagnostic is `if !json`-gated,
-so `--json` spins silently.
+**Root cause:** `resolve_contact_via_fleet` + `resolve_contact_fp_via_fleet` call
+`fetch_presence_msgs` per hub with no `tokio::time::timeout` wrapper; one wedged hub
+blocks the whole loop.
 
-**Why structurally allowed:** the backoff was added to sibling loops one at a time
-(`cmd_watch_hub`, the multi-session tick via `watch_tick_all_errored` T-2636,
-dispatch.rs `COLLECT_ERR_BACKOFF` T-2640) but never audited fleet-wide across every
-hub-retry loop in the file — the exact "hardened in one place, sibling not migrated"
-divergence class T-2636's own comment (events.rs:586) warned about.
+**Why structurally allowed:** the timeout guard was added to `cmd_agent_resolve`
+(T-2293-era) in response to the exact same stall, but the two `agent contact`
+siblings — which predate or postdate that fix — were never audited against it. Same
+"hardened once, sibling diverged" class as T-2636 / T-2650 / T-2657.
 
-**Prevention:** the structural Verification check asserts the sleep is present in the
-cmd_collect Err arm; this loop is now the last un-guarded hub-retry loop in events.rs.
-A source-level static check "every hub-retry `continue` on Err has a preceding backoff"
-is a candidate for the round-12 prevention sweep (sibling of T-2527/T-2531).
+**Prevention:** unify the 3 fleet-walk sites on a shared timeout const; add the
+"every per-hub `fetch_presence_msgs` is timeout-wrapped" invariant to the round-12
+divergence static-check candidate (sibling of T-2527/T-2531).
+
+**Filed not built:** needs a hung-hub async fixture (or the structural-check
+fallback) to prove load-bearing — fixture class, consistent with T-2655/T-2656.
 
 ## Evolution
 
@@ -207,7 +204,7 @@ is a candidate for the round-12 prevention sweep (sibling of T-2527/T-2531).
 
 ## Updates
 
-### 2026-08-12T20:29:25Z — task-created [task-create-agent]
+### 2026-08-12T20:34:17Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2658-cmdcollect-hub-error-retry-has-no-backof.md
+- **Output:** /opt/termlink/.tasks/active/T-2659-agent-contact-fleet-walk-missing-per-hub.md
 - **Context:** Initial task creation

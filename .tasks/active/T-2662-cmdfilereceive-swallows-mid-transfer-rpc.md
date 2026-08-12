@@ -1,23 +1,23 @@
 ---
-id: T-2657
-name: "cmd_broadcast empty-targets bail discards channel.post cause + gives no next step"
+id: T-2662
+name: "cmd_file_receive swallows mid-transfer RPC error into tracing.warn — user waits out full timeout"
 description: >
-  cmd_broadcast empty-targets bail discards channel.post cause + gives no next step
+  file receive swallows RPC error into tracing warn
 
-status: work-completed
+status: captured
 workflow_type: build
 owner: agent
-horizon: null
+horizon: next
 tags: []
-components: [crates/termlink-cli/src/commands/events.rs]
+components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-12T20:22:40Z
-last_update: 2026-08-12T20:26:41Z
-date_finished: 2026-08-12T20:26:41Z
+created: 2026-08-12T20:34:48Z
+last_update: 2026-08-12T20:34:48Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -30,32 +30,27 @@ date_finished: 2026-08-12T20:26:41Z
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2657: cmd_broadcast empty-targets bail discards channel.post cause + gives no next step
+# T-2662: cmd_file_receive swallows mid-transfer RPC error into tracing.warn — user waits out full timeout
 
 ## Context
 
-`cmd_broadcast` (crates/termlink-cli/src/commands/events.rs) — the empty-targets
-path (`termlink broadcast <topic>` with no `--targets`) now routes exclusively
-through `channel.post(broadcast:global)` because `event.broadcast` is retiring
-(T-1166). `try_broadcast_via_channel_post` (events.rs:~60) builds precise error
-causes on failure — `"channel.post timed out"`, `"channel.post connect: {e}"`,
-`"channel.post error: {e}"`, `"channel.post response missing offset"`. But the
-call site at events.rs:~289 uses `if targets.is_empty() && let Ok(offset) = ...`
-which **discards the `Err`**, and the empty-targets bail at events.rs:~321 emits a
-FIXED generic string — `"channel.post(broadcast:global) failed and event.broadcast
-is retiring (T-1166); no usable broadcast path"` — that names neither the cause
-nor a recovery command. Directive #2 (no silent failures) + Directive #3
-(actionable errors) both violated; the loud sibling is the inner `map_err` chain
-whose rich errors never reach the user.
+Verified in code (round-12 silent-failure hunt, 2026-08-12).
+`cmd_file_receive` (file.rs:810-812) handles a mid-transfer RPC error as
+`Ok(Err(e)) => { tracing::warn!("RPC error: {}", e); }` — logged ONLY via
+`tracing::warn` (invisible on the default `termlink=info` filter), then the loop
+retries silently until the generic `"Timeout waiting for file transfer ({}s)"`
+fires. The user waits out the FULL timeout and never learns the source session
+dropped. The loud sibling is `cmd_wait` (events.rs:998-1008), which treats a
+subscribe-loop `Err` as a hard, user-visible `"Session '{}' disconnected while
+waiting"` bail (+ JSON `reason:"disconnected"`). Directive #2 (no silent failure).
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] Pure helper `broadcast_no_path_msg(cause: Option<&str>) -> String` added, interpolating the captured channel.post cause AND a next-step hint (`fleet doctor` / retry with explicit `--targets`) when a cause is present
-- [x] `cmd_broadcast` empty-targets path restructured from `if let Ok(offset)` naked-discard to a `match` that captures the `Err` string; both the `--json` error branch and the `anyhow::bail!` route through `broadcast_no_path_msg(cause)`
-- [x] Unit test asserts `broadcast_no_path_msg(Some("channel.post timed out"))` contains BOTH the cause substring and the `fleet doctor` hint; `broadcast_no_path_msg(None)` returns the bare base string (back-compat for the non-empty-targets fall-through)
-- [x] Test proven load-bearing via temp-revert (drop the cause interpolation → test fails; restored)
-- [x] `cargo test -p termlink --bins broadcast_no_path` green (2 passed); `cargo build -p termlink` clean
+- [ ] A resolution is chosen + recorded in `## Decisions`: surface persistent/disconnect RPC errors to the user (stderr / JSON `reason`) vs. bail-on-disconnect like `cmd_wait`. (Design call: how many consecutive errors before surfacing? Is a single transient error tolerable?)
+- [ ] `cmd_file_receive` no longer swallows a disconnect into `tracing::warn` only — the user sees an actionable message before/instead-of waiting out the full timeout
+- [ ] Behavior proven (fixture: a source session that drops mid-transfer) OR structural check as fallback
+- [ ] `cargo build -p termlink` clean
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -89,10 +84,6 @@ whose rich errors never reach the user.
 -->
 
 ## Verification
-
-cargo test -p termlink --bins broadcast_no_path 2>&1 | grep -q "test result: ok"
-# structural check: the empty-targets bail routes through the helper, not a fixed string
-python3 -c "s=open('crates/termlink-cli/src/commands/events.rs').read(); import sys; sys.exit(0 if 'broadcast_no_path_msg(' in s and s.count('broadcast_no_path_msg')>=3 else 1)"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -141,27 +132,23 @@ python3 -c "s=open('crates/termlink-cli/src/commands/events.rs').read(); import 
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
-**Symptom:** `termlink broadcast <topic>` (no `--targets`) against a hub where
-channel.post fails (timeout, connect-refused, older hub, signing/identity issue)
-prints only `"channel.post(broadcast:global) failed and event.broadcast is
-retiring (T-1166); no usable broadcast path"` — no cause, no next command. In
-`--json` the same generic string is the only `error` field.
+**Symptom:** `termlink file receive` against a source that disconnects mid-transfer
+appears to hang for the full transfer timeout, then reports a generic timeout — the
+real cause (peer disconnected) is never shown.
 
-**Root cause:** `if targets.is_empty() && let Ok(offset) = try_broadcast_via_channel_post(...)`
-at events.rs:~289 discards the `Err`; the bail at ~321 hardcodes a cause-free,
-hint-free string. The rich `map_err` chain inside `try_broadcast_via_channel_post`
-(`channel.post timed out` / `connect: {e}` / `error: {e}`) is thrown away.
+**Root cause:** the `Ok(Err(e))` arm at file.rs:810 logs to `tracing::warn` (below
+the default log level) and continues, converting a hard disconnect into a silent
+wait-out-the-timeout.
 
-**Why structurally allowed:** the `if let Ok` boolean-guard idiom silently drops
-the `Err` binding — there is no compiler warning for a discarded error in a
-short-circuit `&&` chain, and no lint enforces the PL-306 loud-refuse-with-hint
-convention that sibling paths (`cmd_wait` disconnect bail) already follow.
+**Why structurally allowed:** no convention forces RPC-loop error arms to surface to
+the user; the loud sibling (`cmd_wait`) exists but the pattern was never applied
+here. Same silent-discard class as T-2657 (broadcast) + T-2644 (attach).
 
-**Prevention:** the pure `broadcast_no_path_msg` helper makes the failure message
-construction unit-testable + temp-revert-provable; the structural Verification
-check asserts the call site routes through the helper (≥3 references) rather than
-reintroducing a fixed string. Candidate for the round-12 `_ => fixed-string`
-static-check prevention sweep (sibling of T-2527/T-2531 source checks).
+**Prevention:** a shared "loop-error surfacing" convention + the round-12
+`if let Ok(_)` / `tracing::warn`-only-on-user-path static-check candidate.
+
+**Filed not built:** requires a design call (retry-tolerance vs. fail-fast) + an
+async transfer fixture — design-decision + fixture class.
 
 ## Evolution
 
@@ -210,24 +197,7 @@ static-check prevention sweep (sibling of T-2527/T-2531 source checks).
 
 ## Updates
 
-### 2026-08-12T20:22:40Z — task-created [task-create-agent]
+### 2026-08-12T20:34:48Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2657-cmdbroadcast-empty-targets-bail-discards.md
+- **Output:** /opt/termlink/.tasks/active/T-2662-cmdfilereceive-swallows-mid-transfer-rpc.md
 - **Context:** Initial task creation
-
-## Reviewer Verdict (v1.5)
-
-- **Scan ID:** R-f1b9a278
-- **Timestamp:** 2026-08-12T20:27:15Z
-- **Catalogue:** v1.3-seed
-- **Overall:** CONCERN
-- **Needs Human:** no
-- **Findings:** 1
-
-**Verification-level findings:**
-
-  1. **l387-sigpipe-risk** (partial, heuristic) @ Verification:line 1
-     - evidence: `cargo test -p termlink --bins broadcast_no_path 2>&1 | grep -q "test result: ok"`
-
-### 2026-08-12T20:26:41Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed
