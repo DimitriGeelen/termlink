@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T05:53:17Z
-last_update: 2026-08-12T05:54:16Z
+last_update: 2026-08-12T06:12:15Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -65,11 +65,11 @@ is a judgment call the operator should sanction).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Decide (record in ## Decisions) between: (A) non-breaking — emit a one-line stderr note on ack-less release (`note: slot reopened for retry; pass --ack to mark completed`); (B) breaking — flip to `--no-ack` semantics so "done" is the CLI default matching the skill. Default recommendation: (A), non-breaking, unless the operator sanctions a breaking change.
-- [ ] Implement the chosen option
-- [ ] If (A): the note is emitted only in human (non-`--json`) mode on ack-less release; a unit-testable pure fn builds the note; load-bearing test asserts the note text appears for ack=false and is absent for ack=true
-- [ ] If (B): update the skill layer + all call sites + docs; regression test for the flipped default
-- [ ] `cargo test -p termlink --bins` passes
+- [x] Decide (record in ## Decisions) between: (A) non-breaking — emit a one-line stderr note on ack-less release (`note: slot reopened for retry; pass --ack to mark completed`); (B) breaking — flip to `--no-ack` semantics so "done" is the CLI default matching the skill. Default recommendation: (A), non-breaking, unless the operator sanctions a breaking change. **→ Chose A (see ## Decisions).**
+- [x] Implement the chosen option
+- [x] If (A): the note is emitted only in human (non-`--json`) mode on ack-less release; a unit-testable pure fn builds the note; load-bearing test asserts the note text appears for ack=false and is absent for ack=true
+- [x] If (B): update the skill layer + all call sites + docs; regression test for the flipped default — N/A (chose A)
+- [x] `cargo test -p termlink --bins` passes
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -135,6 +135,8 @@ is a judgment call the operator should sanction).
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+cargo test -p termlink --bins release_retry_note
+
 ## RCA
 
 **Symptom:** `termlink channel release --claim-id X --claimer Y` at the raw CLI (no `--ack`) silently returns the work for retry (re-dispatch, no cursor advance) — the >90%-unwanted behavior — while an operator would reasonably expect "release" to mean "done".
@@ -179,14 +181,10 @@ is a judgment call the operator should sanction).
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-08-12 — ack-less release: advisory note vs breaking flag flip
+- **Chose:** Option A — non-breaking. Emit a one-line stderr advisory on the ack-less release path (human/non-`--json` mode only): `note: released WITHOUT --ack — slot reopened for retry (cursor NOT advanced). Pass --ack to mark the work completed.` A pure fn `release_retry_note(ack) -> Option<String>` builds it; it fires on `ack==false`, is `None` on `ack==true`. Keyed off the server-confirmed `r.ack` (truthful about what actually happened), not the input flag.
+- **Why:** A breaking semantics flip (option B) would silently change the meaning of every existing `channel release --claim-id X --claimer Y` invocation and every script/skill call site — a wire/UX contract change that needs explicit operator sanction (broad "choose what to work on" delegates INITIATIVE, not AUTHORITY to make breaking changes). Option A closes the Directive-#3 footgun (opaque surprising default) with zero contract change: direct callers now SEE that the slot reopened, while the `/release` skill's inverted default is unaffected. JSON consumers are untouched (note is stderr, human-mode only) so machine parsers don't regress.
+- **Rejected:** Option B (flip to `--no-ack` so "done" is the CLI default) — correct in principle but breaking; deferred to an operator-sanctioned change. If the operator later wants B, this advisory becomes redundant and can be removed alongside the flip.
 
 ## Decision
 

@@ -10997,6 +10997,27 @@ pub(crate) async fn cmd_channel_renew(
     Ok(())
 }
 
+/// T-2627 (Directive #3 — no surprising defaults): a raw-CLI `channel release`
+/// without `--ack` returns the work for retry (slot reopens, cursor NOT
+/// advanced) — the >90%-unwanted behavior for anyone not going through the
+/// `/release` skill (which inverts the default). Rather than a breaking flip of
+/// the flag semantics (option B, needs operator sanction), surface a one-line
+/// advisory on the ack-less path naming what happened and how to mark
+/// completion (option A, non-breaking). Returns `None` when `ack` is true
+/// (nothing surprising happened). Pure/testable — mirrors the T-2554 /
+/// T-2625 actionable-error convention.
+fn release_retry_note(ack: bool) -> Option<String> {
+    if ack {
+        None
+    } else {
+        Some(
+            "note: released WITHOUT --ack — slot reopened for retry (cursor NOT advanced). \
+             Pass --ack to mark the work completed."
+                .to_string(),
+        )
+    }
+}
+
 pub(crate) async fn cmd_channel_release(
     claim_id: &str,
     claimer: &str,
@@ -11024,6 +11045,11 @@ pub(crate) async fn cmd_channel_release(
         println!("topic:    {}", r.topic);
         println!("offset:   {}", r.offset);
         println!("ack:      {}", r.ack);
+        // T-2627: never let an ack-less release read as "done" — say what
+        // actually happened (slot reopened) and how to complete instead.
+        if let Some(note) = release_retry_note(r.ack) {
+            eprintln!("{note}");
+        }
     }
     Ok(())
 }
@@ -12285,6 +12311,26 @@ fn render_claims_summary_text_with_annotation(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ---- T-2627: ack-less release advisory (Constitutional Directive #3) ----
+
+    // The ack-less release path (the >90%-unwanted default) must warn that the
+    // slot reopened for retry and name `--ack`; the ack=true path must stay
+    // silent. Reverting `release_retry_note` to always-None fails the first
+    // assertions (load-bearing).
+    #[test]
+    fn release_retry_note_fires_only_without_ack() {
+        let note = release_retry_note(false).expect("ack-less release must advise");
+        assert!(note.contains("--ack"), "note must name --ack: {note}");
+        assert!(
+            note.to_lowercase().contains("retry") || note.to_lowercase().contains("reopened"),
+            "note must explain the slot reopened: {note}"
+        );
+        assert!(
+            release_retry_note(true).is_none(),
+            "ack=true release must not advise (nothing surprising happened)"
+        );
+    }
 
     // ---- T-2554: claim errors are actionable (Constitutional Directive #3) ---
 
