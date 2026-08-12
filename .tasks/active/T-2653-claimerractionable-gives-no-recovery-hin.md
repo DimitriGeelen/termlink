@@ -55,11 +55,11 @@ it is unit-testable, and add a `Transport` arm.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `claim_err_actionable` gains a `ClaimError::Hub { code, .. }` arm dispatching on the named `error_code` constants: RATE_LIMITED / HUB_AT_CAPACITY → `termlink fleet governor-status`; AUTH_REQUIRED / AUTH_DENIED → `termlink fleet reauth` + `fleet doctor`; other codes → a generic "hub rejected the claim" hint
-- [ ] `claim_err_actionable` gains a `ClaimError::Transport(_)` arm hinting `termlink fleet doctor` (hub unreachable)
-- [ ] The code→hint mapping is a pure helper `claim_hub_code_hint(code: i64) -> String` (unit-testable, no I/O)
-- [ ] Unit test proves RATE_LIMITED and HUB_AT_CAPACITY map to a hint naming `governor-status`, auth codes map to a hint naming `reauth`, and an unknown code maps to a non-empty generic hint (load-bearing: reverting the arm to `String::new()` makes the test fail)
-- [ ] `cargo build -p termlink` + `cargo test -p termlink --bins claim_hub_code_hint` pass
+- [x] `claim_err_actionable` gains a `ClaimError::Hub { code, .. }` arm dispatching on the named `error_code` constants: RATE_LIMITED / HUB_AT_CAPACITY → `termlink fleet governor-status`; AUTH_REQUIRED / AUTH_DENIED → `termlink fleet reauth` + `fleet doctor`; other codes → a generic "hub rejected the claim" hint
+- [x] `claim_err_actionable` gains a `ClaimError::Transport(_)` arm hinting `termlink fleet doctor` (hub unreachable)
+- [x] The code→hint mapping is a pure helper `claim_hub_code_hint(code: i64) -> String` (unit-testable, no I/O)
+- [x] Unit test proves RATE_LIMITED and HUB_AT_CAPACITY map to a hint naming `governor-status`, auth codes map to a hint naming `reauth`, and an unknown code maps to a non-empty generic hint (load-bearing: reverting the arm to `String::new()` makes the test fail)
+- [x] `cargo build -p termlink` + `cargo test -p termlink --bins claim_hub_code_hint` pass
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
