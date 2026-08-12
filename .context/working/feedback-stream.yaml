@@ -7668,3 +7668,21 @@ scan_id: R-8f95baa1
 task_id: T-2653
 payload:
   task_file: .tasks/active/T-2653-claimerractionable-gives-no-recovery-hin.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T19:54:54Z'
+scan_id: R-ca80f968
+task_id: T-2654
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T19:54:54Z'
+scan_id: R-ca80f968
+task_id: T-2654
+payload:
+  task_file: .tasks/active/T-2654-channel-post---ensure-topic-create-failu.md
