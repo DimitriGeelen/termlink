@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2630: doctor secret_cache check HOME-unset false-clean (T-2607 CLI outlier)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-12T09:36:34Z
+# ============================================================================
+
+task_id: T-2630
+task_name: "doctor secret_cache check HOME-unset false-clean (T-2607 CLI outlier)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-12T09:31:43Z
+completed: 2026-08-12T09:35:55Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-12T11:35:43+02:00
+last_commit: 2026-08-12T11:35:55+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  doctor secret_cache check routes through hardened config resolver (T-2607 CLI outlier). tick agent ACs + dedup Context header
+
+# Key outcomes
+outcomes:
+  - 'The doctor secret_cache check resolves its directory via the canonical `config::termlink_config_dir()` (hardened in T-2629), NOT via ad-hoc `HOME.unwrap_or_default()` — so HOME-unset no longer produces a CWD-relative false-clean'
+  - 'Behavior is preserved when HOME is set: the scanned dir is still `$HOME/.termlink/secrets`'
+  - 'A `secret_cache_dir()` helper is extracted with a unit test asserting the cache dir is derived from (lives under) `termlink_config_dir()`'
+  - '`cargo test -p termlink --bins` passes; fix committed and finalized through P-011; pushed to OneDev'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-2629.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-cli/src/commands/infrastructure.rs'
+  - '.tasks/active/T-2630-doctor-secretcache-check-home-unset-fals.md'
+  - '.tasks/completed/T-2629-configrs-home-unset-leaks-hub-profilesse.md'
+  - '.termlink-task'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-12T11:35:43"
+    action: "T-2630: doctor secret_cache check routes through hardened config resolver (T-2607 CLI outlier)"
+  - time: "2026-08-12T11:35:55"
+    action: "T-2630: tick agent ACs + dedup Context header"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 2
+  files_changed: 11
+  lines_added: 392
+  lines_removed: 42
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2630-doctor-secretcache-check-home-unset-fals.md
+generated_by: context-agent-hybrid

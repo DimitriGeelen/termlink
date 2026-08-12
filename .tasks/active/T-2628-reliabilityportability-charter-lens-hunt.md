@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T06:16:52Z
-last_update: 2026-08-12T09:21:09Z
+last_update: 2026-08-12T09:36:45Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -47,11 +47,11 @@ one-bug-one-task with RCA + real ACs.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] A subagent hunter sweeps an un-swept charter lens and returns a ranked findings report
-- [ ] Each reported finding is VERIFIED in code by the orchestrator (never trust the hunter) — false positives discarded with a one-line reason
-- [ ] Each verified finding is either BUILT (with a load-bearing test proven via temp-revert) OR FILED as its own task (one-bug-one-task) with full RCA + real ACs + concrete failure scenario
-- [ ] Every built fix is committed and finalized through the P-011 gate; every filed task is committed
-- [ ] All work pushed to OneDev
+- [x] A subagent hunter sweeps an un-swept charter lens and returns a ranked findings report
+- [x] Each reported finding is VERIFIED in code by the orchestrator (never trust the hunter) — false positives discarded with a one-line reason
+- [x] Each verified finding is either BUILT (with a load-bearing test proven via temp-revert) OR FILED as its own task (one-bug-one-task) with full RCA + real ACs + concrete failure scenario
+- [x] Every built fix is committed and finalized through the P-011 gate; every filed task is committed
+- [x] All work pushed to OneDev
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -156,6 +156,36 @@ one-bug-one-task with RCA + real ACs.
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+### 2026-08-12 — round-3 portability / discover-peers sweep outcome
+- **Hunter lens:** Constitutional Directive #4 (Portability) + the discover-peers
+  verb. Returned 3 verified findings, all in the HOME-unset silent-relocation class
+  that T-2607 unified away for the trust plane but left as CLI-crate outliers.
+- **Built + shipped (load-bearing test via temp-revert, P-011-finalized, pushed):**
+  - **[1] → T-2629:** `config.rs::termlink_config_dir()` did `HOME.unwrap_or("/tmp")`.
+    HOME-unset leaked hub profiles + `bootstrap_from` trust anchors into
+    world-writable `/tmp/.termlink` (a cross-user plant vector) AND made every
+    fleet discover-peers verb read a nonexistent path → false "no hubs configured".
+    Fixed by mirroring `identity_dir.rs`: pure `resolve_config_dir_from` core,
+    HOME-set behavior-preserving, HOME-unset → UID-namespaced 0700 private dir +
+    loud `tracing::error!`. Highest blast radius of the three.
+  - **[3] → T-2630:** `infrastructure.rs` doctor `secret_cache` check did
+    `HOME.unwrap_or_default()` → CWD-relative `.termlink/secrets` when HOME unset →
+    false-clean "no cached secrets" pass on the auth-drift signal. Fixed by routing
+    through the T-2629 hardened resolver via extracted `secret_cache_dir()`.
+- **Verified but deliberately NOT built — [2] `push.rs` `const INBOX_DIR =
+  "/tmp/termlink-inbox"`:** real hardcode (PL-021 volatile-/tmp class on the REMOTE
+  target), but the `remote push` command is DEPRECATED and slated for retirement
+  (→ `channel post`, T-1166). Patching a hardcoded path on a command being removed
+  is negative value; recorded here for traceability instead of filing a task.
+- **Plan impact:** none — the "verify-then-build-small / file-large" flow held. The
+  three findings were a tight cluster (one root class), so no per-finding tracker
+  churn beyond T-2629/T-2630.
+- **Triggered:** T-2629 (built), T-2630 (built). Un-swept lenses remaining for a
+  future round: Directive #1 (Antifragility), the claim-work + session-control
+  verbs' portability surface, and the CLI crate's remaining `HOME.unwrap_or(...)`
+  sites (substrate.rs log path was folded into [1]'s analysis — low blast radius,
+  log-only).
 
 ## Decisions
 

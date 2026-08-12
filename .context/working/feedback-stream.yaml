@@ -7290,3 +7290,21 @@ scan_id: R-a921dc7f
 task_id: T-2629
 payload:
   task_file: .tasks/active/T-2629-configrs-home-unset-leaks-hub-profilesse.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T09:36:31Z'
+scan_id: R-8fd5f996
+task_id: T-2630
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T09:36:31Z'
+scan_id: R-8fd5f996
+task_id: T-2630
+payload:
+  task_file: .tasks/active/T-2630-doctor-secretcache-check-home-unset-fals.md
