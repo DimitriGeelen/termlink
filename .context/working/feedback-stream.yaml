@@ -7308,3 +7308,21 @@ scan_id: R-8fd5f996
 task_id: T-2630
 payload:
   task_file: .tasks/active/T-2630-doctor-secretcache-check-home-unset-fals.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T09:39:24Z'
+scan_id: R-b464ca72
+task_id: T-2628
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T09:39:24Z'
+scan_id: R-b464ca72
+task_id: T-2628
+payload:
+  task_file: .tasks/active/T-2628-reliabilityportability-charter-lens-hunt.md

@@ -7307,6 +7307,63 @@ async fn curator_top(
 ///
 /// Mirrors the validation order of `commands/remote.rs::connect_remote_hub`,
 /// but returns String errors (not anyhow) so MCP tools stay crash-safe.
+/// T-2632: pure config-dir resolver for the MCP crate (read-side security mirror
+/// of the T-2607 identity_dir / T-2629 CLI config.rs fixes). Returns
+/// `(config_dir, is_last_resort)`. HOME-set (non-empty) → `$HOME/.termlink`
+/// (bool=false, behavior-preserving). HOME-unset/empty → `temp/termlink-<uid>`
+/// (bool=true), a UID-namespaced private path matching T-2629's last-resort shape
+/// so the CLI and MCP agree on where hubs.toml lives even when HOME is absent.
+///
+/// Deliberately HOME-anchored and NOT routed through the session crate's
+/// XDG-inclusive `resolve_identity_dir()`: honoring `XDG_STATE_HOME` here would
+/// silently relocate an operator's existing `~/.termlink/hubs.toml` (the exact
+/// "all my hubs vanished" regression T-2629 avoided). Pure — no env/fs — so it is
+/// deterministically unit-testable without racy process-global env mutation.
+fn resolve_mcp_config_dir_from(
+    home: Option<&str>,
+    temp: &std::path::Path,
+    uid: u32,
+) -> (std::path::PathBuf, bool) {
+    if let Some(h) = home.filter(|s| !s.is_empty()) {
+        return (std::path::PathBuf::from(h).join(".termlink"), false);
+    }
+    (temp.join(format!("termlink-{uid}")), true)
+}
+
+/// T-2632: resolve the path to `hubs.toml`, hardening the last-resort branch.
+/// On HOME-unset the config dir is created 0700 (UID-private) and a one-time
+/// `tracing::error!` fires so the relocation is observable/auditable (Directive #2)
+/// instead of a silent read from world-writable `/tmp/.termlink`.
+fn mcp_hubs_toml_path() -> std::path::PathBuf {
+    let home = std::env::var("HOME").ok();
+    let temp = std::env::temp_dir();
+    let uid = unsafe { libc::getuid() };
+    let (dir, last_resort) = resolve_mcp_config_dir_from(home.as_deref(), &temp, uid);
+    if last_resort {
+        warn_mcp_config_last_resort_once(&dir);
+        harden_mcp_config_last_resort_dir(&dir);
+    }
+    dir.join("hubs.toml")
+}
+
+static MCP_CONFIG_LAST_RESORT_WARNED: std::sync::Once = std::sync::Once::new();
+fn warn_mcp_config_last_resort_once(dir: &std::path::Path) {
+    MCP_CONFIG_LAST_RESORT_WARNED.call_once(|| {
+        tracing::error!(
+            config_dir = %dir.display(),
+            "HOME is unset — MCP hub profile config (hubs.toml + secret_file paths + \
+             bootstrap_from anchors) is falling back to a UID-namespaced temp directory; \
+             set HOME so trust material is not read from a shared, reboot-volatile path"
+        );
+    });
+}
+fn harden_mcp_config_last_resort_dir(dir: &std::path::Path) {
+    use std::os::unix::fs::PermissionsExt;
+    if std::fs::create_dir_all(dir).is_ok() {
+        let _ = std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700));
+    }
+}
+
 /// Resolve a hub profile name to (address, secret_file, secret).
 /// If hub contains ':', treat as direct address. Otherwise look up in ~/.termlink/hubs.toml.
 fn resolve_hub_profile(hub: &str) -> Option<(String, Option<String>, Option<String>)> {
@@ -7319,8 +7376,7 @@ fn resolve_hub_profile(hub: &str) -> Option<(String, Option<String>, Option<Stri
         // No match → None (caller supplies the secret), preserving prior behaviour.
         return match_profile_by_address(list_all_hub_profiles(), hub);
     }
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-    let path = std::path::PathBuf::from(home).join(".termlink/hubs.toml");
+    let path = mcp_hubs_toml_path(); // T-2632: hardened resolver (was HOME.unwrap_or("/tmp"))
     let content = std::fs::read_to_string(&path).ok()?;
 
     // Simple TOML parser for [hubs.NAME] sections
@@ -7369,8 +7425,7 @@ fn match_profile_by_address(
 /// T-1039: List all hub profiles from ~/.termlink/hubs.toml.
 /// Returns vec of (name, address, secret_file, secret).
 fn list_all_hub_profiles() -> Vec<(String, String, Option<String>, Option<String>)> {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-    let path = std::path::PathBuf::from(home).join(".termlink/hubs.toml");
+    let path = mcp_hubs_toml_path(); // T-2632: hardened resolver (was HOME.unwrap_or("/tmp"))
     let content = match std::fs::read_to_string(&path) {
         Ok(c) => c,
         Err(_) => return Vec::new(),
@@ -10601,8 +10656,7 @@ pub(crate) fn classify_auto_heal_preview(
 /// for this single field. Missing/unreadable file → empty map (caller treats
 /// every profile as no-anchor).
 pub(crate) fn read_bootstrap_from_map() -> std::collections::HashMap<String, String> {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-    let path = std::path::PathBuf::from(home).join(".termlink/hubs.toml");
+    let path = mcp_hubs_toml_path(); // T-2632: hardened resolver (was HOME.unwrap_or("/tmp"))
     let content = match std::fs::read_to_string(&path) {
         Ok(c) => c,
         Err(_) => return std::collections::HashMap::new(),
@@ -30040,6 +30094,60 @@ mod tests {
     #[test]
     fn match_profile_by_address_empty_list_returns_none() {
         assert!(match_profile_by_address(Vec::new(), "192.168.10.122:9100").is_none());
+    }
+
+    // === T-2632: MCP config-dir (hubs.toml trust material) resolver tests ===
+    // Pure-core tests — no env/fs, so no HOME_TEST_LOCK needed. These prove the
+    // read-side of the T-2607/T-2629 HOME-unset silent-relocation defect is closed
+    // in the MCP crate.
+
+    #[test]
+    fn mcp_config_dir_uses_home_when_set() {
+        let tmp = std::path::PathBuf::from("/nonexistent-temp-base");
+        let (dir, last_resort) = resolve_mcp_config_dir_from(Some("/home/alice"), &tmp, 1000);
+        assert_eq!(dir, std::path::PathBuf::from("/home/alice/.termlink"));
+        assert!(!last_resort, "HOME-set must not be the last-resort branch");
+    }
+
+    #[test]
+    fn mcp_config_dir_empty_home_is_treated_as_unset_not_root() {
+        // Empty HOME must NOT resolve to "/.termlink" (world-readable root).
+        let tmp = std::path::PathBuf::from("/tmpbase");
+        let (dir, last_resort) = resolve_mcp_config_dir_from(Some(""), &tmp, 1000);
+        assert_eq!(dir, std::path::PathBuf::from("/tmpbase/termlink-1000"));
+        assert!(last_resort, "empty HOME must take the last-resort branch");
+        assert_ne!(dir, std::path::PathBuf::from("/.termlink"));
+    }
+
+    #[test]
+    fn mcp_config_dir_home_unset_never_shared_dot_termlink() {
+        // The load-bearing guard: HOME-unset must resolve to a UID-namespaced
+        // private path under the temp base, NEVER a shared `<root>/.termlink`
+        // that another local user could plant. Reverting mcp_hubs_toml_path to
+        // `HOME.unwrap_or("/tmp")` re-fires this (it would yield /tmp/.termlink).
+        let tmp = std::path::PathBuf::from("/tmp");
+        let (dir, last_resort) = resolve_mcp_config_dir_from(None, &tmp, 4242);
+        assert!(last_resort);
+        assert_eq!(dir, std::path::PathBuf::from("/tmp/termlink-4242"));
+        assert!(
+            dir.to_string_lossy().contains("termlink-4242"),
+            "last-resort dir must be UID-namespaced, got {dir:?}"
+        );
+        assert_ne!(
+            dir,
+            std::path::PathBuf::from("/tmp/.termlink"),
+            "must NOT be the world-writable shared /tmp/.termlink"
+        );
+    }
+
+    #[test]
+    fn mcp_config_dir_honors_tmpdir_base_for_last_resort() {
+        // Last-resort must honor the injected temp base (portability: respects
+        // TMPDIR via std::env::temp_dir in the wrapper), not hardcode /tmp.
+        let tmp = std::path::PathBuf::from("/var/custom-tmp");
+        let (dir, last_resort) = resolve_mcp_config_dir_from(None, &tmp, 7);
+        assert!(last_resort);
+        assert_eq!(dir, std::path::PathBuf::from("/var/custom-tmp/termlink-7"));
     }
 
     // === T-1715: agent_contact helper tests ===

@@ -1,0 +1,94 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2628: reliability/portability charter-lens hunt round 3 — adversarial defect sweep
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-12T09:39:27Z
+# ============================================================================
+
+task_id: T-2628
+task_name: "reliability/portability charter-lens hunt round 3 — adversarial defect sweep"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-12T06:16:52Z
+completed: 2026-08-12T09:39:23Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-12T08:17:33+02:00
+last_commit: 2026-08-12T11:39:21+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  open round-3 charter-lens hunt tracking task (real ACs). round-3 portability/discover-peers sweep complete — 2 built (T-2629/T-2630), 1 no-build (deprecated)
+
+# Key outcomes
+outcomes:
+  - 'A subagent hunter sweeps an un-swept charter lens and returns a ranked findings report'
+  - 'Each reported finding is VERIFIED in code by the orchestrator (never trust the hunter) — false positives discarded with a one-line reason'
+  - 'Each verified finding is either BUILT (with a load-bearing test proven via temp-revert) OR FILED as its own task (one-bug-one-task) with full RCA + real ACs + concrete failure scenario'
+  - 'Every built fix is committed and finalized through the P-011 gate; every filed task is committed'
+  - 'All work pushed to OneDev'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-08-12.yaml'
+  - '.context/episodic/T-2627.yaml'
+  - '.context/episodic/T-2630.yaml'
+  - '.context/project/decisions.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - '.tasks/active/T-2628-reliabilityportability-charter-lens-hunt.md'
+  - '.tasks/completed/T-2627-channel-release---ack-defaults-to-false-.md'
+  - '.tasks/completed/T-2630-doctor-secretcache-check-home-unset-fals.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-12T08:17:33"
+    action: "T-2628: open round-3 charter-lens hunt tracking task (real ACs)"
+  - time: "2026-08-12T11:39:21"
+    action: "T-2628: round-3 portability/discover-peers sweep complete — 2 built (T-2629/T-2630), 1 no-build (deprecated)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 202 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 202
+  commits: 2
+  files_changed: 15
+  lines_added: 525
+  lines_removed: 48
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2628-reliabilityportability-charter-lens-hunt.md
+generated_by: context-agent-hybrid
