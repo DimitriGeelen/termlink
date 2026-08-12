@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T09:26:52Z
-last_update: 2026-08-12T09:26:52Z
+last_update: 2026-08-12T09:30:35Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -44,11 +44,11 @@ T-2628 round-3 portability hunt.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `termlink_config_dir()` no longer resolves to the shared, world-writable `/tmp/.termlink` when `HOME` is unset/empty; it falls back to a UID-namespaced private location (mirrors T-2607's `resolve_identity_dir` last-resort convention), NEVER the shared dir
-- [ ] Behavior is preserved for the common case: when `HOME` is set (non-empty), the resolved dir is still `$HOME/.termlink` (no regression for correctly-configured hosts)
-- [ ] An exported-but-empty `HOME=` is treated as unset, not as root `/`
-- [ ] A pure, env-free resolution core is extracted and unit-tested; a load-bearing test proves the guard via temp-revert (reverting to the old `/tmp` fallback makes the test FAIL)
-- [ ] `cargo test -p termlink --bins` passes; fix committed and finalized through P-011; pushed to OneDev
+- [x] `termlink_config_dir()` no longer resolves to the shared, world-writable `/tmp/.termlink` when `HOME` is unset/empty; it falls back to a UID-namespaced private location (mirrors T-2607's `resolve_identity_dir` last-resort convention), NEVER the shared dir
+- [x] Behavior is preserved for the common case: when `HOME` is set (non-empty), the resolved dir is still `$HOME/.termlink` (no regression for correctly-configured hosts)
+- [x] An exported-but-empty `HOME=` is treated as unset, not as root `/`
+- [x] A pure, env-free resolution core is extracted and unit-tested; a load-bearing test proves the guard via temp-revert (reverting to the old `/tmp` fallback makes the test FAIL)
+- [x] `cargo test -p termlink --bins` passes; fix committed and finalized through P-011; pushed to OneDev
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
