@@ -288,6 +288,33 @@ pub async fn rpc_call(
     rpc_call_addr(&TransportAddr::unix(socket_path), method, params).await
 }
 
+/// T-2641: `rpc_call_addr` bounded on BOTH connect AND read.
+///
+/// The plain `rpc_call_addr` / `rpc_call` connect unbounded and then call the
+/// unbounded `Client::call` — so if the hub accepts the connection but never
+/// writes a response line, the caller blocks forever. That is the exact
+/// half-open-hub / wedged-record-walk hazard the T-2354 blocking-pool
+/// starvation class named on `call_with_timeout`, and the T-1678 unreachable-
+/// host hazard `connect_addr_with_timeout` named. This convenience unifies
+/// both bounds so any one-shot RPC caller gets a single hang-proof primitive
+/// instead of re-implementing the connect-then-`call_with_timeout` dance.
+///
+/// Each phase (connect, read) is bounded by the same `timeout` — matching the
+/// established idiom in this module where connect and read are separately
+/// bounded. Worst-case wall time is therefore up to 2×`timeout`, but neither
+/// phase can hang indefinitely, which is the load-bearing property.
+pub async fn rpc_call_addr_with_timeout(
+    addr: &TransportAddr,
+    method: &str,
+    params: serde_json::Value,
+    timeout: std::time::Duration,
+) -> Result<RpcResponse, ClientError> {
+    let mut client = Client::connect_addr_with_timeout(addr, timeout).await?;
+    client
+        .call_with_timeout(method, serde_json::json!("cli-1"), params, timeout)
+        .await
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum ClientError {
     #[error("I/O error: {0}")]
@@ -599,6 +626,105 @@ mod tests {
             )
             .await
             .unwrap();
+        assert!(matches!(resp, RpcResponse::Success(_)));
+
+        handle.abort();
+        let _ = std::fs::remove_file(&socket_path);
+    }
+
+    /// T-2641: `rpc_call_addr_with_timeout` errors bounded when the server
+    /// ACCEPTS the connection and drains the request but never writes a
+    /// response line (half-open hub). This is the load-bearing test for the
+    /// shared bounded convenience: reverting it to plain `rpc_call_addr`
+    /// makes the black-hole listener hang the call, tripping the outer guard.
+    #[tokio::test(flavor = "current_thread")]
+    async fn rpc_call_addr_with_timeout_bounds_a_silent_server() {
+        let socket_path = test_socket_path();
+        let _ = std::fs::remove_file(&socket_path);
+
+        let listener = tokio::net::UnixListener::bind(&socket_path).unwrap();
+        let handle = tokio::spawn(async move {
+            // Accept, drain the request line, then go silent forever.
+            if let Ok((stream, _)) = listener.accept().await {
+                let mut reader = tokio::io::BufReader::new(stream);
+                let mut line = String::new();
+                use tokio::io::AsyncBufReadExt;
+                let _ = reader.read_line(&mut line).await;
+                tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
+            }
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        let addr = TransportAddr::unix(&socket_path);
+        let start = std::time::Instant::now();
+        // Outer guard: absent the read bound this hangs forever. Bound the whole
+        // test so a regression fails (via the elapsed assertion) instead of
+        // wedging the runner.
+        let r = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            rpc_call_addr_with_timeout(
+                &addr,
+                "termlink.ping",
+                serde_json::json!({}),
+                std::time::Duration::from_millis(500),
+            ),
+        )
+        .await;
+        let elapsed = start.elapsed();
+        assert!(
+            r.is_ok(),
+            "outer guard tripped — the RPC hung past 5s (read bound not applied?)"
+        );
+        let inner = r.unwrap();
+        assert!(inner.is_err(), "expected timeout error from silent server");
+        assert!(
+            elapsed < std::time::Duration::from_secs(3),
+            "expected bounded error, got {elapsed:?}"
+        );
+        let msg = match inner {
+            Err(e) => e.to_string(),
+            Ok(_) => unreachable!("checked is_err above"),
+        };
+        assert!(
+            msg.contains("timeout"),
+            "expected timeout in error message, got: {msg}"
+        );
+
+        handle.abort();
+        let _ = std::fs::remove_file(&socket_path);
+    }
+
+    /// T-2641: `rpc_call_addr_with_timeout` passes a normal fast response
+    /// through unchanged (success-path parity with plain `rpc_call_addr`).
+    #[tokio::test]
+    async fn rpc_call_addr_with_timeout_passes_through_success() {
+        let socket_path = test_socket_path();
+        let _ = std::fs::remove_file(&socket_path);
+
+        let listener = tokio::net::UnixListener::bind(&socket_path).unwrap();
+        let id = SessionId::generate();
+        let mut reg = Registration::new(id, SessionConfig::default(), socket_path.clone());
+        reg.state = SessionState::Ready;
+        let ctx = SessionContext::new(reg);
+        let shared = Arc::new(RwLock::new(ctx));
+
+        let shared_clone = shared.clone();
+        let handle = tokio::spawn(async move {
+            server::run_accept_loop(listener, shared_clone).await;
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        let addr = TransportAddr::unix(&socket_path);
+        let resp = rpc_call_addr_with_timeout(
+            &addr,
+            "termlink.ping",
+            serde_json::json!({}),
+            std::time::Duration::from_secs(5),
+        )
+        .await
+        .unwrap();
         assert!(matches!(resp, RpcResponse::Success(_)));
 
         handle.abort();

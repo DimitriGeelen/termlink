@@ -345,6 +345,21 @@ pub(crate) fn stamp_identity_from(params: Value) -> Value {
     stamp_from_with(params, fp.as_deref(), opt_out)
 }
 
+/// T-2639/T-2354: the bound applied to RPC READS (distinct from the connect
+/// bound). Default 30s covers a slow-but-alive large-topic page;
+/// `TERMLINK_RPC_READ_TIMEOUT_SECS` overrides (clamped 1..=600). Shared by both
+/// the unix and TCP branches of `rpc_call_authed` so neither can await a
+/// response line indefinitely and both use provably the same convention.
+fn rpc_read_timeout() -> std::time::Duration {
+    std::time::Duration::from_secs(
+        std::env::var("TERMLINK_RPC_READ_TIMEOUT_SECS")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok())
+            .map(|v| v.clamp(1, 600))
+            .unwrap_or(30),
+    )
+}
+
 async fn rpc_call_authed(
     addr: &TransportAddr,
     method: &str,
@@ -356,7 +371,16 @@ async fn rpc_call_authed(
     // identity `from` so hub rate buckets accumulate per caller, not per pid.
     let params = stamp_identity_from(params);
     if addr.is_unix() {
-        return client::rpc_call_addr(addr, method, params).await;
+        // T-2639: bound the unix READ the same way the TCP branch does (T-2354).
+        // The unix branch skips token auth by design (peer-cred trust on the
+        // local socket), but the read still must be bounded — a wedged local
+        // hub record-walk would otherwise hang the ENTIRE local channel surface
+        // (every local `channel *` op and every local `--watch` loop reaches the
+        // hub through this branch). Routes through the shared bounded convenience
+        // (T-2641) rather than re-implementing the connect+call_with_timeout
+        // dance, so both branches provably use the SAME timeout convention.
+        return client::rpc_call_addr_with_timeout(addr, method, params, rpc_read_timeout())
+            .await;
     }
     // T-1678: bound TCP connect to 10s so unreachable hubs fail fast.
     let mut c = termlink_session::client::Client::connect_addr_with_timeout(
@@ -395,16 +419,9 @@ async fn rpc_call_authed(
     // the connection but never writes a response line (wedged record-walk —
     // the T-2258 blocking-pool starvation class; field: `channel info/unread
     // --hub <tcp>` hung indefinitely while list/subscribe returned) would
-    // otherwise hang the CLI forever. Default 30s covers a slow-but-alive
-    // large-topic page; TERMLINK_RPC_READ_TIMEOUT_SECS overrides (clamped
-    // 1..=600).
-    let read_timeout = std::time::Duration::from_secs(
-        std::env::var("TERMLINK_RPC_READ_TIMEOUT_SECS")
-            .ok()
-            .and_then(|v| v.parse::<u64>().ok())
-            .map(|v| v.clamp(1, 600))
-            .unwrap_or(30),
-    );
+    // otherwise hang the CLI forever. T-2639: same bound now shared with the
+    // unix branch via `rpc_read_timeout()`.
+    let read_timeout = rpc_read_timeout();
     let _ = c
         .call_with_timeout(
             "hub.auth",
@@ -12521,6 +12538,84 @@ mod tests {
             None => unsafe { std::env::remove_var("TERMLINK_IDENTITY_DIR") },
         }
         let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    // ---- T-2639: unix-branch RPC read is bounded (divergence F2) ------------
+
+    // Serialises the two env vars this test mutates so a parallel test can't
+    // observe a transient TERMLINK_RPC_READ_TIMEOUT_SECS override.
+    static RPC_TIMEOUT_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// The unix branch of `rpc_call_authed` must bound its RPC read: a local
+    /// hub that ACCEPTS the connection and drains the request but never writes
+    /// a response line (half-open / wedged record-walk) must yield a timeout
+    /// error within the bound, NOT hang the entire local channel surface.
+    /// Reverting the unix branch to plain `rpc_call_addr` makes the black-hole
+    /// listener hang the call, tripping the outer guard (load-bearing).
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn rpc_call_authed_unix_branch_is_bounded() {
+        let _guard = RPC_TIMEOUT_ENV_LOCK.lock().unwrap();
+        let prev_to = std::env::var("TERMLINK_RPC_READ_TIMEOUT_SECS").ok();
+        let prev_noid = std::env::var("TERMLINK_NO_IDENTITY_FROM").ok();
+        // 1s read bound so the test is fast; skip identity resolution so the
+        // funnel does no filesystem work before the branch.
+        unsafe {
+            std::env::set_var("TERMLINK_RPC_READ_TIMEOUT_SECS", "1");
+            std::env::set_var("TERMLINK_NO_IDENTITY_FROM", "1");
+        }
+
+        let socket_path = std::env::temp_dir().join(format!(
+            "tl-rpc-authed-blackhole-{}.sock",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&socket_path);
+        let listener = tokio::net::UnixListener::bind(&socket_path).unwrap();
+        let handle = tokio::spawn(async move {
+            if let Ok((stream, _)) = listener.accept().await {
+                let mut reader = tokio::io::BufReader::new(stream);
+                let mut line = String::new();
+                use tokio::io::AsyncBufReadExt;
+                let _ = reader.read_line(&mut line).await;
+                tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
+            }
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        let addr = TransportAddr::unix(&socket_path);
+        let start = std::time::Instant::now();
+        // Outer guard: absent the read bound this hangs forever.
+        let r = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            rpc_call_authed(&addr, "channel.info", json!({"topic": "anything"})),
+        )
+        .await;
+        let elapsed = start.elapsed();
+
+        // Restore env before assertions so a panic can't leak the override.
+        match prev_to {
+            Some(v) => unsafe { std::env::set_var("TERMLINK_RPC_READ_TIMEOUT_SECS", v) },
+            None => unsafe { std::env::remove_var("TERMLINK_RPC_READ_TIMEOUT_SECS") },
+        }
+        match prev_noid {
+            Some(v) => unsafe { std::env::set_var("TERMLINK_NO_IDENTITY_FROM", v) },
+            None => unsafe { std::env::remove_var("TERMLINK_NO_IDENTITY_FROM") },
+        }
+        handle.abort();
+        let _ = std::fs::remove_file(&socket_path);
+
+        assert!(
+            r.is_ok(),
+            "outer guard tripped — unix-branch RPC hung past 5s (read bound not applied?)"
+        );
+        let inner = r.unwrap();
+        assert!(
+            inner.is_err(),
+            "expected a timeout error from the silent local hub"
+        );
+        assert!(
+            elapsed < std::time::Duration::from_secs(3),
+            "expected bounded error (~1s), got {elapsed:?}"
+        );
     }
 
     // ---- T-2391 cv_index presence-read extraction --------------------------

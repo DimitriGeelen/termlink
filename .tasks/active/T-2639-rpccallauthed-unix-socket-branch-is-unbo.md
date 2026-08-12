@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T12:36:43Z
-last_update: 2026-08-12T12:39:52Z
+last_update: 2026-08-12T14:01:43Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -59,11 +59,11 @@ T-2635 (shared bounded-primitive need) and T-2638 (already-shipped sibling).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The unix-socket branch of `rpc_call_authed` (channel.rs ~359) bounds its RPC read with the SAME `TERMLINK_RPC_READ_TIMEOUT_SECS` convention (default 30s, clamped 1..=600) the TCP branch uses — no local channel RPC can await a response line indefinitely.
-- [ ] A shared bounded convenience (`rpc_call_addr_with_timeout`, coordinate with T-2635) is used rather than re-implementing the connect+call_with_timeout dance inline; if T-2635 lands first, adopt its primitive.
-- [ ] Peer-cred trust on the unix socket is preserved (the bound is orthogonal to auth — the unix branch skips token auth by design; that behavior is unchanged).
-- [ ] A black-hole-server test (accepts the unix connection but never writes a response line) proves a local channel RPC returns a timeout error within the bound instead of hanging.
-- [ ] `cargo test -p termlink` green; `cargo build -p termlink` succeeds.
+- [x] The unix-socket branch of `rpc_call_authed` (channel.rs ~359) bounds its RPC read with the SAME `TERMLINK_RPC_READ_TIMEOUT_SECS` convention (default 30s, clamped 1..=600) the TCP branch uses — no local channel RPC can await a response line indefinitely. **Done:** extracted `rpc_read_timeout()` (channel.rs) shared by BOTH branches; the unix branch now routes through `rpc_call_addr_with_timeout(addr, method, params, rpc_read_timeout())`.
+- [x] A shared bounded convenience (`rpc_call_addr_with_timeout`, coordinate with T-2635) is used rather than re-implementing the connect+call_with_timeout dance inline; if T-2635 lands first, adopt its primitive. **Done:** built `rpc_call_addr_with_timeout` in `termlink-session/src/client.rs` (bounds connect via `connect_addr_with_timeout` + read via `call_with_timeout`). This is the shared primitive T-2635/T-2640 will also adopt.
+- [x] Peer-cred trust on the unix socket is preserved (the bound is orthogonal to auth — the unix branch skips token auth by design; that behavior is unchanged). **Done:** the unix branch still skips `hub.auth`; only the read bound was added.
+- [x] A black-hole-server test (accepts the unix connection but never writes a response line) proves a local channel RPC returns a timeout error within the bound instead of hanging. **Done:** `channel::tests::rpc_call_authed_unix_branch_is_bounded` (channel-level) + `client::tests::rpc_call_addr_with_timeout_bounds_a_silent_server` (primitive-level). Both proven load-bearing via temp-revert (unbounded → outer 5s guard trips at exactly 5.0s).
+- [x] `cargo test -p termlink` green; `cargo build -p termlink` succeeds.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -97,6 +97,10 @@ T-2635 (shared bounded-primitive need) and T-2638 (already-shipped sibling).
 -->
 
 ## Verification
+
+cargo test -p termlink-session --lib client::tests::rpc_call_addr_with_timeout
+cargo test -p termlink --bins channel::tests::rpc_call_authed_unix_branch_is_bounded
+cargo build -p termlink
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
