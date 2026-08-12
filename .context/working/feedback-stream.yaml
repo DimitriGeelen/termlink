@@ -7830,3 +7830,21 @@ scan_id: R-87206769
 task_id: T-2670
 payload:
   task_file: .tasks/active/T-2670-cmdagentnegotiate-subscribe-retry-err-ar.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T22:38:54Z'
+scan_id: R-0c176d1b
+task_id: T-2671
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T22:38:54Z'
+scan_id: R-0c176d1b
+task_id: T-2671
+payload:
+  task_file: .tasks/active/T-2671-termlinkdispatch-eventcollect-loop-err-a.md
