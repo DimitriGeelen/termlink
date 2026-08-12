@@ -1,0 +1,99 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2626: file-transfer timeout collapses to bare 'timeout' — no duration/target/next-step
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-12T06:06:21Z
+# ============================================================================
+
+task_id: T-2626
+task_name: "file-transfer timeout collapses to bare 'timeout' — no duration/target/next-step"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-11T23:06:15Z
+completed: 2026-08-12T06:05:45Z
+duration_days: 1
+updates_count: 1
+first_commit: 2026-08-12T01:07:14+02:00
+last_commit: 2026-08-12T08:05:39+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file usability-hunt Finding #2 (file-transfer timeout collapses to bare 'timeout') — FILED not built. actionable file-transfer timeout — name operation/duration/target + next step (load-bearing test)
+
+# Key outcomes
+outcomes:
+  - 'Both timeout `map_err` sites name the operation, the configured timeout `Duration`, and the target session/hub in the error message'
+  - 'The message suggests a next step (e.g. "is the session/hub reachable? retry, or check `/peers`")'
+  - 'The timeout-message construction is extracted into a pure helper (or a testable format fn) so the text is unit-testable without a live hub — mirrors the T-2554 / T-2625 actionable-error convention'
+  - 'Load-bearing unit test asserts the message names the duration + target + a next step; proven via temp-revert (helper → bare "timeout" → test fails)'
+  - '`cargo test -p termlink --bins` passes for the new test'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-08-12.yaml'
+  - '.context/episodic/T-2625.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-cli/src/commands/file.rs'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2626-file-transfer-timeout-collapses-to-bare-.md'
+  - '.tasks/active/T-2627-channel-release---ack-defaults-to-false-.md'
+  - '.tasks/completed/T-2625-remote-connect-auth-failure-gives-no-fle.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-12T01:07:14"
+    action: "T-2626: file usability-hunt Finding #2 (file-transfer timeout collapses to bare 'timeout') — FILED not built"
+  - time: "2026-08-12T08:05:39"
+    action: "T-2626: actionable file-transfer timeout — name operation/duration/target + next step (load-bearing test)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 419 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 419
+  commits: 2
+  files_changed: 21
+  lines_added: 448
+  lines_removed: 67
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2626-file-transfer-timeout-collapses-to-bare-.md
+generated_by: context-agent-hybrid

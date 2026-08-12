@@ -1003,9 +1003,52 @@ pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, inter
     }
 }
 
-pub(crate) async fn cmd_topics(target: Option<&str>, json: bool, timeout_secs: u64, no_header: bool) -> Result<()> {
-    use std::collections::BTreeMap;
+/// Outcome of probing one session's `event.topics` RPC, reduced to the pieces
+/// the aggregator needs. Keeps the async/transport concern out of the pure
+/// aggregation so the skip-counting path is unit-testable (T-2624).
+enum TopicsProbe {
+    /// Transport error or timeout — session unreachable.
+    Unreachable,
+    /// RPC returned an error result, or the response lacked a `topics` array.
+    BadResult,
+    /// Session answered with a (possibly empty) topic list.
+    Topics(Vec<String>),
+}
 
+/// Result of folding per-session probes: the topic inventory plus skip tallies.
+struct TopicsAggregate {
+    session_topics: std::collections::BTreeMap<String, Vec<String>>,
+    /// Sessions dropped for timeout/transport error.
+    unreachable: usize,
+    /// Sessions that answered but with an error result or no `topics` array.
+    bad_result: usize,
+}
+
+/// Fold per-session probe outcomes into the topic inventory plus skip tallies
+/// (T-2624). A session that answers with zero topics is reachable-but-empty
+/// (not skipped, preserving the pre-fix inventory semantics) — only genuine
+/// failures increment the skip counters, so the caller can surface
+/// "N of M session(s) unreachable — inventory may be incomplete" instead of
+/// silently under-reporting.
+fn aggregate_topics_probes(probes: Vec<(String, TopicsProbe)>) -> TopicsAggregate {
+    let mut session_topics = std::collections::BTreeMap::new();
+    let mut unreachable = 0usize;
+    let mut bad_result = 0usize;
+    for (name, probe) in probes {
+        match probe {
+            TopicsProbe::Unreachable => unreachable += 1,
+            TopicsProbe::BadResult => bad_result += 1,
+            TopicsProbe::Topics(list) => {
+                if !list.is_empty() {
+                    session_topics.insert(name, list);
+                }
+            }
+        }
+    }
+    TopicsAggregate { session_topics, unreachable, bad_result }
+}
+
+pub(crate) async fn cmd_topics(target: Option<&str>, json: bool, timeout_secs: u64, no_header: bool) -> Result<()> {
     let registrations = if let Some(t) = target {
         vec![match manager::find_session(t) {
             Ok(r) => r,
@@ -1038,27 +1081,35 @@ pub(crate) async fn cmd_topics(target: Option<&str>, json: bool, timeout_secs: u
     }
 
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
-    let mut session_topics: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let total_probed = registrations.len();
+    let mut probes: Vec<(String, TopicsProbe)> = Vec::with_capacity(total_probed);
 
     for reg in &registrations {
         let rpc_future = client::rpc_call(reg.socket_path(), "event.topics", serde_json::json!({}));
-        match tokio::time::timeout(timeout_dur, rpc_future).await {
-            Ok(Ok(resp)) => {
-                if let Ok(result) = client::unwrap_result(resp)
-                    && let Some(topics) = result["topics"].as_array() {
-                        let topic_list: Vec<String> = topics
+        // T-2624: classify each session's outcome explicitly so failures are
+        // counted rather than silently `continue`d — the aggregation lives in
+        // the pure `aggregate_topics_probes` helper for unit-testability.
+        let probe = match tokio::time::timeout(timeout_dur, rpc_future).await {
+            Ok(Ok(resp)) => match client::unwrap_result(resp) {
+                Ok(result) => match result["topics"].as_array() {
+                    Some(topics) => TopicsProbe::Topics(
+                        topics
                             .iter()
                             .filter_map(|t| t.as_str().map(String::from))
-                            .collect();
-                        if !topic_list.is_empty() {
-                            session_topics
-                                .insert(reg.display_name.clone(), topic_list);
-                        }
-                    }
-            }
-            Ok(Err(_)) | Err(_) => continue,
-        }
+                            .collect(),
+                    ),
+                    None => TopicsProbe::BadResult,
+                },
+                Err(_) => TopicsProbe::BadResult,
+            },
+            Ok(Err(_)) | Err(_) => TopicsProbe::Unreachable,
+        };
+        probes.push((reg.display_name.clone(), probe));
     }
+
+    let TopicsAggregate { session_topics, unreachable, bad_result } =
+        aggregate_topics_probes(probes);
+    let skipped = unreachable + bad_result;
 
     let total: usize = session_topics.values().map(|v| v.len()).sum();
 
@@ -1072,12 +1123,25 @@ pub(crate) async fn cmd_topics(target: Option<&str>, json: bool, timeout_secs: u
             "sessions": sessions,
             "total_topics": total,
             "total_sessions": session_topics.len(),
+            // T-2624: partial-inventory signal — a consumer can now tell the
+            // topic set excludes sessions that timed out or errored.
+            "sessions_unreachable": unreachable,
+            "sessions_bad_result": bad_result,
+            "sessions_skipped": skipped,
+            "sessions_probed": total_probed,
         }));
         return Ok(());
     }
 
     if session_topics.is_empty() {
-        println!("No event topics found.");
+        if skipped > 0 {
+            println!(
+                "No event topics found ({} of {} session(s) unreachable/errored — inventory may be incomplete).",
+                skipped, total_probed
+            );
+        } else {
+            println!("No event topics found.");
+        }
         return Ok(());
     }
 
@@ -1101,6 +1165,13 @@ pub(crate) async fn cmd_topics(target: Option<&str>, json: bool, timeout_secs: u
             total,
             session_topics.len()
         );
+        // T-2624: never let a partial inventory read as complete.
+        if skipped > 0 {
+            println!(
+                "note: {} of {} session(s) unreachable/errored — inventory may be incomplete ({} unreachable, {} bad-result)",
+                skipped, total_probed, unreachable, bad_result
+            );
+        }
     }
     Ok(())
 }
@@ -1257,4 +1328,47 @@ pub(crate) async fn cmd_collect(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // T-2624: the topic-inventory aggregator must COUNT sessions that timed out
+    // / errored rather than silently drop them. A fixture with 2 unreachable + 1
+    // bad-result sessions must report those skips while total_topics covers only
+    // the reachable sessions. Reverting the counters to a bare `continue` (no
+    // tally) makes `unreachable`/`bad_result` read 0 and fails this (load-bearing).
+    #[test]
+    fn aggregate_topics_probes_counts_skipped_and_covers_reachable() {
+        let probes = vec![
+            ("s1".to_string(), TopicsProbe::Topics(vec!["a".into(), "b".into()])),
+            ("s2".to_string(), TopicsProbe::Unreachable),
+            ("s3".to_string(), TopicsProbe::Topics(vec!["c".into()])),
+            ("s4".to_string(), TopicsProbe::Unreachable),
+            ("s5".to_string(), TopicsProbe::BadResult),
+        ];
+        let agg = aggregate_topics_probes(probes);
+
+        assert_eq!(agg.unreachable, 2, "two timed-out/errored sessions must be counted");
+        assert_eq!(agg.bad_result, 1, "one bad-result session must be counted");
+
+        let total: usize = agg.session_topics.values().map(|v| v.len()).sum();
+        assert_eq!(total, 3, "total_topics must cover only the 3 reachable topics");
+        assert_eq!(agg.session_topics.len(), 2, "only the 2 sessions with topics are inventoried");
+    }
+
+    // A session that answers with an empty topic list is reachable-but-empty:
+    // not inventoried, but ALSO not counted as a skip (no false alarm).
+    #[test]
+    fn aggregate_topics_probes_empty_list_is_not_a_skip() {
+        let probes = vec![
+            ("s1".to_string(), TopicsProbe::Topics(vec![])),
+            ("s2".to_string(), TopicsProbe::Topics(vec!["x".into()])),
+        ];
+        let agg = aggregate_topics_probes(probes);
+        assert_eq!(agg.unreachable, 0);
+        assert_eq!(agg.bad_result, 0);
+        assert_eq!(agg.session_topics.len(), 1, "empty session is reachable-but-empty, not inventoried");
+    }
 }

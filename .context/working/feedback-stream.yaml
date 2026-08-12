@@ -7218,3 +7218,21 @@ scan_id: R-c562fafb
 task_id: T-2625
 payload:
   task_file: .tasks/active/T-2625-remote-connect-auth-failure-gives-no-fle.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T06:06:17Z'
+scan_id: R-d7974487
+task_id: T-2626
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T06:06:17Z'
+scan_id: R-d7974487
+task_id: T-2626
+payload:
+  task_file: .tasks/active/T-2626-file-transfer-timeout-collapses-to-bare-.md

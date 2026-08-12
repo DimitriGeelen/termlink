@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-11T22:54:59Z
-last_update: 2026-08-11T22:56:23Z
+last_update: 2026-08-12T06:06:36Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -60,12 +60,12 @@ green pass: the danger is a *false-complete inventory*, not a false-clean gate.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The per-session fan-out accumulates an `unreachable`/`errored` count (sessions dropped at 1059) AND a `no_topics_field`/`bad_result` count (dropped at 1047/1048), distinguished if cheap
-- [ ] The JSON envelope gains `sessions_unreachable` (and/or a combined `sessions_skipped`) so a consumer can tell the inventory is partial
-- [ ] The human-mode summary prints a "N of M session(s) unreachable — inventory may be incomplete" line when any session was skipped
-- [ ] The topic-aggregation logic is extracted into a pure helper that takes per-session `Result`-like outcomes and returns `(session_topics, skipped_count)` so the skip-counting path is unit-testable (prerequisite — the current inline async loop is not testable)
-- [ ] Regression test: a fixture with 5 session outcomes where 2 are `Err`/timeout yields `skipped==2` and a `total_topics` covering only the 3 reachable, plus the summary/envelope surfaces the 2 skips
-- [ ] Test proven load-bearing via temp-revert (restore the bare `continue` with no counter → skipped==0 → test fails)
+- [x] The per-session fan-out accumulates an `unreachable`/`errored` count (sessions dropped at 1059) AND a `no_topics_field`/`bad_result` count (dropped at 1047/1048), distinguished if cheap
+- [x] The JSON envelope gains `sessions_unreachable` (and/or a combined `sessions_skipped`) so a consumer can tell the inventory is partial
+- [x] The human-mode summary prints a "N of M session(s) unreachable — inventory may be incomplete" line when any session was skipped
+- [x] The topic-aggregation logic is extracted into a pure helper that takes per-session `Result`-like outcomes and returns `(session_topics, skipped_count)` so the skip-counting path is unit-testable (prerequisite — the current inline async loop is not testable)
+- [x] Regression test: a fixture with 5 session outcomes where 2 are `Err`/timeout yields `skipped==2` and a `total_topics` covering only the 3 reachable, plus the summary/envelope surfaces the 2 skips
+- [x] Test proven load-bearing via temp-revert (restore the bare `continue` with no counter → skipped==0 → test fails)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -130,6 +130,8 @@ green pass: the danger is a *false-complete inventory*, not a false-clean gate.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+cargo test -p termlink --bins aggregate_topics_probes
 
 ## RCA
 
