@@ -1,13 +1,13 @@
 ---
-id: T-2631
-name: "round-4 charter-lens hunt — antifragility + claim/session portability + remaining HOME sites"
+id: T-2633
+name: "CLI log-path defaults leak to /tmp when HOME unset — route ~/.termlink/*.log through one loud resolver"
 description: >
-  round-4 charter-lens hunt — antifragility + claim/session portability + remaining HOME sites
+  default_substrate_log_path (substrate.rs:1142) and sibling log-path defaults use HOME.unwrap_or(/tmp), silently relocating observability NDJSON to volatile shared /tmp/.termlink when HOME unset (T-2607 class, reliability/Directive-2). Fold all ~/.termlink/*.log defaults through one loud HOME-anchored resolver.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
-horizon: now
+horizon: next
 tags: []
 components: []
 related_tasks: []
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-12T10:33:08Z
-last_update: 2026-08-12T10:43:11Z
+created: 2026-08-12T10:42:46Z
+last_update: 2026-08-12T10:42:46Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,27 +30,45 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2631: round-4 charter-lens hunt — antifragility + claim/session portability + remaining HOME sites
+# T-2633: CLI log-path defaults leak to /tmp when HOME unset — route ~/.termlink/*.log through one loud resolver
 
 ## Context
 
-Round-4 of the T-2468 subtract-and-deepen campaign: adversarial charter-lens hunt
-across Portability (Directive #4) + Reliability (Directive #2), targeting the
-un-swept lenses recorded in T-2628's Evolution (remaining CLI/MCP `HOME.unwrap_or`
-sites, claim-work + session-control portability surface, antifragility). A
-general-purpose hunter swept the env-coupling / silent-fallback class. Findings are
-verified in code, then built (small/clean, load-bearing test) or filed (delicate/
-multi-site) one-bug-one-task with RCA. This is the tracker task; per-finding fixes
-carry their own task IDs.
+Filed from the T-2631 round-4 charter-lens hunt (sibling of the T-2632 MCP fix).
+The CLI crate's `~/.termlink/*.log` default-path helpers resolve HOME
+inconsistently, and two variants silently relocate observability NDJSON when HOME
+is unset — a Reliability (Directive #2: "no silent failures") + Portability
+(Directive #4) issue, same family as T-2607/T-2629/T-2632 but on the log plane.
+
+Verified site inventory (2026-08-12):
+- `crates/termlink-cli/src/commands/substrate.rs:1142` `default_substrate_log_path`
+  → `std::env::var_os("HOME").map(PathBuf::from).unwrap_or_else(|| PathBuf::from("/tmp"))`
+  → **writes to world-writable, reboot-volatile `/tmp/.termlink/substrate.log`** when
+  HOME unset. The true `/tmp` leak.
+- `crates/termlink-cli/src/commands/agent_find_idle.rs:433` `find_idle_log_path` and
+  `crates/termlink-cli/src/commands/channel.rs:10117` `queue_log_path` /
+  `channel.rs:11703` `claim_log_path` → HOME unset → **CWD-relative
+  `.termlink/<name>.log`** — a *different* silent relocation (per-invocation-varying,
+  non-canonical, possibly-unwritable location; audit trail scatters).
+- `remote.rs:3502` `rotation_log_path`, `3520` `heal_log_path`, `3917`
+  `governor_log_path` → `std::env::var("HOME").ok()?` → return `None` → fail-loud
+  (CORRECT — leave as-is; these are the reference pattern).
+
+Fix: introduce one HOME-anchored resolver (mirroring the T-2629/T-2632 ladder —
+NOT XDG, to avoid relocating an operator's existing `~/.termlink`), route all
+five silently-relocating log-path helpers through it, and keep the loud last-resort
+(UID-namespaced private dir + one-time `tracing::error!`) so an unset HOME is
+observable rather than silent. The three `?`-returning helpers already fail loud
+and stay unchanged.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] Adversarial hunter dispatched on the Portability/Reliability env-coupling lens; findings verified in code (not trusted from the report).
-- [x] Highest-value finding built + shipped: T-2632 (MCP hubs.toml trust-material `/tmp` leak — three resolvers, security-grade, T-2607 read-side mirror) with a load-bearing pure-core test proven via temp-revert; finalized through P-011; pushed to OneDev.
-- [x] Lower-value finding filed as a scoped task, not rushed: T-2633 (CLI `~/.termlink/*.log` default-path `/tmp` leak — reliability, multi-site) with RCA + real ACs.
-- [x] No-build finding recorded with rationale: push.rs `INBOX_DIR = "/tmp/termlink-inbox"` (deprecated `remote push` verb → `channel post`; patching a to-be-removed command is negative value).
-- [x] Round-4 outcome recorded in this task's Evolution section (built / filed / no-build + un-swept lenses remaining for round-5).
+- [ ] A single HOME-anchored log-dir resolver (pure core + wrapper, mirroring T-2629/T-2632: HOME-set → `$HOME/.termlink`; unset/empty → UID-namespaced temp dir + one-time `tracing::error!`; NOT XDG) exists in the CLI crate.
+- [ ] `default_substrate_log_path` (substrate.rs), `find_idle_log_path` (agent_find_idle.rs), `queue_log_path` + `claim_log_path` (channel.rs) all resolve through it — no `/tmp` literal and no CWD-relative `.termlink` fallback remains for these.
+- [ ] The three fail-loud helpers (`rotation_log_path`, `heal_log_path`, `governor_log_path`) are left unchanged (they correctly return `None` on unset HOME) — verified by a comment or test noting the deliberate asymmetry.
+- [ ] A pure-core unit test proves HOME-unset never yields a world-writable `/tmp/.termlink` nor a bare CWD-relative `.termlink`; load-bearing via temp-revert.
+- [ ] `cargo test -p termlink` (relevant filter) green; `cargo build -p termlink` succeeds.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -132,6 +150,28 @@ carry their own task IDs.
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** With HOME unset, `substrate.log` is written to world-writable
+`/tmp/.termlink/`, and `find-idle.log` / `queue.log` / `claim.log` are written to a
+CWD-relative `.termlink/` — both silently, with no warning; audit/observability
+NDJSON lands in the wrong (and varying) place.
+
+**Root cause:** The `~/.termlink/*.log` default-path helpers were written
+independently over many tasks (T-2080/T-2085/T-2114/…) and drifted into three
+different HOME-unset behaviors: `/tmp` fallback (substrate), CWD-relative fallback
+(find_idle/queue/claim), and fail-loud `?` (rotation/heal/governor). Only the last
+is correct.
+
+**Why structurally allowed:** No shared log-dir resolver existed, so each helper
+re-implemented HOME resolution ad hoc; no test asserted where any `*.log` default
+resolves under HOME-unset, so the divergence was invisible. Same blindness as
+T-2632 on the config plane.
+
+**Prevention:** One HOME-anchored resolver with a load-bearing pure-core test that
+fails if any routed helper ever falls back to `/tmp` or a bare CWD-relative
+`.termlink`; the loud last-resort `tracing::error!` converts the silent relocation
+into an observable event. Consolidation also removes the ad-hoc-per-helper drift
+vector.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -156,34 +196,7 @@ carry their own task IDs.
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
-### 2026-08-12 — round-4 outcome (Portability/Reliability env-coupling sweep)
-
-- **What changed:** The hunter confirmed the T-2607 HOME-unset silent-relocation
-  class extends into the **MCP crate** (not just CLI, which T-2629/T-2630 covered)
-  and, distinctly, onto the **log plane** with three *different* HOME-unset
-  behaviors coexisting (/tmp fallback, CWD-relative fallback, fail-loud `?`).
-  The read-side MCP `hubs.toml` resolver is the highest-value instance found so
-  far — it governs `secret_file` + `bootstrap_from` trust material for the MCP
-  server, making a world-writable `/tmp` read a genuine local-attacker plant
-  vector.
-- **Plan impact:** Confirms the class is broader than the CLI config plane; the
-  right long-term shape is one HOME-anchored resolver per crate (duplicated per
-  T-2069) rather than continued ad-hoc per-callsite resolution.
-- **Built:** T-2632 — MCP hubs.toml resolver hardened (three sites), pure-core +
-  loud/0700 wrapper, 4 tests, load-bearing via temp-revert, P-011-finalized,
-  pushed to OneDev.
-- **Filed:** T-2633 — CLI `~/.termlink/*.log` default-path consolidation
-  (substrate/find_idle/queue/claim relocate silently; rotation/heal/governor
-  already fail-loud). Full site inventory + RCA + real ACs written; horizon:next.
-- **No-build:** `push.rs` `INBOX_DIR = "/tmp/termlink-inbox"` — real hardcoded
-  shared-/tmp path, but on the **deprecated** `remote push` verb (→ `channel
-  post`, T-1166). Patching a to-be-removed command is negative value; recorded
-  only.
-- **Un-swept lenses remaining for round-5:** Directive #1 (Antifragility —
-  failure-as-learning, retry/backoff correctness); the claim-work + session-control
-  verbs' *non-path* portability surface (PTY/tmux assumptions, signal semantics);
-  and the previously-filed delicate PTY task cluster (T-2612..T-2616) awaiting
-  dedicated fresh-budget windows.
+## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
@@ -206,7 +219,7 @@ carry their own task IDs.
 
 ## Updates
 
-### 2026-08-12T10:33:08Z — task-created [task-create-agent]
+### 2026-08-12T10:42:46Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2631-round-4-charter-lens-hunt--antifragility.md
+- **Output:** /opt/termlink/.tasks/active/T-2633-cli-log-path-defaults-leak-to-tmp-when-h.md
 - **Context:** Initial task creation

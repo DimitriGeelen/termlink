@@ -7326,3 +7326,21 @@ scan_id: R-b464ca72
 task_id: T-2628
 payload:
   task_file: .tasks/active/T-2628-reliabilityportability-charter-lens-hunt.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T10:40:35Z'
+scan_id: R-f0c8c63f
+task_id: T-2632
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T10:40:35Z'
+scan_id: R-f0c8c63f
+task_id: T-2632
+payload:
+  task_file: .tasks/active/T-2632-mcp-hubstoml-resolver-reads-trust-materi.md

@@ -1,0 +1,98 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2632: MCP hubs.toml resolver reads trust material from world-writable /tmp when HOME unset (T-2607 read-side mirror)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-12T10:40:39Z
+# ============================================================================
+
+task_id: T-2632
+task_name: "MCP hubs.toml resolver reads trust material from world-writable /tmp when HOME unset (T-2607 read-side mirror)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-12T10:35:22Z
+completed: 2026-08-12T10:39:38Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-12T12:39:31+02:00
+last_commit: 2026-08-12T12:39:31+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  harden MCP hubs.toml resolver — no /tmp trust-material read when HOME unset (T-2607 read-side mirror)
+
+# Key outcomes
+outcomes:
+  - 'A pure `resolve_mcp_config_dir_from(home: Option<&str>, temp: &Path, uid: u32) -> (PathBuf, bool)` core exists: HOME-set (non-empty) → `home/.termlink` (bool=false, behavior-preserving); HOME-unset/empty → `temp/termlink-<uid>` (bool=true), matching T-2629''s last-resort path shape so CLI and MCP agree.'
+  - 'An `mcp_hubs_toml_path()` wrapper resolves via that core, and on the last-resort branch emits a one-time `tracing::error!` and hardens the dir to mode 0700; all three sites (7322/7372/10604) call it instead of the inline `HOME.unwrap_or("/tmp")`.'
+  - 'Unit tests prove: home-set uses `$HOME/.termlink/hubs.toml`; empty HOME is treated as unset (not `/.termlink`); HOME-unset never resolves under a shared `.termlink` at a world-writable root; last-resort honors the temp base + UID namespacing. Tests hold `HOME_TEST_LOCK`.'
+  - 'The load-bearing guard test FAILS when the fix is reverted to `HOME.unwrap_or("/tmp")` (proven via temp-revert), and PASSES with the fix.'
+  - '`cargo test -p termlink-mcp mcp_config_dir` is green; `cargo build -p termlink-mcp` succeeds.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-08-12.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/episodic/T-2628.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2631-round-4-charter-lens-hunt--antifragility.md'
+  - '.tasks/active/T-2632-mcp-hubstoml-resolver-reads-trust-materi.md'
+  - '.tasks/completed/T-2628-reliabilityportability-charter-lens-hunt.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-12T12:39:31"
+    action: "T-2632: harden MCP hubs.toml resolver — no /tmp trust-material read when HOME unset (T-2607 read-side mirror)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 22
+  lines_added: 741
+  lines_removed: 91
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2632-mcp-hubstoml-resolver-reads-trust-materi.md
+generated_by: context-agent-hybrid
