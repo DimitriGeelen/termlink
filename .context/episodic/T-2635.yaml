@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2635: Offline-queue flush uses unbounded rpc_call_addr — wedges forever on black-hole hub (adopt call_with_timeout T-2354)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-12T14:27:10Z
+# ============================================================================
+
+task_id: T-2635
+task_name: "Offline-queue flush uses unbounded rpc_call_addr — wedges forever on black-hole hub (adopt call_with_timeout T-2354)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-12T10:52:13Z
+completed: 2026-08-12T14:27:01Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-08-12T16:26:56+02:00
+last_commit: 2026-08-12T16:26:56+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  bound BusClient post/flush + interrupt stuck flush on shutdown (divergence batch close)
+
+# Key outcomes
+outcomes:
+  - 'A bounded `rpc_call_addr_with_timeout(addr, method, params, timeout)` exists in `termlink-session/src/client.rs`, routing through the existing `Client::call_with_timeout` (T-2354) primitive rather than the unbounded `call`. **Done in T-2641/T-2639** (bounds connect via `connect_addr_with_timeout` + read via `call_with_timeout`); this task adopts it.'
+  - '`BusClient::post` and `BusClient::flush` call the bounded variant with a sane default read timeout (tunable via env to match the T-2354 convention); a wedged/half-open hub causes the flush to error+retry, never to block indefinitely. **Done:** both sites route through `rpc_call_addr_with_timeout(&self.addr, CHANNEL_POST, params, flush_read_timeout())`; `flush_read_timeout()` shares the `TERMLINK_RPC_READ_TIMEOUT_SECS` env (default 30s, clamped 1..=600).'
+  - 'A test with a black-hole server (accepts the connection but never writes a response line) proves the flush path returns a timeout error within the bound instead of hanging. **Done:** `bus_client::tests::post_and_flush_are_bounded_on_black_hole_hub` (repeated-accept black-hole unix listener; post queues + flush reports `failed` within a 1s bound). Load-bearing: reverting both sites to unbounded `rpc_call_addr` hangs → outer 6s guard trips at 6.11s.'
+  - 'The detached flush task''s shutdown oneshot can interrupt a stuck flush (the `select!` is no longer starved by an unbounded await). **Done:** the detached-task loop now races `c.flush()` against `shutdown_rx` in an inner `select!`, so `shutdown()` interrupts a wedged flush promptly. Test `shutdown_interrupts_a_stuck_flush` (default 30s bound + black-hole; `shutdown()` joins the task within 3s). Load-bearing: reverting to plain `c.flush().await` blocks 30s → 3s join assertion fails at 3.42s.'
+  - '`cargo test -p termlink-session` green (427 passed); `cargo build` succeeds (full workspace).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-session/src/bus_client.rs'
+  - '.tasks/active/T-2635-offline-queue-flush-uses-unbounded-rpcca.md'
+  - '.tasks/completed/T-2640-dispatch-eventcollect-loop--unbounded-rp.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-12T16:26:56"
+    action: "T-2635: bound BusClient post/flush + interrupt stuck flush on shutdown (divergence batch close)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 214 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 214
+  commits: 1
+  files_changed: 3
+  lines_added: 197
+  lines_removed: 10
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2635-offline-queue-flush-uses-unbounded-rpcca.md
+generated_by: context-agent-hybrid

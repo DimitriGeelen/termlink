@@ -2535,3 +2535,20 @@ FW_SWITCH_FOCUS=1 git commit -q -m "T-2612/T-2613/T-2614: file 3 delicate PTY fo
   command: 'cd /opt/termlink
 git add .tasks/active/T-2615-*.md .tasks/active/T-2616-*.md .tasks/active/T-2617-*.md
 FW_SWITCH_FOCUS=1 git commit -q -m "T-2615/T-2616/T-2617: file 3 durable-delivery/secret-persiste'
+- timestamp: '2026-08-12T15:14:21Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2645'
+  command: 'cd /opt/termlink
+FW_SWITCH_FOCUS=1 git commit -q -m "T-2645: centralize hub-not-running hint to canonical \`termlink hub start\` (events.rs)
+
+Bounded follow-up to T-2643. 8 events.rs sites inlined the'
+- timestamp: '2026-08-12T18:41:30Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2648'
+  command: 'cd /opt/termlink
+git add .tasks/active/T-2648-cap-clientcall-response-line-read-agains.md
+FW_SWITCH_FOCUS=1 git commit -m "T-2648: file — cap Client::call response-line read vs unbounded next_line()'

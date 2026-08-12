@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2639: rpc_call_authed unix-socket branch is unbounded — bound the read like the TCP branch (T-2354 divergence)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-12T14:10:31Z
+# ============================================================================
+
+task_id: T-2639
+task_name: "rpc_call_authed unix-socket branch is unbounded — bound the read like the TCP branch (T-2354 divergence)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-12T12:36:43Z
+completed: 2026-08-12T14:09:18Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-08-12T15:42:42+02:00
+last_commit: 2026-08-12T16:09:12+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  housekeeping — focus-marker + task last_update churn from round-6 session. bound rpc_call_authed unix branch + add shared rpc_call_addr_with_timeout primitive (divergence F2)
+
+# Key outcomes
+outcomes:
+  - 'The unix-socket branch of `rpc_call_authed` (channel.rs ~359) bounds its RPC read with the SAME `TERMLINK_RPC_READ_TIMEOUT_SECS` convention (default 30s, clamped 1..=600) the TCP branch uses — no local channel RPC can await a response line indefinitely. **Done:** extracted `rpc_read_timeout()` (channel.rs) shared by BOTH branches; the unix branch now routes through `rpc_call_addr_with_timeout(addr, method, params, rpc_read_timeout())`.'
+  - 'A shared bounded convenience (`rpc_call_addr_with_timeout`, coordinate with T-2635) is used rather than re-implementing the connect+call_with_timeout dance inline; if T-2635 lands first, adopt its primitive. **Done:** built `rpc_call_addr_with_timeout` in `termlink-session/src/client.rs` (bounds connect via `connect_addr_with_timeout` + read via `call_with_timeout`). This is the shared primitive T-2635/T-2640 will also adopt.'
+  - 'Peer-cred trust on the unix socket is preserved (the bound is orthogonal to auth — the unix branch skips token auth by design; that behavior is unchanged). **Done:** the unix branch still skips `hub.auth`; only the read bound was added.'
+  - 'A black-hole-server test (accepts the unix connection but never writes a response line) proves a local channel RPC returns a timeout error within the bound instead of hanging. **Done:** `channel::tests::rpc_call_authed_unix_branch_is_bounded` (channel-level) + `client::tests::rpc_call_addr_with_timeout_bounds_a_silent_server` (primitive-level). Both proven load-bearing via temp-revert (unbounded → outer 5s guard trips at exactly 5.0s).'
+  - '`cargo test -p termlink` green; `cargo build -p termlink` succeeds.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-session/src/client.rs'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2635-offline-queue-flush-uses-unbounded-rpcca.md'
+  - '.tasks/active/T-2639-rpccallauthed-unix-socket-branch-is-unbo.md'
+  - '.tasks/completed/T-2633-cli-log-path-defaults-leak-to-tmp-when-h.md'
+  - '.tasks/completed/T-2634-round-5-charter-lens-hunt--antifragility.md'
+  - '.tasks/completed/T-2636-event-watch-multi-session-loop-hot-spins.md'
+  - '.tasks/completed/T-2637-round-6-charter-lens-hunt--divergence-cl.md'
+  - '.tasks/completed/T-2638-agent-find-idle---watch-rpc-is-unbounded.md'
+  - '.termlink-task'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-12T15:42:42"
+    action: "T-2639: housekeeping — focus-marker + task last_update churn from round-6 session"
+  - time: "2026-08-12T16:09:12"
+    action: "T-2639: bound rpc_call_authed unix branch + add shared rpc_call_addr_with_timeout primitive (divergence F2)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 92 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 92
+  commits: 2
+  files_changed: 11
+  lines_added: 347
+  lines_removed: 49
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2639-rpccallauthed-unix-socket-branch-is-unbo.md
+generated_by: context-agent-hybrid

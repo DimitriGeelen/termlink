@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2641: Round-7 shared bounded-RPC primitive + divergence batch close
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-12T14:31:24Z
+# ============================================================================
+
+task_id: T-2641
+task_name: "Round-7 shared bounded-RPC primitive + divergence batch close"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-12T14:27:48Z
+completed: 2026-08-12T14:30:40Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-12T16:30:39+02:00
+last_commit: 2026-08-12T16:30:39+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  round-7 tracker — shared bounded-RPC primitive + divergence batch close (T-2635/2639/2640)
+
+# Key outcomes
+outcomes:
+  - 'The shared `rpc_call_addr_with_timeout` bounded-RPC primitive exists in `termlink-session/src/client.rs` (bounds connect + read), with load-bearing black-hole tests. **Done in T-2639** (commit 5806c5fc8).'
+  - 'All three unbounded-RPC divergence consumers route through the shared primitive: T-2639 (channel.rs `rpc_call_authed` unix branch), T-2640 (dispatch `event.collect` loop), T-2635 (BusClient `post`/`flush`). Each with its own load-bearing test proven via temp-revert. **Done** (commits 5806c5fc8, 833fe9776, d3b77ecc4).'
+  - '`cargo build` (workspace) succeeds; `cargo test -p termlink-session` (427) + the three per-consumer test filters green.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-2641-round-7-shared-bounded-rpc-primitive--di.md'
+  - '.tasks/completed/T-2635-offline-queue-flush-uses-unbounded-rpcca.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-12T16:30:39"
+    action: "T-2641: round-7 tracker — shared bounded-RPC primitive + divergence batch close (T-2635/2639/2640)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 2
+  lines_added: 211
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2641-round-7-shared-bounded-rpc-primitive--di.md
+generated_by: context-agent-hybrid

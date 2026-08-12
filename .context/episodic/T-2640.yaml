@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2640: dispatch event.collect loop — unbounded RPC await defeats --timeout on half-open hub (low)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-12T14:17:44Z
+# ============================================================================
+
+task_id: T-2640
+task_name: "dispatch event.collect loop — unbounded RPC await defeats --timeout on half-open hub (low)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-12T12:37:34Z
+completed: 2026-08-12T14:16:36Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-08-12T16:16:32+02:00
+last_commit: 2026-08-12T16:16:32+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  bound dispatch event.collect loop + pace Err arm (divergence F3)
+
+# Key outcomes
+outcomes:
+  - 'The `event.collect` RPC in the dispatch loop (dispatch.rs ~416) is bounded so a half-open hub cannot make a single collect await indefinitely past the `--timeout` deadline (e.g. `tokio::select!` the collect against the remaining `collect_timeout`, or a per-call `tokio::time::timeout`). **Done:** routed through the shared `client::rpc_call_addr_with_timeout` (T-2641) with a per-call bound from new `collect_call_bound(remaining, subscribe_timeout_ms)` = `min(remaining, subscribe_wait + 5s grace)` — a wedged call errors within ~5.5s and the deadline is never overshot.'
+  - 'The `Err` arm applies a small backoff before `continue` (mirror T-2636 / events.rs sleep-on-error) so the up-to-5 retry burst is paced, not a zero-delay micro-spin. **Done:** `tokio::time::sleep(COLLECT_ERR_BACKOFF)` (500ms) before `continue`.'
+  - 'A test proves the collect loop honors `--timeout` even when a collect call never returns (half-open hub), and that consecutive errors are paced. **Done:** 4 unit tests on `collect_call_bound` (caps a wedged call well under a large budget = the honors-timeout property; tracks remaining near deadline; floored never-zero) + `collect_err_backoff_is_paced_not_zero`. The half-open-hang property is additionally inherited from the primitive''s own black-hole test (`client::tests::rpc_call_addr_with_timeout_bounds_a_silent_server`). Load-bearing proven via temp-revert (cap→remaining + backoff→0 fails 3 tests).'
+  - '`cargo test -p termlink` green; `cargo build -p termlink` succeeds.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/dispatch.rs'
+  - '.tasks/active/T-2640-dispatch-eventcollect-loop--unbounded-rp.md'
+  - '.tasks/completed/T-2639-rpccallauthed-unix-socket-branch-is-unbo.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-12T16:16:32"
+    action: "T-2640: bound dispatch event.collect loop + pace Err arm (divergence F3)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 99 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 99
+  commits: 1
+  files_changed: 3
+  lines_added: 116
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2640-dispatch-eventcollect-loop--unbounded-rp.md
+generated_by: context-agent-hybrid

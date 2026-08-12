@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2647: add actionable next-command hints to hub-profile and substrate hub-down errors
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-12T18:38:42Z
+# ============================================================================
+
+task_id: T-2647
+task_name: "add actionable next-command hints to hub-profile and substrate hub-down errors"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-12T18:32:40Z
+completed: 2026-08-12T18:37:26Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-12T20:37:21+02:00
+last_commit: 2026-08-12T20:37:21+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  add actionable next-command hints to hub-profile + substrate hub-down errors (Usability round-9)
+
+# Key outcomes
+outcomes:
+  - 'F3: the `no such hub profile` error routes through a pure helper `profile_not_found_msg(name) -> String` that names `termlink remote profile list`; the bare form is gone from remote.rs.'
+  - 'F4: both substrate hub-down sites route through a pure helper `local_hub_down_msg(section) -> String` that names `termlink hub start`; no substrate site returns the bare "needs the local hub" without the start hint.'
+  - 'Load-bearing unit tests: `profile_not_found_msg("x")` contains `termlink remote profile list` and `x`; `local_hub_down_msg("DISPATCH")` contains `termlink hub start` and `DISPATCH`. Proven load-bearing via temp-revert.'
+  - '`cargo build -p termlink` clean; new tests pass.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'add actionable next-command hints to hub-profile + substrate hub-down errors (Usability round-9)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/remote.rs'
+  - 'crates/termlink-cli/src/commands/substrate.rs'
+  - '.tasks/active/T-2647-add-actionable-next-command-hints-to-hub.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-12T20:37:21"
+    action: "T-2647: add actionable next-command hints to hub-profile + substrate hub-down errors (Usability round-9)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 3
+  lines_added: 265
+  lines_removed: 8
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2647-add-actionable-next-command-hints-to-hub.md
+generated_by: context-agent-hybrid

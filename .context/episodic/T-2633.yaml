@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2633: CLI log-path defaults leak to /tmp when HOME unset — route ~/.termlink/*.log through one loud resolver
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-12T12:14:42Z
+# ============================================================================
+
+task_id: T-2633
+task_name: "CLI log-path defaults leak to /tmp when HOME unset — route ~/.termlink/*.log through one loud resolver"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-12T10:42:46Z
+completed: 2026-08-12T12:13:31Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-08-12T14:13:27+02:00
+last_commit: 2026-08-12T14:13:27+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  consolidate CLI ~/.termlink/*.log defaults onto one loud HOME-anchored resolver
+
+# Key outcomes
+outcomes:
+  - 'A single HOME-anchored log-dir resolver (pure core + wrapper, mirroring T-2629/T-2632: HOME-set → `$HOME/.termlink`; unset/empty → UID-namespaced temp dir + one-time `tracing::error!`; NOT XDG) exists in the CLI crate. — `resolve_log_dir_from` (pure core) + `termlink_log_dir` (wrapper) + `warn_log_dir_last_resort_once` + `harden_log_dir_last_resort` in `commands/infrastructure.rs`.'
+  - '`default_substrate_log_path` (substrate.rs), `find_idle_log_path` (agent_find_idle.rs), `queue_log_path` + `claim_log_path` (channel.rs) all resolve through it — no `/tmp` literal and no CWD-relative `.termlink` fallback remains for these. — all four now `super::infrastructure::termlink_log_dir().join("<name>.log")`; grep confirms the only `/tmp` left is an explanatory comment.'
+  - 'The three fail-loud helpers (`rotation_log_path`, `heal_log_path`, `governor_log_path`) are left unchanged (they correctly return `None` on unset HOME) — verified by a comment or test noting the deliberate asymmetry. — added a T-2633 asymmetry note above `rotation_log_path` in remote.rs; all three still return `Option`.'
+  - 'A pure-core unit test proves HOME-unset never yields a world-writable `/tmp/.termlink` nor a bare CWD-relative `.termlink`; load-bearing via temp-revert. — 4 tests in `infrastructure::tests`; `log_dir_home_unset_is_never_tmp_dot_termlink_nor_cwd_relative` is THE guard; reverting the resolver to the `/tmp/.termlink` fallback makes 3 of 4 fail (proven via temp-revert).'
+  - '`cargo test -p termlink` (relevant filter) green; `cargo build -p termlink` succeeds. — full binary: 1035 passed, 0 failed; integration 174 passed; `cargo build -p termlink` Finished.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/agent_find_idle.rs'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'crates/termlink-cli/src/commands/infrastructure.rs'
+  - 'crates/termlink-cli/src/commands/remote.rs'
+  - 'crates/termlink-cli/src/commands/substrate.rs'
+  - '.tasks/active/T-2633-cli-log-path-defaults-leak-to-tmp-when-h.md'
+  - '.tasks/completed/T-2636-event-watch-multi-session-loop-hot-spins.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-12T14:13:27"
+    action: "T-2633: consolidate CLI ~/.termlink/*.log defaults onto one loud HOME-anchored resolver"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 90 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 90
+  commits: 1
+  files_changed: 7
+  lines_added: 152
+  lines_removed: 28
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2633-cli-log-path-defaults-leak-to-tmp-when-h.md
+generated_by: context-agent-hybrid

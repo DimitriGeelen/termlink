@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2646: surface best-effort state-write failures in remote.rs fleet-doctor (escalation defeat + dup learnings)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-12T18:32:03Z
+# ============================================================================
+
+task_id: T-2646
+task_name: "surface best-effort state-write failures in remote.rs fleet-doctor (escalation defeat + dup learnings)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-12T18:25:46Z
+completed: 2026-08-12T18:30:46Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-12T20:30:21+02:00
+last_commit: 2026-08-12T20:30:21+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  surface best-effort state-write failures in remote.rs fleet-doctor (silent escalation defeat + dup learnings)
+
+# Key outcomes
+outcomes:
+  - '`save_fleet_state` no longer uses `let _ =` on the state write — its outcome routes through a pure helper `fleet_state_save_warning(path, Result<(),String>) -> Option<String>` that returns `Some(..)` on failure, printed to stderr; the caller contract (`maybe_track_fleet_failure` still returns `Ok(())`, never fails) is unchanged.'
+  - 'The dedupe-marker refresh (remote.rs:6645) no longer uses `let _ =` — its outcome routes through a pure helper `dedupe_marker_save_warning(path, Result<(),String>) -> Option<String>` returning `Some(..)` on failure, printed to stderr.'
+  - 'Each helper''s failure warning names the CONSEQUENCE (F1: concern escalation won''t trigger; F5: duplicate learnings) AND a fix hint — actionable per PL-151.'
+  - 'Load-bearing unit tests: `fleet_state_save_warning(Err(..))` is `Some` and contains the consequence token; `Ok(())` is `None`. Same for the dedupe helper. Proven load-bearing via temp-revert (Ok arm returning Some → test fails).'
+  - '`cargo build -p termlink` clean; `cargo test -p termlink --bins` for the new tests passes.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/remote.rs'
+  - '.tasks/active/T-2646-surface-best-effort-state-write-failures.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-12T20:30:21"
+    action: "T-2646: surface best-effort state-write failures in remote.rs fleet-doctor (silent escalation defeat + dup learnings)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 2
+  lines_added: 323
+  lines_removed: 4
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2646-surface-best-effort-state-write-failures.md
+generated_by: context-agent-hybrid

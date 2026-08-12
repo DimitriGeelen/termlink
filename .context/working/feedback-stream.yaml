@@ -7362,3 +7362,255 @@ scan_id: R-1c406a87
 task_id: T-2631
 payload:
   task_file: .tasks/active/T-2631-round-4-charter-lens-hunt--antifragility.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T10:54:23Z'
+scan_id: R-035b3701
+task_id: T-2634
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T10:54:23Z'
+scan_id: R-035b3701
+task_id: T-2634
+payload:
+  task_file: .tasks/active/T-2634-round-5-charter-lens-hunt--antifragility.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T12:06:17Z'
+scan_id: R-db24d6e7
+task_id: T-2636
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T12:06:17Z'
+scan_id: R-db24d6e7
+task_id: T-2636
+payload:
+  task_file: .tasks/active/T-2636-event-watch-multi-session-loop-hot-spins.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T12:14:38Z'
+scan_id: R-573a62bd
+task_id: T-2633
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T12:14:38Z'
+scan_id: R-573a62bd
+task_id: T-2633
+payload:
+  task_file: .tasks/active/T-2633-cli-log-path-defaults-leak-to-tmp-when-h.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T12:36:21Z'
+scan_id: R-6e8a7e58
+task_id: T-2638
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T12:36:21Z'
+scan_id: R-6e8a7e58
+task_id: T-2638
+payload:
+  task_file: .tasks/active/T-2638-agent-find-idle---watch-rpc-is-unbounded.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T12:39:38Z'
+scan_id: R-f9a5814d
+task_id: T-2637
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T12:39:38Z'
+scan_id: R-f9a5814d
+task_id: T-2637
+payload:
+  task_file: .tasks/active/T-2637-round-6-charter-lens-hunt--divergence-cl.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T14:10:27Z'
+scan_id: R-32b15f42
+task_id: T-2639
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T14:10:27Z'
+scan_id: R-32b15f42
+task_id: T-2639
+payload:
+  task_file: .tasks/active/T-2639-rpccallauthed-unix-socket-branch-is-unbo.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T14:17:40Z'
+scan_id: R-142147be
+task_id: T-2640
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T14:17:40Z'
+scan_id: R-142147be
+task_id: T-2640
+payload:
+  task_file: .tasks/active/T-2640-dispatch-eventcollect-loop--unbounded-rp.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T14:27:06Z'
+scan_id: R-595dc702
+task_id: T-2635
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T14:27:06Z'
+scan_id: R-595dc702
+task_id: T-2635
+payload:
+  task_file: .tasks/active/T-2635-offline-queue-flush-uses-unbounded-rpcca.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T14:31:20Z'
+scan_id: R-dab1e84c
+task_id: T-2641
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T14:31:20Z'
+scan_id: R-dab1e84c
+task_id: T-2641
+payload:
+  task_file: .tasks/active/T-2641-round-7-shared-bounded-rpc-primitive--di.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T14:55:15Z'
+scan_id: R-1c6cbf87
+task_id: T-2642
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T14:55:15Z'
+scan_id: R-1c6cbf87
+task_id: T-2642
+payload:
+  task_file: .tasks/active/T-2642-identity-bind-failure-silently-mis-attri.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T15:01:57Z'
+scan_id: R-2e52ce9a
+task_id: T-2643
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T15:01:57Z'
+scan_id: R-2e52ce9a
+task_id: T-2643
+payload:
+  task_file: .tasks/active/T-2643-cli-error-paths-missing-actionable-remed.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T15:12:56Z'
+scan_id: R-748cd058
+task_id: T-2645
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T15:12:56Z'
+scan_id: R-748cd058
+task_id: T-2645
+payload:
+  task_file: .tasks/active/T-2645-complete-hub-not-running-actionable-hint.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T18:31:59Z'
+scan_id: R-4fe22442
+task_id: T-2646
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T18:31:59Z'
+scan_id: R-4fe22442
+task_id: T-2646
+payload:
+  task_file: .tasks/active/T-2646-surface-best-effort-state-write-failures.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T18:38:38Z'
+scan_id: R-67abf098
+task_id: T-2647
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T18:38:38Z'
+scan_id: R-67abf098
+task_id: T-2647
+payload:
+  task_file: .tasks/active/T-2647-add-actionable-next-command-hints-to-hub.md

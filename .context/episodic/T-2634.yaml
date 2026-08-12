@@ -1,0 +1,88 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2634: round-5 charter-lens hunt — antifragility (retry/backoff/timeout/poison) + reliability silent-swallow
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-12T10:54:27Z
+# ============================================================================
+
+task_id: T-2634
+task_name: "round-5 charter-lens hunt — antifragility (retry/backoff/timeout/poison) + reliability silent-swallow"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-12T10:49:15Z
+completed: 2026-08-12T10:54:22Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-12T12:54:21+02:00
+last_commit: 2026-08-12T12:54:21+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  round-5 antifragility hunt — filed T-2635 (offline-queue flush unbounded-RPC hang) + T-2636 (event watch hot-spin), both with RCA
+
+# Key outcomes
+outcomes:
+  - 'Hunter dispatched on the antifragility/reliability retry-and-timeout lens; both findings verified in code (not trusted from the report).'
+  - 'F1 filed: T-2635 — offline-queue flush uses unbounded `rpc_call_addr`, wedges forever on a black-hole hub (HANG; the durable-queue resilience mechanism defeating itself). RCA + real ACs written.'
+  - 'F2 filed: T-2636 — `event watch` multi-session loop hot-spins on dead sockets (missing sleep-on-error the sibling `cmd_watch_hub` already has). RCA + real ACs written.'
+  - 'Cleared-clean paths recorded (poison/dead-letter hardened T-2452/2497/2498; WS reconnect capped+backoff+jitter; ws_consumer bounded) so round-6 does not re-scan them.'
+  - 'Round-5 outcome + un-swept lenses recorded in this task''s Evolution.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-08-12.yaml'
+  - '.context/episodic/T-2631.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - '.tasks/active/T-2634-round-5-charter-lens-hunt--antifragility.md'
+  - '.tasks/active/T-2635-offline-queue-flush-uses-unbounded-rpcca.md'
+  - '.tasks/active/T-2636-event-watch-multi-session-loop-hot-spins.md'
+  - '.tasks/completed/T-2631-round-4-charter-lens-hunt--antifragility.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-12T12:54:21"
+    action: "T-2634: round-5 antifragility hunt — filed T-2635 (offline-queue flush unbounded-RPC hang) + T-2636 (event watch hot-spin), both with RCA"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 1
+  files_changed: 15
+  lines_added: 759
+  lines_removed: 22
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2634-round-5-charter-lens-hunt--antifragility.md
+generated_by: context-agent-hybrid

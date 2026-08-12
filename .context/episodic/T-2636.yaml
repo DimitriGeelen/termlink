@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2636: event watch multi-session loop hot-spins on dead sockets — missing sleep-on-error (mirror cmd_watch_hub)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-12T12:06:21Z
+# ============================================================================
+
+task_id: T-2636
+task_name: "event watch multi-session loop hot-spins on dead sockets — missing sleep-on-error (mirror cmd_watch_hub)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-12T10:52:57Z
+completed: 2026-08-12T12:05:10Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-08-12T14:05:05+02:00
+last_commit: 2026-08-12T14:05:05+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix event watch multi-session hot-spin — sleep-backoff on all-errored tick
+
+# Key outcomes
+outcomes:
+  - 'The multi-session `event watch` loop (events.rs ~629-690) no longer re-dispatches subscribe tasks with zero delay when RPCs error: on a tick where the session RPC(s) errored, it sleeps (mirror `cmd_watch_hub` at 824-829: `sleep(500ms)` before `continue`) so a dead-socket tick cannot spin at 100% CPU.'
+  - 'The sleep fires only on the error path (a healthy tick with live sessions is not artificially delayed); the single-hub twin `cmd_watch_hub` is the reference implementation.'
+  - 'A test or a documented manual repro shows CPU stays low when all watched session sockets are down (was: busy-loop). — Pure predicate `watch_tick_all_errored(ok,err)` extracted + 2 load-bearing unit tests (`watch_tick_all_errored_fires_only_when_every_session_errored`, `watch_tick_all_errored_does_not_fire_on_healthy_or_mixed_ticks`); reverting the guard to naive `err_count > 0` makes the mixed-tick assertion fail (proven via temp-revert). The wall-clock backoff is a faithful mirror of the field-proven sibling `cmd_watch_hub` Err-arm.'
+  - '`cargo test -p termlink` (relevant filter) green; `cargo build` succeeds. — `cargo test -p termlink ''events::tests''` → 4 passed; `cargo build -p termlink` → Finished.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix event watch multi-session hot-spin — sleep-backoff on all-errored tick'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/events.rs'
+  - '.tasks/active/T-2636-event-watch-multi-session-loop-hot-spins.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-12T14:05:05"
+    action: "T-2636: fix event watch multi-session hot-spin — sleep-backoff on all-errored tick"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 72 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 72
+  commits: 1
+  files_changed: 2
+  lines_added: 73
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2636-event-watch-multi-session-loop-hot-spins.md
+generated_by: context-agent-hybrid
