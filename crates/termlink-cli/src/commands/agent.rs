@@ -238,6 +238,15 @@ pub(crate) async fn cmd_agent_ask(
             }
             Err(e) => {
                 tracing::warn!("Subscribe error: {}", e);
+                // T-2670: back off before re-subscribing on error. event.subscribe
+                // long-polls on a live hub (naturally paced), but a dead/half-open
+                // hub errors near-instantly — without this sleep the loop re-dispatches
+                // with zero delay and pins a CPU core, silently (the warn above is
+                // gated out at default log level) until timeout_dur expires. This is
+                // the T-2658/T-2636/T-2640 busy-spin class; the 500ms sleep-on-error
+                // is the established convention (events.rs:805/900/1349 cmd_collect +
+                // cmd_watch_hub, dispatch.rs COLLECT_ERR_BACKOFF).
+                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
             }
         }
     }
@@ -337,6 +346,12 @@ pub(crate) async fn cmd_agent_listen(
             }
             Err(e) => {
                 tracing::warn!("Subscribe error: {}", e);
+                // T-2670: same busy-spin guard as cmd_agent_negotiate above. Here
+                // timeout_dur is Option — with no --timeout the loop is UNBOUNDED,
+                // so a dead/half-open hub (event.subscribe errors instantly) would
+                // pin a CPU core forever without this backoff. 500ms matches the
+                // events.rs/dispatch.rs sleep-on-error convention.
+                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
             }
         }
     }
