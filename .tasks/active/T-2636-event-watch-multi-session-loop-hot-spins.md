@@ -4,10 +4,10 @@ name: "event watch multi-session loop hot-spins on dead sockets — missing slee
 description: >
   events.rs:686 Err(_) => continue with no delay; outer loop re-spawns all subscribe tasks immediately → 100% CPU busy-loop when session sockets are down. Sibling cmd_watch_hub (824-829) sleeps 500ms before continue. Add the same guard on an all-errored tick.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T10:52:57Z
-last_update: 2026-08-12T10:52:57Z
+last_update: 2026-08-12T11:58:32Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -39,10 +39,10 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The multi-session `event watch` loop (events.rs ~629-690) no longer re-dispatches subscribe tasks with zero delay when RPCs error: on a tick where the session RPC(s) errored, it sleeps (mirror `cmd_watch_hub` at 824-829: `sleep(500ms)` before `continue`) so a dead-socket tick cannot spin at 100% CPU.
-- [ ] The sleep fires only on the error path (a healthy tick with live sessions is not artificially delayed); the single-hub twin `cmd_watch_hub` is the reference implementation.
-- [ ] A test or a documented manual repro shows CPU stays low when all watched session sockets are down (was: busy-loop).
-- [ ] `cargo test -p termlink` (relevant filter) green; `cargo build` succeeds.
+- [x] The multi-session `event watch` loop (events.rs ~629-690) no longer re-dispatches subscribe tasks with zero delay when RPCs error: on a tick where the session RPC(s) errored, it sleeps (mirror `cmd_watch_hub` at 824-829: `sleep(500ms)` before `continue`) so a dead-socket tick cannot spin at 100% CPU.
+- [x] The sleep fires only on the error path (a healthy tick with live sessions is not artificially delayed); the single-hub twin `cmd_watch_hub` is the reference implementation.
+- [x] A test or a documented manual repro shows CPU stays low when all watched session sockets are down (was: busy-loop). — Pure predicate `watch_tick_all_errored(ok,err)` extracted + 2 load-bearing unit tests (`watch_tick_all_errored_fires_only_when_every_session_errored`, `watch_tick_all_errored_does_not_fire_on_healthy_or_mixed_ticks`); reverting the guard to naive `err_count > 0` makes the mixed-tick assertion fail (proven via temp-revert). The wall-clock backoff is a faithful mirror of the field-proven sibling `cmd_watch_hub` Err-arm.
+- [x] `cargo test -p termlink` (relevant filter) green; `cargo build` succeeds. — `cargo test -p termlink 'events::tests'` → 4 passed; `cargo build -p termlink` → Finished.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -107,6 +107,8 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+cargo test -p termlink events::tests
+cargo build -p termlink
 
 ## RCA
 
@@ -195,3 +197,7 @@ liveness assertion under a dead-socket fixture catches regressions.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2636-event-watch-multi-session-loop-hot-spins.md
 - **Context:** Initial task creation
+
+### 2026-08-12T11:58:32Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

@@ -536,6 +536,24 @@ pub(crate) struct WatchOpts<'a> {
     pub since: Option<u64>,
 }
 
+/// T-2636: returns true when a multi-session `event watch` tick dispatched at
+/// least one session RPC but EVERY one errored — the busy-loop condition that
+/// requires a sleep-backoff before the next tick.
+///
+/// A dead-socket `rpc_call` returns near-instantly (no `event.subscribe`
+/// long-poll to pace the loop), so without a backoff the outer loop re-dispatches
+/// with zero delay and pins a CPU core at 100%. This is the exact case the sibling
+/// single-hub `cmd_watch_hub` (Err-arm at ~824-829) already handles with a 500ms
+/// sleep; the two loops diverged and only one got the guard.
+///
+/// A tick with ≥1 live session returns false: that session's subscribe long-poll
+/// naturally paces the loop, so a healthy tick must NOT be artificially delayed.
+/// An empty tick (no sessions dispatched) also returns false — there is nothing
+/// to spin on.
+fn watch_tick_all_errored(ok_count: usize, err_count: usize) -> bool {
+    err_count > 0 && ok_count == 0
+}
+
 pub(crate) async fn cmd_watch(
     targets: Vec<String>,
     opts: WatchOpts<'_>,
@@ -680,12 +698,14 @@ pub(crate) async fn cmd_watch(
                 }
                 all_results
             } => {
+                let mut ok_count = 0usize;
+                let mut err_count = 0usize;
                 for (sid, resp) in results {
                     let name = session_names.get(&sid).map(|s| s.as_str()).unwrap_or(&sid);
 
                     let resp = match resp {
-                        Ok(r) => r,
-                        Err(_) => continue,
+                        Ok(r) => { ok_count += 1; r }
+                        Err(_) => { err_count += 1; continue }
                     };
 
                     if let Ok(result) = client::unwrap_result(resp) {
@@ -731,6 +751,19 @@ pub(crate) async fn cmd_watch(
                                 cursors.insert(sid.clone(), Some(next.saturating_sub(1)));
                             }
                     }
+                }
+
+                // T-2636: when every watched session socket is down, each
+                // rpc_call errored near-instantly (no long-poll pacing) and the
+                // outer loop would re-dispatch with zero delay — a 100% CPU
+                // busy-loop. Mirror the sibling cmd_watch_hub's 500ms Err-arm
+                // sleep. A tick with ≥1 live session is paced by its subscribe
+                // long-poll, so it is NOT delayed here.
+                if watch_tick_all_errored(ok_count, err_count) {
+                    if !json {
+                        eprintln!("All watched sessions unreachable. Retrying...");
+                    }
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
                 }
             }
         }
@@ -1370,5 +1403,30 @@ mod tests {
         assert_eq!(agg.unreachable, 0);
         assert_eq!(agg.bad_result, 0);
         assert_eq!(agg.session_topics.len(), 1, "empty session is reachable-but-empty, not inventoried");
+    }
+
+    // T-2636: the multi-session watch loop must back off (sleep) only on a tick
+    // where EVERY dispatched session RPC errored — the dead-socket busy-loop
+    // condition. A healthy or mixed tick (≥1 ok) is paced by the subscribe
+    // long-poll and must NOT be delayed. An empty tick has nothing to spin on.
+    #[test]
+    fn watch_tick_all_errored_fires_only_when_every_session_errored() {
+        // all sockets down → back off (the busy-loop case this guard prevents)
+        assert!(watch_tick_all_errored(0, 3), "all-errored tick must back off");
+        assert!(watch_tick_all_errored(0, 1), "single errored session, none ok → back off");
+    }
+
+    #[test]
+    fn watch_tick_all_errored_does_not_fire_on_healthy_or_mixed_ticks() {
+        // ≥1 live session paces the loop via its long-poll — never delay it.
+        // Reverting the guard to `err_count > 0` makes the mixed case fire and
+        // fails this test (load-bearing).
+        assert!(!watch_tick_all_errored(3, 0), "all healthy → no backoff");
+        assert!(!watch_tick_all_errored(2, 1), "mixed (≥1 ok) → no backoff");
+        assert!(!watch_tick_all_errored(1, 0), "one ok → no backoff");
+        // empty tick: nothing dispatched, nothing to spin on. Reverting the
+        // guard to `err_count == 0 || ok_count == 0` (dropping the err>0 arm)
+        // makes this fire and fails the test (load-bearing).
+        assert!(!watch_tick_all_errored(0, 0), "empty tick → no backoff");
     }
 }
