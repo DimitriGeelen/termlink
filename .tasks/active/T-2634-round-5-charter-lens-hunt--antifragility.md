@@ -1,8 +1,8 @@
 ---
-id: T-2631
-name: "round-4 charter-lens hunt — antifragility + claim/session portability + remaining HOME sites"
+id: T-2634
+name: "round-5 charter-lens hunt — antifragility (retry/backoff/timeout/poison) + reliability silent-swallow"
 description: >
-  round-4 charter-lens hunt — antifragility + claim/session portability + remaining HOME sites
+  round-5 charter-lens hunt — antifragility (retry/backoff/timeout/poison) + reliability silent-swallow
 
 status: started-work
 workflow_type: build
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-12T10:33:08Z
-last_update: 2026-08-12T10:43:11Z
+created: 2026-08-12T10:49:15Z
+last_update: 2026-08-12T10:49:15Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,27 +30,25 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2631: round-4 charter-lens hunt — antifragility + claim/session portability + remaining HOME sites
+# T-2634: round-5 charter-lens hunt — antifragility (retry/backoff/timeout/poison) + reliability silent-swallow
 
 ## Context
 
-Round-4 of the T-2468 subtract-and-deepen campaign: adversarial charter-lens hunt
-across Portability (Directive #4) + Reliability (Directive #2), targeting the
-un-swept lenses recorded in T-2628's Evolution (remaining CLI/MCP `HOME.unwrap_or`
-sites, claim-work + session-control portability surface, antifragility). A
-general-purpose hunter swept the env-coupling / silent-fallback class. Findings are
-verified in code, then built (small/clean, load-bearing test) or filed (delicate/
-multi-site) one-bug-one-task with RCA. This is the tracker task; per-finding fixes
-carry their own task IDs.
+Round-5 of the T-2468 subtract-and-deepen campaign: adversarial hunt on Directive
+#1 (Antifragility) + #2 (Reliability) — retry/backoff/timeout/poison + silent
+swallow. A general-purpose hunter swept the retry/reconnect/timeout surface; both
+findings verified in code. Budget hit critical (175K) before any build could run,
+so both are FILED (not built) with RCA + real ACs for a fresh-budget window. This
+is the tracker; per-finding fixes carry their own IDs.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] Adversarial hunter dispatched on the Portability/Reliability env-coupling lens; findings verified in code (not trusted from the report).
-- [x] Highest-value finding built + shipped: T-2632 (MCP hubs.toml trust-material `/tmp` leak — three resolvers, security-grade, T-2607 read-side mirror) with a load-bearing pure-core test proven via temp-revert; finalized through P-011; pushed to OneDev.
-- [x] Lower-value finding filed as a scoped task, not rushed: T-2633 (CLI `~/.termlink/*.log` default-path `/tmp` leak — reliability, multi-site) with RCA + real ACs.
-- [x] No-build finding recorded with rationale: push.rs `INBOX_DIR = "/tmp/termlink-inbox"` (deprecated `remote push` verb → `channel post`; patching a to-be-removed command is negative value).
-- [x] Round-4 outcome recorded in this task's Evolution section (built / filed / no-build + un-swept lenses remaining for round-5).
+- [x] Hunter dispatched on the antifragility/reliability retry-and-timeout lens; both findings verified in code (not trusted from the report).
+- [x] F1 filed: T-2635 — offline-queue flush uses unbounded `rpc_call_addr`, wedges forever on a black-hole hub (HANG; the durable-queue resilience mechanism defeating itself). RCA + real ACs written.
+- [x] F2 filed: T-2636 — `event watch` multi-session loop hot-spins on dead sockets (missing sleep-on-error the sibling `cmd_watch_hub` already has). RCA + real ACs written.
+- [x] Cleared-clean paths recorded (poison/dead-letter hardened T-2452/2497/2498; WS reconnect capped+backoff+jitter; ws_consumer bounded) so round-6 does not re-scan them.
+- [x] Round-5 outcome + un-swept lenses recorded in this task's Evolution.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -156,34 +154,34 @@ carry their own task IDs.
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
-### 2026-08-12 — round-4 outcome (Portability/Reliability env-coupling sweep)
+### 2026-08-12 — round-5 outcome (Antifragility/Reliability retry+timeout sweep)
 
-- **What changed:** The hunter confirmed the T-2607 HOME-unset silent-relocation
-  class extends into the **MCP crate** (not just CLI, which T-2629/T-2630 covered)
-  and, distinctly, onto the **log plane** with three *different* HOME-unset
-  behaviors coexisting (/tmp fallback, CWD-relative fallback, fail-loud `?`).
-  The read-side MCP `hubs.toml` resolver is the highest-value instance found so
-  far — it governs `secret_file` + `bootstrap_from` trust material for the MCP
-  server, making a world-writable `/tmp` read a genuine local-attacker plant
-  vector.
-- **Plan impact:** Confirms the class is broader than the CLI config plane; the
-  right long-term shape is one HOME-anchored resolver per crate (duplicated per
-  T-2069) rather than continued ad-hoc per-callsite resolution.
-- **Built:** T-2632 — MCP hubs.toml resolver hardened (three sites), pure-core +
-  loud/0700 wrapper, 4 tests, load-bearing via temp-revert, P-011-finalized,
-  pushed to OneDev.
-- **Filed:** T-2633 — CLI `~/.termlink/*.log` default-path consolidation
-  (substrate/find_idle/queue/claim relocate silently; rotation/heal/governor
-  already fail-loud). Full site inventory + RCA + real ACs written; horizon:next.
-- **No-build:** `push.rs` `INBOX_DIR = "/tmp/termlink-inbox"` — real hardcoded
-  shared-/tmp path, but on the **deprecated** `remote push` verb (→ `channel
-  post`, T-1166). Patching a to-be-removed command is negative value; recorded
-  only.
-- **Un-swept lenses remaining for round-5:** Directive #1 (Antifragility —
-  failure-as-learning, retry/backoff correctness); the claim-work + session-control
-  verbs' *non-path* portability surface (PTY/tmux assumptions, signal semantics);
-  and the previously-filed delicate PTY task cluster (T-2612..T-2616) awaiting
-  dedicated fresh-budget windows.
+- **What changed:** Both findings share one root theme — a correct bounded/paced
+  primitive already exists in the tree and the defect is a path that was never
+  migrated onto it. F1: `Client::call_with_timeout` (T-2354) exists but the
+  offline-queue flush still uses unbounded `rpc_call_addr`. F2: `cmd_watch_hub`
+  has the sleep-on-error but the multi-session `event watch` twin does not. This
+  is a recurring *divergence* class: a fix lands on one caller/branch and its
+  siblings silently keep the old shape (same shape as the T-2632/T-2633 HOME
+  resolvers). Worth a future meta-check (grep for unbounded `rpc_call_addr` on
+  detached paths; assert the two watch loops share a reconnect helper).
+- **Filed (not built — budget hit 175K critical before any build could run):**
+  - T-2635 — offline-queue flush unbounded-RPC HANG (higher severity: silently
+    wedges the antifragility-critical durable queue during the very outage it
+    exists to survive). Async, needs a black-hole-server test harness.
+  - T-2636 — `event watch` multi-session hot-spin (small, clean; mirror the
+    sibling's 500ms sleep). Deferred only for budget, not complexity.
+- **Cleared clean (do not re-scan in round-6):** offline-queue poison/dead-letter
+  path (hardened T-2452/2497/2498, only the known T-2055 jitter gap remains); WS
+  reconnect loop (capped + exponential backoff + CAP_MS clamp + jitter);
+  `ws_consumer` read path bounded (T-2446); hub router/server `unwrap`/`panic!`
+  all `#[cfg(test)]`.
+- **Un-swept lenses remaining for round-6:** the divergence meta-check above;
+  Directive #3 (Usability — actionable errors, sensible defaults) which no round
+  has swept yet; the claim-work + session-control verbs' PTY/tmux/signal
+  semantics (non-path); and the previously-filed delicate PTY cluster
+  T-2612..T-2616 + the two new build-ready tasks T-2633/T-2636 awaiting
+  fresh-budget windows.
 
 <!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
@@ -206,7 +204,7 @@ carry their own task IDs.
 
 ## Updates
 
-### 2026-08-12T10:33:08Z — task-created [task-create-agent]
+### 2026-08-12T10:49:15Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2631-round-4-charter-lens-hunt--antifragility.md
+- **Output:** /opt/termlink/.tasks/active/T-2634-round-5-charter-lens-hunt--antifragility.md
 - **Context:** Initial task creation

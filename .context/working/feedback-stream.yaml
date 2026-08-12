@@ -7344,3 +7344,21 @@ scan_id: R-f0c8c63f
 task_id: T-2632
 payload:
   task_file: .tasks/active/T-2632-mcp-hubstoml-resolver-reads-trust-materi.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T10:45:24Z'
+scan_id: R-1c406a87
+task_id: T-2631
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T10:45:24Z'
+scan_id: R-1c406a87
+task_id: T-2631
+payload:
+  task_file: .tasks/active/T-2631-round-4-charter-lens-hunt--antifragility.md

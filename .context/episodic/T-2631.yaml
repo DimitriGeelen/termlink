@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2631: round-4 charter-lens hunt — antifragility + claim/session portability + remaining HOME sites
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-12T10:45:28Z
+# ============================================================================
+
+task_id: T-2631
+task_name: "round-4 charter-lens hunt — antifragility + claim/session portability + remaining HOME sites"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-12T10:33:08Z
+completed: 2026-08-12T10:45:23Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-12T12:45:18+02:00
+last_commit: 2026-08-12T12:45:18+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  round-4 charter-lens hunt outcome — built T-2632 (MCP hubs.toml /tmp trust leak), filed T-2633 (CLI log-path consolidation), recorded push.rs no-build
+
+# Key outcomes
+outcomes:
+  - 'Adversarial hunter dispatched on the Portability/Reliability env-coupling lens; findings verified in code (not trusted from the report).'
+  - 'Highest-value finding built + shipped: T-2632 (MCP hubs.toml trust-material `/tmp` leak — three resolvers, security-grade, T-2607 read-side mirror) with a load-bearing pure-core test proven via temp-revert; finalized through P-011; pushed to OneDev.'
+  - 'Lower-value finding filed as a scoped task, not rushed: T-2633 (CLI `~/.termlink/*.log` default-path `/tmp` leak — reliability, multi-site) with RCA + real ACs.'
+  - 'No-build finding recorded with rationale: push.rs `INBOX_DIR = "/tmp/termlink-inbox"` (deprecated `remote push` verb → `channel post`; patching a to-be-removed command is negative value).'
+  - 'Round-4 outcome recorded in this task''s Evolution section (built / filed / no-build + un-swept lenses remaining for round-5).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-08-12.yaml'
+  - '.context/episodic/T-2632.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.tool-counter'
+  - '.tasks/active/T-2631-round-4-charter-lens-hunt--antifragility.md'
+  - '.tasks/active/T-2633-cli-log-path-defaults-leak-to-tmp-when-h.md'
+  - '.tasks/completed/T-2632-mcp-hubstoml-resolver-reads-trust-materi.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-12T12:45:18"
+    action: "T-2631: round-4 charter-lens hunt outcome — built T-2632 (MCP hubs.toml /tmp trust leak), filed T-2633 (CLI log-path consolidation), recorded push.rs no-build"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 12 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 12
+  commits: 1
+  files_changed: 13
+  lines_added: 442
+  lines_removed: 43
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2631-round-4-charter-lens-hunt--antifragility.md
+generated_by: context-agent-hybrid
