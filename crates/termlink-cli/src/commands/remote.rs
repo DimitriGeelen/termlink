@@ -6769,6 +6769,13 @@ fn load_fleet_state(path: &std::path::Path) -> serde_json::Value {
         .unwrap_or_else(|| serde_json::json!({"hubs": {}}))
 }
 
+/// Actionable "profile not found" message (Directive #3 / PL-151): names the
+/// discovery command, mirroring the sibling `"Hub profile '{}' not found. Run:
+/// termlink remote profile list"` path in this file. The bare form dead-ended.
+fn profile_not_found_msg(name: &str) -> String {
+    format!("no such hub profile: '{name}'. Run: termlink remote profile list")
+}
+
 fn save_fleet_state(path: &std::path::Path, state: &serde_json::Value) {
     let Ok(s) = serde_json::to_string_pretty(state) else {
         return;
@@ -7527,7 +7534,7 @@ pub(crate) fn cmd_fleet_bootstrap_check(
             .hubs
             .get(name)
             .cloned()
-            .ok_or_else(|| anyhow::anyhow!("no such hub profile: '{name}'"))?;
+            .ok_or_else(|| anyhow::anyhow!("{}", profile_not_found_msg(name)))?;
         vec![(name.to_string(), entry)]
     } else {
         // --all
@@ -8458,6 +8465,19 @@ mod tests {
 
     const VALID_SECRET_HEX: &str =
         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+    // T-2647 (load-bearing): a "profile not found" error must name the discovery
+    // command, not dead-end. Reverting to the bare "no such hub profile" form
+    // fails the `remote profile list` assertion.
+    #[test]
+    fn profile_not_found_msg_names_discovery_command() {
+        let m = profile_not_found_msg("ring20-typo");
+        assert!(m.contains("ring20-typo"), "must echo the bad name: {m}");
+        assert!(
+            m.contains("termlink remote profile list"),
+            "must name the discovery command: {m}"
+        );
+    }
 
     // T-2646 (load-bearing): a failed best-effort fleet-state write must surface
     // a warning naming the consequence (concern escalation won't trigger), not be

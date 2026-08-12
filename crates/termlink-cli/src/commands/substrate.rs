@@ -120,16 +120,24 @@ pub(crate) async fn cmd_substrate_status(
 // Sub-fetches
 // ────────────────────────────────────────────────────────────────────────────
 
+/// Actionable hub-down message for a substrate sub-read that requires the local
+/// hub (Directive #3 / PL-151): names the start command, mirroring the
+/// `dispatch.rs` sibling. `section` is the digest section label (e.g. "DISPATCH").
+/// Previously each site stated only what needed the hub, never how to start it.
+fn local_hub_down_msg(section: &str) -> String {
+    format!(
+        "local hub not running (no socket) — {section} read needs the local hub. \
+         Start it with: termlink hub start"
+    )
+}
+
 /// DISPATCH (substrate #2): call `agent.find_idle` on the local hub.
 /// Returns the RPC result as-is — same shape as `agent find-idle --json`.
 async fn fetch_dispatch(local_addr: Option<&TransportAddr>, timeout_secs: u64) -> SubResult {
     let addr = match local_addr {
         Some(a) => a,
         None => {
-            return Err(
-                "local hub not running (no socket) — DISPATCH read needs the local hub"
-                    .to_string(),
-            );
+            return Err(local_hub_down_msg("DISPATCH"));
         }
     };
     let timeout_dur = Duration::from_secs(timeout_secs);
@@ -166,9 +174,7 @@ async fn fetch_claim(
     let addr = match local_addr {
         Some(a) => a,
         None => {
-            return Err(
-                "local hub not running (no socket) — CLAIM read needs the local hub".to_string(),
-            );
+            return Err(local_hub_down_msg("CLAIM"));
         }
     };
     let timeout_dur = Duration::from_secs(timeout_secs);
@@ -1412,6 +1418,19 @@ pub(crate) fn cmd_substrate_history(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // T-2647 (load-bearing): a substrate hub-down message must name the start
+    // command, not dead-end at "needs the local hub". Reverting to the bare form
+    // fails the `termlink hub start` assertion.
+    #[test]
+    fn local_hub_down_msg_names_start_command() {
+        let m = local_hub_down_msg("DISPATCH");
+        assert!(m.contains("DISPATCH"), "must name the section: {m}");
+        assert!(
+            m.contains("termlink hub start"),
+            "must name the start command: {m}"
+        );
+    }
 
     fn ok_dispatch_empty() -> SubResult {
         Ok(json!({ "idle": [] }))
