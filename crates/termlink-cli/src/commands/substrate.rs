@@ -1140,10 +1140,11 @@ pub(crate) async fn cmd_substrate_status_watch(
 /// `claims.log` / `queue.log` so an operator has one well-known dir for
 /// all observability NDJSON.
 pub(crate) fn default_substrate_log_path() -> PathBuf {
-    let home = std::env::var_os("HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("/tmp"));
-    home.join(".termlink").join("substrate.log")
+    // T-2633: route through the shared HOME-anchored resolver — was
+    // `HOME.unwrap_or("/tmp")`, which silently wrote the audit trail to a
+    // world-writable, reboot-volatile `/tmp/.termlink/substrate.log` when HOME
+    // was unset (T-2607/T-2632 class).
+    super::infrastructure::termlink_log_dir().join("substrate.log")
 }
 
 /// T-2115: stdlib-only RFC3339→epoch parser. Duplicated per T-2069

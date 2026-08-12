@@ -34,6 +34,65 @@ pub(crate) fn resolve_hub_paths() -> (PathBuf, PathBuf) {
     (default_pidfile, default_socket)
 }
 
+/// T-2633: shared HOME-anchored resolver for the CLI's `~/.termlink/*.log`
+/// observability audit trails (substrate.log / find-idle.log / queue.log /
+/// claims.log). Before this, the per-file default-path helpers had drifted into
+/// three different HOME-unset behaviors — `/tmp` fallback (substrate.rs, the
+/// world-writable/reboot-volatile leak), CWD-relative `.termlink` fallback
+/// (find-idle/queue/claim, a per-invocation-varying scatter), and fail-loud `?`
+/// (remote.rs rotation/heal/governor, the only correct one). This is the single
+/// canonical HOME-anchored form; the loud last-resort makes an unset HOME an
+/// observable event rather than a silent relocation (T-2607/T-2632 class).
+///
+/// Deliberately NOT XDG-aware: honoring `XDG_STATE_HOME` would silently relocate
+/// an operator's existing `~/.termlink` audit trail (same rationale as
+/// T-2629/T-2632 for the config plane).
+///
+/// Pure core — given explicit inputs, returns `(dir, is_last_resort)`; no env,
+/// no fs, so it is unit-testable. `is_last_resort == true` ⇒ HOME was
+/// unset/empty and the caller should warn + harden.
+pub(crate) fn resolve_log_dir_from(
+    home: Option<&str>,
+    temp: &std::path::Path,
+    uid: u32,
+) -> (PathBuf, bool) {
+    if let Some(h) = home.filter(|s| !s.is_empty()) {
+        return (PathBuf::from(h).join(".termlink"), false);
+    }
+    // HOME unset/empty: a private, UID-namespaced temp dir. NEVER a shared
+    // world-writable `/tmp/.termlink`, NEVER a CWD-relative `.termlink`.
+    (temp.join(format!("termlink-{uid}")), true)
+}
+
+/// T-2633: infallible wrapper resolving the `~/.termlink` log dir, warning
+/// loudly (once) and hardening to mode 0700 on the HOME-unset last-resort path.
+pub(crate) fn termlink_log_dir() -> PathBuf {
+    let home = std::env::var("HOME").ok();
+    let temp = std::env::temp_dir();
+    let uid = unsafe { libc::getuid() };
+    let (dir, last_resort) = resolve_log_dir_from(home.as_deref(), &temp, uid);
+    if last_resort {
+        warn_log_dir_last_resort_once(&dir);
+        harden_log_dir_last_resort(&dir);
+    }
+    dir
+}
+
+static LOG_DIR_LAST_RESORT_WARNED: std::sync::Once = std::sync::Once::new();
+fn warn_log_dir_last_resort_once(dir: &std::path::Path) {
+    LOG_DIR_LAST_RESORT_WARNED.call_once(|| {
+        tracing::error!(log_dir = %dir.display(),
+            "HOME is unset — TermLink observability audit logs (substrate.log / find-idle.log / queue.log / claims.log) are falling back to a UID-namespaced temp directory; the audit trail will NOT survive a reboot and is not the operator's canonical ~/.termlink. Set HOME (or pass --log <PATH>) to restore durable audit logging.");
+    });
+}
+
+fn harden_log_dir_last_resort(dir: &std::path::Path) {
+    use std::os::unix::fs::PermissionsExt;
+    if std::fs::create_dir_all(dir).is_ok() {
+        let _ = std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700));
+    }
+}
+
 async fn wait_for_shutdown_signal() {
     #[cfg(unix)]
     {
@@ -2447,5 +2506,57 @@ mod tests {
         // and must not contribute to any group.
         assert_eq!(groups.len(), 1, "only the FP-bearing session forms a group; got {:?}", groups);
         assert_eq!(groups[0].1.len(), 1, "modern session is alone in its FP");
+    }
+
+    // ── T-2633: shared HOME-anchored log-dir resolver ─────────────────────────
+    use super::resolve_log_dir_from;
+
+    #[test]
+    fn log_dir_uses_home_when_set() {
+        let temp = std::path::PathBuf::from("/tmp");
+        let (dir, last_resort) = resolve_log_dir_from(Some("/home/dimitri"), &temp, 1000);
+        assert_eq!(dir, std::path::PathBuf::from("/home/dimitri/.termlink"));
+        assert!(!last_resort, "HOME set is never the last-resort path");
+    }
+
+    // Empty HOME must be treated as UNSET (last-resort), NOT as root — else the
+    // dir would resolve to `/.termlink`. Reverting the `.filter(|s| !s.is_empty())`
+    // guard makes this fail (load-bearing).
+    #[test]
+    fn log_dir_empty_home_is_treated_as_unset_not_root() {
+        let temp = std::path::PathBuf::from("/var/tmp");
+        let (dir, last_resort) = resolve_log_dir_from(Some(""), &temp, 1000);
+        assert!(last_resort, "empty HOME must trip the last-resort path");
+        assert_eq!(dir, std::path::PathBuf::from("/var/tmp/termlink-1000"));
+        assert_ne!(dir, std::path::PathBuf::from("/.termlink"), "must NOT be root .termlink");
+    }
+
+    // THE load-bearing guard: HOME unset must NEVER yield a world-writable
+    // `/tmp/.termlink` (the substrate.rs leak) NOR a bare CWD-relative `.termlink`
+    // (the find-idle/queue/claim scatter). Reverting the resolver body to either
+    // legacy fallback makes this fail.
+    #[test]
+    fn log_dir_home_unset_is_never_tmp_dot_termlink_nor_cwd_relative() {
+        let temp = std::path::PathBuf::from("/tmp");
+        let (dir, last_resort) = resolve_log_dir_from(None, &temp, 4242);
+        assert!(last_resort);
+        // not the shared world-writable /tmp/.termlink
+        assert_ne!(dir, std::path::PathBuf::from("/tmp/.termlink"),
+            "unset HOME must not fall back to the shared /tmp/.termlink");
+        // not a bare CWD-relative .termlink
+        assert!(dir.is_absolute(), "last-resort dir must be absolute, not CWD-relative");
+        assert_ne!(dir, std::path::PathBuf::from(".termlink"),
+            "unset HOME must not fall back to a CWD-relative .termlink");
+        // it IS the UID-namespaced private temp dir
+        assert_eq!(dir, std::path::PathBuf::from("/tmp/termlink-4242"));
+    }
+
+    // The last-resort base honors the provided temp dir (TMPDIR-driven), so a
+    // hardened host with TMPDIR=/run/user/<uid> lands there, not a hardcoded /tmp.
+    #[test]
+    fn log_dir_last_resort_honors_temp_base_and_uid() {
+        let temp = std::path::PathBuf::from("/run/user/1000");
+        let (dir, _) = resolve_log_dir_from(None, &temp, 1000);
+        assert_eq!(dir, std::path::PathBuf::from("/run/user/1000/termlink-1000"));
     }
 }

@@ -4,10 +4,10 @@ name: "CLI log-path defaults leak to /tmp when HOME unset — route ~/.termlink/
 description: >
   default_substrate_log_path (substrate.rs:1142) and sibling log-path defaults use HOME.unwrap_or(/tmp), silently relocating observability NDJSON to volatile shared /tmp/.termlink when HOME unset (T-2607 class, reliability/Directive-2). Fold all ~/.termlink/*.log defaults through one loud HOME-anchored resolver.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T10:42:46Z
-last_update: 2026-08-12T10:42:46Z
+last_update: 2026-08-12T12:06:31Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -64,11 +64,11 @@ and stay unchanged.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] A single HOME-anchored log-dir resolver (pure core + wrapper, mirroring T-2629/T-2632: HOME-set → `$HOME/.termlink`; unset/empty → UID-namespaced temp dir + one-time `tracing::error!`; NOT XDG) exists in the CLI crate.
-- [ ] `default_substrate_log_path` (substrate.rs), `find_idle_log_path` (agent_find_idle.rs), `queue_log_path` + `claim_log_path` (channel.rs) all resolve through it — no `/tmp` literal and no CWD-relative `.termlink` fallback remains for these.
-- [ ] The three fail-loud helpers (`rotation_log_path`, `heal_log_path`, `governor_log_path`) are left unchanged (they correctly return `None` on unset HOME) — verified by a comment or test noting the deliberate asymmetry.
-- [ ] A pure-core unit test proves HOME-unset never yields a world-writable `/tmp/.termlink` nor a bare CWD-relative `.termlink`; load-bearing via temp-revert.
-- [ ] `cargo test -p termlink` (relevant filter) green; `cargo build -p termlink` succeeds.
+- [x] A single HOME-anchored log-dir resolver (pure core + wrapper, mirroring T-2629/T-2632: HOME-set → `$HOME/.termlink`; unset/empty → UID-namespaced temp dir + one-time `tracing::error!`; NOT XDG) exists in the CLI crate. — `resolve_log_dir_from` (pure core) + `termlink_log_dir` (wrapper) + `warn_log_dir_last_resort_once` + `harden_log_dir_last_resort` in `commands/infrastructure.rs`.
+- [x] `default_substrate_log_path` (substrate.rs), `find_idle_log_path` (agent_find_idle.rs), `queue_log_path` + `claim_log_path` (channel.rs) all resolve through it — no `/tmp` literal and no CWD-relative `.termlink` fallback remains for these. — all four now `super::infrastructure::termlink_log_dir().join("<name>.log")`; grep confirms the only `/tmp` left is an explanatory comment.
+- [x] The three fail-loud helpers (`rotation_log_path`, `heal_log_path`, `governor_log_path`) are left unchanged (they correctly return `None` on unset HOME) — verified by a comment or test noting the deliberate asymmetry. — added a T-2633 asymmetry note above `rotation_log_path` in remote.rs; all three still return `Option`.
+- [x] A pure-core unit test proves HOME-unset never yields a world-writable `/tmp/.termlink` nor a bare CWD-relative `.termlink`; load-bearing via temp-revert. — 4 tests in `infrastructure::tests`; `log_dir_home_unset_is_never_tmp_dot_termlink_nor_cwd_relative` is THE guard; reverting the resolver to the `/tmp/.termlink` fallback makes 3 of 4 fail (proven via temp-revert).
+- [x] `cargo test -p termlink` (relevant filter) green; `cargo build -p termlink` succeeds. — full binary: 1035 passed, 0 failed; integration 174 passed; `cargo build -p termlink` Finished.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -133,6 +133,8 @@ and stay unchanged.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+cargo test -p termlink infrastructure::tests::log_dir
+cargo build -p termlink
 
 ## RCA
 
@@ -223,3 +225,7 @@ vector.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2633-cli-log-path-defaults-leak-to-tmp-when-h.md
 - **Context:** Initial task creation
+
+### 2026-08-12T12:06:31Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

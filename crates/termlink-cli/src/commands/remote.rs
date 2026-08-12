@@ -3499,6 +3499,15 @@ type WatchHubState = (String, Option<String>, Option<u64>);
 /// state change. Best-effort: write failures (disk full, permission denied)
 /// go to stderr but never crash the watch. Append-only; operators handle log
 /// rotation via logrotate or manual truncation.
+///
+/// T-2633 note (deliberate asymmetry): this helper — and its siblings
+/// `heal_log_path` / `governor_log_path` below — return `None` on unset HOME
+/// (fail-loud: the caller skips the write and emits a stderr notice). This is
+/// the CORRECT behavior and is intentionally NOT routed through
+/// `infrastructure::termlink_log_dir` (which relocates to a UID-namespaced temp
+/// dir). The `*.log` audit-trail helpers that DID silently relocate on unset
+/// HOME (substrate/find-idle/queue/claims) were consolidated onto that resolver
+/// in T-2633; these three were already correct and are left unchanged.
 fn rotation_log_path() -> Option<std::path::PathBuf> {
     let home = std::env::var("HOME").ok()?;
     Some(std::path::PathBuf::from(home).join(".termlink").join("rotation.log"))

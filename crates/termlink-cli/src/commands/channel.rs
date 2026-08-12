@@ -10115,12 +10115,10 @@ pub(crate) async fn cmd_channel_queue_status_watch(
 /// `$HOME` is unset (rare; CI / docker minimal images) so the helper
 /// never panics — the caller is still free to override via `--log <PATH>`.
 pub(crate) fn queue_log_path() -> std::path::PathBuf {
-    match std::env::var_os("HOME") {
-        Some(home) => std::path::PathBuf::from(home)
-            .join(".termlink")
-            .join("queue.log"),
-        None => std::path::PathBuf::from(".termlink").join("queue.log"),
-    }
+    // T-2633: route through the shared HOME-anchored resolver — the previous
+    // HOME-unset fallback was a CWD-relative `.termlink/queue.log` (silent,
+    // per-invocation-varying scatter). Resolver warns loudly + UID-namespaced.
+    super::infrastructure::termlink_log_dir().join("queue.log")
 }
 
 /// T-2086: aggregate counters for queue-history. Queue state is binary
@@ -11701,10 +11699,10 @@ fn append_claim_log_line(
 /// minimal images) so the helper never panics — the caller is still free
 /// to override via `--log <PATH>`.
 pub(crate) fn claim_log_path() -> std::path::PathBuf {
-    match std::env::var_os("HOME") {
-        Some(home) => std::path::PathBuf::from(home).join(".termlink").join("claims.log"),
-        None => std::path::PathBuf::from(".termlink").join("claims.log"),
-    }
+    // T-2633: route through the shared HOME-anchored resolver — the previous
+    // HOME-unset fallback was a CWD-relative `.termlink/claims.log` (silent,
+    // per-invocation-varying scatter). Resolver warns loudly + UID-namespaced.
+    super::infrastructure::termlink_log_dir().join("claims.log")
 }
 
 /// T-2074: per-topic aggregate counters for `claims-history`. Counts each

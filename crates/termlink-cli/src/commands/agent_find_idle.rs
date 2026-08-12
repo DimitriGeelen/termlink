@@ -431,12 +431,11 @@ pub(crate) async fn cmd_agent_find_idle(
 /// minimal images) so the helper never panics — the caller is still
 /// free to override via `--log <PATH>`.
 pub(crate) fn find_idle_log_path() -> std::path::PathBuf {
-    match std::env::var_os("HOME") {
-        Some(home) => std::path::PathBuf::from(home)
-            .join(".termlink")
-            .join("find-idle.log"),
-        None => std::path::PathBuf::from(".termlink").join("find-idle.log"),
-    }
+    // T-2633: route through the shared HOME-anchored resolver — the previous
+    // HOME-unset fallback was a CWD-relative `.termlink/find-idle.log`, a
+    // per-invocation-varying, non-canonical location that scattered the audit
+    // trail silently. The resolver warns loudly + uses a UID-namespaced temp dir.
+    super::infrastructure::termlink_log_dir().join("find-idle.log")
 }
 
 /// T-2081: per-agent aggregate counters for `find-idle-history`. Idle is
