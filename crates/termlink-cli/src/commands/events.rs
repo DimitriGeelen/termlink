@@ -1339,6 +1339,14 @@ pub(crate) async fn cmd_collect(
                         if !json {
                             eprintln!("Hub connection error: {}. Retrying...", e);
                         }
+                        // T-2658: back off before retrying. A dead/half-open hub
+                        // socket makes event.collect return near-instantly, so a
+                        // bare `continue` re-dispatches with zero delay and pins a
+                        // CPU core (silently in --json, where the eprintln is gated).
+                        // Mirrors cmd_watch_hub (this file) + the T-2636/T-2640
+                        // sleep-on-error convention — cmd_collect was the last
+                        // hub-retry loop here missing the guard.
+                        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
                         continue;
                     }
                 };
