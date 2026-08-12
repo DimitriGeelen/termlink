@@ -1,13 +1,13 @@
 ---
-id: T-2637
-name: "Round-6 charter-lens hunt — divergence-class sweep (safe primitive exists, sibling caller unmigrated)"
+id: T-2640
+name: "dispatch event.collect loop — unbounded RPC await defeats --timeout on half-open hub (low)"
 description: >
-  Round-6 of the T-2468 charter-review campaign. Sweeps the divergence class surfaced by T-2636 (watch loops diverged) + T-2633 (log-path helpers diverged) + T-2635 (bounded RPC unadopted): a bounded/paced/hardened primitive exists in-tree but a sibling caller was never migrated onto it. Tracker for verify+build/file outcomes.
+  dispatch.rs event.collect loop (~416) awaits rpc_call(event.collect) unbounded; collect_timeout is only checked at loop top, never concurrently, so a single wedged collect ignores the deadline. Err arm also continues with no backoff (bounded 5-iter micro-spin). Divergence F3 (T-2637), low severity.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
-horizon: now
+horizon: later
 tags: []
 components: []
 related_tasks: []
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-12T12:24:47Z
-last_update: 2026-08-12T12:39:18Z
+created: 2026-08-12T12:37:34Z
+last_update: 2026-08-12T12:37:34Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,27 +30,32 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2637: Round-6 charter-lens hunt — divergence-class sweep (safe primitive exists, sibling caller unmigrated)
+# T-2640: dispatch event.collect loop — unbounded RPC await defeats --timeout on half-open hub (low)
 
 ## Context
 
-Round-6 of the T-2468 "subtract-and-deepen" charter-review campaign. This session
-already shipped two divergence-class fixes — T-2636 (the single-hub and multi-session
-`event watch` loops diverged; only one had the sleep-on-error) and T-2633 (four
-`~/.termlink/*.log` path helpers diverged; some fail-loud, some silently relocated).
-Plus the earlier-filed T-2635 (bounded `call_with_timeout` exists but `BusClient`
-flush/post never adopted it). Three instances of one class in one campaign ⇒ sweep it
-systematically: **a bounded/paced/hardened primitive exists in-tree, but a sibling
-caller doing the same operation was never migrated onto it.** A dispatched hunter
-sweeps the crates; each finding is verified IN CODE before build-or-file.
+Round-6 (T-2637) divergence-class finding F3 — low severity. Verified site
+(2026-08-12): `crates/termlink-cli/src/commands/dispatch.rs:416` awaits
+`client::rpc_call(&hub_socket, "event.collect", …)` unbounded; the `Err` arm (~421)
+bumps a counter and `continue`s with no backoff. Two sub-issues:
+1. The Err arm bursts up to `MAX_CONSECUTIVE_COLLECT_ERRORS=5` (dispatch.rs:382)
+   zero-delay retries before aborting — a BOUNDED micro-spin, not sustained (so this
+   half is minor).
+2. The unbounded `.await` combined with `collect_timeout` being checked only at loop
+   top (~388), never concurrently, means a single wedged collect on a half-open hub
+   ignores the `--timeout` deadline entirely — the more real concern.
+
+Filed at horizon:later (low severity) to preserve the finding under one-bug-one-task;
+the sustained-hang risk is real but narrow (needs a half-open hub mid-dispatch). Fix
+coordinates with T-2635/T-2639's bounded-RPC primitive.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] A divergence-class hunter swept the crates (unbounded RPC on detached paths; retry/watch loops missing sleep-on-error; paired helpers where one is hardened and a sibling isn't; clamp-convention gaps).
-- [x] Every reported finding is VERIFIED in code (defect site + safe-sibling primitive both cited with path:line) before any action — no hunter output trusted unverified. — F1 (agent_find_idle.rs:354 vs substrate.rs:150) and F2 (channel.rs:359 vs :401-419) both read in full myself with path:line; F3 (dispatch.rs:416) filed at horizon:later from the hunter's citations, its own build gate requiring in-code verification before the fix.
-- [x] Each verified finding is either BUILT (if small/clean/cleanly-unit-testable, with a load-bearing test proven via temp-revert) or FILED as its own one-bug-one-task with real ACs + RCA (if delicate/async/multi-file). Cleared-clean paths recorded in Evolution. — F1 BUILT (T-2638, load-bearing test proven via temp-revert); F2 FILED (T-2639, hot-path wire behavior); F3 FILED (T-2640, low).
-- [x] Tracker committed and pushed to OneDev; Evolution names the un-swept round-7 lenses.
+- [ ] The `event.collect` RPC in the dispatch loop (dispatch.rs ~416) is bounded so a half-open hub cannot make a single collect await indefinitely past the `--timeout` deadline (e.g. `tokio::select!` the collect against the remaining `collect_timeout`, or a per-call `tokio::time::timeout`).
+- [ ] The `Err` arm applies a small backoff before `continue` (mirror T-2636 / events.rs sleep-on-error) so the up-to-5 retry burst is paced, not a zero-delay micro-spin.
+- [ ] A test proves the collect loop honors `--timeout` even when a collect call never returns (half-open hub), and that consecutive errors are paced.
+- [ ] `cargo test -p termlink` green; `cargo build -p termlink` succeeds.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -132,6 +137,24 @@ sweeps the crates; each finding is verified IN CODE before build-or-file.
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** A `termlink dispatch` whose hub goes half-open mid-collect ignores its
+`--timeout` deadline (the wedged collect never returns and the deadline is only
+checked at loop top). Separately, an instantly-erroring hub triggers up to 5
+zero-delay retries before abort (a brief micro-spin).
+
+**Root cause:** the dispatch collect loop awaits `event.collect` unbounded and checks
+`collect_timeout` only at the top of the loop, not concurrently with the in-flight
+call; the Err arm re-loops with no sleep.
+
+**Why structurally allowed:** the T-2637 divergence class — the retry-loop hardening
+patterns (bounded await + sleep-on-error) proven in events.rs (T-2636) and the
+timeout convention (T-2354) were not applied to this loop. The 5-retry cap masks the
+micro-spin, and the deadline-check-at-top masks the hang under casual testing.
+
+**Prevention:** `select!` the collect against the deadline + a paced Err arm, plus a
+test that a never-returning collect still honors `--timeout`. Same primitive as
+T-2635/T-2639.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -156,35 +179,6 @@ sweeps the crates; each finding is verified IN CODE before build-or-file.
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
-### 2026-08-12 — round-6 divergence sweep outcome
-
-- **What changed:** The divergence class ("a bounded/paced/hardened primitive
-  exists in-tree but a sibling caller was never migrated onto it") is now confirmed
-  as a recurring, systematic mechanism, not a coincidence: this campaign has closed
-  FIVE instances of it — T-2632 (MCP hubs.toml HOME resolver), T-2633 (four CLI
-  log-path helpers), T-2636 (two `event watch` loops), T-2635 (BusClient flush
-  unbounded RPC, filed), and now the round-6 trio (T-2638 find-idle watch RPC built;
-  T-2639 unix-socket RPC branch filed; T-2640 dispatch collect loop filed).
-- **Findings:** F1 (CONFIRMED) built as T-2638. F2 (CONFIRMED on my own read, hunter
-  rated PLAUSIBLE) filed as T-2639 — the local-channel-surface sibling of the exact
-  same `call_with_timeout` divergence. F3 (low) filed as T-2640.
-- **Cleared-clean paths (verified NOT defective this round, do not re-hunt):**
-  hub-side background callers `supervisor.rs:142`, `aggregator.rs:89` (T-2496),
-  `router.rs:433/626`, `inbox.rs:524` are all `tokio::time::timeout`-wrapped;
-  `ack_retry.rs`, `governance_subscriber.rs`, `ws_consumer.rs` loops are clean
-  (blocking `recv().await`, no RPC re-dispatch, no spin).
-- **Shared-primitive insight:** F2 (T-2639), T-2635, and F3 (T-2640) all want the
-  SAME missing bounded convenience `rpc_call_addr_with_timeout`. Building that
-  primitive once (T-2635's AC-1) and routing all three unbounded callers through it
-  is the efficient closure — a mini-arc, not three independent fixes.
-- **Un-swept round-7 lenses (for the next fresh-budget window):** (a) build the
-  shared `rpc_call_addr_with_timeout` primitive and close T-2635/T-2639/T-2640 as a
-  batch; (b) Directive #3 Usability — still un-swept across all six rounds
-  (actionable errors / sensible defaults / copy-pasteable remediation); (c) the
-  claim-work + session-control verbs' PTY/tmux/signal semantics (non-path, non-RPC —
-  the T-2612–2616 PTY cluster is filed but the tmux/signal surface is unswept).
-- **Triggered:** T-2638 (built), T-2639 + T-2640 (filed).
-
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -208,7 +202,7 @@ sweeps the crates; each finding is verified IN CODE before build-or-file.
 
 ## Updates
 
-### 2026-08-12T12:24:47Z — task-created [task-create-agent]
+### 2026-08-12T12:37:34Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2637-round-6-charter-lens-hunt--divergence-cl.md
+- **Output:** /opt/termlink/.tasks/active/T-2640-dispatch-eventcollect-loop--unbounded-rp.md
 - **Context:** Initial task creation

@@ -1,13 +1,13 @@
 ---
-id: T-2637
-name: "Round-6 charter-lens hunt — divergence-class sweep (safe primitive exists, sibling caller unmigrated)"
+id: T-2639
+name: "rpc_call_authed unix-socket branch is unbounded — bound the read like the TCP branch (T-2354 divergence)"
 description: >
-  Round-6 of the T-2468 charter-review campaign. Sweeps the divergence class surfaced by T-2636 (watch loops diverged) + T-2633 (log-path helpers diverged) + T-2635 (bounded RPC unadopted): a bounded/paced/hardened primitive exists in-tree but a sibling caller was never migrated onto it. Tracker for verify+build/file outcomes.
+  channel.rs rpc_call_authed: the unix branch returns unbounded rpc_call_addr while the TCP branch adopts call_with_timeout + TERMLINK_RPC_READ_TIMEOUT_SECS (T-2354). Every LOCAL channel op flows through the unbounded branch; a starved local hub hangs the whole local channel surface. Divergence F2 (T-2637).
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
-horizon: now
+horizon: next
 tags: []
 components: []
 related_tasks: []
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-12T12:24:47Z
-last_update: 2026-08-12T12:39:18Z
+created: 2026-08-12T12:36:43Z
+last_update: 2026-08-12T12:36:43Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,27 +30,40 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2637: Round-6 charter-lens hunt — divergence-class sweep (safe primitive exists, sibling caller unmigrated)
+# T-2639: rpc_call_authed unix-socket branch is unbounded — bound the read like the TCP branch (T-2354 divergence)
 
 ## Context
 
-Round-6 of the T-2468 "subtract-and-deepen" charter-review campaign. This session
-already shipped two divergence-class fixes — T-2636 (the single-hub and multi-session
-`event watch` loops diverged; only one had the sleep-on-error) and T-2633 (four
-`~/.termlink/*.log` path helpers diverged; some fail-loud, some silently relocated).
-Plus the earlier-filed T-2635 (bounded `call_with_timeout` exists but `BusClient`
-flush/post never adopted it). Three instances of one class in one campaign ⇒ sweep it
-systematically: **a bounded/paced/hardened primitive exists in-tree, but a sibling
-caller doing the same operation was never migrated onto it.** A dispatched hunter
-sweeps the crates; each finding is verified IN CODE before build-or-file.
+Round-6 (T-2637) divergence-class finding F2 — the sibling of T-2638 on the local
+RPC path. Verified sites (2026-08-12):
+- `crates/termlink-cli/src/commands/channel.rs:359` — the unix branch of
+  `rpc_call_authed` does `return client::rpc_call_addr(addr, method, params).await;`
+  (UNBOUNDED read).
+- `crates/termlink-cli/src/commands/channel.rs:401-419` — the TCP branch adopts
+  `c.call_with_timeout(method, …, read_timeout)` with `read_timeout` from
+  `TERMLINK_RPC_READ_TIMEOUT_SECS` (default 30s, clamped 1..=600) and carries the
+  T-2354 comment naming the exact hazard.
+The T-2354 comment's own field symptom (`channel info/unread --hub` hanging on a
+wedged record-walk) runs against the LOCAL hub over the unix socket too — i.e. the
+branch that most needs the bound is the one that lacks it. Every local channel op
+and every local watch loop (`claims-summary --watch`, `cv-keys --watch`, …) reaches
+the hub via this unbounded branch.
+
+Filed (not built inline) because: the fix requires a bounded connect-then-
+`call_with_timeout` form on the unix path (the convenience `rpc_call_addr` used
+today has no bounded twin yet — `rpc_call_addr_with_timeout` is proposed in T-2635),
+it is the hot path for the ENTIRE local channel surface (high blast radius / wire
+behavior), and proving it needs a black-hole unix-socket harness. Coordinate with
+T-2635 (shared bounded-primitive need) and T-2638 (already-shipped sibling).
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] A divergence-class hunter swept the crates (unbounded RPC on detached paths; retry/watch loops missing sleep-on-error; paired helpers where one is hardened and a sibling isn't; clamp-convention gaps).
-- [x] Every reported finding is VERIFIED in code (defect site + safe-sibling primitive both cited with path:line) before any action — no hunter output trusted unverified. — F1 (agent_find_idle.rs:354 vs substrate.rs:150) and F2 (channel.rs:359 vs :401-419) both read in full myself with path:line; F3 (dispatch.rs:416) filed at horizon:later from the hunter's citations, its own build gate requiring in-code verification before the fix.
-- [x] Each verified finding is either BUILT (if small/clean/cleanly-unit-testable, with a load-bearing test proven via temp-revert) or FILED as its own one-bug-one-task with real ACs + RCA (if delicate/async/multi-file). Cleared-clean paths recorded in Evolution. — F1 BUILT (T-2638, load-bearing test proven via temp-revert); F2 FILED (T-2639, hot-path wire behavior); F3 FILED (T-2640, low).
-- [x] Tracker committed and pushed to OneDev; Evolution names the un-swept round-7 lenses.
+- [ ] The unix-socket branch of `rpc_call_authed` (channel.rs ~359) bounds its RPC read with the SAME `TERMLINK_RPC_READ_TIMEOUT_SECS` convention (default 30s, clamped 1..=600) the TCP branch uses — no local channel RPC can await a response line indefinitely.
+- [ ] A shared bounded convenience (`rpc_call_addr_with_timeout`, coordinate with T-2635) is used rather than re-implementing the connect+call_with_timeout dance inline; if T-2635 lands first, adopt its primitive.
+- [ ] Peer-cred trust on the unix socket is preserved (the bound is orthogonal to auth — the unix branch skips token auth by design; that behavior is unchanged).
+- [ ] A black-hole-server test (accepts the unix connection but never writes a response line) proves a local channel RPC returns a timeout error within the bound instead of hanging.
+- [ ] `cargo test -p termlink` green; `cargo build -p termlink` succeeds.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -132,6 +145,26 @@ sweeps the crates; each finding is verified IN CODE before build-or-file.
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+**Symptom:** Any local channel op (`channel info/unread/subscribe/…`) and any local
+watch loop hangs indefinitely when the local hub accepts the unix connection but
+never writes a response line (blocking-pool starvation mid record-walk — T-2258).
+The CLI presents as frozen with no error.
+
+**Root cause:** `rpc_call_authed` bounds the read on only ONE of its two branches.
+The TCP branch adopts `call_with_timeout` (T-2354); the unix branch returns the
+unbounded `rpc_call_addr`. Since all local traffic is unix, the bound added for
+T-2354 does not cover the path it was motivated by.
+
+**Why structurally allowed:** the T-2637 divergence class — a bound was added to one
+branch of one funnel and skipped on the sibling branch. The T-2354 change reasoned
+about TCP hubs (`--hub <tcp>`) and did not audit the local path; no test exercised
+the unix branch against a silent server.
+
+**Prevention:** a single bounded convenience (`rpc_call_addr_with_timeout`) both
+branches share, plus a black-hole-unix-socket regression test. The T-2637 sweep is
+the systematic detector; T-2638 already closed the find-idle sibling and T-2635 the
+BusClient flush sibling — this closes the local channel funnel.
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
@@ -156,35 +189,6 @@ sweeps the crates; each finding is verified IN CODE before build-or-file.
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
-### 2026-08-12 — round-6 divergence sweep outcome
-
-- **What changed:** The divergence class ("a bounded/paced/hardened primitive
-  exists in-tree but a sibling caller was never migrated onto it") is now confirmed
-  as a recurring, systematic mechanism, not a coincidence: this campaign has closed
-  FIVE instances of it — T-2632 (MCP hubs.toml HOME resolver), T-2633 (four CLI
-  log-path helpers), T-2636 (two `event watch` loops), T-2635 (BusClient flush
-  unbounded RPC, filed), and now the round-6 trio (T-2638 find-idle watch RPC built;
-  T-2639 unix-socket RPC branch filed; T-2640 dispatch collect loop filed).
-- **Findings:** F1 (CONFIRMED) built as T-2638. F2 (CONFIRMED on my own read, hunter
-  rated PLAUSIBLE) filed as T-2639 — the local-channel-surface sibling of the exact
-  same `call_with_timeout` divergence. F3 (low) filed as T-2640.
-- **Cleared-clean paths (verified NOT defective this round, do not re-hunt):**
-  hub-side background callers `supervisor.rs:142`, `aggregator.rs:89` (T-2496),
-  `router.rs:433/626`, `inbox.rs:524` are all `tokio::time::timeout`-wrapped;
-  `ack_retry.rs`, `governance_subscriber.rs`, `ws_consumer.rs` loops are clean
-  (blocking `recv().await`, no RPC re-dispatch, no spin).
-- **Shared-primitive insight:** F2 (T-2639), T-2635, and F3 (T-2640) all want the
-  SAME missing bounded convenience `rpc_call_addr_with_timeout`. Building that
-  primitive once (T-2635's AC-1) and routing all three unbounded callers through it
-  is the efficient closure — a mini-arc, not three independent fixes.
-- **Un-swept round-7 lenses (for the next fresh-budget window):** (a) build the
-  shared `rpc_call_addr_with_timeout` primitive and close T-2635/T-2639/T-2640 as a
-  batch; (b) Directive #3 Usability — still un-swept across all six rounds
-  (actionable errors / sensible defaults / copy-pasteable remediation); (c) the
-  claim-work + session-control verbs' PTY/tmux/signal semantics (non-path, non-RPC —
-  the T-2612–2616 PTY cluster is filed but the tmux/signal surface is unswept).
-- **Triggered:** T-2638 (built), T-2639 + T-2640 (filed).
-
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -208,7 +212,7 @@ sweeps the crates; each finding is verified IN CODE before build-or-file.
 
 ## Updates
 
-### 2026-08-12T12:24:47Z — task-created [task-create-agent]
+### 2026-08-12T12:36:43Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2637-round-6-charter-lens-hunt--divergence-cl.md
+- **Output:** /opt/termlink/.tasks/active/T-2639-rpccallauthed-unix-socket-branch-is-unbo.md
 - **Context:** Initial task creation
