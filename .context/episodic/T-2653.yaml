@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2653: claim_err_actionable gives no recovery hint for Hub/Transport ClaimError variants (RATE_LIMITED/AT_CAPACITY/auth/unreachable dead-end)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-12T19:49:15Z
+# ============================================================================
+
+task_id: T-2653
+task_name: "claim_err_actionable gives no recovery hint for Hub/Transport ClaimError variants (RATE_LIMITED/AT_CAPACITY/auth/unreachable dead-end)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-12T19:44:27Z
+completed: 2026-08-12T19:48:39Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-12T21:48:24+02:00
+last_commit: 2026-08-12T21:48:38+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  claim_err_actionable now hints on Hub/Transport ClaimError (RATE_LIMITED/AT_CAPACITY→governor, auth→reauth, unreachable→doctor). tick agent ACs (build verified, load-bearing tests green)
+
+# Key outcomes
+outcomes:
+  - '`claim_err_actionable` gains a `ClaimError::Hub { code, .. }` arm dispatching on the named `error_code` constants: RATE_LIMITED / HUB_AT_CAPACITY → `termlink fleet governor-status`; AUTH_REQUIRED / AUTH_DENIED → `termlink fleet reauth` + `fleet doctor`; other codes → a generic "hub rejected the claim" hint'
+  - '`claim_err_actionable` gains a `ClaimError::Transport(_)` arm hinting `termlink fleet doctor` (hub unreachable)'
+  - 'The code→hint mapping is a pure helper `claim_hub_code_hint(code: i64) -> String` (unit-testable, no I/O)'
+  - 'Unit test proves RATE_LIMITED and HUB_AT_CAPACITY map to a hint naming `governor-status`, auth codes map to a hint naming `reauth`, and an unknown code maps to a non-empty generic hint (load-bearing: reverting the arm to `String::new()` makes the test fail)'
+  - '`cargo build -p termlink` + `cargo test -p termlink --bins claim_hub_code_hint` pass'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'claim_err_actionable now hints on Hub/Transport ClaimError (RATE_LIMITED/AT_CAPACITY→governor, auth→reauth, unreachable→doctor)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2653-claimerractionable-gives-no-recovery-hin.md'
+  - '.termlink-task'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-12T21:48:24"
+    action: "T-2653: claim_err_actionable now hints on Hub/Transport ClaimError (RATE_LIMITED/AT_CAPACITY→governor, auth→reauth, unreachable→doctor)"
+  - time: "2026-08-12T21:48:38"
+    action: "T-2653: tick agent ACs (build verified, load-bearing tests green)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 2
+  files_changed: 10
+  lines_added: 337
+  lines_removed: 45
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2653-claimerractionable-gives-no-recovery-hin.md
+generated_by: context-agent-hybrid
