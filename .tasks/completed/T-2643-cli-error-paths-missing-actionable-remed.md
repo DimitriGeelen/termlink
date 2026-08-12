@@ -4,20 +4,20 @@ name: "CLI error paths missing actionable remediation hints (Usability round-8)"
 description: >
   Four operator-facing CLI error paths violate the loud-refuse-with-actionable-hint convention (Directive #3): find-idle hub-not-running (no 'termlink hub start' hint that siblings have), channel missing-secret bail (no remediation while its own sibling bail models it), agent.rs emit-fail + timeout bails (no next-step). Batch-fix by extracting message helpers + appending the convention's actionable hint. Verified in code.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/agent_find_idle.rs, crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/commands/channel.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T14:55:43Z
-last_update: 2026-08-12T14:55:43Z
-date_finished: null
+last_update: 2026-08-12T15:00:31Z
+date_finished: 2026-08-12T15:00:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -213,3 +213,20 @@ names the next command.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2643-cli-error-paths-missing-actionable-remed.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-2e52ce9a
+- **Timestamp:** 2026-08-12T15:01:57Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **empty-output-success** (partial, heuristic) @ Verification:line 2
+     - evidence: `cargo build -p termlink 2>&1 >/dev/null`
+
+### 2026-08-12T15:00:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

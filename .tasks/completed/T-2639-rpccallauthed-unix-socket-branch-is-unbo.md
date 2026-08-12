@@ -4,20 +4,20 @@ name: "rpc_call_authed unix-socket branch is unbounded — bound the read like t
 description: >
   channel.rs rpc_call_authed: the unix branch returns unbounded rpc_call_addr while the TCP branch adopts call_with_timeout + TERMLINK_RPC_READ_TIMEOUT_SECS (T-2354). Every LOCAL channel op flows through the unbounded branch; a starved local hub hangs the whole local channel surface. Divergence F2 (T-2637).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/channel.rs, crates/termlink-session/src/client.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T12:36:43Z
-last_update: 2026-08-12T14:01:43Z
-date_finished: null
+last_update: 2026-08-12T14:09:18Z
+date_finished: 2026-08-12T14:09:18Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -224,3 +224,20 @@ BusClient flush sibling — this closes the local channel funnel.
 ### 2026-08-12T12:39:52Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-32b15f42
+- **Timestamp:** 2026-08-12T14:10:27Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — A shared bounded convenience (`rpc_call_addr_with_timeout`, coordinate with T-2635) is used rather than re-implementing the connect+call_with_timeout dance inline; if T-2635 lands first, adopt its pri
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=termlink-session/src/client.rs in: A shared bounded convenience (`rpc_call_addr_with_timeout`, coordinate with T-2635) is used rather than re-implementing the connect+call_with_timeout `
+
+### 2026-08-12T14:09:18Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

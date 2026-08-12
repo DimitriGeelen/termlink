@@ -4,20 +4,20 @@ name: "identity-bind failure silently mis-attributes posts under --json/--quiet"
 description: >
   session.rs bind_per_agent_identity_default suppresses the bind-failure warning unless verbose; under --json/--quiet a failed per-agent identity bind silently falls back to the shared host default and the operator's posts are mis-attributed with no signal (Directive #2 no-silent-failures + #3 actionable). Round-8 Usability sweep, verified in code.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/session.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T14:48:21Z
-last_update: 2026-08-12T14:53:35Z
-date_finished: null
+last_update: 2026-08-12T14:54:01Z
+date_finished: 2026-08-12T14:54:01Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -200,3 +200,20 @@ visibility.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2642-identity-bind-failure-silently-mis-attri.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-1c6cbf87
+- **Timestamp:** 2026-08-12T14:55:15Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **empty-output-success** (partial, heuristic) @ Verification:line 2
+     - evidence: `cargo build -p termlink 2>&1 >/dev/null`
+
+### 2026-08-12T14:54:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

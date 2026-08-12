@@ -4,20 +4,20 @@ name: "Offline-queue flush uses unbounded rpc_call_addr — wedges forever on bl
 description: >
   BusClient::flush + post call the unbounded rpc_call_addr (client.rs:273); call_with_timeout (T-2354) exists but flush never adopted it. A half-open/wedged hub blocks the detached flush task forever; queue never drains. Route flush/post through a bounded rpc_call_addr_with_timeout.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/channel.rs, crates/termlink-session/src/bus_client.rs, crates/termlink-session/src/client.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T10:52:13Z
-last_update: 2026-08-12T14:17:51Z
-date_finished: null
+last_update: 2026-08-12T14:27:01Z
+date_finished: 2026-08-12T14:27:01Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -207,3 +207,20 @@ detached/background path.
 ### 2026-08-12T12:14:59Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-595dc702
+- **Timestamp:** 2026-08-12T14:27:06Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — A bounded `rpc_call_addr_with_timeout(addr, method, params, timeout)` exists in `termlink-session/src/client.rs`, routing through the existing `Client::call_with_timeout` (T-2354) primitive rather tha
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=termlink-session/src/client.rs in: A bounded `rpc_call_addr_with_timeout(addr, method, params, timeout)` exists in `termlink-session/src/client.rs`, routing through the existing `Client`
+
+### 2026-08-12T14:27:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -4,20 +4,20 @@ name: "Round-7 shared bounded-RPC primitive + divergence batch close"
 description: >
   Tracker for round-7 of the T-2468 divergence-class sweep: built the shared rpc_call_addr_with_timeout bounded-RPC primitive and batch-closed the three unbounded-RPC consumers (T-2639 unix branch, T-2640 dispatch collect, T-2635 BusClient flush).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/dispatch.rs, crates/termlink-session/src/bus_client.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T14:27:48Z
-last_update: 2026-08-12T14:27:48Z
-date_finished: null
+last_update: 2026-08-12T14:30:40Z
+date_finished: 2026-08-12T14:30:40Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -209,3 +209,20 @@ cargo build -p termlink
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2641-round-7-shared-bounded-rpc-primitive--di.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-dab1e84c
+- **Timestamp:** 2026-08-12T14:31:20Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — The shared `rpc_call_addr_with_timeout` bounded-RPC primitive exists in `termlink-session/src/client.rs` (bounds connect + read), with load-bearing black-hole tests. **Done in T-2639** (commit 5806c5f
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=termlink-session/src/client.rs in: The shared `rpc_call_addr_with_timeout` bounded-RPC primitive exists in `termlink-session/src/client.rs` (bounds connect + read), with load-bearing bl`
+
+### 2026-08-12T14:30:40Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

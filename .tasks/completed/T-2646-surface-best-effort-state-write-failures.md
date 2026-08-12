@@ -4,20 +4,20 @@ name: "surface best-effort state-write failures in remote.rs fleet-doctor (escal
 description: >
   surface best-effort state-write failures in remote.rs fleet-doctor (escalation defeat + dup learnings)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T18:25:46Z
-last_update: 2026-08-12T18:25:46Z
-date_finished: null
+last_update: 2026-08-12T18:30:46Z
+date_finished: 2026-08-12T18:30:46Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -60,11 +60,11 @@ best-effort contract while killing the silent part. Mirrors the T-2642
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `save_fleet_state` no longer uses `let _ =` on the state write — its outcome routes through a pure helper `fleet_state_save_warning(path, Result<(),String>) -> Option<String>` that returns `Some(..)` on failure, printed to stderr; the caller contract (`maybe_track_fleet_failure` still returns `Ok(())`, never fails) is unchanged.
-- [ ] The dedupe-marker refresh (remote.rs:6645) no longer uses `let _ =` — its outcome routes through a pure helper `dedupe_marker_save_warning(path, Result<(),String>) -> Option<String>` returning `Some(..)` on failure, printed to stderr.
-- [ ] Each helper's failure warning names the CONSEQUENCE (F1: concern escalation won't trigger; F5: duplicate learnings) AND a fix hint — actionable per PL-151.
-- [ ] Load-bearing unit tests: `fleet_state_save_warning(Err(..))` is `Some` and contains the consequence token; `Ok(())` is `None`. Same for the dedupe helper. Proven load-bearing via temp-revert (Ok arm returning Some → test fails).
-- [ ] `cargo build -p termlink` clean; `cargo test -p termlink --bins` for the new tests passes.
+- [x] `save_fleet_state` no longer uses `let _ =` on the state write — its outcome routes through a pure helper `fleet_state_save_warning(path, Result<(),String>) -> Option<String>` that returns `Some(..)` on failure, printed to stderr; the caller contract (`maybe_track_fleet_failure` still returns `Ok(())`, never fails) is unchanged.
+- [x] The dedupe-marker refresh (remote.rs:6645) no longer uses `let _ =` — its outcome routes through a pure helper `dedupe_marker_save_warning(path, Result<(),String>) -> Option<String>` returning `Some(..)` on failure, printed to stderr.
+- [x] Each helper's failure warning names the CONSEQUENCE (F1: concern escalation won't trigger; F5: duplicate learnings) AND a fix hint — actionable per PL-151.
+- [x] Load-bearing unit tests: `fleet_state_save_warning(Err(..))` is `Some` and contains the consequence token; `Ok(())` is `None`. Same for the dedupe helper. Proven load-bearing via temp-revert (Ok arm returning Some → test fails).
+- [x] `cargo build -p termlink` clean; `cargo test -p termlink --bins` for the new tests passes.
 
 ### Human (REMOVED — all criteria agent-verifiable)
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -229,3 +229,15 @@ observe it (throttled warning) even when you proceed.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2646-surface-best-effort-state-write-failures.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-4fe22442
+- **Timestamp:** 2026-08-12T18:31:59Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-12T18:30:46Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
