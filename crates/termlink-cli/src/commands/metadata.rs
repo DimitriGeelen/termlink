@@ -289,6 +289,10 @@ pub(crate) async fn cmd_discover(
             if display.json {
                 super::json_error_exit(serde_json::json!({"ok": false, "error": "No matching sessions"}));
             }
+            // T-2663: text mode must not exit(1) silently — a bare exit is
+            // indistinguishable from a crash. Mirror the JSON branch + the
+            // non-`--first` empty path (below) with an actionable stderr line.
+            eprintln!("No matching sessions.");
             std::process::exit(1);
         }
         return Ok(());
