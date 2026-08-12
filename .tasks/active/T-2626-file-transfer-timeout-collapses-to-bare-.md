@@ -58,11 +58,11 @@ A Directive-#3 dead-end (opaque error, no next step).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Both timeout `map_err` sites name the operation, the configured timeout `Duration`, and the target session/hub in the error message
-- [ ] The message suggests a next step (e.g. "is the session/hub reachable? retry, or check `/peers`")
-- [ ] The timeout-message construction is extracted into a pure helper (or a testable format fn) so the text is unit-testable without a live hub — mirrors the T-2554 / T-2625 actionable-error convention
-- [ ] Load-bearing unit test asserts the message names the duration + target + a next step; proven via temp-revert (helper → bare "timeout" → test fails)
-- [ ] `cargo test -p termlink --bins` passes for the new test
+- [x] Both timeout `map_err` sites name the operation, the configured timeout `Duration`, and the target session/hub in the error message
+- [x] The message suggests a next step (e.g. "is the session/hub reachable? retry, or check `/peers`")
+- [x] The timeout-message construction is extracted into a pure helper (or a testable format fn) so the text is unit-testable without a live hub — mirrors the T-2554 / T-2625 actionable-error convention
+- [x] Load-bearing unit test asserts the message names the duration + target + a next step; proven via temp-revert (helper → bare "timeout" → test fails)
+- [x] `cargo test -p termlink --bins` passes for the new test
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -127,6 +127,8 @@ A Directive-#3 dead-end (opaque error, no next step).
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+cargo test -p termlink --bins timeout_message_names_operation_duration_target_and_next_step
 
 ## RCA
 

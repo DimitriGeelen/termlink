@@ -44,7 +44,7 @@ impl DeliveryRoute {
                 let fut = client::rpc_call(socket, "event.emit", params);
                 let resp = tokio::time::timeout(timeout, fut)
                     .await
-                    .map_err(|_| anyhow::anyhow!("timeout"))?
+                    .map_err(|_| anyhow::anyhow!("{}", timeout_message("event.emit", timeout, &self.target_label())))?
                     .context("RPC call failed")?;
                 let result = client::unwrap_result(resp)
                     .map_err(|e| anyhow::anyhow!("Session rejected: {e}"))?;
@@ -67,7 +67,7 @@ impl DeliveryRoute {
                 let fut = client::rpc_call(hub_socket, "event.emit_to", params);
                 let resp = tokio::time::timeout(timeout, fut)
                     .await
-                    .map_err(|_| anyhow::anyhow!("timeout"))?
+                    .map_err(|_| anyhow::anyhow!("{}", timeout_message("event.emit_to", timeout, &self.target_label())))?
                     .context("Hub RPC call failed")?;
                 let result = client::unwrap_result(resp)
                     .map_err(|e| anyhow::anyhow!("Hub rejected: {e}"))?;
@@ -82,6 +82,30 @@ impl DeliveryRoute {
             DeliveryRoute::Hub { .. } => "hub",
         }
     }
+
+    /// Human-readable delivery target for error messages: the session socket
+    /// path (direct route) or the hub-relayed target id (hub route). Used to
+    /// name *where* a timed-out transfer was headed (T-2626).
+    fn target_label(&self) -> String {
+        match self {
+            DeliveryRoute::Direct(socket) => socket.display().to_string(),
+            DeliveryRoute::Hub { target, .. } => target.clone(),
+        }
+    }
+}
+
+/// Build an actionable timeout message for a file-transfer event emit.
+///
+/// T-2626 (Directive #3 — actionable errors): a bare `"timeout"` dead-ends the
+/// operator — they cannot tell whether the session is down, the hub is
+/// unreachable, or the transfer stalled. This names the RPC operation, the
+/// configured timeout, the delivery target, and a concrete next step. Pure and
+/// unit-testable (no live hub). Mirrors the T-2554 / T-2625 convention.
+fn timeout_message(operation: &str, timeout: std::time::Duration, target: &str) -> String {
+    format!(
+        "{operation} timed out after {timeout:?} (target: {target}) — \
+         is the session/hub reachable? check `/peers`, then retry"
+    )
 }
 
 /// Resolve the effective chunk size (0 means use default) and compute
@@ -1076,6 +1100,25 @@ pub(crate) async fn cmd_file_receive(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // T-2626: the file-transfer timeout message must be actionable — name the
+    // operation, the configured timeout, the target, and a next step. A bare
+    // "timeout" (the pre-fix behavior) fails these assertions (load-bearing).
+    #[test]
+    fn timeout_message_names_operation_duration_target_and_next_step() {
+        let msg = timeout_message(
+            "event.emit_to",
+            std::time::Duration::from_secs(30),
+            "worker-a",
+        );
+        assert!(msg.contains("event.emit_to"), "must name the operation: {msg}");
+        assert!(msg.contains("30s"), "must name the configured timeout: {msg}");
+        assert!(msg.contains("worker-a"), "must name the target: {msg}");
+        assert!(
+            msg.contains("/peers") || msg.to_lowercase().contains("reachable"),
+            "must suggest a concrete next step: {msg}"
+        );
+    }
 
     // T-2520: wire filenames must confine to a basename — a traversal/absolute name
     // must never yield a parent/absolute path that out_path.join would follow.
