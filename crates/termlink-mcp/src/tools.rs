@@ -13674,7 +13674,17 @@ impl TermLinkTools {
 
             let resp = match client::rpc_call(&hub_socket, "event.collect", params).await {
                 Ok(r) => r,
-                Err(_) => continue,
+                Err(_) => {
+                    // T-2671: back off before re-collecting on error. event.collect
+                    // long-polls (subscribe_timeout_ms) on a live hub — pacing this
+                    // loop — but a dead/half-open hub errors near-instantly, so a bare
+                    // `continue` here busy-spins a CPU core for the whole collect_timeout
+                    // window (and silently — the error is discarded). Matches the 500ms
+                    // backoff of the sibling register loop above and the T-2658/T-2670
+                    // events.rs/dispatch.rs sleep-on-error convention.
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                    continue;
+                }
             };
 
             if let Ok(result) = client::unwrap_result(resp) {

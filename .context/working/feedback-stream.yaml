@@ -7812,3 +7812,21 @@ scan_id: R-c737f878
 task_id: T-2668
 payload:
   task_file: .tasks/active/T-2668-claim-family-readoperator-verbs-bypass-c.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T22:32:46Z'
+scan_id: R-87206769
+task_id: T-2670
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T22:32:46Z'
+scan_id: R-87206769
+task_id: T-2670
+payload:
+  task_file: .tasks/active/T-2670-cmdagentnegotiate-subscribe-retry-err-ar.md
