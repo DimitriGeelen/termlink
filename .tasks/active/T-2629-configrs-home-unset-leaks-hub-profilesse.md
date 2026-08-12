@@ -1,8 +1,8 @@
 ---
-id: T-2628
-name: "reliability/portability charter-lens hunt round 3 — adversarial defect sweep"
+id: T-2629
+name: "config.rs HOME-unset leaks hub profiles+secrets to world-writable /tmp (T-2607 outlier)"
 description: >
-  reliability/portability charter-lens hunt round 3 — adversarial defect sweep
+  config.rs HOME-unset leaks hub profiles+secrets to world-writable /tmp (T-2607 outlier)
 
 status: started-work
 workflow_type: build
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-12T06:16:52Z
-last_update: 2026-08-12T09:21:09Z
+created: 2026-08-12T09:26:52Z
+last_update: 2026-08-12T09:26:52Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,28 +30,25 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2628: reliability/portability charter-lens hunt round 3 — adversarial defect sweep
+# T-2629: config.rs HOME-unset leaks hub profiles+secrets to world-writable /tmp (T-2607 outlier)
 
 ## Context
 
-Round-3 adversarial defect sweep of the T-2468 "subtract-and-deepen" campaign.
-Prior rounds cleared the reliability lens (T-2619/T-2621/T-2623/T-2624 —
-0/None-laundering silent-failure class) and the usability lens
-(T-2625/T-2626/T-2627 — actionable errors + surprising defaults). This task is
-the tracking container for a fresh hunt on an un-swept charter lens
-(Directive #1 Antifragility / Directive #4 Portability / the discover-peers
-verb). A subagent hunter reads the code and returns a ranked findings report;
-each verified finding is either BUILT (small/clean/testable) or FILED as its own
-one-bug-one-task with RCA + real ACs.
+`crates/termlink-cli/src/config.rs::termlink_config_dir()` (the resolver under
+`hubs_config_path()` → every fleet **discover-peers** verb and `save_hubs_config`)
+still does `std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string())`. This is
+the exact defect T-2607 unified away in `termlink-session/src/identity_dir.rs` for
+the trust plane — but `config.rs` is an outlier T-2607 did not cover. Found by the
+T-2628 round-3 portability hunt.
 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] A subagent hunter sweeps an un-swept charter lens and returns a ranked findings report
-- [ ] Each reported finding is VERIFIED in code by the orchestrator (never trust the hunter) — false positives discarded with a one-line reason
-- [ ] Each verified finding is either BUILT (with a load-bearing test proven via temp-revert) OR FILED as its own task (one-bug-one-task) with full RCA + real ACs + concrete failure scenario
-- [ ] Every built fix is committed and finalized through the P-011 gate; every filed task is committed
-- [ ] All work pushed to OneDev
+- [ ] `termlink_config_dir()` no longer resolves to the shared, world-writable `/tmp/.termlink` when `HOME` is unset/empty; it falls back to a UID-namespaced private location (mirrors T-2607's `resolve_identity_dir` last-resort convention), NEVER the shared dir
+- [ ] Behavior is preserved for the common case: when `HOME` is set (non-empty), the resolved dir is still `$HOME/.termlink` (no regression for correctly-configured hosts)
+- [ ] An exported-but-empty `HOME=` is treated as unset, not as root `/`
+- [ ] A pure, env-free resolution core is extracted and unit-tested; a load-bearing test proves the guard via temp-revert (reverting to the old `/tmp` fallback makes the test FAIL)
+- [ ] `cargo test -p termlink --bins` passes; fix committed and finalized through P-011; pushed to OneDev
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -116,22 +113,33 @@ one-bug-one-task with RCA + real ACs.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+cargo test -p termlink --bins config_dir
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** With `HOME` unset/empty (systemd unit lacking `Environment=HOME`,
+`env -i`, minimal container, cron), fleet discover-peers verbs (`fleet doctor`/
+`verify`/`status`/`list`/`governor-status`) read `/tmp/.termlink/hubs.toml` — a
+nonexistent, world-writable path — and report "no hubs configured", conflating
+"HOME misconfigured" with "no peers exist". Worse, `save_hubs_config` (profile add)
+would PERSIST hub profiles + `bootstrap_from` trust anchors into world-writable
+`/tmp/.termlink/`, readable/plantable by any local user.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** `termlink_config_dir()` uses `HOME.unwrap_or("/tmp")` — the exact
+silent-relocation-to-shared-/tmp pattern T-2607 identified and unified away for the
+trust plane, but `termlink-cli/src/config.rs` was an outlier T-2607's sweep
+(scoped to `termlink-session`) never touched.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** T-2607 fixed the identity/trust-plane helpers in one
+crate; nothing enforced the same convention on the CLI crate's config-dir resolver,
+and the `/tmp` fallback only manifests when HOME is unset — an uncommon dev
+condition, so it stayed dark.
+
+**Prevention:** Extract a pure `resolve_config_dir_from()` core with a load-bearing
+unit test asserting the all-unset branch never lands in shared `/tmp/.termlink`
+(temp-revert to the old fallback fails the test), mirroring `identity_dir.rs`'s
+regression guard. Follow-on outliers ([3] infrastructure.rs, substrate.rs log path)
+filed separately.
 
 ## Evolution
 
@@ -180,7 +188,7 @@ one-bug-one-task with RCA + real ACs.
 
 ## Updates
 
-### 2026-08-12T06:16:52Z — task-created [task-create-agent]
+### 2026-08-12T09:26:52Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2628-reliabilityportability-charter-lens-hunt.md
+- **Output:** /opt/termlink/.tasks/active/T-2629-configrs-home-unset-leaks-hub-profilesse.md
 - **Context:** Initial task creation

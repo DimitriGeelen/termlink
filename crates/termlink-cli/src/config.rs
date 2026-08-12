@@ -35,9 +35,70 @@ pub(crate) fn hubs_config_path() -> std::path::PathBuf {
     termlink_config_dir().join("hubs.toml")
 }
 
+/// Pure resolution core — no env reads, no filesystem side effects — so the
+/// policy is deterministically unit-testable without touching process globals
+/// (mirrors `termlink_session::identity_dir::resolve_identity_dir_from`, T-2607).
+///
+/// Returns the resolved config DIRECTORY (the one holding `hubs.toml`) plus
+/// `last_resort = true` when `HOME` was unset/empty and it fell through to the
+/// UID-namespaced private tmp path. An exported-but-empty `HOME=` is treated as
+/// unset, never as the root directory `/`.
+///
+/// NOTE (T-2629): deliberately does NOT add `XDG_STATE_HOME` / `TERMLINK_IDENTITY_DIR`
+/// precedence the way the identity plane does — that would silently relocate an
+/// operator's existing `~/.termlink/hubs.toml` when either var is set (a "all my
+/// hubs vanished" regression). This fix is scoped to closing ONLY the shared-/tmp
+/// leak; HOME-set resolution is behavior-preserving.
+fn resolve_config_dir_from(
+    home: Option<&str>,
+    temp_dir: &std::path::Path,
+    uid: u32,
+) -> (std::path::PathBuf, bool) {
+    if let Some(h) = home.filter(|s| !s.is_empty()) {
+        // Behavior-preserving: the pre-T-2629 `$HOME/.termlink` shape.
+        return (std::path::PathBuf::from(h).join(".termlink"), false);
+    }
+    // HOME unset/empty: a UID-namespaced private dir under the temp base — never
+    // the shared, world-writable `/tmp/.termlink` that would leak hub profiles +
+    // bootstrap anchors to any local user. Mirrors identity_dir's last-resort.
+    (temp_dir.join(format!("termlink-{uid}")), true)
+}
+
 pub(crate) fn termlink_config_dir() -> std::path::PathBuf {
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-    std::path::PathBuf::from(home).join(".termlink")
+    let home = std::env::var("HOME").ok();
+    let temp = std::env::temp_dir();
+    let uid = unsafe { libc::getuid() };
+    let (dir, last_resort) = resolve_config_dir_from(home.as_deref(), &temp, uid);
+    if last_resort {
+        warn_config_last_resort_once(&dir);
+        harden_config_last_resort_dir(&dir);
+    }
+    dir
+}
+
+static CONFIG_LAST_RESORT_WARNED: std::sync::Once = std::sync::Once::new();
+
+fn warn_config_last_resort_once(dir: &std::path::Path) {
+    CONFIG_LAST_RESORT_WARNED.call_once(|| {
+        tracing::error!(
+            config_dir = %dir.display(),
+            "HOME is unset — hub profile config (hubs.toml + bootstrap anchors) is \
+             falling back to a UID-namespaced temp directory; it will NOT persist \
+             across reboot and fleet discovery will see no configured hubs. Set HOME \
+             to a persistent private directory."
+        );
+    });
+}
+
+/// Create the last-resort directory with mode `0700` so hub profiles + bootstrap
+/// trust anchors are never left world-readable/writable. Best-effort: a creation
+/// failure surfaces later as an ordinary file-open error (still loud) — the point
+/// is only that we never silently produce a world-writable config store.
+fn harden_config_last_resort_dir(dir: &std::path::Path) {
+    use std::os::unix::fs::PermissionsExt;
+    if std::fs::create_dir_all(dir).is_ok() {
+        let _ = std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700));
+    }
 }
 
 /// Lenient loader for READ-ONLY callers (fleet doctor/verify/status,
@@ -154,6 +215,52 @@ fn resolve_hub_profile_with_config(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn config_dir_uses_home_when_set() {
+        // Behavior-preserving: HOME set → $HOME/.termlink, never last_resort.
+        let (dir, lr) = resolve_config_dir_from(Some("/home/u"), std::path::Path::new("/tmp"), 1000);
+        assert_eq!(dir, std::path::PathBuf::from("/home/u/.termlink"));
+        assert!(!lr);
+    }
+
+    #[test]
+    fn config_dir_empty_home_is_treated_as_unset_not_root() {
+        // An exported-but-empty `HOME=` must NOT resolve to `/.termlink`.
+        let (dir, lr) = resolve_config_dir_from(Some(""), std::path::Path::new("/var/tmp"), 1000);
+        assert_eq!(dir, std::path::PathBuf::from("/var/tmp/termlink-1000"));
+        assert!(lr);
+    }
+
+    // LOAD-BEARING (T-2629): with HOME unset the resolver must NOT land in the
+    // shared, world-writable `/tmp/.termlink` (which would leak hub profiles +
+    // bootstrap trust anchors to any local user, and make fleet discovery read a
+    // nonexistent path). Temp-revert `resolve_config_dir_from` to the old
+    // `HOME.unwrap_or("/tmp") + .termlink` shape and this test FAILS — proving the
+    // guard is what keeps auth material out of the shared dir.
+    #[test]
+    fn config_dir_home_unset_never_shared_dot_termlink() {
+        let (dir, lr) = resolve_config_dir_from(None, std::path::Path::new("/tmp"), 4242);
+        assert!(lr, "HOME-unset must flag the last_resort (loud) path");
+        assert_eq!(dir, std::path::PathBuf::from("/tmp/termlink-4242"));
+        // The specific regression guard: never the shared, world-writable dir.
+        assert_ne!(dir, std::path::PathBuf::from("/tmp/.termlink"));
+        assert!(
+            !dir.ends_with(".termlink"),
+            "must not be the shared .termlink dir"
+        );
+        assert!(
+            dir.to_string_lossy().contains("termlink-4242"),
+            "must be UID-namespaced"
+        );
+    }
+
+    #[test]
+    fn config_dir_honors_tmpdir_base_for_last_resort() {
+        let (dir, lr) = resolve_config_dir_from(None, std::path::Path::new("/custom/tmp"), 7);
+        assert_eq!(dir, std::path::PathBuf::from("/custom/tmp/termlink-7"));
+        assert!(lr);
+    }
 
     #[test]
     fn resolve_direct_address() {
