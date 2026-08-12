@@ -51,11 +51,11 @@ whose rich errors never reach the user.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Pure helper `broadcast_no_path_msg(cause: Option<&str>) -> String` added, interpolating the captured channel.post cause AND a next-step hint (`fleet doctor` / retry with explicit `--targets`) when a cause is present
-- [ ] `cmd_broadcast` empty-targets path restructured from `if let Ok(offset)` naked-discard to a `match` that captures the `Err` string; both the `--json` error branch and the `anyhow::bail!` route through `broadcast_no_path_msg(cause)`
-- [ ] Unit test asserts `broadcast_no_path_msg(Some("channel.post timed out"))` contains BOTH the cause substring and the `fleet doctor` hint; `broadcast_no_path_msg(None)` returns the bare base string (back-compat for the non-empty-targets fall-through)
-- [ ] Test proven load-bearing via temp-revert (drop the cause interpolation → test fails)
-- [ ] `cargo test -p termlink --bins broadcast_no_path` green; `cargo build -p termlink` clean
+- [x] Pure helper `broadcast_no_path_msg(cause: Option<&str>) -> String` added, interpolating the captured channel.post cause AND a next-step hint (`fleet doctor` / retry with explicit `--targets`) when a cause is present
+- [x] `cmd_broadcast` empty-targets path restructured from `if let Ok(offset)` naked-discard to a `match` that captures the `Err` string; both the `--json` error branch and the `anyhow::bail!` route through `broadcast_no_path_msg(cause)`
+- [x] Unit test asserts `broadcast_no_path_msg(Some("channel.post timed out"))` contains BOTH the cause substring and the `fleet doctor` hint; `broadcast_no_path_msg(None)` returns the bare base string (back-compat for the non-empty-targets fall-through)
+- [x] Test proven load-bearing via temp-revert (drop the cause interpolation → test fails; restored)
+- [x] `cargo test -p termlink --bins broadcast_no_path` green (2 passed); `cargo build -p termlink` clean
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
