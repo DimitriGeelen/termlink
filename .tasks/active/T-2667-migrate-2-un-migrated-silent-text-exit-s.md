@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T21:29:11Z
-last_update: 2026-08-12T21:29:24Z
+last_update: 2026-08-12T21:31:27Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -47,10 +47,10 @@ propagated), two call sites, fixed in one motion.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `session.rs::cmd_list` no-match text path emits an actionable stderr line (`eprintln!("No matching sessions.")`) before the bare `std::process::exit(1)`, mirroring the T-2663 metadata.rs remediation
-- [ ] `remote.rs::cmd_remote_list_inner` no-match text path emits the same stderr line before its bare `std::process::exit(1)`
-- [ ] `bash scripts/check-silent-exit.sh` scans CLEAN (exit 0) after both edits — the check that surfaced these no longer fires
-- [ ] `cargo build -p termlink` clean
+- [x] `session.rs::cmd_list` no-match text path emits an actionable stderr line (`eprintln!("No matching sessions.")`) before the bare `std::process::exit(1)`, mirroring the T-2663 metadata.rs remediation
+- [x] `remote.rs::cmd_remote_list_inner` no-match text path emits the same stderr line before its bare `std::process::exit(1)`
+- [x] `bash scripts/check-silent-exit.sh` scans CLEAN (exit 0) after both edits — the check that surfaced these no longer fires
+- [x] `cargo build -p termlink` clean
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
