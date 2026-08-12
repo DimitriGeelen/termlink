@@ -4,10 +4,10 @@ name: "Offline-queue flush uses unbounded rpc_call_addr — wedges forever on bl
 description: >
   BusClient::flush + post call the unbounded rpc_call_addr (client.rs:273); call_with_timeout (T-2354) exists but flush never adopted it. A half-open/wedged hub blocks the detached flush task forever; queue never drains. Route flush/post through a bounded rpc_call_addr_with_timeout.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T10:52:13Z
-last_update: 2026-08-12T10:52:13Z
+last_update: 2026-08-12T12:14:59Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -200,3 +200,7 @@ detached/background path.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2635-offline-queue-flush-uses-unbounded-rpcca.md
 - **Context:** Initial task creation
+
+### 2026-08-12T12:14:59Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

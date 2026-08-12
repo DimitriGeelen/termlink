@@ -4,10 +4,10 @@ name: "rpc_call_authed unix-socket branch is unbounded — bound the read like t
 description: >
   channel.rs rpc_call_authed: the unix branch returns unbounded rpc_call_addr while the TCP branch adopts call_with_timeout + TERMLINK_RPC_READ_TIMEOUT_SECS (T-2354). Every LOCAL channel op flows through the unbounded branch; a starved local hub hangs the whole local channel surface. Divergence F2 (T-2637).
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T12:36:43Z
-last_update: 2026-08-12T12:36:43Z
+last_update: 2026-08-12T12:39:52Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -216,3 +216,7 @@ BusClient flush sibling — this closes the local channel funnel.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2639-rpccallauthed-unix-socket-branch-is-unbo.md
 - **Context:** Initial task creation
+
+### 2026-08-12T12:39:52Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

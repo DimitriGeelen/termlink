@@ -4,20 +4,20 @@ name: "Round-6 charter-lens hunt — divergence-class sweep (safe primitive exis
 description: >
   Round-6 of the T-2468 charter-review campaign. Sweeps the divergence class surfaced by T-2636 (watch loops diverged) + T-2633 (log-path helpers diverged) + T-2635 (bounded RPC unadopted): a bounded/paced/hardened primitive exists in-tree but a sibling caller was never migrated onto it. Tracker for verify+build/file outcomes.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/agent_find_idle.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T12:24:47Z
-last_update: 2026-08-12T12:39:18Z
-date_finished: null
+last_update: 2026-08-12T12:39:36Z
+date_finished: 2026-08-12T12:39:36Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -212,3 +212,15 @@ sweeps the crates; each finding is verified IN CODE before build-or-file.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2637-round-6-charter-lens-hunt--divergence-cl.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-f9a5814d
+- **Timestamp:** 2026-08-12T12:39:38Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-12T12:39:36Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

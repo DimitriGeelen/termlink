@@ -4,20 +4,20 @@ name: "CLI log-path defaults leak to /tmp when HOME unset — route ~/.termlink/
 description: >
   default_substrate_log_path (substrate.rs:1142) and sibling log-path defaults use HOME.unwrap_or(/tmp), silently relocating observability NDJSON to volatile shared /tmp/.termlink when HOME unset (T-2607 class, reliability/Directive-2). Fold all ~/.termlink/*.log defaults through one loud HOME-anchored resolver.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/agent_find_idle.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/commands/substrate.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T10:42:46Z
-last_update: 2026-08-12T12:06:31Z
-date_finished: null
+last_update: 2026-08-12T12:13:31Z
+date_finished: 2026-08-12T12:13:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -229,3 +229,20 @@ vector.
 ### 2026-08-12T12:06:31Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-573a62bd
+- **Timestamp:** 2026-08-12T12:14:38Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — A single HOME-anchored log-dir resolver (pure core + wrapper, mirroring T-2629/T-2632: HOME-set → `$HOME/.termlink`; unset/empty → UID-namespaced temp dir + one-time `tracing::error!`; NOT XDG) exists
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=commands/infrastructure.rs in: A single HOME-anchored log-dir resolver (pure core + wrapper, mirroring T-2629/T-2632: HOME-set → `$HOME/.termlink`; unset/empty → UID-namespaced temp`
+
+### 2026-08-12T12:13:31Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
