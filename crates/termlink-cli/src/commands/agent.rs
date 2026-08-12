@@ -11,6 +11,17 @@ use termlink_protocol::events::{
 
 use crate::util::generate_request_id;
 
+/// T-2659: per-hub bound for every fleet-wide agent-presence walk. A stalled /
+/// half-open hub in `hubs.toml` then contributes at most this long and is
+/// skipped, instead of hanging the entire walk forever. Single-sourced across
+/// the three fleet-walk sites (`resolve_contact_via_fleet`,
+/// `resolve_contact_fp_via_fleet`, `cmd_agent_resolve`) so the bound cannot
+/// drift between them — the T-2293 comment (added on `resolve` only) explains
+/// why: "one unreachable hub in hubs.toml stalled `resolve`" in live testing.
+/// The two `agent contact` siblings (the `/agent-handoff` path) previously
+/// lacked the bound entirely (divergence class C).
+const FLEET_PRESENCE_HUB_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(8);
+
 /// T-2643 Usability: emit-failure message with a reachability next-step
 /// (Directive #3 — name the next command, don't just report the error).
 fn agent_emit_failed_msg(err: &str) -> String {
@@ -810,13 +821,15 @@ async fn resolve_contact_via_fleet(agent_id: &str) -> Option<FleetContactResolut
         }
         // agent-presence heartbeats are small + frequent; a 500-envelope slice
         // covers a generous window for any reasonably-sized fleet.
-        let msgs =
-            match super::channel::fetch_presence_msgs(Some(&entry.address))
-                .await
-            {
-                Ok(m) => m,
-                Err(_) => continue, // down / auth-fail hub never aborts the walk
-            };
+        // T-2659: bound each per-hub fetch (mirrors cmd_agent_resolve, T-2293) —
+        // a dead/half-open hub then contributes at most FLEET_PRESENCE_HUB_TIMEOUT
+        // and is skipped, instead of wedging the whole /agent-handoff walk forever.
+        let fetch = super::channel::fetch_presence_msgs(Some(&entry.address));
+        let msgs = match tokio::time::timeout(FLEET_PRESENCE_HUB_TIMEOUT, fetch).await {
+            Ok(Ok(m)) => m,
+            Ok(Err(_)) => continue, // down / auth-fail hub never aborts the walk
+            Err(_) => continue,     // per-hub timeout — never stalls the walk
+        };
         let Some(m) = resolve_agent_presence(&msgs, agent_id, now_ms) else {
             continue;
         };
@@ -871,13 +884,14 @@ async fn resolve_contact_fp_via_fleet(peer_fp: &str) -> Option<FleetContactResol
         if !seen.insert(entry.address.clone()) {
             continue;
         }
-        let msgs =
-            match super::channel::fetch_presence_msgs(Some(&entry.address))
-                .await
-            {
-                Ok(m) => m,
-                Err(_) => continue,
-            };
+        // T-2659: bound each per-hub fetch (mirrors cmd_agent_resolve, T-2293) so
+        // one dead hub in hubs.toml cannot wedge the fp-based contact resolution.
+        let fetch = super::channel::fetch_presence_msgs(Some(&entry.address));
+        let msgs = match tokio::time::timeout(FLEET_PRESENCE_HUB_TIMEOUT, fetch).await {
+            Ok(Ok(m)) => m,
+            Ok(Err(_)) => continue,
+            Err(_) => continue, // per-hub timeout — never stalls the walk
+        };
         // sender_id -> agent_id (same bridge as fetch_recipient_presence).
         let Some(agent_id) = msgs.iter().rev().find_map(|m| {
             let sid = m.get("sender_id").and_then(|v| v.as_str())?;
@@ -1129,13 +1143,15 @@ pub(crate) async fn resolve_agent_registry_via_fleet(
         if !seen.insert(entry.address.clone()) {
             continue;
         }
-        // T-2293: bound each per-hub fetch (8s, matching the T-2062 fleet
-        // per-hub timeout). A stalled/dead hub then contributes at most 8s and
-        // is skipped — it never hangs the whole walk (the symptom that surfaced
-        // in live testing: one unreachable hub in hubs.toml stalled `resolve`).
+        // T-2293: bound each per-hub fetch (matching the T-2062 fleet per-hub
+        // timeout). A stalled/dead hub then contributes at most
+        // FLEET_PRESENCE_HUB_TIMEOUT and is skipped — it never hangs the whole
+        // walk (the symptom that surfaced in live testing: one unreachable hub
+        // in hubs.toml stalled `resolve`). T-2659 single-sourced the bound into
+        // the shared const so this and the two `agent contact` siblings agree.
         let fetch =
             super::channel::fetch_presence_msgs(Some(&entry.address));
-        let msgs = match tokio::time::timeout(std::time::Duration::from_secs(8), fetch).await {
+        let msgs = match tokio::time::timeout(FLEET_PRESENCE_HUB_TIMEOUT, fetch).await {
             Ok(Ok(m)) => m,
             Ok(Err(_)) => continue, // down / auth-fail hub
             Err(_) => continue,     // per-hub timeout — never stalls the walk

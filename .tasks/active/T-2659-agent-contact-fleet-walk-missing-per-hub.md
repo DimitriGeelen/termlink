@@ -4,10 +4,10 @@ name: "agent contact fleet-walk missing per-hub timeout that resolve has — dea
 description: >
   agent contact fleet-walk missing per-hub timeout
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T20:34:17Z
-last_update: 2026-08-12T20:34:17Z
+last_update: 2026-08-12T20:44:34Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -51,10 +51,10 @@ is a load-bearing daily comms verb.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Both `resolve_contact_via_fleet` and `resolve_contact_fp_via_fleet` wrap each per-hub `fetch_presence_msgs(..)` in `tokio::time::timeout(Duration::from_secs(8), ..)` with `Err(_) => continue`, mirroring `cmd_agent_resolve` (agent.rs:~1138-1142)
-- [ ] The 8s bound is sourced consistently with the resolve sibling (extract a shared `const FLEET_PRESENCE_HUB_TIMEOUT` if it reduces magic-number drift across the 3 sites)
-- [ ] Regression proof: a slow/hung-hub fixture (a hubs.toml entry pointing at an accept-but-never-respond socket) confirms contact resolution returns/continues within ~N×8s instead of hanging — OR, if no clean async fixture seam exists, a structural check asserting all 3 fleet-walk sites are timeout-wrapped (temp-revert-provable)
-- [ ] `cargo build -p termlink` clean
+- [x] Both `resolve_contact_via_fleet` and `resolve_contact_fp_via_fleet` wrap each per-hub `fetch_presence_msgs(..)` in `tokio::time::timeout(FLEET_PRESENCE_HUB_TIMEOUT, ..)` with `Ok(Err)/Err(_) => continue`, mirroring `cmd_agent_resolve` (agent.rs:~1138-1142)
+- [x] The 8s bound is single-sourced via new `const FLEET_PRESENCE_HUB_TIMEOUT` applied to all 3 fleet-walk sites (resolve sibling migrated off its `Duration::from_secs(8)` literal — no magic-number drift possible)
+- [x] Structural check (async-fixture fallback, per the OR clause): all 3 fleet-walk sites are timeout-wrapped; temp-revert-proven (unwrapping one site drops wraps 3→2 → check fails; restored)
+- [x] `cargo build -p termlink` clean
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -88,6 +88,10 @@ is a load-bearing daily comms verb.
 -->
 
 ## Verification
+
+cargo build -p termlink 2>&1 | grep -q "Finished"
+# structural: all 3 fleet-walk presence sites are timeout-wrapped (temp-revert-provable)
+python3 -c "s=open('crates/termlink-cli/src/commands/agent.rs').read(); import sys; sites=s.count('fetch_presence_msgs(Some(&entry.address))'); wraps=s.count('tokio::time::timeout(FLEET_PRESENCE_HUB_TIMEOUT'); sys.exit(0 if sites==3 and wraps==3 else 1)"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -154,8 +158,10 @@ siblings — which predate or postdate that fix — were never audited against i
 "every per-hub `fetch_presence_msgs` is timeout-wrapped" invariant to the round-12
 divergence static-check candidate (sibling of T-2527/T-2531).
 
-**Filed not built:** needs a hung-hub async fixture (or the structural-check
-fallback) to prove load-bearing — fixture class, consistent with T-2655/T-2656.
+**BUILT (round-13, 2026-08-12):** took the structural-check fallback from AC #3's
+OR clause rather than standing up a hung-hub async fixture — all 3 fleet-walk sites
+now single-source `FLEET_PRESENCE_HUB_TIMEOUT`; the check counts sites vs wraps
+(3==3) and is temp-revert-proven (unwrapping one site → 3 sites / 2 wraps → fail).
 
 ## Evolution
 
@@ -208,3 +214,7 @@ fallback) to prove load-bearing — fixture class, consistent with T-2655/T-2656
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2659-agent-contact-fleet-walk-missing-per-hub.md
 - **Context:** Initial task creation
+
+### 2026-08-12T20:44:34Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
