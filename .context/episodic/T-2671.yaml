@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2671: termlink_dispatch event.collect loop Err arm has no backoff — silent CPU busy-spin
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-12T22:38:58Z
+# ============================================================================
+
+task_id: T-2671
+task_name: "termlink_dispatch event.collect loop Err arm has no backoff — silent CPU busy-spin"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-12T22:36:19Z
+completed: 2026-08-12T22:38:35Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-08-13T00:38:30+02:00
+last_commit: 2026-08-13T00:38:30+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  add 500ms backoff to termlink_dispatch event.collect Err arm (silent CPU busy-spin on dead hub)
+
+# Key outcomes
+outcomes:
+  - '`termlink_dispatch`''s `event.collect` `Err` arm sleeps `Duration::from_millis(500)` (matching `subscribe_timeout_ms`) before `continue`, mirroring the sibling register loop (tools.rs:13637) and the T-2658/T-2670 backoff convention.'
+  - 'A `// T-2671` comment cites the divergence + names the convention so the sleep reads as load-bearing.'
+  - '`cargo build -p termlink-mcp` clean.'
+  - 'Structural check (temp-revert-provable): the `event.collect` `Err` arm in `termlink_dispatch` contains a `tokio::time::sleep(` — removing it makes the check fail, restoring passes.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/working/.budget-status'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - '.tasks/active/T-2671-termlinkdispatch-eventcollect-loop-err-a.md'
+  - '.tasks/completed/T-2670-cmdagentnegotiate-subscribe-retry-err-ar.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-13T00:38:30"
+    action: "T-2671: add 500ms backoff to termlink_dispatch event.collect Err arm (silent CPU busy-spin on dead hub)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 1
+  files_changed: 9
+  lines_added: 237
+  lines_removed: 16
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2671-termlinkdispatch-eventcollect-loop-err-a.md
+generated_by: context-agent-hybrid

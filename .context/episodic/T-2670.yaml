@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2670: cmd_agent_negotiate subscribe-retry Err arm has no backoff — CPU busy-loop, silent
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-12T22:32:50Z
+# ============================================================================
+
+task_id: T-2670
+task_name: "cmd_agent_negotiate subscribe-retry Err arm has no backoff — CPU busy-loop, silent"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-12T22:27:54Z
+completed: 2026-08-12T22:32:11Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-08-13T00:32:06+02:00
+last_commit: 2026-08-13T00:32:06+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  add 500ms backoff to both agent.rs subscribe-retry Err arms (silent CPU busy-spin on dead hub)
+
+# Key outcomes
+outcomes:
+  - 'BOTH `cmd_agent_negotiate` and `cmd_agent_listen` subscribe `Err` arms sleep `Duration::from_millis(500)` before the loop repeats, mirroring `cmd_watch_hub` (events.rs:900) and the T-2636/T-2640/T-2658 backoff convention.'
+  - 'A `// T-2670` comment at each site cites the divergence + names the sibling convention (events.rs cmd_collect/cmd_watch_hub, dispatch.rs COLLECT_ERR_BACKOFF) so the sleep reads as load-bearing, not incidental.'
+  - 'The sleep is on the `Err` path ONLY — the `Ok` path (hub-side long-poll pacing) is untouched, so live-hub latency is unchanged.'
+  - '`cargo build -p termlink` clean.'
+  - 'Structural check (temp-revert-provable): BOTH `event.subscribe` `Err` arms in agent.rs contain a `tokio::time::sleep(` — the check counts 2 sleep-bearing blocks; removing either makes it fail (non-zero), restoring passes.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-cli/src/commands/agent.rs'
+  - '.tasks/active/T-2670-cmdagentnegotiate-subscribe-retry-err-ar.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-13T00:32:06"
+    action: "T-2670: add 500ms backoff to both agent.rs subscribe-retry Err arms (silent CPU busy-spin on dead hub)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 7
+  lines_added: 233
+  lines_removed: 15
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2670-cmdagentnegotiate-subscribe-retry-err-ar.md
+generated_by: context-agent-hybrid

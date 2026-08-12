@@ -4,20 +4,20 @@ name: "termlink_dispatch event.collect loop Err arm has no backoff — silent CP
 description: >
   termlink_dispatch's event.collect retry loop (tools.rs:13675-13678) does Err(_) => continue with no backoff and discards the error entirely; a dead/half-open hub errors instantly so the loop pins a CPU core silently for the whole collect_timeout window. Same T-2658/T-2670 busy-spin class; the register loop directly above already sleeps 250ms.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T22:36:19Z
-last_update: 2026-08-12T22:37:15Z
-date_finished: null
+last_update: 2026-08-12T22:38:35Z
+date_finished: 2026-08-12T22:38:35Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -192,3 +192,15 @@ buildable-clean in a future window.
 
 ### 2026-08-12T22:37:15Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-0c176d1b
+- **Timestamp:** 2026-08-12T22:38:54Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-12T22:38:35Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
