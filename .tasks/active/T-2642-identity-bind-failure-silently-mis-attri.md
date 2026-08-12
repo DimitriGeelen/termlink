@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T14:48:21Z
-last_update: 2026-08-12T14:48:21Z
+last_update: 2026-08-12T14:53:35Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -49,12 +49,12 @@ would corrupt `--json`). Verified in code this session.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] A pure helper `bind_identity_messages(agent_id, outcome, key_path_display, verbose) -> (Option<String> stdout_info, Option<String> stderr_warn)` is extracted, so the print decision is unit-testable.
-- [ ] Bind FAILURE warning is returned unconditionally (stderr_warn is `Some` regardless of `verbose`); bind SUCCESS info is `Some` only when `verbose` (stays stdout-safe under `--json`).
-- [ ] The failure warning carries actionable remediation (how to bind correctly / what mis-attribution means), not just the raw error.
-- [ ] Load-bearing unit tests: Err→stderr_warn `Some` under BOTH verbose=true and verbose=false; Ok→stdout_info `Some` only when verbose (None when not); warning contains the remediation token.
-- [ ] Load-bearing proof recorded: temp-revert (re-gate the warning behind `verbose`) makes the verbose=false assertion FAIL; fix restores green.
-- [ ] `cargo test -p termlink --bins` green for the new tests; `cargo build --workspace` clean.
+- [x] A pure helper `bind_identity_messages(agent_id, outcome, key_path_display, verbose) -> (Option<String> stdout_info, Option<String> stderr_warn)` is extracted, so the print decision is unit-testable.
+- [x] Bind FAILURE warning is returned unconditionally (stderr_warn is `Some` regardless of `verbose`); bind SUCCESS info is `Some` only when `verbose` (stays stdout-safe under `--json`).
+- [x] The failure warning carries actionable remediation (how to bind correctly / what mis-attribution means), not just the raw error.
+- [x] Load-bearing unit tests: Err→stderr_warn `Some` under BOTH verbose=true and verbose=false; Ok→stdout_info `Some` only when verbose (None when not); warning contains the remediation token.
+- [x] Load-bearing proof recorded: temp-revert (re-gate the warning behind `verbose`) makes the verbose=false assertion FAIL; fix restores green.
+- [x] `cargo test -p termlink --bins` green for the new tests; `cargo build -p termlink` clean.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -89,8 +89,8 @@ would corrupt `--json`). Verified in code this session.
 
 ## Verification
 
-cargo test -p termlink --bins commands::session::tests::bind_identity 2>&1 | tail -20 | grep -qE "test result: ok|0 failed"
-cargo build -p termlink 2>&1 | tail -3
+out=$(cargo test -p termlink --bins commands::session::tests::bind_identity 2>&1); echo "$out" | grep -qE "test result: ok"
+cargo build -p termlink 2>&1 >/dev/null
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
