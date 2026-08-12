@@ -90,6 +90,25 @@ async fn try_broadcast_via_channel_post(
     Ok(offset)
 }
 
+/// T-2657: build the failure message for the empty-targets broadcast path when
+/// `channel.post(broadcast:global)` is the only route (event.broadcast retiring,
+/// T-1166) and it failed. `cause` is the concrete error from
+/// `try_broadcast_via_channel_post` — e.g. `"channel.post timed out"`,
+/// `"channel.post connect: <e>"`, `"channel.post error: <e>"`. When present we
+/// name it AND a next-step hint; when absent (defensive — the call site always
+/// captures one on this path) we fall back to the bare base string so callers
+/// that reuse the message get stable text.
+fn broadcast_no_path_msg(cause: Option<&str>) -> String {
+    const BASE: &str = "channel.post(broadcast:global) failed and event.broadcast is retiring (T-1166); no usable broadcast path";
+    match cause {
+        Some(c) => format!(
+            "{BASE}: {c} — run `termlink fleet doctor` to check hub health/auth, \
+             or retry with explicit `--targets <session>`"
+        ),
+        None => BASE.to_string(),
+    }
+}
+
 pub(crate) async fn cmd_events(target: &str, since: Option<u64>, topic: Option<&str>, json: bool, timeout_secs: u64, payload_only: bool) -> Result<()> {
     let reg = match manager::find_session(target) {
         Ok(r) => r,
@@ -285,28 +304,38 @@ pub(crate) async fn cmd_broadcast(topic: &str, payload_str: &str, targets: Vec<S
     // event.broadcast to the same topic (T-1162), so subscribers see identical
     // envelopes. On any failure (older hub, signing/identity setup issue) fall
     // through to the legacy event.broadcast call below.
-    if targets.is_empty()
-        && let Ok(offset) =
-            try_broadcast_via_channel_post(&hub_socket, topic, &payload, timeout_dur).await
-    {
-        if json {
-            let wrapped = serde_json::json!({
-                "ok": true,
-                "topic": topic,
-                "channel_topic": BROADCAST_GLOBAL_TOPIC,
-                "offset": offset,
-                "targeted": 1,
-                "succeeded": 1,
-                "failed": 0,
-            });
-            println!("{}", serde_json::to_string_pretty(&wrapped)?);
-        } else {
-            println!(
-                "Broadcast '{}': 1/1 succeeded (channel:{} offset={})",
-                topic, BROADCAST_GLOBAL_TOPIC, offset
-            );
+    // T-2657: capture the concrete channel.post failure cause instead of
+    // discarding it via `if let Ok`. On the empty-targets path this is the
+    // ONLY route (event.broadcast retiring, T-1166), so a failure here must
+    // surface WHY (timeout / connect / signing) + a next step, not a fixed
+    // generic string. The error is threaded into broadcast_no_path_msg below.
+    let mut channel_post_err: Option<String> = None;
+    if targets.is_empty() {
+        match try_broadcast_via_channel_post(&hub_socket, topic, &payload, timeout_dur).await {
+            Ok(offset) => {
+                if json {
+                    let wrapped = serde_json::json!({
+                        "ok": true,
+                        "topic": topic,
+                        "channel_topic": BROADCAST_GLOBAL_TOPIC,
+                        "offset": offset,
+                        "targeted": 1,
+                        "succeeded": 1,
+                        "failed": 0,
+                    });
+                    println!("{}", serde_json::to_string_pretty(&wrapped)?);
+                } else {
+                    println!(
+                        "Broadcast '{}': 1/1 succeeded (channel:{} offset={})",
+                        topic, BROADCAST_GLOBAL_TOPIC, offset
+                    );
+                }
+                return Ok(());
+            }
+            Err(e) => {
+                channel_post_err = Some(e.to_string());
+            }
         }
-        return Ok(());
     }
 
     // T-1417: Pre-T-1166 cut migration. The legacy `event.broadcast` is
@@ -320,15 +349,17 @@ pub(crate) async fn cmd_broadcast(topic: &str, payload_str: &str, targets: Vec<S
     // surfaced as an error rather than falling through to the retiring
     // event.broadcast path.
     if targets.is_empty() {
+        // T-2657: route through broadcast_no_path_msg so the captured cause
+        // + recovery hint reach the user (both --json and text), replacing
+        // the previous cause-free / hint-free fixed string.
+        let msg = broadcast_no_path_msg(channel_post_err.as_deref());
         if json {
             super::json_error_exit(serde_json::json!({
                 "ok": false, "topic": topic,
-                "error": "channel.post(broadcast:global) failed and event.broadcast is retiring (T-1166); no usable broadcast path"
+                "error": msg,
             }));
         }
-        anyhow::bail!(
-            "channel.post(broadcast:global) failed and event.broadcast is retiring (T-1166); no usable broadcast path"
-        );
+        anyhow::bail!("{}", msg);
     }
 
     let (targeted, succeeded, failed, errors) =
@@ -1374,6 +1405,37 @@ pub(crate) async fn cmd_collect(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // T-2657: the empty-targets broadcast bail must name the concrete
+    // channel.post cause AND a recovery hint (Directive #2 no-silent-failure +
+    // Directive #3 actionable-error). Reverting broadcast_no_path_msg to return
+    // BASE regardless of `cause` (the pre-fix behavior) drops the cause + hint
+    // and fails these asserts (load-bearing).
+    #[test]
+    fn broadcast_no_path_msg_names_cause_and_hint() {
+        let msg = broadcast_no_path_msg(Some("channel.post timed out"));
+        assert!(
+            msg.contains("channel.post timed out"),
+            "must surface the concrete cause, got: {msg}"
+        );
+        assert!(
+            msg.contains("fleet doctor"),
+            "must carry a recovery next-step, got: {msg}"
+        );
+        assert!(
+            msg.contains("--targets"),
+            "must offer the explicit-targets fallback, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn broadcast_no_path_msg_none_is_bare_base() {
+        // Back-compat: absent cause returns the stable base string with no
+        // trailing cause/hint clause.
+        let msg = broadcast_no_path_msg(None);
+        assert!(msg.contains("no usable broadcast path"));
+        assert!(!msg.contains("fleet doctor"), "no hint when no cause: {msg}");
+    }
 
     // T-2645: the hub-not-running hint must name the canonical `termlink hub start`,
     // not the bare non-canonical `termlink hub`. Reverting the const to the bare
