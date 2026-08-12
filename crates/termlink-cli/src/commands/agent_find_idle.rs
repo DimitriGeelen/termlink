@@ -279,6 +279,37 @@ fn append_idle_log_line(path: &std::path::Path, ev: &IdleChangeEvent, now_secs: 
     }
 }
 
+/// T-2637 (F1, divergence class): bound the `find-idle --watch` RPC so a
+/// half-open hub — one that accepts the connection but never writes a response
+/// line (the T-2258 blocking-pool-starvation / T-2354 stall class) — cannot
+/// wedge the watch loop forever, silently freezing the monitor on stale data.
+///
+/// This mirrors `substrate::fetch_dispatch`, which already wraps the SAME
+/// `AGENT_FIND_IDLE` call in `tokio::time::timeout`; the digest sibling was
+/// hardened and the watch sibling was not (the divergence T-2637 sweeps for).
+///
+/// Generic over the RPC future so it is unit-testable with a never-resolving
+/// stand-in (no live hub needed). On expiry it returns `Err(message)`; the
+/// caller routes that to the existing "fetch error (will retry on next tick)"
+/// path, so a stalled tick is retryable, never a permanent freeze.
+async fn bounded_watch_fetch<T, E, F>(
+    rpc: F,
+    timeout: std::time::Duration,
+) -> std::result::Result<T, String>
+where
+    F: std::future::Future<Output = std::result::Result<T, E>>,
+    E: std::fmt::Display,
+{
+    match tokio::time::timeout(timeout, rpc).await {
+        Ok(Ok(v)) => Ok(v),
+        Ok(Err(e)) => Err(e.to_string()),
+        Err(_) => Err(format!(
+            "find-idle RPC timed out after {}s (hub half-open?)",
+            timeout.as_secs()
+        )),
+    }
+}
+
 pub(crate) async fn cmd_agent_find_idle(
     role: Option<&str>,
     capabilities: &[String],
@@ -351,13 +382,17 @@ pub(crate) async fn cmd_agent_find_idle(
                 interval, now_str
             );
             let current_state: Option<std::collections::BTreeMap<String, IdleSnapshot>>;
-            match client::rpc_call_addr(
+            // T-2637 (F1): bound the RPC read by one tick interval (>=5s). A
+            // valid find-idle read returns in ms, so this never cuts off a
+            // healthy response; but a half-open hub now yields a retryable fetch
+            // error instead of wedging the loop forever (divergence with the
+            // already-bounded substrate::fetch_dispatch sibling).
+            let rpc = client::rpc_call_addr(
                 &addr,
                 method::AGENT_FIND_IDLE,
                 params_template.clone(),
-            )
-            .await
-            {
+            );
+            match bounded_watch_fetch(rpc, std::time::Duration::from_secs(interval)).await {
                 Ok(resp) => match client::unwrap_result(resp) {
                     Ok(result) => {
                         let snap = parse_idle_result(&result);
@@ -1110,5 +1145,46 @@ not-json\n\
         assert!(line.contains("role=-"));
         assert!(line.contains("caps=-"));
         assert!(line.contains("last_heartbeat=1234ms"));
+    }
+
+    // T-2637 (F1): a never-replying RPC (half-open hub) must return a fetch
+    // error within the bound, NOT hang. The outer 5s guard trips if the inner
+    // helper is unbounded — reverting `bounded_watch_fetch` to a bare `rpc.await`
+    // makes the pending future never resolve, the outer guard fires, and the
+    // `out.is_ok()` assertion fails (load-bearing).
+    #[tokio::test]
+    async fn bounded_watch_fetch_bounds_a_wedged_rpc() {
+        use std::time::{Duration, Instant};
+        let start = Instant::now();
+        // "accepts the connection but never writes a response line" == a future
+        // that never resolves.
+        let wedged = std::future::pending::<std::result::Result<i32, String>>();
+        let out = tokio::time::timeout(
+            Duration::from_secs(5),
+            bounded_watch_fetch(wedged, Duration::from_millis(50)),
+        )
+        .await;
+        assert!(
+            out.is_ok(),
+            "watch fetch never returned — the RPC bound is missing (wedged forever)"
+        );
+        assert!(
+            out.unwrap().is_err(),
+            "a never-replying RPC must map to a fetch error, not a value"
+        );
+        assert!(
+            start.elapsed() < Duration::from_secs(2),
+            "must return near the 50ms inner bound, not the 5s outer guard"
+        );
+    }
+
+    // A prompt Ok result passes through unchanged (a healthy tick is not
+    // penalised by the bound).
+    #[tokio::test]
+    async fn bounded_watch_fetch_passes_through_prompt_ok() {
+        use std::time::Duration;
+        let ready = async { Ok::<i32, String>(42) };
+        let out = bounded_watch_fetch(ready, Duration::from_secs(30)).await;
+        assert_eq!(out.ok(), Some(42), "a prompt Ok must pass through unchanged");
     }
 }
