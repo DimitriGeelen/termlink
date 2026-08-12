@@ -11132,7 +11132,7 @@ pub(crate) async fn cmd_channel_claim_force_release(
     let addr = hub_socket(hub)?;
     let r = termlink_session::claim_client::channel_force_release(&addr, claim_id, reason)
         .await
-        .map_err(|e| anyhow!("channel.force_release failed: {e}"))?;
+        .map_err(|e| claim_err_actionable("force_release", e))?;
     if json_output {
         println!(
             "{}",
@@ -11184,7 +11184,7 @@ pub(crate) async fn cmd_channel_claim_transfer(
         &addr, claim_id, to_owner, by, reason,
     )
     .await
-    .map_err(|e| anyhow!("channel.transfer_claim failed: {e}"))?;
+    .map_err(|e| claim_err_actionable("transfer_claim", e))?;
     if json_output {
         println!(
             "{}",
@@ -11228,7 +11228,7 @@ pub(crate) async fn cmd_channel_claims(
     let addr = hub_socket(hub)?;
     let claims = termlink_session::claim_client::channel_claims(&addr, topic, include_expired)
         .await
-        .map_err(|e| anyhow!("channel.claims failed: {e}"))?;
+        .map_err(|e| claim_err_actionable("claims", e))?;
     if json_output {
         let rows: Vec<serde_json::Value> = claims
             .iter()
@@ -11445,7 +11445,7 @@ pub(crate) async fn cmd_channel_claims_summary(
     let t = topic.expect("topic guaranteed Some by validation above");
     let summary = termlink_session::claim_client::channel_claims_summary(&addr, t)
         .await
-        .map_err(|e| anyhow!("channel.claims_summary failed: {e}"))?;
+        .map_err(|e| claim_err_actionable("claims_summary", e))?;
     if json_output {
         println!(
             "{}",
