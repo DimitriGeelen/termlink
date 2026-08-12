@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T10:52:13Z
-last_update: 2026-08-12T12:14:59Z
+last_update: 2026-08-12T14:17:51Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -39,11 +39,11 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-- [ ] A bounded `rpc_call_addr_with_timeout(addr, method, params, timeout)` exists in `termlink-session/src/client.rs`, routing through the existing `Client::call_with_timeout` (T-2354) primitive rather than the unbounded `call`.
-- [ ] `BusClient::post` (bus_client.rs:182) and `BusClient::flush` (bus_client.rs:257) call the bounded variant with a sane default read timeout (e.g. 10s, tunable via env to match the T-2354 convention); a wedged/half-open hub causes the flush to error+retry, never to block indefinitely.
-- [ ] A test with a black-hole server (accepts the connection + TLS but never writes a response line — mirror `call_with_timeout_errors_on_silent_server` at client.rs:524) proves the flush path returns a timeout error within the bound instead of hanging.
-- [ ] The detached flush task's shutdown oneshot can interrupt a stuck flush (verify the `select!` in bus_client.rs:145-159 is no longer starved by an unbounded await).
-- [ ] `cargo test -p termlink-session` green; `cargo build` succeeds.
+- [x] A bounded `rpc_call_addr_with_timeout(addr, method, params, timeout)` exists in `termlink-session/src/client.rs`, routing through the existing `Client::call_with_timeout` (T-2354) primitive rather than the unbounded `call`. **Done in T-2641/T-2639** (bounds connect via `connect_addr_with_timeout` + read via `call_with_timeout`); this task adopts it.
+- [x] `BusClient::post` and `BusClient::flush` call the bounded variant with a sane default read timeout (tunable via env to match the T-2354 convention); a wedged/half-open hub causes the flush to error+retry, never to block indefinitely. **Done:** both sites route through `rpc_call_addr_with_timeout(&self.addr, CHANNEL_POST, params, flush_read_timeout())`; `flush_read_timeout()` shares the `TERMLINK_RPC_READ_TIMEOUT_SECS` env (default 30s, clamped 1..=600).
+- [x] A test with a black-hole server (accepts the connection but never writes a response line) proves the flush path returns a timeout error within the bound instead of hanging. **Done:** `bus_client::tests::post_and_flush_are_bounded_on_black_hole_hub` (repeated-accept black-hole unix listener; post queues + flush reports `failed` within a 1s bound). Load-bearing: reverting both sites to unbounded `rpc_call_addr` hangs → outer 6s guard trips at 6.11s.
+- [x] The detached flush task's shutdown oneshot can interrupt a stuck flush (the `select!` is no longer starved by an unbounded await). **Done:** the detached-task loop now races `c.flush()` against `shutdown_rx` in an inner `select!`, so `shutdown()` interrupts a wedged flush promptly. Test `shutdown_interrupts_a_stuck_flush` (default 30s bound + black-hole; `shutdown()` joins the task within 3s). Load-bearing: reverting to plain `c.flush().await` blocks 30s → 3s join assertion fails at 3.42s.
+- [x] `cargo test -p termlink-session` green (427 passed); `cargo build` succeeds (full workspace).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -77,6 +77,9 @@ date_finished: null
 -->
 
 ## Verification
+
+cargo test -p termlink-session --lib bus_client::tests
+cargo build -p termlink-session
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.

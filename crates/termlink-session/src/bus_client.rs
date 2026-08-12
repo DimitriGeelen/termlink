@@ -25,8 +25,25 @@ use termlink_protocol::control::method;
 use termlink_protocol::jsonrpc::RpcResponse;
 use termlink_protocol::transport::TransportAddr;
 
-use crate::client::{rpc_call_addr, ClientError};
+use crate::client::{rpc_call_addr_with_timeout, ClientError};
 use crate::offline_queue::{OfflineQueue, PendingPost, QueueError};
+
+/// T-2635/T-2354: read bound for the BusClient POST/flush RPCs. The offline
+/// queue's whole purpose is resilience to a flaky hub, so a wedged/half-open
+/// hub (accepts the connection but never writes a response line) must make the
+/// flush error+retry, NEVER block the detached flush task forever (which would
+/// permanently stop the queue draining). Shares the T-2354 convention env
+/// `TERMLINK_RPC_READ_TIMEOUT_SECS` (default 30s, clamped 1..=600) so operators
+/// tune one knob across the whole client RPC surface.
+fn flush_read_timeout() -> Duration {
+    Duration::from_secs(
+        std::env::var("TERMLINK_RPC_READ_TIMEOUT_SECS")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok())
+            .map(|v| v.clamp(1, 600))
+            .unwrap_or(30),
+    )
+}
 
 /// Result of a `BusClient::post` attempt.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -152,7 +169,18 @@ impl BusClient {
                         _ = &mut shutdown_rx => break,
                         _ = tokio::time::sleep(tick) => {
                             let Some(c) = weak.upgrade() else { break; };
-                            let _ = c.flush().await;
+                            // T-2635: race the flush against shutdown. The flush
+                            // RPC is now read-bounded (flush_read_timeout), but a
+                            // stuck flush could still delay task exit by up to that
+                            // bound; selecting against shutdown_rx lets a shutdown()
+                            // interrupt a wedged flush promptly instead of waiting
+                            // out the timeout. Dropping the flush future between/mid
+                            // rows is safe — the un-popped row stays queued (the
+                            // existing at-least-once semantic).
+                            tokio::select! {
+                                _ = &mut shutdown_rx => break,
+                                _ = c.flush() => {}
+                            }
                         }
                     }
                 }
@@ -179,7 +207,15 @@ impl BusClient {
     /// Try to POST directly; on transport failure, enqueue and return `Queued`.
     pub async fn post(&self, post: PendingPost) -> Result<PostOutcome, BusClientError> {
         let params = post_to_params(&post);
-        match rpc_call_addr(&self.addr, method::CHANNEL_POST, params).await {
+        // T-2635: bounded read — a half-open hub must not hang the direct post.
+        match rpc_call_addr_with_timeout(
+            &self.addr,
+            method::CHANNEL_POST,
+            params,
+            flush_read_timeout(),
+        )
+        .await
+        {
             Ok(resp) => parse_post_response(resp).map(|offset| PostOutcome::Delivered { offset }),
             Err(e) => {
                 // Any transport / protocol-level failure → queue locally.
@@ -254,7 +290,16 @@ impl BusClient {
                 }
             };
             let params = post_to_params(&post);
-            match rpc_call_addr(&self.addr, method::CHANNEL_POST, params).await {
+            // T-2635: bounded read — a half-open hub must not wedge the detached
+            // flush task forever (it would silently stop the queue draining).
+            match rpc_call_addr_with_timeout(
+                &self.addr,
+                method::CHANNEL_POST,
+                params,
+                flush_read_timeout(),
+            )
+            .await
+            {
                 Ok(resp) => match parse_post_response(resp) {
                     Ok(_offset) => {
                         report.sent += 1;
@@ -780,5 +825,144 @@ mod tests {
         // Handle should exit promptly once shutdown fires.
         let r = tokio::time::timeout(Duration::from_secs(2), handle).await;
         assert!(r.is_ok(), "flush task did not exit after drop");
+    }
+
+    // ---- T-2635: BusClient POST/flush are read-bounded (divergence sibling) -
+
+    // Serialises the TERMLINK_RPC_READ_TIMEOUT_SECS override so a parallel test
+    // can't observe it.
+    static BUS_RPC_TIMEOUT_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// Spawn a black-hole hub on a unix socket: accept every connection, drain
+    /// the request line, then go silent forever. Mirrors the client.rs
+    /// `call_with_timeout_errors_on_silent_server` harness but accepts REPEATED
+    /// connections (post + each flush attempt each open a fresh connection).
+    fn spawn_black_hole(socket_path: std::path::PathBuf) -> tokio::task::JoinHandle<()> {
+        tokio::spawn(async move {
+            let listener = tokio::net::UnixListener::bind(&socket_path).unwrap();
+            loop {
+                if let Ok((stream, _)) = listener.accept().await {
+                    tokio::spawn(async move {
+                        let mut reader = tokio::io::BufReader::new(stream);
+                        let mut line = String::new();
+                        use tokio::io::AsyncBufReadExt;
+                        let _ = reader.read_line(&mut line).await;
+                        tokio::time::sleep(Duration::from_secs(3600)).await;
+                    });
+                } else {
+                    break;
+                }
+            }
+        })
+    }
+
+    /// A half-open hub (accepts the connection but never writes a response line)
+    /// must make BOTH `post` and `flush` error within the read bound instead of
+    /// hanging. Reverting the two call sites back to unbounded `rpc_call_addr`
+    /// makes the black-hole hang the calls, tripping the outer 6s guard
+    /// (load-bearing).
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn post_and_flush_are_bounded_on_black_hole_hub() {
+        let _g = BUS_RPC_TIMEOUT_ENV_LOCK.lock().unwrap();
+        let prev = std::env::var("TERMLINK_RPC_READ_TIMEOUT_SECS").ok();
+        unsafe { std::env::set_var("TERMLINK_RPC_READ_TIMEOUT_SECS", "1") };
+
+        let dir = tempfile::tempdir().unwrap();
+        let socket = dir.path().join("blackhole.sock");
+        let queue_path = dir.path().join("outbound.sqlite");
+        let hub = spawn_black_hole(socket.clone());
+        // Let the listener bind before we connect.
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        let (client, handle) = BusClient::connect_with_interval(
+            TransportAddr::unix(&socket),
+            &queue_path,
+            Duration::from_secs(3600), // no background flush during the test
+        )
+        .unwrap();
+
+        // post: the black-hole accepts but never replies → 1s read bound trips →
+        // transport error → the message is queued (not lost) — all within bound.
+        let start = std::time::Instant::now();
+        let out = tokio::time::timeout(Duration::from_secs(6), client.post(sample_post("t1")))
+            .await
+            .expect("post hung past the read bound (unbounded?)")
+            .unwrap();
+        assert!(matches!(out, PostOutcome::Queued { .. }), "post must queue on timeout");
+        assert_eq!(client.queue_size(), 1, "queued row must be preserved");
+
+        // flush: peeks the queued row, posts to the black-hole → 1s bound trips →
+        // failed, break — returns a report within bound, row still queued.
+        let report = tokio::time::timeout(Duration::from_secs(6), client.flush())
+            .await
+            .expect("flush hung past the read bound (unbounded?)");
+        assert!(report.failed >= 1, "flush must record the transport failure");
+        assert_eq!(client.queue_size(), 1, "row preserved after failed flush");
+        assert!(
+            start.elapsed() < Duration::from_secs(6),
+            "post+flush should complete near the 1s bound, took {:?}",
+            start.elapsed()
+        );
+
+        match prev {
+            Some(v) => unsafe { std::env::set_var("TERMLINK_RPC_READ_TIMEOUT_SECS", v) },
+            None => unsafe { std::env::remove_var("TERMLINK_RPC_READ_TIMEOUT_SECS") },
+        }
+        client.shutdown();
+        let _ = tokio::time::timeout(Duration::from_secs(2), handle).await;
+        hub.abort();
+    }
+
+    /// AC4: a `shutdown()` must interrupt a flush that is stuck on a wedged hub,
+    /// rather than waiting out the (possibly long) read bound. Uses the DEFAULT
+    /// 30s bound so that WITHOUT the inner `select!` against shutdown_rx the
+    /// stuck flush would block ~30s and the 3s join assertion would fail — i.e.
+    /// this test is load-bearing for the detached-task inner-select change.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn shutdown_interrupts_a_stuck_flush() {
+        let _g = BUS_RPC_TIMEOUT_ENV_LOCK.lock().unwrap();
+        let prev = std::env::var("TERMLINK_RPC_READ_TIMEOUT_SECS").ok();
+        // Ensure the default (long) 30s bound is in effect — no override.
+        unsafe { std::env::remove_var("TERMLINK_RPC_READ_TIMEOUT_SECS") };
+
+        let dir = tempfile::tempdir().unwrap();
+        let socket = dir.path().join("blackhole.sock");
+        let queue_path = dir.path().join("outbound.sqlite");
+        let hub = spawn_black_hole(socket.clone());
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        // Pre-seed a row directly so the background flush has work and blocks on
+        // the black-hole post (rather than exiting on an empty queue).
+        {
+            let q = OfflineQueue::open(&queue_path).unwrap();
+            q.enqueue(&sample_post("stuck")).unwrap();
+        }
+
+        let (client, handle) = BusClient::connect_with_interval(
+            TransportAddr::unix(&socket),
+            &queue_path,
+            Duration::from_millis(50), // tick soon so the bg task enters flush
+        )
+        .unwrap();
+
+        // Give the background task time to tick and get stuck inside flush().
+        tokio::time::sleep(Duration::from_millis(300)).await;
+
+        // Interrupt the stuck flush. Without the inner select this returns only
+        // after the ~30s read bound; with it, the task breaks promptly.
+        client.shutdown();
+        let joined = tokio::time::timeout(Duration::from_secs(3), handle).await;
+
+        match prev {
+            Some(v) => unsafe { std::env::set_var("TERMLINK_RPC_READ_TIMEOUT_SECS", v) },
+            None => unsafe { std::env::remove_var("TERMLINK_RPC_READ_TIMEOUT_SECS") },
+        }
+        hub.abort();
+        drop(client);
+
+        assert!(
+            joined.is_ok(),
+            "shutdown did not interrupt the stuck flush within 3s (inner select missing?)"
+        );
     }
 }
