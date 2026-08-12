@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T09:31:43Z
-last_update: 2026-08-12T09:31:43Z
+last_update: 2026-08-12T09:35:44Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,10 +34,6 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
-
-## Context
-
 `fw doctor`'s `secret_cache` check (`infrastructure.rs:492`) resolves its scan
 directory via `std::env::var("HOME").unwrap_or_default()` — when HOME is unset the
 empty string yields a CWD-relative `.termlink/secrets` that almost never exists, so
@@ -48,10 +44,10 @@ T-2628 round-3 portability hunt.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The doctor secret_cache check resolves its directory via the canonical `config::termlink_config_dir()` (hardened in T-2629), NOT via ad-hoc `HOME.unwrap_or_default()` — so HOME-unset no longer produces a CWD-relative false-clean
-- [ ] Behavior is preserved when HOME is set: the scanned dir is still `$HOME/.termlink/secrets`
-- [ ] A `secret_cache_dir()` helper is extracted with a unit test asserting the cache dir is derived from (lives under) `termlink_config_dir()`
-- [ ] `cargo test -p termlink --bins` passes; fix committed and finalized through P-011; pushed to OneDev
+- [x] The doctor secret_cache check resolves its directory via the canonical `config::termlink_config_dir()` (hardened in T-2629), NOT via ad-hoc `HOME.unwrap_or_default()` — so HOME-unset no longer produces a CWD-relative false-clean
+- [x] Behavior is preserved when HOME is set: the scanned dir is still `$HOME/.termlink/secrets`
+- [x] A `secret_cache_dir()` helper is extracted with a unit test asserting the cache dir is derived from (lives under) `termlink_config_dir()`
+- [x] `cargo test -p termlink --bins` passes; fix committed and finalized through P-011; pushed to OneDev
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
