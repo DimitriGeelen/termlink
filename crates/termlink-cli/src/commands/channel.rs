@@ -10914,6 +10914,28 @@ pub(crate) async fn cmd_channel_search(
 // actionable message; --json emits structured envelopes.
 // ---------------------------------------------------------------------------
 
+/// Map a hub error `code` (from `ClaimError::Hub`) to a recovery hint (T-2653,
+/// Directive #3). Pure so the hint taxonomy is unit-testable. Mirrors the
+/// CLAUDE.md `/claim` loud-refusal taxonomy: backpressure → governor-status,
+/// auth-drift → reauth + doctor, anything else → a generic hub-rejected hint.
+pub(crate) fn claim_hub_code_hint(code: i64) -> String {
+    use termlink_protocol::control::error_code;
+    match code {
+        error_code::RATE_LIMITED | error_code::HUB_AT_CAPACITY => {
+            " — the hub is rate-limited or at capacity; check `termlink fleet governor-status` and retry after backing off"
+                .to_string()
+        }
+        error_code::AUTH_REQUIRED | error_code::AUTH_DENIED => {
+            " — hub authentication failed; run `termlink fleet reauth <hub>` then `termlink fleet doctor` to confirm"
+                .to_string()
+        }
+        _ => {
+            " — the hub rejected the claim; run `termlink fleet doctor` to check hub health, or `termlink channel claims <topic>` to inspect the topic"
+                .to_string()
+        }
+    }
+}
+
 /// Map a claim-family `ClaimError` into an actionable anyhow error (T-2554,
 /// usability lens of the T-2468 purpose review). Constitutional Directive #3:
 /// name the recovery command per variant, not just the failure. A bare
@@ -10938,6 +10960,11 @@ pub(crate) fn claim_err_actionable(
         }
         ClaimError::NotOwned { .. } => {
             " — you are not the holder; run `termlink channel claims <topic>` to see who is"
+                .to_string()
+        }
+        ClaimError::Hub { code, .. } => claim_hub_code_hint(*code),
+        ClaimError::Transport(_) => {
+            " — the hub is unreachable; run `termlink fleet doctor` to check hub health and auth"
                 .to_string()
         }
         _ => String::new(),
@@ -12337,6 +12364,52 @@ fn render_claims_summary_text_with_annotation(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // T-2653: the hub-error-code hint taxonomy must route backpressure/auth/other
+    // to distinct recovery commands (Directive #3). This is load-bearing: reverting
+    // the `Hub{code}` arm of `claim_err_actionable` to `String::new()` (or emptying
+    // any of these branches) drops the hint an operator needs and fails this test.
+    #[test]
+    fn claim_hub_code_hint_routes_backpressure_auth_and_other() {
+        use termlink_protocol::control::error_code;
+        // Backpressure codes → governor-status.
+        for code in [error_code::RATE_LIMITED, error_code::HUB_AT_CAPACITY] {
+            let h = claim_hub_code_hint(code);
+            assert!(!h.is_empty(), "backpressure hint non-empty for {code}");
+            assert!(h.contains("governor-status"), "backpressure hint names governor-status: {h}");
+        }
+        // Auth codes → reauth.
+        for code in [error_code::AUTH_REQUIRED, error_code::AUTH_DENIED] {
+            let h = claim_hub_code_hint(code);
+            assert!(h.contains("reauth"), "auth hint names reauth: {h}");
+        }
+        // Unknown code → non-empty generic hint (never the empty dead-end).
+        let other = claim_hub_code_hint(-31999);
+        assert!(!other.is_empty(), "unknown code still gets a hint");
+        assert!(other.contains("fleet doctor") || other.contains("channel claims"),
+            "generic hint names an inspection command: {other}");
+    }
+
+    // T-2653: the actual defect was `claim_err_actionable` routing Hub/Transport
+    // through the empty catch-all. This asserts end-to-end through the helper, so
+    // reverting the `Hub{code}` arm to `String::new()` (the pre-fix shape) fails it.
+    #[test]
+    fn claim_err_actionable_wires_hub_and_transport_hints() {
+        use termlink_protocol::control::error_code;
+        use termlink_session::claim_client::ClaimError;
+        let hub = claim_err_actionable(
+            "claim",
+            ClaimError::Hub { code: error_code::RATE_LIMITED, message: "RATE_LIMITED".into() },
+        );
+        assert!(format!("{hub}").contains("governor-status"),
+            "Hub RATE_LIMITED error carries the governor hint: {hub}");
+        let transport = claim_err_actionable(
+            "renew",
+            ClaimError::Transport(termlink_session::client::ClientError::ConnectionClosed),
+        );
+        assert!(format!("{transport}").contains("fleet doctor"),
+            "Transport error carries the unreachable-hub hint: {transport}");
+    }
 
     // T-2643: missing-secret error must name the remediation command (parity
     // with the sibling bail 3 lines down). Dropping the hint fails this.
