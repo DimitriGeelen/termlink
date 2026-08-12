@@ -148,10 +148,10 @@ pub(crate) fn cmd_vendor(
     }
 
     // Check if .gitignore has the vendor binary
-    check_gitignore(&project_dir, &dest_dir, json);
+    let gi_ok = check_gitignore(&project_dir, &dest_dir, json);
 
     // Configure MCP server in Claude Code settings
-    configure_mcp(&project_dir, json);
+    let mcp_ok = configure_mcp(&project_dir, json);
 
     // Report
     if json {
@@ -163,6 +163,11 @@ pub(crate) fn cmd_vendor(
             "version": source_version,
             "previous_version": existing_version,
             "size_bytes": source_size,
+            // Surface the wiring outcomes so a caller reading ok:true can still
+            // detect a partial success (binary copied, but MCP/gitignore wiring
+            // failed). Mirrors the field names cmd_vendor_status already emits.
+            "mcp_configured": mcp_ok,
+            "gitignore_ok": gi_ok,
         }));
     } else {
         let action = if existing_version.is_some() { "Updated" } else { "Vendored" };
@@ -317,7 +322,11 @@ fn get_binary_version(path: &Path) -> Option<String> {
 }
 
 /// Ensure .gitignore excludes the vendored binary. Creates or appends as needed.
-fn check_gitignore(project_dir: &Path, vendor_dir: &Path, quiet: bool) {
+///
+/// Returns `true` when the entry is present (already there or successfully appended),
+/// `false` when the update failed. The caller surfaces this in the `--json` envelope
+/// so a wiring failure is observable even when the binary copy itself succeeded.
+fn check_gitignore(project_dir: &Path, vendor_dir: &Path, quiet: bool) -> bool {
     let gitignore = project_dir.join(".gitignore");
     let vendor_rel = vendor_dir
         .strip_prefix(project_dir)
@@ -327,7 +336,7 @@ fn check_gitignore(project_dir: &Path, vendor_dir: &Path, quiet: bool) {
     let content = std::fs::read_to_string(&gitignore).unwrap_or_default();
 
     if content.contains(&vendor_rel) || content.contains(".termlink/bin") {
-        return;
+        return true;
     }
 
     // Append entry (create file if needed)
@@ -344,9 +353,22 @@ fn check_gitignore(project_dir: &Path, vendor_dir: &Path, quiet: bool) {
     {
         Ok(mut f) => {
             use std::io::Write;
-            let _ = f.write_all(entry.as_bytes());
-            if !quiet {
-                println!("\n.gitignore: added {vendor_rel}");
+            // Do NOT discard the write result — an append that opens but fails to
+            // write would otherwise report success while the entry never landed.
+            match f.write_all(entry.as_bytes()) {
+                Ok(()) => {
+                    if !quiet {
+                        println!("\n.gitignore: added {vendor_rel}");
+                    }
+                    true
+                }
+                Err(e) => {
+                    if !quiet {
+                        println!("\nWARN: Cannot write .gitignore entry: {e}");
+                        println!("  Add manually: {vendor_rel}");
+                    }
+                    false
+                }
             }
         }
         Err(e) => {
@@ -354,6 +376,7 @@ fn check_gitignore(project_dir: &Path, vendor_dir: &Path, quiet: bool) {
                 println!("\nWARN: Cannot update .gitignore: {e}");
                 println!("  Add manually: {vendor_rel}");
             }
+            false
         }
     }
 }
@@ -361,7 +384,14 @@ fn check_gitignore(project_dir: &Path, vendor_dir: &Path, quiet: bool) {
 /// Configure TermLink MCP server in `.claude/settings.local.json`.
 ///
 /// Merges the termlink MCP entry into existing settings, preserving all other content.
-fn configure_mcp(project_dir: &Path, quiet: bool) {
+///
+/// Returns `true` when the MCP server is wired (freshly written or already configured
+/// correctly), `false` on any failure path (unparseable/unreadable settings, non-object
+/// shape, dir-create or write failure). The caller surfaces this in the `--json` envelope
+/// so a wiring failure is observable even when the binary copy itself succeeded — wiring
+/// the MCP server is the whole point of `vendor` for Claude Code, and a silent `ok:true`
+/// with tools not actually wired is a hard-to-diagnose failure for automation.
+fn configure_mcp(project_dir: &Path, quiet: bool) -> bool {
     let claude_dir = project_dir.join(".claude");
     let settings_path = claude_dir.join("settings.local.json");
 
@@ -375,14 +405,14 @@ fn configure_mcp(project_dir: &Path, quiet: bool) {
                         println!("\nWARN: Cannot parse {}: {e}", settings_path.display());
                         println!("  MCP server not configured. Add manually to .claude/settings.local.json");
                     }
-                    return;
+                    return false;
                 }
             },
             Err(e) => {
                 if !quiet {
                     println!("\nWARN: Cannot read {}: {e}", settings_path.display());
                 }
-                return;
+                return false;
             }
         }
     } else {
@@ -405,7 +435,7 @@ fn configure_mcp(project_dir: &Path, quiet: bool) {
         if !quiet {
             println!("\nMCP server: already configured in .claude/settings.local.json");
         }
-        return;
+        return true;
     }
 
     // Merge the entry
@@ -413,7 +443,7 @@ fn configure_mcp(project_dir: &Path, quiet: bool) {
         if !quiet {
             println!("\nWARN: Settings file is not a JSON object");
         }
-        return;
+        return false;
     };
     let mcp_servers = settings_obj
         .entry("mcpServers")
@@ -423,7 +453,7 @@ fn configure_mcp(project_dir: &Path, quiet: bool) {
         if !quiet {
             println!("\nWARN: mcpServers is not a JSON object");
         }
-        return;
+        return false;
     };
     mcp_obj.insert("termlink".to_string(), expected);
 
@@ -432,25 +462,31 @@ fn configure_mcp(project_dir: &Path, quiet: bool) {
         if !quiet {
             println!("\nWARN: Cannot create {}: {e}", claude_dir.display());
         }
-        return;
+        return false;
     }
 
     // Write back with pretty formatting
     match serde_json::to_string_pretty(&settings) {
-        Ok(json) => {
-            if let Err(e) = std::fs::write(&settings_path, format!("{json}\n")) {
+        Ok(json) => match std::fs::write(&settings_path, format!("{json}\n")) {
+            Ok(()) => {
+                if !quiet {
+                    println!("\nMCP server: configured in .claude/settings.local.json");
+                    println!("  Claude Code will load TermLink tools on next session start.");
+                }
+                true
+            }
+            Err(e) => {
                 if !quiet {
                     println!("\nWARN: Cannot write {}: {e}", settings_path.display());
                 }
-            } else if !quiet {
-                println!("\nMCP server: configured in .claude/settings.local.json");
-                println!("  Claude Code will load TermLink tools on next session start.");
+                false
             }
-        }
+        },
         Err(e) => {
             if !quiet {
                 println!("\nWARN: Cannot serialize settings: {e}");
             }
+            false
         }
     }
 }
@@ -568,6 +604,67 @@ mod tests {
 
         let content = fs::read_to_string(claude_dir.join("settings.local.json")).unwrap();
         assert_eq!(content, existing);
+    }
+
+    // ── T-2649: the wiring helpers must REPORT their outcome (no silent ok:true) ──
+
+    #[test]
+    fn configure_mcp_returns_true_on_fresh_project() {
+        let dir = tempfile::tempdir().unwrap();
+        // Fresh project — no .claude/settings.local.json. Wiring must succeed AND
+        // the helper must report true so cmd_vendor's JSON envelope can carry it.
+        assert!(configure_mcp(dir.path(), true));
+    }
+
+    #[test]
+    fn configure_mcp_returns_false_on_unparseable_settings() {
+        let dir = tempfile::tempdir().unwrap();
+        let claude_dir = dir.path().join(".claude");
+        fs::create_dir_all(&claude_dir).unwrap();
+        // Invalid JSON (trailing comma) — the exact real-world failure that used to
+        // be swallowed silently under --json, leaving ok:true with MCP not wired.
+        fs::write(
+            claude_dir.join("settings.local.json"),
+            r#"{"allowedTools": ["Read",]}"#,
+        )
+        .unwrap();
+
+        // Load-bearing: the helper must return false so the failure is observable.
+        // Reverting configure_mcp to always return true (the pre-fix silent shape)
+        // makes this assertion fail.
+        assert!(!configure_mcp(dir.path(), true));
+    }
+
+    #[test]
+    fn configure_mcp_returns_false_on_non_object_settings() {
+        let dir = tempfile::tempdir().unwrap();
+        let claude_dir = dir.path().join(".claude");
+        fs::create_dir_all(&claude_dir).unwrap();
+        // Parseable JSON but not an object — the as_object_mut() guard path.
+        fs::write(claude_dir.join("settings.local.json"), r#"["not", "an", "object"]"#).unwrap();
+
+        assert!(!configure_mcp(dir.path(), true));
+    }
+
+    #[test]
+    fn check_gitignore_returns_true_when_already_present() {
+        let dir = tempfile::tempdir().unwrap();
+        let vendor_dir = dir.path().join(VENDOR_DIR);
+        fs::create_dir_all(&vendor_dir).unwrap();
+        fs::write(dir.path().join(".gitignore"), ".termlink/\n").unwrap();
+
+        assert!(check_gitignore(dir.path(), &vendor_dir, true));
+    }
+
+    #[test]
+    fn check_gitignore_returns_true_when_appended() {
+        let dir = tempfile::tempdir().unwrap();
+        let vendor_dir = dir.path().join(VENDOR_DIR);
+        fs::create_dir_all(&vendor_dir).unwrap();
+
+        assert!(check_gitignore(dir.path(), &vendor_dir, true));
+        let content = fs::read_to_string(dir.path().join(".gitignore")).unwrap();
+        assert!(content.contains(".termlink/"));
     }
 
     #[test]
