@@ -709,6 +709,50 @@ for fixtures; `--quiet` / `--no-heartbeat` for cron. Ad-hoc check:
 if confirmed a trusted-arg subprocess / trusted fixed source — add the site's
 signature to the allowlist with a cited reason.
 
+### Silent non-zero-exit static check (T-2666, G-019 prevention for the T-2663 class)
+
+The third source-level static check (sibling of the T-2527 alloc-sink and T-2531 drain-sink
+checks), for the *no-silent-failures* half of the charter's Directive #2. A CLI subcommand
+that reaches `std::process::exit(<non-zero>)` on a user path while printing NOTHING leaves the
+operator staring at a non-zero exit with zero explanation — indistinguishable from a crash.
+T-2663 was exactly this: `termlink discover --first` on a no-match did a bare
+`std::process::exit(1)` in TEXT mode (its JSON sibling branch called `json_error_exit`, which
+prints; the text branch emitted nothing), found only by a human reading that one line. The
+recurring shape is a copy-paste divergence — `if display.json { json_error_exit(...) } else
+{ /* nothing */ } std::process::exit(1)` — and T-2663 fixed the `discover` instance but left
+the SAME pattern un-migrated in `session.rs::cmd_list` and `remote.rs::cmd_remote_list_inner`
+(both fixed in T-2667, surfaced by this check on its first run). The "name what happened
+before a bare text-mode exit" convention was discipline-only; this makes it load-bearing.
+
+`scripts/check-silent-exit.sh` is a grep/AST-lite **source-level static check** (NOT a runtime
+cron canary) over the user-facing CLI crate (`crates/termlink-cli/src`; `--root` repeatable to
+override). It flags each `std::process::exit(<non-zero INTEGER LITERAL>)` whose IMMEDIATELY-
+preceding non-blank line is a lone `}` (a closed block, not an output/`flush()` line), where
+that block carries a `json_error_exit` within a short window above and NO output macro
+(`eprintln!`/`println!`/`eprint!`/`print!`) sits between the closing brace and the exit — the
+precise json-gated-output / bare-text-exit signature. A precise rule, not a fuzzy preceding-
+window: the ~40 LOUD exit sites in this tree print or `flush()` immediately above the exit (so
+their preceding line is not a lone `}`) and are cleared automatically; a fuzzy window both
+false-positived those and false-negatived the real defects (a success-branch `println!` in the
+window masks the sibling failure-branch bare exit). **Exit-code-FORWARDING sites are out of
+scope by construction** — `exit(code)` / `exit(exec_result.exit_code)` / `exit(exit_code as
+i32)` forward a wrapped subcommand's own status (may be 0; the wrapped op already emitted
+output), and the regex only matches a non-zero integer literal. Confirmed-loud sites (output
+through a path the window can't see) are acknowledged in `.context/working/.silent-exit-allowlist`,
+one drift-stable `<relpath>::<enclosing-fn>::silent-exit` signature per line (fn-name-based, so
+it survives line moves; a fn RENAME re-fires — same trade-off as T-2527/T-2531). After the
+T-2667 migration the current tree scans CLEAN (39 non-zero-literal exits scanned, 0 firing, 0
+allowlisted). **Load-bearing:** reverting the `eprintln!` at any of the three fixed sites
+(metadata.rs `cmd_discover`, session.rs `cmd_list`, remote.rs `cmd_remote_list_inner`) re-fires
+the check on that site; restoring returns it to clean. Exit codes: 0 = clean, 1 = an
+unacknowledged silent exit, 2 = tooling error; `--json` for scripting (`{ok, firing:[{file,
+line,fn}], checked, candidates}`); `--quiet` / `--no-heartbeat` for cron; `--allowlist` +
+`--root` for fixtures. Ad-hoc check: `bash scripts/check-silent-exit.sh`. Fixtures (no live
+binary): `bash tests/silent-exit-check-fixtures.sh`. Operator action on firing: mirror the JSON
+branch with an actionable stderr line before the exit (the T-2663 remediation: `eprintln!("No
+matching sessions.");`) OR — if the site genuinely emits output the window cannot see — add its
+signature to the allowlist with a cited reason.
+
 ## Project-Specific Rules
 
 ### Hub Auth Rotation Protocol
