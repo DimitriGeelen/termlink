@@ -104,7 +104,7 @@ fn bind_per_agent_identity_default(verbose: bool) {
     use termlink_session::agent_identity::{Identity, per_agent_identity_path};
     let base = std::path::PathBuf::from(home).join(".termlink");
     let key_path = per_agent_identity_path(&base, &agent_id);
-    match Identity::load_or_create_from_file(&key_path) {
+    let outcome = match Identity::load_or_create_from_file(&key_path) {
         Ok(ident) => {
             // SAFETY: same single-threaded startup reasoning as the
             // --identity-key path above — no task reads TERMLINK_IDENTITY_FILE
@@ -112,22 +112,54 @@ fn bind_per_agent_identity_default(verbose: bool) {
             unsafe {
                 std::env::set_var("TERMLINK_IDENTITY_FILE", &key_path);
             }
-            if verbose {
-                println!(
-                    "Identity (T-2292 per-agent '{}'): {} ({})",
-                    agent_id,
-                    key_path.display(),
-                    ident.fingerprint()
-                );
-            }
+            Ok(ident.fingerprint().to_string())
+        }
+        Err(e) => Err(e.to_string()),
+    };
+    let (info, warn) = bind_identity_messages(&agent_id, outcome, &key_path.display().to_string(), verbose);
+    if let Some(line) = info {
+        println!("{line}");
+    }
+    if let Some(line) = warn {
+        eprintln!("{line}");
+    }
+}
+
+/// Decide what to print after a per-agent identity bind attempt (T-2642).
+///
+/// Returns `(stdout_info, stderr_warning)`.
+///
+/// The bind-FAILURE warning is emitted **unconditionally** — a silent fallback
+/// to the shared host identity mis-attributes the operator's posts, which is a
+/// no-silent-failures (Directive #2) violation; the operator must see it even
+/// under `--json` / `--quiet`. The warning goes to stderr, so it never corrupts
+/// `--json` stdout. The SUCCESS info line is stdout and stays `verbose`-gated
+/// (printing it under `--json` would corrupt the machine-readable stdout).
+fn bind_identity_messages(
+    agent_id: &str,
+    outcome: Result<String, String>,
+    key_path_display: &str,
+    verbose: bool,
+) -> (Option<String>, Option<String>) {
+    match outcome {
+        Ok(fingerprint) => {
+            let info = if verbose {
+                Some(format!(
+                    "Identity (T-2292 per-agent '{agent_id}'): {key_path_display} ({fingerprint})"
+                ))
+            } else {
+                None
+            };
+            (info, None)
         }
         Err(e) => {
-            if verbose {
-                eprintln!(
-                    "warning: could not bind per-agent identity for '{agent_id}': {e}; \
-                     falling back to shared host default"
-                );
-            }
+            let warn = format!(
+                "warning: could not bind per-agent identity for '{agent_id}': {e}; \
+                 falling back to shared host default — your posts will be attributed to the \
+                 shared HOST identity, not '{agent_id}'. Fix: ensure ~/.termlink is writable, \
+                 or pass --identity-key <path> to bind an explicit key."
+            );
+            (None, Some(warn))
         }
     }
 }
@@ -1239,6 +1271,48 @@ mod tests {
     use termlink_session::identity::SessionId;
     use termlink_session::lifecycle::SessionState;
     use termlink_session::registration::{Registration, RegistrationAddr, SessionMetadata};
+
+    // T-2642: the bind-failure warning must fire regardless of verbosity —
+    // silencing it under --json/--quiet mis-attributes the operator's posts.
+    #[test]
+    fn bind_identity_failure_warns_even_when_not_verbose() {
+        // The load-bearing case: verbose=false (i.e. --json or --quiet).
+        let (info, warn) =
+            bind_identity_messages("agent-x", Err::<String, String>("perm denied".to_string()), "/p/key", false);
+        assert!(info.is_none(), "no stdout info on failure (would corrupt --json)");
+        let w = warn.expect("failure warning must be Some even when not verbose");
+        assert!(w.contains("agent-x"), "warning names the agent");
+        assert!(w.contains("perm denied"), "warning carries the underlying error");
+        // Actionable remediation tokens (Directive #3).
+        assert!(w.contains("--identity-key"), "warning names the explicit-key remedy");
+        assert!(
+            w.contains("shared HOST identity"),
+            "warning names the mis-attribution consequence"
+        );
+    }
+
+    #[test]
+    fn bind_identity_failure_warns_when_verbose_too() {
+        let (info, warn) =
+            bind_identity_messages("agent-y", Err::<String, String>("io".to_string()), "/p/key", true);
+        assert!(info.is_none());
+        assert!(warn.is_some(), "failure warning fires under verbose as well");
+    }
+
+    #[test]
+    fn bind_identity_success_info_is_verbose_gated() {
+        // Success info goes to stdout — must be suppressed under --json/--quiet.
+        let (info_quiet, warn_quiet) =
+            bind_identity_messages("agent-z", Ok("fp123".to_string()), "/p/key", false);
+        assert!(info_quiet.is_none(), "success info suppressed when not verbose");
+        assert!(warn_quiet.is_none(), "no warning on success");
+
+        let (info_v, warn_v) =
+            bind_identity_messages("agent-z", Ok("fp123".to_string()), "/p/key", true);
+        let i = info_v.expect("success info present when verbose");
+        assert!(i.contains("agent-z") && i.contains("fp123"));
+        assert!(warn_v.is_none());
+    }
 
     fn test_reg(name: &str, tags: Vec<&str>, roles: Vec<&str>, caps: Vec<&str>) -> Registration {
         Registration {
