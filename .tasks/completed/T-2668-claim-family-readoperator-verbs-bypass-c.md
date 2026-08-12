@@ -4,20 +4,20 @@ name: "Claim-family read/operator verbs bypass claim_err_actionable (non-actiona
 description: >
   channel claims/claims_summary/transfer/force_release use bare anyhow! dropping the fleet-doctor recovery hint their claim/renew/release siblings carry
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/channel.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T21:58:46Z
-last_update: 2026-08-12T21:59:00Z
-date_finished: null
+last_update: 2026-08-12T22:01:46Z
+date_finished: 2026-08-12T22:01:46Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -205,3 +205,15 @@ regression-guards these four; a future claim-family verb copy-pasting the bare f
 
 ### 2026-08-12T21:59:00Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-c737f878
+- **Timestamp:** 2026-08-12T22:02:21Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-12T22:01:46Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -2552,3 +2552,19 @@ Bounded follow-up to T-2643. 8 events.rs sites inlined the'
   command: 'cd /opt/termlink
 git add .tasks/active/T-2648-cap-clientcall-response-line-read-agains.md
 FW_SWITCH_FOCUS=1 git commit -m "T-2648: file — cap Client::call response-line read vs unbounded next_line()'
+- timestamp: '2026-08-12T20:37:00Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2660'
+  command: 'cd /opt/termlink; FW_SWITCH_FOCUS=1 git commit -q -m "round-12: file 4 verified delicate findings (fixture/design-decision class)
+
+T-2659 (HIGH): agent contact fleet-walk missing the per-hub timeout(8'
+- timestamp: '2026-08-12T21:01:25Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2664'
+  command: 'cd /opt/termlink; FW_SWITCH_FOCUS=1 git commit -q -m "round-14: file 2 verified findings (T-2664 request spin-loop, T-2665 cmd_run cleanup) + episodics
+
+T-2664: termlink request subscribe-loop swallow'

@@ -7686,3 +7686,129 @@ scan_id: R-ca80f968
 task_id: T-2654
 payload:
   task_file: .tasks/active/T-2654-channel-post---ensure-topic-create-failu.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T20:27:15Z'
+scan_id: R-f1b9a278
+task_id: T-2657
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T20:27:15Z'
+scan_id: R-f1b9a278
+task_id: T-2657
+payload:
+  task_file: .tasks/active/T-2657-cmdbroadcast-empty-targets-bail-discards.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T20:32:59Z'
+scan_id: R-4bcc711d
+task_id: T-2658
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T20:32:59Z'
+scan_id: R-4bcc711d
+task_id: T-2658
+payload:
+  task_file: .tasks/active/T-2658-cmdcollect-hub-error-retry-has-no-backof.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T20:48:20Z'
+scan_id: R-dd2e599c
+task_id: T-2659
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T20:48:20Z'
+scan_id: R-dd2e599c
+task_id: T-2659
+payload:
+  task_file: .tasks/active/T-2659-agent-contact-fleet-walk-missing-per-hub.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T20:59:45Z'
+scan_id: R-74bd546f
+task_id: T-2663
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T20:59:45Z'
+scan_id: R-74bd546f
+task_id: T-2663
+payload:
+  task_file: .tasks/active/T-2663-discover---first-no-match-exits-1-with-z.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T21:32:27Z'
+scan_id: R-873fb8d1
+task_id: T-2667
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T21:32:27Z'
+scan_id: R-873fb8d1
+task_id: T-2667
+payload:
+  task_file: .tasks/active/T-2667-migrate-2-un-migrated-silent-text-exit-s.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T21:35:16Z'
+scan_id: R-26d9b363
+task_id: T-2666
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T21:35:16Z'
+scan_id: R-26d9b363
+task_id: T-2666
+payload:
+  task_file: .tasks/active/T-2666-static-check-no-silent-non-zero-processe.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T22:02:21Z'
+scan_id: R-c737f878
+task_id: T-2668
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T22:02:21Z'
+scan_id: R-c737f878
+task_id: T-2668
+payload:
+  task_file: .tasks/active/T-2668-claim-family-readoperator-verbs-bypass-c.md

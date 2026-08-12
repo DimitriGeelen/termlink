@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2666: Static check: no silent non-zero process::exit on user paths (Directive #2)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-12T21:35:20Z
+# ============================================================================
+
+task_id: T-2666
+task_name: "Static check: no silent non-zero process::exit on user paths (Directive #2)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-12T21:19:34Z
+completed: 2026-08-12T21:35:07Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-08-12T23:34:41+02:00
+last_commit: 2026-08-12T23:35:06+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  silent non-zero-exit static check (Directive #2, T-2663 class prevention). finalize task record (ACs ticked, evolution, precise-rule design)
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-silent-exit.sh` scans `crates/termlink-cli/src` (default; `--root` repeatable), flags each non-zero-int-literal `std::process::exit` whose preceding statement is a lone `}` closing a `json_error_exit`-bearing block with no output macro between (the T-2663 class), honours an allowlist (`--allowlist`, default `.context/working/.silent-exit-allowlist`), and exits 0=clean / 1=unacknowledged / 2=tooling'
+  - 'Supports `--json` (envelope `{ok, firing:[{file,line,fn}], checked, candidates}`), `--quiet`, `--no-heartbeat`, `-h/--help`; emits a `.heartbeat` companion like the sibling checks when not suppressed'
+  - 'The current tree scans CLEAN (0 unacknowledged, 39 non-zero-literal exits scanned) after the T-2667 sibling migration; the check surfaced 2 real defects (session.rs:617, remote.rs:1301) on its first run'
+  - 'Load-bearing proof: fixture harness (`tests/silent-exit-check-fixtures.sh`, no live binary) 7/7 — silent fires, loud/forwarding/flush/allowlisted-clear all correct; reverting T-2663''s `eprintln!` fires the real check on metadata.rs:292 (verified, restored)'
+  - '`cargo build -p termlink` unaffected (script-only change); `bash scripts/check-silent-exit.sh` runs clean'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'scripts/check-silent-exit.sh'
+  - '.tasks/active/T-2666-static-check-no-silent-non-zero-processe.md'
+  - '.tasks/completed/T-2667-migrate-2-un-migrated-silent-text-exit-s.md'
+  - 'tests/silent-exit-check-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-12T23:34:41"
+    action: "T-2666: silent non-zero-exit static check (Directive #2, T-2663 class prevention)"
+  - time: "2026-08-12T23:35:06"
+    action: "T-2666: finalize task record (ACs ticked, evolution, precise-rule design)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 15 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 15
+  commits: 2
+  files_changed: 5
+  lines_added: 614
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2666-static-check-no-silent-non-zero-processe.md
+generated_by: context-agent-hybrid
