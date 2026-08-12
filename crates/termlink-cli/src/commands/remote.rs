@@ -6641,10 +6641,30 @@ pub(crate) fn maybe_record_auth_mismatch_learning(
     std::fs::write(&learnings_path, new_content)
         .with_context(|| format!("failed to write {}", learnings_path.display()))?;
 
-    // Refresh the dedupe marker.
-    let _ = std::fs::write(&marker, &fingerprint);
+    // Refresh the dedupe marker. Best-effort, but do NOT silently discard a
+    // failure: a lost marker causes the same fleet observation to be
+    // re-appended as a duplicate learning on the next run.
+    let marker_outcome = std::fs::write(&marker, &fingerprint).map_err(|e| e.to_string());
+    if let Some(warn) = dedupe_marker_save_warning(&marker, marker_outcome) {
+        eprintln!("{warn}");
+    }
 
     Ok(())
+}
+
+/// Pure decision: given the outcome of a best-effort dedupe-marker write, return
+/// the operator warning to surface (`None` on success). A failed marker refresh
+/// silently breaks duplicate-learning suppression — surface it.
+fn dedupe_marker_save_warning(path: &std::path::Path, outcome: Result<(), String>) -> Option<String> {
+    match outcome {
+        Ok(()) => None,
+        Err(e) => Some(format!(
+            "warning: could not refresh learnings dedupe marker at {} ({e}); \
+             the same fleet observation may be re-appended as a duplicate \
+             learning on the next run.",
+            path.display()
+        )),
+    }
 }
 
 // =========================================================================
@@ -6750,8 +6770,34 @@ fn load_fleet_state(path: &std::path::Path) -> serde_json::Value {
 }
 
 fn save_fleet_state(path: &std::path::Path, state: &serde_json::Value) {
-    if let Ok(s) = serde_json::to_string_pretty(state) {
-        let _ = std::fs::write(path, s);
+    let Ok(s) = serde_json::to_string_pretty(state) else {
+        return;
+    };
+    // Best-effort write, but do NOT silently discard a failure: a lost write
+    // means `consecutive_failures` never accumulates across runs, so a
+    // chronically failing hub never reaches the concern-escalation threshold
+    // (T-1053) — the silent `let _ = write` previously defeated escalation
+    // invisibly. Surface a warning; still never fail the caller.
+    let outcome = std::fs::write(path, s).map_err(|e| e.to_string());
+    if let Some(warn) = fleet_state_save_warning(path, outcome) {
+        eprintln!("{warn}");
+    }
+}
+
+/// Pure decision: given the outcome of a best-effort fleet-state write, return
+/// the operator warning to surface (`None` when the write succeeded). Extracted
+/// as a tested seam — the silent `let _ = write` it replaces defeated
+/// concern escalation (T-1053) invisibly when the write failed.
+fn fleet_state_save_warning(path: &std::path::Path, outcome: Result<(), String>) -> Option<String> {
+    match outcome {
+        Ok(()) => None,
+        Err(e) => Some(format!(
+            "warning: could not persist fleet-failure state to {} ({e}); \
+             consecutive-failure tracking will not accumulate across runs, so a \
+             chronically failing hub may never reach the concern-escalation \
+             threshold. Fix: ensure the parent directory is writable.",
+            path.display()
+        )),
     }
 }
 
@@ -8412,6 +8458,48 @@ mod tests {
 
     const VALID_SECRET_HEX: &str =
         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+    // T-2646 (load-bearing): a failed best-effort fleet-state write must surface
+    // a warning naming the consequence (concern escalation won't trigger), not be
+    // silently dropped by `let _ = write`. Reverting the Err arm to `None` fails
+    // the `is_some()` + token assertions here.
+    #[test]
+    fn fleet_state_save_warning_on_failure_names_escalation_consequence() {
+        let p = std::path::Path::new("/nonexistent/dir/fleet-state.json");
+        let warn = fleet_state_save_warning(p, Err::<(), String>("perm denied".to_string()));
+        assert!(warn.is_some(), "a failed write must surface a warning");
+        let w = warn.unwrap();
+        assert!(w.contains("perm denied"), "must carry the underlying error: {w}");
+        assert!(
+            w.contains("concern-escalation"),
+            "must name the escalation consequence: {w}"
+        );
+        assert!(w.contains("writable"), "must name the fix: {w}");
+    }
+
+    #[test]
+    fn fleet_state_save_warning_on_success_is_none() {
+        let p = std::path::Path::new("/tmp/fleet-state.json");
+        assert!(fleet_state_save_warning(p, Ok::<(), String>(())).is_none());
+    }
+
+    // T-2646 (load-bearing): a failed dedupe-marker write must surface a warning
+    // naming the duplicate-learning consequence.
+    #[test]
+    fn dedupe_marker_save_warning_on_failure_names_duplicate_consequence() {
+        let p = std::path::Path::new("/nonexistent/dir/.marker");
+        let warn = dedupe_marker_save_warning(p, Err::<(), String>("disk full".to_string()));
+        assert!(warn.is_some(), "a failed marker write must surface a warning");
+        let w = warn.unwrap();
+        assert!(w.contains("disk full"), "must carry the underlying error: {w}");
+        assert!(w.contains("duplicate"), "must name the duplicate-learning consequence: {w}");
+    }
+
+    #[test]
+    fn dedupe_marker_save_warning_on_success_is_none() {
+        let p = std::path::Path::new("/tmp/.marker");
+        assert!(dedupe_marker_save_warning(p, Ok::<(), String>(())).is_none());
+    }
 
     // T-2625 (load-bearing): the remote-connect auth-failure hint must name a
     // recovery path (Directive #3), not dead-end on a raw hub code. Reverting
