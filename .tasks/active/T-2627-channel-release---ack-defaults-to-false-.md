@@ -1,8 +1,8 @@
 ---
-id: T-2626
-name: "file-transfer timeout collapses to bare 'timeout' — no duration/target/next-step"
+id: T-2627
+name: "channel release --ack defaults to false at raw CLI — silently reopens claimed slot for retry (footgun default)"
 description: >
-  file-transfer timeout collapses to bare 'timeout' — no duration/target/next-step
+  channel release --ack defaults to false at raw CLI — silently reopens claimed slot for retry (footgun default)
 
 status: started-work
 workflow_type: build
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-11T23:06:15Z
-last_update: 2026-08-11T23:07:15Z
+created: 2026-08-12T05:53:17Z
+last_update: 2026-08-12T05:53:17Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,39 +30,46 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2626: file-transfer timeout collapses to bare 'timeout' — no duration/target/next-step
+# T-2627: channel release --ack defaults to false at raw CLI — silently reopens claimed slot for retry (footgun default)
 
 ## Context
 
-**FILED, NOT BUILT** (usability-hunt Directive #3 Finding #2, MED severity /
-high confidence, verified in code; filed rather than built because this window
-hit critical budget).
+**FILED, NOT BUILT** (usability-hunt Directive #3 Finding #3, LOW-MED
+confidence, DESIGN-level — verified in code; filed because this window hit
+critical budget AND the safe fix needs a design call).
 
-`crates/termlink-cli/src/commands/file.rs:47` and `:70`:
+`crates/termlink-cli/src/cli.rs:3458-3468` — `channel release`'s `ack` flag:
 
 ```rust
-.await
-.map_err(|_| anyhow::anyhow!("timeout"))?
-.context("RPC call failed")?;
+/// Acknowledge the work as completed — advances cursor past the offset.
+/// Without this flag, slot reopens without cursor advance.
+#[arg(long)]
+ack: bool,
 ```
 
-On a timeout the outer `Elapsed` fires the `?` at the `.map_err`, so the
-trailing `.context("RPC call failed")` is NEVER reached — the user sees only
-the bare word `timeout`. The configured `Duration` and the target session/hub
-are both in scope but discarded. `termlink file send <session> big.bin` to an
-offline peer therefore prints `Error: timeout` with no way to tell whether the
-session is down, the hub is unreachable, or the file is too big. Compare
-`events.rs:75` which at least names the operation (`"channel.post timed out"`).
-A Directive-#3 dead-end (opaque error, no next step).
+At the raw-CLI tier, `termlink channel release --claim-id X --claimer Y`
+(no `--ack`) does the SURPRISING thing: the work is returned for retry and
+will be re-dispatched, with no cursor advance. This is the >90%-wrong default —
+the `/release` skill DELIBERATELY inverts it ("done by default, `--retry` to
+opt out", per CLAUDE.md) precisely because reversing it IS a footgun. But
+operators/scripts calling the binary directly still hit the dangerous default.
+
+Confidence is LOW-MED because (a) the doc-comment does spell out the behavior
+and (b) the project consciously chose to fix this at the skill layer. Still a
+real Directive-#3 footgun for anyone not going through the skill.
+
+**This needs a design decision, not just a code change** — hence filed, not
+auto-built (choosing between a breaking semantics flip and a non-breaking note
+is a judgment call the operator should sanction).
 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Both timeout `map_err` sites name the operation, the configured timeout `Duration`, and the target session/hub in the error message
-- [ ] The message suggests a next step (e.g. "is the session/hub reachable? retry, or check `/peers`")
-- [ ] The timeout-message construction is extracted into a pure helper (or a testable format fn) so the text is unit-testable without a live hub — mirrors the T-2554 / T-2625 actionable-error convention
-- [ ] Load-bearing unit test asserts the message names the duration + target + a next step; proven via temp-revert (helper → bare "timeout" → test fails)
-- [ ] `cargo test -p termlink --bins` passes for the new test
+- [ ] Decide (record in ## Decisions) between: (A) non-breaking — emit a one-line stderr note on ack-less release (`note: slot reopened for retry; pass --ack to mark completed`); (B) breaking — flip to `--no-ack` semantics so "done" is the CLI default matching the skill. Default recommendation: (A), non-breaking, unless the operator sanctions a breaking change.
+- [ ] Implement the chosen option
+- [ ] If (A): the note is emitted only in human (non-`--json`) mode on ack-less release; a unit-testable pure fn builds the note; load-bearing test asserts the note text appears for ack=false and is absent for ack=true
+- [ ] If (B): update the skill layer + all call sites + docs; regression test for the flipped default
+- [ ] `cargo test -p termlink --bins` passes
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -130,20 +137,17 @@ A Directive-#3 dead-end (opaque error, no next step).
 
 ## RCA
 
-**Symptom:** `termlink file send/receive` against an offline peer hangs then prints `Error: timeout` — no duration, no target, no next step; the user can't tell if the session is down, the hub is unreachable, or the transfer is too big.
+**Symptom:** `termlink channel release --claim-id X --claimer Y` at the raw CLI (no `--ack`) silently returns the work for retry (re-dispatch, no cursor advance) — the >90%-unwanted behavior — while an operator would reasonably expect "release" to mean "done".
 
-**Root cause:** `file.rs:47`/`:70` use `.map_err(|_| anyhow::anyhow!("timeout"))` on the `tokio::time::timeout` `Elapsed`, discarding the in-scope `Duration` and target. The trailing `.context("RPC call failed")` is dead code on the timeout path (the `?` already returned at the `map_err`).
+**Root cause:** `cli.rs:3458` defaults `ack: bool` to false; "done" requires the opt-in `--ack`. The safer default is inverted.
 
-**Why structurally allowed:** the actionable-error convention (T-2554 → T-2625) was applied to claim and auth paths but never to the file-transfer timeout; the `|_|` closure throws away the error and the operation identity, and no test asserted the timeout message content. Directive #3 is enforced by discipline, not a gate.
+**Why structurally allowed:** the fix was applied at the SKILL layer (`/release` adds `--ack` unless `--retry`), not the CLI, so the underlying binary keeps the footgun default for direct callers and scripts. No CLI-tier note or default-flip guards it.
 
-**Prevention:** extract the timeout message into a pure/testable fn naming the duration + target + a next step; load-bearing unit test (revert to bare "timeout" fails it). Failure scenario: `termlink file send <offline-session> big.bin` → before: `Error: timeout`; after: `file event delivery timed out after 30s (target: <session>) — is the session/hub reachable? check /peers`.
+**Prevention:** either a non-breaking stderr note on ack-less release (option A, recommended) or a breaking `--no-ack` semantics flip (option B); load-bearing test on the chosen path. Failure scenario: a script calls `termlink channel release --claim-id X --claimer Y` expecting completion → the offset silently reopens and the unit is re-dispatched to another worker, doing the work twice.
 
-<!-- (template guidance retained below)
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+<!-- (template guidance retained)
+     **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
+     **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
 
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
@@ -196,7 +200,7 @@ A Directive-#3 dead-end (opaque error, no next step).
 
 ## Updates
 
-### 2026-08-11T23:06:15Z — task-created [task-create-agent]
+### 2026-08-12T05:53:17Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2626-file-transfer-timeout-collapses-to-bare-.md
+- **Output:** /opt/termlink/.tasks/active/T-2627-channel-release---ack-defaults-to-false-.md
 - **Context:** Initial task creation
