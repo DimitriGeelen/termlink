@@ -9,6 +9,14 @@ use termlink_session::manager;
 /// literal — change in lockstep.
 const BROADCAST_GLOBAL_TOPIC: &str = "broadcast:global";
 
+/// T-2645 Usability: single canonical hub-not-running message. The 8 event
+/// subscribe/poll paths previously inlined a bare `termlink hub` hint;
+/// `termlink hub` (no subcommand) works via `Command::Hub{action:None}` →
+/// `cmd_hub_start`, but is non-canonical vs the documented `termlink hub start`
+/// used everywhere else (incl. this file's connect-error path). Centralized so
+/// the form cannot drift across sites again (PL-151 actionable-hint convention).
+const HUB_NOT_RUNNING_MSG: &str = "Hub is not running. Start it with: termlink hub start";
+
 /// T-1401: Try to send the broadcast as a signed `channel.post(broadcast:global)`
 /// envelope, mirroring the hub-side `mirror_event_broadcast` shape (T-1162).
 /// On any failure the caller falls back to legacy `event.broadcast` so the
@@ -265,9 +273,9 @@ pub(crate) async fn cmd_broadcast(topic: &str, payload_str: &str, targets: Vec<S
     let (_, hub_socket) = super::infrastructure::resolve_hub_paths();
     if !hub_socket.exists() {
         if json {
-            super::json_error_exit(serde_json::json!({"ok": false, "error": "Hub is not running. Start it with: termlink hub"}));
+            super::json_error_exit(serde_json::json!({"ok": false, "error": HUB_NOT_RUNNING_MSG}));
         }
-        anyhow::bail!("Hub is not running. Start it with: termlink hub");
+        anyhow::bail!("{}", HUB_NOT_RUNNING_MSG);
     }
 
     let timeout_dur = std::time::Duration::from_secs(timeout_secs);
@@ -454,9 +462,9 @@ pub(crate) async fn cmd_emit_to(
     let (_, hub_socket) = super::infrastructure::resolve_hub_paths();
     if !hub_socket.exists() {
         if json {
-            super::json_error_exit(serde_json::json!({"ok": false, "error": "Hub is not running. Start it with: termlink hub"}));
+            super::json_error_exit(serde_json::json!({"ok": false, "error": HUB_NOT_RUNNING_MSG}));
         }
-        anyhow::bail!("Hub is not running. Start it with: termlink hub");
+        anyhow::bail!("{}", HUB_NOT_RUNNING_MSG);
     }
 
     let mut params = serde_json::json!({
@@ -794,9 +802,9 @@ pub(crate) async fn cmd_watch_hub(opts: WatchOpts<'_>) -> Result<()> {
     let (_, hub_socket) = super::infrastructure::resolve_hub_paths();
     if !hub_socket.exists() {
         if json {
-            super::json_error_exit(serde_json::json!({"ok": false, "error": "Hub is not running. Start it with: termlink hub"}));
+            super::json_error_exit(serde_json::json!({"ok": false, "error": HUB_NOT_RUNNING_MSG}));
         }
-        anyhow::bail!("Hub is not running. Start it with: termlink hub");
+        anyhow::bail!("{}", HUB_NOT_RUNNING_MSG);
     }
 
     if since.is_some() && !json {
@@ -1227,9 +1235,9 @@ pub(crate) async fn cmd_collect(
     let (_, hub_socket) = super::infrastructure::resolve_hub_paths();
     if !hub_socket.exists() {
         if json {
-            super::json_error_exit(serde_json::json!({"ok": false, "error": "Hub is not running. Start it with: termlink hub"}));
+            super::json_error_exit(serde_json::json!({"ok": false, "error": HUB_NOT_RUNNING_MSG}));
         }
-        anyhow::bail!("Hub is not running. Start it with: termlink hub");
+        anyhow::bail!("{}", HUB_NOT_RUNNING_MSG);
     }
 
     if !json {
@@ -1366,6 +1374,21 @@ pub(crate) async fn cmd_collect(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // T-2645: the hub-not-running hint must name the canonical `termlink hub start`,
+    // not the bare non-canonical `termlink hub`. Reverting the const to the bare
+    // form fails this — the load-bearing property that prevents drift back.
+    #[test]
+    fn hub_not_running_msg_is_canonical() {
+        assert!(
+            HUB_NOT_RUNNING_MSG.contains("termlink hub start"),
+            "must name the canonical start subcommand"
+        );
+        assert!(
+            !HUB_NOT_RUNNING_MSG.ends_with("termlink hub"),
+            "must not use the bare non-canonical `termlink hub` form"
+        );
+    }
 
     // T-2624: the topic-inventory aggregator must COUNT sessions that timed out
     // / errored rather than silently drop them. A fixture with 2 unreachable + 1
