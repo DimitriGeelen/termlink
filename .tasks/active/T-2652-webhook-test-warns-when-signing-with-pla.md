@@ -52,11 +52,11 @@ Pure additive — the dispatch behavior is unchanged.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] A pure helper `placeholder_key_warning(explicit_key: bool, matched_config: bool) -> Option<String>` returns `Some(actionable msg naming --signing-key)` only when both are false, `None` otherwise
-- [ ] `cmd_webhook_test` emits the warning to stderr when the placeholder key is used (both text and `--json` modes)
-- [ ] The `--json` success envelope carries a `placeholder_signing_key` boolean
-- [ ] Unit test proves the helper returns `Some` (naming `--signing-key`) for the placeholder case and `None` when a key/config is present (load-bearing: reverting the Err/placeholder arm to `None` fails it)
-- [ ] `cargo build -p termlink` + `cargo test -p termlink --bins webhook` pass
+- [x] A pure helper `placeholder_key_warning(explicit_key: bool, matched_config: bool) -> Option<String>` returns `Some(actionable msg naming --signing-key)` only when both are false, `None` otherwise
+- [x] `cmd_webhook_test` emits the warning to stderr when the placeholder key is used (both text and `--json` modes)
+- [x] The `--json` success envelope carries a `placeholder_signing_key` boolean
+- [x] Unit test proves the helper returns `Some` (naming `--signing-key`) for the placeholder case and `None` when a key/config is present (load-bearing: reverting the Err/placeholder arm to `None` fails it)
+- [x] `cargo build -p termlink` + `cargo test -p termlink --bins webhook` pass
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
