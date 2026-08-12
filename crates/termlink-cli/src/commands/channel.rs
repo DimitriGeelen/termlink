@@ -1008,12 +1008,10 @@ pub(crate) async fn cmd_channel_post(
     if ensure_topic_flag
         && let Err(e) = ensure_topic(&sock, topic).await
     {
-        if !json_output {
-            eprintln!(
-                "warning: --ensure-topic channel.create failed for {topic}: {e} \
-                 (continuing with post; will surface as unknown topic if missing)"
-            );
-        }
+        // T-2654: emit to stderr in BOTH modes — stderr is json-safe and the
+        // sibling best-effort warnings in this file are unconditional. A
+        // json-gated warning silently drops a heal-failure breadcrumb.
+        eprintln!("{}", ensure_topic_warn_msg(topic, &e.to_string()));
     }
     // T-2286: ack-with-retry path. Diverts BEFORE the normal post so the
     // retry loop owns all posting (its first re-post reuses client_msg_id, so
@@ -2743,6 +2741,17 @@ pub(crate) fn create_error_is_already_exists(msg: &str) -> bool {
 /// branches doesn't matter for correctness, but `state:*` is checked
 /// first because the warn is more actionable (Latest is more
 /// specific than Messages(N)).
+/// T-2654: warning shown when the best-effort `--ensure-topic` create heal
+/// fails. Pure (no I/O) so it is unit-testable, and emitted unconditionally to
+/// stderr (json-safe) — matching the sibling best-effort warnings in this file
+/// rather than being dropped in `--json` mode (Directive #2: no silent failures).
+fn ensure_topic_warn_msg(topic: &str, err: &str) -> String {
+    format!(
+        "warning: --ensure-topic channel.create failed for {topic}: {err} \
+         (continuing with post; will surface as unknown topic if missing)"
+    )
+}
+
 async fn ensure_topic(sock: &TransportAddr, name: &str) -> Result<bool> {
     let retention = if is_single_value_state_pattern(name) {
         json!({"kind": "latest"})
@@ -12409,6 +12418,17 @@ mod tests {
         );
         assert!(format!("{transport}").contains("fleet doctor"),
             "Transport error carries the unreachable-hub hint: {transport}");
+    }
+
+    // T-2654: the --ensure-topic heal-failure warning must name the topic and
+    // the "unknown topic" consequence so an operator can trace a later -32013
+    // back to the failed create. Load-bearing: emptying the helper body fails this.
+    #[test]
+    fn ensure_topic_warn_msg_names_topic_and_consequence() {
+        let m = ensure_topic_warn_msg("work-queue", "hub error: code=-32010 message=AUTH_DENIED");
+        assert!(m.contains("work-queue"), "names the topic: {m}");
+        assert!(m.contains("unknown topic"), "names the consequence: {m}");
+        assert!(m.contains("AUTH_DENIED"), "carries the underlying error: {m}");
     }
 
     // T-2643: missing-secret error must name the remediation command (parity
