@@ -265,6 +265,17 @@ fn hub_socket_soft(hub: Option<&str>) -> TransportAddr {
 /// T-1385: For TCP `--hub host:port`, look up the hub secret from
 /// `~/.termlink/hubs.toml` by matching the `address` field. Returns the raw
 /// 64-char hex secret, ready to be parsed into a 32-byte TokenSecret.
+/// T-2643 Usability: missing-secret message carrying actionable remediation
+/// (mirrors the sibling bail three lines down, which already names
+/// `termlink remote profile add`).
+fn profile_missing_secret_msg(name: &str) -> String {
+    format!(
+        "hub profile '{name}' has neither secret_file nor secret — set one with \
+         `termlink remote profile add {name} --address <addr> --secret-file <path>` \
+         (or add `secret_file = \"...\"` under [hubs.{name}] in ~/.termlink/hubs.toml)"
+    )
+}
+
 fn resolve_hub_secret_hex(addr: &TransportAddr) -> Result<String> {
     let (host, port) = addr
         .as_tcp()
@@ -287,7 +298,7 @@ fn resolve_hub_secret_hex(addr: &TransportAddr) -> Result<String> {
             if let Some(inline) = entry.secret.as_deref() {
                 return Ok(inline.to_string());
             }
-            anyhow::bail!("hub profile '{name}' has neither secret_file nor secret");
+            anyhow::bail!("{}", profile_missing_secret_msg(name));
         }
     }
     anyhow::bail!(
@@ -12326,6 +12337,15 @@ fn render_claims_summary_text_with_annotation(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // T-2643: missing-secret error must name the remediation command (parity
+    // with the sibling bail 3 lines down). Dropping the hint fails this.
+    #[test]
+    fn actionable_hint_missing_secret_names_remedy() {
+        let m = profile_missing_secret_msg("ring20-management");
+        assert!(m.contains("ring20-management"), "names the profile");
+        assert!(m.contains("remote profile add"), "names the actionable add command");
+    }
 
     // ---- T-2627: ack-less release advisory (Constitutional Directive #3) ----
 

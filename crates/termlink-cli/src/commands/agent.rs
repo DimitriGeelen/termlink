@@ -11,6 +11,25 @@ use termlink_protocol::events::{
 
 use crate::util::generate_request_id;
 
+/// T-2643 Usability: emit-failure message with a reachability next-step
+/// (Directive #3 — name the next command, don't just report the error).
+fn agent_emit_failed_msg(err: &str) -> String {
+    format!(
+        "Failed to emit agent request: {err} — check the hub is reachable and healthy: \
+         `termlink doctor` (start it with `termlink hub start` if it's down)"
+    )
+}
+
+/// T-2643 Usability: response-timeout message with actionable next-steps —
+/// the target may be busy or gone; retry with a longer window or confirm it's live.
+fn agent_response_timeout_msg(timeout: u64, request_id: &str) -> String {
+    format!(
+        "Timeout waiting for agent response ({timeout}s). request_id={request_id} — the \
+         target may be busy or unreachable; retry with a larger `--timeout`, or confirm it \
+         is live with `termlink agent find-idle` / `termlink doctor`"
+    )
+}
+
 pub(crate) async fn cmd_agent_ask(
     target: &str,
     action: &str,
@@ -99,15 +118,16 @@ pub(crate) async fn cmd_agent_ask(
             }
         }
         Err(e) => {
+            let msg = agent_emit_failed_msg(&e.to_string());
             if json {
                 super::json_error_exit(serde_json::json!({
                     "ok": false,
                     "action": action,
                     "request_id": request_id,
-                    "error": format!("Failed to emit agent request: {}", e),
+                    "error": msg,
                 }));
             }
-            anyhow::bail!("Failed to emit agent request: {}", e);
+            anyhow::bail!("{}", msg);
         }
     }
 
@@ -124,15 +144,16 @@ pub(crate) async fn cmd_agent_ask(
     loop {
         let remaining = timeout_dur.saturating_sub(start.elapsed());
         if remaining.is_zero() {
+            let msg = agent_response_timeout_msg(timeout, &request_id);
             if json {
                 super::json_error_exit(serde_json::json!({
                     "ok": false,
                     "action": action,
                     "request_id": request_id,
-                    "error": format!("Timeout waiting for agent response ({}s)", timeout),
+                    "error": msg,
                 }));
             }
-            anyhow::bail!("Timeout waiting for agent response ({}s). request_id={}", timeout, request_id);
+            anyhow::bail!("{}", msg);
         }
 
         let effective_timeout = subscribe_timeout.min(remaining.as_millis() as u64);
@@ -4142,5 +4163,27 @@ mod contact_tests {
         assert_eq!(resolve_home_hub(Some(&pm(Some("  "), None))), None);
         // No presence at all → None.
         assert_eq!(resolve_home_hub(None), None);
+    }
+}
+
+#[cfg(test)]
+mod actionable_hint_tests {
+    use super::*;
+
+    // T-2643: agent emit-failure and response-timeout errors must name the
+    // next command (Directive #3). Dropping either hint fails these.
+    #[test]
+    fn actionable_hint_emit_failed_names_doctor() {
+        let m = agent_emit_failed_msg("connection refused");
+        assert!(m.contains("connection refused"), "carries the underlying error");
+        assert!(m.contains("termlink doctor"), "names the reachability check");
+    }
+
+    #[test]
+    fn actionable_hint_response_timeout_names_retry_and_find_idle() {
+        let m = agent_response_timeout_msg(30, "req-abc");
+        assert!(m.contains("req-abc"), "carries the request id");
+        assert!(m.contains("--timeout"), "names the retry-with-larger-timeout remedy");
+        assert!(m.contains("find-idle"), "names the liveness check");
     }
 }

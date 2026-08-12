@@ -18,6 +18,17 @@ use termlink_protocol::control::method;
 use termlink_protocol::transport::TransportAddr;
 use termlink_session::client;
 
+/// T-2643 Usability: hub-not-running message carrying the actionable start hint
+/// (parity with the channel/dispatch/events siblings, which all name
+/// `termlink hub start`). An operator-facing error is not done until it names
+/// the next command.
+fn hub_not_running_msg(sock: &std::path::Path) -> String {
+    format!(
+        "Hub is not running (no socket at {}) — start it with `termlink hub start`",
+        sock.display()
+    )
+}
+
 /// T-2078: per-agent snapshot kept across watch ticks for the diff helper.
 /// Only carries what `--notify` / `--log` will need in future slices —
 /// agent_id is the BTreeMap key, so it lives outside the snapshot.
@@ -325,10 +336,7 @@ pub(crate) async fn cmd_agent_find_idle(
             println!("{}", json!({"ok": false, "error": "hub not running"}));
             std::process::exit(1);
         }
-        return Err(anyhow!(
-            "Hub is not running (no socket at {})",
-            sock_path.display()
-        ));
+        return Err(anyhow!("{}", hub_not_running_msg(&sock_path)));
     }
     let addr = TransportAddr::unix(sock_path);
 
@@ -802,6 +810,15 @@ pub(crate) async fn cmd_agent_find_idle_history(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // T-2643: find-idle hub-down error must name the start command (parity
+    // with channel/dispatch/events siblings). Dropping the hint fails this.
+    #[test]
+    fn actionable_hint_find_idle_hub_down_names_start() {
+        let m = hub_not_running_msg(std::path::Path::new("/run/hub.sock"));
+        assert!(m.contains("/run/hub.sock"), "names the missing socket");
+        assert!(m.contains("termlink hub start"), "names the actionable start command");
+    }
 
     fn snap(hb_ms: i64, role: Option<&str>, caps: &[&str]) -> IdleSnapshot {
         IdleSnapshot {
