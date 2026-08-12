@@ -56,11 +56,11 @@ the two siblings.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The `--ensure-topic` create-failure warning is emitted to stderr in BOTH text and `--json` mode (the `if !json_output` gate around it is removed) — stderr does not corrupt the json stdout envelope
-- [ ] The warning message is produced by a pure helper `ensure_topic_warn_msg(topic: &str, err: &str) -> String` (unit-testable, no I/O)
-- [ ] Unit test proves the message names the topic and the "unknown topic" consequence (load-bearing: emptying the helper fails the test)
-- [ ] Structural verification proves the `eprintln!` for this warning is not wrapped in a `!json_output` guard
-- [ ] `cargo build -p termlink` + `cargo test -p termlink --bins ensure_topic_warn_msg` pass
+- [x] The `--ensure-topic` create-failure warning is emitted to stderr in BOTH text and `--json` mode (the `if !json_output` gate around it is removed) — stderr does not corrupt the json stdout envelope
+- [x] The warning message is produced by a pure helper `ensure_topic_warn_msg(topic: &str, err: &str) -> String` (unit-testable, no I/O)
+- [x] Unit test proves the message names the topic and the "unknown topic" consequence (load-bearing: emptying the helper fails the test)
+- [x] Structural verification proves the `eprintln!` for this warning is not wrapped in a `!json_output` guard
+- [x] `cargo build -p termlink` + `cargo test -p termlink --bins ensure_topic_warn_msg` pass
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
