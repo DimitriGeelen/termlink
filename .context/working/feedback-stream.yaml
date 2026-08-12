@@ -7272,3 +7272,21 @@ scan_id: R-311aab5e
 task_id: T-2627
 payload:
   task_file: .tasks/active/T-2627-channel-release---ack-defaults-to-false-.md
+---
+kind: scan_emitted
+timestamp: '2026-08-12T09:31:23Z'
+scan_id: R-a921dc7f
+task_id: T-2629
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-12T09:31:23Z'
+scan_id: R-a921dc7f
+task_id: T-2629
+payload:
+  task_file: .tasks/active/T-2629-configrs-home-unset-leaks-hub-profilesse.md

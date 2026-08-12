@@ -1,0 +1,97 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2629: config.rs HOME-unset leaks hub profiles+secrets to world-writable /tmp (T-2607 outlier)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-12T09:31:27Z
+# ============================================================================
+
+task_id: T-2629
+task_name: "config.rs HOME-unset leaks hub profiles+secrets to world-writable /tmp (T-2607 outlier)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-12T09:26:52Z
+completed: 2026-08-12T09:30:48Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-12T11:30:34+02:00
+last_commit: 2026-08-12T11:30:47+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  config.rs HOME-unset no longer leaks hub profiles+secrets to shared /tmp (T-2607 outlier). tick agent ACs (all satisfied)
+
+# Key outcomes
+outcomes:
+  - '`termlink_config_dir()` no longer resolves to the shared, world-writable `/tmp/.termlink` when `HOME` is unset/empty; it falls back to a UID-namespaced private location (mirrors T-2607''s `resolve_identity_dir` last-resort convention), NEVER the shared dir'
+  - 'Behavior is preserved for the common case: when `HOME` is set (non-empty), the resolved dir is still `$HOME/.termlink` (no regression for correctly-configured hosts)'
+  - 'An exported-but-empty `HOME=` is treated as unset, not as root `/`'
+  - 'A pure, env-free resolution core is extracted and unit-tested; a load-bearing test proves the guard via temp-revert (reverting to the old `/tmp` fallback makes the test FAIL)'
+  - '`cargo test -p termlink --bins` passes; fix committed and finalized through P-011; pushed to OneDev'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-08-12.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-cli/src/config.rs'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2628-reliabilityportability-charter-lens-hunt.md'
+  - '.tasks/active/T-2629-configrs-home-unset-leaks-hub-profilesse.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-12T11:30:34"
+    action: "T-2629: config.rs HOME-unset no longer leaks hub profiles+secrets to shared /tmp (T-2607 outlier)"
+  - time: "2026-08-12T11:30:47"
+    action: "T-2629: tick agent ACs (all satisfied)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 2
+  files_changed: 19
+  lines_added: 514
+  lines_removed: 196
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2629-configrs-home-unset-leaks-hub-profilesse.md
+generated_by: context-agent-hybrid

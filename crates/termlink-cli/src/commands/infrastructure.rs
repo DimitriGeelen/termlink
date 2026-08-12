@@ -489,8 +489,11 @@ pub(crate) async fn cmd_doctor(json_output: bool, fix: bool, strict: bool) -> Re
     //           whether the cache actually points at the local hub; we only
     //           surface the age signal, we don't auto-heal.
     {
-        let home = std::env::var("HOME").unwrap_or_default();
-        let secrets_dir = PathBuf::from(&home).join(".termlink").join("secrets");
+        // T-2630: resolve via the single hardened resolver (T-2629), NOT an
+        // ad-hoc `HOME.unwrap_or_default()` — the empty-string default produced a
+        // CWD-relative `.termlink/secrets` when HOME was unset, short-circuiting
+        // this auth-drift check to a false-clean "no cached secrets" pass.
+        let secrets_dir = secret_cache_dir();
         if !secrets_dir.exists() {
             check!("secret_cache", pass, "no cached secrets");
         } else {
@@ -1429,6 +1432,16 @@ pub(crate) async fn cmd_tofu_verify(host: &str, json_output: bool) -> Result<()>
     Ok(())
 }
 
+/// T-2630: The IP-keyed secret cache directory (`<config-dir>/secrets`), resolved
+/// through the single hardened resolver [`crate::config::termlink_config_dir`]
+/// (T-2629) rather than an ad-hoc `HOME.unwrap_or_default()`. Centralizing the
+/// derivation keeps the doctor's secret_cache check pointed at the SAME directory
+/// the cache is actually written to, even when HOME is unset (where the old ad-hoc
+/// read fell back to a CWD-relative path and reported a false-clean).
+pub(crate) fn secret_cache_dir() -> PathBuf {
+    crate::config::termlink_config_dir().join("secrets")
+}
+
 /// T-1171 / G-011: Audit `~/.termlink/secrets/*.hex` for perm smells and
 /// staleness relative to a local hub secret. Returns a warning message per
 /// issue; empty vec means all caches look healthy.
@@ -1664,9 +1677,29 @@ fn sum_inbox_counts(topics: &[serde_json::Value]) -> (u64, Vec<String>) {
 
 #[cfg(test)]
 mod tests {
-    use super::{audit_secret_cache, render_governor_section, sum_inbox_counts};
+    use super::{audit_secret_cache, render_governor_section, secret_cache_dir, sum_inbox_counts};
     use std::fs;
     use std::os::unix::fs::PermissionsExt;
+
+    // CONTRACT (T-2630): the doctor's secret-cache scan directory MUST be derived
+    // from the single hardened resolver (`config::termlink_config_dir`, T-2629),
+    // NOT an ad-hoc `HOME.unwrap_or_default()`. This locks the invariant that the
+    // cache dir lives directly under the canonical config dir. Load-bearing axis:
+    // revert `secret_cache_dir` to `PathBuf::from(HOME.unwrap_or_default()).join(..)`
+    // and run under `env -u HOME` — the parent then diverges from termlink_config_dir
+    // (CWD-relative `.termlink` vs the UID-namespaced private dir) and this fails.
+    // (Under a HOME-set env the two coincide; the deep HOME-unset resolution
+    // semantics are load-bearing-proven in T-2629's config_dir pure-core tests.)
+    #[test]
+    fn secret_cache_dir_lives_under_config_dir() {
+        let dir = secret_cache_dir();
+        assert!(dir.ends_with("secrets"), "cache dir must be the `secrets` subdir");
+        assert_eq!(
+            dir.parent(),
+            Some(crate::config::termlink_config_dir().as_path()),
+            "secret cache dir must be derived from the canonical config resolver"
+        );
+    }
 
     // T-2060 / T-2028 Track C: pin the human-mode `Governor:` section.
     // T-2110: extended to cover the new cv_index telemetry line.
