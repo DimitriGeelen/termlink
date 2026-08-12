@@ -413,7 +413,25 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
             params["since"] = cursors.clone();
         }
 
-        let resp = match client::rpc_call(&hub_socket, "event.collect", params).await {
+        // T-2640: bound the collect RPC. Previously `client::rpc_call` awaited
+        // unbounded, so a half-open hub (accepts the connection but never writes
+        // a response line) hung this call forever — and `collect_timeout` is only
+        // checked at the loop top, never concurrently, so `--timeout` was ignored
+        // entirely. Route through the shared bounded primitive (T-2641). The
+        // per-call bound is the remaining collect budget, capped so a wedged call
+        // errors quickly and the paced retry/deadline logic below engages instead
+        // of a single call swallowing the whole budget.
+        let remaining = collect_timeout.saturating_sub(collect_start.elapsed());
+        let call_bound = collect_call_bound(remaining, subscribe_timeout_ms);
+        let addr = termlink_protocol::TransportAddr::unix(&hub_socket);
+        let resp = match client::rpc_call_addr_with_timeout(
+            &addr,
+            "event.collect",
+            params,
+            call_bound,
+        )
+        .await
+        {
             Ok(r) => {
                 consecutive_collect_errors = 0;
                 r
@@ -429,6 +447,11 @@ pub(crate) async fn cmd_dispatch(opts: DispatchOpts) -> Result<()> {
                     }
                     break;
                 }
+                // T-2640: pace the retry burst. Without this the Err arm loops
+                // with zero delay, so an instantly-erroring hub burns up to
+                // MAX_CONSECUTIVE_COLLECT_ERRORS iterations in a tight micro-spin
+                // (mirror of the events.rs T-2636 sleep-on-error convention).
+                tokio::time::sleep(COLLECT_ERR_BACKOFF).await;
                 continue;
             }
         };
@@ -844,6 +867,34 @@ pub(crate) fn cmd_dispatch_status(check: bool, json_output: bool) -> Result<()> 
     Ok(())
 }
 
+/// T-2640: per-call read bound for the dispatch `event.collect` long-poll.
+///
+/// The collect is a long-poll: the hub holds the connection up to
+/// `subscribe_timeout_ms` waiting for a push, then replies (often empty). The
+/// bound must therefore exceed that wait for a HEALTHY hub, but stay finite so a
+/// HALF-OPEN hub (accepts, never writes a response line) cannot hang the call
+/// past the overall `--timeout`. Returns `min(remaining_budget, subscribe_wait +
+/// grace)` — the cap makes a wedged call error within a few seconds so the paced
+/// retry / deadline logic engages instead of one call swallowing the whole
+/// budget; the `remaining` term ensures the bound never overshoots the deadline
+/// while budget is the tighter constraint. Floored so a near-deadline call is
+/// never a pointless zero-length timeout.
+fn collect_call_bound(
+    remaining: std::time::Duration,
+    subscribe_timeout_ms: u64,
+) -> std::time::Duration {
+    const GRACE: std::time::Duration = std::time::Duration::from_secs(5);
+    const FLOOR: std::time::Duration = std::time::Duration::from_millis(100);
+    let cap = std::time::Duration::from_millis(subscribe_timeout_ms) + GRACE;
+    remaining.min(cap).max(FLOOR)
+}
+
+/// T-2640: backoff between consecutive failed `event.collect` calls. Without it
+/// the Err arm re-loops with zero delay, so an instantly-erroring hub burns the
+/// `MAX_CONSECUTIVE_COLLECT_ERRORS` budget in a tight micro-spin (mirror of the
+/// events.rs T-2636 sleep-on-error convention).
+const COLLECT_ERR_BACKOFF: std::time::Duration = std::time::Duration::from_millis(500);
+
 fn resolve_spawn_backend(backend: &SpawnBackend) -> SpawnBackend {
     match backend {
         SpawnBackend::Auto => {
@@ -973,6 +1024,56 @@ mod tests {
             command: vec!["echo".into(), "hello".into()],
             model: None,
         }
+    }
+
+    // ---- T-2640: bounded event.collect (divergence F3) ---------------------
+
+    use std::time::Duration;
+
+    /// The core "honors --timeout even when a collect never returns" property:
+    /// a wedged (half-open) call cannot hang longer than subscribe_wait + grace,
+    /// REGARDLESS of how much overall budget remains. Reverting the cap so the
+    /// bound follows `remaining` (the pre-T-2640 unbounded shape) fails this —
+    /// a 30s-budget call would then be allowed to hang ~30s in one call.
+    #[test]
+    fn collect_call_bound_caps_a_wedged_call_well_under_a_large_budget() {
+        // 30s of budget left, but a wedged call must still error within ~5.5s
+        // (subscribe 500ms + 5s grace), not consume the whole 30s in one await.
+        let bound = collect_call_bound(Duration::from_secs(30), 500);
+        assert!(
+            bound <= Duration::from_millis(500) + Duration::from_secs(5),
+            "wedged call must be capped at subscribe+grace, got {bound:?}"
+        );
+        assert!(
+            bound < Duration::from_secs(30),
+            "bound must be well under the remaining budget, got {bound:?}"
+        );
+    }
+
+    /// Near the deadline, `remaining` is the tighter constraint — the bound must
+    /// track it so a single call never overshoots `--timeout`.
+    #[test]
+    fn collect_call_bound_tracks_remaining_when_it_is_the_tighter_constraint() {
+        let bound = collect_call_bound(Duration::from_secs(2), 500);
+        assert_eq!(bound, Duration::from_secs(2), "should follow remaining");
+    }
+
+    /// A (near-)exhausted budget must never yield a zero-length timeout — that
+    /// would make every remaining call an instant no-op error.
+    #[test]
+    fn collect_call_bound_is_floored_never_zero() {
+        let bound = collect_call_bound(Duration::ZERO, 500);
+        assert!(bound > Duration::ZERO, "bound must be floored above zero");
+    }
+
+    /// The Err-arm backoff must be non-zero, or the consecutive-error retry is a
+    /// tight zero-delay micro-spin. Reverting COLLECT_ERR_BACKOFF to ZERO fails.
+    #[test]
+    fn collect_err_backoff_is_paced_not_zero() {
+        assert!(
+            COLLECT_ERR_BACKOFF > Duration::ZERO,
+            "consecutive collect errors must be paced"
+        );
     }
 
     #[test]

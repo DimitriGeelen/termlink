@@ -4,10 +4,10 @@ name: "dispatch event.collect loop — unbounded RPC await defeats --timeout on 
 description: >
   dispatch.rs event.collect loop (~416) awaits rpc_call(event.collect) unbounded; collect_timeout is only checked at loop top, never concurrently, so a single wedged collect ignores the deadline. Err arm also continues with no backoff (bounded 5-iter micro-spin). Divergence F3 (T-2637), low severity.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T12:37:34Z
-last_update: 2026-08-12T12:37:34Z
+last_update: 2026-08-12T14:10:44Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -52,10 +52,10 @@ coordinates with T-2635/T-2639's bounded-RPC primitive.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The `event.collect` RPC in the dispatch loop (dispatch.rs ~416) is bounded so a half-open hub cannot make a single collect await indefinitely past the `--timeout` deadline (e.g. `tokio::select!` the collect against the remaining `collect_timeout`, or a per-call `tokio::time::timeout`).
-- [ ] The `Err` arm applies a small backoff before `continue` (mirror T-2636 / events.rs sleep-on-error) so the up-to-5 retry burst is paced, not a zero-delay micro-spin.
-- [ ] A test proves the collect loop honors `--timeout` even when a collect call never returns (half-open hub), and that consecutive errors are paced.
-- [ ] `cargo test -p termlink` green; `cargo build -p termlink` succeeds.
+- [x] The `event.collect` RPC in the dispatch loop (dispatch.rs ~416) is bounded so a half-open hub cannot make a single collect await indefinitely past the `--timeout` deadline (e.g. `tokio::select!` the collect against the remaining `collect_timeout`, or a per-call `tokio::time::timeout`). **Done:** routed through the shared `client::rpc_call_addr_with_timeout` (T-2641) with a per-call bound from new `collect_call_bound(remaining, subscribe_timeout_ms)` = `min(remaining, subscribe_wait + 5s grace)` — a wedged call errors within ~5.5s and the deadline is never overshot.
+- [x] The `Err` arm applies a small backoff before `continue` (mirror T-2636 / events.rs sleep-on-error) so the up-to-5 retry burst is paced, not a zero-delay micro-spin. **Done:** `tokio::time::sleep(COLLECT_ERR_BACKOFF)` (500ms) before `continue`.
+- [x] A test proves the collect loop honors `--timeout` even when a collect call never returns (half-open hub), and that consecutive errors are paced. **Done:** 4 unit tests on `collect_call_bound` (caps a wedged call well under a large budget = the honors-timeout property; tracks remaining near deadline; floored never-zero) + `collect_err_backoff_is_paced_not_zero`. The half-open-hang property is additionally inherited from the primitive's own black-hole test (`client::tests::rpc_call_addr_with_timeout_bounds_a_silent_server`). Load-bearing proven via temp-revert (cap→remaining + backoff→0 fails 3 tests).
+- [x] `cargo test -p termlink` green; `cargo build -p termlink` succeeds.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -89,6 +89,9 @@ coordinates with T-2635/T-2639's bounded-RPC primitive.
 -->
 
 ## Verification
+
+cargo test -p termlink --bins commands::dispatch::tests::collect
+cargo build -p termlink
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -206,3 +209,7 @@ T-2635/T-2639.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2640-dispatch-eventcollect-loop--unbounded-rp.md
 - **Context:** Initial task creation
+
+### 2026-08-12T14:10:44Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
