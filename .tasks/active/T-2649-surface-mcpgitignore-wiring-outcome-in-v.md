@@ -51,11 +51,11 @@ fails.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `configure_mcp` returns a `bool` (true = configured or already-configured; false = any failure path) instead of `()`
-- [ ] `check_gitignore` returns a `bool` (true = present or successfully appended; false = write failure), and its inner `write_all` result is no longer discarded via `let _ =`
-- [ ] `cmd_vendor`'s `--json` envelope includes `mcp_configured` and `gitignore_ok` boolean fields (matching the field names `cmd_vendor_status` already uses), so a partial-success wiring failure is observable under `ok:true`
-- [ ] Unit test proves `configure_mcp` returns `false` on an unparseable `.claude/settings.local.json` and `true` on a fresh project dir (load-bearing: reverting to always-true fails it)
-- [ ] `cargo build -p termlink` succeeds; `cargo test -p termlink --bins vendor` passes
+- [x] `configure_mcp` returns a `bool` (true = configured or already-configured; false = any failure path) instead of `()`
+- [x] `check_gitignore` returns a `bool` (true = present or successfully appended; false = write failure), and its inner `write_all` result is no longer discarded via `let _ =`
+- [x] `cmd_vendor`'s `--json` envelope includes `mcp_configured` and `gitignore_ok` boolean fields (matching the field names `cmd_vendor_status` already uses), so a partial-success wiring failure is observable under `ok:true`
+- [x] Unit test proves `configure_mcp` returns `false` on an unparseable `.claude/settings.local.json` and `true` on a fresh project dir (load-bearing: reverting to always-true fails it)
+- [x] `cargo build -p termlink` succeeds; `cargo test -p termlink --bins vendor` passes
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
