@@ -1,0 +1,96 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2627: channel release --ack defaults to false at raw CLI — silently reopens claimed slot for retry (footgun default)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-12T06:16:42Z
+# ============================================================================
+
+task_id: T-2627
+task_name: "channel release --ack defaults to false at raw CLI — silently reopens claimed slot for retry (footgun default)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-12T05:53:17Z
+completed: 2026-08-12T06:16:09Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-12T07:54:15+02:00
+last_commit: 2026-08-12T08:16:03+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file usability-hunt Finding #3 (channel release --ack footgun default) — FILED not built (needs design call). advise on ack-less channel release (non-breaking option A) — slot-reopened note + load-bearing test
+
+# Key outcomes
+outcomes:
+  - 'Decide (record in ## Decisions) between: (A) non-breaking — emit a one-line stderr note on ack-less release (`note: slot reopened for retry; pass --ack to mark completed`); (B) breaking — flip to `--no-ack` semantics so "done" is the CLI default matching the skill. Default recommendation: (A), non-breaking, unless the operator sanctions a breaking change. **→ Chose A (see ## Decisions).**'
+  - 'Implement the chosen option'
+  - 'If (A): the note is emitted only in human (non-`--json`) mode on ack-less release; a unit-testable pure fn builds the note; load-bearing test asserts the note text appears for ack=false and is absent for ack=true'
+  - 'If (B): update the skill layer + all call sites + docs; regression test for the flipped default — N/A (chose A)'
+  - '`cargo test -p termlink --bins` passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-08-12 — ack-less release: advisory note vs breaking flag flip'
+    chose: 'Option A — non-breaking. Emit a one-line stderr advisory on the ack-less release path (human/non-`--json` mode only): `note: released WITHOUT --ack — slot reopened for retry (cursor NOT advanced). Pass --ack to mark the work completed.` A pure fn `release_retry_note(ack) -> Option<String>` builds it; it fires on `ack==false`, is `None` on `ack==true`. Keyed off the server-confirmed `r.ack` (truthful about what actually happened), not the input flag.'
+    rationale: 'A breaking semantics flip (option B) would silently change the meaning of every existing `channel release --claim-id X --claimer Y` invocation and every script/skill call site — a wire/UX contract change that needs explicit operator sanction (broad "choose what to work on" delegates INITIATIVE, not AUTHORITY to make breaking changes). Option A closes the Directive-#3 footgun (opaque surprising default) with zero contract change: direct callers now SEE that the slot reopened, while the `/release` skill''s inverted default is unaffected. JSON consumers are untouched (note is stderr, human-mode only) so machine parsers don''t regress.'
+    alternatives_rejected: ['Option B (flip to `--no-ack` so "done" is the CLI default) — correct in principle but breaking; deferred to an operator-sanctioned change. If the operator later wants B, this advisory becomes redundant and can be removed alongside the flip.']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-08-12.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/episodic/T-2624.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2626-file-transfer-timeout-collapses-to-bare-.md'
+  - '.tasks/active/T-2627-channel-release---ack-defaults-to-false-.md'
+  - '.tasks/completed/T-2624-list-topics-handler-omits-unreachable-se.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-12T07:54:15"
+    action: "T-2627: file usability-hunt Finding #3 (channel release --ack footgun default) — FILED not built (needs design call)"
+  - time: "2026-08-12T08:16:03"
+    action: "T-2627: advise on ack-less channel release (non-breaking option A) — slot-reopened note + load-bearing test"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 22 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 22
+  commits: 2
+  files_changed: 18
+  lines_added: 777
+  lines_removed: 402
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2627-channel-release---ack-defaults-to-false-.md
+generated_by: context-agent-hybrid

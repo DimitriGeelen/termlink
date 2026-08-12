@@ -1,8 +1,8 @@
 ---
-id: T-2627
-name: "channel release --ack defaults to false at raw CLI — silently reopens claimed slot for retry (footgun default)"
+id: T-2628
+name: "reliability/portability charter-lens hunt round 3 — adversarial defect sweep"
 description: >
-  channel release --ack defaults to false at raw CLI — silently reopens claimed slot for retry (footgun default)
+  reliability/portability charter-lens hunt round 3 — adversarial defect sweep
 
 status: started-work
 workflow_type: build
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-12T05:53:17Z
-last_update: 2026-08-12T06:12:15Z
+created: 2026-08-12T06:16:52Z
+last_update: 2026-08-12T06:16:52Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,46 +30,28 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2627: channel release --ack defaults to false at raw CLI — silently reopens claimed slot for retry (footgun default)
+# T-2628: reliability/portability charter-lens hunt round 3 — adversarial defect sweep
 
 ## Context
 
-**FILED, NOT BUILT** (usability-hunt Directive #3 Finding #3, LOW-MED
-confidence, DESIGN-level — verified in code; filed because this window hit
-critical budget AND the safe fix needs a design call).
-
-`crates/termlink-cli/src/cli.rs:3458-3468` — `channel release`'s `ack` flag:
-
-```rust
-/// Acknowledge the work as completed — advances cursor past the offset.
-/// Without this flag, slot reopens without cursor advance.
-#[arg(long)]
-ack: bool,
-```
-
-At the raw-CLI tier, `termlink channel release --claim-id X --claimer Y`
-(no `--ack`) does the SURPRISING thing: the work is returned for retry and
-will be re-dispatched, with no cursor advance. This is the >90%-wrong default —
-the `/release` skill DELIBERATELY inverts it ("done by default, `--retry` to
-opt out", per CLAUDE.md) precisely because reversing it IS a footgun. But
-operators/scripts calling the binary directly still hit the dangerous default.
-
-Confidence is LOW-MED because (a) the doc-comment does spell out the behavior
-and (b) the project consciously chose to fix this at the skill layer. Still a
-real Directive-#3 footgun for anyone not going through the skill.
-
-**This needs a design decision, not just a code change** — hence filed, not
-auto-built (choosing between a breaking semantics flip and a non-breaking note
-is a judgment call the operator should sanction).
+Round-3 adversarial defect sweep of the T-2468 "subtract-and-deepen" campaign.
+Prior rounds cleared the reliability lens (T-2619/T-2621/T-2623/T-2624 —
+0/None-laundering silent-failure class) and the usability lens
+(T-2625/T-2626/T-2627 — actionable errors + surprising defaults). This task is
+the tracking container for a fresh hunt on an un-swept charter lens
+(Directive #1 Antifragility / Directive #4 Portability / the discover-peers
+verb). A subagent hunter reads the code and returns a ranked findings report;
+each verified finding is either BUILT (small/clean/testable) or FILED as its own
+one-bug-one-task with RCA + real ACs.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] Decide (record in ## Decisions) between: (A) non-breaking — emit a one-line stderr note on ack-less release (`note: slot reopened for retry; pass --ack to mark completed`); (B) breaking — flip to `--no-ack` semantics so "done" is the CLI default matching the skill. Default recommendation: (A), non-breaking, unless the operator sanctions a breaking change. **→ Chose A (see ## Decisions).**
-- [x] Implement the chosen option
-- [x] If (A): the note is emitted only in human (non-`--json`) mode on ack-less release; a unit-testable pure fn builds the note; load-bearing test asserts the note text appears for ack=false and is absent for ack=true
-- [x] If (B): update the skill layer + all call sites + docs; regression test for the flipped default — N/A (chose A)
-- [x] `cargo test -p termlink --bins` passes
+- [ ] A subagent hunter sweeps an un-swept charter lens and returns a ranked findings report
+- [ ] Each reported finding is VERIFIED in code by the orchestrator (never trust the hunter) — false positives discarded with a one-line reason
+- [ ] Each verified finding is either BUILT (with a load-bearing test proven via temp-revert) OR FILED as its own task (one-bug-one-task) with full RCA + real ACs + concrete failure scenario
+- [ ] Every built fix is committed and finalized through the P-011 gate; every filed task is committed
+- [ ] All work pushed to OneDev
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -135,21 +117,17 @@ is a judgment call the operator should sanction).
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-cargo test -p termlink --bins release_retry_note
-
 ## RCA
 
-**Symptom:** `termlink channel release --claim-id X --claimer Y` at the raw CLI (no `--ack`) silently returns the work for retry (re-dispatch, no cursor advance) — the >90%-unwanted behavior — while an operator would reasonably expect "release" to mean "done".
+<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
+     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
+     Non-bug-class tasks may leave this section empty or remove it.
 
-**Root cause:** `cli.rs:3458` defaults `ack: bool` to false; "done" requires the opt-in `--ack`. The safer default is inverted.
-
-**Why structurally allowed:** the fix was applied at the SKILL layer (`/release` adds `--ack` unless `--retry`), not the CLI, so the underlying binary keeps the footgun default for direct callers and scripts. No CLI-tier note or default-flip guards it.
-
-**Prevention:** either a non-breaking stderr note on ack-less release (option A, recommended) or a breaking `--no-ack` semantics flip (option B); load-bearing test on the chosen path. Failure scenario: a script calls `termlink channel release --claim-id X --claimer Y` expecting completion → the offset silently reopens and the unit is re-dispatched to another worker, doing the work twice.
-
-<!-- (template guidance retained)
-     **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-     **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+     For bug-class, fill in:
+       **Symptom:** what was observed (the user-facing manifestation).
+       **Root cause:** the specific structural/logical gap — not "the code was wrong".
+       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
+       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
 
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
@@ -181,10 +159,14 @@ cargo test -p termlink --bins release_retry_note
 
 ## Decisions
 
-### 2026-08-12 — ack-less release: advisory note vs breaking flag flip
-- **Chose:** Option A — non-breaking. Emit a one-line stderr advisory on the ack-less release path (human/non-`--json` mode only): `note: released WITHOUT --ack — slot reopened for retry (cursor NOT advanced). Pass --ack to mark the work completed.` A pure fn `release_retry_note(ack) -> Option<String>` builds it; it fires on `ack==false`, is `None` on `ack==true`. Keyed off the server-confirmed `r.ack` (truthful about what actually happened), not the input flag.
-- **Why:** A breaking semantics flip (option B) would silently change the meaning of every existing `channel release --claim-id X --claimer Y` invocation and every script/skill call site — a wire/UX contract change that needs explicit operator sanction (broad "choose what to work on" delegates INITIATIVE, not AUTHORITY to make breaking changes). Option A closes the Directive-#3 footgun (opaque surprising default) with zero contract change: direct callers now SEE that the slot reopened, while the `/release` skill's inverted default is unaffected. JSON consumers are untouched (note is stderr, human-mode only) so machine parsers don't regress.
-- **Rejected:** Option B (flip to `--no-ack` so "done" is the CLI default) — correct in principle but breaking; deferred to an operator-sanctioned change. If the operator later wants B, this advisory becomes redundant and can be removed alongside the flip.
+<!-- Record decisions ONLY when choosing between alternatives.
+     Skip for tasks with no meaningful choices.
+     Format:
+     ### [date] — [topic]
+     - **Chose:** [what was decided]
+     - **Why:** [rationale]
+     - **Rejected:** [alternatives and why not]
+-->
 
 ## Decision
 
@@ -198,7 +180,7 @@ cargo test -p termlink --bins release_retry_note
 
 ## Updates
 
-### 2026-08-12T05:53:17Z — task-created [task-create-agent]
+### 2026-08-12T06:16:52Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2627-channel-release---ack-defaults-to-false-.md
+- **Output:** /opt/termlink/.tasks/active/T-2628-reliabilityportability-charter-lens-hunt.md
 - **Context:** Initial task creation

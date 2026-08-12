@@ -780,3 +780,10 @@ decisions:
     date: 2026-08-11
     task: T-2604
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-091
+    decision: "Option A — non-breaking. Emit a one-line stderr advisory on the ack-less release path (human/non-`--json` mode only): `note: released WITHOUT --ack — slot reopened for retry (cursor NOT advanced). Pass --ack to mark the work completed.` A pure fn `release_retry_note(ack) -> Option<String>` builds it; it fires on `ack==false`, is `None` on `ack==true`. Keyed off the server-confirmed `r.ack` (truthful about what actually happened), not the input flag."
+    scope: project
+    date: 2026-08-12
+    task: T-2627
+    rationale: "Auto-captured from task file on completion"
