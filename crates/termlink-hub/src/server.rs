@@ -258,14 +258,28 @@ pub async fn run_with_tcp(
 
         // T-1026: Record TCP address for hub restart (server-side, covers all start paths)
         let tcp_flag = termlink_session::discovery::runtime_dir().join("hub.tcp");
-        let _ = std::fs::write(&tcp_flag, local_addr.to_string());
+        // T-2674: non-fatal but NOT silent (Directive #2). A failed write (read-only
+        // runtime_dir / disk full / perms) leaves the hub serving while advertising no
+        // address; without this warn the operator sees only the reassuring "Hub
+        // listening" line above and the discovery-flag loss is invisible.
+        if let Err(e) = std::fs::write(&tcp_flag, local_addr.to_string()) {
+            tracing::warn!(path = %tcp_flag.display(), error = %e,
+                "Failed to write hub.tcp discovery flag — hub is serving but its TCP address is unrecorded; restart re-bind and address-file discovery will not find it");
+        }
 
         let acceptor = tls::load_or_generate_cert()?;
         (Some(listener), Some(acceptor))
     } else {
         // T-1026: Remove stale hub.tcp if starting without TCP
         let tcp_flag = termlink_session::discovery::runtime_dir().join("hub.tcp");
-        let _ = std::fs::remove_file(&tcp_flag);
+        // T-2674: NotFound is the normal no-prior-flag start; warn only on a real error
+        // (a failed removal silently leaves a DEAD endpoint advertised to consumers).
+        if let Err(e) = std::fs::remove_file(&tcp_flag)
+            && e.kind() != std::io::ErrorKind::NotFound
+        {
+            tracing::warn!(path = %tcp_flag.display(), error = %e,
+                "Failed to remove stale hub.tcp discovery flag — a dead TCP address may remain advertised to discovery consumers");
+        }
         (None, None)
     };
 
@@ -361,7 +375,14 @@ pub async fn run_with_tcp(
         let _ = std::fs::remove_file(&socket_path_owned);
         // T-1026: Remove hub.tcp so non-TCP restart doesn't inherit stale config
         let tcp_flag = termlink_session::discovery::runtime_dir().join("hub.tcp");
-        let _ = std::fs::remove_file(&tcp_flag);
+        // T-2674: NotFound is expected (may already be gone); warn only on a real error
+        // (a stale flag persisting after shutdown keeps advertising a dead endpoint).
+        if let Err(e) = std::fs::remove_file(&tcp_flag)
+            && e.kind() != std::io::ErrorKind::NotFound
+        {
+            tracing::warn!(path = %tcp_flag.display(), error = %e,
+                "Failed to remove hub.tcp discovery flag on shutdown — a dead TCP address may remain advertised to discovery consumers");
+        }
         // T-1028: Cert files intentionally preserved (persist-if-present, T-985)
         // so client TOFU fingerprints survive hub restarts.
         // Use tls::cleanup() only for explicit --clean shutdown.
@@ -411,13 +432,23 @@ pub async fn run_blocking(socket_path: &Path, tcp_addr: Option<&str>) -> std::io
 
         // T-1026: Record TCP address for hub restart
         let tcp_flag = termlink_session::discovery::runtime_dir().join("hub.tcp");
-        let _ = std::fs::write(&tcp_flag, local_addr.to_string());
+        // T-2674: non-fatal but NOT silent (Directive #2) — see the run_with_tcp twin.
+        if let Err(e) = std::fs::write(&tcp_flag, local_addr.to_string()) {
+            tracing::warn!(path = %tcp_flag.display(), error = %e,
+                "Failed to write hub.tcp discovery flag — hub is serving but its TCP address is unrecorded; restart re-bind and address-file discovery will not find it");
+        }
 
         let acceptor = tls::load_or_generate_cert()?;
         (Some(listener), Some(acceptor))
     } else {
         let tcp_flag = termlink_session::discovery::runtime_dir().join("hub.tcp");
-        let _ = std::fs::remove_file(&tcp_flag);
+        // T-2674: NotFound is the normal no-prior-flag start; warn only on a real error.
+        if let Err(e) = std::fs::remove_file(&tcp_flag)
+            && e.kind() != std::io::ErrorKind::NotFound
+        {
+            tracing::warn!(path = %tcp_flag.display(), error = %e,
+                "Failed to remove stale hub.tcp discovery flag — a dead TCP address may remain advertised to discovery consumers");
+        }
         (None, None)
     };
 
