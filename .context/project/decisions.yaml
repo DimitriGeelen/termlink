@@ -794,3 +794,10 @@ decisions:
     date: 2026-08-13
     task: T-2672
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-093
+    decision: "Approach B — a hard cap with safe eviction entirely inside"
+    scope: project
+    date: 2026-08-13
+    task: T-2676
+    rationale: "Auto-captured from task file on completion"

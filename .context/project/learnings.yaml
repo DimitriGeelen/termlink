@@ -3039,3 +3039,10 @@ learnings:
   date: 2026-08-13
   context: Added via context agent
   application: TBD
+- id: PL-326
+  learning: "should_skip semantics enabled a safe self-contained bound: a circuit-breaker entry that returns should_skip==false (closed OR half-open) is observably identical to an absent key, so cap-triggered eviction of only non-actively-blocking entries can never defeat a live breaker. Preferred a self-contained hard cap over prune-on-deregister when no single authoritative teardown site exists (a missed path re-leaks). T-2676."
+  source: P-001
+  task: T-2676
+  date: 2026-08-13
+  context: Added via context agent
+  application: TBD

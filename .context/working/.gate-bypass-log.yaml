@@ -2577,3 +2577,12 @@ T-2664: termlink request subscribe-loop swallow'
 FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw context focus T-2673 >/dev/null 2>&1
 git add .tasks/active/T-2673-migrate-3-un-migrated-long-poll-busy-spi.md
 FW_SWITCH_FOCUS=1 .agentic-fr'
+- timestamp: '2026-08-13T08:32:44Z'
+  task: 'T-1452'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2676'
+  command: 'cd /opt/termlink
+git add .tasks/active/T-2676-bound-circuitbreakerregistrystates--per-.md
+FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw context focus T-1452 >/dev/null 2>&1
+.agentic-framework/bin/fw git'
