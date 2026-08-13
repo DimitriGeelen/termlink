@@ -809,6 +809,14 @@ pub(crate) async fn cmd_file_receive(
             }
             Ok(Err(e)) => {
                 tracing::warn!("RPC error: {}", e);
+                // T-2673: back off on the INSTANT-error path (busy-spin class,
+                // T-2670/T-2671). The Err(_) arm above waited the full rpc_timeout before
+                // continue (naturally paced), but Ok(Err(e)) is the instant-error path —
+                // connection-refused on a dead/half-open hub returns near-instantly, so a
+                // bare fall-through re-dispatches with zero delay and pins a CPU core
+                // (silently — warn gated at default level). 500ms sleep-on-error is the
+                // established convention (events.rs:805/900/1349).
+                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
             }
             Ok(Ok(resp)) => {
                 if let Ok(result) = client::unwrap_result(resp) {

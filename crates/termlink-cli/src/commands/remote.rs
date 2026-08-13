@@ -1997,9 +1997,19 @@ pub(crate) async fn cmd_remote_events(
                     }
                     Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
                         eprintln!("Collect error: {} {}. Retrying...", e.error.code, e.error.message);
+                        // T-2673: back off before re-collecting on error (busy-spin class,
+                        // T-2670/T-2671). This loop is UNBOUNDED (exits only on Ctrl+C /
+                        // max_count), so on a dead/half-open hub — where event.collect
+                        // errors near-instantly instead of long-poll-pacing the loop — a
+                        // bare fall-through busy-spins a CPU core forever while flooding
+                        // stderr. 500ms sleep-on-error convention (events.rs / dispatch.rs).
+                        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
                     }
                     Err(e) => {
                         eprintln!("Hub connection error: {}. Retrying...", e);
+                        // T-2673: see the sibling arm above — same unbounded busy-spin on a
+                        // dead hub; back off before re-collecting.
+                        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
                     }
                 }
             }

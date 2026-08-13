@@ -286,6 +286,14 @@ pub(crate) async fn cmd_request(
             }
             Err(e) => {
                 tracing::warn!("Subscribe error: {}", e);
+                // T-2673: back off before re-subscribing on error (busy-spin class,
+                // T-2670/T-2671). event.subscribe long-polls on a LIVE hub (which paces
+                // this loop), but a dead/half-open hub errors near-instantly — without
+                // this sleep the loop re-dispatches with zero delay and pins a CPU core,
+                // silently (the warn above is gated out at the default log level), until
+                // timeout_dur expires. 500ms sleep-on-error is the established convention
+                // (events.rs:805/900/1349, dispatch.rs COLLECT_ERR_BACKOFF).
+                tokio::time::sleep(std::time::Duration::from_millis(500)).await;
             }
         }
     }
