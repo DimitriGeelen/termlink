@@ -7848,3 +7848,39 @@ scan_id: R-0c176d1b
 task_id: T-2671
 payload:
   task_file: .tasks/active/T-2671-termlinkdispatch-eventcollect-loop-err-a.md
+---
+kind: scan_emitted
+timestamp: '2026-08-13T07:16:46Z'
+scan_id: R-60aa08e7
+task_id: T-2673
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-13T07:16:46Z'
+scan_id: R-60aa08e7
+task_id: T-2673
+payload:
+  task_file: .tasks/active/T-2673-migrate-3-un-migrated-long-poll-busy-spi.md
+---
+kind: scan_emitted
+timestamp: '2026-08-13T07:18:11Z'
+scan_id: R-c519a8fd
+task_id: T-2672
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-13T07:18:11Z'
+scan_id: R-c519a8fd
+task_id: T-2672
+payload:
+  task_file: .tasks/active/T-2672-busy-spin-static-check--long-poll-loop-w.md

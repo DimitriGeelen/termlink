@@ -1,0 +1,84 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2672: busy-spin static check — long-poll loop with no sleep-on-error backoff
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-13T07:18:15Z
+# ============================================================================
+
+task_id: T-2672
+task_name: "busy-spin static check — long-poll loop with no sleep-on-error backoff"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-13T07:04:41Z
+completed: 2026-08-13T07:17:53Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-13T09:15:17+02:00
+last_commit: 2026-08-13T09:17:53+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  add check-busy-spin.sh static check (long-poll loop with no sleep-on-error) + fixtures + allowlist + CLAUDE.md; found 3 defects (T-2673). add RCA (busy-spin convention discipline-only; check makes it load-bearing)
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-busy-spin.sh` exists: brace-matches each `loop {}` body,'
+  - 'The current tree scans CLEAN (0 unacknowledged) — every convention-correct'
+  - 'Load-bearing proof: `tests/busy-spin-check-fixtures.sh` (no live binary)'
+  - '`--root`/`--allowlist` fixture seams work (used by the fixtures test).'
+  - 'CLAUDE.md documents the check under the source-level static-check family.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'add check-busy-spin.sh static check (long-poll loop with no sleep-on-error) + fixtures + allowlist + CLAUDE.md; found 3 defects (T-2673)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-08-13 — check found 3 genuine defects + 4 safe sites; split fix from prevention'
+    chose: 'On first run the check fired on 7 long-poll loops. Verified each in'
+    rationale: 'The check is the PREVENTION (G-019); the 3 instances are bug-class and'
+    alternatives_rejected: ['(a) fold all fixes into T-2672 — conflates prevention with']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'scripts/check-busy-spin.sh'
+  - '.tasks/active/T-2672-busy-spin-static-check--long-poll-loop-w.md'
+  - '.tasks/completed/T-2673-migrate-3-un-migrated-long-poll-busy-spi.md'
+  - 'tests/busy-spin-check-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-13T09:15:17"
+    action: "T-2672: add check-busy-spin.sh static check (long-poll loop with no sleep-on-error) + fixtures + allowlist + CLAUDE.md; found 3 defects (T-2673)"
+  - time: "2026-08-13T09:17:53"
+    action: "T-2672: add RCA (busy-spin convention discipline-only; check makes it load-bearing)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 13 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 13
+  commits: 2
+  files_changed: 5
+  lines_added: 655
+  lines_removed: 3
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2672-busy-spin-static-check--long-poll-loop-w.md
+generated_by: context-agent-hybrid

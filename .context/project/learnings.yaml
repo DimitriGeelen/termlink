@@ -3018,3 +3018,10 @@ learnings:
   date: 2026-08-11
   context: Added via context agent
   application: TBD
+- id: PL-323
+  learning: "A source-level static check for a code convention, on its FIRST run, routinely finds un-migrated sibling instances the manual fixes missed: check-silent-exit (T-2666) found 2 (T-2667), check-busy-spin (T-2672) found 3 (T-2673). The check earns its keep immediately as a finder, not only as a future regression guard — always run it and triage the initial firing set before allowlisting."
+  source: P-001
+  task: T-2672
+  date: 2026-08-13
+  context: Added via context agent
+  application: TBD

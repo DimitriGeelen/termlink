@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2673: migrate 3 un-migrated long-poll busy-spin sites (cmd_request, cmd_file_receive, cmd_remote_events)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-13T07:16:51Z
+# ============================================================================
+
+task_id: T-2673
+task_name: "migrate 3 un-migrated long-poll busy-spin sites (cmd_request, cmd_file_receive, cmd_remote_events)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-13T07:09:48Z
+completed: 2026-08-13T07:16:12Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-13T09:12:41+02:00
+last_commit: 2026-08-13T09:16:11+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  add 500ms sleep-on-error to 3 un-migrated long-poll busy-spin loops (cmd_request/cmd_file_receive/cmd_remote_events) found by T-2672 check. tick ACs (all verified)
+
+# Key outcomes
+outcomes:
+  - '`execution.rs cmd_request` `Err(e)` arm sleeps 500ms before the next iteration.'
+  - '`file.rs cmd_file_receive` `Ok(Err(e))` instant-error arm sleeps 500ms'
+  - '`remote.rs cmd_remote_events` BOTH error arms (`RpcResponse::Error` and'
+  - '`cargo build -p termlink` succeeds.'
+  - '`scripts/check-busy-spin.sh` no longer fires on these 3 sites (they drop'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'add 500ms sleep-on-error to 3 un-migrated long-poll busy-spin loops (cmd_request/cmd_file_receive/cmd_remote_events) found by T-2672 check'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'crates/termlink-cli/src/commands/execution.rs'
+  - 'crates/termlink-cli/src/commands/file.rs'
+  - 'crates/termlink-cli/src/commands/remote.rs'
+  - '.tasks/active/T-2673-migrate-3-un-migrated-long-poll-busy-spi.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-13T09:12:41"
+    action: "T-2673: add 500ms sleep-on-error to 3 un-migrated long-poll busy-spin loops (cmd_request/cmd_file_receive/cmd_remote_events) found by T-2672 check"
+  - time: "2026-08-13T09:16:11"
+    action: "T-2673: tick ACs (all verified)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 2
+  files_changed: 4
+  lines_added: 262
+  lines_removed: 6
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2673-migrate-3-un-migrated-long-poll-busy-spi.md
+generated_by: context-agent-hybrid

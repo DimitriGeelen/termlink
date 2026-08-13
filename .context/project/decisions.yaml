@@ -787,3 +787,10 @@ decisions:
     date: 2026-08-12
     task: T-2627
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-092
+    decision: "On first run the check fired on 7 long-poll loops. Verified each in"
+    scope: project
+    date: 2026-08-13
+    task: T-2672
+    rationale: "Auto-captured from task file on completion"
