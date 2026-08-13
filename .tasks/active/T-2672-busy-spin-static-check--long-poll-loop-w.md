@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-13T07:04:41Z
-last_update: 2026-08-13T07:04:41Z
+last_update: 2026-08-13T07:15:19Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -146,8 +146,29 @@ out=$(grep -c "check-busy-spin" CLAUDE.md 2>&1); [ "${out:-0}" -ge 1 ]
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
+**Symptom:** The busy-spin class (a long-poll retry loop whose error arm
+re-iterates with no `tokio::time::sleep`) kept recurring — T-2658/T-2636/T-2640
+as runtime instances, then T-2670/T-2671 fixed three sibling sites — and on this
+check's very first run THREE MORE un-migrated instances surfaced
+(`execution.rs cmd_request`, `file.rs cmd_file_receive`, `remote.rs
+cmd_remote_events`, fixed in T-2673). The class pins a CPU core the instant a hub
+goes dead/half-open, silently (the `warn!` is gated out at the default log level).
+
+**Root cause:** the "500ms sleep-on-error before re-dispatching a long-poll RPC"
+convention was followed by DISCIPLINE ONLY (`events.rs`/`dispatch.rs`) — nothing
+detected the next long-poll loop shipped without the backoff. Each omission was a
+one-line gap invisible until a human read that exact loop.
+
+**Why structurally allowed:** the framework had no source-level guard for the
+convention. Fixing an instance (T-2670/T-2671) removed that instance but left the
+mechanism that lets the next one land undetected — the G-019 "fix the symptom,
+then close the blindness" gap.
+
+**Prevention:** THIS task — `scripts/check-busy-spin.sh`, a source-level static
+check (4th sibling of the T-2527/T-2531/T-2666 checks) that makes the convention
+load-bearing: any long-poll `loop {}` with no sleep-on-error fires until fixed or
+allowlisted-with-reason. Proven load-bearing by `tests/busy-spin-check-fixtures.sh`
+(8/8) and by the real-tree revert proof (reverting the T-2673 sleep re-fires it).
      Non-bug-class tasks may leave this section empty or remove it.
 
      For bug-class, fill in:
