@@ -1,0 +1,83 @@
+# charter-drift acknowledgement allowlist (T-2680)
+#
+# One `<tool_name>  # <reason>` per line. `#`-comment and blank lines are skipped.
+# A tool listed here is STILL classified off-charter — it is simply acknowledged,
+# so the daily canary does not alarm on it. Removing a line re-fires it.
+#
+# WHY THIS FILE EXISTS
+# --------------------
+# T-2483 shipped the charter-drift canary with a single detector: a six-family
+# NAME regex (reactions / emoji / stars / pins / typing / polls) — the exact
+# families P4 had just deleted. It reported `{checked:214, live_off_charter:0}`,
+# which reads as a full-surface charter-traceability clean bill. It was not one:
+# the regex could not see 28 live tools sitting in categories the binary itself
+# names as analytics. `termlink_agent_top_repliers` is the same class of surface
+# as the deprecated `termlink_agent_top_reacted`; only one of them is a word the
+# regex knows.
+#
+# T-2680 added a CATEGORY detector, which makes those 28 visible. But whether
+# they should be REMOVED is not the canary's call — that is an open, human-owned
+# decision (T-2548, `started-work`, `owner: human`). Firing daily on a decision
+# the human has not made yet is alarm fatigue; staying silent about them is the
+# false assurance T-2680 exists to end.
+#
+# This file is the third option: the surface is acknowledged, counted, and
+# reported (`acknowledged_count` in the JSON envelope, and a line in the healthy
+# text output). The pending decision is VISIBLE rather than invisible, and any
+# NEW off-charter tool fires immediately because it will not be listed here.
+#
+# THIS FILE IS GIT-TRACKED ON PURPOSE. The four sibling static checks keep their
+# allowlists under `.context/working/`, which is gitignored — so their
+# acknowledgements (and the cited reasons that justify them) do not survive a
+# fresh clone, and the checks fire on every acknowledged site there. See T-2681.
+#
+# ON RESOLUTION OF T-2548
+# -----------------------
+# If the human decides to SUBTRACT: deprecate the tools, and delete their lines
+# here — a deprecated tool is not live, so it no longer classifies as drift.
+# If the human decides to KEEP: replace the T-2548 reason on each line with the
+# charter verb it traces to, or adjust the category set in the canary.
+# Either way this file should end up empty or re-justified — it is a ledger of
+# an open question, not a permanent exemption.
+
+# --- agent_rankings: social leaderboards -----------------------------------
+# Ranking peers by posting volume is engagement analytics, not coordination.
+# Same class as the P4-deprecated top_reacted / top_pinners.
+termlink_agent_top_replied           # T-2548 pending: leaderboard, traces to no charter verb
+termlink_agent_top_repliers          # T-2548 pending: leaderboard, traces to no charter verb
+termlink_agent_top_thread_starters   # T-2548 pending: leaderboard, traces to no charter verb
+termlink_agent_first_post_by         # T-2548 pending: "who got there first" ranking
+termlink_agent_first_responders      # T-2548 pending: "who got there first" ranking
+
+# --- agent_stats: conversation analytics -----------------------------------
+termlink_agent_stats                 # T-2548 pending: per-agent posting analytics
+termlink_agent_response_latency      # T-2548 pending: engagement-timing analytics
+termlink_agent_topic_stats           # T-2548 pending: per-topic posting analytics
+termlink_agent_topic_summary         # T-2548 pending: per-topic posting analytics
+termlink_agent_topic_metadata_history # T-2548 pending: topic-metadata archaeology
+termlink_agent_user_summary          # T-2548 pending: per-user activity profile
+termlink_agent_snippet               # T-2548 pending: excerpt rendering for analytics views
+termlink_agent_search_by             # T-2548 pending: author-scoped search over chat history
+termlink_agent_recent_threads        # T-2548 pending: thread-activity listing
+termlink_agent_forwards_of           # T-2548 pending: forward-provenance analytics
+
+# --- agent_thread_health: thread engagement metrics ------------------------
+termlink_agent_thread_health         # T-2548 pending: thread engagement scoring
+termlink_agent_threads_by            # T-2548 pending: author-scoped thread listing
+termlink_agent_busiest_threads       # T-2548 pending: activity ranking
+termlink_agent_idle_threads          # T-2548 pending: activity ranking (inverse)
+termlink_agent_quiet_threads         # T-2548 pending: activity ranking (inverse)
+termlink_agent_orphan_replies        # T-2548 pending: thread-hygiene analytics
+termlink_agent_unanswered            # T-2548 pending: thread-hygiene analytics
+termlink_agent_self_replies          # T-2548 pending: thread-hygiene analytics
+
+# --- channel_engagement ----------------------------------------------------
+# NOTE for the T-2548 decision: this group is the least clear-cut of the four.
+# mentions/search/digest have a plausible coordination reading (finding the
+# message addressed to you is arguably charter verb 2), unlike the leaderboards
+# above. Flagged here for the human to split rather than subtract wholesale.
+termlink_channel_mentions            # T-2548 pending: plausible verb-2 reading — human to split
+termlink_channel_mentions_of         # T-2548 pending: plausible verb-2 reading — human to split
+termlink_channel_search              # T-2548 pending: plausible verb-2 reading — human to split
+termlink_channel_snippet             # T-2548 pending: excerpt rendering for analytics views
+termlink_channel_digest              # T-2548 pending: engagement digest

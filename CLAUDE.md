@@ -413,25 +413,54 @@ cron runs `scripts/check-charter-drift-freshness.sh --quiet` (see
 `.context/cron/charter-drift-canary.crontab`) and appends to
 `.context/working/.charter-drift-canary.log`. Empty log = healthy.
 
-The canary reads `termlink help --json` — each tool object carries
-`{name, deprecated}`, where `deprecated` is derived from the registry's own
-`is_deprecated()` (so it trusts the binary's own classification and applies only
-the name pattern). It FIRES (exit 1) when any **LIVE** (`deprecated==false`) tool
-name matches the off-charter social-analytics pattern — i.e. a new such tool was
-added OR a deprecated one got its flag un-marked. After P4 that live set is empty
-(214 live tools scanned, 0 off-charter). The pattern is anchored to avoid
-false-positives on core primitives (`_pin$` not `_ping`; `_star$` not `_start` /
-`_starters`; `_poll_(start|vote|end|results)` not `event_poll`). Ad-hoc check:
-`bash scripts/check-charter-drift-freshness.sh` (exit 0 = healthy, 1 = a live
-off-charter tool, 2 = tooling error); add `--json` for scripting (carries
-`firing[]` with each offending `name`), `--no-heartbeat` (meta-canary uses it).
-Test hook `TERMLINK_CHARTER_DRIFT_TEST_JSON=<file>` feeds a canned
-`termlink help --json` for binary-independent verification (PL-213). Operator
-action on firing: deprecate the named tool(s) (mirror the `remote_inbox_*` T-1166
-convention per `docs/operations/p4-surface-reduction.md`), or — if one genuinely
-traces to a charter verb — rename it / adjust the pattern. `/canaries`
-auto-discovers the log. Pair with the eleven canaries above — all twelve follow
-the same "empty-log = healthy" convention.
+The canary reads `termlink help --json` — a `{category: [tool, ...]}` map whose tool
+objects carry `{name, deprecated}`, `deprecated` derived from the registry's own
+`is_deprecated()`. It trusts the binary's own classification for both liveness and
+category, and applies **two detectors** (T-2680): **name-pattern** (the original
+social-analytics families — reactions / emoji / stars / pins / typing / polls, anchored
+to avoid false-positives on core primitives: `_pin$` not `_ping`; `_star$` not `_start` /
+`_starters`; `_poll_(start|vote|end|results)` not `event_poll`) and **category** (the
+categories the binary itself names as analytics: `agent_rankings`, `agent_stats`,
+`agent_thread_health`, `channel_engagement`, `*_poll`, `*engagement_metrics`). A LIVE
+tool matching EITHER is off-charter.
+
+**Do not read a healthy exit as a full-surface clean bill.** T-2483 originally shipped
+the name detector alone and reported `{checked:214, live_off_charter:0}`, which read as
+"every one of 214 tools traces to the charter". It did not: the regex knew only the six
+families P4 had just deleted, so `termlink_agent_top_reacted` fired while
+`termlink_agent_top_repliers` — a functionally identical leaderboard — passed clean, and
+**28 live tools in explicitly-analytics categories were invisible**. Those 28 are exactly
+what **T-2548** (`owner: human`) is incepting to subtract, so an open decision about ~30
+off-charter tools coexisted with a daily canary calling that surface clean — Directive #2
+violated in the guard layer, the costliest place, because a guard reporting green is why
+nobody looks. T-2680 added the category detector and made every output path carry an
+explicit scope disclaimer: the canary detects known off-charter **shapes**, it does not
+audit every tool's charter traceability. Origin: T-2678 finding F2.
+
+**Acknowledgement allowlist.** Detecting the 28 must not mean alarming daily on a decision
+the human has not made. `.context/checks/charter-drift-allowlist` — **git-tracked on
+purpose**, unlike the four static-check allowlists under gitignored `.context/working/`
+(T-2681) — lists `<tool_name>  # <reason>` entries that are still **counted and reported**
+as off-charter but do not fire. Removing a line re-fires that tool; a NEW off-charter tool
+fires immediately because it is not listed. The allowlist is a ledger of an open question,
+not a permanent exemption: on T-2548's resolution the entries are either deleted (tools
+deprecated) or re-justified against a charter verb.
+
+Ad-hoc check: `bash scripts/check-charter-drift-freshness.sh` (exit 0 = no unacknowledged
+off-charter tool, 1 = drift, 2 = tooling error — fail-closed); add `--json` for scripting
+(`firing[]` with `name`/`why`, plus `acknowledged_count`, `acknowledged[]`,
+`off_charter_total`, `detectors[]`, `scope`), `--allowlist P` for an alternate ledger,
+`--no-heartbeat` (meta-canary uses it). Test hooks `TERMLINK_CHARTER_DRIFT_TEST_JSON=<file>`
+(canned catalog) + `CHARTER_DRIFT_ALLOWLIST=<file>` for binary-independent verification
+(PL-213); fixture suite `bash tests/charter-drift-check-fixtures.sh` (17 assertions,
+including the `top_repliers` regression that passed clean pre-T-2680). Current tree: 214
+live tools scanned by both detectors, 28 off-charter, **all 28 acknowledged pending T-2548**,
+0 unacknowledged. Operator action on firing: deprecate the named tool(s) (mirror the
+`remote_inbox_*` T-1166 convention per `docs/operations/p4-surface-reduction.md`); or, if
+one genuinely traces to a charter verb, rename it / adjust the detector; or, if it is a
+known pending decision, acknowledge it in the allowlist with a cited reason. `/canaries`
+auto-discovers the log. Pair with the eleven canaries above — all twelve follow the same
+"empty-log = healthy" convention.
 
 ### Charter canonical-sentence drift canary (T-2484, G-019 charter-fork prevention)
 

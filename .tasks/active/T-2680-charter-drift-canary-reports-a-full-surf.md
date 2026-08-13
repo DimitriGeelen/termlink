@@ -1,8 +1,8 @@
 ---
-id: T-2679
-name: "Bound SessionContext.kv — uncapped HashMap in the PTY-owning session daemon at Interact scope"
+id: T-2680
+name: "charter-drift canary reports a full-surface clean bill it cannot measure (category-blind, 28 live analytics tools invisible)"
 description: >
-  Bound SessionContext.kv — uncapped HashMap in the PTY-owning session daemon at Interact scope
+  charter-drift canary reports a full-surface clean bill it cannot measure (category-blind, 28 live analytics tools invisible)
 
 status: started-work
 workflow_type: build
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-13T23:11:35Z
-last_update: 2026-08-13T23:18:59Z
+created: 2026-08-13T23:19:37Z
+last_update: 2026-08-13T23:19:37Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,40 +30,61 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2679: Bound SessionContext.kv — uncapped HashMap in the PTY-owning session daemon at Interact scope
+# T-2680: charter-drift canary reports a full-surface clean bill it cannot measure (category-blind, 28 live analytics tools invisible)
 
 ## Context
 
-`SessionContext.kv` (`crates/termlink-session/src/handler.rs:29`) is a plain
-`HashMap<String, serde_json::Value>` with no cap on key count, no cap on value size, and
-no eviction. `handle_kv_set` (`handler.rs:966`) does a bare `ctx.kv.insert(...)`. `kv.set`
-requires only `Interact` scope (`crates/termlink-session/src/auth.rs:191`) — in a
-cooperating fleet, every authenticated peer. The map lives in the **session daemon**, the
-process that owns the real PTYs backing the charter's fourth verb ("control terminal
-sessions"), so unbounded growth OOM-kills the operator's live terminal sessions.
+`scripts/check-charter-drift-freshness.sh` (T-2483) is the structural guard for charter
+non-goal #3 ("not a social / engagement platform"). Its header states its purpose as
+detecting when *"the tool surface has drifted from the charter's four verbs"*, and
+CLAUDE.md records its result as **"214 live tools scanned, 0 off-charter"**. It emits:
 
-Third instance of a class closed twice in the immediately preceding session — T-2675
-(bounded `PresenceTracker`) and T-2676 (bounded circuit-breaker map). Found by the
-T-2678 charter guard-coverage review (finding F3, IW-3).
+```json
+{"ok":true,"firing":[],"checked":214,"live_off_charter":0}
+```
 
-**Loud refuse, not evict.** `kv` is a caller-visible store: silently evicting a key the
-caller believes it set is a Directive #2 (no silent failures) violation. Follows the
-established LOUD-refuse convention of `HUB_AT_CAPACITY` (T-2048 IW-3) and `QueueFull`
-(T-2051 R3). Overwriting an existing key is always allowed — it cannot grow the key set —
-so a well-behaved caller updating a bounded set of keys never trips the cap.
+That reads as a full-surface charter-traceability clean bill. It is not one. Mechanically
+the canary applies a **fixed six-family name regex** (reactions / emoji / stars / pins /
+typing / polls) — the exact families P4 happened to delete. `checked:214` counts tools the
+regex was *run against*, not tools whose purpose was *assessed*.
+
+28 tools are LIVE right now in categories the binary itself names as analytics:
+`agent_rankings` (5), `agent_stats` (10), `agent_thread_health` (8),
+`channel_engagement` (5). `termlink_agent_top_repliers` is a social leaderboard — same
+class as `top_reacted`/`top_pinners`, which P4 deprecated. The only difference is which
+word is in the regex.
+
+Proven with the canary's own PL-213 test hook: a catalog containing live
+`termlink_agent_top_reacted` fires (exit 1); one containing live
+`termlink_agent_top_repliers` passes clean (exit 0).
+
+Worse than the under-detection is the **false assurance**: those 28 tools are precisely
+what human-owned **T-2548** is currently incepting to subtract. So an open decision about
+~30 off-charter tools coexists with a daily canary reporting that surface as 0-off-charter.
+An operator reading `/canaries` sees green. Directive #2 (no silent failures) violated in
+the guard layer — the costliest place, because a guard reporting green is why nobody looks.
+
+**Scope discipline:** this task does NOT delete or deprecate anything. That decision is
+T-2548's and is `owner: human`. The fix is to make the canary honest about what it
+measured, and to make the pending decision *visible* via an acknowledgement allowlist
+(the T-2527/T-2531 idiom) rather than invisible in a regex gap.
+
+Found by the T-2678 charter guard-coverage review (finding F2 / IW-2).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] `error_code::KV_STORE_FULL` (-32023) added to `termlink-protocol` with doc comment matching the established style, and a constant-value assertion test
-- [x] `SessionContext` carries env-tunable bounds (`TERMLINK_KV_MAX_KEYS` default 1000, `TERMLINK_KV_MAX_VALUE_BYTES` default 65536) with a `with_bounds`-style deterministic constructor for tests (parallel tests must not race on env, per T-2675 idiom)
-- [x] `handle_kv_set` refuses a NEW key when the store is at `max_keys`, returning `KV_STORE_FULL` with `data: {reason:"max_keys", limit, current}` — and does NOT insert
-- [x] `handle_kv_set` refuses an oversized value, returning `KV_STORE_FULL` with `data: {reason:"max_value_bytes", limit, current}` — and does NOT insert
-- [x] Overwriting an EXISTING key at the key cap still succeeds (cap gates growth, not updates)
-- [x] Refusal emits no `kv.change` event (a refused write must not look like a write)
-- [x] Unit tests cover: key-cap refusal, value-cap refusal, overwrite-at-cap success, and that a refused set leaves the map unchanged
-- [x] `cargo test -p termlink-session -p termlink-protocol` passes with no pre-existing test regressions
+- [x] Canary gains a **category** detector alongside the name-pattern detector: a live tool whose catalog category matches the off-charter analytics set (`agent_rankings`, `agent_stats`, `agent_thread_health`, `channel_engagement`, plus the already-empty `*_poll` / `*engagement_metrics`) is off-charter regardless of its name
+- [x] `termlink_agent_top_repliers` presented as live is now detected — the exact case that passed clean before
+- [x] An **acknowledgement allowlist** at a **git-tracked** path suppresses known-pending sites, one `<tool_name>  # <reason>` per line, `#`-comment and blank lines skipped
+- [x] The currently-live analytics tools are acknowledged with a reason citing T-2548, so the canary does not alarm-fatigue daily on an open human decision
+- [x] An acknowledged tool does NOT fire; removing it from the allowlist DOES fire (allowlist load-bearing in both directions)
+- [x] Healthy output no longer claims full-surface traceability — it names what was scanned, by which detectors, and how many sites are acknowledged-pending
+- [x] JSON envelope extended additively (`ok`/`firing`/`checked`/`live_off_charter` keep their meaning); adds `acknowledged_count`, `off_charter_total`, `detectors`
+- [x] Fixture suite `tests/charter-drift-check-fixtures.sh` covers: name-detector fires, category-detector fires, acknowledged suppressed, un-acknowledging re-fires, healthy path, unparseable catalog → exit 2
+- [x] Fixture suite passes and the live tree returns exit 0 with a truthful acknowledged count
+- [x] CLAUDE.md's charter-drift entry corrected — it currently states the "0 off-charter" result this task proves was never a full-surface measurement
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -98,6 +119,11 @@ so a well-behaved caller updating a bounded set of keys never trips the cap.
 
 ## Verification
 
+bash tests/charter-drift-check-fixtures.sh
+bash scripts/check-charter-drift-freshness.sh --no-heartbeat
+test -f .context/checks/charter-drift-allowlist
+git ls-files --error-unmatch .context/checks/charter-drift-allowlist
+
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
@@ -128,12 +154,6 @@ so a well-behaved caller updating a bounded set of keys never trips the cap.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
-
-cargo test -p termlink-protocol --lib 2>&1 | tail -5
-cargo test -p termlink-session --lib 2>&1 | tail -5
-grep -q 'KV_STORE_FULL: i64 = -32023' crates/termlink-protocol/src/control.rs
-grep -q 'TERMLINK_KV_MAX_KEYS' crates/termlink-session/src/handler.rs
-grep -q 'TERMLINK_KV_MAX_VALUE_BYTES' crates/termlink-session/src/handler.rs
 
 ## RCA
 
@@ -198,7 +218,7 @@ grep -q 'TERMLINK_KV_MAX_VALUE_BYTES' crates/termlink-session/src/handler.rs
 
 ## Updates
 
-### 2026-08-13T23:11:35Z — task-created [task-create-agent]
+### 2026-08-13T23:19:37Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2679-bound-sessioncontextkv--uncapped-hashmap.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2680-charter-drift-canary-reports-a-full-surf.md
 - **Context:** Initial task creation
