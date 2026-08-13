@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2675: Bound PresenceTracker map — unbounded peer-keyed in-memory growth OOM risk
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-13T08:30:01Z
+# ============================================================================
+
+task_id: T-2675
+task_name: "Bound PresenceTracker map — unbounded peer-keyed in-memory growth OOM risk"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-13T08:25:33Z
+completed: 2026-08-13T08:29:47Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-13T10:29:39+02:00
+last_commit: 2026-08-13T10:29:39+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  bound PresenceTracker map (TTL prune + hard-cap) — unbounded peer-keyed in-memory growth OOM risk (Directive #1/#2)
+
+# Key outcomes
+outcomes:
+  - '`PresenceTracker` gains a TTL prune (opportunistic, on `record`, relative'
+  - 'A new unit test proves BOTH bounds: a stale entry is pruned by TTL on the'
+  - 'The existing `dialog_presence_*` tests still pass unchanged (4/4 green —'
+  - '`cargo build -p termlink-hub` succeeds.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/learnings.yaml'
+  - 'crates/termlink-hub/src/channel.rs'
+  - '.tasks/active/T-2675-bound-presencetracker-map--unbounded-pee.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: "2026-08-13T10:29:39"
+    action: "T-2675: bound PresenceTracker map (TTL prune + hard-cap) — unbounded peer-keyed in-memory growth OOM risk (Directive #1/#2)"
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 1
+  files_changed: 3
+  lines_added: 346
+  lines_removed: 2
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2675-bound-presencetracker-map--unbounded-pee.md
+generated_by: context-agent-hybrid
