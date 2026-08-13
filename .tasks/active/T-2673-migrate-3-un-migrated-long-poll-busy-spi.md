@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-13T07:09:48Z
-last_update: 2026-08-13T07:09:48Z
+last_update: 2026-08-13T07:12:41Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -61,13 +61,13 @@ sleep-on-error (convention: `events.rs:805/900/1349`, `dispatch.rs`
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `execution.rs cmd_request` `Err(e)` arm sleeps 500ms before the next iteration.
-- [ ] `file.rs cmd_file_receive` `Ok(Err(e))` instant-error arm sleeps 500ms
+- [x] `execution.rs cmd_request` `Err(e)` arm sleeps 500ms before the next iteration.
+- [x] `file.rs cmd_file_receive` `Ok(Err(e))` instant-error arm sleeps 500ms
       (the `Err(_)` timeout arm is already paced and is left unchanged).
-- [ ] `remote.rs cmd_remote_events` BOTH error arms (`RpcResponse::Error` and
+- [x] `remote.rs cmd_remote_events` BOTH error arms (`RpcResponse::Error` and
       `Err`) sleep 500ms before re-collecting.
-- [ ] `cargo build -p termlink` succeeds.
-- [ ] `scripts/check-busy-spin.sh` no longer fires on these 3 sites (they drop
+- [x] `cargo build -p termlink` succeeds.
+- [x] `scripts/check-busy-spin.sh` no longer fires on these 3 sites (they drop
       out of the firing set once the sleeps land).
 
 ### Human
