@@ -640,15 +640,37 @@ committed dark and only a self-review caught it). `scripts/check-cron-install-dr
 closes that blindness: for every git-tracked crontab it reads the crontab's OWN
 `# Installed to: <path>` header (robust to naming exceptions like `agentic-audit` →
 `/etc/cron.d/agentic-audit-termlink` — the path is self-declared, not derived from a
-naming rule) and classifies MISSING (declared path absent → FIRES exit 1, the G-069
-class), DRIFT (present but content differs from git → non-firing WARNING by default,
-fires under `--strict`), or OK. This is a **deploy-time / preflight check, NOT itself
-a cron canary** — a canary-to-detect-uninstalled-canaries would itself need
-installing (recursive). Run it ad-hoc after committing a new canary. Exit codes:
-0 = healthy, 1 = a crontab is missing (or drift under `--strict`), 2 = tooling.
-`--json` for scripting; a host without `/etc/cron.d` (macOS/dev) is informational,
-never firing. Test hooks `CRON_DRIFT_SRC_DIR` + `CRON_DRIFT_INSTALLED_DIR` feed
-fixture dirs (PL-213). Operator action on firing: install the named crontab with
+naming rule) and classifies into four states: **MISSING** (declared path absent →
+FIRES, the G-069 class), **UNINSTALLED_JOBS** (present, but the installed file lacks
+cron JOB lines that git declares → FIRES, T-2682), **DRIFT** (present, content
+differs, but no job line is absent — comment churn, env tweaks, an extra
+operator-added job → non-firing WARNING, fires under `--strict`), or **OK**
+(byte-identical).
+
+**Why UNINSTALLED_JOBS is its own class (T-2682).** T-2561 shipped with MISSING vs
+DRIFT only, so every content difference read as one quiet "DRIFT (warning)" line. On
+the origin host that hid two crontabs whose installed copies were missing their
+**meta-canary job line entirely** — T-2175 (substrate-preflight) and T-2176
+(fleet-doorbell-mail), the jobs that detect when the canary itself stops firing. Both
+had never been scheduled, reported as cosmetic drift. A job that was never scheduled
+is not a cosmetic difference; it is exactly the shipped-but-dark condition this check
+exists to catch, so it now fires regardless of `--strict` and prints the specific
+missing line(s) so the operator can install precisely what is absent. Direction
+matters: git-declared work absent from the host fires; an EXTRA job the operator added
+locally does not. Job lines are compared with comments, blanks, and `VAR=value` env
+assignments stripped and whitespace collapsed, so a reformat alone never false-fires.
+Found by the T-2678 charter guard-coverage review (gap G5).
+
+This is a **deploy-time / preflight check, NOT itself a cron canary** — a
+canary-to-detect-uninstalled-canaries would itself need installing (recursive). Run it
+ad-hoc after committing a new canary. Exit codes: 0 = healthy, 1 = firing (missing /
+uninstalled jobs / drift under `--strict`), 2 = tooling. `--json` for scripting
+(adds `uninstalled_jobs_count` + `uninstalled_jobs[]` carrying
+`<crontab>|<installed_path>|<missing line>`); a host without `/etc/cron.d` (macOS/dev)
+is informational, never firing. Test hooks `CRON_DRIFT_SRC_DIR` +
+`CRON_DRIFT_INSTALLED_DIR` feed fixture dirs (PL-213); fixture suite
+`bash tests/cron-install-drift-fixtures.sh` (24 assertions). Operator action on
+firing: install the named crontab with
 `sudo cp .context/cron/<name>.crontab <declared-path>`.
 
 ### Unclamped caller-param → allocation-sink static check (T-2527, G-019 prevention for the T-2523/T-2526 class)

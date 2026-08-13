@@ -17,11 +17,31 @@
 # canary-to-detect-uninstalled-canaries would itself need installing (recursive).
 # Run it ad-hoc after committing a new canary, or fold it into /preflight.
 #
-# Classes: MISSING (declared path absent) FIRES (exit 1 — the G-069 class);
-# DRIFT (present but content differs from git) is a non-firing WARNING by default,
-# fires only under --strict; OK (present + byte-identical).
+# Classes:
+#   MISSING           declared path absent entirely            → FIRES (the G-069 class)
+#   UNINSTALLED_JOBS  present, but the installed file lacks cron JOB lines that git
+#                     declares                                 → FIRES (T-2682)
+#   DRIFT             present, content differs, but no job line is absent (comment
+#                     churn, env tweaks, extra installed jobs)  → WARNING; fires only
+#                     under --strict
+#   OK                present + byte-identical
 #
-# Exit codes: 0 healthy · 1 firing (missing, or drift under --strict) · 2 tooling error
+# T-2682 — why UNINSTALLED_JOBS is its own class. T-2561 shipped with MISSING vs DRIFT
+# only, so any content difference read as one non-firing "DRIFT (warning)" line. On the
+# origin host that hid two crontabs whose installed copies were missing their
+# meta-canary job line entirely (T-2175 substrate-preflight, T-2176 fleet-doorbell-mail)
+# — the jobs that detect when the canary itself stops firing had never been scheduled.
+# A job that was never scheduled is not a cosmetic difference; it is exactly the
+# shipped-but-dark condition this check exists to catch, so it fires regardless of
+# --strict. Direction matters: git-declared work absent from the host fires; an EXTRA
+# job the operator added locally does not (that is their prerogative).
+#
+# Job lines are compared with comments, blank lines, and `VAR=value` env assignments
+# stripped and internal whitespace collapsed, so a reformat alone is never a false
+# positive.
+#
+# Exit codes: 0 healthy · 1 firing (missing / uninstalled jobs / drift under --strict)
+#             · 2 tooling error
 set -u
 
 SRC_DIR="${CRON_DRIFT_SRC_DIR:-.context/cron}"
@@ -35,7 +55,8 @@ usage() {
     cat <<'EOF'
 
 Usage: check-cron-install-drift.sh [OPTIONS]
-  --strict     Also fire (exit 1) on DRIFT, not just MISSING
+  --strict     Also fire (exit 1) on plain DRIFT. Does NOT affect MISSING or
+               UNINSTALLED_JOBS — those always fire.
   --json       Emit a JSON envelope
   --quiet      Print only on firing (cron-friendly)
   -h, --help   This help
@@ -43,8 +64,10 @@ Usage: check-cron-install-drift.sh [OPTIONS]
 Test hooks: CRON_DRIFT_SRC_DIR=<dir> (git crontab source, default .context/cron),
 CRON_DRIFT_INSTALLED_DIR=<dir> (remaps each declared install path's dirname to this
 dir, for host-independent fixtures).
+Fixtures: bash tests/cron-install-drift-fixtures.sh
 
-Exit: 0 healthy · 1 firing (missing / drift-under-strict) · 2 tooling error
+Exit: 0 healthy · 1 firing (missing / uninstalled jobs / drift-under-strict)
+      · 2 tooling error
 EOF
 }
 
@@ -80,7 +103,19 @@ resolve_installed() {
     fi
 }
 
+# T-2682 — extract executable cron JOB lines from a crontab file: drop blank lines,
+# `#`-comments, and `VAR=value` env assignments; collapse internal whitespace so a
+# reformat alone is never a false positive. What remains is work that is supposed to
+# be scheduled — the only difference class that means "shipped but dark".
+job_lines() {
+    sed -E 's/[[:space:]]+$//' "$1" 2>/dev/null \
+        | grep -vE '^[[:space:]]*(#|$)' \
+        | grep -vE '^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*=' \
+        | sed -E 's/[[:space:]]+/ /g; s/^ //'
+}
+
 missing=(); drifted=(); skipped=(); ok_count=0
+uninstalled=(); uninstalled_detail=()
 for f in "$SRC_DIR"/*.crontab; do
     [ -e "$f" ] || continue
     declared="$(grep -iE '^#[[:space:]]*Installed to:' "$f" | head -1 | sed -E 's/.*[Ii]nstalled to:[[:space:]]*//; s/[[:space:]].*//')"
@@ -92,22 +127,44 @@ for f in "$SRC_DIR"/*.crontab; do
     if [ ! -f "$inst" ]; then
         missing+=("$(basename "$f") → $declared")
     elif ! diff -q "$inst" "$f" >/dev/null 2>&1; then
-        drifted+=("$(basename "$f") ↔ $declared")
+        # T-2682 — split drift by DIRECTION. A git job line absent from the
+        # installed file is scheduled work that is not scheduled: shipped-dark,
+        # the exact G-069 class this check exists for, so it FIRES. Everything
+        # else (comment churn, env tweaks, extra installed jobs) stays a warning.
+        # Extra lines present only in the INSTALLED file are deliberately NOT a
+        # firing condition — an operator adding a local job is their prerogative.
+        gitjobs="$(mktemp)"; instjobs="$(mktemp)"
+        job_lines "$f"    > "$gitjobs"
+        job_lines "$inst" > "$instjobs"
+        absent="$(grep -Fxv -f "$instjobs" "$gitjobs" 2>/dev/null || true)"
+        rm -f "$gitjobs" "$instjobs"
+        if [ -n "$absent" ]; then
+            uninstalled+=("$(basename "$f") ↔ $declared")
+            while IFS= read -r l; do
+                [ -n "$l" ] && uninstalled_detail+=("$(basename "$f")|$declared|$l")
+            done <<< "$absent"
+        else
+            drifted+=("$(basename "$f") ↔ $declared")
+        fi
     else
         ok_count=$((ok_count+1))
     fi
 done
 
 miss_n=${#missing[@]}; drift_n=${#drifted[@]}; skip_n=${#skipped[@]}
+uninst_n=${#uninstalled[@]}
 
 if [ "$FORMAT" = json ]; then
     jarr() { local first=1; printf '['; for x in "$@"; do [ $first -eq 1 ] || printf ','; printf '%s' "$(printf '%s' "$x" | jq -R .)"; first=0; done; printf ']'; }
-    fire=$([ "$miss_n" -gt 0 ] && echo true || { [ "$STRICT" -eq 1 ] && [ "$drift_n" -gt 0 ] && echo true || echo false; })
-    printf '{"ok":%s,"missing_count":%s,"drift_count":%s,"ok_count":%s,"skipped_count":%s,"strict":%s,"missing":%s,"drifted":%s}\n' \
+    # T-2682: uninstalled job lines fire unconditionally — they are the G-069
+    # class, not a cosmetic difference, so --strict is irrelevant to them.
+    fire=$({ [ "$miss_n" -gt 0 ] || [ "$uninst_n" -gt 0 ]; } && echo true \
+        || { [ "$STRICT" -eq 1 ] && [ "$drift_n" -gt 0 ] && echo true || echo false; })
+    printf '{"ok":%s,"missing_count":%s,"uninstalled_jobs_count":%s,"drift_count":%s,"ok_count":%s,"skipped_count":%s,"strict":%s,"missing":%s,"uninstalled_jobs":%s,"drifted":%s}\n' \
         "$([ "$fire" = true ] && echo false || echo true)" \
-        "$miss_n" "$drift_n" "$ok_count" "$skip_n" \
+        "$miss_n" "$uninst_n" "$drift_n" "$ok_count" "$skip_n" \
         "$([ "$STRICT" -eq 1 ] && echo true || echo false)" \
-        "$(jarr "${missing[@]}")" "$(jarr "${drifted[@]}")"
+        "$(jarr "${missing[@]}")" "$(jarr "${uninstalled_detail[@]}")" "$(jarr "${drifted[@]}")"
     [ "$fire" = true ] && exit 1 || exit 0
 fi
 
@@ -117,6 +174,18 @@ if [ "$miss_n" -gt 0 ]; then
     echo "check-cron-install-drift: $miss_n git-tracked crontab(s) NOT installed — SHIPPED BUT DARK (G-069, T-2561):"
     for m in "${missing[@]}"; do echo "  MISSING: $m"; done
     echo "  Remediation: install each with  sudo cp .context/cron/<name>.crontab <declared-path>  (root)."
+fi
+if [ "$uninst_n" -gt 0 ]; then
+    fired=1
+    echo "check-cron-install-drift: $uninst_n installed crontab(s) are MISSING JOB LINES that git declares — SHIPPED BUT DARK (G-069, T-2682):"
+    for u in "${uninstalled[@]}"; do echo "  UNINSTALLED_JOBS: $u"; done
+    echo "  The scheduled work below exists in git but is NOT scheduled on this host:"
+    for d in "${uninstalled_detail[@]}"; do
+        echo "    ↳ ${d%%|*}: $(printf '%s' "$d" | cut -d'|' -f3-)"
+    done
+    echo "  Remediation: re-install the affected crontab(s) with"
+    echo "    sudo cp .context/cron/<name>.crontab <declared-path>   (root)"
+    echo "  This fires regardless of --strict: a job that was never scheduled is not a cosmetic difference."
 fi
 if [ "$drift_n" -gt 0 ]; then
     [ "$STRICT" -eq 1 ] && fired=1

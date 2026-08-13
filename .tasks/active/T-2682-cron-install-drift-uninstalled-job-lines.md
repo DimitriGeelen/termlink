@@ -1,8 +1,8 @@
 ---
-id: T-2569
-name: "GUARD: hub-router federation regression test (charter non-goal #1 tripwire)"
+id: T-2682
+name: "cron-install-drift: uninstalled job lines are shipped-dark (G-069) but classify as a non-firing warning"
 description: >
-  Filed from T-2468 purpose-review round (2026-08-09)
+  cron-install-drift: uninstalled job lines are shipped-dark (G-069) but classify as a non-firing warning
 
 status: started-work
 workflow_type: build
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-09T11:24:14Z
-last_update: 2026-08-13T23:36:23Z
+created: 2026-08-13T23:37:21Z
+last_update: 2026-08-13T23:37:21Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,34 +30,56 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2569: GUARD: hub-router federation regression test (charter non-goal #1 tripwire)
+# T-2682: cron-install-drift: uninstalled job lines are shipped-dark (G-069) but classify as a non-firing warning
 
 ## Context
 
-Filed from T-2468 non-goal-guard review (non-goal #1 "NOT an inter-hub federation
-layer", G-060). Today G-060 exists only as doc/comment strings (agent.rs:750,
-mcp/tools.rs:10669/29538); there is NO code refusal, canary, or test that fires if an
-automatic cross-hub federation path were added. It is safe TODAY only by
-absence-of-feature — every "cross-hub" reference is explicit client-driven
-cross-posting (channel.rs:998,1029). A future PR adding auto-relay in the hub router
-would trip nothing.
+`scripts/check-cron-install-drift.sh` (T-2561) exists to catch the G-069 class — a
+canary committed to git but never installed, so it sits **shipped but dark**. It
+classifies three ways: MISSING (declared path absent → FIRES), DRIFT (present but
+content differs → non-firing WARNING unless `--strict`), OK (byte-identical).
 
-A grep static check is too noisy (dozens of legitimate client-side "cross-hub"
-strings false-positive). The precise cheap guard is a HUB-CRATE UNIT TEST asserting
-the router never originates an outbound post to another hub during inbound handling
-(hub-side has no BusClient-to-peer-hub call). M effort — needs understanding of the
-hub router internals; backlog build, not urgent (no live hole today).
+That binary split is too coarse, and it just cost us. On this host the check reports
+2 DRIFT warnings:
+
+- `substrate-preflight-canary.crontab` ↔ `/etc/cron.d/termlink-substrate-preflight-canary`
+- `fleet-doorbell-mail-canary.crontab` ↔ `/etc/cron.d/termlink-fleet-doorbell-mail-canary`
+
+Diffing them shows both are the **same shape**: the git source contains a
+**meta-canary job line** (T-2175 and T-2176 respectively — the jobs that detect when
+the canary itself stops firing) that the installed file **does not have at all**.
+Those two meta-canaries have therefore never run on this host. That is not a benign
+content difference; it is precisely the shipped-dark condition this check was built
+to catch, and it has been reported as a quiet warning.
+
+The distinction that matters is **which direction the drift runs**:
+
+- The installed file is missing cron **job lines** that git declares → work that was
+  supposed to be scheduled is not scheduled. Shipped-dark. Should FIRE.
+- Comments, env assignments, schedule tweaks, or extra installed jobs differ → an
+  operator edit or a stale comment block. Genuinely a warning.
+
+Collapsing both into one "DRIFT (warning)" bucket is what let two uninstalled
+meta-canaries hide behind a line that reads like a cosmetic mismatch.
+
+Found by the T-2678 charter guard-coverage review (gap G5), while confirming the
+canary layer could be trusted to run at all (IW-4).
+
+Note the fix cannot install the missing lines — `/etc/cron.d` needs root, so
+remediation stays an operator action. The point is to make the condition **loud**.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] A unit test in the hub crate asserts that handling an inbound RPC never
-      originates an outbound connection/post to another hub (no peer-hub BusClient
-      call on the inbound path) — the federation tripwire.
-- [x] The test is load-bearing: a deliberate temporary "relay to peer hub" stub in
-      the router makes it FAIL; removing the stub returns it to green.
-- [x] A one-line note in the charter / ARCHITECTURE ties non-goal #1 to this test so
-      a future editor knows the guard exists.
+<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
+- [x] New `UNINSTALLED_JOBS` class: git declares cron job lines the installed file lacks → **FIRES** (exit 1) regardless of `--strict`
+- [x] Job-line extraction ignores comments, blank lines, and `VAR=value` env assignments, and is whitespace-normalized so reformatting alone is not a false positive
+- [x] Plain content differences with no missing job lines stay a non-firing WARNING (unchanged `--strict` behaviour)
+- [x] Firing output names the offending crontab AND quotes the specific missing job line(s), so the operator can install exactly what is absent
+- [x] JSON envelope extended additively: `uninstalled_jobs_count` + `uninstalled_jobs[]` with `{crontab, installed_path, missing_lines[]}`
+- [x] Exit-code contract documented in the header and `--help`
+- [x] Fixture suite `tests/cron-install-drift-fixtures.sh` covers: missing file fires, uninstalled-job-line fires, comment-only drift warns (exit 0), env-var-only drift warns, byte-identical is OK, extra INSTALLED job does not fire, no-`Installed to:` header is skipped, absent cron.d is informational
+- [x] Running against this host reports the 2 real cases as UNINSTALLED_JOBS, naming the T-2175 and T-2176 meta-canary lines
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -123,9 +145,7 @@ hub router internals; backlog build, not urgent (no live hole today).
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-cargo test -p termlink-hub --test no_federation_tripwire
-bash scripts/check-charter-sentence-drift.sh --no-heartbeat
-grep -q 'no_federation_tripwire' docs/CHARTER.md
+bash tests/cron-install-drift-fixtures.sh
 
 ## RCA
 
@@ -190,13 +210,7 @@ grep -q 'no_federation_tripwire' docs/CHARTER.md
 
 ## Updates
 
-### 2026-08-09T11:24:14Z — task-created [task-create-agent]
+### 2026-08-13T23:37:21Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2569-guard-hub-router-federation-regression-t.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2682-cron-install-drift-uninstalled-job-lines.md
 - **Context:** Initial task creation
-
-### 2026-08-13T23:33:48Z — status-update [task-update-agent]
-- **Change:** horizon: later → now
-
-### 2026-08-13T23:33:48Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
