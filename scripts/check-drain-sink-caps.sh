@@ -56,7 +56,17 @@ set -uo pipefail
 
 WANT_JSON=0 QUIET=0 HEARTBEAT=1
 ROOTS=()
-ALLOWLIST="${DRAIN_SINK_ALLOWLIST:-.context/working/.drain-sink-allowlist}"
+# T-2681 — tracked-first allowlist resolution; see the header of
+# .context/checks/alloc-sink-allowlist for why. Legacy gitignored path kept as a
+# fallback; explicit DRAIN_SINK_ALLOWLIST / --allowlist always wins over both.
+_default_allowlist() {
+    if [ -f ".context/checks/drain-sink-allowlist" ]; then
+        printf '%s' ".context/checks/drain-sink-allowlist"
+    else
+        printf '%s' ".context/working/.drain-sink-allowlist"
+    fi
+}
+ALLOWLIST="${DRAIN_SINK_ALLOWLIST:-$(_default_allowlist)}"
 
 while [ $# -gt 0 ]; do
     case "$1" in

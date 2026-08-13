@@ -683,7 +683,7 @@ reverting that clamp makes them fire again (the load-bearing property).
 Output is a **REVIEW list, not a hard gate** — false positives are expected; the
 value is surfacing NEW sinks for a human/agent to confirm-and-clamp. Confirmed-safe
 sites (upstream guard, internally-derived count, library constructor param) are
-acknowledged in `.context/working/.alloc-sink-allowlist`, one drift-stable signature
+acknowledged in `.context/checks/alloc-sink-allowlist`, one drift-stable signature
 per line (`<relpath>::<sink>(<normalized-arg>)`, `as usize` casts stripped); the
 check trends toward empty. The current tree is clean (98 sink calls scanned, 5
 confirmed-safe sites allowlisted with cited reasons — including one, the data-plane
@@ -697,6 +697,24 @@ Ad-hoc check: `bash scripts/check-alloc-sink-clamps.sh`. Fixtures (no live binar
 (`.clamp(1, N)` inline, or a `let x = clamp_*(...)` binding) OR — if confirmed
 bounded-by-construction — add the site's signature to the allowlist with a cited
 reason.
+
+**Allowlists are git-tracked under `.context/checks/` (T-2681).** All four static
+checks (alloc-sink, drain-sink, silent-exit, busy-spin) resolve their allowlist
+**tracked-first**: `.context/checks/<name>-allowlist` when present, falling back to
+the legacy `.context/working/.<name>-allowlist`, with an explicit env var /
+`--allowlist` always winning over both. The legacy home was gitignored
+(`.gitignore:80`), which made the entire guard layer **non-reproducible**: in a
+fresh clone, a CI runner, or a git worktree the allowlists are absent and every
+acknowledged site fires — alloc-sink `ok:false` (5), drain-sink `ok:false` (6),
+busy-spin `ok:false` (4) — while this file documented all three trees as scanning
+CLEAN. That was true only on the single machine holding the untracked copies. It
+also meant the *cited reasons* — the whole justification for the acknowledgement
+mechanism — lived on one disk outside version control, one `rm -rf` from silent
+permanent loss. A guard whose reported health depends on unversioned local state
+is a guard whose green is not evidence (same class as the T-2680 canary that
+over-reported its scope). All 15 acknowledged sites were re-verified by reading
+the code during the migration rather than copied forward on trust. Found by the
+T-2678 charter guard-coverage review (finding F4).
 
 ### Unbounded peer-driven drain-sink static check (T-2531, G-019 prevention for the T-2518/2524/2525/2529 class)
 
@@ -717,7 +735,7 @@ then fix why the framework was blind.
 `<cmd>.output()`, `<reader>.read_to_end(...)`, `<reader>.read_to_string(...)`,
 `<iter>.collect::<Vec<u8>>()`, and `<iter>.bytes().collect` — skipping `//`-comment
 lines and clearing a `<reader>.take(N).read_to_*(...)` bounded read on the same line.
-Confirmed-safe sites are acknowledged in `.context/working/.drain-sink-allowlist` by
+Confirmed-safe sites are acknowledged in `.context/checks/drain-sink-allowlist` by
 a **drift-stable `<relpath>::<enclosing-fn>::<sink>` signature** (fn-name-based, so it
 survives line moves; a fn RENAME re-fires the site — intended re-review on meaningful
 change, mirroring T-2527's line-independence trade-off). The current tree is clean:
@@ -767,7 +785,7 @@ window masks the sibling failure-branch bare exit). **Exit-code-FORWARDING sites
 scope by construction** — `exit(code)` / `exit(exec_result.exit_code)` / `exit(exit_code as
 i32)` forward a wrapped subcommand's own status (may be 0; the wrapped op already emitted
 output), and the regex only matches a non-zero integer literal. Confirmed-loud sites (output
-through a path the window can't see) are acknowledged in `.context/working/.silent-exit-allowlist`,
+through a path the window can't see) are acknowledged in `.context/checks/silent-exit-allowlist`,
 one drift-stable `<relpath>::<enclosing-fn>::silent-exit` signature per line (fn-name-based, so
 it survives line moves; a fn RENAME re-fires — same trade-off as T-2527/T-2531). After the
 T-2667 migration the current tree scans CLEAN (39 non-zero-literal exits scanned, 0 firing, 0
@@ -812,7 +830,7 @@ never dispatch those strings, so they are excluded automatically; every conventi
 long-poll loop carries the 500ms backoff, so it clears on the `sleep` presence. A long-poll
 loop whose error path provably EXITS the loop (`return` / `bail!` — no re-dispatch, hence no
 busy-spin) is SAFE but the grep cannot see that from the body, so it is acknowledged in
-`.context/working/.busy-spin-allowlist` by a drift-stable `<relpath>::<enclosing-fn>::busy-spin`
+`.context/checks/busy-spin-allowlist` by a drift-stable `<relpath>::<enclosing-fn>::busy-spin`
 signature (fn-name-based, survives line moves; a fn RENAME re-fires — same trade-off as the
 sibling checks). The current tree scans CLEAN (14 long-poll loops scanned: 3 fixed in T-2673,
 4 allowlisted as exit-on-error with cited reasons — `events.rs cmd_wait`, `tools.rs`

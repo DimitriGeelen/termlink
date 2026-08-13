@@ -1,8 +1,8 @@
 ---
-id: T-2680
-name: "charter-drift canary reports a full-surface clean bill it cannot measure (category-blind, 28 live analytics tools invisible)"
+id: T-2681
+name: "static-check allowlists live under a gitignored path — guard layer not reproducible outside the origin checkout"
 description: >
-  charter-drift canary reports a full-surface clean bill it cannot measure (category-blind, 28 live analytics tools invisible)
+  static-check allowlists live under a gitignored path — guard layer not reproducible outside the origin checkout
 
 status: started-work
 workflow_type: build
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-13T23:19:37Z
-last_update: 2026-08-13T23:25:11Z
+created: 2026-08-13T23:27:38Z
+last_update: 2026-08-13T23:27:38Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,61 +30,63 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2680: charter-drift canary reports a full-surface clean bill it cannot measure (category-blind, 28 live analytics tools invisible)
+# T-2681: static-check allowlists live under a gitignored path — guard layer not reproducible outside the origin checkout
 
 ## Context
 
-`scripts/check-charter-drift-freshness.sh` (T-2483) is the structural guard for charter
-non-goal #3 ("not a social / engagement platform"). Its header states its purpose as
-detecting when *"the tool surface has drifted from the charter's four verbs"*, and
-CLAUDE.md records its result as **"214 live tools scanned, 0 off-charter"**. It emits:
+The four source-level static checks — T-2527 alloc-sink, T-2531 drain-sink, T-2666
+silent-exit, T-2672 busy-spin — are the repo's structural guard layer for the
+unbounded-allocation / silent-failure / busy-spin classes. Each acknowledges its
+confirmed-safe sites in an allowlist "with cited reasons".
 
-```json
-{"ok":true,"firing":[],"checked":214,"live_off_charter":0}
-```
+Every one of those allowlists lives under **`.context/working/`, which is gitignored**
+(`.gitignore:80`). Consequences:
 
-That reads as a full-surface charter-traceability clean bill. It is not one. Mechanically
-the canary applies a **fixed six-family name regex** (reactions / emoji / stars / pins /
-typing / polls) — the exact families P4 happened to delete. `checked:214` counts tools the
-regex was *run against*, not tools whose purpose was *assessed*.
+1. **Not reproducible.** In a fresh clone, a CI runner, or a git worktree, the allowlists
+   are absent and every acknowledged site fires. Verified in this worktree: alloc-sink
+   returns `ok:false` with 5 firing, drain-sink `ok:false` with 6, busy-spin `ok:false`
+   with 4. CLAUDE.md documents all three trees as scanning **CLEAN** — true only on the
+   one machine that happens to hold the untracked files.
+2. **The cited reasons are unbacked-up.** CLAUDE.md's whole justification for the
+   allowlist mechanism is that each entry carries a reason a human confirmed. Those
+   reasons exist in exactly one place, on one disk, outside version control. `rm -rf
+   .context/working/` loses the review history permanently and silently.
+3. **Same class as T-2680.** A guard whose reported health depends on unversioned local
+   state is a guard whose green is not evidence. T-2680 fixed a canary that over-reported
+   its scope; this fixes checks whose result is not reproducible at all.
 
-28 tools are LIVE right now in categories the binary itself names as analytics:
-`agent_rankings` (5), `agent_stats` (10), `agent_thread_health` (8),
-`channel_engagement` (5). `termlink_agent_top_repliers` is a social leaderboard — same
-class as `top_reacted`/`top_pinners`, which P4 deprecated. The only difference is which
-word is in the regex.
+Note `check-silent-exit` is unaffected in practice — it currently allowlists nothing, so
+it scans clean anywhere. The mechanism fix still applies to it for symmetry.
 
-Proven with the canary's own PL-213 test hook: a catalog containing live
-`termlink_agent_top_reacted` fires (exit 1); one containing live
-`termlink_agent_top_repliers` passes clean (exit 0).
+**All 15 acknowledged sites were re-verified by direct reading for this task** rather than
+copied on trust, so the tracked allowlists carry confirmed reasons:
+- alloc `tools.rs::with_capacity(total_tools)` — derived from the internal registry
+- alloc `tools.rs::with_capacity(count as usize)` + `vec!(count as usize)` — guarded by
+  `validate_dispatch_count(p.count)` above the sites (a `validate_*` guard the grep
+  cannot see — the documented false-positive class)
+- alloc `codec.rs::vec!(payload_len)` — `FrameHeader::decode` rejects
+  `payload_length > MAX_PAYLOAD_SIZE` (16 MiB) at `data.rs:102`
+- alloc `events.rs::with_capacity(capacity)` — library constructor param, internal callers
+- drain ×6 — all `current_exe()` (or `bash <script>`) + fixed subcommand +
+  `kill_on_drop(true)` + `stdin(null)` + `tokio::time::timeout`; bounded by the
+  subcommand's own emission, not peer bytes
+- busy-spin ×4 — error arm `bail!`s out of the loop, so no re-dispatch and no spin
 
-Worse than the under-detection is the **false assurance**: those 28 tools are precisely
-what human-owned **T-2548** is currently incepting to subtract. So an open decision about
-~30 off-charter tools coexists with a daily canary reporting that surface as 0-off-charter.
-An operator reading `/canaries` sees green. Directive #2 (no silent failures) violated in
-the guard layer — the costliest place, because a guard reporting green is why nobody looks.
-
-**Scope discipline:** this task does NOT delete or deprecate anything. That decision is
-T-2548's and is `owner: human`. The fix is to make the canary honest about what it
-measured, and to make the pending decision *visible* via an acknowledgement allowlist
-(the T-2527/T-2531 idiom) rather than invisible in a regex gap.
-
-Found by the T-2678 charter guard-coverage review (finding F2 / IW-2).
+Found by the T-2678 charter guard-coverage review (finding F4), while verifying that the
+guard layer could be trusted at all.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Canary gains a **category** detector alongside the name-pattern detector: a live tool whose catalog category matches the off-charter analytics set (`agent_rankings`, `agent_stats`, `agent_thread_health`, `channel_engagement`, plus the already-empty `*_poll` / `*engagement_metrics`) is off-charter regardless of its name
-- [x] `termlink_agent_top_repliers` presented as live is now detected — the exact case that passed clean before
-- [x] An **acknowledgement allowlist** at a **git-tracked** path suppresses known-pending sites, one `<tool_name>  # <reason>` per line, `#`-comment and blank lines skipped
-- [x] The currently-live analytics tools are acknowledged with a reason citing T-2548, so the canary does not alarm-fatigue daily on an open human decision
-- [x] An acknowledged tool does NOT fire; removing it from the allowlist DOES fire (allowlist load-bearing in both directions)
-- [x] Healthy output no longer claims full-surface traceability — it names what was scanned, by which detectors, and how many sites are acknowledged-pending
-- [x] JSON envelope extended additively (`ok`/`firing`/`checked`/`live_off_charter` keep their meaning); adds `acknowledged_count`, `off_charter_total`, `detectors`
-- [x] Fixture suite `tests/charter-drift-check-fixtures.sh` covers: name-detector fires, category-detector fires, acknowledged suppressed, un-acknowledging re-fires, healthy path, unparseable catalog → exit 2
-- [x] Fixture suite passes and the live tree returns exit 0 with a truthful acknowledged count
-- [x] CLAUDE.md's charter-drift entry corrected — it currently states the "0 off-charter" result this task proves was never a full-surface measurement
+- [x] All four checks resolve their allowlist via a **tracked-first fallback**: `.context/checks/<name>-allowlist` when present, else the legacy `.context/working/.<name>-allowlist` (so the origin checkout keeps working un-migrated), with the explicit `--allowlist` / env override still winning over both
+- [x] Tracked allowlists created under `.context/checks/` for alloc-sink (5), drain-sink (6), busy-spin (4), silent-exit (0 entries, header only), each entry carrying a re-verified cited reason
+- [x] All four tracked allowlists are `git ls-files`-visible (the whole point)
+- [x] All four checks exit 0 **in this worktree** — i.e. the guard layer is reproducible off the origin checkout, which it was not before
+- [x] Allowlists remain load-bearing: deleting an entry re-fires that site
+- [x] Each check's header documents the tracked path and why it is tracked
+- [x] Existing fixture suites still pass (`tests/{alloc-sink,drain-sink,silent-exit,busy-spin}-check-fixtures.sh`) — the `--allowlist` override path must be unchanged
+- [x] CLAUDE.md updated: the four checks' documented allowlist paths corrected, and the "scans CLEAN" claims made true-anywhere rather than true-on-one-machine
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -119,11 +121,6 @@ Found by the T-2678 charter guard-coverage review (finding F2 / IW-2).
 
 ## Verification
 
-bash tests/charter-drift-check-fixtures.sh
-bash scripts/check-charter-drift-freshness.sh --no-heartbeat
-test -f .context/checks/charter-drift-allowlist
-git ls-files --error-unmatch .context/checks/charter-drift-allowlist
-
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
@@ -154,6 +151,19 @@ git ls-files --error-unmatch .context/checks/charter-drift-allowlist
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+bash tests/alloc-sink-check-fixtures.sh
+bash tests/drain-sink-check-fixtures.sh
+bash tests/silent-exit-check-fixtures.sh
+bash tests/busy-spin-check-fixtures.sh
+bash scripts/check-alloc-sink-clamps.sh --no-heartbeat
+bash scripts/check-drain-sink-caps.sh --no-heartbeat
+bash scripts/check-silent-exit.sh --no-heartbeat
+bash scripts/check-busy-spin.sh --no-heartbeat
+git ls-files --error-unmatch .context/checks/alloc-sink-allowlist
+git ls-files --error-unmatch .context/checks/drain-sink-allowlist
+git ls-files --error-unmatch .context/checks/busy-spin-allowlist
+git ls-files --error-unmatch .context/checks/silent-exit-allowlist
 
 ## RCA
 
@@ -218,7 +228,7 @@ git ls-files --error-unmatch .context/checks/charter-drift-allowlist
 
 ## Updates
 
-### 2026-08-13T23:19:37Z — task-created [task-create-agent]
+### 2026-08-13T23:27:38Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2680-charter-drift-canary-reports-a-full-surf.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2681-static-check-allowlists-live-under-a-git.md
 - **Context:** Initial task creation

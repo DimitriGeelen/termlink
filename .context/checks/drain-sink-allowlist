@@ -1,0 +1,42 @@
+# drain-sink acknowledgement allowlist (T-2531; moved to a tracked path by T-2681)
+#
+# Signature format: <relpath>::<enclosing-fn>::<sink>
+# `#`-comments and blank lines are skipped. fn-name-based, so entries survive line
+# moves; a fn RENAME re-fires the site — intended re-review on meaningful change.
+#
+# WHY THIS FILE IS GIT-TRACKED: see .context/checks/alloc-sink-allowlist's header
+# and T-2681. Short version: it used to live under gitignored `.context/working/`,
+# so all six sites below fired in any fresh clone / CI runner / worktree while
+# CLAUDE.md documented the tree as "scans CLEAN".
+#
+# ALL SIX ARE THE SAME SHAPE, and each was re-verified for T-2681: the drained
+# child is the SELF binary (`Command::new(&std::env::current_exe())`) run on a
+# fixed, trusted subcommand — or `bash <script>` from the resolved scripts dir —
+# with `kill_on_drop(true)`, `stdin(Stdio::null())`, and a
+# `tokio::time::timeout(...)` wrapper. The captured output is therefore bounded by
+# our own subcommand's JSON emission, not by peer-supplied bytes, which puts them
+# outside the T-2529 threat model (peer-driven accumulation into the daemon).
+#
+# If any of these is ever changed to run a NON-self binary, or to drop the
+# timeout / kill_on_drop, delete its line here — the acknowledgement no longer holds.
+
+# `termlink fleet bootstrap-check --all --json`
+crates/termlink-mcp/src/tools.rs::fetch_anchor_validation_map::output
+
+# `termlink fleet bootstrap-check --json`
+crates/termlink-mcp/src/tools.rs::termlink_fleet_bootstrap_check::output
+
+# `termlink substrate status --json`
+crates/termlink-mcp/src/tools.rs::termlink_substrate_status::output
+
+# `termlink fleet secrets-audit --json`
+crates/termlink-mcp/src/tools.rs::termlink_fleet_secrets_audit::output
+
+# `termlink fleet reauth ... --json`
+crates/termlink-mcp/src/tools.rs::termlink_fleet_reauth::output
+
+# `bash <script>` from the resolved scripts dir (T-1836 tool family). Output is
+# bounded by the script's own structured emission. NOTE: T-2546 tracks the
+# separate portability question of those scripts being absent from consumer
+# installs — that is a packaging gap, not an unbounded-drain one.
+crates/termlink-mcp/src/tools.rs::run_t1836_subprocess::output

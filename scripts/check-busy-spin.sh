@@ -68,7 +68,17 @@ set -uo pipefail
 
 WANT_JSON=0 QUIET=0 HEARTBEAT=1
 ROOTS=()
-ALLOWLIST="${BUSY_SPIN_ALLOWLIST:-.context/working/.busy-spin-allowlist}"
+# T-2681 — tracked-first allowlist resolution; see the header of
+# .context/checks/alloc-sink-allowlist for why. Legacy gitignored path kept as a
+# fallback; explicit BUSY_SPIN_ALLOWLIST / --allowlist always wins over both.
+_default_allowlist() {
+    if [ -f ".context/checks/busy-spin-allowlist" ]; then
+        printf '%s' ".context/checks/busy-spin-allowlist"
+    else
+        printf '%s' ".context/working/.busy-spin-allowlist"
+    fi
+}
+ALLOWLIST="${BUSY_SPIN_ALLOWLIST:-$(_default_allowlist)}"
 
 while [ $# -gt 0 ]; do
     case "$1" in

@@ -1,0 +1,20 @@
+# silent-exit acknowledgement allowlist (T-2666; tracked path established by T-2681)
+#
+# Signature format: <relpath>::<enclosing-fn>::silent-exit
+# `#`-comments and blank lines are skipped. fn-name-based, so entries survive line
+# moves; a fn RENAME re-fires the site — intended re-review on meaningful change.
+#
+# INTENTIONALLY EMPTY. After the T-2667 migration the CLI tree scans clean: 39
+# non-zero-literal `std::process::exit` sites, 0 firing, 0 needing acknowledgement.
+# The file exists so the tracked path is present and `git ls-files`-visible
+# alongside its three siblings, and so the first genuine acknowledgement has an
+# obvious, version-controlled home.
+#
+# Unlike its siblings this check was NOT affected by the T-2681 portability bug in
+# practice — with nothing to acknowledge it scanned clean anywhere. The mechanism
+# fix is applied here for symmetry.
+#
+# Before adding an entry, prefer the actual remediation: mirror the JSON branch
+# with an actionable stderr line before the exit (the T-2663 fix). Acknowledge only
+# a site that genuinely emits output through a path the detection window cannot
+# see, and cite that path.
