@@ -4,10 +4,10 @@ name: "GUARD: hub-router federation regression test (charter non-goal #1 tripwir
 description: >
   Filed from T-2468 purpose-review round (2026-08-09)
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: later
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-09T11:24:14Z
-last_update: 2026-08-09T11:24:14Z
+last_update: 2026-08-13T23:33:48Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -51,12 +51,12 @@ hub router internals; backlog build, not urgent (no live hole today).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] A unit test in the hub crate asserts that handling an inbound RPC never
+- [x] A unit test in the hub crate asserts that handling an inbound RPC never
       originates an outbound connection/post to another hub (no peer-hub BusClient
       call on the inbound path) — the federation tripwire.
-- [ ] The test is load-bearing: a deliberate temporary "relay to peer hub" stub in
+- [x] The test is load-bearing: a deliberate temporary "relay to peer hub" stub in
       the router makes it FAIL; removing the stub returns it to green.
-- [ ] A one-line note in the charter / ARCHITECTURE ties non-goal #1 to this test so
+- [x] A one-line note in the charter / ARCHITECTURE ties non-goal #1 to this test so
       a future editor knows the guard exists.
 
 ### Human
@@ -122,6 +122,10 @@ hub router internals; backlog build, not urgent (no live hole today).
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+cargo test -p termlink-hub --test no_federation_tripwire
+bash scripts/check-charter-sentence-drift.sh --no-heartbeat
+grep -q 'no_federation_tripwire' docs/CHARTER.md
 
 ## RCA
 
@@ -190,3 +194,9 @@ hub router internals; backlog build, not urgent (no live hole today).
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2569-guard-hub-router-federation-regression-t.md
 - **Context:** Initial task creation
+
+### 2026-08-13T23:33:48Z — status-update [task-update-agent]
+- **Change:** horizon: later → now
+
+### 2026-08-13T23:33:48Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

@@ -34,6 +34,9 @@ wording.)*
 1. **Not an inter-hub federation layer.** Each hub owns independent topic state;
    cross-hub visibility is explicit, client-driven cross-posting — never automatic
    (G-060). A count delta between hubs for a same-named topic is expected, not a bug.
+   *Guarded by* `crates/termlink-hub/tests/no_federation_tripwire.rs` (T-2569): the
+   hub crate may not read peer-hub config, may not build a hub-speaking client, and
+   its set of outbound connections is enumerated. Adding an auto-relay fails the build.
 2. **Not a durable database or system of record.** Topics are retention-bounded
    append logs sized for coordination, not archival. Durability means "survives a
    hub blip and replays", not "stored forever".
