@@ -444,6 +444,25 @@ pub mod error_code {
     /// Valid claimable offsets are `[0, next_offset)`. Data field:
     /// `{topic, offset, frontier}` where `frontier == next_offset`.
     pub const CLAIM_OFFSET_BEYOND_FRONTIER: i64 = -32022;
+    /// T-2679 `kv.set` — the session's KV store is at its key cap
+    /// (`TERMLINK_KV_MAX_KEYS`, default 1000) or the supplied value exceeds
+    /// the per-value byte cap (`TERMLINK_KV_MAX_VALUE_BYTES`, default 65536).
+    /// Before T-2679 `SessionContext.kv` was an uncapped
+    /// `HashMap<String, Value>` inside the session daemon — the process that
+    /// owns the real PTYs backing the charter's "control terminal sessions"
+    /// verb — reachable at `Interact` scope by any authenticated peer. An
+    /// agent looping `kv.set` with unique keys grew it without bound until
+    /// the daemon OOMed, taking every live terminal session with it.
+    /// LOUD-refuse rather than evict: `kv` is a caller-visible store, so
+    /// silently dropping a key the caller believes it set would be a
+    /// Directive #2 (no silent failures) violation — the caller must learn
+    /// its write did not land. Overwriting an EXISTING key is always allowed
+    /// (it cannot grow the key set), so a well-behaved caller that updates a
+    /// bounded set of keys never sees this. Data field:
+    /// `{reason: "max_keys"|"max_value_bytes", limit: u64, current: u64}`
+    /// where `current` is the live key count (`max_keys`) or the rejected
+    /// value's serialized size in bytes (`max_value_bytes`).
+    pub const KV_STORE_FULL: i64 = -32023;
 }
 
 /// Default `protocol_version` when the field is missing on the wire.
@@ -791,5 +810,26 @@ mod tests {
         // T-2355 — locks the wire value so clients can pin the code in their
         // error taxonomy. Bumping requires a coordinated client+hub release.
         assert_eq!(error_code::WALK_DEADLINE_EXCEEDED, -32020);
+    }
+
+    #[test]
+    fn kv_store_full_const_is_stable_wire_value() {
+        // T-2679 — locks the wire value so clients can pin the code in their
+        // error taxonomy. Bumping requires a coordinated client+session release.
+        assert_eq!(error_code::KV_STORE_FULL, -32023);
+    }
+
+    #[test]
+    fn kv_store_full_does_not_collide_with_neighbouring_codes() {
+        // T-2679 — the code space is assigned by hand; a duplicate would make
+        // two unrelated refusals indistinguishable on the wire.
+        for other in [
+            error_code::HUB_AT_CAPACITY,
+            error_code::WALK_DEADLINE_EXCEEDED,
+            error_code::POST_IN_FLIGHT,
+            error_code::CLAIM_OFFSET_BEYOND_FRONTIER,
+        ] {
+            assert_ne!(error_code::KV_STORE_FULL, other);
+        }
     }
 }
