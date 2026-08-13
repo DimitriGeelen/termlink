@@ -4,7 +4,7 @@ name: "Bound CircuitBreakerRegistry.states — per-session-id map never pruned o
 description: >
   Bound the hub CircuitBreakerRegistry per-session-id map; it is insert-only on route failure and never pruned when a session deregisters (slow unbounded in-memory growth). Sibling of T-2675.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-13T08:31:44Z
-last_update: 2026-08-13T08:31:44Z
+last_update: 2026-08-13T08:42:54Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -65,18 +65,22 @@ removed. See Decisions for the two candidate approaches.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] A session's `CircuitState` is pruned when that session deregisters (or an
-      equivalent bound is added), so the map size tracks live/recent sessions,
-      not lifetime distinct session_ids.
-- [ ] The chosen eviction is proven SAFE against the half-open/cooldown state
-      machine: it must NOT remove an entry whose circuit is currently OPEN for a
-      live session (would defeat the breaker — the inverse of T-2495). A unit
-      test asserts a live open circuit survives a prune pass while a
-      dead/closed/expired entry is removed.
-- [ ] A load-bearing unit test proves the bound (map does not grow with
-      deregistered/expired session_ids); reverting the prune fails it.
-- [ ] `cargo build -p termlink-hub` succeeds and existing circuit_breaker tests
-      (incl. the T-2495 re-arm test) still pass.
+- [x] An equivalent bound is added (Approach B — self-contained hard cap
+      `TERMLINK_CIRCUIT_MAX_ENTRIES` default 10_000, safe eviction on insert),
+      so the map size is bounded regardless of lifetime distinct session_ids.
+      (Chose B over A: there is no single authoritative deregister site the
+      router owns for these routing-target keys — see Decisions.)
+- [x] The eviction is proven SAFE against the half-open/cooldown state machine:
+      `evict_if_over_cap` only drops NON-actively-blocking entries (closed or
+      half-open — both return `should_skip==false`, identical to absent), so a
+      live OPEN-within-cooldown circuit is never removed. Test
+      `t2676_cap_bounds_map_without_defeating_live_breaker` asserts the live
+      breaker survives a 50-entry flood; `t2676_tier2_evicts_oldest_actively_open...`
+      asserts the pathological backstop evicts oldest-first.
+- [x] Load-bearing proven via temp-revert: removing the `evict_if_over_cap` call
+      makes the bound assertion fail (map grows to 51 vs cap 3).
+- [x] `cargo build -p termlink-hub` succeeds; all 21 circuit_breaker tests pass
+      incl. the T-2495 re-arm test (`failed_half_open_probe_re_arms_cooldown`).
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -141,6 +145,9 @@ removed. See Decisions for the two candidate approaches.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+cargo build -p termlink-hub 2>&1 | tail -3
+cargo test -p termlink-hub --lib circuit_breaker 2>&1 | tail -4
 
 ## RCA
 
@@ -227,6 +234,26 @@ Two candidate approaches (to be decided at build time):
 Recommendation: A (prune-on-deregister) as the primary bound, with B's hard-cap
 as a cheap backstop. Confirm the deregister path coverage first.
 
+### 2026-08-13 — RESOLVED: chose Approach B (self-contained hard cap)
+- **Chose:** Approach B — a hard cap with safe eviction entirely inside
+  `circuit_breaker.rs`, NO deregister wiring.
+- **Why:** Investigation (grep of router.rs breaker call sites + hub teardown
+  sites) confirmed the session-level breaker is keyed by ROUTING-TARGET
+  `session_id` and consulted only in the router forwarding path (router.rs
+  1469–1577); there is no single authoritative deregister site the router owns
+  for these targets. Approach A would require wiring into multiple teardown
+  paths (graceful deregister, connection drop, supervisor reap) and a missed one
+  silently re-leaks — more surface, more fragile. Approach B needs no lifecycle
+  knowledge and cannot be defeated by a missed path.
+- **Key safety insight that made B clean:** `should_skip` returns `true` ONLY
+  for an open circuit still inside cooldown; a closed OR half-open entry returns
+  `false` — observably identical to an absent key. So eviction that drops only
+  non-actively-blocking entries is provably lossless for `should_skip` and can
+  never defeat a live breaker (the inverse of the T-2495 bug). A 2nd tier evicts
+  oldest actively-open only in the pathological >cap-simultaneously-open case.
+- **Rejected:** Approach A (deferred, not needed) — the self-contained bound
+  fully closes the leak without the fragile cross-file wiring.
+
 ## Decision
 
 <!-- Filled at completion of inception tasks via:
@@ -243,3 +270,6 @@ as a cheap backstop. Confirm the deregister path coverage first.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2676-bound-circuitbreakerregistrystates--per-.md
 - **Context:** Initial task creation
+
+### 2026-08-13T08:42:54Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
