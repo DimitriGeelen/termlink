@@ -3025,3 +3025,10 @@ learnings:
   date: 2026-08-13
   context: Added via context agent
   application: TBD
+- id: PL-324
+  learning: "Non-fatal is NOT the same as silent (Directive #2). A best-effort durable-write swallowed with 'let _ = std::fs::write(...)' looks harmless because the process keeps running — but a failure (read-only dir / disk full / perms) then vanishes with no log, and the operator believes state was recorded when it wasn't. Remediation: keep it non-fatal (do NOT bubble '?' and kill the daemon) but make the FAILURE observable via tracing::warn! naming path+error; for the paired remove_file, suppress ErrorKind::NotFound. Origin: hub.tcp discovery flag, server.rs (T-2674)."
+  source: P-001
+  task: T-2674
+  date: 2026-08-13
+  context: Added via context agent
+  application: TBD

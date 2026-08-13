@@ -1,15 +1,15 @@
-commit-cadence=4
+commit-cadence=9
 
-check-agent-dispatch=5
-check-dispatch=5
+check-agent-dispatch=6
+check-dispatch=6
 check-fabric-new-file=9
 post-compact-resume=2
-error-watchdog=63
-check-tier0=53
-budget-gate=71
-check-active-task=66
-check-project-boundary=37
-checkpoint=16
-loop-detect=15
-audit-task-tools=15
-check-human-ac-tick=3
+error-watchdog=84
+check-tier0=75
+budget-gate=100
+check-active-task=95
+check-project-boundary=66
+checkpoint=55
+loop-detect=54
+audit-task-tools=54
+check-human-ac-tick=10

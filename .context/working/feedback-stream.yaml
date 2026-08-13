@@ -7884,3 +7884,21 @@ scan_id: R-c519a8fd
 task_id: T-2672
 payload:
   task_file: .tasks/active/T-2672-busy-spin-static-check--long-poll-loop-w.md
+---
+kind: scan_emitted
+timestamp: '2026-08-13T07:33:23Z'
+scan_id: R-8ef3efce
+task_id: T-2674
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-13T07:33:23Z'
+scan_id: R-8ef3efce
+task_id: T-2674
+payload:
+  task_file: .tasks/active/T-2674-hubtcp-discovery-flag-writeremove-failur.md
