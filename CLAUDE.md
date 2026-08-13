@@ -753,6 +753,51 @@ branch with an actionable stderr line before the exit (the T-2663 remediation: `
 matching sessions.");`) OR — if the site genuinely emits output the window cannot see — add its
 signature to the allowlist with a cited reason.
 
+### Long-poll busy-spin static check (T-2672, G-019 prevention for the T-2670/T-2671 class)
+
+The fourth source-level static check (sibling of the T-2527 alloc-sink, T-2531 drain-sink,
+and T-2666 silent-exit checks), for the *no-busy-spin* half of the charter's Directives #1
+(antifragility) + #2 (no silent failures). A `loop {}` that re-dispatches a long-poll RPC
+(`event.subscribe` / `event.collect` / `event.poll`) whose error arm re-iterates with NO
+`tokio::time::sleep` busy-spins a CPU core the instant the hub goes dead/half-open: on a
+LIVE hub the long-poll (server blocks until events or timeout) paces the loop, but a
+dead/half-open hub errors near-instantly, so a bare warn-and-fall-through re-dispatches with
+zero delay — and silently (the `tracing::warn!` above the re-iteration is gated out at the
+default log level). T-2658/T-2636/T-2640 were runtime instances; T-2670 fixed two sites in
+`agent.rs` and T-2671 fixed one in `tools.rs`; the blessed remediation is a 500ms
+sleep-on-error before the next iteration — the convention across `events.rs:805/900/1349` and
+`dispatch.rs` `COLLECT_ERR_BACKOFF`. But the convention was DISCIPLINE-ONLY: nothing detected
+the next long-poll loop shipped without the backoff. On its very first run this check FOUND
+three un-migrated sibling instances (`execution.rs cmd_request`, `file.rs cmd_file_receive`'s
+`Ok(Err(e))` instant-error arm, `remote.rs cmd_remote_events`'s two arms — the last an
+UNBOUNDED loop), all fixed in T-2673 — the same "hardened in one place, siblings not migrated"
+divergence the sibling checks exist to catch.
+
+`scripts/check-busy-spin.sh` is a grep/AST-lite **source-level static check** (NOT a runtime
+cron canary) over the long-poll-adjacent crates (`crates/termlink-{cli,mcp}/src`; `--root`
+repeatable to override). For each `loop {` it brace-matches the loop body (an awk brace
+counter), keeps ONLY bodies that re-dispatch one of the three long-poll RPC method strings,
+and FIRES on any such body with NO `tokio::time::sleep`. The anchor is narrow and low-FP by
+construction: the ~74 analytics loops in `tools.rs` and the bounded recv/accept/iterator loops
+never dispatch those strings, so they are excluded automatically; every convention-correct
+long-poll loop carries the 500ms backoff, so it clears on the `sleep` presence. A long-poll
+loop whose error path provably EXITS the loop (`return` / `bail!` — no re-dispatch, hence no
+busy-spin) is SAFE but the grep cannot see that from the body, so it is acknowledged in
+`.context/working/.busy-spin-allowlist` by a drift-stable `<relpath>::<enclosing-fn>::busy-spin`
+signature (fn-name-based, survives line moves; a fn RENAME re-fires — same trade-off as the
+sibling checks). The current tree scans CLEAN (14 long-poll loops scanned: 3 fixed in T-2673,
+4 allowlisted as exit-on-error with cited reasons — `events.rs cmd_wait`, `tools.rs`
+`termlink_request` / `termlink_wait` / `termlink_agent_ask` — the rest carry the backoff).
+**Load-bearing:** reverting the T-2673 sleep on any of the three fixed sites re-fires the check
+on that loop; restoring returns it to clean. Exit codes: 0 = clean, 1 = a long-poll loop with
+no sleep-on-error, 2 = tooling error; `--json` for scripting (`{ok, firing:[{file,line,fn}],
+checked, candidates}`); `--quiet` / `--no-heartbeat` for cron; `--allowlist` + `--root` for
+fixtures. Ad-hoc check: `bash scripts/check-busy-spin.sh`. Fixtures (no live binary):
+`bash tests/busy-spin-check-fixtures.sh`. Operator action on firing: add the 500ms
+sleep-on-error before the next iteration (the T-2670/T-2671/T-2673 remediation) OR — if the
+error path provably exits the loop — add the loop's signature to the allowlist with a cited
+reason.
+
 ## Project-Specific Rules
 
 ### Hub Auth Rotation Protocol
