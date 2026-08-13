@@ -3032,3 +3032,10 @@ learnings:
   date: 2026-08-13
   context: Added via context agent
   application: TBD
+- id: PL-325
+  learning: "Every long-lived peer-keyed in-memory hub map needs a bound (TTL/cap/LRU/reaper); audit new ones against the negative-trail of already-capped siblings (cv_index cap, dedupe TTL+LRU, rate buckets evict_idle, remote_store reaper). PresenceTracker was the lone unguarded one for a peer-controlled conversation_id key (T-2675). On-disk topic-growth canaries do NOT observe in-memory maps."
+  source: P-001
+  task: T-2675
+  date: 2026-08-13
+  context: Added via context agent
+  application: TBD

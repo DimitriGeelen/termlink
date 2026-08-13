@@ -31,22 +31,91 @@ static ARTIFACT_STORE: OnceLock<ArtifactStore> = OnceLock::new();
 /// `metadata.conversation_id`; queried via `dialog.presence`.
 ///
 /// Process-global so that the RPC dispatch path and the test path observe
-/// the same tracker; tests that need isolation use `presence_tracker_for_tests`
-/// to inject their own.
+/// the same tracker; tests that need isolation use `PresenceTracker::with_bounds`
+/// to inject their own with deterministic (env-independent) bounds.
+///
+/// T-2675: the `(conversation_id, agent_id)` key is PEER-CONTROLLED —
+/// `conversation_id` is an arbitrary caller-supplied `metadata` string. An
+/// insert-only map therefore grows without bound under a peer looping posts
+/// with fresh random cids (one entry per post, forever → OOM of the
+/// hub-lifetime daemon). This is the same unbounded-peer-keyed-growth class
+/// that cv_index (per-topic cap), dedupe (TTL+LRU), the rate buckets
+/// (evict_idle), and remote_store (reaper) already guard — presence was the
+/// lone unguarded map. Bound it two ways: an opportunistic TTL prune on each
+/// `record` (presence means "RECENTLY active" — a stale entry is both useless
+/// to `dialog.presence` and the growth vector) plus a hard-cap backstop that
+/// evicts oldest-first if a burst of fresh cids within the TTL window still
+/// outruns the cap. Both are env-tunable, mirroring the sibling caps.
 pub(crate) struct PresenceTracker {
     inner: RwLock<HashMap<(String, String), i64>>,
+    /// Entries whose `last_seen_ms` is older than this (relative to the most
+    /// recent `record`'s ts, NOT wall-clock — keeps pruning deterministic and
+    /// testable) are pruned. `0` disables TTL pruning (cap still applies).
+    ttl_ms: i64,
+    /// Hard backstop: never retain more than this many `(cid, agent)` entries.
+    /// Always `>= 1` (clamped in `with_bounds`).
+    max_entries: usize,
+}
+
+/// Default presence TTL: 1 hour. A dialog participant silent for an hour is no
+/// longer "present"; env-tunable via `TERMLINK_PRESENCE_TTL_MS` (`0` disables).
+fn presence_ttl_ms_from_env() -> i64 {
+    std::env::var("TERMLINK_PRESENCE_TTL_MS")
+        .ok()
+        .and_then(|s| s.parse::<i64>().ok())
+        .filter(|v| *v >= 0)
+        .unwrap_or(3_600_000)
+}
+
+/// Default presence hard cap: 10k entries. Env-tunable via
+/// `TERMLINK_PRESENCE_MAX_ENTRIES` (must parse to `> 0`, else the default).
+fn presence_max_entries_from_env() -> usize {
+    std::env::var("TERMLINK_PRESENCE_MAX_ENTRIES")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .filter(|v| *v > 0)
+        .unwrap_or(10_000)
 }
 
 impl PresenceTracker {
     pub(crate) fn new() -> Self {
+        Self::with_bounds(presence_ttl_ms_from_env(), presence_max_entries_from_env())
+    }
+
+    /// Construct with explicit bounds. Used by tests for deterministic,
+    /// env-independent TTL/cap values (parallel tests must not race on env).
+    pub(crate) fn with_bounds(ttl_ms: i64, max_entries: usize) -> Self {
         Self {
             inner: RwLock::new(HashMap::new()),
+            ttl_ms,
+            max_entries: max_entries.max(1),
         }
     }
 
     pub(crate) fn record(&self, cid: &str, agent_id: &str, last_seen_ms: i64) {
         if let Ok(mut g) = self.inner.write() {
+            // T-2675: opportunistic TTL prune BEFORE insert — evict entries
+            // older than the TTL relative to this (most recent) post's ts.
+            // This bounds the map under the common case (fresh cids age out)
+            // and doubles as a correctness win: `snapshot` no longer reports a
+            // participant that went silent hours ago as "present".
+            if self.ttl_ms > 0 {
+                let cutoff = last_seen_ms.saturating_sub(self.ttl_ms);
+                g.retain(|_, ts| *ts >= cutoff);
+            }
             g.insert((cid.to_string(), agent_id.to_string()), last_seen_ms);
+            // Hard-cap backstop: if a burst of distinct cids within the TTL
+            // window still outran the cap, evict oldest-timestamp entries down
+            // to the cap. O(n log n) but only on the rare overflow path.
+            if g.len() > self.max_entries {
+                let excess = g.len() - self.max_entries;
+                let mut by_age: Vec<((String, String), i64)> =
+                    g.iter().map(|(k, v)| (k.clone(), *v)).collect();
+                by_age.sort_by_key(|(_, ts)| *ts);
+                for (k, _) in by_age.into_iter().take(excess) {
+                    g.remove(&k);
+                }
+            }
         }
     }
 
@@ -3724,6 +3793,58 @@ mod tests {
         assert_eq!(presences[0]["last_seen_ms"], lo_ts);
         assert_eq!(presences[1]["agent_id"], hi_fp);
         assert_eq!(presences[1]["last_seen_ms"], hi_ts);
+    }
+
+    #[test]
+    fn presence_tracker_ttl_prune_and_hard_cap() {
+        // T-2675: load-bearing proof that the presence map is BOUNDED. Uses
+        // with_bounds for env-independent determinism (parallel tests must not
+        // race on TERMLINK_PRESENCE_* env). Reverting either bound in `record`
+        // fails one half of this test — that is the load-bearing property.
+
+        // --- Part A: TTL prune. TTL=100ms, generous cap. ---
+        let pt = PresenceTracker::with_bounds(100, 10_000);
+        // An early participant on conversation "old" at ts=1_000.
+        pt.record("old", "alice", 1_000);
+        assert_eq!(pt.snapshot("old").len(), 1, "fresh entry is present");
+        // A later post on a DIFFERENT conversation, ts advanced well past the
+        // TTL (1_000 + 100 + 1 = 1_101 → cutoff 1_001 > alice's 1_000).
+        pt.record("new", "bob", 1_101);
+        assert!(
+            pt.snapshot("old").is_empty(),
+            "stale entry (older than TTL relative to newest post) must be pruned"
+        );
+        assert_eq!(pt.snapshot("new").len(), 1, "the recent entry survives");
+        // A near-simultaneous entry within the TTL window is retained (guards
+        // against over-eager pruning — the existing dialog_presence test relies
+        // on this).
+        pt.record("new", "carol", 1_150);
+        assert_eq!(
+            pt.snapshot("new").len(),
+            2,
+            "two participants within the TTL window both remain"
+        );
+
+        // --- Part B: hard-cap backstop, oldest-evicted-first. TTL disabled so
+        // ONLY the cap governs. cap=3. ---
+        let pt = PresenceTracker::with_bounds(0, 3);
+        // Insert 5 distinct cids with strictly increasing ts. Same fixed ts
+        // reference is fine — TTL is off. Oldest two (ts 10, 20) must be
+        // evicted, leaving the newest three (30, 40, 50).
+        pt.record("c1", "a", 10);
+        pt.record("c2", "a", 20);
+        pt.record("c3", "a", 30);
+        pt.record("c4", "a", 40);
+        pt.record("c5", "a", 50);
+        let remaining: Vec<i64> = ["c1", "c2", "c3", "c4", "c5"]
+            .iter()
+            .filter_map(|c| pt.snapshot(c).first().map(|(_, ts)| *ts))
+            .collect();
+        assert_eq!(
+            remaining,
+            vec![30, 40, 50],
+            "hard cap retains exactly the 3 newest, evicting the 2 oldest first"
+        );
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
