@@ -3046,3 +3046,10 @@ learnings:
   date: 2026-08-13
   context: Added via context agent
   application: TBD
+- id: PL-327
+  learning: "Charter-lens adversarial sweep 2026-08-13 (post-T-2676): three hub/mcp defect lenses verified CLEAN in code — (1) peer-supplied integer over/underflow outside frame decoder [artifact.rs offset slice bounds-checked, subscribe cursor/limit/ttl all clamped], (2) Directive-3 actionable-errors [all peer/operator error responses name field+value+remediation; server.rs:604 opaque-to-peer auth-config error is deliberate info-hiding with operator detail at tracing::error line 601], (3) peer-input panics in hub handlers [0 .unwrap() across channel/router/artifact/inbox/cv_index/dedupe, all use ?-propagation]. Do not re-run these lenses next window."
+  source: P-001
+  task: T-1452
+  date: 2026-08-13
+  context: Added via context agent
+  application: TBD

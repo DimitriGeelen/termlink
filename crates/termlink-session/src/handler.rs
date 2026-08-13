@@ -501,12 +501,17 @@ async fn handle_command_inject(
         }
     };
 
-    // Parse optional inter-key delay (default 10ms, 0 = no delay)
-    let delay_ms = params
-        .get("inject_delay_ms")
-        .or_else(|| params.get("payload").and_then(|p| p.get("inject_delay_ms")))
-        .and_then(|v| v.as_u64())
-        .unwrap_or(10);
+    // Parse optional inter-key delay (default 10ms, 0 = no delay). Clamped to
+    // `[0, MAX_INJECT_DELAY_MS]` — an unclamped caller value fed to
+    // `Duration::from_millis` panics on `Instant + Duration` overflow (u64::MAX)
+    // inside `tokio::time::sleep`, the same class T-2530/T-2611 clamp for the
+    // exec/subscribe timeouts (T-2677).
+    let delay_ms = effective_inject_delay_ms(
+        params
+            .get("inject_delay_ms")
+            .or_else(|| params.get("payload").and_then(|p| p.get("inject_delay_ms")))
+            .and_then(|v| v.as_u64()),
+    );
 
     // Resolve each entry individually for separate writes
     let mut resolved: Vec<(Vec<u8>, bool)> = Vec::with_capacity(keys.len());
@@ -758,6 +763,25 @@ const DEFAULT_SUBSCRIBE_TIMEOUT_MS: u64 = 5000;
 /// large caller `max_events` on a busy topic cannot grow it without ceiling.
 const MAX_SUBSCRIBE_MAX_EVENTS: u64 = 10_000;
 const DEFAULT_SUBSCRIBE_MAX_EVENTS: u64 = 100;
+
+/// Default inter-key inject delay (ms) when the caller omits `inject_delay_ms`.
+const DEFAULT_INJECT_DELAY_MS: u64 = 10;
+/// Ceiling for a caller-supplied `inject_delay_ms`. Deliberately tighter than
+/// `MAX_SUBSCRIBE_TIMEOUT_MS`: inter-key delays are milliseconds-to-seconds, this
+/// path holds the session read lock across the sleep (unlike subscribe, refactored
+/// off the lock in T-2521), and any value clamped below `u64::MAX` avoids the
+/// `Instant + Duration` overflow panic. 60s per key is generous for any real
+/// slow-type-out use while bounding worst-case lock-hold. (T-2677)
+const MAX_INJECT_DELAY_MS: u64 = 60_000;
+
+/// Clamp a caller-supplied inter-key inject delay to `[0, MAX_INJECT_DELAY_MS]`,
+/// applying `DEFAULT_INJECT_DELAY_MS` when absent. Pure (no env/IO) so the policy is
+/// deterministically unit-testable — mirrors `effective_subscribe_timeout_ms`.
+fn effective_inject_delay_ms(requested: Option<u64>) -> u64 {
+    requested
+        .unwrap_or(DEFAULT_INJECT_DELAY_MS)
+        .min(MAX_INJECT_DELAY_MS)
+}
 
 /// Clamp a caller-supplied subscribe timeout to the `[0, MAX_SUBSCRIBE_TIMEOUT_MS]`
 /// band, applying the default when absent. Pure (no env/IO) so the policy is
@@ -2543,5 +2567,24 @@ mod tests {
         );
         // A value already within band is passed through unchanged.
         assert_eq!(effective_subscribe_max_events(Some(250)), 250);
+    }
+
+    #[test]
+    fn inject_delay_clamps_huge_value_and_is_overflow_safe() {
+        // T-2677 regression guard: a caller-supplied u64::MAX inject_delay_ms must
+        // clamp to the ceiling, and the clamped value must not panic the exact
+        // arithmetic the inject handler performs (Instant::now() + from_millis).
+        let clamped = effective_inject_delay_ms(Some(u64::MAX));
+        assert_eq!(
+            clamped, MAX_INJECT_DELAY_MS,
+            "u64::MAX inject_delay_ms must clamp to the ceiling"
+        );
+        // Load-bearing: if the clamp is removed and u64::MAX flows through, this
+        // `Instant + Duration` panics on overflow — exactly the handler.rs:536 bug.
+        let _deadline = tokio::time::Instant::now() + Duration::from_millis(clamped);
+        // A value already within band is passed through unchanged.
+        assert_eq!(effective_inject_delay_ms(Some(250)), 250);
+        // Absent → default.
+        assert_eq!(effective_inject_delay_ms(None), DEFAULT_INJECT_DELAY_MS);
     }
 }
