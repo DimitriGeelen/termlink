@@ -3053,3 +3053,10 @@ learnings:
   date: 2026-08-13
   context: Added via context agent
   application: TBD
+- id: PL-328
+  learning: "A guard's green result is not evidence until the guard has been fed the violation it claims to catch. T-2678 found three instances in one pass: the charter-drift canary reported {checked:214, live_off_charter:0} while structurally blind to 28 live analytics tools (name regex, no category model); three of four static checks kept their allowlists under gitignored .context/working/ so they fired on every acknowledged site off the origin checkout while CLAUDE.md documented them as scanning CLEAN; and two 'DRIFT (warning)' crontabs were actually missing their meta-canary job lines entirely. Reviewing a guard means running its own test hook against the class it names, and checking that its acknowledgement state is version-controlled — not reading its healthy line."
+  source: P-001
+  task: T-2678
+  date: 2026-08-13
+  context: Added via context agent
+  application: TBD
