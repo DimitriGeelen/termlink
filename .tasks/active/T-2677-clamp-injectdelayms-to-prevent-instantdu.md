@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-13T11:49:12Z
-last_update: 2026-08-13T11:49:12Z
+last_update: 2026-08-13T11:52:08Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -51,14 +51,16 @@ code before build (PL-327 sweep record).
 ## Acceptance Criteria
 
 ### Agent
-- [ ] A pure `effective_inject_delay_ms(requested: Option<u64>) -> u64` helper clamps the
+- [x] A pure `effective_inject_delay_ms(requested: Option<u64>) -> u64` helper clamps the
       caller value to `[0, MAX_INJECT_DELAY_MS]` and applies the default (10) when absent,
       mirroring `effective_subscribe_timeout_ms`.
-- [ ] The `command.inject` handler resolves `delay_ms` through the new helper (no raw
+- [x] The `command.inject` handler resolves `delay_ms` through the new helper (no raw
       `unwrap_or(10)` reaching `Duration::from_millis`).
-- [ ] A unit test proves the clamp is load-bearing: `u64::MAX` in → `MAX_INJECT_DELAY_MS`
+- [x] A unit test proves the clamp is load-bearing: `u64::MAX` in → `MAX_INJECT_DELAY_MS`
       out; default applied when absent; a small in-band value passes through unchanged.
-- [ ] `cargo build -p termlink-session` and `cargo test -p termlink-session --lib` pass.
+      (Proven via temp-revert: clamp removed → test FAILS `left: 18446744073709551615,
+      right: 60000`; restored → green. Full session lib suite: 428 passed.)
+- [x] `cargo build -p termlink-session` and `cargo test -p termlink-session --lib` pass.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
