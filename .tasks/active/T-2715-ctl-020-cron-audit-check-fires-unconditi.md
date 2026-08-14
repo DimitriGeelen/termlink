@@ -1,8 +1,8 @@
 ---
-id: T-2714
-name: "Audit hook checks ignore core.hooksPath — unfixable warning in linked worktrees"
+id: T-2715
+name: "CTL-020 cron audit check fires unconditionally in linked worktrees"
 description: >
-  audit.sh tests PROJECT_ROOT/.git/hooks/* which cannot exist in a worktree, so CTL-011 and the commit-msg check warn forever and install-hooks cannot clear them
+  audit.sh CTL-020 tests a gitignored host-local cron dir that a worktree can never have, and its mitigation would install cron pointing at a transient worktree
 
 status: started-work
 workflow_type: build
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-14T18:57:33Z
-last_update: 2026-08-14T20:21:00Z
+created: 2026-08-14T20:19:47Z
+last_update: 2026-08-14T20:21:09Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,72 +30,55 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2714: Audit hook checks ignore core.hooksPath — unfixable warning in linked worktrees
+# T-2715: CTL-020 cron audit check fires unconditionally in linked worktrees
 
 ## Context
 
-`fw audit` raised **three** hook warnings in this worktree — CTL-011 *"pre-push
-hook missing or not executable"*, *"No commit-msg hook"*, and C-002 *"commit-msg
-hook missing research artifact check"*. All three are wrong, and none can be
-cleared by the mitigation they recommend.
+`fw audit` warns *"CTL-020: Cron audit directory missing
+(<worktree>/.context/audits/cron)"* in every linked worktree, and the directory it
+looks for is one the project has deliberately arranged never to exist there.
 
-`audit.sh:2393` tests:
-
-```sh
-if [ -f "$PROJECT_ROOT/.git/hooks/commit-msg" ]; then
-```
-
-In a **linked worktree** `.git` is a text file containing `gitdir: ...`, not a
-directory, so `$PROJECT_ROOT/.git/hooks/<anything>` can never exist. The check is
-structurally incapable of passing here. Worse, this repo sets
-`core.hooksPath = /opt/termlink/.git/hooks`, which git honours and the audit
-ignores entirely.
-
-The hooks are installed and **do fire**:
-
-```
-$ git rev-parse --git-path hooks/commit-msg
-/opt/termlink/.git/hooks/commit-msg
-$ git config core.hooksPath
-/opt/termlink/.git/hooks
-```
-
-and empirically — the commit for T-2712 ran the post-commit hook, printing
-`Task T-2712 updated (...)`.
-
-**Third site, same root cause (found 2026-08-14 pass 2).** `audit.sh:3022`:
+`audit.sh:3213`:
 
 ```sh
-if grep -q "inception-research-warnings" "$PROJECT_ROOT/.git/hooks/commit-msg" 2>/dev/null; then
+CRON_DIR="$AUDITS_DIR/cron"
+if [ -d "$CRON_DIR" ]; then
+    ...
+else
+    grace_warn "CTL-020: Cron audit directory missing ($CRON_DIR)" \
+         "Directory not created" \
+         "Run: fw audit schedule install"
+fi
 ```
 
-Same concatenation, and the `2>/dev/null` silences the "Not a directory" error so
-the failure is indistinguishable from a genuinely missing gate. The installed hook
-**does** carry the marker — `/opt/termlink/.git/hooks/commit-msg:166` reads
-`# inception-research-warnings: audit marker (C-002 OE check)` — and the C-001/C-002
-research-artifact enforcement block is present and functional at lines 164-195,
-where it `exit 1`s an inception commit that has no `docs/reports/T-XXX-*` artifact.
+`AUDITS_DIR` is `$PROJECT_ROOT/.context/audits`, and `.gitignore:54` carries
+`.context/audits/cron/`. The directory is host-local by design and is never
+checked in, so a `git worktree add` cannot produce it. Cron itself is host-level
+and runs from the main checkout — the audit already says so twice, skipping the
+cron-drift and cron-misload checks with *"linked worktree (cron is host-level,
+managed from the main checkout)"* (`audit.sh:1644`, `audit.sh:1723`). CTL-020 is
+the same class and was simply not given the same guard.
 
-This one is the most misleading of the three. CTL-011 and "No commit-msg hook"
-claim a hook is absent; C-002 claims a *specific safety gate* is absent from a hook
-that is present. An operator reading it concludes the inception research-artifact
-enforcement is off, when it is running on every commit. A false negative about a
-gate's existence is strictly worse than a false negative about a file's existence.
+**The mitigation is actively harmful here**, which is what makes this worth
+filing rather than tolerating. *"Run: fw audit schedule install"* installs a
+host-level cron entry pointing at `$PROJECT_ROOT` — in a worktree, that is a
+directory which will be deleted when the worktree is removed. The operator would
+be creating a permanent cron job aimed at a transient path. `audit.sh:1714` already
+names this exact hazard for the sibling check: *"A linked worktree derives a
+worktree-named target that is never installed."* CTL-020's mitigation walks
+straight into it.
 
-**The trap this sets.** The mitigation reads *"Install hooks: ./agents/git/git.sh
-install-hooks"*. Running it does the right thing — it writes to the common hooks
-dir, which is where git actually looks — and the warning persists anyway. An
-operator following the instruction concludes either that install-hooks is broken
-or that the warning is noise. During this very audit I ran it and reported CTL-011
-as remediated before re-running the check; it was not, and could not have been.
-A mitigation that cannot fix its own finding is worse than no mitigation, because
-it burns the operator's trust in the check.
+**The naive fix is also wrong.** `mkdir -p .context/audits/cron` clears this
+warning by converting it into a different one — the populated branch then reports
+*"CTL-020: No cron audit files in last hour"*, because an empty directory has no
+recent files. It trades a truthful "this check does not apply here" for a false
+"continuous auditing is broken", and fabricates host state to do it. That is the
+PL-341 trap: making a metric look better by changing what it measures.
 
-Sibling of the two other resolution defects found in the same pass: T-2711
-(`PROJECT_ROOT` walk matching the vendored framework's `FRAMEWORK.md` before the
-consumer's `.framework.yaml`) and T-2713 (hook telemetry counting exit-2 blocks
-as failures). All three share a shape — a check whose verdict is decided by an
-assumption about layout that no longer holds.
+Sibling of T-2711, T-2713 and T-2714, all found in the same audit pass and all the
+same shape — a check whose verdict rests on a layout assumption that no longer
+holds. This one is the cheapest to fix: the helper (`fw_is_linked_worktree`) and
+the precedent (two adjacent call sites) are already in the file.
 
 **Cross-repo.** `agents/audit/audit.sh` is vendored; a local edit is erased on
 re-vendor. Deliverable is an upstream report, not an edit under
@@ -104,12 +87,11 @@ re-vendor. Deliverable is an upstream report, not an edit under
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The report cites all three sites hardcoding `$PROJECT_ROOT/.git/hooks/` — `audit.sh:2393` (commit-msg), the CTL-011 site, and `audit.sh:3022` (C-002)
-- [ ] It shows that the installed hook DOES carry the `inception-research-warnings` marker and the C-001 enforcement block, so C-002's claim is a false negative about a live gate
-- [ ] It shows the worktree evidence: `.git` is a file, `core.hooksPath` is set, and `git rev-parse --git-path hooks/...` resolves elsewhere
-- [ ] It includes the empirical proof that hooks fire regardless (post-commit hook output on a real commit), so upstream does not "fix" this by reinstalling hooks
-- [ ] It states the false-mitigation problem explicitly — `install-hooks` succeeds and the warning survives
-- [ ] A concrete remedy is proposed: resolve via `git rev-parse --git-path hooks/<name>` rather than string-concatenating `.git/hooks`, which handles worktrees and `core.hooksPath` in one call
+- [ ] The report cites `audit.sh:3213` (CTL-020 site) and `.gitignore:54` together, showing the directory is gitignored by design and therefore unreachable in a worktree
+- [ ] It cites the two existing skips (`audit.sh:1644`, `audit.sh:1723`) and the `fw_is_linked_worktree` helper as the established in-file precedent
+- [ ] It states why the current mitigation is harmful, not merely useless: `fw audit schedule install` in a worktree aims a host cron entry at a path that will be deleted
+- [ ] It states why `mkdir -p` is not the fix — it converts the warning into "no cron audit files in last hour" and fabricates host state
+- [ ] A concrete remedy is proposed: guard the CTL-020 block with `fw_is_linked_worktree "$PROJECT_ROOT"` and emit the same `info` skip line the two siblings use
 - [ ] Filed to `framework:pickup` and the post confirmed present
 - [ ] No file under `.agentic-framework/` is edited by this task
 
@@ -177,32 +159,44 @@ re-vendor. Deliverable is an upstream report, not an edit under
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+# The claim rests on three facts; each is checked rather than asserted.
+grep -q "^\.context/audits/cron/$" .gitignore
+grep -q 'CRON_DIR="$AUDITS_DIR/cron"' .agentic-framework/agents/audit/audit.sh
+grep -q "fw_is_linked_worktree" .agentic-framework/agents/audit/audit.sh
+# The deliverable is an upstream report, so the vendored tree must stay untouched.
+test -z "$(git status --porcelain .agentic-framework)"
+
 ## RCA
 
-**Symptom:** CTL-011 and the commit-msg check warn in a linked worktree even
-though the hooks are installed and firing, and running the recommended
-`install-hooks` does not clear either warning.
+**Symptom:** CTL-020 warns *"Cron audit directory missing"* on every `fw audit`
+run in a linked worktree, and neither of the two obvious responses is correct —
+the printed mitigation would install a host cron entry aimed at a path that gets
+deleted, and creating the directory by hand converts the warning into a different
+false one.
 
-**Root cause:** both checks decide by `test -f "$PROJECT_ROOT/.git/hooks/<name>"`.
-That assumes `.git` is a directory — true for a normal clone, false for a linked
-worktree, where it is a pointer file. It also ignores `core.hooksPath`, which
-overrides the location outright. Git exposes the correct answer through
-`git rev-parse --git-path hooks/<name>`; the audit reimplements the lookup by
-string concatenation instead of asking git.
+**Root cause:** the check tests `[ -d "$PROJECT_ROOT/.context/audits/cron" ]`.
+That path is gitignored (`.gitignore:54`) precisely because it is host-local
+continuous-audit output, so it exists only where cron actually runs — the main
+checkout. A linked worktree is guaranteed to fail the test regardless of whether
+continuous auditing is healthy. The check conflates "this directory is here" with
+"continuous auditing is configured", and those diverge the moment the audit runs
+from anywhere but the main checkout.
 
-**Why structurally allowed:** the check predates worktree use in this project and
-was written when the assumption held. The audit already knows it is running in a
-worktree — it prints *"Cron drift checks skipped — linked worktree"* two sections
-earlier — so the context is available; it simply is not consulted at these two
-sites. Nothing tests the audit's own checks against a worktree layout, so a check
-that can never pass there looks identical to one that is merely reporting a real
-problem.
+**Why structurally allowed:** the audit already knows how to handle this. It
+carries `fw_is_linked_worktree` and uses it at two adjacent sites
+(`audit.sh:1638`, `audit.sh:1708`) to skip the cron-drift and cron-misload checks
+with an explicit *"cron is host-level, managed from the main checkout"* info line.
+Those two were fixed reactively, each when it started failing (T-2437 and its
+predecessor), rather than by sweeping every cron-dependent check at once — so
+CTL-020 was left behind. The class was identified and the third instance was not
+searched for. Nothing exercises the audit against a worktree layout, so a check
+that cannot pass there is indistinguishable from one reporting a real fault.
 
-**Prevention:** replace the concatenation with `git rev-parse --git-path`, which
-resolves worktrees and `core.hooksPath` together. The durable guard is a test
-that runs the hook checks inside a `git worktree add` fixture and asserts they
-PASS when hooks are installed — without it, the next path-derived check will make
-the same assumption.
+**Prevention:** guarding CTL-020 fixes this instance; it does not stop the fourth.
+The durable guard is a fixture that runs `fw audit` inside a `git worktree add`
+and asserts no check reports a failure whose cause is the worktree layout itself.
+That is the same missing test T-2714 needs for the hooks-path family — one
+fixture would cover both, which is an argument for fixing them together upstream.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -265,11 +259,10 @@ the same assumption.
 
 ## Updates
 
-### 2026-08-14T18:57:33Z — task-created [task-create-agent]
+### 2026-08-14T20:19:47Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2714-audit-hook-checks-ignore-corehookspath--.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2715-ctl-020-cron-audit-check-fires-unconditi.md
 - **Context:** Initial task creation
 
-### 2026-08-14T20:21:00Z — status-update [task-update-agent]
+### 2026-08-14T20:21:09Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
-- **Change:** horizon: next → now (auto-sync)
