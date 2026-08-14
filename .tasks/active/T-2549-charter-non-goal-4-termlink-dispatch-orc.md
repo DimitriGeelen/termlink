@@ -42,6 +42,8 @@ counter-case: `dispatch` only *composes* charter-legal session primitives
 policy. The subtract-vs-keep call is a human sovereignty product-identity
 decision.
 
+Research artifact: `docs/reports/T-2549-dispatch-verb-non-goal-4.md` (C-001).
+
 ## Assumptions
 
 <!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->

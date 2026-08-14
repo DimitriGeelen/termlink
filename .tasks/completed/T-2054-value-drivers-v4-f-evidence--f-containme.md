@@ -26,6 +26,8 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 # T-2054: value-drivers v4: F-EVIDENCE + F-CONTAINMENT + F-FEDERATION activation
 
+Research artifact: `docs/reports/T-2054-value-drivers-v4-activation.md` (C-001, consolidated retrospectively 2026-08-14 under T-2716).
+
 ## Problem Statement
 
 <!-- What problem are we exploring? For whom? Why now? -->

@@ -49,6 +49,8 @@ crash. **Why now:** the T-2468 purpose review is sweeping every Constitutional
 Directive; Portability was the last un-run lens and this is its one genuine
 consumer-affecting finding.
 
+Research artifact: `docs/reports/T-2546-t1836-scripts-portability-gap.md` (C-001).
+
 ## Assumptions
 
 - A-1: `resolve_t1836_script` defaults to `/opt/termlink/scripts` and the tools

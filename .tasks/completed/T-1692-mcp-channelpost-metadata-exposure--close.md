@@ -18,6 +18,8 @@ date_finished: 2026-05-18T21:02:14Z
 
 # T-1692: MCP channel_post metadata exposure — close envelope.metadata caller-inaccessibility (cohort-agent ask A)
 
+Research artifact: `docs/reports/T-1692-mcp-channel-post-metadata-exposure.md` (C-001, consolidated retrospectively 2026-08-14 under T-2716).
+
 ## Problem Statement
 
 The TermLink wire protocol carries `envelope.metadata` (proven by chat-arc:350
