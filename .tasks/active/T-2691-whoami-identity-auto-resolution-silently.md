@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T07:26:51Z
-last_update: 2026-08-14T07:27:24Z
+last_update: 2026-08-14T07:41:15Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -47,7 +47,7 @@ date_finished: null
 - [x] Detection is a RUNTIME probe of `/proc` availability, not `#[cfg(target_os)]` — a cfg makes the fallback unreachable on Linux and therefore unprovable from this host
 - [x] Unit tests prove both branches from Linux: probe-available yields the normal path, probe-unavailable yields the platform-limited path
 - [x] The existing ambiguous-with-multiple-sessions path is unchanged when `/proc` IS available — this must not turn a working Linux flow into a warning
-- [ ] `cargo test --workspace` green
+- [x] `cargo test --workspace` green
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

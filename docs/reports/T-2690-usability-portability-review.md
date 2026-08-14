@@ -222,7 +222,50 @@ T-2548's question in new clothes.
 
 ## Outcome
 
-*(Filled at close — see the task's Decision section for the formal go/no-go.)*
+| Gap | Task | Result |
+|---|---|---|
+| G2 | **T-2691** | shipped — runtime `procfs_available()` probe on both surfaces; human output names the remedy that actually works (`TERMLINK_SESSION_ID`) instead of the one the ambiguous path implied; JSON carries `auto_resolution: "unavailable-no-procfs"` so an MCP consumer branches without parsing prose. 5 unit tests, both platform branches pinned. |
+| G1 | **T-2692** | shipped — `release.yml` gains a `test-macos` job running the *same* `cargo test --workspace`, deliberately `continue-on-error` with the reason and the one-line promotion step recorded in-file. |
+| G3 | **T-2693** | shipped — `scripts/check-platform-lock.sh`, the 23rd guard-layer member; 8 sites scanned, all acknowledged with cited degradation reasons; 20 fixture assertions. |
+| — | **T-2693** | README's `background` backend row corrected: it claimed "Daemonizes with `setsid`" on macOS, where `setsid` does not exist and the code falls back to a non-daemonized `sh -c`. |
+| G4 | — | out of scope — T-2548 owns the tool-surface decision. |
+
+### The check caught a defect in this review's own work, within minutes
+
+`check-platform-lock.sh` fired on eight sites on its first run. Seven were pre-existing
+and safe (documented in the allowlist). The eighth was **T-2691's own brand-new unit
+test**, `procfs_probe_detects_a_real_procfs`, which asserted `/proc` exists — and would
+therefore have failed on the very macOS runner T-2692 was adding in the same session.
+Fixed with a `#[cfg(target_os = "linux")]` pair (the positive assertion on Linux, its
+complement off it), which is the one place a cfg is correct: it asserts a platform
+*fact*, not behaviour.
+
+This is the second consecutive review in which a guard built by the review caught the
+review's own code. It is the strongest available evidence that the T-2683 diagnosis was
+right: these checks were never weak, they were simply never run.
+
+### Final verification
+
+Clean workspace run, no commits during it:
+
+```
+3475 tests · 0 failed · every suite ok
+  including parity: 24 passed, 0 failed (656s)
+guard layer: PASS — 23/23 members clean
+platform-lock: clean — 8 sites scanned, 8 acknowledged
+```
+
+Note the count rose 3470 → 3475: the five new tests are T-2691's probe coverage
+(four CLI, one MCP parity). The macOS column of that table is still **unknown** —
+that is the honest state, and closing it is what `test-macos` exists to do.
+
+### What this review did not do
+
+No new canary. No new prover. The temptation on a fourth pass is to add surface and
+call it thoroughness; the finding here was that a *documented promise* had no
+verification behind it, and the fix is verification, not more mechanism. The one new
+check exists because Portability had **zero** structural enforcement, not because
+another check seemed generally useful.
 
 ---
 

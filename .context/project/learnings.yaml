@@ -3081,3 +3081,17 @@ learnings:
   date: 2026-08-14
   context: Added via context agent
   application: TBD
+- id: PL-332
+  learning: "Audit the reviewer, not just the subject. Three consecutive TermLink purpose reviews all measured Constitutional Directives #1 Antifragility and #2 Reliability; #3 Usability and #4 Portability had never been examined once. Treating the review SERIES as the object of review surfaced a finding on the first query: macOS is a documented, recommended, Homebrew-distributed platform on which no CI job has ever executed a test, and whoami's /proc-based identity walk returns a plausible WRONG ANSWER there rather than an error. When a review mandate recurs, ask which axis every prior pass shares before picking a new question — a thorough-looking series can be thorough along one dimension only."
+  source: P-001
+  task: T-2690
+  date: 2026-08-14
+  context: Added via context agent
+  application: TBD
+- id: PL-333
+  learning: "A .ok()? on a platform-capability read erases the distinction the caller needs. TermLink's whoami resolved identity via /proc/<pid>/stat and swallowed the read failure with .ok()?, so 'this platform has no procfs' became indistinguishable downstream from 'no matching session' — the type system actively destroyed the information, and the caller then printed an ambiguity that recommended an action (pick a candidate) which could never succeed. Prefer a RUNTIME capability probe over #[cfg(target_os)] when the fallback must be provable: a cfg makes the non-Linux branch unreachable on Linux and therefore untestable from the dev host, which is precisely how the original defect survived. Reserve cfg for tests asserting a platform FACT."
+  source: P-001
+  task: T-2691
+  date: 2026-08-14
+  context: Added via context agent
+  application: TBD

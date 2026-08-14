@@ -867,6 +867,56 @@ sleep-on-error before the next iteration (the T-2670/T-2671/T-2673 remediation) 
 error path provably exits the loop — add the loop's signature to the allowlist with a cited
 reason.
 
+### Platform-lock static check (T-2693, Directive #4 Portability)
+
+The fifth source-level static check (sibling of alloc-sink, drain-sink, silent-exit,
+busy-spin), for the Constitutional Directive no review had ever examined: **#4
+Portability — "no provider/language/environment lock-in"**.
+
+**Why it exists.** README §Platform Support asserts `Yes` for macOS five times (core
+binary, PTY operations, Terminal.app spawn, tmux spawn, TCP hub) and names Homebrew
+the *recommended* macOS install; `release.yml` cross-builds two Darwin targets and
+publishes them. Yet T-2690 found `whoami`'s PID-ancestor fallback reading
+`/proc/<pid>/stat` with `.ok()?` on **both** the CLI and MCP surfaces. There is no
+`/proc` on macOS, so the chain collapsed to `[self]` and `whoami` reported "ambiguous
+— here are all candidates": not a crash but a **plausible wrong answer**, recommending
+an action that could never help. Every existing guard was structurally blind to it —
+alloc/drain/silent-exit/busy-spin all ask about resource safety; none asks "does this
+run off Linux?".
+
+**What it flags** in the product crates: `/proc/` and `/sys/` path literals, and
+`Command::new("<tool>")` for `ss` · `systemctl` · `journalctl` · `ufw` · `setsid` ·
+`nproc` · `lsb_release`. **What it deliberately does not flag:** cross-platform
+subprocesses (`git`, `sh`, `bash`, `ssh`, `tmux`, `pgrep`), `osascript` (macOS-only
+*on purpose* — the Terminal.app spawn backend), and comment lines. The check is about
+*undeclared lock-in*, not about using a subprocess.
+
+**The allowlist rule is stricter than its siblings.** A grep cannot distinguish "reads
+/proc and silently returns the wrong answer" from "reads /proc behind a runtime probe
+that names the limitation" from "unreachable off Linux because the enclosing block
+already required a Linux-only tool". So each entry in
+`.context/checks/platform-lock-allowlist` must state **how the non-Linux path
+behaves**. "It's fine" is not a reason — the acknowledgement *is* the portability
+documentation for macOS, kept next to the signature so it stays in sync with the code.
+What is NOT allowlisted is the interesting part: the whoami defect was **fixed**
+(T-2691), not acknowledged. An entry is for a site that behaves correctly off Linux,
+never for one that fails quietly.
+
+Current tree: 8 sites scanned, all 8 acknowledged with cited degradation reasons
+(3 × `setsid` with an `.or_else(sh -c)` fallback, `ufw`+`ss` unreachable behind an
+`Ok+success` gate, 2 × `/proc` now guarded by `procfs_available()`, 1 cfg-gated test).
+Exit 0 clean / 1 unacknowledged / 2 tooling; `--json`; `--root` + `--allowlist` for
+fixtures. Ad-hoc: `bash scripts/check-platform-lock.sh`. Fixtures:
+`bash tests/platform-lock-check-fixtures.sh` (20 assertions). **It earned its keep on
+first run:** it flagged T-2691's own new test, which asserted `/proc` exists and would
+have failed on the macOS CI runner T-2692 was adding in the same session.
+
+**Companion — macOS CI (T-2692).** `release.yml` gains a `test-macos` job running the
+same `cargo test --workspace` as the Linux job. It is **deliberately non-blocking**
+(`continue-on-error: true`): the macOS result has never been measured, and gating
+releases on an unmeasured suite would violate T-2686's own AC. To promote once a green
+run exists: delete that one line and add `test-macos` to the build jobs' `needs:`.
+
 ### Running the guard layer — `scripts/run-guard-layer.sh` (T-2684)
 
 **One command runs every source-level guard.** Before T-2684 there was none, and
