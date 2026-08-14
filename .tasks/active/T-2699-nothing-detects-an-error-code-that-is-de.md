@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T08:25:09Z
-last_update: 2026-08-14T08:25:49Z
+last_update: 2026-08-14T08:33:51Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -51,7 +51,7 @@ date_finished: null
 - [x] The three real dead codes are acknowledged with honest reasons rather than hidden — the allowlist is the ledger of an open question, not a silencer
 - [x] `control.rs` annotates each of the three at its definition so the contract stops overstating enforcement; no constant renamed, no value changed
 - [x] Load-bearing: removing an allowlist entry re-fires that code
-- [ ] `cargo test --workspace` green
+- [x] `cargo test --workspace` green
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

@@ -174,9 +174,91 @@ would measure the wrong thing convincingly.
 
 ---
 
+## Finding F3 — a live wire collision, found only by scanning for emission-by-literal
+
+This finding did not exist when the review began. It appeared while checking whether a
+"dead" code might be emitted as a bare number rather than through its constant.
+
+`termlink-hub/src/artifact.rs` emitted the literal `-32004` at **three** sites for
+"artifact not found":
+
+```rust
+ErrorResponse::new(id, -32004, &format!("artifact {sha256} not found"))
+BusError::UnknownArtifact(_) => -32004,
+ErrorResponse::new(id, -32004, "not found")
+```
+
+`-32004` is `MESSAGE_EXPIRED` — "TTL exceeded before delivery". **One wire code, two
+incompatible meanings**, and they demand opposite client responses: an expired message
+may be worth resending with a fresh TTL; a missing artifact must be re-uploaded or
+abandoned. A client receiving `-32004` could not tell which it had.
+
+`check-error-code-docs.sh` is structurally blind to this — it verifies that every
+doc-cited `SYMBOL(-320NN)` pairing matches `control.rs`, and a hand-written number
+inside a handler cites no symbol.
+
+The collision also *masked* the deadness of `MESSAGE_EXPIRED`: the value appeared on
+the wire, just never meaning what the taxonomy said. Fixing the squatting is what made
+the code visibly dead.
+
+Safe to fix: no client crate branched on `-32004` or on `BusError::UnknownArtifact`, so
+nothing observable depended on the old value.
+
+---
+
 ## Outcome
 
-*(Filled at close.)*
+| Gap | Task | Result |
+|---|---|---|
+| G1 | **T-2699** | shipped — `scripts/check-error-code-emission.sh`, the **25th** guard-layer member. Counts symbolic *and* bare-literal emission, strips comments first, excludes the defining file so neither a constant nor a builder beside it counts as its own use. 18 fixture assertions. |
+| G2 | **T-2699** | shipped — all three unemitted codes annotated ⚠️ **NOT ENFORCED** at their definitions, and declared in `.context/checks/error-code-emission-allowlist` with reasons stating what would change that. |
+| F3 | **T-2699** | shipped — `ARTIFACT_NOT_FOUND` (-32024) introduced; three `artifact.rs` sites re-pointed; pinned by `artifact_not_found_does_not_reuse_message_expired`. |
+| G3 | **T-2700** | filed, `owner: human` — wiring `check_protocol_version` starts rejecting live peers below the requirement. |
+| G4 | **T-2701** | filed, `owner: human` — no load/stress/soak test; designing a meaningful profile is a scoping decision. |
+
+**Verified:**
+
+```
+cargo test --workspace  → 3480 passed · 0 failed
+guard layer             → 25/25 clean
+check-error-code-emission → clean (24 scanned, 3 declared-reserved)
+check-error-code-docs     → CLEAN (new code paired)
+```
+
+**Load-bearing, proven by removal:** deleting the `PROTOCOL_VERSION_TOO_OLD` line from
+the allowlist re-fires the check on exactly that code; restoring returns it to clean.
+
+### The check found two defects in itself
+
+Both are recorded because they are the same class the review is about — a guard that
+looks thorough while not reading what it claims to.
+
+1. **Prose counted as emission.** The first run cleared `PROTOCOL_VERSION_TOO_OLD`
+   because `tools.rs` mentions `(-32011)` in a doc comment. A comment *about* a code is
+   not a use of it. Comments are now stripped before the numeric scan — the same
+   distinction the platform-lock and silent-exit checks make.
+2. **The scanner could not see codes containing digits.** Fixture 8 happened to name
+   constants `A1/A2/A3` and revealed the name class was `[A-Z_]+`, which silently
+   skipped them. On a taxonomy containing e.g. `HTTP2_ERROR` the check would have
+   reported **clean on constants it never read** — precisely the T-2680 failure mode
+   (a guard over-reporting its own scope). Widened to `[A-Z0-9_]+`.
+
+### On abandoning the opening thesis
+
+This pass opened by trying to indict **Directive #1 (Antifragility)** — the
+highest-priority directive, never probed by any review, with no load, stress, soak or
+chaos test anywhere in the repo. It would have been the most quotable headline of the
+series.
+
+The evidence refuted it in three queries: 20 unit tests in `governor.rs`, a direct
+`QueueError::QueueFull { cap: 3 }` assertion, and live emission sites for both
+`HUB_AT_CAPACITY` and `RATE_LIMITED` with matching retry handling in `bus_client.rs`.
+The refusal *mechanisms* are genuinely exercised. The thesis was dropped.
+
+That is now two consecutive reviews that published a deliberately-hunted claim which
+turned out sound — T-2694's `append-log`, and this pass's backpressure paths. For a
+sixth consecutive "ultra-critical review", evidence that the method can return *not
+guilty* is worth more than another finding.
 
 ---
 

@@ -917,6 +917,54 @@ same `cargo test --workspace` as the Linux job. It is **deliberately non-blockin
 releases on an unmeasured suite would violate T-2686's own AC. To promote once a green
 run exists: delete that one line and add `test-macos` to the build jobs' `needs:`.
 
+### Error-code emission check (T-2699, Directive #2 — a refusal is a claim)
+
+The sixth source-level static check. `check-error-code-docs.sh` (T-2213..T-2217)
+verifies that every doc-cited `SYMBOL(-320NN)` pairing matches `control.rs` — that
+guards the **docs** against the **code**. Nothing guarded either against **reality**:
+whether the error can be emitted at all.
+
+**Why it exists.** T-2698 treated the error taxonomy as what it is — a set of
+assertions that the system will refuse you under condition X — and found three of 23
+codes with zero emission sites: `SESSION_BUSY` (-32002), `MESSAGE_EXPIRED` (-32004),
+`PROTOCOL_VERSION_TOO_OLD` (-32011). All three are listed in the T-005 protocol design
+as ordinary refusals, so a client written from that table would infer protections that
+do not exist: that a busy session refuses a second command, that an over-TTL message is
+rejected rather than delivered late, and that the hub turns away peers on too old a
+protocol.
+
+`PROTOCOL_VERSION_TOO_OLD` is the shape that matters. `control.rs` ships
+`check_protocol_version()` which builds the structured error, plus a passing test
+`check_protocol_version_rejects_when_declared_is_older` — and **zero callers**. Every
+conventional coverage signal reads green because the *builder* is covered. **Coverage
+of a builder says nothing about whether the builder is called.** That is the T-2683
+pattern — a guard nothing executes — in compiled Rust rather than shell. Wiring it is
+**T-2700** (`owner: human`): it begins rejecting live peers, and this fleet has hosts
+~1000 commits stale (T-2377).
+
+**It also found a live wire collision.** `artifact.rs` emitted the bare literal
+`-32004` at three sites for "artifact not found" — one wire code carrying two
+incompatible meanings, demanding opposite client responses. Invisible to the doc lint,
+because a hand-written number cites no symbol. Fixed by `ARTIFACT_NOT_FOUND` (-32024),
+pinned by `artifact_not_found_does_not_reuse_message_expired`. The collision had also
+*masked* `MESSAGE_EXPIRED`'s deadness — the value appeared on the wire, just never
+meaning what the taxonomy said.
+
+**What counts as an emission:** a reference to `error_code::NAME`, **or** the bare
+numeric literal, anywhere in the product crates **excluding the defining file** — so
+neither a constant nor a builder sitting beside it counts as its own use. Comments are
+stripped first: prose *about* a code is not a use of it (the check's own first run
+cleared -32011 because a doc comment mentions it).
+
+Genuinely-reserved codes go in `.context/checks/error-code-emission-allowlist`
+(git-tracked, T-2681) with a reason stating why it is not emitted **and what would
+change that** — "reserved" alone is not a reason, because unstated reservation is how
+three of these read as ordinary refusals for months. Current tree: 24 scanned, 3
+declared-reserved, 0 unacknowledged. Ad-hoc:
+`bash scripts/check-error-code-emission.sh` (0 clean / 1 unacknowledged / 2 tooling;
+`--json`; `--def-file` / `--root` / `--allowlist` for fixtures). Fixtures:
+`bash tests/error-code-emission-fixtures.sh` (18 assertions).
+
 ### Running the guard layer — `scripts/run-guard-layer.sh` (T-2684)
 
 **One command runs every source-level guard.** Before T-2684 there was none, and

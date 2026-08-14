@@ -3095,3 +3095,31 @@ learnings:
   date: 2026-08-14
   context: Added via context agent
   application: TBD
+- id: PL-334
+  learning: "Build the prover to find the bug. TermLink's charter claims peers can 'stream output, inject keystrokes, exec, and doorbell-wake' PTY sessions; the affirmative prover exercised only exec, and inject's unit tests were named command_inject_resolves_keys_no_pty — key RESOLUTION with no PTY attached. Writing the missing INJECT stage immediately surfaced a live defect nobody had seen: termlink inject returned {ok:true,bytes_injected:18} and printed 'Injected 18 bytes' for a complete no-op on a session with no PTY. Decomposing a compound capability claim into the individual verbs it names, then building a prover per verb, finds defects that no amount of reading finds — the defect was invisible precisely because no prover exercised the verb."
+  source: P-001
+  task: T-2694
+  date: 2026-08-14
+  context: Added via context agent
+  application: TBD
+- id: PL-335
+  learning: "Prove a PTY capability by EFFECT, and beware the terminal's own echo. Injecting 'echo FOO' makes FOO appear twice in a PTY buffer — once as the terminal echoing your keystrokes, once as the command's output. A prover that greps for FOO therefore passes on the echo alone, proving the bytes ARRIVED but not that the shell INTERPRETED them, which is the same weakness as a no_pty unit test. Fix: embed shell quoting the shell strips — type 'echo INJ'\"'\"'-'\"'\"'OK', match the unquoted 'INJ-OK'. The typed line carries the quotes, the output line does not, so a match can only be the interpreted result. Also order the stages so the observation channel (output) is proven BEFORE the thing observed (inject), or a broken channel gets misdiagnosed as a broken verb."
+  source: P-001
+  task: T-2695
+  date: 2026-08-14
+  context: Added via context agent
+  application: TBD
+- id: PL-336
+  learning: "A refusal is a claim, and claims need enforcers. TermLink's error taxonomy publishes 23 codes — each an assertion that the system will refuse you under condition X — and nothing checked that any could actually be emitted. Three could not: SESSION_BUSY, MESSAGE_EXPIRED, and PROTOCOL_VERSION_TOO_OLD, the last with a fully built, unit-TESTED builder (check_protocol_version) that has ZERO callers. Coverage of a builder says nothing about whether the builder is called, so every conventional signal read green. When auditing a system, treat its error catalogue as a set of behavioural promises and grep for an emission site per code — the same discipline as auditing capability claims for provers."
+  source: P-001
+  task: T-2698
+  date: 2026-08-14
+  context: Added via context agent
+  application: TBD
+- id: PL-337
+  learning: "A hand-written error number bypasses the named taxonomy AND every lint that guards it. termlink-hub/src/artifact.rs emitted the bare literal -32004 at three sites for 'artifact not found', but -32004 is MESSAGE_EXPIRED ('TTL exceeded before delivery') — one wire code carrying two incompatible meanings that demand opposite client responses. check-error-code-docs.sh could not see it: it verifies doc-cited SYMBOL(-320NN) pairings against control.rs, and a raw number inside a handler cites no symbol. The collision also MASKED the deadness of MESSAGE_EXPIRED, because the value did appear on the wire — just never meaning what the taxonomy said. When a project has both a named constant set and free-form numeric emission, scan for BOTH or the guard is measuring only the half that was already disciplined."
+  source: P-001
+  task: T-2699
+  date: 2026-08-14
+  context: Added via context agent
+  application: TBD

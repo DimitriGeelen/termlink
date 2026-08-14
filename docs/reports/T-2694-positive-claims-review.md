@@ -216,9 +216,101 @@ does not change whose call it is.
 
 ---
 
+## Finding F3 — `inject` reported success for a complete no-op (found by building the prover)
+
+This finding did not exist when the review began. It surfaced the moment an INJECT
+stage was actually written — which is the strongest possible argument for F1.
+
+Spiking the stage against a session with no PTY produced:
+
+```
+$ termlink inject <session> "echo INJECT-SPIKE-OK" --enter --json
+{"bytes_injected":18,"ok":true,"target":"<session>"}
+```
+
+Nothing reached a terminal. `termlink status` reports `pty: null` for that session,
+and its sibling `termlink output` refuses the same session **correctly**:
+
+```
+{"error":"JSON-RPC error -32007: No PTY session — output capture not available.
+          Use `register --shell` for PTY-backed sessions.","ok":false}
+```
+
+That asymmetry is the proof it is a defect rather than a design choice: of the two PTY
+verbs, one guards the precondition and the other does not.
+
+### The lower layer was honest; the CLI threw the truth away
+
+`handle_command_inject` (termlink-session `handler.rs`) distinguishes the two cases
+explicitly — `status:"injected"` when a PTY took the bytes, and `status:"resolved"`
+plus `note: "No PTY session. Use \`register --shell\` for PTY-backed injection."` when
+there is none. Both are RPC successes. `cmd_inject` read only `result["bytes_len"]`
+and discarded `status` and `note` entirely. The human path was worse than the JSON
+one: it printed the word **"Injected"** for an operation that injected nothing.
+
+### The fix already existed on the sibling surface
+
+T-2580 made MCP's `termlink_inject` status-aware, extracted `mcp_inject_outcome` as a
+pure helper, and pinned it with a test whose comment states the rule outright:
+
+> a session with no PTY returns `status:"resolved"` … as an RPC *success* — but that
+> is a FAILURE of the caller's intent (the command never reached a terminal), so it
+> MUST NOT read "Injected successfully" (Reliability: no silent success on a no-op).
+
+That reasoning was written down, tested, and never migrated to the CLI. This is the
+"hardened in one place, siblings not migrated" class — the same shape as T-2666/T-2667
+(silent exits) and T-2687 (topics inventory) — and it recurs because nothing compares
+the two surfaces' *semantics*, only their JSON shapes, and the parity harness covers
+24 of 68+ pairs (T-2689).
+
+---
+
 ## Outcome
 
-*(Filled at close.)*
+| Gap | Task | Result |
+|---|---|---|
+| G1 + G2 | **T-2695** | shipped — `session-selftest.sh` gains PTY_SPAWN, OUTPUT and INJECT stages. INJECT is proven **by effect**: the injected text embeds shell quoting the shell strips (`echo INJECT-PROVEN'-'<nonce>` typed, `INJECT-PROVEN-<nonce>` printed), so matching the unquoted string can only match the *interpreted* result — not the terminal's echo of the keystrokes. OUTPUT runs first so a broken observation channel is never misdiagnosed as broken inject. |
+| F3 | **T-2697** | shipped — `inject_status_is_injected` pure helper + 3 tests (injected → true, resolved → false, missing/unknown/non-string → fail closed); refusal is loud in text *and* JSON and exits non-zero. |
+| G3 | **T-2696** | filed at `horizon: next` — needs a prerequisites-absent (exit 2) contract before any cron wiring. |
+| G4 | — | filed with T-2678's sibling; the noun↔prover matrix question stays with the human. |
+
+**Verified on this host, not asserted:**
+
+```
+session-selftest --json → proven:true
+  stages: spawn PASS · exec PASS · exec_exitcode PASS
+          pty_spawn PASS · output PASS · inject PASS · cleanup done
+check-session-control-freshness → healthy   (T-2557 canary still green)
+guard layer → 23/23 clean
+```
+
+**Load-bearing, proven by sabotage:** replacing the injected sentinel with a
+non-matching string yields `{"proven":false,"broken_stage":"INJECT","inject":"FAIL",
+"output":"PASS"}` and exit 1 — the failure is isolated to inject, and OUTPUT still
+passes, which is exactly the diagnostic precision the stage ordering was designed for.
+Restoring returns it to green.
+
+### A correction made mid-build
+
+One acceptance criterion was written wrong and is struck through in the task rather
+than quietly edited: *"both stages reuse the session the prover already spawns — no
+extra spawn"*. The spike disproved it. STAGE 1 spawns `-- sleep <ttl>`, which has
+`pty: null`; `output` refuses it with `-32007` and `inject` cannot reach a terminal
+through it. Reuse was structurally impossible, so the PTY stages spawn their own
+`--shell` session and the sleep-backed one is left untouched — which also means the
+pre-existing stages, and the T-2557 canary that runs them daily, carry zero regression
+risk from this change.
+
+### Why this pass adds no new guard
+
+Four of the five reviews so far ended by shipping a new check. This one ships none.
+The finding was that a *claim* had no proof, so the fix is proof — extending the
+existing prover rather than adding a sixth static check to a layer that already has
+23 members. The one thing that would have been a new mechanism (wiring the two dark
+provers to cron, G3) was **filed rather than rushed**, because doing it without a
+prerequisites-absent contract would produce a canary that fires on a quiet host —
+manufacturing exactly the false-positive class T-2557 designed around and T-2685 found
+had been destroyed anyway.
 
 ---
 
