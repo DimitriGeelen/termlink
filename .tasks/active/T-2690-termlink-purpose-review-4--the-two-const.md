@@ -30,6 +30,8 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 <!-- What problem are we exploring? For whom? Why now? -->
 
+Research artifact: `docs/reports/T-2690-usability-portability-review.md` (C-001).
+
 ## Assumptions
 
 <!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->
