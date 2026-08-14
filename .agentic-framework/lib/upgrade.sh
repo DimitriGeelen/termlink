@@ -5,6 +5,17 @@
 # framework, then updates governance sections, templates, hooks, and seeds.
 # Project-specific content is preserved.
 
+# T-2755: the version-relation comparator is a hard dependency of BOTH the
+# "Pinned:" header line and the T-1912 precheck below it. bin/fw:688 sources it
+# with `2>/dev/null || true`, so an absent or unreadable file degrades silently —
+# and what degrades is the loudest line in the output. Source it here too, next
+# to the code that needs it (L-399: a contract split across files drifts).
+# Idempotent — skipped when bin/fw already provided it.
+if ! declare -f fw_version_relation >/dev/null 2>&1; then
+    # shellcheck source=version-relation.sh
+    source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/version-relation.sh"
+fi
+
 # T-1481: Opt-in remediation for OBS-023's structural cause. Removes
 # framework hooks from $HOME/.claude/settings.json that duplicate
 # project-level. Always creates a timestamped backup. Honors dry-run.
@@ -147,24 +158,41 @@ _self_vendor_libs() {
         return 0
     fi
     local _sv_updated=0
-    local _sv_src _sv_name _sv_dst
-    for _sv_src in "$FRAMEWORK_ROOT/lib/"*.sh; do
+    local _sv_src _sv_rel _sv_dst _sv_dst_dir
+    # T-2307 (T-2304 follow-on): recursive + `*.sh + *.py + *.md` filter — parity
+    # with `_self_vendor_agents` (T-2266+T-2304) and the audit's libs-class drift
+    # scanner. Replaces the prior non-recursive `lib/*.sh` glob which silently
+    # skipped 33 tracked `.md` siblings under lib/templates/ and
+    # lib/templates/skills/. T-2455 (OBS-085): added `*.py` — the audit
+    # (agents/audit/audit.sh check_self_vendor_drift) scans `*.sh + *.py + fw + *.md`,
+    # but this helper had only `*.sh + *.md`, so every `lib/**/*.py` (40 files incl.
+    # lib/reviewer/static_scan.py, the govd_*.py fabric, lib/integrate.py) was
+    # silently un-vendorable. When source `.py` drifted, the audit FAILed and
+    # `fw vendor self` could NOT clear it → all pushes blocked. The filter now
+    # matches the audit set exactly so coverage parity is mechanical. Recursive:
+    # lib/ has subdirectories (templates/, templates/skills/, reviewer/, ts/, etc.);
+    # helper mirrors the tree under .agentic-framework/lib/, creating missing
+    # subdirs at real-run only.
+    while IFS= read -r _sv_src; do
         [ -f "$_sv_src" ] || continue
-        _sv_name=$(basename "$_sv_src")
-        _sv_dst="$_self_vendor/lib/$_sv_name"
+        _sv_rel="${_sv_src#$FRAMEWORK_ROOT/lib/}"
+        _sv_dst="$_self_vendor/lib/$_sv_rel"
         if [ ! -f "$_sv_dst" ] || ! diff -q "$_sv_src" "$_sv_dst" > /dev/null 2>&1; then
             if [ "$dry_run" != true ]; then
+                _sv_dst_dir=$(dirname "$_sv_dst")
+                [ -d "$_sv_dst_dir" ] || mkdir -p "$_sv_dst_dir"
                 cp "$_sv_src" "$_sv_dst"
                 [ -x "$_sv_src" ] && chmod +x "$_sv_dst"
             fi
             _sv_updated=$((_sv_updated + 1))
         fi
-    done
+    done < <(find "$FRAMEWORK_ROOT/lib" \( -path '*/node_modules/*' -o -path '*/__pycache__/*' -o -path '*/.git/*' \) -prune -o -type f \( -name "*.sh" -o -name "*.py" -o -name "*.md" \) -print 2>/dev/null)
     if [ "$_sv_updated" -gt 0 ]; then
         # T-2239: dry-run reports what WOULD happen; real-run reports what DID.
         # Same prefix, distinct verb — preserves the count semantic for both modes
         # and prevents the message from lying about state when the cp guard above
-        # is honoured. Pre-push wiring (the F2 N×M follow-on) depends on this split.
+        # is honoured. T-2240 pre-push gate's regex (`would sync`) catches this
+        # class along with all six other _self_vendor_* helpers via one match.
         if [ "$dry_run" = true ]; then
             echo -e "  ${GREEN}Self-vendor:${NC} would sync $_sv_updated file(s) to .agentic-framework/lib/"
         else
@@ -223,6 +251,431 @@ _self_vendor_templates() {
         fi
     fi
     return 0
+}
+
+# T-2263 (arc-006 Slice 2C): self-vendor the framework's own BVP-policy templates
+# from FRAMEWORK_ROOT/policy/{value-drivers.yaml,bvp-scoring-rubric.md} to
+# .agentic-framework/policy/. Sibling to _self_vendor_libs (T-2095) and
+# _self_vendor_templates (T-2241) — same shape, same dry-run/real-run wording
+# split, same structural consumer-safety. T-2240 pre-push gate's regex
+# (`would sync`) catches all three classes (libs + templates + policy) via one
+# match, so policy-file drift in the framework repo blocks push the same way
+# lib/ drift does.
+#
+# Explicit sync set (NOT a wildcard over `policy/`): the framework's `policy/`
+# dir also contains arc-specific subdirs (capability-overlay/, prompts/) that
+# are NOT framework→consumer governance templates. Only the two BVP files are
+# in scope; future BVP-arc additions should be added here explicitly.
+#
+# Inputs:
+#   $1 — dry_run ("true" / "false"). When "true", computes what WOULD sync
+#        without copying files.
+# Return:
+#   0 — sync completed (or nothing to sync, or consumer-skip)
+_self_vendor_policy() {
+    local dry_run="${1:-false}"
+    local _self_vendor="$FRAMEWORK_ROOT/.agentic-framework"
+    # Structural guard mirror of siblings: consumer's vendored copy has no
+    # nested .agentic-framework/policy/, so this branch is the consumer-safe
+    # early exit. The framework repo carries the dir; a one-time bootstrap
+    # (mkdir .agentic-framework/policy/ + cp the two templates) primed it
+    # under T-2263.
+    if [ ! -d "$_self_vendor/policy" ]; then
+        return 0
+    fi
+    local _svp_updated=0
+    local _svp_name _svp_src _svp_dst _svp_dst_dir
+    # T-2287: capability-overlay/tool-set.yaml lives in a subdirectory — the
+    # destination needs `mkdir -p` since `.agentic-framework/policy/capability-overlay/`
+    # is absent in fresh vendored copies. The two original flat-list entries
+    # (value-drivers.yaml, bvp-scoring-rubric.md) don't need mkdir; the guard
+    # is harmless for them.
+    # T-2329 (termlink): anti-patterns.yaml + escalation-patterns.yaml are the two
+    # catalogues static_scan.py loads — omitting them left the reviewer's inputs
+    # out of the vendored mirror (reviewer silently disabled in consumers).
+    for _svp_name in value-drivers.yaml bvp-scoring-rubric.md capability-overlay/tool-set.yaml anti-patterns.yaml escalation-patterns.yaml; do
+        _svp_src="$FRAMEWORK_ROOT/policy/$_svp_name"
+        _svp_dst="$_self_vendor/policy/$_svp_name"
+        [ -f "$_svp_src" ] || continue
+        if [ ! -f "$_svp_dst" ] || ! diff -q "$_svp_src" "$_svp_dst" > /dev/null 2>&1; then
+            if [ "$dry_run" != true ]; then
+                _svp_dst_dir="$(dirname "$_svp_dst")"
+                [ -d "$_svp_dst_dir" ] || mkdir -p "$_svp_dst_dir"
+                cp "$_svp_src" "$_svp_dst"
+            fi
+            _svp_updated=$((_svp_updated + 1))
+        fi
+    done
+    if [ "$_svp_updated" -gt 0 ]; then
+        if [ "$dry_run" = true ]; then
+            echo -e "  ${GREEN}Self-vendor:${NC} would sync $_svp_updated file(s) to .agentic-framework/policy/"
+        else
+            echo -e "  ${GREEN}Self-vendor:${NC} synced $_svp_updated file(s) to .agentic-framework/policy/"
+        fi
+    fi
+    return 0
+}
+
+# T-2264: self-vendor the framework's own bin/fw shim. Fourth sibling of
+# _self_vendor_libs (T-2095) / _self_vendor_templates (T-2241) / _self_vendor_policy
+# (T-2263) — same shape, same dry-run/real-run wording split, same structural
+# consumer-safety. T-2240 pre-push gate's regex (`would sync`) catches all four
+# classes via one match.
+#
+# Why: developer edits bin/fw without re-vendoring → `.agentic-framework/bin/fw`
+# silently diverges. Consumers vendoring from origin then inherit the stale shim.
+# Caught live during T-2263 close (13-line drift after Slice 2C wiring landed in
+# bin/fw without a follow-up vendor refresh).
+#
+# Scope intentionally narrow: ONLY bin/fw, NOT agents/. Closing agents/ drift
+# is a larger surface (~30 dirs, subprocess invocations) that needs its own
+# design pass.
+#
+# Inputs:
+#   $1 — dry_run ("true" / "false"). When "true", computes what WOULD sync
+#        without copying files.
+# Return:
+#   0 — sync completed (or nothing to sync, or consumer-skip)
+_self_vendor_shim() {
+    local dry_run="${1:-false}"
+    local _self_vendor="$FRAMEWORK_ROOT/.agentic-framework"
+    # Structural guard mirror of siblings: consumer's vendored copy has no
+    # nested .agentic-framework/bin/, so this branch is the consumer-safe
+    # early exit.
+    if [ ! -d "$_self_vendor/bin" ]; then
+        return 0
+    fi
+    # T-2711: ENUMERATE bin/, do not name files.
+    #
+    # This helper used to carry a hardcoded list — `for _shim in fw claude-fw` —
+    # while the audit gate (agents/audit/audit.sh check_self_vendor_drift) scans
+    # ALL of .agentic-framework/bin for `*.sh + *.py + fw + claude-fw + *.md`.
+    # Everything in bin/ outside those two names was therefore gated by the audit
+    # and synced by nobody: `fw vendor self` reported success, `--check` reported
+    # in-sync, and the T-2240 pre-push gate still refused — pointing the operator
+    # at a verb that could not fix it. Four files were in that hole:
+    # hook-enable.sh, integrate-go-live.sh, migrate-horizon-null-completed.sh,
+    # watchtower.sh.
+    #
+    # Third instance of the shape (T-2266 agents/, T-2502 claude-fw, now bin/*.sh).
+    # The first two were closed by adding the missing NAME. Naming is the defect —
+    # each new bin/ script silently re-opened the hole. The three sibling helpers
+    # (_self_vendor_libs / _agents / _web) already enumerate; this one now matches
+    # them, so the set is derived, not maintained (L-399).
+    local _svs_updated=0
+    local _svs_src _svs_rel _svs_dst
+    while IFS= read -r _svs_src; do
+        [ -f "$_svs_src" ] || continue
+        _svs_rel="${_svs_src#$FRAMEWORK_ROOT/bin/}"
+        _svs_dst="$_self_vendor/bin/$_svs_rel"
+        if [ ! -f "$_svs_dst" ] || ! diff -q "$_svs_src" "$_svs_dst" > /dev/null 2>&1; then
+            if [ "$dry_run" != true ]; then
+                mkdir -p "$(dirname "$_svs_dst")"
+                cp "$_svs_src" "$_svs_dst"
+                [ -x "$_svs_src" ] && chmod +x "$_svs_dst"
+            fi
+            _svs_updated=$((_svs_updated + 1))
+        fi
+    # Recursive, matching the audit's own scan. bin/ is flat today, so -maxdepth 1
+    # would pass right now — and would silently re-open this exact hole the first
+    # time someone adds bin/<subdir>/foo.sh. Parity means matching the gate's
+    # traversal, not just its current results.
+    # T-2793: enumerate EVERY file in bin/, not a name list.
+    #
+    # T-2711 fixed this helper to enumerate the directory instead of naming two
+    # files — but kept a name FILTER (*.sh, *.py, fw, claude-fw, *.md), so the
+    # hole only narrowed. `bin/fw-shim` and `bin/fw-router` are extensionless and
+    # match none of them: neither was ever synced or gated. T-2304 added *.md,
+    # T-2502 added claude-fw, T-2711 added enumeration; each closed the instance
+    # in front of it and left the shape intact.
+    #
+    # bin/ holds executables and nothing else, so "every regular file" is the
+    # honest predicate. agents/audit/audit.sh:check_self_vendor_drift scans bin/
+    # the same way — the two must agree or the gate refuses what the helper
+    # cannot fix (L-399 producer/consumer parity).
+    done < <(find "$FRAMEWORK_ROOT/bin" \( -path '*/node_modules/*' -o -path '*/__pycache__/*' -o -path '*/.git/*' \) -prune -o -type f ! -name "*.pyc" -print 2>/dev/null)
+    if [ "$_svs_updated" -gt 0 ]; then
+        # T-2711: report the real count. This printed a hardcoded "1 file(s)"
+        # regardless of how many were copied — a status line that agreed with
+        # reality only by coincidence.
+        if [ "$dry_run" = true ]; then
+            echo -e "  ${GREEN}Self-vendor:${NC} would sync $_svs_updated file(s) to .agentic-framework/bin/"
+        else
+            echo -e "  ${GREEN}Self-vendor:${NC} synced $_svs_updated file(s) to .agentic-framework/bin/"
+        fi
+    fi
+    return 0
+}
+
+# T-2266: self-vendor the framework's own agents/ tree. Fifth sibling of
+# _self_vendor_libs (T-2095) / _self_vendor_templates (T-2241) / _self_vendor_policy
+# (T-2263) / _self_vendor_shim (T-2264). Same shape, same dry-run/real-run wording
+# split, same structural consumer-safety. T-2240 pre-push gate's regex
+# (`would sync`) catches all five classes via one match.
+#
+# Why: agents/ holds *.sh + *.py executed by the framework (audit, context,
+# task-create, dispatch, etc.). Developer edits agents/ without re-vendoring →
+# `.agentic-framework/agents/` silently diverges. Audit at agents/audit/audit.sh:1534
+# scans bin+lib+agents+web for drift; agents/ was flagged on the same regex but
+# `fw vendor self` could not fix it pre-T-2266. Mitigation pointed at full
+# `fw vendor` (consumer-direction) — wrong tool, wrong direction.
+#
+# Recursive: agents/ has subdirectories (audit/, context/, git/, ...). Helper
+# mirrors the directory tree under .agentic-framework/agents/, creating missing
+# subdirs at real-run only.
+#
+# Filter: `*.sh + *.py + *.md` — matches audit.sh:check_self_vendor_drift's
+# exact set so coverage parity is mechanical. T-2304 (OBS-068) added `.md`
+# because AGENT.md files (intelligence siblings of agents/*/AGENT.sh) drift
+# silently between source agents/ and vendored .agentic-framework/agents/.
+# Origin: T-2301 hit this on the resume agent.
+#
+# Inputs:
+#   $1 — dry_run ("true" / "false"). When "true", computes what WOULD sync
+#        without copying files (and without creating directories).
+# Return:
+#   0 — sync completed (or nothing to sync, or consumer-skip)
+_self_vendor_agents() {
+    local dry_run="${1:-false}"
+    local _self_vendor="$FRAMEWORK_ROOT/.agentic-framework"
+    # Structural guard mirror of siblings: consumer's vendored copy has no
+    # nested .agentic-framework/agents/, so this branch is the consumer-safe
+    # early exit.
+    if [ ! -d "$_self_vendor/agents" ]; then
+        return 0
+    fi
+    local _sva_updated=0
+    local _sva_src _sva_rel _sva_dst _sva_dst_dir
+    while IFS= read -r _sva_src; do
+        [ -f "$_sva_src" ] || continue
+        _sva_rel="${_sva_src#$FRAMEWORK_ROOT/agents/}"
+        _sva_dst="$_self_vendor/agents/$_sva_rel"
+        if [ ! -f "$_sva_dst" ] || ! diff -q "$_sva_src" "$_sva_dst" > /dev/null 2>&1; then
+            if [ "$dry_run" != true ]; then
+                _sva_dst_dir=$(dirname "$_sva_dst")
+                [ -d "$_sva_dst_dir" ] || mkdir -p "$_sva_dst_dir"
+                cp "$_sva_src" "$_sva_dst"
+                [ -x "$_sva_src" ] && chmod +x "$_sva_dst"
+            fi
+            _sva_updated=$((_sva_updated + 1))
+        fi
+    done < <(find "$FRAMEWORK_ROOT/agents" \( -path '*/node_modules/*' -o -path '*/__pycache__/*' -o -path '*/.git/*' \) -prune -o -type f \( -name "*.sh" -o -name "*.py" -o -name "*.md" \) -print 2>/dev/null)
+    if [ "$_sva_updated" -gt 0 ]; then
+        if [ "$dry_run" = true ]; then
+            echo -e "  ${GREEN}Self-vendor:${NC} would sync $_sva_updated agents/ file(s) to .agentic-framework/agents/"
+        else
+            echo -e "  ${GREEN}Self-vendor:${NC} synced $_sva_updated agents/ file(s) to .agentic-framework/agents/"
+        fi
+    fi
+    return 0
+}
+
+# T-2267: self-vendor the framework's own web/ tree. Sixth (and current-final)
+# sibling of _self_vendor_libs (T-2095) / _self_vendor_templates (T-2241) /
+# _self_vendor_policy (T-2263) / _self_vendor_shim (T-2264) / _self_vendor_agents
+# (T-2266). Same shape, same dry-run/real-run wording split, same structural
+# consumer-safety. T-2240 pre-push gate's regex (`would sync`) catches all six
+# classes via one match.
+#
+# Why: web/ holds *.sh + *.py — Flask app, blueprints, shared helpers, smoke
+# tests. Developer edits web/ without re-vendoring → `.agentic-framework/web/`
+# silently diverges. Audit at agents/audit/audit.sh:1534 scans bin+lib+agents+web
+# for drift; pre-T-2267 web/ was flagged but `fw vendor self` could not fix it
+# (mitigation pointed at full `fw vendor` — wrong tool, wrong direction).
+#
+# Recursive: web/ has subdirectories (blueprints/, etc.). Helper mirrors the
+# directory tree under .agentic-framework/web/, creating missing subdirs at
+# real-run only.
+#
+# Filter: `*.sh + *.py` — matches audit.sh:1534's exact set so coverage parity
+# is mechanical. Templates (web/templates/*.html) and static assets
+# (web/static/*) are NOT scanned by audit, so this helper deliberately leaves
+# them untouched (out-of-scope per T-2267 fence).
+#
+# Inputs:
+#   $1 — dry_run ("true" / "false"). When "true", computes what WOULD sync
+#        without copying files (and without creating directories).
+# Return:
+#   0 — sync completed (or nothing to sync, or consumer-skip)
+_self_vendor_web() {
+    local dry_run="${1:-false}"
+    local _self_vendor="$FRAMEWORK_ROOT/.agentic-framework"
+    # Structural guard mirror of siblings: consumer's vendored copy has no
+    # nested .agentic-framework/web/, so this branch is the consumer-safe
+    # early exit.
+    if [ ! -d "$_self_vendor/web" ]; then
+        return 0
+    fi
+    local _svw_updated=0
+    local _svw_src _svw_rel _svw_dst _svw_dst_dir
+    while IFS= read -r _svw_src; do
+        [ -f "$_svw_src" ] || continue
+        _svw_rel="${_svw_src#$FRAMEWORK_ROOT/web/}"
+        _svw_dst="$_self_vendor/web/$_svw_rel"
+        if [ ! -f "$_svw_dst" ] || ! diff -q "$_svw_src" "$_svw_dst" > /dev/null 2>&1; then
+            if [ "$dry_run" != true ]; then
+                _svw_dst_dir=$(dirname "$_svw_dst")
+                [ -d "$_svw_dst_dir" ] || mkdir -p "$_svw_dst_dir"
+                cp "$_svw_src" "$_svw_dst"
+                [ -x "$_svw_src" ] && chmod +x "$_svw_dst"
+            fi
+            _svw_updated=$((_svw_updated + 1))
+        fi
+    done < <(find "$FRAMEWORK_ROOT/web" \( -path '*/node_modules/*' -o -path '*/__pycache__/*' -o -path '*/.git/*' \) -prune -o -type f \( -name "*.sh" -o -name "*.py" -o -name "*.html" -o -name "*.css" -o -name "*.js" -o -name "*.svg" -o -name "*.j2" -o -name "*.jinja2" \) -print 2>/dev/null)
+    if [ "$_svw_updated" -gt 0 ]; then
+        if [ "$dry_run" = true ]; then
+            echo -e "  ${GREEN}Self-vendor:${NC} would sync $_svw_updated web/ file(s) to .agentic-framework/web/"
+        else
+            echo -e "  ${GREEN}Self-vendor:${NC} synced $_svw_updated web/ file(s) to .agentic-framework/web/"
+        fi
+    fi
+    return 0
+}
+
+# T-2793 (OBS-151): self-vendor the VERSION file. Seventh sibling of
+# _self_vendor_libs / _templates / _policy / _shim / _agents / _web.
+#
+# Why it was missing and why that matters more now. `fw vendor self` synced six
+# classes of CONTENT and never the copy's identity, so .agentic-framework/VERSION
+# held whatever the last full `do_vendor` wrote — measured at 1.6.234 against a
+# source at 1.6.114, a number from a different era. Anything comparing the two
+# (fw_version_relation, doctor's pinned-vs-installed, consumer-recovery ordering)
+# was reasoning about a version nothing had ever run.
+#
+# It stops being cosmetic once the CLI is vendored (T-2793): a vendored copy has
+# no .git, so _derive_version falls through to this file, and VERSION becomes the
+# ONLY statement of which framework a consumer is running.
+#
+# SYNC-ONLY — bin/fw calls this outside the --check set, and that asymmetry is the
+# whole design. The VERSION file is rewritten in the working tree on every commit
+# (it carries the git-derived major.minor.commits-since-tag; measured 1.6.114 ->
+# 1.6.120 across six commits in one session). A checked class would therefore go
+# red again the moment you commit the sync that cleared it — the T-2240 pre-push
+# gate refuses, `fw vendor self` fixes it, the commit re-breaks it. A gate that
+# cannot be satisfied is worse than one that does not fire.
+#
+# Stated plainly because it IS the unwitnessable-check shape (T-2726): a sync with
+# no verifier. Accepted here only because the drift is guaranteed rather than
+# occasional, harmless between vendor runs, and cleared by every mutating run. If
+# VERSION ever stops moving per commit, this belongs back inside --check.
+#
+# (An earlier revision of this comment claimed VERSION "moves only at release" and
+# used that to justify checking it. That was wrong — the per-commit rewrite was
+# observed immediately afterwards. Left recorded rather than deleted: the claim
+# was load-bearing for the design and the correction is the reason it changed.)
+#
+# Inputs:  $1 — dry_run ("true"/"false")
+# Return:  0 always (nothing to sync, or consumer-skip)
+_self_vendor_version() {
+    local dry_run="${1:-false}"
+    local _self_vendor="$FRAMEWORK_ROOT/.agentic-framework"
+    local _svv_src="$FRAMEWORK_ROOT/VERSION"
+    local _svv_dst="$_self_vendor/VERSION"
+    # Consumer-safety mirror of the siblings: a consumer's vendored copy has no
+    # nested .agentic-framework/, so this is the early exit there.
+    [ -d "$_self_vendor" ] || return 0
+    [ -f "$_svv_src" ] || return 0
+    if [ ! -f "$_svv_dst" ] || ! diff -q "$_svv_src" "$_svv_dst" >/dev/null 2>&1; then
+        if [ "$dry_run" = true ]; then
+            echo -e "  ${GREEN}Self-vendor:${NC} would sync VERSION ($(tr -d '\n' < "$_svv_dst" 2>/dev/null || echo none) → $(tr -d '\n' < "$_svv_src")) to .agentic-framework/"
+        else
+            cp "$_svv_src" "$_svv_dst"
+            echo -e "  ${GREEN}Self-vendor:${NC} synced VERSION ($(tr -d '\n' < "$_svv_src")) to .agentic-framework/"
+        fi
+    fi
+    return 0
+}
+
+# T-2755 — render the "Pinned:" header line from a COMPUTED relation.
+#
+# fw_upgrade_render_pin_line <consumer_version> <framework_version> <relation> <force_downgrade>
+#
+# Extracted from do_upgrade so the wording is reachable by a test without
+# standing up a whole consumer. That is not incidental tidiness: the defect this
+# replaces survived because the only way to see the line was to run a real
+# upgrade against a real mismatched consumer, which no test did.
+#
+# `relation` is whatever fw_version_relation produced — this function never
+# compares versions itself. One comparator, one answer, two readers (this line
+# and the T-1912 guard below it).
+fw_upgrade_render_pin_line() {
+    local cversion="$1" fversion="$2" relation="$3" force_downgrade="${4:-false}"
+
+    # The suffix comes from the same predicate the guard obeys, so the header
+    # cannot promise an outcome the guard is about to contradict two lines later.
+    local note=""
+    if fw_version_relation_should_refuse "$relation"; then
+        if [ "$force_downgrade" = true ]; then
+            note=" — --force-downgrade given, proceeding anyway"
+        else
+            note=" — upgrade will refuse"
+        fi
+    fi
+
+    case "$relation" in
+        same)
+            echo -e "  Pinned:    v${cversion} ${GREEN}(current)${NC}" ;;
+        behind)
+            echo -e "  Pinned:    v${cversion} ${YELLOW}(behind v${fversion})${NC}" ;;
+        ahead)
+            echo -e "  Pinned:    v${cversion} ${RED}(AHEAD of v${fversion}${note})${NC}" ;;
+        diverged)
+            echo -e "  Pinned:    v${cversion} ${RED}(diverged from v${fversion}${note})${NC}" ;;
+        foreign-source)
+            # T-2762: the fault is the SOURCE, not the consumer's pin — so the line
+            # names the source. Rendering this as "undecidable" (the old fallthrough)
+            # understated it: undecidable proceeds by default, this refuses.
+            echo -e "  Pinned:    v${cversion} ${RED}(source does not contain this consumer's commit${note})${NC}" ;;
+        *)
+            # undecidable, or a relation this function has not been taught.
+            # Say so — do NOT fall through to "behind". Claiming a direction we
+            # cannot compute is the entire defect (see lib/version-relation.sh).
+            echo -e "  Pinned:    v${cversion} ${YELLOW}(direction undecidable vs v${fversion}${note})${NC}" ;;
+    esac
+}
+
+# T-2839: classify an upstream_repo value into something `git clone` can use.
+#
+# Prints the resolved clone source and returns 0; returns 2 when the value is
+# not classifiable. Split out of do_upgrade so it can be tested directly — the
+# bug it fixes was one inline `if` whose else-branch was unreachable by any test.
+#
+# Origin: a consumer carried `upstream_repo: /opt/agentic-engineering-framework`.
+# The old logic recognised a fixed set of URL prefixes and treated EVERYTHING
+# else as GitHub owner/repo shorthand, so an absolute path became
+# `https://github.com//opt/agentic-engineering-framework.git` and the operator
+# got `Repository not found` from GitHub — pointing at the wrong system, since
+# the fault was in local config. "Not a URL I recognise" is not evidence of
+# GitHub shorthand; it is evidence of not knowing, and that now refuses.
+_fw_classify_upstream_source() {
+    local _v="$1"
+    [ -n "$_v" ] || return 2
+
+    # Recognised URL schemes and git's SSH shorthand — pass through untouched.
+    if printf '%s' "$_v" | grep -qE '^(https?|ssh|git|file)://|^git@'; then
+        printf '%s\n' "$_v"
+        return 0
+    fi
+
+    # Local filesystem paths. git clones these natively; they are never GitHub
+    # shorthand. This is the leg whose absence caused the reported failure.
+    # The tilde is QUOTED on purpose: bash performs tilde expansion on `case`
+    # patterns, so an unquoted ~/* silently becomes /root/* (or whatever $HOME
+    # is) and never matches a literal "~/…". Caught by exercising the classifier
+    # rather than by reading it.
+    case "$_v" in
+        /*|./*|../*|'~'/*|'~') printf '%s\n' "$_v"; return 0 ;;
+    esac
+
+    # Strict GitHub shorthand: exactly owner/repo, both segments non-empty, no
+    # leading or trailing slash. Deliberately strict — the previous permissive
+    # fallback is what manufactured the bogus URL.
+    if printf '%s' "$_v" | grep -qE '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$'; then
+        printf 'https://github.com/%s.git\n' "$_v"
+        return 0
+    fi
+
+    return 2
 }
 
 do_upgrade() {
@@ -395,14 +848,6 @@ do_upgrade() {
                 | sed -E 's/^upstream_repo:[[:space:]]*//' \
                 | sed -E 's/[[:space:]]+$//')
             [ -n "$_upstream_url" ] && _upstream_source=".framework.yaml upstream_repo:"
-            # Normalise GitHub shorthand (owner/repo) to full URL.
-            # Recognised URL prefixes: http(s)://, ssh://, git://, file://,
-            # git@host:path (SSH shorthand). Everything else is treated as
-            # owner/repo and expanded to a GitHub HTTPS URL.
-            if [ -n "$_upstream_url" ] \
-               && ! echo "$_upstream_url" | grep -qE '^(https?|ssh|git|file)://|^git@'; then
-                _upstream_url="https://github.com/${_upstream_url}.git"
-            fi
         fi
         # T-2232 leg 3: vendored .upstream sentinel (written by do_vendor in
         # bin/fw — see the parallel block there). Read first line that is not
@@ -440,6 +885,29 @@ do_upgrade() {
             echo "" >&2
             return 1
         fi
+
+        # T-2839: classify before cloning, and refuse rather than guess. Applied
+        # to all three resolution legs (flag, .framework.yaml, sentinel) so the
+        # rule cannot differ by where the value came from — the reported failure
+        # existed on the yaml leg only, which is exactly how it stayed unnoticed.
+        local _upstream_clone_src
+        if ! _upstream_clone_src=$(_fw_classify_upstream_source "$_upstream_url"); then
+            echo -e "${RED}ERROR: upstream repo value is not a clone source fw can use${NC}" >&2
+            echo "" >&2
+            echo "  Value:        $_upstream_url" >&2
+            echo "  Supplied by:  $_upstream_source" >&2
+            echo "" >&2
+            echo "  fw accepts:" >&2
+            echo "    - a URL:            https://… ssh://… git://… file://… git@host:path" >&2
+            echo "    - a local path:     /abs/path, ./rel, ../rel, ~/path" >&2
+            echo "    - GitHub shorthand: owner/repo  (exactly two segments)" >&2
+            echo "" >&2
+            echo "  Fix the value named above — this is local configuration, not a" >&2
+            echo "  problem with any remote. No changes made." >&2
+            echo "" >&2
+            return 1
+        fi
+        _upstream_url="$_upstream_clone_src"
 
         echo -e "${BOLD}Bare-from-consumer detected — auto-cloning upstream${NC}"
         echo "  Upstream URL:  $_upstream_url"
@@ -522,6 +990,19 @@ do_upgrade() {
         _self_vendor_libs "$dry_run"
         # T-2241: sibling sync — templates drift class, same flag gates both
         _self_vendor_templates "$dry_run"
+        # T-2263: sibling sync — BVP-policy drift class (arc-006 Slice 2C),
+        # same flag, same prefix → caught by T-2240 pre-push gate regex
+        _self_vendor_policy "$dry_run"
+        # T-2264: sibling sync — bin/fw shim drift class, same flag, same prefix
+        _self_vendor_shim "$dry_run"
+        # T-2266: sibling sync — agents/ drift class (5th class). Recursive over
+        # subdirs (audit/, context/, git/, ...) filtered to *.sh + *.py to mirror
+        # the audit drift scan's exact filter at agents/audit/audit.sh:1534.
+        _self_vendor_agents "$dry_run"
+        # T-2267: sibling sync — web/ drift class (6th and current-final class
+        # under the audit drift-scan shape). Same *.sh + *.py filter; templates
+        # and static assets stay untouched (out-of-scope per audit's filter).
+        _self_vendor_web "$dry_run"
     fi
 
     local project_name
@@ -536,16 +1017,36 @@ do_upgrade() {
         project_version=$(grep "^version:" "$target_dir/.framework.yaml" 2>/dev/null | sed 's/^version:[[:space:]]*//' || true)
     fi
 
+    # T-2755: compute the relation ONCE, here, and let both the header and the
+    # T-1912 precheck below read the same answer.
+    #
+    # The header used to be `[ "$project_version" = "$fw_version" ]` — equality,
+    # not direction. Every mismatch therefore rendered "(behind)", including the
+    # ones the guard was about to refuse. Field instance (2026-08-03,
+    # /opt/002-Claude-Partner-Network): the same output carried
+    #     Pinned:  v1.6.354 (behind v1.6.8)
+    #     REFUSED  Consumer v1.6.354 is AHEAD of framework v1.6.8
+    # two lines apart. A reader who trusts the header reaches for
+    # --force-downgrade at the exact moment the guard is protecting them.
+    #
+    # The comparator already existed — T-2713 replaced `sort -V` with git
+    # ancestry precisely because a resetting counter cannot order. It was wired
+    # into the guard and not into the sentence above it, so the loudest line in
+    # the output was the one line still guessing.
+    local _rel="" _rel_sha=""
+    if [ -n "$project_version" ]; then
+        _rel_sha=$(grep "^version_sha:" "$target_dir/.framework.yaml" 2>/dev/null | sed 's/^version_sha:[[:space:]]*//' || true)
+        # Bare call, not $(...) — the reason travels via a global (see lib/version-relation.sh).
+        fw_version_relation "$project_version" "$fw_version" "$_rel_sha" "$FRAMEWORK_ROOT" >/dev/null
+        _rel="$FW_VERSION_RELATION"
+    fi
+
     echo -e "${BOLD}fw upgrade${NC} - Syncing framework improvements"
     echo ""
     echo "  Project:   $target_dir ($project_name)"
     echo "  Framework: $FRAMEWORK_ROOT (v${fw_version})"
     if [ -n "$project_version" ]; then
-        if [ "$project_version" = "$fw_version" ]; then
-            echo -e "  Pinned:    v${project_version} ${GREEN}(current)${NC}"
-        else
-            echo -e "  Pinned:    v${project_version} ${YELLOW}(behind v${fw_version})${NC}"
-        fi
+        fw_upgrade_render_pin_line "$project_version" "$fw_version" "$_rel" "$force_downgrade"
     else
         echo -e "  Pinned:    ${YELLOW}<none>${NC} (version tracking will be added)"
     fi
@@ -567,20 +1068,66 @@ do_upgrade() {
        && [ "$project_version" != "$fw_version" ] \
        && [ "$fw_version" != "unknown" ] \
        && [ "$force_downgrade" != true ]; then
-        local _precheck_direction
-        if [ "$(printf '%s\n%s\n' "$project_version" "$fw_version" | sort -V | tail -1)" = "$project_version" ]; then
-            _precheck_direction="ahead"
-        else
-            _precheck_direction="behind"
-        fi
-        if [ "$_precheck_direction" = "ahead" ]; then
-            echo -e "${RED}REFUSED${NC}  Consumer v$project_version is AHEAD of framework v$fw_version." >&2
-            echo -e "          Running fw upgrade here would downgrade the runtime (.agentic-framework/)" >&2
-            echo -e "          AND the pinned version, creating a split-brain state (T-1912 class)." >&2
-            echo -e "          Framework VERSION likely rolled back (see T-1828)." >&2
-            echo -e "          To proceed anyway: re-run with ${BOLD}--force-downgrade${NC}." >&2
+        # T-2713: relation via git ancestry, not `sort -V`. The guard below is
+        # unchanged in intent; it is simply no longer fed a fabricated direction.
+        local _precheck_direction _precheck_sha
+        _precheck_sha=$(grep "^version_sha:" "$target_dir/.framework.yaml" 2>/dev/null | sed 's/^version_sha:[[:space:]]*//' || true)
+        # Bare call, not $(...) — the reason travels via a global (see lib/version-relation.sh).
+        fw_version_relation "$project_version" "$fw_version" "$_precheck_sha" "$FRAMEWORK_ROOT" >/dev/null
+        _precheck_direction="$FW_VERSION_RELATION"
+        if fw_version_relation_should_refuse "$_precheck_direction"; then
+            echo -e "${RED}REFUSED${NC}  Consumer v$project_version vs framework v$fw_version: ${_precheck_direction}." >&2
+            echo -e "          ${FW_VERSION_RELATION_REASON}." >&2
+            if [ "$_precheck_direction" = "foreign-source" ]; then
+                # T-2762: different fault, different remedy. The consumer is fine;
+                # the SOURCE is wrong, so "force the downgrade" is the wrong verb to
+                # put in front of the reader. Naming the targeted bypass is L-399
+                # discipline — a block message that offers only a mechanism aimed at
+                # another failure is how agents end up routing around the gate.
+                echo -e "          Upgrading from it would overwrite the consumer's files with a" >&2
+                echo -e "          history that never held them." >&2
+                echo -e "          Likely cause: a stale global shim. Check which fw is running:" >&2
+                echo -e "            readlink -f \"\$(command -v fw)\"" >&2
+                echo -e "          Then re-run from the consumer's own vendored framework, or from an" >&2
+                echo -e "          upstream checkout that contains the consumer's commit." >&2
+                echo -e "          To proceed anyway: ${BOLD}FW_ALLOW_FOREIGN_SOURCE=1${NC} (logged Tier-2)." >&2
+            else
+                echo -e "          Running fw upgrade here would downgrade the runtime (.agentic-framework/)" >&2
+                echo -e "          AND the pinned version, creating a split-brain state (T-1912 class)." >&2
+                echo -e "          To proceed anyway: re-run with ${BOLD}--force-downgrade${NC}." >&2
+            fi
             return 1
         fi
+        if [ "$_precheck_direction" = "undecidable" ]; then
+            echo -e "${YELLOW}WARN${NC}    Version relation undetermined: ${FW_VERSION_RELATION_REASON}." >&2
+            echo -e "          Proceeding (T-2713 default). This upgrade records version_sha, so the" >&2
+            echo -e "          next comparison will be decidable. Set FW_UNDECIDABLE_VERSION_PROCEED=0 to refuse instead." >&2
+        fi
+    fi
+
+    # ── 0. Directory skeleton (T-2758) ──
+    #
+    # Step 8 below has always created the .context/ subdirectories. It runs FIVE
+    # STEPS TOO LATE: step 3 copies seed files into .context/project/, and on a
+    # consumer that doesn't have that directory yet the cp fails, `fw upgrade`
+    # exits 1, and steps 4-10 — hooks, resume.md, shim, vendor — never run. The
+    # consumer is left half-upgraded, having already taken steps 1 and 2.
+    #
+    # The ordering was invisible because every consumer that reached step 3 had
+    # been through `fw init`, which creates the tree. The shape that breaks is a
+    # project holding .framework.yaml and little else — which is exactly what the
+    # tests construct, and why lib_upgrade.bats had three red tests attributed to
+    # resume.md drift when the run was dying long before resume.md.
+    #
+    # Creating the skeleton up front rather than adding a mkdir at the one line
+    # observed failing: the next step added below is written against a consumer
+    # that already has its directories, and would inherit the same bug.
+    if [ "$dry_run" != true ]; then
+        local _skel
+        for _skel in audits bus episodic handovers inbox project qa scans working; do
+            mkdir -p "$target_dir/.context/$_skel"
+        done
+        mkdir -p "$target_dir/.tasks/templates" "$target_dir/.claude/commands" "$target_dir/policy"
     fi
 
     # ── 1. CLAUDE.md — preserve project sections, update governance ──
@@ -800,6 +1347,33 @@ CRONREGEOF
         fi
     fi
 
+    # ── 3c. BVP policy files (T-2262 / arc-006 Slice 2B) ──
+    # Sibling of T-2261's lib/init.sh wiring. Seed BVP-policy files on consumers
+    # that pre-date T-2261. Copy-on-missing only — consumer customisation survives.
+    local bvp_seeded=0
+    if [ ! -f "$target_dir/policy/value-drivers.yaml" ] && [ -f "$FRAMEWORK_ROOT/policy/value-drivers.yaml" ]; then
+        bvp_seeded=$((bvp_seeded + 1))
+        if [ "$dry_run" != true ]; then
+            mkdir -p "$target_dir/policy"
+            cp "$FRAMEWORK_ROOT/policy/value-drivers.yaml" "$target_dir/policy/value-drivers.yaml"
+        fi
+    fi
+    if [ ! -f "$target_dir/policy/bvp-scoring-rubric.md" ] && [ -f "$FRAMEWORK_ROOT/policy/bvp-scoring-rubric.md" ]; then
+        bvp_seeded=$((bvp_seeded + 1))
+        if [ "$dry_run" != true ]; then
+            mkdir -p "$target_dir/policy"
+            cp "$FRAMEWORK_ROOT/policy/bvp-scoring-rubric.md" "$target_dir/policy/bvp-scoring-rubric.md"
+        fi
+    fi
+    if [ "$bvp_seeded" -gt 0 ]; then
+        changes=$((changes + 1))
+        if [ "$dry_run" = true ]; then
+            echo -e "  ${CYAN}WOULD SEED${NC}  BVP policy files ($bvp_seeded file(s))"
+        else
+            echo -e "  ${GREEN}SEEDED${NC}  BVP policy files ($bvp_seeded file(s))"
+        fi
+    fi
+
     # ── 4. Git hooks ──
     echo -e "${YELLOW}[4/10] Git hooks${NC}"
 
@@ -860,7 +1434,10 @@ CRONREGEOF
 
     # T-665: Migrate ~/.local/bin/fw from global symlink to project-detecting shim
     local local_bin="$HOME/.local/bin"
-    local shim_src="$FRAMEWORK_ROOT/bin/fw-shim"
+    # T-2793: prefer bin/fw-router (supersedes bin/fw-shim — same walk-up, plus
+    # an announced global fallback so `fw init` still works in a bare directory).
+    local shim_src="$FRAMEWORK_ROOT/bin/fw-router"
+    [ -f "$shim_src" ] || shim_src="$FRAMEWORK_ROOT/bin/fw-shim"
     if [ -f "$shim_src" ] && [ -d "$local_bin" ]; then
         local current_fw="$local_bin/fw"
         if [ -L "$current_fw" ]; then
@@ -874,10 +1451,18 @@ CRONREGEOF
                     # T-1278: defence-in-depth — if the resolved target sits
                     # next to a FRAMEWORK.md, refuse. It's a framework repo's
                     # bin/fw, not a PATH shim location.
-                    local target_dir
-                    target_dir=$(dirname "$link_target" 2>/dev/null || echo "")
-                    if [ -n "$target_dir" ] && [ -f "$target_dir/../FRAMEWORK.md" ]; then
-                        echo -e "  ${RED}REFUSED${NC}  $current_fw resolves into a framework repo ($target_dir/..)"
+                    # T-2759: MUST NOT be named target_dir. do_upgrade binds
+                    # target_dir to the consumer at :566, and a second `local`
+                    # in the same function scope REBINDS it rather than scoping
+                    # a new one. Steps 5-10 then wrote .claude/settings.json,
+                    # .mcp.json, resume.md, scripts/, the context subdirs, the
+                    # .framework.yaml version pin and the enforcement baseline
+                    # into dirname(readlink -f ~/.local/bin/fw) — while the run
+                    # printed "=== Upgrade Complete ===" and exited 0.
+                    local _shim_link_dir
+                    _shim_link_dir=$(dirname "$link_target" 2>/dev/null || echo "")
+                    if [ -n "$_shim_link_dir" ] && [ -f "$_shim_link_dir/../FRAMEWORK.md" ]; then
+                        echo -e "  ${RED}REFUSED${NC}  $current_fw resolves into a framework repo ($_shim_link_dir/..)"
                         echo -e "         Refusing to overwrite a framework repo's bin/fw with the shim."
                         echo -e "         Inspect: ls -la $current_fw && readlink -f $current_fw"
                         return 1
@@ -903,96 +1488,37 @@ CRONREGEOF
         fi
     fi
 
-    # T-660: Global install sync (fallback for users who still use global install)
-    local global_dir="$HOME/.agentic-framework"
-    if [ -d "$global_dir/agents/context" ]; then
-        local global_updated=0
-        # Sync bin/fw (T-660: main CLI entry point — stale global fw causes deadlock)
-        local src_fw="$FRAMEWORK_ROOT/bin/fw"
-        local dst_fw="$global_dir/bin/fw"
-        if [ -f "$src_fw" ]; then
-            if [ ! -f "$dst_fw" ] || ! diff -q "$src_fw" "$dst_fw" > /dev/null 2>&1; then
-                global_updated=$((global_updated + 1))
-                if [ "$dry_run" != true ]; then
-                    mkdir -p "$global_dir/bin"
-                    cp "$src_fw" "$dst_fw"
-                    chmod +x "$dst_fw"
-                fi
-            fi
-        fi
-        # Sync lib/*.sh (T-660: subcommand implementations invoked by bin/fw)
-        if [ -d "$FRAMEWORK_ROOT/lib" ]; then
-            for src_lib_file in "$FRAMEWORK_ROOT/lib/"*.sh; do
-                [ -f "$src_lib_file" ] || continue
-                local lib_name
-                lib_name=$(basename "$src_lib_file")
-                local dst_lib_file="$global_dir/lib/$lib_name"
-                if [ ! -f "$dst_lib_file" ] || ! diff -q "$src_lib_file" "$dst_lib_file" > /dev/null 2>&1; then
-                    global_updated=$((global_updated + 1))
-                    if [ "$dry_run" != true ]; then
-                        mkdir -p "$global_dir/lib"
-                        cp "$src_lib_file" "$dst_lib_file"
-                        [ -x "$src_lib_file" ] && chmod +x "$dst_lib_file"
-                    fi
-                fi
-            done
-        fi
-        # Sync agents/context/*.sh
-        for src_script in "$FRAMEWORK_ROOT/agents/context/"*.sh; do
-            [ -f "$src_script" ] || continue
-            local sname
-            sname=$(basename "$src_script")
-            local dst_script="$global_dir/agents/context/$sname"
-            if [ ! -f "$dst_script" ] || ! diff -q "$src_script" "$dst_script" > /dev/null 2>&1; then
-                global_updated=$((global_updated + 1))
-                if [ "$dry_run" != true ]; then
-                    cp "$src_script" "$dst_script"
-                    chmod +x "$dst_script"
-                fi
-            fi
-        done
-        # Sync agents/context/lib/
-        if [ -d "$FRAMEWORK_ROOT/agents/context/lib" ]; then
-            for src_lib in "$FRAMEWORK_ROOT/agents/context/lib/"*; do
-                [ -f "$src_lib" ] || continue
-                local lname
-                lname=$(basename "$src_lib")
-                local dst_lib="$global_dir/agents/context/lib/$lname"
-                if [ ! -f "$dst_lib" ] || ! diff -q "$src_lib" "$dst_lib" > /dev/null 2>&1; then
-                    global_updated=$((global_updated + 1))
-                    if [ "$dry_run" != true ]; then
-                        mkdir -p "$global_dir/agents/context/lib"
-                        cp "$src_lib" "$dst_lib"
-                        [ -x "$src_lib" ] && chmod +x "$dst_lib"
-                    fi
-                fi
-            done
-        fi
-
-        if [ "$global_updated" -gt 0 ]; then
-            changes=$((changes + 1))
-            if [ "$dry_run" = true ]; then
-                echo -e "  ${CYAN}WOULD UPDATE${NC}  $global_updated global script(s)"
-            else
-                echo -e "  ${GREEN}UPDATED${NC}  $global_updated global script(s) synced to $global_dir"
-            fi
-        else
-            echo -e "  ${GREEN}OK${NC}  Global install scripts current"
-        fi
-    else
-        echo -e "  ${CYAN}SKIP${NC}  No global install at $global_dir"
-    fi
+    # T-660 global-install sync REMOVED (T-2854, completing D-377).
+    #
+    # This block copied bin/fw, lib/*.sh and agents/context/*.sh into
+    # $HOME/.agentic-framework on every upgrade, whenever that directory
+    # existed. Since T-2800/T-2809 nothing creates it, so the only directories
+    # it could still feed were pre-T-2800 residue — which is how one reached
+    # 341MB on the origin host and stayed current enough to keep being used.
+    #
+    # Keeping a stale copy fed is worse than leaving it stale: a maintained
+    # residue is indistinguishable from a supported install, and bin/fw-router
+    # no longer consults it at all. Detection stays in `fw doctor`, which
+    # reports the directory and the rm -rf to run.
 
     # ── 5. .claude/settings.json (hooks config) ──
     echo -e "${YELLOW}[5/10] Claude Code hooks (.claude/settings.json)${NC}"
 
     local settings_file="$target_dir/.claude/settings.json"
     local fw_settings="$FRAMEWORK_ROOT/.claude/settings.json"
-    if [ -f "$settings_file" ]; then
-        # Compare hooks by TYPE enumeration (T-615: not count)
-        # Source of truth: framework's own .claude/settings.json
-        local hook_analysis
-        hook_analysis=$(FW_FILE="$fw_settings" CONSUMER_FILE="$settings_file" python3 -c "
+
+    # T-2912: hook-gap detection extracted into a function so it can be run
+    # BOTH before and after regeneration. The bug this closes: the block used
+    # to compute "reason" once (before), regenerate, then print "UPDATED
+    # (reason)" unconditionally — describing the trigger, not the result. If
+    # the regenerator's own template doesn't know the missing hook (T-2710's
+    # class), the after-state is identical to the before-state and the report
+    # is a false positive. Compare hooks by TYPE enumeration (T-615: not count).
+    # Source of truth: framework's own .claude/settings.json.
+    _t2912_hook_gap() {
+        local sfile="$1"
+        local analysis
+        analysis=$(FW_FILE="$fw_settings" CONSUMER_FILE="$sfile" python3 -c "
 import json, os
 
 def extract_hooks(path):
@@ -1051,19 +1577,38 @@ missing = fw_hooks - consumer_hooks
 missing_names = '; '.join(f'{e}:{n}' for e, n in sorted(missing)) if missing else ''
 print(f'{len(fw_hooks)}|{len(consumer_hooks)}|{len(missing)}|{stale}|{missing_names}')
 " 2>/dev/null || echo "0|0|0|0|parse-error")
-        local fw_total consumer_total missing_count stale_hooks missing_names
+
+        # T-2709 (T-2704 §5.1 — "this is the trap"): the two predicates above are
+        # blind to a hook command carrying the GENERATING host's absolute checkout
+        # path. Such a command contains 'fw hook' (so not non_framework), is not
+        # bare-relative (so not stale), and its hook NAME matches (so missing = 0)
+        # — reason never fires, no regeneration, and the consumer stays broken
+        # across every `fw upgrade`. Same shared predicate as bin/fw doctor Check 6;
+        # one module, two call sites (L-399: a contract shipped on one side only is
+        # how this class recurs).
+        local nonportable
+        nonportable=$(python3 "$FRAMEWORK_ROOT/lib/hook_portability.py" "$sfile" 2>/dev/null | cut -d'|' -f2)
+        [ -z "$nonportable" ] && nonportable=0
+        echo "${analysis}|${nonportable}"
+    }
+
+    if [ -f "$settings_file" ]; then
+        local hook_analysis
+        hook_analysis=$(_t2912_hook_gap "$settings_file")
+        local fw_total consumer_total missing_count stale_hooks missing_names hook_nonportable
         fw_total=$(echo "$hook_analysis" | cut -d'|' -f1)
         consumer_total=$(echo "$hook_analysis" | cut -d'|' -f2)
         missing_count=$(echo "$hook_analysis" | cut -d'|' -f3)
         stale_hooks=$(echo "$hook_analysis" | cut -d'|' -f4)
         missing_names=$(echo "$hook_analysis" | cut -d'|' -f5)
+        hook_nonportable=$(echo "$hook_analysis" | cut -d'|' -f6)
 
         local needs_regen=false
         [ "$missing_count" -gt 0 ] && needs_regen=true
         [ "${stale_hooks:-0}" -gt 0 ] && needs_regen=true
+        [ "${hook_nonportable:-0}" -gt 0 ] && needs_regen=true
 
         if [ "$needs_regen" = true ]; then
-            changes=$((changes + 1))
             local reason=""
             if [ "$missing_count" -gt 0 ]; then
                 reason="missing $missing_count hook(s): $missing_names"
@@ -1072,18 +1617,78 @@ print(f'{len(fw_hooks)}|{len(consumer_hooks)}|{len(missing)}|{stale}|{missing_na
                 [ -n "$reason" ] && reason="$reason + "
                 reason="${reason}${stale_hooks} hardcoded paths"
             fi
+            if [ "${hook_nonportable:-0}" -gt 0 ]; then
+                [ -n "$reason" ] && reason="$reason + "
+                reason="${reason}${hook_nonportable} non-portable path(s) (host checkout baked in; expected \${CLAUDE_PROJECT_DIR})"
+            fi
             if [ "$dry_run" = true ]; then
                 echo -e "  ${CYAN}WOULD UPDATE${NC}  $reason"
+                changes=$((changes + 1))
             else
-                cp "$settings_file" "${settings_file}.bak"
+                # T-2912: verify the regeneration's OWN effect — never trust the
+                # pre-write "reason" string as a report of outcome. Snapshot the
+                # file, regenerate, then diff and re-run the SAME detector on the
+                # result. Only a run that both (a) mutated the file and (b) no
+                # longer trips the detector reports UPDATED; anything else is
+                # FAILED or PARTIAL, and no .bak survives a run that changed
+                # nothing (a backup is evidence of a mutation that didn't happen).
+                local _t2912_pre
+                _t2912_pre=$(mktemp)
+                cp "$settings_file" "$_t2912_pre"
+
                 # T-2093 F6 (T-2078 V1-B): subshell-scope the force=true override.
                 # The old save_force / restore-on-exit pattern leaked force=true into
                 # the rest of do_upgrade if generate_claude_code_config exited via
                 # set -e mid-function — a stuck-on force=true crosses governance
                 # (the flag is a sovereignty bypass). Subshell makes the override
                 # impossible to leak; the parent's `force` stays untouched.
-                ( force=true; generate_claude_code_config "$target_dir" )
-                echo -e "  ${GREEN}UPDATED${NC}  Hooks regenerated ($reason). Backup: settings.json.bak"
+                ( force=true; generate_claude_code_config "$target_dir" ) >/dev/null
+
+                local hook_analysis_after missing_count_after missing_names_after stale_after nonportable_after
+                hook_analysis_after=$(_t2912_hook_gap "$settings_file")
+                missing_count_after=$(echo "$hook_analysis_after" | cut -d'|' -f3)
+                missing_names_after=$(echo "$hook_analysis_after" | cut -d'|' -f5)
+                stale_after=$(echo "$hook_analysis_after" | cut -d'|' -f4)
+                nonportable_after=$(echo "$hook_analysis_after" | cut -d'|' -f6)
+                local gap_remains=false
+                [ "${missing_count_after:-0}" -gt 0 ] && gap_remains=true
+                [ "${stale_after:-0}" -gt 0 ] && gap_remains=true
+                [ "${nonportable_after:-0}" -gt 0 ] && gap_remains=true
+
+                if cmp -s "$_t2912_pre" "$settings_file"; then
+                    # No mutation actually occurred — the generator's own
+                    # template does not carry what the detector is asking for
+                    # (T-2710's class: template lags the framework's real
+                    # hook set). Do not write a .bak for a no-op, and do not
+                    # call it OK — the detector still trips.
+                    rm -f "$_t2912_pre"
+                    if [ "$gap_remains" = true ]; then
+                        echo -e "  ${RED}FAILED${NC}  Regeneration made no change; still $reason. lib/init.sh generate_claude_code_config's template does not know these hooks — fix the template, not the consumer."
+                        failed_steps=$((failed_steps + 1))
+                        if [ "$strict" = true ]; then
+                            echo -e "  ${RED}STRICT ABORT${NC}  step 5 (hooks) failed to converge"
+                            _strict_abort_step="5 (hooks)"
+                            return 1
+                        fi
+                    else
+                        echo -e "  ${GREEN}OK${NC}  Hooks already current (no-op)"
+                    fi
+                else
+                    cp "$_t2912_pre" "${settings_file}.bak"
+                    rm -f "$_t2912_pre"
+                    changes=$((changes + 1))
+                    if [ "$gap_remains" = true ]; then
+                        echo -e "  ${YELLOW}PARTIAL${NC}  Hooks regenerated but gap remains: missing $missing_count_after hook(s): $missing_names_after. Backup: settings.json.bak"
+                        failed_steps=$((failed_steps + 1))
+                        if [ "$strict" = true ]; then
+                            echo -e "  ${RED}STRICT ABORT${NC}  step 5 (hooks) partial convergence"
+                            _strict_abort_step="5 (hooks)"
+                            return 1
+                        fi
+                    else
+                        echo -e "  ${GREEN}UPDATED${NC}  Hooks regenerated ($reason). Backup: settings.json.bak"
+                    fi
+                fi
             fi
         else
             echo -e "  ${GREEN}OK${NC}  $consumer_total/$fw_total hooks present (all types matched)"
@@ -1167,7 +1772,7 @@ print(sum(len(v) for v in data.get('hooks', {}).values()))
 
     local mcp_file="$target_dir/.mcp.json"
     # Framework-recommended MCP servers
-    local recommended_servers='{"context7":1,"playwright":1,"termlink":1}'
+    local recommended_servers='{"context7":1,"playwright":1,"termlink":1,"fw":1}'
 
     if [ -f "$mcp_file" ]; then
         # Check for missing recommended servers. T-1354: servers live under
@@ -1212,6 +1817,7 @@ defaults = {
     'context7': {'command': 'npx', 'args': ['-y', '@upstash/context7-mcp']},
     'playwright': {'command': 'npx', 'args': ['@playwright/mcp@latest', '--no-sandbox']},
     'termlink': {'command': 'termlink', 'args': ['mcp', 'serve']},
+    'fw': {'command': 'python3', 'args': ['.agentic-framework/agents/mcp/framework_mcp_server.py']},
 }
 for key in recommended_keys:
     if key not in servers and key in defaults:
@@ -1228,7 +1834,7 @@ with open(mcp_file, 'w') as f:
     else
         changes=$((changes + 1))
         if [ "$dry_run" = true ]; then
-            echo -e "  ${CYAN}WOULD CREATE${NC}  .mcp.json (context7, playwright, termlink)"
+            echo -e "  ${CYAN}WOULD CREATE${NC}  .mcp.json (context7, playwright, termlink, fw)"
         else
             cat > "$mcp_file" << 'MCPJSON'
 {
@@ -1244,11 +1850,15 @@ with open(mcp_file, 'w') as f:
     "termlink": {
       "command": "termlink",
       "args": ["mcp", "serve"]
+    },
+    "fw": {
+      "command": "python3",
+      "args": [".agentic-framework/agents/mcp/framework_mcp_server.py"]
     }
   }
 }
 MCPJSON
-            echo -e "  ${GREEN}CREATED${NC}  .mcp.json (MCP servers: context7, playwright, termlink)"
+            echo -e "  ${GREEN}CREATED${NC}  .mcp.json (MCP servers: context7, playwright, termlink, fw)"
         fi
     fi
 
@@ -1395,6 +2005,11 @@ MCPJSON
     # ── 9. Version tracking (.framework.yaml) ──
     echo -e "${YELLOW}[9/10] Version tracking${NC}"
 
+    # T-2713: `version:` is a tag counter that resets (1.6.354 → 1.6.121 →
+    # 1.6.176), so it can never answer "is this consumer behind?". The commit
+    # SHA can, via git ancestry. Writer lives in lib/version-relation.sh next to
+    # the reader that consumes it.
+
     local fw_version="${FW_VERSION:-unknown}"
     local yaml_file="$target_dir/.framework.yaml"
 
@@ -1404,6 +2019,11 @@ MCPJSON
 
         if [ "$current_pinned" = "$fw_version" ]; then
             echo -e "  ${GREEN}OK${NC}  Version $fw_version already recorded"
+            # T-2713: backfill the SHA even when the counter already matches —
+            # otherwise a same-version consumer stays permanently undecidable.
+            if [ "$dry_run" != true ]; then
+                fw_record_version_sha "$yaml_file" "$FRAMEWORK_ROOT"
+            fi
         else
             # T-1839: silent-downgrade guard. If consumer's pinned version is
             # AHEAD of the framework's version, refuse to rewrite — that would
@@ -1411,16 +2031,15 @@ MCPJSON
             # leaves consumers in this state, and pre-T-1838 doctor advice
             # could send operators here unwittingly.
             if [ -n "$current_pinned" ] && [ "$current_pinned" != "$fw_version" ]; then
-                local _direction
-                if [ "$(printf '%s\n%s\n' "$current_pinned" "$fw_version" | sort -V | tail -1)" = "$current_pinned" ]; then
-                    _direction="ahead"
-                else
-                    _direction="behind"
-                fi
-                if [ "$_direction" = "ahead" ] && [ "$force_downgrade" != true ]; then
-                    echo -e "  ${RED}REFUSED${NC}  Consumer v$current_pinned is AHEAD of framework v$fw_version."
+                # T-2713: ancestry, not string order (see lib/version-relation.sh).
+                local _direction _pinned_sha
+                _pinned_sha=$(grep "^version_sha:" "$yaml_file" 2>/dev/null | sed 's/^version_sha:[[:space:]]*//' || true)
+                fw_version_relation "$current_pinned" "$fw_version" "$_pinned_sha" "$FRAMEWORK_ROOT" >/dev/null
+                _direction="$FW_VERSION_RELATION"
+                if fw_version_relation_should_refuse "$_direction" && [ "$force_downgrade" != true ]; then
+                    echo -e "  ${RED}REFUSED${NC}  Consumer v$current_pinned vs framework v$fw_version: ${_direction}."
+                    echo -e "          ${FW_VERSION_RELATION_REASON}."
                     echo -e "          Running fw upgrade here would downgrade the pinned version."
-                    echo -e "          Framework VERSION likely rolled back (see T-1828)."
                     echo -e "          To proceed anyway: re-run with ${BOLD}--force-downgrade${NC}."
                     return 1
                 fi
@@ -1442,6 +2061,10 @@ MCPJSON
                 else
                     echo "version: $fw_version" >> "$yaml_file"
                 fi
+                # T-2713: record the framework commit alongside the counter.
+                # VERSION resets, so it can never answer "does the framework
+                # contain this consumer's code?". A SHA can, via git ancestry.
+                fw_record_version_sha "$yaml_file" "$FRAMEWORK_ROOT"
                 # Record last_upgrade timestamp
                 local upgrade_ts
                 upgrade_ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -1611,7 +2234,33 @@ _t2094_emit_doctor_advisory() {
     local _doctor_rc=0
     echo ""
     echo -e "  ${BOLD}Post-upgrade health check (advisory):${NC}"
-    _doctor_out=$(PROJECT_ROOT="$target_dir" "$FRAMEWORK_ROOT/bin/fw" doctor 2>&1) || _doctor_rc=$?
+
+    # T-2845: run the CONSUMER's own fw, not $FRAMEWORK_ROOT's. During
+    # `fw upgrade`, FRAMEWORK_ROOT is the temporary upstream clone
+    # (/tmp/fw-upstream-XXXXXX/fw), so using it health-checked the upstream and
+    # merely pointed it at the consumer's directory. The vendored copy the
+    # operator will actually run was never exercised, and every advisory for a
+    # vendored project reported `Active mode: global … vendored copy exists but
+    # was not selected` — the harness describing itself, read for a long time as
+    # a consumer fault. Fall back to FRAMEWORK_ROOT for consumers that genuinely
+    # have no vendored copy (shared-tooling / global installs).
+    #
+    # BOTH the binary and FRAMEWORK_ROOT must move together. `fw` honours an
+    # inherited FRAMEWORK_ROOT over its own location, and T-2099's fork-bomb fix
+    # exports it scoped to the temp clone — so invoking the consumer's binary
+    # while that export is still live puts the consumer's fw back into global
+    # mode against the clone, and the output is byte-identical to not having
+    # changed anything. Measured: same binary, clean env → "Active mode:
+    # vendored"; with FRAMEWORK_ROOT inherited → "Active mode: global … vendored
+    # copy exists but was not selected".
+    local _doctor_fw="$FRAMEWORK_ROOT/bin/fw"
+    local _doctor_fw_root="$FRAMEWORK_ROOT"
+    if [ -x "$target_dir/.agentic-framework/bin/fw" ]; then
+        _doctor_fw="$target_dir/.agentic-framework/bin/fw"
+        _doctor_fw_root="$target_dir/.agentic-framework"
+    fi
+    _doctor_out=$(PROJECT_ROOT="$target_dir" FRAMEWORK_ROOT="$_doctor_fw_root" \
+                  "$_doctor_fw" doctor 2>&1) || _doctor_rc=$?
     echo "$_doctor_out" | awk 'NR<=20 {print "    " $0}'
     echo ""
     if [ "$_doctor_rc" -ne 0 ]; then

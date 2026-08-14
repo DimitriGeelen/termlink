@@ -21,6 +21,13 @@
         <span class="stat-breakdown">Close-ready arcs</span>
     </a>
     {% endif %}
+    {% if bvp_proposal_count and bvp_proposal_count > 0 %}
+    <a href="#section-bvp-proposals" class="approval-stat approval-stat-group decisions-active" style="text-decoration:none; color:inherit;">
+        <span class="stat-value">{{ bvp_proposal_count }}</span>
+        <span class="stat-label">BVP Proposals</span>
+        <span class="stat-breakdown">Pending drivers</span>
+    </a>
+    {% endif %}
     <a href="#section-verifications" class="approval-stat approval-stat-group {{ 'ac-active' if ac_count else '' }}" style="text-decoration:none; color:inherit;">
         <span class="stat-value">{{ ac_count }}</span>
         <span class="stat-label">Verifications</span>
@@ -110,6 +117,16 @@
                   {% if _bad %}background:var(--wt-danger); color:#fff;{% else %}background:var(--wt-success); color:#fff;{% endif %}"
                   title="Reviewer: {{ _r.overall }}{% if _r.findings %} · {{ _r.findings }} findings{% endif %}{% if _r.needs_human %} · needs human{% endif %}">
                 Reviewer: {{ _r.overall }}{% if _r.findings %} · {{ _r.findings }}{% endif %}{% if _r.needs_human %} ⚠{% endif %}
+            </span>
+            {% endif %}
+            {# T-100188: evidence badge from the claims-validator verdict (T-100187) #}
+            {% set _cv = t.claims %}
+            {% if _cv and _cv.overall %}
+            <span class="claims-badge" data-overall="{{ _cv.overall }}"
+                  style="display:inline-block; padding:0.15rem 0.5rem; border-radius:3px; font-size:0.65rem; font-weight:600;
+                  {% if _cv.overall == 'CONTRADICTED' %}background:var(--wt-danger); color:#fff;{% elif _cv.overall == 'CONFIRMED' %}background:var(--wt-success); color:#fff;{% else %}background:var(--wt-muted); color:#fff;{% endif %}"
+                  title="Recommendation evidence claims: {{ _cv.passed }}/{{ _cv.total }} confirmed ({{ _cv.overall }})">
+                Evidence: {{ _cv.passed }}/{{ _cv.total }}{% if _cv.overall == 'CONTRADICTED' %} ⚠{% endif %}
             </span>
             {% endif %}
             <a href="/inception/{{ t.task_id }}"><strong>{{ t.task_id }}</strong></a>:
@@ -256,6 +273,49 @@
 {% endfor %}
 {% endif %}
 
+<!-- T-2335: BVP driver proposals — agent-filed, awaiting Sovereign approve/reject (T-2332 endpoints) -->
+{% if bvp_proposals %}
+<h2 id="section-bvp-proposals" class="approvals-group-heading">BVP Driver Proposals</h2>
+<div class="section-header">
+    <h3>Pending driver proposals</h3>
+    <small>{{ bvp_proposal_count }} proposal{{ '' if bvp_proposal_count == 1 else 's' }} — Approve runs <code>fw bvp driver --add --from-watchtower</code> (Sovereign rail); Reject appends a rationale row. Audit trail: <code>.context/bvp-driver-proposals.jsonl</code></small>
+</div>
+{% for p in bvp_proposals %}
+<div class="approval-card pending bvp-proposal" id="proposal-{{ p.id }}">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+        <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
+            <code>{{ p.id }}</code>
+            <strong>{{ p.name }}</strong>
+            <span style="font-size:0.8rem; color:var(--pico-muted-color);">weight {{ p.weight }}</span>
+            <small class="muted">{{ p.author or 'unknown' }}{% if p.task %} · <a href="/tasks/{{ p.task }}" hx-target="#content" hx-swap="innerHTML" hx-push-url="true">{{ p.task }}</a>{% endif %}</small>
+        </div>
+        <div style="display:flex; gap:0.4rem; align-items:center;">
+            <button type="button"
+                    hx-post="/api/bvp/driver/approve?id={{ p.id }}"
+                    hx-target="#proposal-{{ p.id }} .dp-result"
+                    hx-swap="innerHTML"
+                    hx-on::after-request="if(event.detail.successful) setTimeout(()=>location.reload(),800)"
+                    style="margin:0; background: var(--wt-success); color: white; padding: 0.2rem 0.6rem; border: 0; font-size:0.78rem;">
+              Approve
+            </button>
+            <button type="button"
+                    hx-post="/api/bvp/driver/reject?id={{ p.id }}"
+                    hx-prompt="Reject rationale (≥30 chars — why is this not the right driver?):"
+                    hx-target="#proposal-{{ p.id }} .dp-result"
+                    hx-swap="innerHTML"
+                    hx-on::after-request="if(event.detail.successful) setTimeout(()=>location.reload(),800)"
+                    style="margin:0; background: var(--wt-danger); color: white; padding: 0.2rem 0.6rem; border: 0; font-size:0.78rem;">
+              Reject
+            </button>
+            <span class="dp-result" style="display:inline-block;"></span>
+        </div>
+    </div>
+    <div style="font-size:0.85rem; margin-top:0.35rem;">{{ p.rationale }}</div>
+    {% if p.drop %}<div style="font-size:0.78rem; color:var(--pico-muted-color); margin-top:0.2rem;">replaces <code>{{ p.drop }}</code></div>{% endif %}
+</div>
+{% endfor %}
+{% endif %}
+
 <!-- T-1808 (dispatch-safety slice 4): Paused dispatches — Workers awaiting operator answer -->
 {% if paused_dispatches %}
 <h2 id="section-paused" class="approvals-group-heading">Paused Dispatches</h2>
@@ -296,6 +356,16 @@
 <div class="section-header">
     <h3>Human Acceptance Criteria</h3>
     <small>{{ ac_count }} across {{ ac_task_count }} task{{ 's' if ac_task_count != 1 }} — rubber-stamp + review checks</small>
+    {# T-2406: explicit expand-all affordance — operator opts into full list for arc-walk burst. #}
+    {% if pending_acs|length > 10 %}
+    <small style="margin-left:auto;">
+        {% if expand_overflow %}
+        <a href="/approvals">Collapse overflow ↑</a>
+        {% else %}
+        <a href="/approvals?expand=verifications">Expand all {{ ac_task_count }} ↓</a>
+        {% endif %}
+    </small>
+    {% endif %}
 </div>
 
 <!-- Batch completion button (T-846) — only for tasks with ALL ACs checked -->
@@ -426,8 +496,15 @@ function filterACs(filter) {
 {% set _ac_cap = 10 %}
 {% for t in pending_acs %}
 {% if loop.index == _ac_cap + 1 %}
-<details class="ac-overflow" style="margin:0.75rem 0;">
-<summary style="cursor:pointer; font-weight:600; padding:0.5rem 0.6rem; color:var(--wt-accent); border:1px dashed var(--pico-muted-border-color); border-radius:6px;">Show {{ pending_acs|length - _ac_cap }} more verification{{ 's' if (pending_acs|length - _ac_cap) != 1 }} — lower priority, all still actionable</summary>
+{# T-2406: open by default when ?expand=verifications was passed. Summary promoted from
+   thin dashed border (footnote-class) to button-styled CTA so the overflow reads as a
+   clickable affordance, not a section divider. Operator framing was "rows don't render";
+   the rows DID render but the disclosure was sub-perceptual. #}
+<details class="ac-overflow" style="margin:0.75rem 0;" {% if expand_overflow %}open{% endif %}>
+<summary style="cursor:pointer; font-weight:700; padding:0.65rem 1rem; color:#fff; background:var(--wt-accent, var(--pico-primary)); border:none; border-radius:6px; font-size:0.9rem; box-shadow:0 1px 3px rgba(0,0,0,0.12);">
+  {% if expand_overflow %}▾{% else %}▸{% endif %}
+  {{ pending_acs|length - _ac_cap }} more verification{{ 's' if (pending_acs|length - _ac_cap) != 1 }} — lower priority, all still actionable
+</summary>
 {% endif %}
 <div class="approval-card human-ac-group" data-priority="{{ t.sort_priority }}" data-stale="{{ 'true' if t.is_stale else 'false' }}" data-verdict="{{ t.verdict|default('?') }}" data-state="{{ t.state|default('?') }}">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">

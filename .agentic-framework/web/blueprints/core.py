@@ -4,13 +4,13 @@ import re as re_mod
 import time as _time_mod
 
 import markdown2
-from flask import Blueprint, abort
+from flask import Blueprint, abort, render_template
 
 from lib.arc_membership import scan_tasks_by_arc_membership
 from web.context_loader import load_concerns, load_decisions, load_directives, load_patterns, load_practices
 from web.shared import (
-    PROJECT_ROOT, render_page, load_yaml as _load_yaml, load_scan,
-    parse_frontmatter, load_latest_audit, get_all_task_metadata,
+    FRAMEWORK_ROOT, PROJECT_ROOT, render_page, load_yaml as _load_yaml,
+    load_scan, parse_frontmatter, load_latest_audit, get_all_task_metadata,
     _auto_link_files,
 )
 from web.subprocess_utils import run_git_command
@@ -455,14 +455,28 @@ def index():
     )
 
 
-@bp.route("/project")
-def project():
+# T-2781: rows shown in the initial /project response before "Show all" is clicked.
+# Must match the limit the expand endpoint slices past, or items would either
+# duplicate (expand starts before this many) or go missing (expand starts after).
+PROJECT_DOCS_PREVIEW_LIMIT = 25
+
+
+def _build_project_categories():
+    """Discover project documentation and group it by category.
+
+    Shared by /project (preview) and /project/expand/<cat> (remainder) so both
+    routes see the same discovery pass rather than two copies of this logic
+    drifting apart.
+    """
     categories = {}
     skip = {".git", ".tasks", ".context", "node_modules", ".pytest_cache", ".playwright-mcp", "__pycache__"}
 
-    def _add(cat, path, display_name=None):
-        rel = path.relative_to(PROJECT_ROOT)
-        doc_id = str(rel).replace("/", "--")
+    def _add(cat, path, display_name=None, root=None, id_prefix=""):
+        # T-2651 (OBS-097): framework-owned docs pass root=FRAMEWORK_ROOT and,
+        # in split-root installs, an id_prefix ("fw--") that project_doc routes
+        # back to FRAMEWORK_ROOT. Coincident roots emit no prefix — unchanged.
+        rel = path.relative_to(root or PROJECT_ROOT)
+        doc_id = id_prefix + str(rel).replace("/", "--")
         for suffix in (".md", ".yaml", ".yml"):
             doc_id = doc_id.removesuffix(suffix)
         categories.setdefault(cat, []).append({
@@ -486,11 +500,16 @@ def project():
             if not any(part in skip for part in f.parts):
                 _add("Design", f)
 
-    # Agent docs: agents/*/AGENT.md
-    agents_dir = PROJECT_ROOT / "agents"
+    # Agent docs: agents/*/AGENT.md — FRAMEWORK-owned (T-2651, OBS-097).
+    # Paired with the fw-- routing in project_doc below; in split-root
+    # installs the vendored AGENT.md docs now surface instead of silently
+    # vanishing (T-2648 had allowlisted this site pending exactly this change).
+    agents_dir = FRAMEWORK_ROOT / "agents"
+    _fw_split = FRAMEWORK_ROOT.resolve() != PROJECT_ROOT.resolve()
     if agents_dir.is_dir():
         for f in sorted(agents_dir.glob("*/AGENT.md")):
-            _add("Agents", f)
+            _add("Agents", f, root=FRAMEWORK_ROOT,
+                 id_prefix="fw--" if _fw_split else "")
 
     # Project docs: remaining root .md files
     seen = {d["path"] for cat_docs in categories.values() for d in cat_docs}
@@ -523,7 +542,31 @@ def project():
                 pass
             _add("Research", f, display_name=name)
 
-    return render_page("project.html", page_title="Project Documentation", categories=categories)
+    return categories
+
+
+@bp.route("/project")
+def project():
+    categories = _build_project_categories()
+    # T-2781: the "Research" category alone was 2,457 episodic entries — rendering
+    # every row (even hidden via CSS, T-2775's collapsed-<details> class of bug)
+    # shipped 2.27MB regardless of what the browser displayed. Slice server-side
+    # so bytes actually sent match what's visible; the rest is fetched on demand
+    # by /project/expand/<cat> (below), keeping the remainder reachable rather
+    # than hidden or dropped.
+    preview = {
+        cat: {"docs": docs[:PROJECT_DOCS_PREVIEW_LIMIT], "total": len(docs)}
+        for cat, docs in categories.items()
+    }
+    return render_page("project.html", page_title="Project Documentation", categories=preview)
+
+
+@bp.route("/project/expand/<cat_name>")
+def project_expand(cat_name):
+    """Remainder of a /project category, fetched on demand (T-2781)."""
+    categories = _build_project_categories()
+    docs = categories.get(cat_name, [])
+    return render_template("_project_docs_list.html", docs=docs[PROJECT_DOCS_PREVIEW_LIMIT:])
 
 
 @bp.route("/project/<doc>")
@@ -531,22 +574,30 @@ def project_doc(doc):
     if not re_mod.match(r"^[A-Za-z0-9_.-]+$", doc):
         abort(404)
 
+    # T-2651 (OBS-097): fw-- prefixed doc_ids are framework-owned docs listed
+    # from FRAMEWORK_ROOT in split-root installs — route them back to that
+    # root, with containment checked against the SAME root below.
+    base_root = PROJECT_ROOT
+    if doc.startswith("fw--"):
+        base_root = FRAMEWORK_ROOT
+        doc = doc[len("fw--"):]
+
     # Support -- as path separator for subdirectory docs
     rel_base = doc.replace("--", "/")
     doc_path = None
     for ext in (".md", ".yaml", ".yml"):
-        candidate = PROJECT_ROOT / (rel_base + ext)
+        candidate = base_root / (rel_base + ext)
         if candidate.exists():
             doc_path = candidate
             break
     if doc_path is None:
         # Fallback: try direct .md match without -- expansion
-        doc_path = PROJECT_ROOT / f"{doc}.md"
+        doc_path = base_root / f"{doc}.md"
     if not doc_path.exists():
         abort(404)
-    # Ensure path is within PROJECT_ROOT
+    # Ensure path is within the routing root
     try:
-        doc_path.resolve().relative_to(PROJECT_ROOT.resolve())
+        doc_path.resolve().relative_to(base_root.resolve())
     except ValueError:
         abort(404)
 

@@ -12,10 +12,18 @@ LIB_DIR="$SCRIPT_DIR/lib"
 # Source common utilities
 source "$LIB_DIR/common.sh"
 
-# Version for hook compatibility checking.
-# Bump this when ANY hook template in lib/hooks.sh changes — the value must match
-# the commit-msg template's `# VERSION=X.Y` marker or install-hooks gets confused
-# (T-1079: previous drift left consumers silently on old hooks).
+# The git agent's own version, shown by `fw git --help`.
+#
+# T-2852: this is NOT the hook-compatibility version and must not be compared
+# against an installed hook's `# VERSION=` marker. It used to be — the comment
+# here instructed the reader to keep this value equal to the commit-msg
+# template's marker, and it drifted anyway (1.6 vs 1.11), which made the
+# "already installed" short-circuit in lib/hooks.sh unreachable.
+#
+# Hook compatibility now lives with the templates it describes, as
+# COMMIT_MSG_HOOK_VERSION in agents/git/lib/hooks.sh, pinned by
+# tests/unit/hook_version_marker_parity.bats. Bump that one when you change a
+# hook template (PL-078); this one tracks the agent.
 VERSION="1.6"
 
 show_help() {
@@ -31,6 +39,7 @@ Commands:
   install-hooks Install pre-commit and post-commit hooks
   log-bypass    Record a bypass in the bypass log
   log           Task-filtered git log
+  worker-commits What did autonomous dispatch commit on my behalf (T-2917)
   help          Show this help
 
 Examples:
@@ -41,6 +50,7 @@ Examples:
   git.sh install-hooks
   git.sh log-bypass --commit acb4594 --reason "Bootstrap exception"
   git.sh log --task T-003
+  git.sh worker-commits --days 7
 
 For command-specific help:
   git.sh <command> --help
@@ -73,6 +83,11 @@ case "${1:-}" in
         shift
         source "$LIB_DIR/log.sh"
         do_log "$@"
+        ;;
+    worker-commits)
+        shift
+        source "$LIB_DIR/worker-commits.sh"
+        do_worker_commits "$@"
         ;;
     help|--help|-h)
         show_help

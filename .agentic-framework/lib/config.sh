@@ -147,6 +147,8 @@ fw_consumer_yamls() {
 FW_CONFIG_REGISTRY=(
     "CONTEXT_WINDOW|300000|Context window size for budget enforcement (tokens)"
     "PORT|3000|Watchtower web UI listen port"
+    "RAIL_IDENTITY_FILE||Project-owned termlink signing identity for outbound rail posts (T-2904). Empty = sign as host key, which is indistinguishable from co-resident agents. Created on first use."
+    "RAIL_PROJECT_LABEL||Canonical from_project label attached to outbound rail posts (T-2905). Empty = derived from the project directory name, normalised. Emitted, never typed at a call site."
     "DISPATCH_LIMIT|2|Agent tool dispatches before TermLink gate triggers"
     "BUDGET_RECHECK_INTERVAL|5|Re-read transcript every N tool calls"
     "BUDGET_STATUS_MAX_AGE|90|Max seconds before cached budget status is stale"
@@ -166,6 +168,16 @@ FW_CONFIG_REGISTRY=(
     "CONSUMER_SCAN_DIRS|/opt|Colon-separated directories to scan for consumer projects"
     "DISPATCH_MODEL_DEFAULT||Default LLM model for fw termlink dispatch when --model omitted (e.g. sonnet, haiku, opus). T-1643/W3."
     "ARC_COMPLETION_THRESHOLD|0.80|Ratio of completed children at which fw audit warns an in-progress arc (G-062 mechanism #2). T-1656."
+    "NTFY_URL||ntfy server base URL for push notifications. Empty = let the dispatcher use its own default. Each install points at its own ntfy instance via 'fw config set NTFY_URL <url>' — portable, no host-local fallback (T-2439)."
+    # T-2842: all three were read by shipped code with documented defaults and
+    # described in CLAUDE.md, but had no registry entry — so `fw config set`
+    # could not persist them to .framework.yaml and /config never showed them.
+    # They were env-var-only, which contradicts the documented 4-tier resolution
+    # (flag > env > .framework.yaml > default): the third tier did not exist.
+    # Defaults below are read from the CALL SITES, not from CLAUDE.md.
+    "BRANCH_BEHIND_WARN|50|Commits-behind-origin/master threshold for the branch-hygiene WARN and the handover merge-back nudge (agents/handover/handover.sh). T-100143/T-100144."
+    "STALE_ARC_DAYS|30|Days without a constituent-task commit before fw audit WARNs an in-progress arc as stale (agents/audit/audit.sh). T-1855."
+    "RETIRE_WHEN_ADVISORY|1|Enable the audit retire_when advisory rail for free drivers; 0 silences the section entirely (agents/audit/audit.sh). T-2169."
 )
 
 # fw_config_registry — Print all known settings with current values

@@ -8,7 +8,7 @@
 
 Git Agent - Hook installation subcommand
 
-## Dependencies (7)
+## Dependencies (10)
 
 | Component | Relationship | Description |
 |-----------|--------------|-------------|
@@ -19,6 +19,9 @@ Git Agent - Hook installation subcommand
 | [secret-scan](/docs/generated/agents-git-lib-secret-scan) | calls | TODO: describe what this component does |
 | [dup-task-scan](/docs/generated/agents-git-lib-dup-task-scan) | calls | TODO: describe what this component does |
 | [large-file-scan](/docs/generated/agents-git-lib-large-file-scan) | calls | TODO: describe what this component does |
+| [manifest](/docs/generated/agents-mcp-manifest) | calls | TODO: describe what this component does |
+| [master-guard](/docs/generated/agents-git-lib-master-guard) | calls | TODO: describe what this component does |
+| [fw](/docs/generated/bin-fw) | calls | Single entry point for all framework operations. Reads .framework.yaml from the project directory to resolve FRAMEWORK_ROOT, then routes commands to the appropriate agent. Supports both in-repo and shared tooling modes. |
 
 ## Used By (4)
 

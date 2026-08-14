@@ -34,16 +34,19 @@ import sys
 import threading
 import time
 import uuid
+from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 
+import worker_identity
 
 PROJECT_ROOT = Path(os.environ.get("PROJECT_ROOT", os.getcwd()))
 WORKFLOWS_DIR = PROJECT_ROOT / ".context" / "project" / "workflows"
 DISPATCHES_LOG = PROJECT_ROOT / ".context" / "dispatches.jsonl"
+DISPATCH_OUTCOMES_LOG = PROJECT_ROOT / ".context" / "dispatch-outcomes.jsonl"
 BLOBS_ROOT = PROJECT_ROOT / ".context" / "dispatch-blobs"
 PATTERNS_YAML = PROJECT_ROOT / ".context" / "project" / "patterns.yaml"
 EXAMPLES_ROOT = PROJECT_ROOT / "prompts" / "examples"
@@ -53,10 +56,42 @@ TASKS_COMPLETED = PROJECT_ROOT / ".tasks" / "completed"
 DISPATCH_SCHEMA_VERSION = 1
 VAR_PAT = re.compile(r"\$([A-Z][A-Z0-9_]*)")
 
+# T-2914: default non-convergence threshold for `resolver loop`/`pick`/`stalled`
+# — a task dispatched this many times in a row with no measurable advancement
+# (status change, AC tick, or a landed commit referencing it) stops being
+# picked. Origin: T-2862 hit 57 dispatches / 0 outcomes before this existed.
+_DEFAULT_STALL_AFTER = 5
+
+# T-2915: default age bound (minutes) for the in-flight latch. A dispatch row
+# with no terminal_event is presumed "worker still running" — but nothing
+# ever bounded that presumption, so a worker that died mid-run (crash, OOM,
+# host reboot) latched its task out of the loop forever. Observed worst-case
+# legitimate runtime is well under an hour (TermLinkWorker default timeout
+# 1800s/30min + 30s grace; pi/ollama-loop dispatches complete inside a single
+# 30-min systemd tick in every measured row). 240min (4h) is a wide safety
+# margin above that ceiling while still being far short of "weeks" — the
+# failure mode this fixes (nine tasks latched five weeks, T-2915 origin).
+# Override via FW_RESOLVER_INFLIGHT_MAX_AGE_MIN (not yet in FW_CONFIG_REGISTRY
+# — env-only, consistent with FW_RESOLVER_BVP_RANK/FW_DISPATCH_ORIGIN above).
+_INFLIGHT_MAX_AGE_MIN_DEFAULT = 240
+
+
+def _inflight_max_age_min() -> int:
+    """Resolve the in-flight age bound: FW_RESOLVER_INFLIGHT_MAX_AGE_MIN env
+    var, falling back to the documented default on missing/invalid input."""
+    raw = os.environ.get("FW_RESOLVER_INFLIGHT_MAX_AGE_MIN", "")
+    try:
+        val = int(raw)
+        if val > 0:
+            return val
+    except ValueError:
+        pass
+    return _INFLIGHT_MAX_AGE_MIN_DEFAULT
+
 # NOTE: keep in sync with bin/fw:1804 (T-1734). Two tables drifted before: bin/fw
 # accepted "ollama-loop" while this one didn't, so workflows listed cleanly but
 # failed at dispatch. If you add a worker_kind here, add it there too (and vice versa).
-VALID_WORKER_KINDS = {"Task", "TermLink", "pi", "ollama-loop"}
+VALID_WORKER_KINDS = {"Task", "TermLink", "pi", "ollama-loop", "ollama-thin-loop"}
 VALID_PROMPT_STRATEGIES = {"static", "assembled", "meta-prompted"}
 
 
@@ -450,6 +485,259 @@ def select_variant(workflow: Dict[str, Any]) -> Optional[str]:
 
 
 # ---------------------------------------------------------------------------
+# Provenance + non-convergence guard (T-2914)
+# ---------------------------------------------------------------------------
+def _dispatch_origin() -> str:
+    """Identify what invoked this dispatch — never None (defect 3, T-2914).
+
+    Resolution order: explicit `FW_DISPATCH_ORIGIN` env var (set by the
+    systemd unit / cron command that fired this run) → systemd-detected
+    (INVOCATION_ID is set by systemd for every unit it starts, even when the
+    unit doesn't set FW_DISPATCH_ORIGIN) → interactive session (tagged with
+    the current session id from session.yaml, if resolvable) → 'unknown'.
+    'unknown' is still non-null — it says "not attributable", not nothing.
+    """
+    env_origin = os.environ.get("FW_DISPATCH_ORIGIN", "").strip()
+    if env_origin:
+        return env_origin
+    if os.environ.get("INVOCATION_ID"):
+        return "systemd:unlabeled-unit"
+    try:
+        interactive = sys.stdin.isatty() or sys.stdout.isatty()
+    except Exception:
+        interactive = False
+    if interactive:
+        session = ""
+        session_file = PROJECT_ROOT / ".context" / "working" / "session.yaml"
+        if session_file.exists():
+            try:
+                sdata = yaml.safe_load(session_file.read_text()) or {}
+                session = str(sdata.get("session_id") or "").strip()
+            except (yaml.YAMLError, OSError):
+                pass
+        return f"interactive:{session}" if session else "interactive:unknown-session"
+    return "unknown"
+
+
+def _ac_ticked_count(ac_block: str) -> int:
+    """Count of ticked `- [x]` checkboxes in an Acceptance Criteria block
+    (case-insensitive). Used as one of the three stall-detector advancement
+    signals — a worker cannot trivially satisfy this without doing the work,
+    since ticking is gated by the reviewer/completion machinery, not free text."""
+    return len(re.findall(r"^\s*-\s*\[x\]", ac_block, re.IGNORECASE | re.MULTILINE))
+
+
+def _task_current_snapshot(task_id: str) -> Optional[Dict[str, Any]]:
+    """Read {status, ac_ticked} for `task_id` from .tasks/active/ right now.
+    Returns None if the task is no longer in active/ (completed, removed —
+    not the stall detector's concern; it only guards the autonomous loop)."""
+    if not TASKS_ACTIVE.is_dir():
+        return None
+    candidates = list(TASKS_ACTIVE.glob(f"{task_id}-*.md"))
+    if not candidates:
+        return None
+    meta = _read_task_meta(candidates[0])
+    return {"status": meta["status"], "ac_ticked": _ac_ticked_count(meta["ac_block"])}
+
+
+def _task_touched_since(task_id: str, since_iso: str) -> bool:
+    """True if the task's own `last_update` has moved past `since_iso`
+    (T-2916). Used only on the degraded path, where no dispatch-time snapshot
+    exists to diff against. Unparseable/missing timestamps return True —
+    fail-open, so an unreadable task is never reported stalled on evidence
+    the function could not actually read."""
+    if not TASKS_ACTIVE.is_dir():
+        return True
+    candidates = list(TASKS_ACTIVE.glob(f"{task_id}-*.md"))
+    if not candidates:
+        return True
+    # last_update lives in the raw frontmatter dict, not the flattened meta —
+    # `_read_task_meta` surfaces only {id,name,status,owner,horizon,
+    # workflow_type,ac_block,fm,path}. Reading it off the top level silently
+    # yields None, which fails open and reports every task as advanced.
+    fm = _read_task_meta(candidates[0]).get("fm")
+    raw = str((fm or {}).get("last_update") or "").strip().strip("'\"")
+    if not raw:
+        return True
+    try:
+        last = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        since = datetime.fromisoformat(str(since_iso).replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return True
+    if last.tzinfo is None:
+        last = last.replace(tzinfo=timezone.utc)
+    if since.tzinfo is None:
+        since = since.replace(tzinfo=timezone.utc)
+    return last > since
+
+
+def _git_commit_count_since(task_id: str, since_iso: str) -> int:
+    """Count commits landed after `since_iso` whose SUBJECT LINE references
+    `task_id`. P-002 requires every commit reference a task id in the form
+    `T-XXXX: ...`, so the subject is where a commit declares what it advances.
+
+    T-2916: this deliberately does NOT match the body. Matching anywhere in
+    the message conflates "this commit advanced the task" with "this commit
+    mentioned the task" — and the second is exactly what an RCA does. Measured
+    on the origin case: T-2862 (60 dispatches, 0 outcomes, `last_update`
+    unmoved since 2026-08-08) was cleared from the stalled set by commits
+    387a1465b and e7cce384b — the T-2914 and T-2916 commits, which cite T-2862
+    in their bodies *as the example of a stalled task*. Writing the RCA about a
+    stall was enough to make the stall undetectable.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "log", f"--since={since_iso}", "--format=%s"],
+            cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode != 0:
+            return 0
+        pat = re.compile(rf"\b{re.escape(task_id)}\b")
+        return sum(1 for line in result.stdout.splitlines() if pat.search(line))
+    except (OSError, subprocess.SubprocessError):
+        return 0
+
+
+def _outcome_count(task_id: str) -> int:
+    """Rows in dispatch-outcomes.jsonl for `task_id` — the zero-outcome
+    signal from defect 6 (T-2914: 57 dispatches of T-2862, 0 outcome rows)."""
+    if not DISPATCH_OUTCOMES_LOG.exists():
+        return 0
+    n = 0
+    with DISPATCH_OUTCOMES_LOG.open() as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if row.get("task_id") == task_id:
+                n += 1
+    return n
+
+
+def _stalled_task_ids(stall_after: int) -> Dict[str, Dict[str, Any]]:
+    """Task IDs that have not advanced across the last `stall_after`
+    dispatches (T-2914 defect 1). 'Advanced' means at least one of: status
+    changed, AC-ticked count increased, or a commit referencing the task
+    landed — all measured against the `task_snapshot` captured AT dispatch
+    time, which a worker cannot retroactively edit (a dispatch row is
+    append-only history, not a self-report).
+
+    Rows without a `task_snapshot` (pre-T-2914 history) are skipped —
+    fail-open, matching `_recently_dispatched_ids`'s convention: never
+    wrongly exclude on data this function can't interpret.
+
+    Returns {task_id: {"dispatch_count", "since", "outcome_count"}} for
+    tasks that should stop being picked and be surfaced instead.
+    """
+    if stall_after <= 0 or not DISPATCHES_LOG.exists():
+        return {}
+    per_task: Dict[str, List[Tuple[str, Optional[Dict[str, Any]]]]] = defaultdict(list)
+    with DISPATCHES_LOG.open() as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            tid = row.get("task_id")
+            ts = row.get("ts")
+            if not tid or not ts:
+                continue
+            snap = row.get("task_snapshot")
+            # T-2916: rows WITHOUT a task_snapshot are kept, not dropped. The
+            # original predicate required one on every row — but task_snapshot
+            # was introduced by T-2914 itself, so on day one the evaluable
+            # history was empty and the guard abstained on 100% of its input
+            # while printing the same line as a guard that had cleared it.
+            # Measured at the time of this fix: 11/1325 rows carry a snapshot
+            # (0.8%). A predicate that can only read 0.8% of the record cannot
+            # guard the record.
+            per_task[tid].append((str(ts), snap if isinstance(snap, dict) else None))
+
+    stalled: Dict[str, Dict[str, Any]] = {}
+    for tid, rows in per_task.items():
+        rows.sort(key=lambda r: r[0])
+        if len(rows) < stall_after:
+            continue
+        window = rows[-stall_after:]
+        earliest_ts, earliest_snap = window[0]
+        current = _task_current_snapshot(tid)
+        if current is None:
+            continue  # not active anymore — outside the loop's concern
+
+        commits = _git_commit_count_since(tid, earliest_ts)
+        if earliest_snap is not None:
+            # Full evidence: compare against the snapshot captured AT dispatch,
+            # which a worker cannot retroactively edit.
+            evidence = "snapshot"
+            status_changed = current["status"] != earliest_snap.get("status")
+            ac_grew = current["ac_ticked"] > int(earliest_snap.get("ac_ticked", -1))
+            advanced = status_changed or ac_grew or commits > 0
+        else:
+            # Degraded evidence (T-2916): no "then" state to diff against, but
+            # advancement is still observable without one. A commit referencing
+            # the task after the window opened is advancement under P-002; so is
+            # a `last_update` that has moved past the window's start. Both are
+            # strictly weaker than the snapshot diff — they cannot see an AC
+            # ticked with no commit and no last_update bump — so this path can
+            # MISS a stall, never invent one. That asymmetry is deliberate: the
+            # cost of a missed stall is one extra dispatch, the cost of a false
+            # stall is a task silently locked out (the T-2915 failure).
+            evidence = "degraded"
+            advanced = commits > 0 or _task_touched_since(tid, earliest_ts)
+
+        if advanced:
+            continue
+        stalled[tid] = {
+            "dispatch_count": len(rows),
+            "since": earliest_ts,
+            "outcome_count": _outcome_count(tid),
+            "evidence": evidence,
+        }
+    return stalled
+
+
+def _stall_coverage(stall_after: int) -> Dict[str, int]:
+    """What `_stalled_task_ids` was actually able to look at (T-2916).
+
+    A verdict without coverage is unreadable: "no tasks stalled" is the same
+    sentence whether the guard cleared 300 tasks or examined none. This
+    returns the denominator so the verdict can never again be printed alone.
+    """
+    if not DISPATCHES_LOG.exists():
+        return {"tasks_seen": 0, "evaluated": 0, "below_threshold": 0, "inactive": 0}
+    per_task: Dict[str, int] = defaultdict(int)
+    with DISPATCHES_LOG.open() as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if row.get("task_id") and row.get("ts"):
+                per_task[row["task_id"]] += 1
+    below = sum(1 for n in per_task.values() if n < stall_after)
+    inactive = sum(
+        1 for tid, n in per_task.items()
+        if n >= stall_after and _task_current_snapshot(tid) is None
+    )
+    return {
+        "tasks_seen": len(per_task),
+        "evaluated": len(per_task) - below - inactive,
+        "below_threshold": below,
+        "inactive": inactive,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Telemetry capture (dispatches.jsonl + blob dir)
 # ---------------------------------------------------------------------------
 def capture_dispatch(
@@ -482,6 +770,11 @@ def capture_dispatch(
     template_path = workflow.get("prompt_template", "")
     template_sha = git_sha(template_path) if template_path else None
 
+    # T-2914 defect 3: provenance must be non-null on every row. defect 1:
+    # task_snapshot is the pre-dispatch state a worker cannot retroactively
+    # edit, which _stalled_task_ids compares against N dispatches later.
+    task_snapshot = _task_current_snapshot(task_id)
+
     row: Dict[str, Any] = {
         "schema_version": DISPATCH_SCHEMA_VERSION,
         "ts": ts,
@@ -501,6 +794,8 @@ def capture_dispatch(
         "variant_id": variant_id,
         "blob_dir": str(blob_dir.relative_to(PROJECT_ROOT)),
         "outcome": "pending",
+        "origin": _dispatch_origin(),
+        "task_snapshot": task_snapshot,
         "dry_run": (not write) or None,
     }
     if row["dry_run"] is None:
@@ -518,6 +813,16 @@ def capture_dispatch(
     cwd_template = workflow.get("cwd", "$PROJECT_ROOT")
     cwd_resolved = cwd_template.replace("$PROJECT_ROOT", str(PROJECT_ROOT))
 
+    # T-2917: give the worker a git identity distinct from the operator's,
+    # named for the mechanism that spawned it (row["origin"]) and carrying
+    # this dispatch_id in the email local-part so a worker's commit joins
+    # back to this row without depending on the worker to write a trailer.
+    # Workflow-declared `env:` is layered on top — it can override if a
+    # workflow ever needs to (none do today), never the other way round.
+    mechanism = worker_identity.mechanism_from_origin(row["origin"])
+    env = worker_identity.worker_git_env(mechanism, dispatch_id)
+    env.update(workflow.get("env", {}))
+
     envelope = {
         "dispatch_id": dispatch_id,
         "task_id": task_id,
@@ -527,9 +832,15 @@ def capture_dispatch(
         "effort": workflow.get("effort"),
         "prompt": rendered_prompt,
         "allowed_tools": workflow.get("allowed_tools", []),
+        # T-2488/OBS-088: strict-mcp defaults ON so resolver-dispatched
+        # claude -p workers stay lean (no inherited .mcp.json schema injection,
+        # ~175K tokens). A workflow that needs MCP sets strict_mcp_config: false
+        # and supplies mcp_config: <path>.
+        "strict_mcp_config": workflow.get("strict_mcp_config", True),
+        "mcp_config": workflow.get("mcp_config"),
         "cost_cap_usd": workflow.get("cost_cap_usd"),
         "cwd": cwd_resolved,
-        "env": workflow.get("env", {}),
+        "env": env,
         "blob_dir": str(blob_dir),
         "variant_id": variant_id,
     }
@@ -855,6 +1166,733 @@ def cmd_list_workflows(args: argparse.Namespace) -> int:
     return 0
 
 
+# ---------------------------------------------------------------------------
+# Autonomous task selection (T-2489) — fw resolver pick
+#
+# The picker is the "selection" lever off single-agent execution (T-2484 IW-4):
+# enumerate active tasks, keep only those SAFE for autonomous dispatch, rank, and
+# surface the top pick (dry-run by default; --dispatch fires it through the same
+# resolve()+spawn path as `run`). Authority model: selection is initiative (the
+# default dry-run only *proposes*); execution stays explicit (--dispatch). The
+# eligibility filter is the structural guard — the picker can only ever fire
+# agent-owned, scoped, non-inception work.
+# ---------------------------------------------------------------------------
+_DISPATCHABLE_TYPES = {"build", "test", "refactor", "decommission"}
+_NON_DISPATCHABLE_TYPES = {"inception", "specification", "design"}
+_ELIGIBLE_STATUS = {"started-work", "captured"}
+
+
+# ---------------------------------------------------------------- BVP ranking
+# T-2497: value-aware picker. The live resolver loop (resolver-loop.timer)
+# dispatches the picker's top pick every tick; ranking by BVP quadrant makes the
+# loop clear the HV/LC backlog by value instead of in id-order — the enabler for
+# autonomous HV/LC clearance.
+#
+# These formulas REPLICATE lib/bvp.sh's python engine (F8-stable, documented in
+# CLAUDE.md §BVP). bvp.sh embeds its math in a `python3 - <<PYEOF` heredoc and so
+# is not importable; the math is mirrored here and pinned to `fw bvp` output by a
+# parity test (tests/unit/t2497_resolver_bvp_rank.bats). If the F8 cost formula or
+# the driver-weight model changes in bvp.sh, update here too — the parity test is
+# the tripwire.
+# PROJECT_ROOT deliberate (T-2648/OBS-097 allowlist): per-project policy
+# instance (T-2229 --init model), parity with bvp.sh's own PROJECT_ROOT read.
+_BVP_POLICY = PROJECT_ROOT / "policy" / "value-drivers.yaml"
+_TSHIRT_COST = {"S": 2, "M": 4, "L": 6, "XL": 8}
+# Quadrant priority for the picker: HV-LC first, then value-leaning (HV-HC before
+# LV-LC), LV-HC last. Tasks with no usable BVP signal get the neutral no-data
+# bucket so ranking falls back to FIFO.
+_QUADRANT_RANK = {"hv-lc": 0, "hv-hc": 1, "lv-lc": 2, "lv-hc": 3}
+_NO_BVP_RANK = 4
+_COST_SENTINEL = 1e9
+
+
+def _bvp_driver_weights() -> Dict[str, int]:
+    """{driver_id: weight} from policy/value-drivers.yaml (protected + free).
+    Empty when the policy file is absent/unreadable — ranking then degrades to
+    FIFO (fail-open; the picker must never crash on a missing policy)."""
+    if not _BVP_POLICY.is_file():
+        return {}
+    try:
+        policy = yaml.safe_load(_BVP_POLICY.read_text()) or {}
+    except yaml.YAMLError:
+        return {}
+    out: Dict[str, int] = {}
+    for group in ("protected_drivers", "free_drivers"):
+        for d in (policy.get(group) or []):
+            try:
+                out[d["id"]] = int(d["weight"])
+            except (KeyError, TypeError, ValueError):
+                continue
+    return out
+
+
+def _bvp_norm(scores: Any, weights: Dict[str, int]) -> Optional[float]:
+    """Normalised BVP in [0,1] against 5×sum(weights-in-use). None when no driver
+    overlaps (mirrors bvp.sh compute_bvp; None means 'no value signal')."""
+    if not isinstance(scores, dict) or not weights:
+        return None
+    raw = 0
+    weight_sum = 0
+    for driver_id, weight in weights.items():
+        if driver_id in scores:
+            try:
+                raw += int(scores[driver_id]) * weight
+                weight_sum += weight
+            except (TypeError, ValueError):
+                continue
+    if weight_sum == 0:
+        return None
+    return raw / (5 * weight_sum)
+
+
+def _bvp_cost(cost_estimate: Any) -> Optional[float]:
+    """F8 composite 0.6×br+0.3×tier+0.1×effort, or the T-shirt fallback. None
+    when absent (mirrors bvp.sh compute_cost)."""
+    if not isinstance(cost_estimate, dict):
+        return None
+    br, tier, effort = (cost_estimate.get(k) for k in ("blast_radius", "tier", "effort"))
+    if br is not None and tier is not None and effort is not None:
+        try:
+            return 0.6 * float(br) + 0.3 * float(tier) + 0.1 * float(effort)
+        except (TypeError, ValueError):
+            pass
+    size = cost_estimate.get("size")
+    if size and str(size).upper() in _TSHIRT_COST:
+        return float(_TSHIRT_COST[str(size).upper()])
+    return None
+
+
+def _bvp_latest_proposed(fm: Dict[str, Any], key: str, inner: str) -> Optional[dict]:
+    """Newest entry's `inner` dict from a list-of-timestamped-entries field
+    (bvp_scores_proposed / cost_estimate_proposed)."""
+    lst = fm.get(key)
+    if not isinstance(lst, list) or not lst:
+        return None
+    latest = lst[-1] if isinstance(lst[-1], dict) else None
+    if not latest:
+        return None
+    val = latest.get(inner)
+    return val if isinstance(val, dict) else None
+
+
+def _bvp_value_cost(fm: Dict[str, Any], weights: Dict[str, int]) -> Tuple[Optional[float], Optional[float]]:
+    """(bvp_norm, cost) for a task's frontmatter. Confirmed `bvp_scores:` first;
+    falls back to the latest estimator-proposed scores/cost (advisory — matches
+    `fw bvp --include-proposed`, the realistic corpus state). This is
+    ordering-only and never writes, so consuming advisory inputs does not cross
+    the `bvp_scores:` sovereignty boundary (T-1924)."""
+    scores = fm.get("bvp_scores") or _bvp_latest_proposed(fm, "bvp_scores_proposed", "scores")
+    norm = _bvp_norm(scores, weights)
+    cost = _bvp_cost(fm.get("cost_estimate"))
+    if cost is None:
+        cost = _bvp_cost(_bvp_latest_proposed(fm, "cost_estimate_proposed", "cost_estimate"))
+    return norm, cost
+
+
+def _annotate_bvp_rank(metas: List[Dict[str, Any]]) -> None:
+    """T-2497: attach bvp_norm / bvp_cost / _quadrant / _quadrant_rank in place.
+
+    Quadrant boundaries use the median value/cost over the SCORED eligible tasks
+    (mirroring bvp.sh cmd_rank, including its 0.5/4.0 empty-set fallbacks). Off
+    when FW_RESOLVER_BVP_RANK=0 or policy/value-drivers.yaml is absent — every
+    task then sits in the neutral no-data bucket and ranking is pure FIFO."""
+    for m in metas:
+        m["bvp_norm"] = None
+        m["bvp_cost"] = None
+        m["_quadrant"] = "-"
+        m["_quadrant_rank"] = _NO_BVP_RANK
+    if os.environ.get("FW_RESOLVER_BVP_RANK", "1") == "0":
+        return
+    weights = _bvp_driver_weights()
+    if not weights:
+        return
+    scored: List[Dict[str, Any]] = []
+    for m in metas:
+        norm, cost = _bvp_value_cost(m.get("fm") or {}, weights)
+        m["bvp_norm"] = norm
+        m["bvp_cost"] = cost
+        if norm is not None:
+            scored.append(m)
+    if not scored:
+        return
+    import statistics  # noqa: PLC0415
+
+    norms = [m["bvp_norm"] for m in scored]
+    costs = [m["bvp_cost"] for m in scored if m["bvp_cost"] is not None]
+    bvp_median = statistics.median(norms) if norms else 0.5
+    cost_median = statistics.median(costs) if costs else 4.0
+    for m in scored:
+        # A scored task with no cost signal can't claim to be cheap — place it on
+        # the cost median (neutral) so it still lands in a defined quadrant.
+        cost = m["bvp_cost"] if m["bvp_cost"] is not None else cost_median
+        quad = ("hv" if m["bvp_norm"] >= bvp_median else "lv") + "-" + (
+            "lc" if cost <= cost_median else "hc"
+        )
+        m["_quadrant"] = quad
+        m["_quadrant_rank"] = _QUADRANT_RANK[quad]
+
+
+def _bvp_summary(meta: Dict[str, Any]) -> Dict[str, Any]:
+    """T-2497: observability payload for a pick — value/cost/quadrant as ranked.
+    null fields mean the task carried no BVP signal (ranked FIFO)."""
+    norm = meta.get("bvp_norm")
+    cost = meta.get("bvp_cost")
+    return {
+        "bvp_norm": round(norm, 4) if isinstance(norm, (int, float)) else None,
+        "cost": round(cost, 2) if isinstance(cost, (int, float)) else None,
+        "quadrant": meta.get("_quadrant", "-"),
+    }
+
+
+def _read_task_meta(path: Path) -> Dict[str, Any]:
+    """Parse a task .md → eligibility-relevant fields."""
+    text = path.read_text()
+    fm: Dict[str, Any] = {}
+    body = text
+    if text.startswith("---\n"):
+        end = text.find("\n---\n", 4)
+        if end > 0:
+            try:
+                fm = yaml.safe_load(text[4:end]) or {}
+            except yaml.YAMLError:
+                fm = {}
+            body = text[end + 5 :]
+    m = re.match(r"(T-\d+)", path.name)
+    tid = str(fm.get("id") or (m.group(1) if m else path.stem))
+    return {
+        "id": tid,
+        "name": str(fm.get("name", "")),
+        "workflow_type": str(fm.get("workflow_type", "")).strip().lower(),
+        "owner": str(fm.get("owner", "")).strip().lower(),
+        "horizon": str(fm.get("horizon", "now")).strip().lower(),
+        "status": str(fm.get("status", "")).strip().lower(),
+        "ac_block": _extract_section(body, "Acceptance Criteria"),
+        "path": str(path),
+        "fm": fm if isinstance(fm, dict) else {},  # T-2497: BVP ranking source
+    }
+
+
+def _inflight_dispatch_status(max_age_min: Optional[int] = None) -> Dict[str, Dict[str, Any]]:
+    """Task IDs whose most-recent dispatch row has no terminal_event, split by
+    age against `max_age_min` (T-2915, default `_inflight_max_age_min()`).
+
+    Absence of terminal_event is produced by two situations a raw predicate
+    cannot distinguish: a worker still running, and a worker that died
+    without ever writing one. Age is the only signal that separates them —
+    a dispatch older than the bound is presumed abandoned, not running.
+
+    Returns {task_id: {"ts", "age_min", "stale"}} for EVERY task with an
+    open (terminal_event-less) latest dispatch — "stale": False is still
+    in-flight (excludes from picking), "stale": True has aged out (no
+    longer excludes, but is worth surfacing as an anomaly — see
+    `_stale_inflight_ids`). Unparseable/missing timestamps fail OPEN (not
+    in-flight) — mirrors `_recently_dispatched_ids`'s convention of never
+    wrongly excluding on data this function can't interpret; a row this
+    corrupt cannot be verified as recent, so it must not block forever."""
+    if not DISPATCHES_LOG.exists():
+        return {}
+    if max_age_min is None:
+        max_age_min = _inflight_max_age_min()
+    latest: Dict[str, tuple] = {}  # task_id -> (ts, terminal_event)
+    with DISPATCHES_LOG.open() as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            tid = row.get("task_id")
+            if not tid:
+                continue
+            ts = str(row.get("ts", ""))
+            if tid not in latest or ts >= latest[tid][0]:
+                latest[tid] = (ts, row.get("terminal_event"))
+
+    now = datetime.now(timezone.utc)
+    status: Dict[str, Dict[str, Any]] = {}
+    for tid, (ts, te) in latest.items():
+        if te:
+            continue  # has a terminal_event — not in-flight at all
+        try:
+            parsed = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+        except (ValueError, TypeError):
+            continue  # unparseable ts — fail open, not in-flight
+        age_min = (now - parsed).total_seconds() / 60.0
+        status[tid] = {
+            "ts": ts,
+            "age_min": round(age_min, 1),
+            "stale": age_min > max_age_min,
+        }
+    return status
+
+
+def _inflight_task_ids(max_age_min: Optional[int] = None) -> set:
+    """Task IDs currently in-flight — most-recent dispatch has no
+    terminal_event AND is within the age bound (T-2915). A worker cannot be
+    in flight indefinitely: once a dispatch ages past `max_age_min` it is
+    presumed abandoned and stops excluding its task (see
+    `_stale_inflight_ids` for the surfaced-anomaly half)."""
+    status = _inflight_dispatch_status(max_age_min)
+    return {tid for tid, info in status.items() if not info["stale"]}
+
+
+def _stale_inflight_ids(max_age_min: Optional[int] = None) -> Dict[str, Dict[str, Any]]:
+    """Dispatch rows that WOULD have latched their task forever pre-T-2915 —
+    no terminal_event, older than the age bound. No longer excludes from
+    picking, but a nonzero/growing count means workers are dying without
+    writing a terminal event, which is an operational anomaly worth
+    surfacing (`fw resolver latched`, `fw doctor` Autonomous Dispatch)."""
+    status = _inflight_dispatch_status(max_age_min)
+    return {tid: info for tid, info in status.items() if info["stale"]}
+
+
+def _recently_dispatched_ids(cooldown_min: int) -> set:
+    """Task IDs whose most-recent dispatch ts is within `cooldown_min` minutes.
+
+    Anti-thrash guard for the loop/cron (T-2491): a dispatched worker does not
+    auto-advance the task's frontmatter status, and a *completed* dispatch row
+    carries a terminal_event (so it is NOT in-flight). Without a cooldown the
+    cron would re-dispatch the same non-advancing task every tick. Parse
+    failures are skipped (fail-open — never wrongly exclude)."""
+    if cooldown_min <= 0 or not DISPATCHES_LOG.exists():
+        return set()
+    import datetime as _dt  # noqa: PLC0415
+
+    latest: Dict[str, str] = {}  # task_id -> max ts seen
+    with DISPATCHES_LOG.open() as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            tid = row.get("task_id")
+            ts = str(row.get("ts", ""))
+            if not tid or not ts:
+                continue
+            if tid not in latest or ts > latest[tid]:
+                latest[tid] = ts
+
+    now = _dt.datetime.now(_dt.timezone.utc)
+    cooling: set = set()
+    for tid, ts in latest.items():
+        try:
+            parsed = _dt.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=_dt.timezone.utc)
+        except (ValueError, TypeError):
+            continue
+        if (now - parsed).total_seconds() < cooldown_min * 60:
+            cooling.add(tid)
+    return cooling
+
+
+def _focused_task_id() -> str:
+    """The task currently in focus.yaml — excluded from picking so the picker
+    never dispatches the task the main agent is actively working."""
+    focus = PROJECT_ROOT / ".context" / "working" / "focus.yaml"
+    if not focus.exists():
+        return ""
+    try:
+        data = yaml.safe_load(focus.read_text()) or {}
+    except yaml.YAMLError:
+        return ""
+    return str(data.get("current_task") or "").strip()
+
+
+def _ac_is_placeholder(ac_block: str) -> bool:
+    """True when the Acceptance Criteria block is template-only / unscoped —
+    mirrors the G-020 readiness gate's intent (don't dispatch unscoped work)."""
+    s = ac_block.strip()
+    if not s:
+        return True
+    if "[First criterion]" in s or "[Second criterion]" in s:
+        return True
+    # Must have at least one real unchecked item to be worth dispatching.
+    if not re.search(r"-\s*\[\s*\]\s+\S", s):
+        return True
+    return False
+
+
+def _pick_eligibility(meta: Dict[str, Any], inflight: set, focused: str = "") -> Optional[str]:
+    """Return None if the task is eligible for autonomous dispatch, else a
+    one-line exclusion reason."""
+    if focused and meta["id"] == focused:
+        return "in focus (main agent working it)"
+    wt = meta["workflow_type"]
+    if wt in _NON_DISPATCHABLE_TYPES:
+        return f"workflow_type={wt} (needs human decision)"
+    if not wt:
+        return "no workflow_type"
+    if wt not in _DISPATCHABLE_TYPES:
+        return f"workflow_type={wt} (not auto-dispatchable)"
+    if meta["owner"] == "human":
+        return "owner=human"
+    if meta["horizon"] == "later":
+        return "horizon=later"
+    if meta["status"] not in _ELIGIBLE_STATUS:
+        return f"status={meta['status']}"
+    if _ac_is_placeholder(meta["ac_block"]):
+        return "placeholder/unscoped ACs"
+    if meta["id"] in inflight:
+        return "in-flight dispatch"
+    return None
+
+
+def _pick_rank_key(meta: Dict[str, Any]) -> tuple:
+    """Deterministic ranking (T-2497 BVP-aware).
+
+    WIP-reduction and horizon lead — finish started-work, prefer horizon=now —
+    so the picker never abandons in-flight work for a shinier new task. WITHIN a
+    (status, horizon) tier it ranks by BVP quadrant (HV-LC first), then value
+    descending and cost ascending, so the live loop grinds the HV/LC backlog by
+    value. FIFO oldest-id is the final tiebreak. When no BVP data is present every
+    task shares the neutral no-data bucket and value/cost are constant, so this
+    reduces exactly to the original status→horizon→id FIFO order."""
+    status_rank = 0 if meta["status"] == "started-work" else 1
+    horizon_rank = 0 if meta["horizon"] == "now" else 1
+    quad_rank = meta.get("_quadrant_rank", _NO_BVP_RANK)
+    norm = meta.get("bvp_norm")
+    value_key = -norm if norm is not None else 0.0  # higher value first
+    cost = meta.get("bvp_cost")
+    cost_key = cost if cost is not None else _COST_SENTINEL  # lower cost first
+    m = re.search(r"T-(\d+)", meta["id"])
+    idnum = int(m.group(1)) if m else 0
+    return (status_rank, horizon_rank, quad_rank, value_key, cost_key, idnum)
+
+
+def _select_eligible(
+    claimed: Optional[set] = None, cooldown_min: int = 0, stall_after: int = 0
+) -> tuple:
+    """Return (eligible_sorted, excluded) — excluded is list of (id, reason).
+
+    `claimed` (T-2491): task ids already picked earlier in the SAME loop run —
+    excluded so a single invocation never re-picks the same task (a completed
+    dispatch leaves frontmatter status unchanged, so the eligibility filter
+    alone would re-select it). `cooldown_min` (T-2491): exclude tasks dispatched
+    within the window — cross-tick anti-thrash. `stall_after` (T-2914): exclude
+    tasks that have not advanced across the last N dispatches (defect 1 —
+    without this, cooldown alone cannot bound a task no worker can finish; it
+    just delays the next of an unbounded number of retries). All three default
+    off, so the single-shot `cmd_pick` caller with no flags is unchanged."""
+    inflight = _inflight_task_ids()
+    if claimed:
+        inflight = inflight | set(claimed)
+    focused = _focused_task_id()
+    cooling = _recently_dispatched_ids(cooldown_min) if cooldown_min > 0 else set()
+    stalled = _stalled_task_ids(stall_after) if stall_after > 0 else {}
+    eligible: List[Dict[str, Any]] = []
+    excluded: List[tuple] = []
+    for path in sorted(TASKS_ACTIVE.glob("T-*.md")):
+        meta = _read_task_meta(path)
+        reason = _pick_eligibility(meta, inflight, focused)
+        if reason is None and meta["id"] in cooling:
+            reason = f"cooldown (<{cooldown_min}m since last dispatch)"
+        if reason is None and meta["id"] in stalled:
+            info = stalled[meta["id"]]
+            reason = (
+                f"stalled ({info['dispatch_count']} dispatches since "
+                f"{info['since']}, {info['outcome_count']} outcomes, no advancement)"
+            )
+        if reason is None:
+            eligible.append(meta)
+        else:
+            excluded.append((meta["id"], reason))
+    _annotate_bvp_rank(eligible)  # T-2497: attach bvp_norm/cost/quadrant in place
+    eligible.sort(key=_pick_rank_key)
+    return eligible, excluded
+
+
+def _pick_workflow_type(meta: Dict[str, Any]) -> str:
+    """Use a per-type workflow file if one exists, else the default workflow."""
+    wt = meta["workflow_type"]
+    if wt and (WORKFLOWS_DIR / f"{wt}.yaml").exists():
+        return wt
+    return "default"
+
+
+def cmd_pick(args: argparse.Namespace) -> int:
+    """fw resolver pick [--dispatch] [--stall-after N] [--json] — autonomous task selection."""
+    if not TASKS_ACTIVE.is_dir():
+        print(f"resolver pick: no active tasks dir at {TASKS_ACTIVE}", file=sys.stderr)
+        return 1
+    eligible, excluded = _select_eligible(stall_after=max(0, int(getattr(args, "stall_after", 0))))
+    pick = eligible[0] if eligible else None
+    chosen_type = _pick_workflow_type(pick) if pick else None
+
+    if not pick:
+        if args.json:
+            print(json.dumps({
+                "eligible": [], "pick": None, "reason": "no eligible tasks",
+                "excluded": dict(excluded), "dispatched": False,
+            }, indent=2))
+        else:
+            print("resolver pick: no eligible tasks for autonomous dispatch")
+            if excluded:
+                print(f"  ({len(excluded)} active task(s) excluded — --json for reasons)")
+        return 0
+
+    if not args.dispatch:
+        if args.json:
+            print(json.dumps({
+                "eligible": [m["id"] for m in eligible],
+                "pick": pick["id"], "workflow": chosen_type,
+                "reason": f"status={pick['status']}, horizon={pick['horizon']}, "
+                          f"quadrant={pick.get('_quadrant', '-')}",
+                "bvp": _bvp_summary(pick),
+                "excluded": dict(excluded), "dispatched": False,
+            }, indent=2))
+        else:
+            print(f"Eligible for autonomous dispatch ({len(eligible)}):")
+            for m in eligible:
+                marker = "→" if m["id"] == pick["id"] else " "
+                quad = m.get("_quadrant", "-")
+                print(f"  {marker} {m['id']:8s} [{m['status']}/{m['horizon']}] "
+                      f"{quad:>5s} {m['name'][:54]}")
+            print()
+            print(f"Top pick:  {pick['id']}  →  workflow '{chosen_type}'")
+            print(f"Dispatch:  bin/fw resolver pick --dispatch")
+        return 0
+
+    # --dispatch: fire the top pick via resolve + spawn (parity with cmd_run).
+    task_id, task_type = pick["id"], chosen_type
+    task_context = load_task_frontmatter(task_id)
+    task_context.setdefault("TASK_ID", task_id)
+    task_context.setdefault("TASK_TYPE", task_type)
+    task_context.setdefault("TASK_NAME", "")
+    task_context.setdefault("TASK_DESCRIPTION", "")
+    task_context.setdefault("ACCEPTANCE_CRITERIA", "(none)")
+    try:
+        envelope, _row = resolve(task_id, task_type, task_context, dry_run=False)
+    except ResolverError as e:
+        print(f"resolver pick: error: {e}", file=sys.stderr)
+        return 1
+    try:
+        import spawn  # noqa: PLC0415
+    except ImportError as e:
+        print(f"resolver pick: cannot import lib/spawn.py: {e}", file=sys.stderr)
+        return 1
+    try:
+        outcome = spawn.spawn_dispatch(envelope)
+    except NotImplementedError as e:
+        print(f"resolver pick: {e}", file=sys.stderr)
+        return 1
+    except spawn.SpawnError as e:
+        print(f"resolver pick: spawn error: {e}", file=sys.stderr)
+        return 1
+
+    if args.json:
+        print(json.dumps({
+            "eligible": [m["id"] for m in eligible],
+            "pick": task_id, "workflow": task_type,
+            "bvp": _bvp_summary(pick),
+            "excluded": dict(excluded), "dispatched": True, "outcome": outcome,
+        }, indent=2, default=str))
+    else:
+        print(f"Picked + dispatched: {task_id} (workflow '{task_type}')")
+        print(f"dispatch_id:    {envelope['dispatch_id']}")
+        print(f"status:         {outcome['status']}")
+        print(f"events_count:   {outcome['events_count']}")
+        if outcome.get("terminal_event"):
+            te = outcome["terminal_event"]
+            print(f"terminal:       {te.get('type')}")
+            if te.get("type") == "result" and "is_error" in te:
+                print(f"is_error:       {te['is_error']}")
+    return 2 if outcome["status"] == "error" else 0
+
+
+def _dispatch_one(pick: Dict[str, Any], chosen_type: str) -> tuple:
+    """Resolve + spawn a single pick. Returns (envelope, outcome). Raises
+    ResolverError / spawn.SpawnError / NotImplementedError / ImportError on
+    failure — caller decides whether to stop the loop. Mirrors cmd_pick's
+    --dispatch path so loop and single-shot share one dispatch contract."""
+    task_id, task_type = pick["id"], chosen_type
+    task_context = load_task_frontmatter(task_id)
+    task_context.setdefault("TASK_ID", task_id)
+    task_context.setdefault("TASK_TYPE", task_type)
+    task_context.setdefault("TASK_NAME", "")
+    task_context.setdefault("TASK_DESCRIPTION", "")
+    task_context.setdefault("ACCEPTANCE_CRITERIA", "(none)")
+    envelope, _row = resolve(task_id, task_type, task_context, dry_run=False)
+    import spawn  # noqa: PLC0415
+
+    outcome = spawn.spawn_dispatch(envelope)
+    return envelope, outcome
+
+
+def cmd_loop(args: argparse.Namespace) -> int:
+    """fw resolver loop — bounded autonomous dispatch driver (T-2491).
+
+    Calls the picker up to --max times. Dry-run by default (surfaces the plan);
+    --dispatch fires each pick through resolve+spawn. An in-run `claimed` set
+    keeps a single invocation from re-picking the same task; --cooldown-min
+    blocks cross-tick re-dispatch within a short window (single-invocation
+    anti-thrash — NOT a bound on repeat count, see T-2914 defect 1/3);
+    --stall-after (T-2914) is the actual non-convergence guard — it excludes a
+    task once N consecutive dispatches produced no measurable advancement,
+    regardless of how much time has passed. Stops early on no eligible work
+    or a dispatch error."""
+    if not TASKS_ACTIVE.is_dir():
+        print(f"resolver loop: no active tasks dir at {TASKS_ACTIVE}", file=sys.stderr)
+        return 1
+    max_iter = max(1, int(args.max))
+    cooldown = max(0, int(args.cooldown_min))
+    stall_after = max(0, int(getattr(args, "stall_after", 0)))
+    claimed: set = set()
+    results: List[Dict[str, Any]] = []
+    stop_reason = f"reached --max ({max_iter})"
+    in_flight_n = 0  # T-2915 AC3: last-observed in-flight exclusion count
+
+    for i in range(max_iter):
+        eligible, _excluded = _select_eligible(
+            claimed=claimed, cooldown_min=cooldown, stall_after=stall_after
+        )
+        pick = eligible[0] if eligible else None
+        if not pick:
+            in_flight_n = sum(1 for _id, r in _excluded if r == "in-flight dispatch")
+            if i > 0:
+                stop_reason = "no more eligible tasks"
+            elif in_flight_n:
+                # T-2915: name the cause instead of a silence identical to
+                # "everything is done" — the exact ambiguity that let nine
+                # tasks sit unpicked for five weeks with no distinguishing
+                # signal in `dispatched 0`.
+                stop_reason = (
+                    f"no eligible tasks — {in_flight_n} in-flight "
+                    f"(worker presumed still running; frees on completion "
+                    f"or after {_inflight_max_age_min()}m)"
+                )
+            elif _excluded:
+                stop_reason = (
+                    f"no eligible tasks — {len(_excluded)} excluded, none "
+                    f"in-flight (see --json excluded reasons or `fw resolver "
+                    f"pick --json`)"
+                )
+            else:
+                stop_reason = "no eligible tasks — nothing to do (no active tasks match)"
+            break
+        chosen_type = _pick_workflow_type(pick)
+        claimed.add(pick["id"])  # never re-pick within this run, dispatched or not
+
+        if not args.dispatch:
+            results.append({"id": pick["id"], "workflow": chosen_type, "dispatched": False})
+            continue
+
+        try:
+            envelope, outcome = _dispatch_one(pick, chosen_type)
+        except ResolverError as e:
+            results.append({"id": pick["id"], "dispatched": False, "error": f"resolve: {e}"})
+            stop_reason = "resolve error (stopping loop)"
+            break
+        except NotImplementedError as e:
+            results.append({"id": pick["id"], "dispatched": False, "error": str(e)})
+            stop_reason = "spawn not implemented (stopping loop)"
+            break
+        except Exception as e:  # spawn.SpawnError / ImportError / unexpected
+            results.append({"id": pick["id"], "dispatched": False, "error": f"spawn: {e}"})
+            stop_reason = "spawn error (stopping loop)"
+            break
+
+        results.append({
+            "id": pick["id"], "workflow": chosen_type,
+            "dispatch_id": envelope["dispatch_id"],
+            "dispatched": True, "status": outcome["status"],
+        })
+        if outcome["status"] == "error":
+            stop_reason = "dispatch returned error (stopping loop)"
+            break
+
+    dispatched_n = sum(1 for r in results if r.get("dispatched"))
+    had_error = any(r.get("status") == "error" or "error" in r for r in results)
+
+    if args.json:
+        print(json.dumps({
+            "max": max_iter, "dispatch": bool(args.dispatch), "cooldown_min": cooldown,
+            "stall_after": stall_after,
+            "picked": results, "dispatched_count": dispatched_n,
+            "stop_reason": stop_reason,
+            "in_flight_count": in_flight_n,  # T-2915 AC3
+        }, indent=2, default=str))
+    else:
+        mode = "DISPATCH" if args.dispatch else "DRY-RUN"
+        print(f"resolver loop [{mode}]  max={max_iter}  cooldown={cooldown}m  stall-after={stall_after}")
+        if not results:
+            print(f"  nothing to do — {stop_reason}")
+        for r in results:
+            if r.get("dispatched"):
+                did = str(r.get("dispatch_id", ""))[:12]
+                print(f"  ✓ {r['id']:8s} → {r['workflow']:10s} dispatch={did} status={r.get('status')}")
+            elif "error" in r:
+                print(f"  ✗ {r['id']:8s} error: {r['error']}")
+            else:
+                print(f"  • {r['id']:8s} → {r['workflow']:10s} (would dispatch)")
+        print(f"  stop: {stop_reason}; dispatched {dispatched_n}")
+    return 2 if had_error else 0
+
+
+def cmd_stalled(args: argparse.Namespace) -> int:
+    """fw resolver stalled [--stall-after N] [--json] — surface (T-2914 defect
+    1 + 6) the non-advancing/zero-outcome tasks the loop is refusing to
+    re-dispatch. This is the "surfaced instead" half of AC1: exclusion alone
+    is silent unless something prints it."""
+    stall_after = max(1, int(args.stall_after))
+    stalled = _stalled_task_ids(stall_after)
+    cov = _stall_coverage(stall_after)
+    if args.json:
+        print(json.dumps(
+            {"stall_after": stall_after, "coverage": cov, "stalled": stalled},
+            indent=2, default=str,
+        ))
+        return 0
+    # T-2916: coverage prints on BOTH paths, verdict-first or not. The whole
+    # defect was a verdict with no denominator — "no tasks stalled" read as
+    # success while the guard had abstained on every task it was given.
+    cov_line = (
+        f"  evaluated {cov['evaluated']}/{cov['tasks_seen']} task(s) "
+        f"({cov['below_threshold']} below threshold, {cov['inactive']} not active)"
+    )
+    if not stalled:
+        print(f"resolver stalled: no tasks stalled at threshold {stall_after}")
+        print(cov_line)
+        return 0
+    print(f"Stalled tasks (>= {stall_after} dispatches, no advancement):")
+    for tid, info in sorted(stalled.items()):
+        print(
+            f"  {tid:8s} dispatches={info['dispatch_count']:<4d} "
+            f"outcomes={info['outcome_count']:<3d} evidence={info.get('evidence','?'):<8s} "
+            f"since={info['since']}"
+        )
+    print(cov_line)
+    return 0
+
+
+def cmd_latched(args: argparse.Namespace) -> int:
+    """fw resolver latched [--max-age-min N] [--json] — surface (T-2915 AC5)
+    dispatch rows with no terminal_event older than the in-flight age bound.
+    These no longer exclude their task from picking (see
+    `_inflight_task_ids`), but a nonzero/growing count means a worker died
+    without writing a terminal event — an operational anomaly, distinct from
+    a worker that is still genuinely running."""
+    max_age = max(1, int(args.max_age_min)) if args.max_age_min else _inflight_max_age_min()
+    stale = _stale_inflight_ids(max_age)
+    if args.json:
+        print(json.dumps({"max_age_min": max_age, "latched": stale}, indent=2, default=str))
+        return 0
+    if not stale:
+        print(f"resolver latched: no stale in-flight dispatches (threshold {max_age}m)")
+        return 0
+    print(f"Stale in-flight dispatches (no terminal_event, older than {max_age}m):")
+    for tid, info in sorted(stale.items()):
+        print(f"  {tid:8s} age={info['age_min']:>8.1f}m  last_dispatch={info['ts']}")
+    return 0
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         prog="fw resolver",
@@ -902,6 +1940,86 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     sp_w = sub.add_parser("workflows", help="List configured workflows")
     sp_w.set_defaults(func=cmd_list_workflows)
+
+    sp_p = sub.add_parser(
+        "pick",
+        help="Autonomously select an eligible task; dry-run surface or --dispatch (T-2489)",
+    )
+    sp_p.add_argument(
+        "--dispatch",
+        action="store_true",
+        help="Fire the top pick through resolve+spawn (default: dry-run surface only)",
+    )
+    sp_p.add_argument(
+        "--stall-after",
+        type=int,
+        default=0,
+        dest="stall_after",
+        help="Exclude a task once it has N consecutive non-advancing dispatches "
+             "(default 0 = off, T-2914)",
+    )
+    sp_p.add_argument("--json", action="store_true", help="Emit selection (and outcome) as JSON")
+    sp_p.set_defaults(func=cmd_pick)
+
+    sp_l = sub.add_parser(
+        "loop",
+        help="Bounded autonomous dispatch driver — pick up to --max times (T-2491)",
+    )
+    sp_l.add_argument("--max", type=int, default=3, help="Max distinct tasks to pick/dispatch (default 3)")
+    sp_l.add_argument(
+        "--dispatch",
+        action="store_true",
+        help="Fire each pick through resolve+spawn (default: dry-run plan only)",
+    )
+    sp_l.add_argument(
+        "--cooldown-min",
+        type=int,
+        default=0,
+        dest="cooldown_min",
+        help="Exclude tasks dispatched within N minutes — single-invocation "
+             "anti-thrash only, NOT a repeat-count bound (default 0 = off; "
+             "see --stall-after for the non-convergence guard, T-2914)",
+    )
+    sp_l.add_argument(
+        "--stall-after",
+        type=int,
+        default=_DEFAULT_STALL_AFTER,
+        dest="stall_after",
+        help=f"Exclude a task once it has N consecutive non-advancing dispatches "
+             f"(default {_DEFAULT_STALL_AFTER}, T-2914). 0 disables the guard.",
+    )
+    sp_l.add_argument("--json", action="store_true", help="Emit loop plan/outcome as JSON")
+    sp_l.set_defaults(func=cmd_loop)
+
+    sp_s = sub.add_parser(
+        "stalled",
+        help="List tasks excluded by the non-convergence guard (T-2914)",
+    )
+    sp_s.add_argument(
+        "--stall-after",
+        type=int,
+        default=_DEFAULT_STALL_AFTER,
+        dest="stall_after",
+        help=f"Threshold to check against (default {_DEFAULT_STALL_AFTER})",
+    )
+    sp_s.add_argument("--json", action="store_true", help="Emit as JSON")
+    sp_s.set_defaults(func=cmd_stalled)
+
+    sp_lt = sub.add_parser(
+        "latched",
+        help="List tasks whose in-flight latch has aged out — abandoned "
+             "dispatches with no terminal_event (T-2915)",
+    )
+    sp_lt.add_argument(
+        "--max-age-min",
+        type=int,
+        default=0,
+        dest="max_age_min",
+        help=f"Age bound in minutes (default {_INFLIGHT_MAX_AGE_MIN_DEFAULT}, "
+             f"or FW_RESOLVER_INFLIGHT_MAX_AGE_MIN)",
+    )
+    sp_lt.add_argument("--json", action="store_true", help="Emit as JSON")
+    sp_lt.set_defaults(func=cmd_latched)
 
     args = parser.parse_args(argv)
     return args.func(args)

@@ -1,0 +1,260 @@
+#!/bin/bash
+# fw-router — the `fw` entry point on PATH (T-2793, operator decision D-377).
+#
+# This file contains NO framework logic and has NO version of its own. Its only
+# job is to answer one question — *which* fw should run here? — and hand over.
+#
+# ── Why this exists ────────────────────────────────────────────────────────────
+#
+# Before T-2793, `~/.local/bin/fw` was a symlink to a full 7,836-line framework
+# CLI. That CLI resolved FRAMEWORK_ROOT to the project's vendored copy and then
+# re-exec'd *itself* (`exec "$0" "$@"`), so a vendored consumer ran:
+#
+#   CLI dispatch  ← the global install   (whatever version that happens to be)
+#   libs + agents ← the project's copy   (the version the project pinned)
+#
+# Vendoring isolated libraries but not tooling. Every consumer ran an untested
+# hybrid that changed shape whenever the global install drifted — silently, with
+# `fw --version` reporting the CLI and `Framework:` reporting the libs: two true
+# lines describing a split brain, which is why it read as a version-string bug
+# for as long as it did.
+#
+# With this router, `fw` in a project runs *that project's* CLI, libs, agents and
+# hooks. Nothing outside the project is consulted. `rm -rf ~/.agentic-framework`
+# (which `fw doctor` already recommends) stops being able to break a consumer.
+#
+# ── Resolution order ───────────────────────────────────────────────────────────
+#
+#   1. Walk up from $PWD. At each level, in order:
+#        a. <dir>/FRAMEWORK.md + <dir>/bin/fw   → the framework repo itself
+#        b. <dir>/.agentic-framework/bin/fw     → a vendored consumer
+#   2. No project found → the global install, ANNOUNCED on stderr. This is the
+#      bootstrap path: `fw init` cannot require the isolation it exists to create.
+#
+# The walk stops before "/" — a filesystem root is never a project. That floor is
+# the same one lib/paths.sh has always had and lib/hook_paths.py did not (T-2793,
+# OBS-152); with a stray /.tasks on the host, "/" otherwise resolves as a project.
+#
+# (a) before (b) matters in the framework repo, which carries both: a developer
+# there means bin/fw, not the self-vendored copy under .agentic-framework/.
+
+set -euo pipefail
+
+# 127 = "no framework found" (the shell's own not-found code, same meaning here).
+# 126 = "found it, cannot execute it" — used for the routing loop below, which is
+# a different failure and should not read as a missing install.
+_fw_die() { local rc="$1"; shift; printf '%s\n' "$@" >&2; exit "$rc"; }
+
+# T-2810: one literal, three refusal messages. Two of them must append a target
+# directory (`| bash -s -- <dir>`) because since T-2800/T-2809 the installer puts
+# framework bytes in the PROJECT, never in $HOME — so "install, then run fw init"
+# is two steps that no longer connect to each other. The third (routing loop,
+# below) is correctly bare: it refreshes the PATH router only, no project involved.
+#
+# Overridable via FW_INSTALL_URL: the T-2814 bootstrap below fetches this, so the
+# override is what makes that path testable without a network — and is the seam an
+# air-gapped install would point at a local mirror or file:// path.
+_FW_INSTALL_URL="${FW_INSTALL_URL:-https://raw.githubusercontent.com/DimitriGeelen/agentic-engineering-framework/master/install.sh}"
+
+# --- 1. Walk up from cwd, floored below "/" ---
+_target=""
+_found_at=""
+_incomplete_at=""
+_d="$PWD"
+while [ -n "$_d" ] && [ "$_d" != "/" ]; do
+    if [ -f "$_d/FRAMEWORK.md" ] && [ -x "$_d/bin/fw" ]; then
+        _target="$_d/bin/fw"; _found_at="$_d"; break
+    fi
+    if [ -x "$_d/.agentic-framework/bin/fw" ]; then
+        # T-2801: executable bin/fw is NOT sufficient evidence of a usable vendor.
+        # do_vendor copies `bin` FIRST and FRAMEWORK.md last, so from about one
+        # second into an init until it finishes, .agentic-framework/bin/fw exists
+        # and the framework it belongs to does not. Routing there execs a CLI that
+        # cannot resolve its own FRAMEWORK_ROOT and dies "Cannot find framework
+        # installation" — including for `fw init`, so the tool could not repair the
+        # directory it had just created. Only `rm -rf` recovered it.
+        #
+        # Do not walk further up on this: a parent project is the wrong answer, and
+        # silently succeeding in someone else's project is worse than failing here.
+        # Fall through to the bootstrap fallback, which CAN re-init this directory.
+        #
+        # T-2805: two signals, and the second is the load-bearing one.
+        #
+        # The marker is DECLARED — do_init writes it on entry and removes it on
+        # success. It cannot cover a vendor that predates it, nor a crash before
+        # the write. The operator's /opt/2345-test-install was exactly that: debris
+        # with no marker, still fatal after T-2801 shipped. Absence of the marker
+        # was being read as evidence of completeness; it never was.
+        #
+        # FRAMEWORK.md is OBSERVED, and it is the same file bin/fw resolves
+        # FRAMEWORK_ROOT by (bin/fw:96,128,155) and install.sh scans for
+        # (install.sh:210). Using it here makes the router agree with the CLI it
+        # routes to. It did not before: the router accepted `-x bin/fw` alone, so
+        # it would hand over to a CLI that was about to reject the very same
+        # directory. Bisected 2026-08-05 — with FRAMEWORK.md absent every fw call
+        # fails whatever else is present; restoring it alone is sufficient.
+        #
+        # Keep both: the marker still catches a vendor interrupted after
+        # FRAMEWORK.md lands (nothing follows it now, but that is an ordering fact
+        # in another file, and this predicate should not depend on it holding).
+        # T-2856: record WHICH signal fired, not just that one did. Both routes
+        # printed the missing-FRAMEWORK.md diagnosis, so a marker-triggered
+        # refusal told the operator "no FRAMEWORK.md" while FRAMEWORK.md sat
+        # right there — the refusal was correct and its stated reason was false.
+        # Marker first: it outranks the copy merely looking complete.
+        if [ -f "$_d/.fw-init-incomplete" ]; then
+            _incomplete_at="$_d"; _incomplete_why="marker"; break
+        elif [ ! -f "$_d/.agentic-framework/FRAMEWORK.md" ]; then
+            _incomplete_at="$_d"; _incomplete_why="sentinel"; break
+        fi
+        _target="$_d/.agentic-framework/bin/fw"; _found_at="$_d"; break
+    fi
+    _d="$(dirname "$_d")"
+done
+
+# --- 2. No project here: refuse, or bootstrap `fw init` into this directory ---
+#
+# T-2854, completing D-377: there is NO global-install fallback. T-2800/T-2809
+# removed the producer — install.sh clones to a mktemp dir and deletes it — but
+# every consumer of a global lingered, so a pre-T-2800 residue directory stayed
+# alive AND authoritative. The contradiction was visible in this file: the
+# refusal below already asserted "There is no global install to fall back on by
+# design", and it was only ever printed when no global happened to exist. Where
+# one did, the code twenty lines above ran it.
+#
+# That is not a cosmetic inconsistency. It routed `fw` in an unrelated directory
+# into someone else's framework bytes, which is what T-2853 surfaced (fw update
+# misrouting) and what left an operator unable to tell which framework was
+# running. Nothing here reads $HOME/.agentic-framework anymore; a residue copy is
+# inert. `fw doctor` still reports it, so the host learns it should be removed.
+if [ -z "$_target" ]; then
+    if [ -n "$_incomplete_at" ]; then
+        # Two different signals reach this refusal and they mean different things
+        # to whoever reads it (T-2856).
+        if [ "$_incomplete_why" = "marker" ]; then
+            _diag=(
+                "  A .fw-init-incomplete marker is present: a previous 'fw init' recorded"
+                "  itself as unfinished and never got to clear it. FRAMEWORK.md may well be"
+                "  there, so the copy can LOOK complete — the marker is why this is refused,"
+                "  and it deliberately outranks that appearance (T-2801)."
+            )
+        else
+            _diag=(
+                "  .agentic-framework/ has a bin/fw but no FRAMEWORK.md, so it is a partial"
+                "  copy — usually an 'fw init' that did not finish. Running it would fail as"
+                "  'Cannot find framework installation', which reads like a missing install"
+                "  rather than an interrupted one."
+            )
+        fi
+        _fw_die 127 \
+            "fw: the framework copy in $_incomplete_at is incomplete." \
+            "" \
+            "${_diag[@]}" \
+            "" \
+            "  There is no global install to repair it with — and since T-2800 there" \
+            "  is no such thing to install. Point the installer at the project instead;" \
+            "  it completes a partial copy in place:" \
+            "" \
+            "    curl -fsSL $_FW_INSTALL_URL | bash -s -- $_incomplete_at" \
+            "" \
+            "" \
+            "  Or discard it:  rm -rf $_incomplete_at/.agentic-framework $_incomplete_at/.fw-init-incomplete"
+    fi
+    # --- 2b. Bootstrap `fw init` by fetching, instead of refusing (T-2814) ---
+    #
+    # `fw init` in a bare directory is the one thing an operator can type that
+    # means "make a project here" and that this router cannot serve — init is
+    # framework code, and there is no framework. Until now it exited 127 with a
+    # message telling the operator to run install.sh, which does exactly what
+    # they just asked for. That is ceremony, not safety: they must retype a
+    # 130-character command to reach the same outcome.
+    #
+    # This is NOT the global fallback T-2800 refused. That refusal is about
+    # never silently running *someone else's framework* against this project —
+    # a correctness boundary, still enforced above. Fetching the framework INTO
+    # the directory the operator explicitly asked to init is the opposite: it is
+    # doing what was asked, in the place it was asked for, with bytes pinned to
+    # that project alone.
+    #
+    # Safety comes from the scope, not from a prompt:
+    #   - `init` only. Any other verb still refuses (a download on `fw status`
+    #     would be indefensible).
+    #   - Only when NO framework was found anywhere, which today is always a
+    #     hard 127. Nothing that works now can change behaviour.
+    #   - Announced on stderr before the network is touched, never on stdout.
+    #   - FW_NO_BOOTSTRAP=1 restores the refusal.
+    # Any fetch failure falls through to that same refusal, so the operator
+    # lands on the copy-pasteable command rather than a raw curl error.
+    # T-2854: the guard used to also require that no global install existed. On a
+    # host still carrying pre-T-2800 residue that condition was false, so `fw init`
+    # in a bare directory refused instead of bootstrapping — the residue silently
+    # disabled the feature. Bootstrap now depends only on there being no project
+    # here, which is the question actually being asked.
+    if [ "${1:-}" = "init" ] && [ -z "${FW_NO_BOOTSTRAP:-}" ] \
+       && command -v curl >/dev/null 2>&1; then
+        _boot_target="$PWD"
+        shift                                  # drop `init`; forward the rest
+        printf 'fw: no framework here yet — bootstrapping into %s\n' "$_boot_target" >&2
+        printf 'fw: fetching %s\n' "$_FW_INSTALL_URL" >&2
+        printf 'fw: (set FW_NO_BOOTSTRAP=1 to refuse with instructions instead)\n' >&2
+        _boot_sh="$(mktemp -t fw-bootstrap-XXXXXX 2>/dev/null)" || _boot_sh=""
+        if [ -n "$_boot_sh" ] && curl -fsSL "$_FW_INSTALL_URL" -o "$_boot_sh" \
+           && [ -s "$_boot_sh" ]; then
+            # `if` suppresses set -e, so a failing installer reaches the cleanup
+            # and returns its own code rather than exiting here and leaking the
+            # temp file. Installer output goes to stdout, where `fw init`'s
+            # output belongs — only the bootstrap announcement above is stderr.
+            if bash "$_boot_sh" "$_boot_target" "$@"; then _boot_rc=0; else _boot_rc=$?; fi
+            rm -f "$_boot_sh"
+            exit "$_boot_rc"
+        fi
+        rm -f "$_boot_sh"
+        printf 'fw: bootstrap fetch failed — falling through to instructions.\n' >&2
+    fi
+
+    # No project, and not a bootstrappable `init`. Refuse — there is nothing else
+    # to run. The "Looked for a global install at ..." line that used to sit here
+    # was removed with the fallback itself (T-2854): reporting a search that no
+    # longer happens is how the previous contradiction read as documentation.
+    _fw_die 127 \
+        "fw: no framework found." \
+        "" \
+        "  Looked for a vendored copy walking up from: $PWD" \
+        "" \
+        "  Install the framework INTO this project — one step, nothing global:" \
+        "" \
+        "    curl -fsSL $_FW_INSTALL_URL | bash -s -- $PWD" \
+        "" \
+        "  Add --provider claude|cursor|generic to pick the agent integration." \
+        "  (There is no global install to fall back on by design — T-2800/D-377," \
+        "  and since T-2854 none is consulted even if one is left on this host." \
+        "  That is why this is one command and not 'install, then fw init'.)"
+fi
+
+# --- 3. Refuse to exec ourselves ---
+# A router that routes to a router loops forever. Cheapest correct check is
+# identity of the resolved files, which also catches symlink arrangements.
+_self_real="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || printf '%s' "${BASH_SOURCE[0]}")"
+_target_real="$(readlink -f "$_target" 2>/dev/null || printf '%s' "$_target")"
+[ "$_self_real" != "$_target_real" ] || _fw_die 126 \
+    "fw: routing loop — the fw found here is this router itself." \
+    "" \
+    "  Path: $_target" \
+    "" \
+    "  The real CLI is missing from that location (T-1278/T-2794): a 'fw upgrade' or" \
+    "  install.sh run wrote the router THROUGH a symlink instead of replacing it." \
+    "" \
+    "  Fix (works even if you don't know this location is a git clone):" \
+    "    curl -fsSL https://raw.githubusercontent.com/DimitriGeelen/agentic-engineering-framework/master/install.sh | bash" \
+    "  This re-syncs the install and overwrites the corrupted file." \
+    "" \
+    "  Framework developer shortcut (only if you recognise $_target as a git checkout):" \
+    "    cd \"\$(dirname \"\$(dirname \"$_target\")\")\" && git checkout HEAD -- bin/fw"
+
+# --- 4. Hand over ---
+# Exported so the routing decision is observable from inside (fw doctor reads it).
+# The router deliberately sets nothing else: PROJECT_ROOT and FRAMEWORK_ROOT stay
+# the CLI's job, so routing cannot become a second, competing path resolver.
+export FW_ROUTED_FROM="${_found_at:-}"
+export FW_ROUTER_TARGET="$_target_real"
+exec "$_target" "$@"

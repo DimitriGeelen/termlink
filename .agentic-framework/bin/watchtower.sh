@@ -122,6 +122,27 @@ do_start() {
         case "$1" in
             --port|-p) port="$2"; shift 2 ;;
             --debug)   debug_flag="--debug"; shift ;;
+            # T-2806: `fw serve --help` routes here, not to the top-level help
+            # branch below — `--help` arrives as an ARGUMENT to start, so the
+            # catch-all rejected it: "[watchtower] Unknown option: --help",
+            # exit 1. Asking a command how to use it is never an error, and the
+            # failure taught the opposite: an operator's onboarding agent read it
+            # as "the verb does not exist" and went looking elsewhere.
+            -h|--help)
+                echo "Usage: fw serve [--port N] [--debug]"
+                echo ""
+                echo "Start the Watchtower web UI for this project."
+                echo ""
+                echo "Options:"
+                echo "  --port N, -p N   Listen port (default: resolved per-project,"
+                echo "                   not hard-coded — see 'fw watchtower port')"
+                echo "  --debug          Run in the foreground with debug logging"
+                echo ""
+                echo "Related:"
+                echo "  fw watchtower status|port|url    Inspect a running instance"
+                echo "  fw watchtower stop|restart       Lifecycle"
+                exit 0
+                ;;
             *)         log_error "Unknown option: $1"; exit 1 ;;
         esac
     done
@@ -257,9 +278,24 @@ do_start() {
 # restart — Stop then start
 # ---------------------------------------------------------------------------
 do_restart() {
+    # T-2598 (OBS-097): remember the running port BEFORE do_stop deletes the
+    # triple file — a bare `restart` must come back on the SAME port, not fall
+    # back to FW_PORT/3000 (which may belong to a foreign service; that failure
+    # mode left no instance running at all). Explicit --port still wins.
+    local prev_port=""
+    [ -f "$PORT_FILE" ] && prev_port=$(cat "$PORT_FILE" 2>/dev/null)
     do_stop
     sleep 1
-    do_start "$@"
+    case " $* " in
+        *" --port"*) do_start "$@" ;;
+        *)
+            if [ -n "$prev_port" ]; then
+                do_start --port "$prev_port" "$@"
+            else
+                do_start "$@"
+            fi
+            ;;
+    esac
 }
 
 # ---------------------------------------------------------------------------
@@ -317,7 +353,43 @@ do_port() {
     fi
 }
 
+# T-2802: what to say when we cannot identify a Watchtower of ours. Distinguishes
+# the two states an unverified port can be in, because they have different fixes
+# and the old code reported neither: nothing is listening (start one) vs. someone
+# ELSE is listening (do not curl it — that is the 371-line false-green class).
+_url_refuse() {
+    local _p="$1"
+    local _probe
+    log_error "Cannot identify a Watchtower for this project."
+    # PROJECT_ROOT is always set here — lib/paths.sh:39-46 falls back to
+    # FRAMEWORK_ROOT — so naming it is the useful thing to print: on a
+    # multi-project host, "which project am I actually being asked about" is
+    # half the answer.
+    echo "  Project: $PROJECT_ROOT" >&2
+    if _probe=$(curl -sf --max-time 2 "http://localhost:${_p}/api/_identity" 2>/dev/null); then
+        echo "  Something IS listening on localhost:${_p}, but it is not this" >&2
+        echo "  project's Watchtower. Do not treat it as ours — on a multi-project" >&2
+        echo "  host the same Flask app answers 200 for almost any path, so a curl" >&2
+        echo "  against it passes while asserting nothing." >&2
+        echo "" >&2
+        echo "  Identity reported: $(printf '%s' "$_probe" | head -c 200)" >&2
+        echo "  Start yours on another port: fw serve --port <N>" >&2
+    else
+        echo "  Nothing is listening on localhost:${_p}." >&2
+        echo "  Start one with: fw serve" >&2
+    fi
+    echo "  Or set WATCHTOWER_URL explicitly." >&2
+    return 1
+}
+
 do_url() {
+    # T-2802: env override first, for parity with lib/watchtower.sh's
+    # _watchtower_url — a caller who states the answer is not guessing.
+    if [ -n "${WATCHTOWER_URL:-}" ]; then
+        echo "$WATCHTOWER_URL"
+        return 0
+    fi
+
     # T-1622: when running, regenerate LAN URL from current detect_lan_ip — the
     # cached URL_FILE goes stale on DHCP IP rotation (T-1621). Witness: this host
     # bounced between .123 and .107 8x in one day, file kept first-write value
@@ -334,11 +406,19 @@ do_url() {
             echo "http://localhost:${p}"
         fi
     elif [ -f "$URL_FILE" ]; then
+        # Written by our own start (triple-file), so it is project-scoped by
+        # construction: "where it WAS running". Stale, but never someone else's.
         cat "$URL_FILE"
     else
+        # T-2802: this used to be `echo "http://localhost:$(fw_config PORT 3000)"`
+        # — a guess wearing the shape of an answer. lib/watchtower.sh's
+        # _watchtower_url has refused to do that since T-1803 ("never return a URL
+        # to a service we didn't positively identify"); this accessor, the one
+        # CLAUDE.md puts inside ## Verification blocks, kept doing it.
         local p
         p=$(fw_config "PORT" "$DEFAULT_PORT")
-        echo "http://localhost:$p"
+        _url_refuse "$p"
+        return 1
     fi
 }
 

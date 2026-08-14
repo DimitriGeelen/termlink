@@ -17,10 +17,12 @@ from pathlib import Path
 import yaml
 from flask import Blueprint, request
 
-from web.shared import PROJECT_ROOT, render_page, parse_frontmatter, task_id_sort_key, get_all_task_metadata, extract_recommendation_verdict, extract_recommendation_state, extract_reviewer_verdict, count_unchecked_human_acs, needs_human_review, mtime_cached_get
+from web.shared import FRAMEWORK_ROOT, PROJECT_ROOT, render_page, parse_frontmatter, task_id_sort_key, get_all_task_metadata, extract_recommendation_verdict, extract_recommendation_state, extract_reviewer_verdict, count_unchecked_human_acs, needs_human_review, mtime_cached_get
 
 # T-1808: paused-dispatch surface — needs lib/ on the path so the helper imports cleanly.
-sys.path.insert(0, str(PROJECT_ROOT / "lib"))
+# T-2645 (832 G-004 sibling): lib/ is FRAMEWORK-owned — PROJECT_ROOT resolution broke
+# split-root consumers (masked here by the try/except fallback, feature silently dead).
+sys.path.insert(0, str(FRAMEWORK_ROOT / "lib"))
 try:
     from dispatch_pause import list_paused_dispatches, format_age, truncate as _trunc_q
 except Exception:  # pragma: no cover - fallback for consumer projects without lib/
@@ -255,6 +257,11 @@ def _load_pending_go_decisions():
         # T-1569 / F3: surface reviewer agent's mechanical verdict at decision time.
         reviewer = extract_reviewer_verdict(body)
 
+        # T-100188: compact evidence badge from the claims-validator verdict
+        # (T-100187). None overall = no badge rendered.
+        from web.shared import extract_recommendation_claims_verdict
+        claims = extract_recommendation_claims_verdict(body)
+
         results.append({
             "task_id": task_id,
             "name": fm.get("name", ""),
@@ -269,6 +276,7 @@ def _load_pending_go_decisions():
             "verdict": verdict,
             "go_nogo_criteria": go_nogo_raw,
             "reviewer": reviewer,
+            "claims": claims,
         })
 
     return results
@@ -445,8 +453,15 @@ def _load_close_ready_arcs(threshold: float = 0.80) -> list[dict]:
     return out
 
 
-def _build_approvals_context():
-    """Build template context for approvals page."""
+def _build_approvals_context(expand_overflow: bool = False):
+    """Build template context for approvals page.
+
+    T-2406: expand_overflow controls whether the Verifications overflow
+    <details class="ac-overflow"> renders open. Default closed preserves the
+    T-2103 page-height cap (T-2038 unbounded-list class prevention); operator
+    opts in via ?expand=verifications when their workflow needs the full list
+    (e.g. arc-003 closure burst walking all partial-completes).
+    """
     pending_tier0 = _load_pending_approvals()
     resolved_tier0 = _load_resolved_approvals()
     pending_go = _load_pending_go_decisions()
@@ -454,6 +469,12 @@ def _build_approvals_context():
     deferred_count = _count_deferred_inceptions()
     paused_dispatches = _load_paused_dispatches()  # T-1808
     arcs_close_ready = _load_close_ready_arcs()  # T-1961
+    # T-2335: BVP driver proposals pending the operator's Sovereign decision.
+    # Same reader the /bvp page uses (T-2332); Approve/Reject proxy to its
+    # /api/bvp/driver/* endpoints, so state machine + audit trail stay single.
+    from web.blueprints.bvp import _load_proposals
+
+    bvp_proposals = _load_proposals()
 
     tier0_count = sum(1 for a in pending_tier0 if a.get("status") == "pending")
     go_count = len(pending_go)
@@ -463,7 +484,9 @@ def _build_approvals_context():
     )
     paused_count = len(paused_dispatches)  # T-1808
     arc_close_count = len(arcs_close_ready)  # T-1961
-    total = tier0_count + go_count + len(pending_acs) + paused_count + arc_close_count
+    bvp_proposal_count = len(bvp_proposals)  # T-2335
+    total = (tier0_count + go_count + len(pending_acs) + paused_count
+             + arc_close_count + bvp_proposal_count)
 
     # Count tasks ready for batch completion (all human ACs checked)
     ready_count = sum(
@@ -478,6 +501,8 @@ def _build_approvals_context():
         pending_acs=pending_acs,
         paused_dispatches=paused_dispatches,
         arcs_close_ready=arcs_close_ready,
+        bvp_proposals=bvp_proposals,
+        bvp_proposal_count=bvp_proposal_count,
         tier0_count=tier0_count,
         go_count=go_count,
         ac_count=ac_count,
@@ -488,12 +513,18 @@ def _build_approvals_context():
         active_count=tier0_count,
         ready_count=ready_count,
         deferred_count=deferred_count,
+        expand_overflow=expand_overflow,
     )
+
+
+def _read_expand_overflow():
+    """T-2406: parse ?expand=verifications query param."""
+    return (request.args.get("expand", "").strip().lower() == "verifications")
 
 
 @bp.route("/approvals")
 def approvals():
-    ctx = _build_approvals_context()
+    ctx = _build_approvals_context(expand_overflow=_read_expand_overflow())
     return render_page("approvals.html", page_title="Approvals", **ctx)
 
 
@@ -502,7 +533,7 @@ def approvals_content():
     """htmx polling fragment — returns approvals content without page wrapper (T-669)."""
     from flask import render_template
 
-    ctx = _build_approvals_context()
+    ctx = _build_approvals_context(expand_overflow=_read_expand_overflow())
     return render_template("_approvals_content.html", **ctx)
 
 
@@ -652,7 +683,7 @@ def complete_batch():
 
     completed = []
     errors = []
-    fw_path = str(PROJECT_ROOT / "bin" / "fw")
+    fw_path = str(FRAMEWORK_ROOT / "bin" / "fw")
 
     for task_id in ready_tasks:
         try:

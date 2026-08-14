@@ -14,6 +14,8 @@ bp = Blueprint("config", __name__)
 SETTINGS = [
     ("CONTEXT_WINDOW", "300000", "Context window size for budget enforcement (tokens)"),
     ("PORT", "3000", "Watchtower web UI listen port"),
+    ("RAIL_IDENTITY_FILE", "", "Project-owned termlink signing identity for outbound rail posts (T-2904). Empty = sign as host key, which is indistinguishable from co-resident agents. Created on first use."),
+    ("RAIL_PROJECT_LABEL", "", "Canonical from_project label attached to outbound rail posts (T-2905). Empty = derived from the project directory name, normalised. Emitted, never typed at a call site."),
     ("DISPATCH_LIMIT", "2", "Agent tool dispatches before TermLink gate triggers"),
     ("BUDGET_RECHECK_INTERVAL", "5", "Re-read transcript every N tool calls"),
     ("BUDGET_STATUS_MAX_AGE", "90", "Max seconds before cached budget status is stale"),
@@ -31,6 +33,17 @@ SETTINGS = [
     ("HANDOVER_DEDUP_COOLDOWN", "300", "Seconds between duplicate handover detection"),
     ("INCEPTION_COMMIT_LIMIT", "2", "Max exploration commits before inception decision gate"),
     ("CONSUMER_SCAN_DIRS", "/opt", "Colon-separated directories to scan for consumer projects"),
+    ("NTFY_URL", "", "ntfy server base URL for push notifications (empty = dispatcher default; each install sets its own instance, no host-local fallback; T-2439)"),
+    # T-2838: both keys shipped in lib/config.sh and were honoured by the CLI while
+    # never appearing on /config. tests/lint/config-registry-parity.bats has asserted
+    # this parity since T-1187 and was failing unread — see T-2837.
+    ("DISPATCH_MODEL_DEFAULT", "", "Default LLM model for fw termlink dispatch when --model omitted (e.g. sonnet, haiku, opus); T-1643/W3"),
+    ("ARC_COMPLETION_THRESHOLD", "0.80", "Ratio of completed children at which fw audit warns an in-progress arc (G-062 mechanism #2); T-1656"),
+    # T-2842: honoured by shipped code and documented in CLAUDE.md, but absent
+    # from the registry — so they were env-var-only and never rendered here.
+    ("BRANCH_BEHIND_WARN", "50", "Commits-behind-origin/master threshold for the branch-hygiene WARN and handover merge-back nudge; T-100143/T-100144"),
+    ("STALE_ARC_DAYS", "30", "Days without a constituent-task commit before fw audit WARNs an in-progress arc as stale; T-1855"),
+    ("RETIRE_WHEN_ADVISORY", "1", "Enable the audit retire_when advisory rail for free drivers; 0 silences the section; T-2169"),
 ]
 
 

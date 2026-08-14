@@ -67,6 +67,57 @@ do_init() {
         return 1
     fi
 
+    # T-2722 (arc-015, F-10): snapshot what is in the directory BEFORE we write anything.
+    # Project shape is then inferred from what the USER already had, not from a list of
+    # names we hope covers every ecosystem. Taking the census here rather than at seed time
+    # matters: `fw init` creates policy/, .tasks/, .context/ etc. before the seed step, so a
+    # census taken later has to exclude framework artefacts by name — which is the same
+    # allowlist mistake one level down, and would silently break again the next time init
+    # learns to create a new directory.
+    local -a preexisting_entries=()
+    local _e _b
+    for _e in "$target_dir"/* "$target_dir"/.[!.]*; do
+        [ -e "$_e" ] || continue
+        _b="$(basename "$_e")"
+        case "$_b" in
+            # VCS metadata, editor/OS noise and placeholders are not evidence of a project.
+            .git|.gitignore|.gitattributes|.gitmodules|.svn|.hg|.keep|.gitkeep|.DS_Store) continue ;;
+            # A prior/partial framework install is scaffolding, not user content.
+            # .fw-init-incomplete (T-2801) is ours by definition — it only exists
+            # because a previous run of THIS function put it there.
+            .agentic-framework|.claude|.framework.yaml|CLAUDE.md|FRAMEWORK.md|.mcp.json|.fw-init-incomplete) continue ;;
+        esac
+        preexisting_entries+=("$_b")
+    done
+
+    # T-2801: mark the directory before touching it, clear the mark after the last
+    # step. Between those two points an interruption is *recognisable* — which is
+    # the whole fix. Previously the vendor ran at line ~129 and .framework.yaml was
+    # written at ~251, so a kill anywhere between (the ~90MB copy is most of the
+    # wall clock) left .agentic-framework/bin/fw present, .framework.yaml absent,
+    # and no way to tell that state apart from a corrupt install.
+    #
+    # The sentinel lives at the project root, not inside .agentic-framework/: a
+    # re-vendor is free to delete and recreate that directory, and a marker that
+    # its own recovery path can erase is not a marker.
+    local _init_incomplete_marker="$target_dir/.fw-init-incomplete"
+    # Captured BEFORE we write it — this is what tells a re-run that it is a
+    # recovery rather than a first init.
+    local _resuming_partial_init=false
+    [ -f "$_init_incomplete_marker" ] && _resuming_partial_init=true
+    {
+        echo "# fw init started here and has not finished."
+        echo "#"
+        echo "# While this file exists the .agentic-framework/ copy beside it may be"
+        echo "# partial. fw refuses to route into it (bin/fw-router) rather than run a"
+        echo "# CLI that cannot find its own framework."
+        echo "#"
+        echo "# Recover:  fw init $target_dir"
+        echo "# Discard:  rm -rf $target_dir/.agentic-framework $target_dir/.fw-init-incomplete"
+        echo "started_at: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+        echo "framework_version: ${FW_VERSION:-unknown}"
+    } > "$_init_incomplete_marker"
+
     local project_display
     project_display=$(basename "$target_dir")
     echo -e "${BOLD}Setting up agentic governance for ${project_display}...${NC}"
@@ -78,6 +129,10 @@ do_init() {
         if ! do_preflight --quiet; then
             echo ""
             echo -e "${RED}Preflight failed. Run 'fw preflight' for details.${NC}"
+            # T-2801: nothing has been written yet — a refusal is not an unfinished
+            # init, and leaving the marker would report one.
+            rm -f "$_init_incomplete_marker"
+
             return 1
         fi
     fi
@@ -89,7 +144,12 @@ do_init() {
     fi
 
     # --- Git identity inheritance (T-880/F4: inherit from global if not set) ---
-    if ! git -C "$target_dir" config user.email >/dev/null 2>&1; then
+    # T-2883: the guard asks whether a commit here would resolve an identity, not
+    # whether config carries one. An env-supplied identity (CI, cron, dispatch
+    # workers) needs no inheritance and no warning — copying global config over it
+    # would also silently change who the commits are attributed to.
+    source "$(dirname "${BASH_SOURCE[0]}")/git-identity.sh"
+    if ! fw_git_identity_ok "$target_dir"; then
         local global_email
         global_email=$(git config --global user.email 2>/dev/null || true)
         if [ -n "$global_email" ]; then
@@ -100,12 +160,41 @@ do_init() {
             echo -e "  ${GREEN}✓${NC}  Git identity inherited from global config ($global_email)"
         else
             echo -e "  ${YELLOW}⚠${NC}   Git identity not configured (commits will fail)"
-            echo "       git config user.email 'you@example.com' && git config user.name 'Your Name'"
+            echo "       $(fw_git_identity_remedy "$target_dir")"
         fi
     fi
 
     # --- Vendor framework (T-498: full project isolation) ---
-    if [ ! -d "$target_dir/.agentic-framework" ] || [ "${force:-false}" = true ]; then
+    # T-2801: `.agentic-framework/ already exists` is not evidence that it is
+    # complete. When the marker says a previous init died mid-vendor, the existing
+    # directory is exactly the thing that needs replacing — skipping it is what
+    # made the debris permanent, because the SKIP branch is the one a recovery run
+    # would always take.
+    #
+    # T-2805: the comment above was right and the test below was not wide enough.
+    # `_resuming_partial_init` reads the .fw-init-incomplete MARKER — a declared
+    # signal, absent from any vendor that predates T-2801 or that died before the
+    # marker was written. For those, this branch still took SKIP, so a recovery run
+    # printed "Validation passed: 42/43" over a directory with no FRAMEWORK.md and
+    # no VERSION. Init reported success and left the project broken; the only
+    # reason `fw` still ran there was the router falling back to the global install.
+    #
+    # Observed 2026-08-05 while verifying the router fix — the success message was
+    # convincing enough that the artefact had to be checked to catch it.
+    #
+    # So also test the OBSERVED signal: FRAMEWORK.md is what bin/fw resolves
+    # FRAMEWORK_ROOT by and what do_vendor now writes last, so its absence means
+    # the copy did not finish, whatever the marker says.
+    local _vendor_incomplete=false
+    if [ -d "$target_dir/.agentic-framework" ] && [ ! -f "$target_dir/.agentic-framework/FRAMEWORK.md" ]; then
+        _vendor_incomplete=true
+    fi
+    if [ ! -d "$target_dir/.agentic-framework" ] || [ "${force:-false}" = true ] || [ "$_resuming_partial_init" = true ] || [ "$_vendor_incomplete" = true ]; then
+        if [ "$_resuming_partial_init" = true ] && [ -d "$target_dir/.agentic-framework" ]; then
+            echo -e "  ${YELLOW}RECOVER${NC}  Previous init did not finish — re-vendoring over the partial copy"
+        elif [ "$_vendor_incomplete" = true ]; then
+            echo -e "  ${YELLOW}RECOVER${NC}  .agentic-framework/ exists but has no FRAMEWORK.md — re-vendoring over the partial copy"
+        fi
         echo -e "${BOLD}Vendoring framework into project...${NC}"
         do_vendor --target "$target_dir"
         echo ""
@@ -181,6 +270,14 @@ BYPASSEOF
 session.yaml
 focus.yaml
 tier0-approval
+
+# T-2896: Watchtower's signing key. web/app.py:_resolve_secret_key generates this
+# (secrets.token_hex(32), chmod 0600) on first start when FW_SECRET_KEY is unset;
+# it signs fw_session_<port> and the CSRF token guarding the T-2277 sovereignty
+# surface. chmod is a filesystem control and says nothing to git — a project that
+# commits .context/working/ wholesale publishes the key without this line.
+# Unanchored on purpose: also covers the copy under .agentic-framework/.
+.fw-secret-key
 WGIT
 
     echo -e "  ${GREEN}✓${NC}  Task system (.tasks/)"
@@ -217,6 +314,20 @@ WGIT
             remote_url=$(git -C "$FRAMEWORK_ROOT" remote -v 2>/dev/null | grep "(push)" | head -1 | awk '{print $2}') || true
         fi
         if [ -n "$remote_url" ]; then
+            # T-2817: strip any embedded credential BEFORE persisting. This value
+            # lands in .framework.yaml, which is a TRACKED file of the new project,
+            # so a framework cloned as https://TOKEN@host/... would write that token
+            # into every project it creates. upstream_repo is a LOCATION, not an
+            # authentication method — git resolves credentials from the credential
+            # helper or netrc at fetch time, so dropping userinfo costs nothing.
+            #
+            # Requires "://" so scp-style SSH remotes (git@host:owner/repo) are left
+            # alone; their "git@" is a username, not a secret, and mangling it would
+            # break the remote. The github.com branch below already dropped userinfo
+            # incidentally, by extracting owner/repo — this makes it deliberate and
+            # extends it to every other host (OneDev, GitLab, Gitea).
+            remote_url=$(printf '%s' "$remote_url" | sed -E 's|^([a-zA-Z][a-zA-Z0-9+.-]*://)[^/@]*@|\1|')
+
             # GitHub URLs: extract owner/repo for compact display
             if echo "$remote_url" | grep -q "github.com"; then
                 upstream_repo=$(echo "$remote_url" | sed -E 's|.*github\.com[:/]||;s|\.git$||')
@@ -293,6 +404,27 @@ PYAML
 # Added via: fw context add-learning "description" --task T-XXX
 learnings:
 LYAML
+    fi
+
+    # T-2261 / arc-006 (T-2229 Slice 2A): bootstrap BVP policy files from
+    # framework templates. Mirror of the practices/decisions/patterns cp pattern
+    # above. Per-file idempotent — pre-existing consumer customisation survives.
+    # Skipped silently when --force re-runs: the destination existence check
+    # handles re-init without trampling customisations.
+    mkdir -p "$target_dir/policy"
+    #@init: yaml-2bv policy/value-drivers.yaml protected_drivers
+    # BVP value-drivers definitions (T-2229)
+    if [ ! -f "$target_dir/policy/value-drivers.yaml" ]; then
+        if [ -f "$FRAMEWORK_ROOT/policy/value-drivers.yaml" ]; then
+            cp "$FRAMEWORK_ROOT/policy/value-drivers.yaml" "$target_dir/policy/value-drivers.yaml"
+        fi
+    fi
+    #@init: md-3bv policy/bvp-scoring-rubric.md
+    # BVP scoring rubric (T-1921/T-2259)
+    if [ ! -f "$target_dir/policy/bvp-scoring-rubric.md" ]; then
+        if [ -f "$FRAMEWORK_ROOT/policy/bvp-scoring-rubric.md" ]; then
+            cp "$FRAMEWORK_ROOT/policy/bvp-scoring-rubric.md" "$target_dir/policy/bvp-scoring-rubric.md"
+        fi
     fi
 
     #@init: yaml-9he .context/project/assumptions.yaml assumptions
@@ -406,26 +538,26 @@ CYAML
         fi
     fi
 
-    # --- Post-init validation (T-461: Tier 1 structural + Tier 2 functional) ---
-    echo ""
-    echo -e "${BOLD}Validating...${NC}"
-    source "$FW_LIB_DIR/validate-init.sh" 2>/dev/null || \
-        source "$(dirname "${BASH_SOURCE[0]}")/validate-init.sh" 2>/dev/null || true
-    if type do_validate_init >/dev/null 2>&1; then
-        if ! do_validate_init "$target_dir" --provider "$provider"; then
-            echo ""
-            echo -e "${YELLOW}Init completed with validation errors — check output above${NC}"
-        fi
-    fi
-
     # --- Activate governance: initialize session context (T-002) ---
+    # F5 (T-2444): route through the project's vendored fw — the SAME entry
+    # point as the `fw context init` recovery — so context.sh runs with the
+    # full env bin/fw exports. The earlier direct `context.sh init` call set
+    # only PROJECT_ROOT, so context.sh's `set -euo pipefail` aborted on env
+    # bin/fw would have provided, while the recovery (same script via bin/fw)
+    # succeeded. The old `2>/dev/null` masked the real error (Directive-2) —
+    # capture stderr and surface it on failure instead of discarding it.
     echo ""
     echo -e "Activating governance..."
-    local context_init_script="$FRAMEWORK_ROOT/agents/context/context.sh"
-    if [ -x "$context_init_script" ]; then
-        PROJECT_ROOT="$target_dir" "$context_init_script" init 2>/dev/null && \
-            echo -e "  ${GREEN}✓${NC}  Session initialized (governance active)" || \
+    local si_fw="$target_dir/.agentic-framework/bin/fw"
+    [ -x "$si_fw" ] || si_fw="$FRAMEWORK_ROOT/bin/fw"
+    if [ -x "$si_fw" ]; then
+        local si_err
+        if si_err="$(PROJECT_ROOT="$target_dir" "$si_fw" context init 2>&1 >/dev/null)"; then
+            echo -e "  ${GREEN}✓${NC}  Session initialized (governance active)"
+        else
             echo -e "  ${YELLOW}⚠${NC}  Session init failed — run 'fw context init' manually"
+            [ -n "$si_err" ] && echo "$si_err" | sed 's/^/      /' >&2
+        fi
     fi
 
     # --- Copy onboarding task templates (T-460) ---
@@ -433,26 +565,46 @@ CYAML
     local has_code=false
 
     # Skip if tasks already exist (idempotent on --force re-init)
-    if [ -d "$target_dir/.tasks/active" ] && ls "$target_dir/.tasks/active/"T-*.md >/dev/null 2>&1; then
-        has_existing_tasks=true
-    fi
+    #
+    # T-2712: check completed/ TOO. Completing a task moves it out of active/, so a
+    # project that finished its onboarding presented an empty active/, was judged
+    # fresh, and had T-001..T-005 re-seeded over IDs it had already used and
+    # committed against — a duplicate-ID generator aimed squarely at the projects
+    # that made progress. The `check-active-completed-dup` hook defends this class
+    # downstream; this guard was manufacturing it upstream.
+    #
+    # The question is "has this project ever had tasks", so it must consider every
+    # directory an ID can live in, not just the one holding open work.
+    local _seed_dir_probe
+    for _seed_dir_probe in active completed; do
+        if [ -d "$target_dir/.tasks/$_seed_dir_probe" ] \
+           && ls "$target_dir/.tasks/$_seed_dir_probe/"T-*.md >/dev/null 2>&1; then
+            has_existing_tasks=true
+            break
+        fi
+    done
 
     if [ "$has_existing_tasks" = false ]; then
-        # Detect if project has existing code
-        for manifest in package.json requirements.txt pyproject.toml go.mod Cargo.toml pom.xml setup.py; do
-            if [ -f "$target_dir/$manifest" ]; then
-                has_code=true
-                break
-            fi
-        done
-        if [ "$has_code" = false ]; then
-            for codedir in src lib app; do
-                if [ -d "$target_dir/$codedir" ]; then
-                    has_code=true
-                    break
-                fi
-            done
-        fi
+        # T-2722 (arc-015, F-10): infer project shape by ENUMERATION, not by an allowlist.
+        #
+        # The previous implementation asked "is one of these seven manifests present?" and
+        # treated a miss as positive evidence of an empty directory. Every ecosystem off the
+        # list (.NET, C/C++, PHP, flat Python, Ruby, Gradle, …) was therefore seeded greenfield,
+        # which lands an owner:human inception task that the T-532 gate then uses to block all
+        # other edits — a first-run deadlock the agent is structurally forbidden to clear.
+        #
+        # Lengthening the list was explicitly rejected (T-2718 Decisions): it reproduces the
+        # identical property with a later failure date, because the defect is not WHICH names
+        # are listed, it is that THE LIST IS THE ORACLE.
+        #
+        # Inverted: greenfield must be positively established — the directory contains nothing
+        # but framework scaffolding, VCS metadata and placeholders. Anything else means we
+        # found something we did not put here, so treat it as an existing project. The cost
+        # asymmetry drives the direction: existing→greenfield is a wall the user cannot clear,
+        # greenfield→existing is mild noise.
+        # The census was taken at function entry, before we created anything (see above).
+        local -a found_entries=("${preexisting_entries[@]}")
+        [ ${#found_entries[@]} -gt 0 ] && has_code=true
 
         local seed_dir
         if [ "$has_code" = true ]; then
@@ -478,15 +630,178 @@ CYAML
             if [ "$task_count" -gt 0 ]; then
                 local mode_label="existing project"
                 [ "$has_code" = false ] && mode_label="greenfield"
+                # T-2722: state the EVIDENCE, not just the verdict. A wrong inference is then
+                # legible here, at the moment it happens, instead of surfacing three commands
+                # later as an unexplained gate refusal. Cap the list so a large repo does not
+                # bury the line it is meant to clarify.
+                if [ "$has_code" = true ]; then
+                    local shown="${found_entries[*]:0:6}"
+                    local more=""
+                    [ ${#found_entries[@]} -gt 6 ] && more=" +$(( ${#found_entries[@]} - 6 )) more"
+                    echo -e "  ${CYAN}·${NC}  found ${#found_entries[@]} existing item(s): ${shown// /, }${more}"
+                else
+                    echo -e "  ${CYAN}·${NC}  found nothing but framework scaffolding — treating as a new project"
+                fi
                 echo -e "  ${GREEN}✓${NC}  $task_count onboarding tasks ($mode_label mode)"
             fi
         fi
     fi
 
+    # --- Post-init validation (T-461: Tier 1 structural + Tier 2 functional) ---
+    #
+    # T-2727: this block used to run BEFORE governance activation and before the
+    # onboarding tasks were seeded, ~114 lines earlier. `func-tasks` — the check
+    # that parses .tasks/active/ and verifies the onboarding tasks have valid
+    # frontmatter — is guarded by `active_tasks > 0`, so on a fresh init it found
+    # an empty directory, did not run, and (because the guard sits outside the
+    # `total++`) was not counted either. It appeared in neither the numerator nor
+    # the denominator and printed nothing: a check that never ran and a check that
+    # does not exist were indistinguishable from the output.
+    #
+    # The artifact it protects is the onboarding task set — the thing a first-run
+    # user is handed. Validation must run last so its verdict describes the tree
+    # the user is actually left with, not an intermediate state that no longer
+    # exists by the time init returns.
+    echo ""
+    echo -e "${BOLD}Validating...${NC}"
+    source "$FW_LIB_DIR/validate-init.sh" 2>/dev/null || \
+        source "$(dirname "${BASH_SOURCE[0]}")/validate-init.sh" 2>/dev/null || true
+    if type do_validate_init >/dev/null 2>&1; then
+        if ! do_validate_init "$target_dir" --provider "$provider"; then
+            echo ""
+            echo -e "${YELLOW}Init completed with validation errors — check output above${NC}"
+        fi
+    fi
+
     # --- Done ---
+    # T-2801: last write of the function, deliberately. Everything above can be
+    # interrupted; clearing the marker is the single act that says it wasn't.
+    # Validation above is allowed to report errors without blocking this — a
+    # project that validated badly is still a finished init, and leaving the
+    # marker would send `fw` to the global install forever.
+    rm -f "$_init_incomplete_marker"
+
+    # --- Bootstrap commit: give the project a resolvable HEAD (T-2821) ---
+    #
+    # Placed LAST, after the marker clear, for the same reason T-2727 moved
+    # post-init validation last: the commit's TREE must describe the tree the
+    # user is actually left with, not an intermediate state that no longer
+    # exists by the time init returns. T-2821 placed it right after hook install
+    # (~150 lines earlier), which committed a partial scaffolding — measured:
+    # it captured the `.fw-init-incomplete` sentinel that init then DELETES, and
+    # missed the enforcement baseline and all five seeded onboarding tasks. A
+    # worktree cut from that commit had `.tasks/` but no tasks in it, which is
+    # the populated-looking-but-broken state this fix exists to prevent.
+    #
+    # Hooks are installed far earlier, so running here only strengthens the
+    # "validated by the project's own hooks" guarantee below.
+    #
+    # `git init` alone leaves HEAD unborn (`git rev-parse HEAD` → exit 128).
+    # Claude Code's background-session isolation (`EnterWorktree`) preflights
+    # with exactly that check and refuses to isolate — and refuses to isolate
+    # means refuses every Write/Edit — deadlocking the very first background
+    # session before it can write anything, including its own task file.
+    #
+    # The commit stages what `fw init` just created (T-2827). An EMPTY commit
+    # is NOT sufficient and was the original T-2821 defect: it gives a HEAD that
+    # resolves but whose TREE has zero files, so `git worktree add` checks out
+    # nothing and still yields an empty worktree — the same user-visible failure
+    # as OBS-175 via a different mechanism (empty-tree checkout rather than
+    # orphan inference). Measured live in T-2826 on published bytes: worktree
+    # held 1 entry (`.git`), no CLAUDE.md. Resolvability was a PROXY for the
+    # property the real use needs, which is "HEAD has content", and the proxy
+    # diverged from the thing (OBS-178).
+    #
+    # Everything staged, not a curated subset: a background agent needs
+    # CLAUDE.md, .claude/, .tasks/, .context/ AND .agentic-framework/ — without
+    # the vendored CLI there is no `fw` in the worktree and no governance runs
+    # at all, so a partial commit produces a worktree that LOOKS populated and
+    # is still broken. All of it is framework-owned (9 top-level entries that
+    # `fw init` itself just wrote), so this makes no decision about the
+    # operator's project content, and onboarding task T-003 ("First governed
+    # commit") still asks for exactly that. See T-2827 Decisions.
+    #
+    # Placed AFTER git hooks are installed (above) so this commit is validated
+    # BY the project's own commit-msg + pre-commit hooks (task-ref check,
+    # T-1844 secret-scan, T-1845 large-file, T-1863 dup-task-id) rather than
+    # bypassing them with --no-verify — shipping every project with a bypass
+    # in its first commit would be worse than the bug (T-2821 hard rule).
+    # T-2821 noted an empty commit satisfies the scan/large-file/dup-id hooks
+    # TRIVIALLY (no staged diff to inspect) — which is precisely why it was weak
+    # evidence that the hooks work. A populated commit actually exercises them.
+    # Verified live (T-2826 LEG6): staging all 2353 files and committing passes
+    # every hook with no --no-verify. The commit-msg hook only requires a
+    # `T-[0-9]+` pattern, so `T-000` — the framework's own established
+    # placeholder for "no real task applies" (agents/handover/handover.sh:57) —
+    # passes it.
+    #
+    # Author/committer identity is scoped to this one commit via env vars, not
+    # written to git config, so it succeeds even when neither global nor local
+    # git identity is configured (T-2818: the common case on a fresh machine,
+    # not a corner case — the identity warning above is about the OPERATOR's
+    # future commits, and is deliberately left unaffected by this bootstrap).
+    #
+    # Guarded on unborn HEAD so this is a no-op for existing-project inits
+    # (already have a HEAD) and idempotent under --force re-init.
+    if ! git -C "$target_dir" rev-parse -q --verify HEAD >/dev/null 2>&1; then
+        local _bootstrap_err _bootstrap_n
+        # Stage what init created. `add -A` honours any .gitignore init wrote
+        # (currently none), so this stays the framework's own tracking surface.
+        git -C "$target_dir" add -A >/dev/null 2>&1 || true
+        _bootstrap_n=$(git -C "$target_dir" diff --cached --name-only 2>/dev/null | wc -l | tr -d ' ')
+        if _bootstrap_err=$(GIT_AUTHOR_NAME="fw init" GIT_AUTHOR_EMAIL="fw-init@localhost" \
+            GIT_COMMITTER_NAME="fw init" GIT_COMMITTER_EMAIL="fw-init@localhost" \
+            git -C "$target_dir" commit --allow-empty -q \
+                -m "T-000: fw init bootstrap commit (framework scaffolding — gives the project a resolvable HEAD with a non-empty tree)" 2>&1); then
+            echo -e "  ${GREEN}✓${NC}  Bootstrap commit created — ${_bootstrap_n} file(s) tracked (worktree isolation)"
+            # A resolvable HEAD over an EMPTY tree is the OBS-178 failure and is
+            # indistinguishable from success unless the tree is checked (T-2827).
+            if [ "${_bootstrap_n:-0}" -eq 0 ]; then
+                echo -e "  ${YELLOW}⚠${NC}   Bootstrap tree is EMPTY — worktree isolation will yield an empty"
+                echo "       worktree (OBS-178). Commit the project scaffolding before dispatching"
+                echo "       a background agent: cd \"$target_dir\" && git add -A && git commit -m \"T-000: scaffolding\""
+            fi
+        else
+            echo -e "  ${YELLOW}⚠${NC}   Bootstrap commit failed — HEAD remains unresolved:"
+            echo "       run manually: cd \"$target_dir\" && git add -A && git commit -m \"T-000: bootstrap\""
+            [ -n "$_bootstrap_err" ] && echo "$_bootstrap_err" | sed 's/^/      /' >&2
+        fi
+    fi
+
+    # T-2818 / OBS-170: a fresh machine has no global git identity, so `git commit`
+    # dies RC=128 "Author identity unknown" *before any framework hook runs* — which
+    # makes onboarding task T-003 ("First governed commit") impossible to complete.
+    #
+    # This was not an unwarned condition. It was warned THREE times: here at ~line 4
+    # of ~120 lines of init output, by `fw doctor`, and by the git-identity block
+    # above. What made it invisible is that every line the operator reads AFTER the
+    # warning contradicts it — 43/44 validation checks green, "Done! Governance is
+    # active.", "Next step: start your AI agent". The last thing read wins, and the
+    # last thing read said the project was ready.
+    #
+    # So the fix is not another warning; it is putting this one where the eye lands.
+    # Re-check at the end rather than reusing a flag from the earlier block: init may
+    # have SET the identity in between (inherited from global), and a stale flag
+    # would report a blocker that no longer exists.
+    local _identity_missing=false
+    fw_git_identity_ok "$target_dir" || _identity_missing=true
+
     echo ""
-    echo -e "${GREEN}Done!${NC} Governance is active."
+    if [ "$_identity_missing" = true ]; then
+        echo -e "${GREEN}Done!${NC} Governance is active — ${YELLOW}but this machine cannot commit yet.${NC}"
+    else
+        echo -e "${GREEN}Done!${NC} Governance is active."
+    fi
     echo ""
+    if [ "$_identity_missing" = true ]; then
+        echo -e "  ${YELLOW}${BOLD}Do this first:${NC} set a git identity, or every commit fails with"
+        echo -e "  \"Author identity unknown\" — including onboarding task T-003."
+        echo ""
+        echo -e "    $(fw_git_identity_remedy "$target_dir")"
+        echo ""
+        echo -e "  (Drop ${BOLD}--global${NC} in, or set it on this repo only as above.)"
+        echo ""
+    fi
     echo -e "  ${BOLD}Next step:${NC} Start your AI agent (e.g. Claude Code) in this directory."
     if [ "$has_existing_tasks" = false ] && [ -d "$target_dir/.tasks/active" ] && ls "$target_dir/.tasks/active/"T-*.md >/dev/null 2>&1; then
         local onboard_count
@@ -576,17 +891,39 @@ generate_claude_code_config() {
     # --- .claude/settings.json (PostToolUse hook for context protection) ---
     mkdir -p "$dir/.claude/commands"
 
-    # T-663/T-662: Detect framework-mode vs consumer-mode for fw path
-    # T-1364 (G-053-A): Emit ABSOLUTE paths — Claude Code resolves hook commands
-    # against CWD, and CWD drift (test fixtures, subdir navigation) otherwise
-    # cascades into hook-cannot-find-fw tool-blocks. $dir is canonicalized by
-    # the caller (init.sh line 58, upgrade.sh line 58 via `cd && pwd`).
-    local fw_prefix="$dir/.agentic-framework/bin/fw"
+    # T-663/T-662: Detect framework-mode vs consumer-mode for fw path.
+    # T-1364 (G-053-A): hook commands must NOT be CWD-relative — Claude Code
+    # resolves them against the session CWD, and CWD drift (test fixtures, subdir
+    # navigation) cascades into hook-cannot-find-fw tool-blocks (680 silent
+    # failures at 003-NTB-ATC-Plugin, see T-1504).
+    # T-2709 (from T-2704 RCA): the fix for that was baking $dir — the GENERATING
+    # host's checkout path — into the emitted string, which breaks on every other
+    # host. ${CLAUDE_PROJECT_DIR} is expanded by Claude Code to the project root
+    # before the hook runs, so it is absolute-after-expansion (T-1364's constraint
+    # is fully kept) AND host-portable. Detection below still inspects the REAL
+    # filesystem via $dir — only the emitted prefix is a placeholder.
+    #
+    # The literal must be SINGLE-quoted: the heredoc below is intentionally
+    # unquoted so "$fw_prefix" expands, and heredoc expansion is a single pass —
+    # so the placeholder survives verbatim into settings.json. Double-quoting here
+    # would let the generating shell eat it. Pinned by
+    # tests/unit/hook_absolute_paths.bats + tests/lint/hook-paths-portable.bats.
+    local fw_prefix='${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw'
     if [ -x "$dir/bin/fw" ] && [ -f "$dir/FRAMEWORK.md" ]; then
-        fw_prefix="$dir/bin/fw"
+        fw_prefix='${CLAUDE_PROJECT_DIR}/bin/fw'
     fi
 
     if [ ! -f "$dir/.claude/settings.json" ] || [ "${force:-false}" = true ]; then
+        # T-2710: the heredoc below is a fixed template, but the on-disk file is the
+        # real source of truth — `fw hook-enable` adds hooks the template never knew
+        # about (6 of them in this repo). Overwriting unconditionally deletes them
+        # and takes their gates down silently. Snapshot first, merge back after.
+        local prev_settings=""
+        if [ -f "$dir/.claude/settings.json" ]; then
+            prev_settings=$(mktemp)
+            cp "$dir/.claude/settings.json" "$prev_settings"
+        fi
+
         # Use unquoted heredoc so $fw_prefix expands (T-663: framework-aware hook paths)
         cat > "$dir/.claude/settings.json" << SJSON
 {
@@ -620,6 +957,15 @@ generate_claude_code_config() {
             "command": "$fw_prefix hook post-compact-resume"
           }
         ]
+      },
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$fw_prefix hook post-compact-resume"
+          }
+        ]
       }
     ],
     "PreToolUse": [
@@ -647,6 +993,30 @@ generate_claude_code_config() {
           {
             "type": "command",
             "command": "$fw_prefix hook check-human-ac-tick"
+          },
+          {
+            "type": "command",
+            "command": "$fw_prefix hook check-active-completed-dup"
+          },
+          {
+            "type": "command",
+            "command": "$fw_prefix hook check-arc-id"
+          },
+          {
+            "type": "command",
+            "command": "$fw_prefix hook check-heredoc-cmd-sub"
+          },
+          {
+            "type": "command",
+            "command": "$fw_prefix hook check-inception-decisions"
+          },
+          {
+            "type": "command",
+            "command": "$fw_prefix hook check-inception-schema"
+          },
+          {
+            "type": "command",
+            "command": "$fw_prefix hook check-onboarding-gate"
           }
         ]
       },
@@ -692,6 +1062,15 @@ generate_claude_code_config() {
           {
             "type": "command",
             "command": "$fw_prefix hook block-task-tools"
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__termlink__termlink_channel_post",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$fw_prefix hook check-rail-mcp-label"
           }
         ]
       }
@@ -748,6 +1127,10 @@ generate_claude_code_config() {
           {
             "type": "command",
             "command": "$fw_prefix hook commit-cadence"
+          },
+          {
+            "type": "command",
+            "command": "$fw_prefix hook check-settings-edit"
           }
         ]
       },
@@ -764,7 +1147,44 @@ generate_claude_code_config() {
   }
 }
 SJSON
-        echo -e "  ${GREEN}OK${NC}  .claude/settings.json (all hooks: task gate, tier0, budget, plan blocker, agent dispatch, compact, resume, checkpoint, error-watchdog, dispatch guard, loop-detect, fabric new-file, project-boundary, commit-cadence)"
+        # T-2710: fold the snapshot's non-template hooks back in. Template wins for
+        # names it defines, so path fixes (T-2709) still propagate on upgrade; hooks
+        # only the snapshot has are carried forward and REPORTED, not dropped mute.
+        if [ -n "$prev_settings" ]; then
+            local merge_py="${FW_LIB_DIR:-$(dirname "${BASH_SOURCE[0]}")}/settings_merge.py"
+            if [ -f "$merge_py" ] && command -v python3 >/dev/null 2>&1; then
+                if ! python3 "$merge_py" "$dir/.claude/settings.json" "$prev_settings"; then
+                    echo -e "  ${YELLOW}WARN${NC}  settings.json merge failed — hooks added via 'fw hook-enable' may have been dropped; previous copy: $prev_settings"
+                    prev_settings=""   # keep the snapshot for recovery
+                fi
+            else
+                echo -e "  ${YELLOW}WARN${NC}  settings_merge.py or python3 unavailable — non-template hooks not preserved; previous copy: $prev_settings"
+                prev_settings=""
+            fi
+            if [ -n "$prev_settings" ]; then
+                rm -f "$prev_settings"
+            fi
+        fi
+        # T-2912: this line used to be a hardcoded 14-name list that printed
+        # unconditionally — true on the day it was written, false the moment
+        # the template's hook set drifted from it (T-2911: 7 hooks the
+        # template didn't know about). It claimed "all hooks" in the same
+        # breath a caller (fw upgrade step 5) could report hooks still
+        # missing. Report what was actually written instead of a fixed
+        # claim — a caller that wants convergence detection compares against
+        # the framework's canonical set itself (lib/upgrade.sh step 5).
+        local _t2912_hook_count
+        _t2912_hook_count=$(python3 -c "
+import json
+try:
+    with open('$dir/.claude/settings.json') as f:
+        data = json.load(f)
+    n = sum(len(entry.get('hooks', [])) for entries in data.get('hooks', {}).values() for entry in entries)
+except Exception:
+    n = '?'
+print(n)
+" 2>/dev/null || echo "?")
+        echo -e "  ${GREEN}OK${NC}  .claude/settings.json written ($_t2912_hook_count hook command(s) configured)"
     else
         # T-677: Pre-existing settings.json — back up and overwrite with framework hooks
         # The framework's governance hooks are authoritative; project-specific hooks from
@@ -793,11 +1213,15 @@ SJSON
     "termlink": {
       "command": "termlink",
       "args": ["mcp", "serve"]
+    },
+    "fw": {
+      "command": "python3",
+      "args": [".agentic-framework/agents/mcp/framework_mcp_server.py"]
     }
   }
 }
 MCPJSON
-        echo -e "  ${GREEN}OK${NC}  .mcp.json (MCP servers: context7, playwright, termlink)"
+        echo -e "  ${GREEN}OK${NC}  .mcp.json (MCP servers: context7, playwright, termlink, fw)"
     else
         echo -e "  ${YELLOW}SKIP${NC}  .mcp.json already exists"
     fi

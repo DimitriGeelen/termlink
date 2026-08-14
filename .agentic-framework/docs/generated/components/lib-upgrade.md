@@ -11,13 +11,14 @@ Runs in a consumer project directory, reads .framework.yaml to find the
 framework, then updates governance sections, templates, hooks, and seeds.
 Project-specific content is preserved.
 
-## Dependencies (1)
+## Dependencies (2)
 
 | Component | Relationship | Description |
 |-----------|--------------|-------------|
 | [git](/docs/generated/agents-git-git) | calls | Git Agent - Structural Enforcement for Git Operations |
+| [fw](/docs/generated/bin-fw) | calls | Single entry point for all framework operations. Reads .framework.yaml from the project directory to resolve FRAMEWORK_ROOT, then routes commands to the appropriate agent. Supports both in-repo and shared tooling modes. |
 
-## Used By (12)
+## Used By (15)
 
 | Component | Relationship | Description |
 |-----------|--------------|-------------|
@@ -33,6 +34,9 @@ Project-specific content is preserved.
 | [test_upgrade_downgrade_guard](/docs/generated/tests-unit-test_upgrade_downgrade_guard) | called_by | TODO: describe what this component does |
 | [test_upgrade_downgrade_guard](/docs/generated/tests-unit-test_upgrade_downgrade_guard) | tests_by | TODO: describe what this component does |
 | [upgrade_fresh_machine_simulation](/docs/generated/tests-unit-upgrade_fresh_machine_simulation) | tests_by | TODO: describe what this component does |
+| [test_self_vendor_agents_md_filter](/docs/generated/tests-unit-test_self_vendor_agents_md_filter) | tests_by | TODO: describe what this component does |
+| [test_self_vendor_libs_md_filter](/docs/generated/tests-unit-test_self_vendor_libs_md_filter) | called_by | TODO: describe what this component does |
+| [test_self_vendor_libs_md_filter](/docs/generated/tests-unit-test_self_vendor_libs_md_filter) | tests_by | TODO: describe what this component does |
 
 ## Related
 

@@ -16,6 +16,39 @@
 #      c. If no approval: block with explanation
 #   5. If no match: allow
 #
+# ── SCOPE BOUNDARY (T-2742) — read this before trusting a green ──────────────
+# This hook inspects ONE THING: the `tool_input.command` STRING from the
+# PreToolUse JSON (see the extraction below). It never opens, reads, or follows
+# any file that the command refers to.
+#
+# Therefore a destructive operation is invisible to this gate whenever it is not
+# spelled out in the command string itself:
+#
+#     bash ./build.sh          # build.sh may `rm -rf "$OUT"` — NOT inspected
+#     make clean               # the recipe is NOT inspected
+#     python3 deploy.py        # NOT inspected
+#     ./agents/foo/foo.sh      # NOT inspected
+#
+# The keyword pre-filter below exits 0 for any of those on the first check,
+# because the string carries no destructive keyword. This is a scope boundary,
+# not a defect — inspecting arbitrary interpreted files is a different and much
+# larger problem. It is written here because its absence reads as coverage:
+# every Tier 0 block anyone has hit came from a TYPED command, so the gate's
+# apparent reliability is evidence about agent habits, not about coverage.
+#
+# The consequence for an agent-authored script that an agent then executes: the
+# script is governed at write time (Tier 1, check-active-task.sh) and NOT at run
+# time. Tier 0 is not a backstop for what a script does.
+#
+# Pinned by tests/unit/tier0_scope_boundary.bats — a characterization test, so
+# this comment is falsifiable. If coverage is ever extended, that test goes red
+# and this block must change with it.
+#
+# Origin: 832 lost a working tree this way (their G-018, high) — a mutated build
+# script ran `rm -rf "$OUT"` with the variable pointing at their repo root. Our
+# instance verified independently against this source: OBS-138.
+# ────────────────────────────────────────────────────────────────────────────
+#
 # Part of: Agentic Engineering Framework
 # Spec: 011-EnforcementConfig.md §Tier 0 (Unconditional Enforcement)
 
@@ -253,8 +286,11 @@ try:
     else:
         data = {}
     data.setdefault('bypasses', []).append(entry)
-    with open(log_file, 'w') as f:
+    # T-100191: same-dir temp + os.replace — atomic write (L-493 class)
+    tmp_path = log_file + '.tmp'
+    with open(tmp_path, 'w') as f:
         yaml.dump(data, f, default_flow_style=False, sort_keys=False)
+    os.replace(tmp_path, log_file)
 except:
     pass
 " 2>/dev/null &
@@ -324,8 +360,11 @@ with open(f) as fh:
     data = yaml.safe_load(fh) or {}
 data['status'] = 'consumed'
 data.setdefault('response', {})['consumed_at'] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-with open(f, 'w') as fh:
+# T-100191: same-dir temp + os.replace — atomic write (L-493 class)
+tmp_path = f + '.tmp'
+with open(tmp_path, 'w') as fh:
     yaml.dump(data, fh, default_flow_style=False, sort_keys=False)
+os.replace(tmp_path, f)
 " 2>/dev/null
 
         # Log to bypass-log for audit trail (fire-and-forget)
@@ -353,8 +392,11 @@ try:
     else:
         data = {}
     data.setdefault('bypasses', []).append(entry)
-    with open(log_file, 'w') as f:
+    # T-100191: same-dir temp + os.replace — atomic write (L-493 class)
+    tmp_path = log_file + '.tmp'
+    with open(tmp_path, 'w') as f:
         yaml.dump(data, f, default_flow_style=False, sort_keys=False)
+    os.replace(tmp_path, log_file)
 except:
     pass
 " 2>/dev/null &
@@ -434,8 +476,12 @@ data = {
     'command_hash': os.environ.get('T0_HASH', ''),
     'status': 'pending',
 }
-with open(sys.argv[1], 'w') as f:
+# T-100191: same-dir temp + os.replace — atomic create; the approval consumer
+# (fw tier0 approve / Watchtower) must never read a half-written file.
+tmp_path = sys.argv[1] + '.tmp'
+with open(tmp_path, 'w') as f:
     yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
+os.replace(tmp_path, sys.argv[1])
 " "$APPROVAL_YAML" 2>/dev/null || true
 
 # Push notification for Tier 0 block (T-709)
