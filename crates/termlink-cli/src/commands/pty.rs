@@ -251,6 +251,29 @@ pub(crate) async fn cmd_output(target: &str, lines: u64, bytes: Option<u64>, str
     }
 }
 
+/// T-2697: did `command.inject` actually write to a terminal?
+///
+/// The handler (`termlink-session handler.rs::handle_command_inject`) answers two
+/// different things with the same RPC success:
+///   * `status: "injected"`  — a PTY existed and took the bytes
+///   * `status: "resolved"`  — no PTY; keys were resolved and written NOWHERE,
+///                             plus a `note` naming the remedy
+///
+/// Only the first is an inject. Treating the second as success is a silent
+/// no-op-reported-as-success, which is what `termlink inject` did until T-2694
+/// caught it while building a prover for the charter's "inject keystrokes" claim.
+///
+/// Fail CLOSED on a missing/unknown `status`: an envelope we cannot classify must
+/// not be optimistically read as delivered. Mirrors the MCP side's
+/// `mcp_inject_outcome` (T-2580), whose comment already stated the rule — that fix
+/// simply never reached this surface.
+///
+/// Pure so the status-awareness is unit-testable rather than only observable: the
+/// tests below fail if the check is removed.
+pub(crate) fn inject_status_is_injected(result: &serde_json::Value) -> bool {
+    result["status"].as_str() == Some("injected")
+}
+
 pub(crate) async fn cmd_inject(target: &str, text: &str, enter: bool, key: Option<&str>, json: bool, timeout_secs: u64) -> Result<()> {
     let reg = match manager::find_session(target) {
         Ok(r) => r,
@@ -299,6 +322,37 @@ pub(crate) async fn cmd_inject(target: &str, text: &str, enter: bool, key: Optio
     match client::unwrap_result(resp) {
         Ok(result) => {
             let bytes = result["bytes_len"].as_u64().unwrap_or(0);
+            // T-2697: the RPC succeeding is NOT the same as the keystrokes landing.
+            // `command.inject` returns status:"injected" when a PTY took the bytes and
+            // status:"resolved" when there is no PTY — keys resolved, nothing written,
+            // still an RPC *success*. Reporting that as "Injected N bytes" is a silent
+            // no-op-reported-as-success (Directive #2). T-2580 already established this
+            // for the MCP surface (`mcp_inject_outcome`, with a load-bearing test) and
+            // its comment states the rule outright: it "MUST NOT read 'Injected
+            // successfully'". That fix was never migrated here — found by T-2694 while
+            // building an inject prover, when a no-PTY session answered
+            // `{"bytes_injected":18,"ok":true}` and nothing happened.
+            if !inject_status_is_injected(&result) {
+                let note = result["note"].as_str().unwrap_or(
+                    "No PTY session — keys were resolved but never written to a terminal.",
+                );
+                if json {
+                    super::json_error_exit(serde_json::json!({
+                        "ok": false,
+                        "target": target,
+                        "status": result["status"].as_str().unwrap_or("unknown"),
+                        "bytes_resolved": bytes,
+                        "error": format!("Keys were resolved but NOT injected: {note}"),
+                    }));
+                }
+                // Loud in text mode too — a bare non-zero exit here would be
+                // indistinguishable from a crash (the T-2666 class).
+                eprintln!("Not injected: {note}");
+                eprintln!("  {bytes} byte(s) were resolved but never reached a terminal.");
+                eprintln!("  Re-create the session with `termlink spawn --shell` (or `register --shell`).");
+                anyhow::bail!("inject did not reach a PTY (status={})",
+                    result["status"].as_str().unwrap_or("unknown"));
+            }
             if json {
                 println!("{}", serde_json::json!({
                     "ok": true,
@@ -953,6 +1007,49 @@ pub(crate) fn char_boundary_floor(s: &str, idx: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // === T-2697 LOAD-BEARING: `inject` must not report success for a no-op ===
+    //
+    // Sibling of the MCP side's `inject_no_pty_is_not_reported_as_success` (T-2580).
+    // The handler answers status:"resolved" — an RPC SUCCESS — when there is no PTY
+    // and the keys went nowhere. Removing the status check in cmd_inject makes these
+    // fail. Found by T-2694 while building an inject prover: a no-PTY session
+    // answered `{"bytes_injected":18,"ok":true}` and nothing had happened.
+
+    #[test]
+    fn inject_status_injected_is_a_real_inject() {
+        let injected = serde_json::json!({"status": "injected", "bytes_len": 5});
+        assert!(
+            inject_status_is_injected(&injected),
+            "status:injected is the only shape that means the bytes reached a terminal"
+        );
+    }
+
+    #[test]
+    fn inject_status_resolved_is_not_success() {
+        // The exact envelope a no-PTY session returns.
+        let resolved = serde_json::json!({
+            "status": "resolved",
+            "bytes_len": 18,
+            "note": "No PTY session. Use `register --shell` for PTY-backed injection.",
+        });
+        assert!(
+            !inject_status_is_injected(&resolved),
+            "status:resolved means keys were resolved and written NOWHERE — never success"
+        );
+    }
+
+    #[test]
+    fn inject_missing_status_fails_closed() {
+        // An envelope we cannot classify must not be optimistically read as
+        // delivered — the same fail-closed rule the exec truncated-check uses.
+        let bare = serde_json::json!({"bytes_len": 3});
+        assert!(!inject_status_is_injected(&bare), "absent status must not read as injected");
+        let unknown = serde_json::json!({"status": "queued", "bytes_len": 3});
+        assert!(!inject_status_is_injected(&unknown), "unknown status must not read as injected");
+        let wrong_type = serde_json::json!({"status": 1, "bytes_len": 3});
+        assert!(!inject_status_is_injected(&wrong_type), "non-string status must not read as injected");
+    }
 
     // --- char_boundary_floor / interact-slice safety tests ---
 
