@@ -4,10 +4,10 @@ name: "Hook telemetry counts intentional blocks (exit 2) as hook failures"
 description: >
   fw_record_hook_fire treats any non-zero exit as failure, so a blocking enforcement hook trips the T-1626 hook-decay alarm by working correctly
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T18:54:20Z
-last_update: 2026-08-14T18:54:20Z
+last_update: 2026-08-14T19:13:00Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -78,6 +78,16 @@ failures date to `~2026-08-14T01:06` (mtime of `.hook-failure-counter`); routine
 task-file edits during the audit remediation carried the fire count to the
 `MIN_FIRES=20` floor, at which point 2/20 landed exactly on the 0.10 threshold.
 The alarm was latent for hours and surfaced on an unrelated trigger.
+
+**It then cleared itself, which is the strongest evidence of all.** A later audit
+in the same session reported `[PASS] Hook threshold: no hooks failing over
+threshold`. Nothing about the hook changed. The numerator is fixed at 2 (two
+historical blocks); ordinary task-file edits kept firing the hook, so the
+denominator grew past 20 and the ratio fell under 0.10. The alarm raised itself
+and lowered itself purely as a function of unrelated activity. A signal that
+appears and disappears without reference to the health of the thing it watches
+carries no information about that thing — and the window in which it *does* fire
+is exactly when a guard has been blocking often, i.e. when it is most valuable.
 
 **Cross-repo.** `lib/hook-telemetry.sh` and `lib/hook-threshold.py` are vendored
 framework files; a local edit is erased on the next re-vendor. Deliverable is an
@@ -250,3 +260,7 @@ someone simplifies the condition.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2713-hook-telemetry-counts-intentional-blocks.md
 - **Context:** Initial task creation
+
+### 2026-08-14T19:13:00Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
