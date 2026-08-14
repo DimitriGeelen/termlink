@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T08:01:34Z
-last_update: 2026-08-14T08:01:56Z
+last_update: 2026-08-14T08:10:00Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -40,18 +40,19 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] An **INJECT** stage proves `termlink inject` end-to-end: keystrokes written into a live PTY produce their **observable effect**, not merely an `ok` RPC response
-- [ ] The proof is by effect, not by return code — an `ok` proves the bytes were accepted, which is exactly what the existing `no_pty` unit tests already establish and is not what the charter claims
-- [ ] An **OUTPUT** stage proves `termlink output` streams back PTY content the session actually produced
-- [ ] Both stages reuse the session the prover already spawns — no extra spawn, so the T-2557 canary does not get slower per run
-- [ ] Stages absorb the PTY timing race the way EXEC already does (bounded retry), so the prover does not become flaky and start firing its canary on timing
-- [ ] A failure in either stage names *which* stage broke, matching the existing `broken_stage` contract
-- [ ] JSON envelope extended additively — `stages.inject` / `stages.output` alongside the existing keys; no existing key renamed or removed
-- [ ] Test seams let the new stages be exercised without a live PTY (mirroring `TERMLINK_SESSION_SELFTEST_TEST_EXEC_JSON`), so the canary translation stays verifiable
-- [ ] Exit-code contract preserved: 0 proven / 1 broken (names the stage) / 2 tooling — a missing tmux must stay exit 2, never a false "broken"
-- [ ] Verified by actually running it on this host, not asserted — `session-selftest.sh --json` returns `proven:true` with the new stages present
-- [ ] Load-bearing: sabotaging the injected sentinel makes the INJECT stage fail rather than silently pass
-- [ ] `docs/operations/session-selftest.md` updated so the documented stage list matches reality
+- [x] An **INJECT** stage proves `termlink inject` end-to-end: keystrokes written into a live PTY produce their **observable effect**, not merely an `ok` RPC response
+- [x] The proof is by effect, not by return code — an `ok` proves the bytes were accepted, which is exactly what the existing `no_pty` unit tests already establish and is not what the charter claims
+- [x] An **OUTPUT** stage proves `termlink output` streams back PTY content the session actually produced
+- [x] ~~Both stages reuse the session the prover already spawns~~ — **corrected during build.** The existing session is spawned `-- sleep <TTL>` and has `pty: null`; `output` refuses it with `-32007 No PTY session` and `inject` cannot reach a terminal through it. Reuse is structurally impossible, so the PTY stages spawn their OWN `--shell` session. The `sleep`-backed session stays exactly as-is so the T-2557 canary's existing stages carry zero regression risk.
+- [x] The PTY session is cleaned up on every exit path, including when a PTY stage fails — a leaked tmux session per canary run would be worse than the gap being closed
+- [x] Stages absorb the PTY timing race the way EXEC already does (bounded retry), so the prover does not become flaky and start firing its canary on timing
+- [x] A failure in either stage names *which* stage broke, matching the existing `broken_stage` contract
+- [x] JSON envelope extended additively — `stages.inject` / `stages.output` alongside the existing keys; no existing key renamed or removed
+- [x] Test seams let the new stages be exercised without a live PTY (mirroring `TERMLINK_SESSION_SELFTEST_TEST_EXEC_JSON`), so the canary translation stays verifiable
+- [x] Exit-code contract preserved: 0 proven / 1 broken (names the stage) / 2 tooling — a missing tmux must stay exit 2, never a false "broken"
+- [x] Verified by actually running it on this host, not asserted — `session-selftest.sh --json` returns `proven:true` with the new stages present
+- [x] Load-bearing: sabotaging the injected sentinel makes the INJECT stage fail rather than silently pass
+- [x] `docs/operations/session-selftest.md` updated so the documented stage list matches reality
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -116,6 +117,11 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+bash scripts/session-selftest.sh --json
+bash scripts/test-session-selftest.sh
+bash scripts/check-session-control-freshness.sh --quiet
+out=$(bash scripts/session-selftest.sh --json); echo "$out" | jq -e '.stages.inject == "PASS" and .stages.output == "PASS"'
 
 ## RCA
 
