@@ -1,9 +1,9 @@
-# Audit Results - 2026-08-14-1908
-timestamp: 2026-08-14T17:08:10Z
+# Audit Results - 2026-08-14-2123
+timestamp: 2026-08-14T19:23:15Z
 sections: "structure"
 summary:
-  pass: 17
-  warn: 4
+  pass: 18
+  warn: 3
   fail: 0
 findings:
   - level: PASS
@@ -34,15 +34,14 @@ findings:
   - level: PASS
     check: "No GO-scope-not-propagated inception(s) (sibling to L-417)"
   - level: PASS
-    check: "Fabric: 162 registered card(s)"
+    check: "Fabric: 356 registered card(s)"
   - level: WARN
-    check: "Fabric: 31/150 cards have no edges"
+    check: "Fabric: 193/344 cards have no edges"
     mitigation: "Run: fw fabric enrich"
+  - level: PASS
+    check: "Fabric drift: all 352 watched file(s) registered"
   - level: WARN
-    check: "Fabric drift: 4 source file(s) have no fabric card"
-    mitigation: "Run: fw fabric scan"
-  - level: WARN
-    check: "Fabric: 48 card(s) point at files no watch pattern covers"
+    check: "Fabric: 4 card(s) point at files no watch pattern covers"
     mitigation: "Widen .fabric/watch-patterns.yaml, or remove the cards if they are not components"
   - level: INFO
     check: "Cron drift checks skipped — linked worktree (cron is host-level, managed from the main checkout)"
