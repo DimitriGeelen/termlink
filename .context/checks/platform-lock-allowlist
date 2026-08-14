@@ -1,0 +1,55 @@
+# platform-lock-allowlist (T-2693, T-2690 G3 — Directive #4 Portability)
+#
+# Acknowledged Linux-only primitives in the product crates. Git-tracked on purpose
+# (T-2681): a guard whose reported health depends on unversioned local state is a
+# guard whose green is not evidence.
+#
+# One drift-stable signature per line: <relpath>::<enclosing-fn>::<primitive>
+# Signatures are fn-name based, so they survive line moves; a fn RENAME re-fires the
+# site, which is the intended re-review on meaningful change.
+#
+# THE RULE FOR ADDING AN ENTRY: the reason must state **how the non-Linux path
+# behaves** — degrades gracefully, has an explicit fallback, or is unreachable off
+# Linux. "It's fine" is not a reason. These comments are the portability
+# documentation for macOS, which README §Platform Support calls a supported platform
+# and for which Homebrew is the *recommended* install; keeping them next to the
+# signature is the only way they stay in sync with the code.
+#
+# What is NOT allowlisted is the interesting part: T-2690 found whoami's /proc walk
+# returning a plausible WRONG ANSWER on macOS with no signal. That was fixed
+# (T-2691), not acknowledged. An allowlist entry is for a site that behaves
+# correctly off Linux — never for one that fails quietly.
+
+# ── setsid: explicit fallback to a plain `sh -c` child ───────────────────────────
+# All three sites spawn `setsid sh -c <cmd>` and chain `.or_else(|_| Command::new("sh")
+# .args(["-c", cmd]))`. macOS has no `setsid` (it is util-linux), so the spawn errors
+# and the fallback runs: the process still starts, just without becoming a session
+# leader. Degraded but functional and non-silent at the call site.
+# NOTE: README §Backends says the `background` backend "Daemonizes with setsid" on
+# macOS — inaccurate; on macOS it is a non-daemonized `sh -c`. Corrected in T-2693.
+crates/termlink-cli/src/commands/dispatch.rs::spawn_via_background::cmd:setsid   # falls back to `sh -c` when setsid is absent (macOS); process starts, no session leader
+crates/termlink-cli/src/commands/execution.rs::spawn_via_background::cmd:setsid  # same or_else fallback as dispatch.rs
+crates/termlink-mcp/src/tools.rs::termlink_dispatch::cmd:setsid                  # same or_else fallback, MCP dispatch path
+
+# ── ufw / ss: unreachable off Linux by construction ──────────────────────────────
+# `cmd_doctor` runs `ufw status` and only enters the port-check block on
+# `Ok(out) && out.status.success()`. macOS has no ufw, so the command errors, the
+# block is skipped entirely, and the `ss -tln` call inside it is never reached. The
+# enclosing comment already documents this as best-effort: "ufw unavailable or
+# unreadable is a skipped check, not a warning".
+crates/termlink-cli/src/commands/infrastructure.rs::cmd_doctor::cmd:ufw  # Ok+success gate; absent ufw skips the whole block (best-effort by design)
+crates/termlink-cli/src/commands/infrastructure.rs::cmd_doctor::cmd:ss   # nested inside the ufw-success block above; unreachable without ufw
+
+# ── /proc reads: guarded by a runtime probe that names the limitation (T-2691) ────
+# Both sites are the PID-ancestor walk behind `whoami`. They still read /proc — that
+# is unavoidable, it IS the Linux mechanism — but the callers now consult
+# `procfs_available()` before reporting, so a macOS user is told "this platform has
+# no /proc, auto-resolution cannot run; set TERMLINK_SESSION_ID" instead of receiving
+# an ambiguous candidate list implying an action that can never work. The read itself
+# returning None off-Linux is correct; the defect was the silent reporting, and that
+# is fixed rather than acknowledged.
+crates/termlink-cli/src/commands/metadata.rs::read_ppid_from_proc::proc-path  # T-2691: callers gate on procfs_available() and name the limitation
+crates/termlink-mcp/src/tools.rs::read_ppid_from_proc::proc-path             # T-2691: MCP whoami emits auto_resolution=unavailable-no-procfs
+
+# ── test asserting a platform fact, correctly cfg-gated ──────────────────────────
+crates/termlink-cli/src/commands/metadata.rs::procfs_probe_detects_a_real_procfs::proc-path  # #[cfg(target_os = "linux")] test; asserts /proc exists on Linux only, with a non-Linux complement test

@@ -7913,6 +7913,25 @@ pub struct WhoamiParams {
 /// path (~40 LOC, no behavioural drift expected — both sides read the
 /// same `/proc/<pid>/stat` format).
 mod whoami_helpers {
+    /// T-2691: can the ancestor walk work on this host at all?
+    ///
+    /// Mirrors `termlink-cli metadata::procfs_available`. The walk below parses
+    /// `/proc/<pid>/stat`, which does not exist on macOS — a platform README lists
+    /// as supported and for which Homebrew is the recommended install. Without this
+    /// probe the walk collapses to `[self]` and the caller reports "ambiguous",
+    /// which is a plausible wrong answer rather than an error (Directive #2) and
+    /// implies an action that cannot help (Directive #3).
+    ///
+    /// Runtime probe, not `#[cfg(target_os)]`, so both branches stay reachable and
+    /// testable from a Linux host — see the CLI-side rationale.
+    pub(super) fn procfs_available_at(proc_root: &str) -> bool {
+        std::path::Path::new(proc_root).join("self").join("stat").exists()
+    }
+
+    pub(super) fn procfs_available() -> bool {
+        procfs_available_at("/proc")
+    }
+
     pub(super) fn walk_ancestor_pids(start: u32) -> Vec<u32> {
         let mut chain = vec![start];
         let mut current = start;
@@ -11849,11 +11868,31 @@ impl TermLinkTools {
             "tags": s.tags,
             "cwd": s.metadata.cwd,
         })).collect();
+        // T-2691: mirror the CLI — reaching here without a procfs is a PLATFORM
+        // LIMITATION, not an ambiguity. The PID-ancestor walk above is Linux-only
+        // (`whoami_helpers` parses /proc/<pid>/stat), so on macOS it can never
+        // succeed and "re-call after disambiguating" is advice that never works.
+        // An agent consuming this tool needs to branch on that, hence a
+        // machine-readable field rather than only prose.
+        let (auto_resolution, hint) = if whoami_helpers::procfs_available() {
+            (
+                "attempted",
+                "Set TERMLINK_SESSION_ID=<id> for your session and re-call, or pass session_hint / name_hint.".to_string(),
+            )
+        } else {
+            (
+                "unavailable-no-procfs",
+                "This host has no /proc, so PID-ancestor auto-resolution cannot run (it is Linux-only). \
+                 Re-calling will not change this — set TERMLINK_SESSION_ID=<id>, or pass session_hint / name_hint."
+                    .to_string(),
+            )
+        };
         serde_json::json!({
             "ok": true,
             "ambiguous": true,
+            "auto_resolution": auto_resolution,
             "candidates": cards,
-            "hint": "Set TERMLINK_SESSION_ID=<id> for your session and re-call, or pass session_hint / name_hint.",
+            "hint": hint,
         }).to_string()
     }
 
@@ -29941,6 +29980,20 @@ impl TermLinkTools {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // === T-2691: procfs probe parity with the CLI (Directive #4 portability) ===
+
+    #[test]
+    fn mcp_procfs_probe_matches_cli_semantics() {
+        // Available on this Linux host...
+        assert!(whoami_helpers::procfs_available_at("/proc"));
+        // ...and unavailable for a root with no self/stat, which is the macOS shape.
+        let dir = std::env::temp_dir().join("termlink-t2691-mcp-no-procfs");
+        let _ = std::fs::create_dir_all(&dir);
+        assert!(!whoami_helpers::procfs_available_at(dir.to_str().unwrap()));
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(!whoami_helpers::procfs_available_at("/definitely/not/a/procfs"));
+    }
 
     // === T-2687: topics probe classification (partial-inventory signal) ===
 

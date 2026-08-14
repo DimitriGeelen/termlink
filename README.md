@@ -255,10 +255,18 @@ termlink event collect hub task.done --count 3 --timeout 120  # Fan-in
 |---------|----------|-----|
 | `terminal` | macOS | Opens a new Terminal.app window via osascript |
 | `tmux` | macOS, Linux | Creates a tmux session (headless, attach with `tmux attach`) |
-| `background` | macOS, Linux | Daemonizes with `setsid` (no visible terminal) |
+| `background` | macOS, Linux | Daemonizes with `setsid` on Linux; falls back to a plain `sh -c` child on macOS (see note) |
 | `auto` | Any | Picks `terminal` on macOS GUI, `tmux` if available, else `background` |
 
 Override with `--backend tmux` or set `TL_DISPATCH_BACKEND=tmux`.
+
+> **macOS note (T-2693).** `setsid` is a util-linux tool and is not present on macOS.
+> The `background` backend detects the failed spawn and falls back to `sh -c`, so the
+> process still starts — but it does **not** become a session leader, so it is not
+> fully daemonized and may be signalled when its parent terminal closes. Prefer
+> `--backend tmux` on macOS if you need the child to outlive the launching terminal.
+> This table previously said "Daemonizes with `setsid`" unconditionally, which was
+> inaccurate for the platform this project calls recommended.
 
 ## Platform Support
 

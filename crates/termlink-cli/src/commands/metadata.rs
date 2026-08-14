@@ -593,6 +593,14 @@ pub(crate) async fn cmd_whoami(
         return Ok(());
     }
 
+    // T-2691: distinguish "auto-resolution cannot work here" from "you have
+    // several sessions". Reaching this point on a host without procfs is NOT an
+    // ambiguity — the PID-ancestor walk is structurally unavailable, so telling the
+    // operator to disambiguate is unactionable advice: no choice they make will
+    // make the walk succeed next time. Only `TERMLINK_SESSION_ID` / `--session`
+    // will.
+    let auto_resolution_available = procfs_available();
+
     if json {
         let cards: Vec<_> = sessions.iter().map(|s| serde_json::json!({
             "id": s.id.as_str(),
@@ -603,14 +611,35 @@ pub(crate) async fn cmd_whoami(
             "tags": s.tags,
             "cwd": s.metadata.cwd,
         })).collect();
+        // Machine-readable so an MCP/script consumer can branch without parsing prose.
+        let (auto_resolution, hint) = if auto_resolution_available {
+            (
+                "attempted",
+                "Set TERMLINK_SESSION_ID=<id> for your session and rerun, or pass --session <id> / --name <display_name>.",
+            )
+        } else {
+            (
+                "unavailable-no-procfs",
+                "This platform has no /proc, so PID-ancestor auto-resolution cannot run (it is Linux-only). \
+                 Set TERMLINK_SESSION_ID=<id> for your session, or pass --session <id> / --name <display_name>.",
+            )
+        };
         println!("{}", serde_json::to_string_pretty(&serde_json::json!({
             "ok": true,
             "ambiguous": true,
+            "auto_resolution": auto_resolution,
             "candidates": cards,
-            "hint": "Set TERMLINK_SESSION_ID=<id> for your session and rerun, or pass --session <id> / --name <display_name>.",
+            "hint": hint,
         }))?);
     } else {
-        println!("Multiple candidate sessions on this hub — which one are you?");
+        if auto_resolution_available {
+            println!("Multiple candidate sessions on this hub — which one are you?");
+        } else {
+            println!("Cannot auto-resolve which session you are: this platform has no /proc,");
+            println!("so the PID-ancestor walk is unavailable (it is Linux-only).");
+            println!();
+            println!("Candidate sessions on this hub:");
+        }
         println!();
         for s in &sessions {
             let roles = if s.roles.is_empty() { "-".to_string() } else { s.roles.join(",") };
@@ -624,8 +653,15 @@ pub(crate) async fn cmd_whoami(
             );
         }
         println!();
-        println!("Hint: set TERMLINK_SESSION_ID=<id> for your session (paste the id from above)");
-        println!("      and rerun `termlink whoami`. Or pass --session <id> / --name <display_name>.");
+        if auto_resolution_available {
+            println!("Hint: set TERMLINK_SESSION_ID=<id> for your session (paste the id from above)");
+            println!("      and rerun `termlink whoami`. Or pass --session <id> / --name <display_name>.");
+        } else {
+            // Do NOT suggest "rerun whoami" here — it will report the same thing
+            // forever on this platform. Name the setting that actually resolves it.
+            println!("Set TERMLINK_SESSION_ID=<id> for your session (paste the id from above) so");
+            println!("every later termlink command resolves it, or pass --session <id> / --name <display_name>.");
+        }
     }
     Ok(())
 }
@@ -751,12 +787,39 @@ fn print_whoami_card(
     Ok(())
 }
 
+/// T-2691: is a procfs available to walk?
+///
+/// The PID-ancestor fallback below is Linux-only by construction — it parses
+/// `/proc/<pid>/stat`. On macOS (a platform README lists as supported, and for
+/// which Homebrew is the *recommended* install) there is no `/proc`, so the walk
+/// cannot succeed. Before T-2691 that produced a silent wrong answer: the chain
+/// collapsed to `[self]`, no session matched, and `whoami` reported "ambiguous —
+/// here are all candidates", indistinguishable from a genuine multi-session
+/// ambiguity. The remedy the ambiguous path implies (pick one of these) is not the
+/// remedy that works (set `TERMLINK_SESSION_ID`), because auto-resolution will
+/// never succeed on that platform no matter which session you pick.
+///
+/// This is a RUNTIME probe rather than `#[cfg(target_os = "linux")]` on purpose:
+/// a cfg makes the non-Linux branch unreachable on Linux and therefore impossible
+/// to test from a Linux host, which is exactly how the original defect survived.
+/// Taking the root as a parameter lets both branches be proven in unit tests.
+fn procfs_available_at(proc_root: &str) -> bool {
+    std::path::Path::new(proc_root).join("self").join("stat").exists()
+}
+
+/// Whether the ancestor walk can work on this host at all.
+pub(crate) fn procfs_available() -> bool {
+    procfs_available_at("/proc")
+}
+
 /// Walk the process ancestor chain on Linux by parsing `/proc/<pid>/stat`.
 /// Returns the chain starting at `start` and ending at PID 1 (or wherever
 /// the walk fails — non-Linux, missing /proc, malformed stat, cycle).
 ///
 /// Used by `cmd_whoami` (T-1303) to find a registered session whose pid is
-/// one of our ancestors when the env-var disambiguator is not set.
+/// one of our ancestors when the env-var disambiguator is not set. Callers that
+/// report failure to a human must first consult [`procfs_available`] so a
+/// platform limitation is not reported as an ambiguity (T-2691).
 fn walk_ancestor_pids(start: u32) -> Vec<u32> {
     let mut chain = vec![start];
     let mut current = start;
@@ -840,6 +903,73 @@ mod tests {
         // PID very unlikely to exist
         let chain = walk_ancestor_pids(999_999_999);
         assert_eq!(chain, vec![999_999_999]);
+    }
+
+    // === T-2691: procfs availability probe (Directive #4 portability) ===
+    //
+    // Both branches must be provable from a Linux host. That is precisely why the
+    // probe takes a root path instead of being `#[cfg(target_os = "linux")]`: a cfg
+    // would make the macOS branch unreachable here and unprovable, which is how the
+    // original silent degradation survived unnoticed.
+
+    // Linux-gated ON PURPOSE. This asserts a platform FACT ("/proc exists here"),
+    // not behaviour, so it is the one place a cfg is correct — and it must not run
+    // on the macOS job added in T-2692, where the assertion is false by design.
+    // Caught by check-platform-lock.sh (T-2693) on its first run against this file:
+    // the check flagged this very test as a Linux-only dependency, which is exactly
+    // the class it exists to surface.
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn procfs_probe_detects_a_real_procfs() {
+        assert!(
+            procfs_available_at("/proc"),
+            "/proc/self/stat should exist on a Linux host"
+        );
+    }
+
+    // The complement: on a host WITHOUT procfs the probe must say so rather than
+    // claim availability. Together these two pin the probe against reality on both
+    // platform families; the negative tests below pin it against arbitrary roots.
+    #[test]
+    #[cfg(not(target_os = "linux"))]
+    fn procfs_probe_reports_unavailable_on_non_linux() {
+        assert!(
+            !procfs_available_at("/proc"),
+            "a non-Linux host must probe unavailable so whoami names the limitation"
+        );
+    }
+
+    #[test]
+    fn procfs_probe_reports_unavailable_when_absent() {
+        // Simulates macOS: a root with no self/stat underneath it.
+        let dir = std::env::temp_dir().join("termlink-t2691-no-procfs");
+        let _ = std::fs::create_dir_all(&dir);
+        assert!(
+            !procfs_available_at(dir.to_str().unwrap()),
+            "a directory without self/stat must probe as unavailable"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn procfs_probe_unavailable_for_nonexistent_root() {
+        assert!(
+            !procfs_available_at("/definitely/not/a/procfs/root"),
+            "a missing root must probe as unavailable, not panic"
+        );
+    }
+
+    #[test]
+    fn procfs_probe_requires_self_stat_not_just_the_directory() {
+        // A bare existing directory (e.g. someone created /proc on macOS) must not
+        // read as a usable procfs — the walk needs <root>/<pid>/stat to parse.
+        let dir = std::env::temp_dir().join("termlink-t2691-bare-dir");
+        let _ = std::fs::create_dir_all(dir.join("self"));
+        assert!(
+            !procfs_available_at(dir.to_str().unwrap()),
+            "self/ without stat must still probe unavailable"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     // T-1440: whoami_card_json surfaces identity_fingerprint when populated

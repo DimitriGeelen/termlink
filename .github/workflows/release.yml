@@ -56,6 +56,52 @@ jobs:
       - name: Run source-level guard layer
         run: bash scripts/run-guard-layer.sh
 
+  # T-2692 (T-2690 F1/G1) — macOS is a FIRST-CLASS, DOCUMENTED platform that has
+  # never executed a test.
+  #
+  # README §Platform Support asserts `Yes` for macOS five times (core binary, PTY
+  # operations, Terminal.app spawn, tmux spawn, TCP hub) and names Homebrew the
+  # *recommended* macOS install. `build-macos` below cross-compiles two Darwin
+  # targets and publishes them to GitHub Releases, from which the Homebrew formula
+  # downloads. But every `runs-on` in this repo is `ubuntu-latest` except that build
+  # matrix — so the workspace suite has never once run against a macOS build, and
+  # T-2690 found at least one path (`whoami`'s /proc-based PID-ancestor walk) that
+  # silently degrades there. This is the "built ≠ verified" class, with a public
+  # promise and a package manager attached.
+  #
+  # DELIBERATELY NON-BLOCKING ON FIRST LANDING. The macOS result is genuinely
+  # UNKNOWN — it has never been measured, and the author of this job could not
+  # execute macOS. Gating releases on an unmeasured suite would violate T-2686's own
+  # acceptance criterion ("the gate is only added once the suite is actually green")
+  # and could break releases on an assumption. Making the answer visible comes first;
+  # a red result here is the most valuable output this job can produce.
+  #
+  # TO PROMOTE TO BLOCKING once a real green run exists: delete the
+  # `continue-on-error: true` line below, and add `test-macos` to the `needs:` of
+  # build-macos / build-linux. That is the whole change.
+  test-macos:
+    name: Workspace test suite (macOS · NON-BLOCKING, result not yet known)
+    runs-on: macos-14
+    timeout-minutes: 60
+    continue-on-error: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: workspace-test-macos
+
+      # Same command as the Linux job on purpose. A reduced macOS subset would
+      # recreate the "verified in name only" problem this job exists to fix.
+      - name: Run workspace test suite
+        run: cargo test --workspace
+
   build-macos:
     needs: [test]
     strategy:
