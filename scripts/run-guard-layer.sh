@@ -75,6 +75,9 @@ set -uo pipefail
 SCRIPTS_DIR="${GUARD_LAYER_SCRIPTS_DIR:-scripts}"
 TESTS_DIR="${GUARD_LAYER_TESTS_DIR:-tests}"
 MEMBER_TIMEOUT="${GUARD_LAYER_TIMEOUT:-300}"
+# Lines of a firing member's own output to echo inline. Exceeding it is reported
+# explicitly (never a silent cap) along with the command that shows the rest.
+OUTPUT_LINES="${GUARD_LAYER_OUTPUT_LINES:-12}"
 FORMAT=human
 QUIET=0
 LIST_ONLY=0
@@ -228,7 +231,14 @@ while [ "$i" -lt "$total" ]; do
         if [ "$verdict" != PASS ]; then
             # Surface the member's own words — the runner never paraphrases a
             # finding, so the operator acts on the guard's message, not ours.
-            printf '%s\n' "$out" | sed -n '1,12p' | sed 's/^/        │ /'
+            printf '%s\n' "$out" | sed -n "1,${OUTPUT_LINES}p" | sed 's/^/        │ /'
+            # No silent caps: if the member said more than we showed, say so and
+            # name the command that prints the rest. A truncated finding list that
+            # looks complete is how a real finding gets missed.
+            outlines=$(printf '%s\n' "$out" | wc -l)
+            if [ "$outlines" -gt "$OUTPUT_LINES" ]; then
+                echo "        │ … $((outlines - OUTPUT_LINES)) more line(s) suppressed — run: ${m_cmd[$i]}"
+            fi
             [ "$rc" -eq 124 ] && echo "        │ (timed out after ${MEMBER_TIMEOUT}s)"
         fi
     fi

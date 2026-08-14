@@ -1,8 +1,8 @@
 ---
-id: T-2684
-name: "Single entry point for the source-level guard layer"
+id: T-2686
+name: "Release pipeline publishes binaries without running cargo test"
 description: >
-  Nothing automatic executes the 4 static checks, 10 fixture suites, or 2055 workspace tests (T-2683 F1/G1). Ship scripts/run-guard-layer.sh as the one command that runs them all.
+  release.yml runs cargo build --release and never cargo test, so a regression in the 2055-test workspace suite ships to GitHub Releases and Homebrew (T-2683 F1/G4).
 
 status: started-work
 workflow_type: build
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-14T05:56:11Z
-last_update: 2026-08-14T06:27:24Z
+created: 2026-08-14T05:56:35Z
+last_update: 2026-08-14T06:16:14Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,7 +30,7 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2684: Single entry point for the source-level guard layer
+# T-2686: Release pipeline publishes binaries without running cargo test
 
 ## Context
 
@@ -40,17 +40,12 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] `scripts/run-guard-layer.sh` exists and is the single command that runs the source-level guard layer
-- [x] Discovers its members rather than hard-coding them: every `scripts/check-*.sh` known to be a source-level static check, and every `tests/*fixtures*.sh`, so a newly-added guard is picked up without editing the runner
-- [x] Per-member verdict line (PASS / FAIL / SKIP with reason) plus a roll-up footer naming the counts
-- [x] Distinguishes exit 1 (a guard fired — real finding) from exit 2 (guard could not run — tooling), mirroring the canary contract the layer already uses; a tooling error never reads as a clean bill
-- [x] Exit codes: 0 = every member passed, 1 = a member fired, 2 = a member hit a tooling error / the runner could not enumerate members
-- [x] `--json` envelope for scripting: `{ok, members[], summary}` with per-member `{name, kind, rc, verdict}`
-- [x] `--tests` opt-in runs `cargo test --workspace` as an additional member (default OFF so the fast path stays seconds, not minutes)
-- [x] `--list` prints the discovered members without running them, so the layer's membership is inspectable
-- [x] Fixture suite `tests/guard-layer-runner-fixtures.sh` proves the runner on synthetic members: all-pass is 0, a firing member is 1, a tooling-error member is 2, fire beats tooling in the roll-up, `--list` enumerates, `--json` is well-formed
-- [x] Test seams let the fixtures run hermetically without touching the real checks (`GUARD_LAYER_SCRIPTS_DIR`, `GUARD_LAYER_TESTS_DIR`)
-- [x] Running it against the real tree passes, and its member list contains all four static checks and all ten fixture suites
+- [x] `release.yml` gains a `test` job running `cargo test --workspace`, and both build jobs declare `needs: [test]` so a red suite blocks the build — no binary is produced, not merely un-published
+- [x] The test job also runs the source-level guard layer (`scripts/run-guard-layer.sh`), so the static checks that guard the code run at the one moment code becomes a release
+- [x] `timeout-minutes` bounds the job so a hung test cannot burn CI indefinitely
+- [x] The workflow YAML parses
+- [ ] The gate is only added once the suite is actually green — landing a gate on a red suite would be shipping a known-broken pipeline (see T-2687)
+- [x] The release job's existing `needs: [build-macos, build-linux]` chain is preserved, so the gate is additive and cannot skip a build step
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -116,11 +111,9 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-bash tests/guard-layer-runner-fixtures.sh
+python3 -c "import yaml; d=yaml.safe_load(open('.github/workflows/release.yml')); assert d['jobs']['build-macos']['needs']==['test']; assert d['jobs']['build-linux']['needs']==['test']; assert d['jobs']['release']['needs']==['build-macos','build-linux']"
+python3 -c "import yaml; d=yaml.safe_load(open('.github/workflows/doc-lint.yml')); assert 'guard-layer' in d['jobs']"
 bash scripts/run-guard-layer.sh --quiet
-out=$(bash scripts/run-guard-layer.sh --list); echo "$out" | grep -q "check-alloc-sink-clamps.sh"
-out=$(bash scripts/run-guard-layer.sh --list); echo "$out" | grep -q "silent-exit-check-fixtures.sh"
-out=$(bash scripts/run-guard-layer.sh --json); echo "$out" | jq -e '.summary.total >= 19'
 
 ## RCA
 
@@ -185,10 +178,10 @@ out=$(bash scripts/run-guard-layer.sh --json); echo "$out" | jq -e '.summary.tot
 
 ## Updates
 
-### 2026-08-14T05:56:11Z — task-created [task-create-agent]
+### 2026-08-14T05:56:35Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2684-single-entry-point-for-the-source-level-.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2686-release-pipeline-publishes-binaries-with.md
 - **Context:** Initial task creation
 
-### 2026-08-14T05:56:50Z — status-update [task-update-agent]
+### 2026-08-14T06:16:14Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work

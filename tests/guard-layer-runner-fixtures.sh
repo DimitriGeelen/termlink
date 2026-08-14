@@ -143,6 +143,33 @@ assert_eq "a tests/*fixtures*.sh is a member with no marker needed" "1" \
 assert_eq "and is classified as a fixture suite" "fixture-suite" \
     "$(run_json | jq -r '.members[0].kind')"
 
+# --- fixture 12: long member output is capped, but never SILENTLY -------------
+# This repo's own rule (CLAUDE.md, cron-drift section): "No silent caps: if a
+# workflow bounds coverage, log() what was dropped — silent truncation reads as
+# 'covered everything' when it didn't." A truncated finding list that looks
+# complete is exactly how a real finding gets missed.
+reset
+printf '#!/usr/bin/env bash\n# guard-layer: source\nfor i in $(seq 1 40); do echo "finding $i"; done\nexit 1\n' > "$S/check-verbose.sh"
+out="$(GUARD_LAYER_SCRIPTS_DIR="$S" GUARD_LAYER_TESTS_DIR="$T" bash "$RUNNER" 2>&1)"
+if printf '%s' "$out" | grep -q "more line(s) suppressed"; then
+    ok "over-long member output reports what it suppressed"
+else
+    bad "truncation was silent — no suppression notice in output"
+fi
+if printf '%s' "$out" | grep -q "run: bash .*check-verbose.sh"; then
+    ok "suppression notice names the command that shows the rest"
+else
+    bad "suppression notice does not name the member command"
+fi
+# And the cap is tunable, so an operator can see everything inline if they want.
+out2="$(GUARD_LAYER_SCRIPTS_DIR="$S" GUARD_LAYER_TESTS_DIR="$T" GUARD_LAYER_OUTPUT_LINES=100 \
+    bash "$RUNNER" 2>&1)"
+if printf '%s' "$out2" | grep -q "more line(s) suppressed"; then
+    bad "raising GUARD_LAYER_OUTPUT_LINES should remove the suppression notice"
+else
+    ok "raising GUARD_LAYER_OUTPUT_LINES shows the full output"
+fi
+
 echo
 echo "guard-layer-runner fixtures: $pass passed, $fail failed"
 [ "$fail" -eq 0 ] || exit 1

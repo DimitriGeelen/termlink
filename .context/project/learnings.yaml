@@ -3060,3 +3060,24 @@ learnings:
   date: 2026-08-13
   context: Added via context agent
   application: TBD
+- id: PL-329
+  learning: "A guard is only as load-bearing as its invocation path. TermLink accumulated 4 static checks, 10 fixture suites and 2055 tests that NOTHING executed — no CI job, no cron, no hook, no aggregate runner; the four static checks were referenced only by their own fixtures and by the episodic records of the tasks that built them. Two prior charter reviews audited what the guards CHECK and never asked what RUNS them, so both concluded 'add more guards' to a layer that was inert. When reviewing a protection mechanism, grep for its callers before reading its logic: an unrun guard and an absent guard are the same thing, except the unrun one also reports green."
+  source: P-001
+  task: T-2683
+  date: 2026-08-14
+  context: Added via context agent
+  application: TBD
+- id: PL-330
+  learning: "Verify a contract at its CONSUMER, not only its producer. Every TermLink canary correctly implements exit 0 healthy / 1 firing / 2 tooling-error, and two charter reviews confirmed those scripts. Neither read the crontab line that CAPTURES the output — all 30 used '>> findings.log 2>&1', merging the tooling stream into the findings log, so a check that could not run wrote into the channel meaning 'the watched thing is broken'. A live instance had the release-mirror canary directing operators to rotate a GitHub token for a fault that did not exist. Worse, 'empty log = healthy' is a ONE-BIT channel: once dirtied it is deaf, because a later genuine finding appends to an already-non-empty file and changes nothing visible. When auditing a signal, read the whole path from emit to operator eyeball."
+  source: P-001
+  task: T-2683
+  date: 2026-08-14
+  context: Added via context agent
+  application: TBD
+- id: PL-331
+  learning: "A fixture suite written from the code it guards proves the code, not the rule. check-silent-exit (T-2666) anchored on 'nearest non-blank line above the exit is a lone }', and its fixtures encoded exactly the shapes present in the tree. Reverting the real T-2663 fix while KEEPING its explanatory comment produced a genuinely silent exit that scanned clean — a comment is non-blank, so it became the preceding line. The check worked on every sample it was built from and was blind to the single most likely next edit: adding a comment beside the line you are explaining. When writing fixtures for a static check, include at least one case the current tree does NOT contain."
+  source: P-001
+  task: T-2688
+  date: 2026-08-14
+  context: Added via context agent
+  application: TBD

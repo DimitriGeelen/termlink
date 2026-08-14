@@ -11,7 +11,21 @@
 //! v0.1 scope: session-control thin slice. 3 cases (ping, topics,
 //! hub_status) + 1 negative test that proves the diff actually fires.
 //! v0.2+ expands to channel_* (53 pairs) and chat-arc agent_* (the
-//! divergence-heavy group).
+//! divergence-heavy group). As of T-2683/T-2689 that expansion has still
+//! not happened: 24 cases against 68 distinct `*_mcp` parallel helpers.
+//!
+//! # Do not commit while this suite is running (T-2687)
+//!
+//! `parity_version` and `parity_info` compare `version` and `commit`, which
+//! `build.rs` derives from `git describe`. The MCP side is compiled INTO the
+//! test binary; the CLI side is a separate binary resolved at run time. Making
+//! a git commit mid-run changes the derived version, so a rebuilt CLI reports
+//! e.g. `0.11.1210` / `d19ff4ed2` against the test binary's baked-in
+//! `0.11.1209` / `124a67e35`, and both tests fail with a diff that looks like
+//! real MCP/CLI drift but is purely an artifact of the working tree moving
+//! underneath the run. CI is unaffected (one checkout, no commits mid-run).
+//! If you see ONLY `parity_version` and `parity_info` failing on a
+//! version/commit field, re-run without committing before investigating.
 
 use rmcp::model::CallToolRequestParams;
 use rmcp::{RoleClient, ServiceExt};
