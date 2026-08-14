@@ -231,6 +231,42 @@ than leave for a fourth pass to rediscover.
 
 ---
 
+## Finding F4 — the MCP/CLI parity harness covers a quarter of its own stated scope
+
+F1 predicted that an unrun suite would be hiding something. It was: `parity_topics`
+had been red since 2026-08-12. T-2624 added four partial-inventory fields to the CLI's
+`topics --json` — explicitly so "a consumer can now tell the topic set excludes
+sessions that timed out or errored" — and never added them to the MCP
+`termlink_topics` tool, whose `if let … && let … && let …` chain dropped every failed
+probe into silence. An agent calling the MCP tool received a truncated inventory
+presented as complete: Directive #2 fixed on the human-facing surface and left broken
+on the agent-facing one, which has more consumers.
+
+Fixing that surfaced a **second** defect underneath it, which the first had masked:
+`parity_topics` ran on the default current-thread tokio runtime while `call_cli`
+blocks the test thread in `.output()`, starving the session's accept loop so the CLI
+subprocess could never be accepted. The file's own comment listed `parity_topics`
+among tests that "do not need the socket" because it is *hub-less* — conflating "needs
+no hub" with "needs no socket" when it starts a SESSION the CLI must RPC. With the
+multi_thread flavor the test completes in 0.06s instead of burning two 5s timeouts.
+
+The wider gap is the harness's coverage, and the harness documents it itself:
+
+> v0.1 scope: session-control thin slice. 3 cases … **v0.2+ expands to channel_* (53
+> pairs) and chat-arc agent_* (the divergence-heavy group).**
+
+v0.2 never happened. Today: **24 parity cases against 68 distinct `*_mcp` parallel
+helper functions (693 call sites)**, and the group the harness itself names as
+divergence-heavy has **zero** coverage. T-2687 proves the class is live — a real
+divergence sat undetected inside a *covered* pair, so the ~44 uncovered ones have no
+detection whatsoever.
+
+Filed as **T-2689** at `horizon: next` and deliberately **not built here**: expanding
+parity to 50+ pairs is an arc, not a tail-end of this session, and doing it badly
+would produce exactly the kind of guard this review exists to criticise.
+
+---
+
 ## What is NOT wrong
 
 Stated explicitly, because a review that only finds problems is not calibrated:
@@ -262,6 +298,9 @@ Stated explicitly, because a review that only finds problems is not calibrated:
 | **G4** | Release pipeline publishes binaries without running `cargo test` | medium | agent (CI edit) | **BUILD** |
 | **G5** | 32 live tools trace to no charter verb; charter is incomplete as a discrimination instrument | medium | **human** | **DEFER** — charter wording is human-sovereign (T-2470 precedent) |
 | **G6** | Founding verb (session control) is the smallest surface at 23 tools vs 96 for messaging | low | **human** | **DEFER** — product-shape question, T-2548 adjacent |
+| **G7** | MCP `termlink_topics` returned a silently partial inventory; `parity_topics` red since 2026-08-12 | **high** | agent | **BUILD** (T-2687) |
+| **G8** | `check-silent-exit` blind to a bare exit hidden behind a comment | medium | agent | **BUILD** (T-2688) |
+| **G9** | Parity harness covers 24 of 68+ parallel implementations; `agent_*` group at zero | medium | agent | **FILED** (T-2689, `horizon: next`) — an arc, not a task |
 
 ---
 
@@ -295,7 +334,34 @@ per the Authority Model. Recording them here rather than acting on them is the p
 
 ## Outcome
 
-*(Filled at close — see the task's Decision section for the formal go/no-go.)*
+| Gap | Task | Result |
+|---|---|---|
+| G1 | **T-2684** | shipped — `scripts/run-guard-layer.sh`: one command, 21 members (8 static checks + 13 fixture suites), declared membership via a `# guard-layer: source` header marker, PASS/FAIL/**ERROR**/SKIP verdicts, findings-dominate roll-up. 27 fixture assertions. |
+| G2+G3 | **T-2685** | shipped — all 30 canary job lines across all 24 crontabs migrated to `2>> <log>.stderr`; `check-canary-log-hygiene.sh` fires on `2>&1` **and** on `2>/dev/null`; 19 fixture assertions; the polluted release-mirror log truncated after independently re-confirming the mirror synced. |
+| G4 | **T-2686** | shipped — `doc-lint.yml` gains a per-commit `guard-layer` job; `release.yml` gains a `test` job (`cargo test --workspace` + guard layer) that both build jobs `needs:`, so a red suite blocks the build outright. |
+| G7 | **T-2687** | shipped — MCP `termlink_topics` now carries the four partial-inventory fields with CLI-identical probe classification (extracted to a unit-tested pure helper); both zero-session early-return paths emit the full zeroed field set; `parity_topics` given the `multi_thread` flavor it always needed. |
+| G8 | **T-2688** | shipped — `check-silent-exit` now skips comment-only lines in all three places it reads context; 4 new fixtures pin the *rule* rather than the tree's current shapes. |
+| G9 | **T-2689** | filed at `horizon: next` — parity expansion is an arc, not a task. |
+| G5 | — | **deferred to human** — charter wording is sovereign. |
+| G6 | — | **deferred to human** — product-shape, T-2548 adjacent. |
+
+### The guard layer caught its first defect within minutes of existing
+
+Not a claim about future value — an observation from this session. `T-2687`'s new MCP
+handler was written with `Vec::with_capacity(total_probed)`. Running
+`run-guard-layer.sh` immediately fired `check-alloc-sink-clamps` on it: a bare
+identifier reaching an eager allocation. The correct resolution was not an allowlist
+entry but a code fix — sizing from `registrations.len()` directly, so the capacity is
+bounded by an allocation that has already succeeded, which is both true and visible to
+the checker. Code written and caught inside the same session, by a check that had
+existed for months and been run by nobody.
+
+### Honest correction
+
+This session's earlier report stated the workspace suite was "2055 tests, 0 failures".
+That was wrong: `parity_topics` was red, and had been since 2026-08-12. The error is
+itself an instance of F1 — a suite nothing runs is a suite whose state you are
+guessing at.
 
 ---
 
