@@ -21,7 +21,9 @@
 #
 # `2>&1` merges stderr into the findings log. A check that COULD NOT RUN then writes
 # into the log whose entire documented meaning is "the thing you are watching is
-# broken". T-2683 found this on 19 of 19 canary job lines, with a live instance:
+# broken". T-2683 found this on ALL 30 findings-log job lines across all 24
+# git-tracked crontabs — including the meta-canary `.canary-aliveness.log` lines,
+# i.e. the jobs that detect when a canary stops firing at all. A live instance:
 # `.release-mirror-canary.log` contained `error: origin HEAD empty` while the script
 # itself exited 0 with "GitHub mirror: synced". Per CLAUDE.md that non-empty log
 # directs an operator to rotate a GitHub token — real work, wrong diagnosis, no

@@ -150,9 +150,16 @@ The exit-2 class exists deliberately, and T-2557 spells out why:
 ```
 
 `2>&1` merges stderr into the findings log. A check that *cannot run* writes into the
-log that means *the thing you are watching is broken*. **19 of 19 canary job lines
-across the 24 crontabs use this idiom** — it is universal, not an oversight in one
-file.
+log that means *the thing you are watching is broken*. **All 30 findings-log job lines
+across all 24 git-tracked crontabs use this idiom** — universal, not an oversight in
+one file.
+
+(An initial hand-grep of this review put the figure at 19. That count matched only
+`*-canary.log` filenames and missed the `.canary-aliveness.log`,
+`.fleet-adoption-snapshot.log`, and `.woken-silent-triage.log` sinks. The corrected
+figure comes from `check-canary-log-hygiene.sh` itself, which is the point of writing
+the check rather than trusting the grep: the meta-canary lines — the jobs that detect
+when a canary stops firing at all — were among the ones the eyeball count dropped.)
 
 ### It has already happened
 
@@ -306,15 +313,31 @@ Stated explicitly, because a review that only finds problems is not calibrated:
 
 ## Recommendation
 
-**GO on G1–G4.** All four are mechanical, testable, and require no product decision:
-they make existing guards executable and make existing signals honest. None of them
-changes what TermLink is; they change whether the things that already claim to
-protect it actually do.
+**GO on G1–G4, G7 and G8.** All six are mechanical, testable, and require no product
+decision: they make existing guards executable and make existing signals honest. None
+of them changes what TermLink is; they change whether the things that already claim to
+protect it actually do. (G7 and G8 were not in the original register — they were
+*found by* acting on G1, which is the strongest available evidence that G1 was the
+right first move. G7 in particular is a real product defect on the agent-facing
+surface that the suite had been reporting for two days to nobody.)
+
+**FILE, do not build, G9.** Expanding the parity harness from 24 to 68+ pairs is an
+arc. Doing it hastily at the end of a session would produce exactly the kind of
+under-proven guard this review exists to criticise, so it is T-2689 at
+`horizon: next`.
 
 **DEFER G5 and G6** to the human. Both are charter-wording or product-shape
 questions. T-2470 set the precedent that the canonical purpose sentence is
 human-blessed, and G5 is a proposal to *extend* it — that is proposal, not decision,
 per the Authority Model. Recording them here rather than acting on them is the point.
+
+There is a specific temptation worth naming, because it was considered and rejected:
+G5 could be dressed as pure observability — teach the charter-drift canary to *count*
+tools that trace to no verb, without firing. But that count requires a verb→category
+mapping which does not exist anywhere in code, so writing one would be an agent
+authoring the charter's classification under cover of instrumentation. The Authority
+Model puts that with the human. The blind spot is therefore recorded and left visible
+rather than quietly resolved.
 
 ---
 
@@ -327,8 +350,11 @@ per the Authority Model. Recording them here rather than acting on them is the p
   the operator needs. *Confidence: high.* The stderr stream is preserved to a sibling
   `.stderr` log rather than discarded, so nothing becomes less observable.
 - **A3** — No existing consumer parses the canary logs in a way that a sibling stderr
-  file would break. *Confidence: high.* `/canaries` auto-discovers `*-canary.log` by
-  glob; a `.stderr` suffix does not match that glob.
+  file would break. *Confidence: high → **verified**.* `/canaries` auto-discovers
+  `.*-canary.log` by glob (`canary-status.sh:97`) and a `.stderr` suffix does not
+  match it. Confirmed empirically rather than by reading: a `.release-mirror-canary.log.stderr`
+  file was created and `canary-status.sh --json` was re-run — zero `.stderr` entries
+  appeared in `.canaries[].name`.
 
 ---
 
@@ -345,6 +371,30 @@ per the Authority Model. Recording them here rather than acting on them is the p
 | G5 | — | **deferred to human** — charter wording is sovereign. |
 | G6 | — | **deferred to human** — product-shape, T-2548 adjacent. |
 
+### ⚠️ Required operator action — the T-2685 fix is committed but NOT live
+
+`scripts/check-cron-install-drift.sh` now reports **21 crontabs whose installed copies
+in `/etc/cron.d` are missing job lines that git declares**. This is not a new defect;
+it is the direct consequence of T-2685 rewriting every canary job line. The corrected
+split-stream redirect exists in git and the canaries on this host are still running
+the old `2>&1` form.
+
+Naming it rather than quietly closing is the whole point of this review: G-069 is
+"shipped ≠ live", and a review that fixed a monitoring defect and then let the fix sit
+dark would have earned its own finding. Until the crontabs are re-installed, the
+canary logs on this host remain one-bit channels that a tooling error can still
+deafen.
+
+Remediation (needs root, one command per crontab):
+
+```bash
+sudo cp .context/cron/<name>.crontab /etc/cron.d/termlink-<name>
+```
+
+Verify with `bash scripts/check-cron-install-drift.sh` — it should return to
+`healthy`. Note the check reads the crontab's own `# Installed to:` header, so the
+destination path is self-declared per file rather than derived from a naming rule.
+
 ### The guard layer caught its first defect within minutes of existing
 
 Not a claim about future value — an observation from this session. `T-2687`'s new MCP
@@ -356,12 +406,37 @@ bounded by an allocation that has already succeeded, which is both true and visi
 the checker. Code written and caught inside the same session, by a check that had
 existed for months and been run by nobody.
 
-### Honest correction
+### Final verification
 
-This session's earlier report stated the workspace suite was "2055 tests, 0 failures".
-That was wrong: `parity_topics` was red, and had been since 2026-08-12. The error is
-itself an instance of F1 — a suite nothing runs is a suite whose state you are
-guessing at.
+Clean workspace run, no commits during it (see the `parity.rs` note on why that
+matters):
+
+```
+3470 tests · 0 failed · every suite ok
+  including parity: 24 passed, 0 failed (776s)
+guard layer: PASS — 21/21 members clean
+```
+
+### Honest corrections
+
+Three claims made earlier in this session's work were wrong and are corrected here
+rather than only in conversation:
+
+1. **"2055 tests, 0 failures."** Both halves were wrong. The suite is **3470** tests,
+   and `parity_topics` was **red**, and had been since 2026-08-12.
+2. **"19 of 19 canary job lines."** The real figure is **30 across all 24 crontabs**.
+   The hand-grep matched only `*-canary.log` and missed `.canary-aliveness.log` — the
+   meta-canary sink, i.e. the job that detects when a canary stops firing at all.
+3. **An intermediate parity run showed 3 failures, not 1.** Two of those
+   (`parity_version`, `parity_info`) were self-inflicted: those tests compare a
+   `git describe`-derived version, and committing mid-run diffed a rebuilt CLI against
+   a stale test binary. Documented in `parity.rs` so the next person does not repeat
+   the diagnosis.
+
+Error 1 is itself an instance of F1 — a suite nothing runs is a suite whose state you
+are guessing at. Error 2 is the argument for writing the check instead of trusting the
+grep: the check found the lines the eyeball count dropped, and they were the most
+important ones.
 
 ---
 

@@ -52,6 +52,15 @@ date_finished: null
 - [x] Load-bearing: reintroducing `2>&1` into any crontab makes the check fire; restoring returns it to clean
 - [x] `docs/operations/` documents the split-stream idiom so the next canary author copies the right shape
 
+> **⚠️ Shipped ≠ live (G-069).** This fix is committed but **not yet active on this
+> host**: `/etc/cron.d` needs root, so the installed crontabs still run the old
+> `2>&1` form. `bash scripts/check-cron-install-drift.sh` now reports 21
+> UNINSTALLED_JOBS entries — that is this fix awaiting install, not a regression.
+> Remediation (per crontab, as root):
+> `sudo cp .context/cron/<name>.crontab /etc/cron.d/termlink-<name>`
+> then re-run the check until it returns `healthy`. Until then the canary logs on
+> this host remain one-bit channels a tooling error can still deafen.
+
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.

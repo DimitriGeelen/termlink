@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T05:56:35Z
-last_update: 2026-08-14T06:16:14Z
+last_update: 2026-08-14T06:38:06Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -44,7 +44,7 @@ date_finished: null
 - [x] The test job also runs the source-level guard layer (`scripts/run-guard-layer.sh`), so the static checks that guard the code run at the one moment code becomes a release
 - [x] `timeout-minutes` bounds the job so a hung test cannot burn CI indefinitely
 - [x] The workflow YAML parses
-- [ ] The gate is only added once the suite is actually green — landing a gate on a red suite would be shipping a known-broken pipeline (see T-2687)
+- [x] The gate is only added once the suite is actually green — landing a gate on a red suite would be shipping a known-broken pipeline (see T-2687)
 - [x] The release job's existing `needs: [build-macos, build-linux]` chain is preserved, so the gate is additive and cannot skip a build step
 
 ### Human

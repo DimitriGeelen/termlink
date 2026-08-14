@@ -45,7 +45,7 @@ date_finished: null
 - [x] The zero-session early-return path emits the same field set (all zeros) on BOTH sides — T-2624 missed that path too, so the two surfaces diverged there as well
 - [x] `cargo test -p termlink-mcp --test parity` passes, including `parity_topics`
 - [x] A unit test covers the classification helper directly (unreachable vs bad-result vs topics, and empty topic lists excluded from `sessions`)
-- [ ] `cargo test --workspace` is green — no other suite regressed
+- [x] `cargo test --workspace` is green — no other suite regressed
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
