@@ -1,0 +1,18 @@
+id: crates/termlink-session/tests/integration.rs
+name: integration
+type: script
+subsystem: session
+location: crates/termlink-session/tests/integration.rs
+tags: []
+purpose: 'TODO: describe what this component does'
+depends_on:
+- target: crates/termlink-session/src/lib.rs
+  type: calls
+- target: crates/termlink-protocol/src/lib.rs
+  type: calls
+- target: crates/termlink-test-utils/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-08-14
+created_by: unknown
+last_enriched: '2026-08-14'

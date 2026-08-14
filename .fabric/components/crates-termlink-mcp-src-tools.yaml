@@ -23,6 +23,8 @@ depends_on:
   type: calls
 - target: crates/termlink-session/src/lib.rs
   type: calls
+- target: crates/termlink-hub/src/lib.rs
+  type: calls
 depended_by:
 - target: crates/termlink-mcp/src/lib.rs
   relationship: re-exported_by
@@ -36,4 +38,4 @@ depended_by:
   type: called_by
 last_verified: 2026-03-26
 created_by: unknown
-last_enriched: '2026-04-21'
+last_enriched: '2026-08-14'

@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T16:38:41Z
-last_update: 2026-08-14T17:04:20Z
+last_update: 2026-08-14T17:10:03Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -113,6 +113,32 @@ not green. Two additions:
 
 Pinned by four fixtures, including that an older CLI omitting the field reads as
 not-degraded rather than crying wolf.
+
+**Live confirmation against the real hub (2026-08-14, post-fix).** The fixtures
+prove the logic; this proves the wiring. Run on this host against the running
+(pre-T-2709) hub:
+
+```
+$ ./target/release/termlink channel claims-summary --all --only-stuck --json
+{"expired_arm_inert":true,"ok":true,"only_stuck":true,"shown":0,
+ "stuck_count":0,"topic_count":770,"topics":[]}
+note: this hub does not serve `newest_expired_at_ms` (pre-T-2709), so the
+abandoned-claim half of the stuck check cannot fire — only the oldest-active-age
+half is live. Upgrade the hub binary and restart it through its unit to restore
+full detection.
+
+$ TERMLINK_BIN=./target/release/termlink bash scripts/check-stuck-claims-freshness.sh --no-heartbeat
+check-stuck-claims: healthy (770 topics, 0 stuck) (DEGRADED: hub predates T-2709
+and omits newest_expired_at_ms — the abandoned-claim half of this check is inert;
+upgrade + restart the hub through its unit to restore it)
+exit=0
+```
+
+Both halves behave as designed: the canary no longer fires daily on the 11
+latched topics, and the `0 stuck` it now reports is explicitly qualified rather
+than passed off as a clean bill. Exit 0 is correct here — a stale hub binary is
+a capability gap, not a stuck claim (PL-219) — and it is T-2707's problem, not
+this one's.
 
 ## Acceptance Criteria
 

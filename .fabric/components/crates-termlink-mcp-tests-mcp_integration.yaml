@@ -1,0 +1,18 @@
+id: crates/termlink-mcp/tests/mcp_integration.rs
+name: mcp_integration
+type: script
+subsystem: mcp
+location: crates/termlink-mcp/tests/mcp_integration.rs
+tags: []
+purpose: 'TODO: describe what this component does'
+depends_on:
+- target: crates/termlink-session/src/lib.rs
+  type: calls
+- target: crates/termlink-test-utils/src/lib.rs
+  type: calls
+- target: crates/termlink-mcp/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-08-14
+created_by: unknown
+last_enriched: '2026-08-14'

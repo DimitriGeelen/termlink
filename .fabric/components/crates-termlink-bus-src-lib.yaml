@@ -25,6 +25,8 @@ depended_by:
   type: called_by
 - target: crates/termlink-hub/src/artifact.rs
   type: called_by
+- target: crates/termlink-hub/src/retention_sweeper.rs
+  type: called_by
 last_verified: 2026-04-20
 created_by: unknown
-last_enriched: '2026-07-03'
+last_enriched: '2026-08-14'

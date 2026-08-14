@@ -1,0 +1,20 @@
+id: tests/stuck-claims-check-fixtures.sh
+name: stuck-claims-check-fixtures
+type: script
+subsystem: unknown
+location: tests/stuck-claims-check-fixtures.sh
+tags: []
+
+purpose: "TODO: describe what this component does"
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-08-14
+created_by: unknown

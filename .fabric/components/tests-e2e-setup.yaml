@@ -8,12 +8,32 @@ tags:
 - test
 - portability
 purpose: Shared E2E setup — portable binary resolution, build, orchestrator registration helpers
-depends_on: []
+depends_on:
+- target: tests/e2e/e2e-helpers.sh
+  type: calls
 depended_by:
 - target: tests/e2e/level9-dispatch-collect.sh
   relationship: sourced_by
 - target: tests/e2e/level9-dispatch-collect.sh
   type: _by
+- target: tests/e2e/level9-dispatch-collect.sh
+  type: called_by
+- target: tests/e2e/level1-echo.sh
+  type: called_by
+- target: tests/e2e/level10-worktree-isolation.sh
+  type: called_by
+- target: tests/e2e/level2-file-task.sh
+  type: called_by
+- target: tests/e2e/level3-persistent-agent.sh
+  type: called_by
+- target: tests/e2e/level4-multi-specialist.sh
+  type: called_by
+- target: tests/e2e/level5-role-specialists.sh
+  type: called_by
+- target: tests/e2e/level6-reflection-fleet.sh
+  type: called_by
+- target: tests/e2e/level8-orchestration-harness.sh
+  type: called_by
 last_verified: 2026-03-12
 created_by: unknown
-last_enriched: '2026-04-19'
+last_enriched: '2026-08-14'

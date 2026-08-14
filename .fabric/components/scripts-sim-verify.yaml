@@ -1,0 +1,16 @@
+id: scripts/sim-verify.sh
+name: sim-verify
+type: script
+subsystem: unknown
+location: scripts/sim-verify.sh
+tags: []
+purpose: 'TODO: describe what this component does'
+depends_on:
+- target: agents/mesh/dispatch.sh
+  type: calls
+- target: scripts/tl-claude.sh
+  type: calls
+depended_by: []
+last_verified: 2026-08-14
+created_by: unknown
+last_enriched: '2026-08-14'

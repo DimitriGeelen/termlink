@@ -1,0 +1,14 @@
+id: scripts/agent-journal.sh
+name: agent-journal
+type: script
+subsystem: unknown
+location: scripts/agent-journal.sh
+tags: []
+purpose: 'TODO: describe what this component does'
+depends_on: []
+depended_by:
+- target: scripts/recent-dm.sh
+  type: called_by
+last_verified: 2026-08-14
+created_by: unknown
+last_enriched: '2026-08-14'

@@ -1,0 +1,16 @@
+id: crates/termlink-session/tests/claim_client_integration.rs
+name: claim_client_integration
+type: script
+subsystem: session
+location: crates/termlink-session/tests/claim_client_integration.rs
+tags: []
+purpose: 'TODO: describe what this component does'
+depends_on:
+- target: crates/termlink-protocol/src/lib.rs
+  type: calls
+- target: crates/termlink-session/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-08-14
+created_by: unknown
+last_enriched: '2026-08-14'

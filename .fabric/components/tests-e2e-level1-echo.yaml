@@ -1,0 +1,16 @@
+id: tests/e2e/level1-echo.sh
+name: level1-echo
+type: script
+subsystem: unknown
+location: tests/e2e/level1-echo.sh
+tags: []
+purpose: 'TODO: describe what this component does'
+depends_on:
+- target: tests/e2e/setup.sh
+  type: calls
+depended_by:
+- target: tests/e2e/level6-reflection-fleet.sh
+  type: called_by
+last_verified: 2026-08-14
+created_by: unknown
+last_enriched: '2026-08-14'

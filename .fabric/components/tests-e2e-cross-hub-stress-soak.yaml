@@ -1,0 +1,14 @@
+id: tests/e2e/cross-hub-stress-soak.sh
+name: cross-hub-stress-soak
+type: script
+subsystem: unknown
+location: tests/e2e/cross-hub-stress-soak.sh
+tags: []
+purpose: 'TODO: describe what this component does'
+depends_on:
+- target: tests/e2e/arc-suite.sh
+  type: calls
+depended_by: []
+last_verified: 2026-08-14
+created_by: unknown
+last_enriched: '2026-08-14'

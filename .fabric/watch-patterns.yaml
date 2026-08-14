@@ -13,3 +13,18 @@ patterns:
   - glob: "bin/*"
   - glob: "**/*.ts"
   - glob: "**/*.go"
+  # T-2712: the guard layer + canaries under scripts/, and the shell/Rust test
+  # suites, already carry fabric cards — 44 of them. Without these globs the
+  # drift check cannot see those files, so card coverage was measured over a
+  # subset while reporting as if complete. Widened so drift covers what the
+  # registry already treats as components.
+  - glob: "scripts/**/*.sh"
+  - glob: "tests/**/*.sh"
+  - glob: "crates/*/tests/**/*.rs"
+  - glob: "scripts/**/*.py"
+  - glob: "crates/*/build.rs"
+  # Deliberately NOT covered: install.sh, systemd-templates/*.service,
+  # docs/**/*.md, .claude/commands/*.md. Cards exist for a few of these because
+  # they are real components, but they are not source and inventing globs to
+  # chase them would make the pattern list meaningless. Four cards therefore
+  # stay outside drift coverage on purpose.
