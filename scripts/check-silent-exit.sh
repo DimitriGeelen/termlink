@@ -29,12 +29,31 @@
 #
 # WHAT: a grep/AST-lite scanner over the user-facing CLI crate that flags each
 #   std::process::exit(<non-zero int literal>)
-# whose IMMEDIATELY-preceding non-blank line is a lone `}` (a closed block, NOT an output
-# statement or a `flush()`), where that closed block carries a `json_error_exit` call within
-# a short window above, and NO output macro (eprintln!/println!/eprint!/print!) sits between
-# the closing brace and the exit. That is precisely the json-gated-output / bare-text-exit
-# shape — high precision (the ~40 LOUD exit sites in this tree print or flush immediately
-# above the exit, so their preceding line is not a lone `}`, and they do not match).
+# whose IMMEDIATELY-preceding non-blank, non-comment line is a lone `}` (a closed block,
+# NOT an output statement or a `flush()`), where that closed block carries a
+# `json_error_exit` call within a short window above, and NO output macro
+# (eprintln!/println!/eprint!/print!) sits between the closing brace and the exit. That is
+# precisely the json-gated-output / bare-text-exit shape — high precision (the ~40 LOUD exit
+# sites in this tree print or flush immediately above the exit, so their preceding line is
+# not a lone `}`, and they do not match).
+#
+# T-2688 — COMMENT-ONLY lines are skipped everywhere the scanner reads context: when
+# locating the preceding statement, when grepping the window for `json_error_exit`, and when
+# checking for an output macro between the brace and the exit. Before this, a comment was
+# merely "non-blank", so it became the preceding line and hid the site entirely:
+#
+#     if display.json { json_error_exit(...) }
+#     // explain why we exit here
+#     std::process::exit(1);            <-- scanned CLEAN pre-T-2688
+#
+# That exact shape was produced by reverting the T-2663 fix while keeping its explanatory
+# comment, and the check did not fire. A comment can neither emit output nor call
+# json_error_exit, so ignoring comments is strictly more precise in both directions: silent
+# sites stop hiding behind prose, and prose *mentioning* `eprintln!` or `json_error_exit`
+# stops clearing or gating a site it does not actually affect.
+#
+# LIMITATION: `/* … */` block comments are not recognised (this tree uses `//` throughout).
+# A silent exit hidden behind a block comment would still be missed.
 #
 # Exit-code-FORWARDING sites are OUT OF SCOPE by construction: `exit(code)`,
 # `exit(exit)`, `exit(exit_code as i32)`, `exit(exec_result.exit_code)` forward a wrapped
@@ -161,25 +180,46 @@ while IFS= read -r file; do
 
         checked=$((checked + 1))
 
-        # nearest non-blank line ABOVE this exit; capture its lineno (prevno) + trimmed text
+        # nearest non-blank, non-COMMENT line ABOVE this exit; capture its lineno
+        # (prevno) + trimmed text.
+        #
+        # T-2688 — comment-only lines are skipped. They are non-blank, so the original
+        # "nearest non-blank line" rule let a comment between the closed block and the
+        # exit defeat the anchor entirely:
+        #
+        #     if display.json { json_error_exit(...) }
+        #     // explain why we exit here
+        #     std::process::exit(1);     <-- invisible pre-T-2688
+        #
+        # Found while reverting the T-2663 fix to prove this check load-bearing: the
+        # first revert (delete the eprintln!, keep its explanatory comment) did NOT
+        # fire, because the comment became the "preceding line". A comment cannot emit
+        # output, so it can never be the reason a site is loud — skipping it is
+        # strictly more precise in both directions.
         prevno=$lineno; prevtrim=""
         while [ "$prevno" -gt 1 ]; do
             prevno=$((prevno - 1))
             cand="$(sed -n "${prevno}p" "$file")"
             candtrim="$(printf '%s' "$cand" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
-            if [ -n "$candtrim" ]; then prevtrim="$candtrim"; break; fi
+            case "$candtrim" in ''|'//'*) continue ;; esac
+            prevtrim="$candtrim"; break
         done
         # the class signature: the exit's immediately-preceding statement is a closed block `}`,
         # NOT an output/flush line. (Loud sites print or flush() right above -> prevtrim != "}".)
         [ "$prevtrim" = "}" ] || continue
 
-        # the closed block must carry a json_error_exit within a short window above the exit
+        # the closed block must carry a json_error_exit within a short window above the
+        # exit. T-2688: comment-only lines are stripped before the grep — a comment
+        # *mentioning* json_error_exit is not a call to it and must not satisfy the gate.
         winstart=$((lineno - 6)); [ "$winstart" -lt 1 ] && winstart=1
-        win="$(sed -n "${winstart},$((lineno - 1))p" "$file")"
+        win="$(sed -n "${winstart},$((lineno - 1))p" "$file" | grep -vE '^[[:space:]]*//' || true)"
         printf '%s' "$win" | grep -q "$GATED_RE" || continue
 
-        # and NO output macro may sit between the closing brace and the exit (normally empty).
-        between="$(sed -n "$((prevno + 1)),$((lineno - 1))p" "$file")"
+        # and NO output macro may sit between the closing brace and the exit (normally
+        # empty, or comments only after T-2688). Comment-only lines are stripped for the
+        # same reason: a comment quoting `eprintln!` is not an eprintln!, and letting it
+        # clear the site would reintroduce the false negative from the other side.
+        between="$(sed -n "$((prevno + 1)),$((lineno - 1))p" "$file" | grep -vE '^[[:space:]]*//' || true)"
         printf '%s' "$between" | grep -qE "$OUT_RE" && continue
 
         # enclosing fn = the fn-decl line with the largest lineno <= this exit's lineno
