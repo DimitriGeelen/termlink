@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T08:06:09Z
-last_update: 2026-08-14T08:06:24Z
+last_update: 2026-08-14T08:09:55Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -48,7 +48,7 @@ date_finished: null
 - [x] The status-mapping is a pure helper with unit tests, mirroring `mcp_inject_outcome` — so the check is provable rather than only observable
 - [x] Test covers all three shapes: `status:"injected"` → success, `status:"resolved"` → honest failure carrying the note, missing `status` → treated as NOT injected (fail closed)
 - [x] CLI and MCP now agree on this semantic; the divergence T-2580 left behind is closed
-- [ ] `cargo test --workspace` green
+- [x] `cargo test --workspace` green
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

@@ -1,13 +1,13 @@
 ---
-id: T-2695
-name: "session-selftest proves exec only; the charter also claims inject and output"
+id: T-2700
+name: "Wire protocol-version negotiation into the request path"
 description: >
-  The charter says peers can stream output, inject keystrokes, exec, and doorbell-wake PTY sessions. session-selftest.sh exercises only 'termlink exec'. inject's unit tests are named command_inject_resolves_keys_no_pty — key resolution without a PTY. Add INJECT and OUTPUT stages proving the capabilities end-to-end (T-2694 F1/G1+G2).
+  check_protocol_version() exists in control.rs with a passing unit test and ZERO callers, so PROTOCOL_VERSION_TOO_OLD can never be returned and the hub cannot refuse an out-of-date peer. Wiring it starts rejecting live peers below the required version — which methods gate on which version is a product decision with fleet blast radius (T-2698 G3).
 
-status: started-work
+status: captured
 workflow_type: build
-owner: agent
-horizon: now
+owner: human
+horizon: next
 tags: []
 components: []
 related_tasks: []
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-14T08:01:34Z
-last_update: 2026-08-14T08:15:34Z
+created: 2026-08-14T08:25:19Z
+last_update: 2026-08-14T08:25:35Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,7 +30,7 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2695: session-selftest proves exec only; the charter also claims inject and output
+# T-2700: Wire protocol-version negotiation into the request path
 
 ## Context
 
@@ -40,19 +40,8 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] An **INJECT** stage proves `termlink inject` end-to-end: keystrokes written into a live PTY produce their **observable effect**, not merely an `ok` RPC response
-- [x] The proof is by effect, not by return code — an `ok` proves the bytes were accepted, which is exactly what the existing `no_pty` unit tests already establish and is not what the charter claims
-- [x] An **OUTPUT** stage proves `termlink output` streams back PTY content the session actually produced
-- [x] ~~Both stages reuse the session the prover already spawns~~ — **corrected during build.** The existing session is spawned `-- sleep <TTL>` and has `pty: null`; `output` refuses it with `-32007 No PTY session` and `inject` cannot reach a terminal through it. Reuse is structurally impossible, so the PTY stages spawn their OWN `--shell` session. The `sleep`-backed session stays exactly as-is so the T-2557 canary's existing stages carry zero regression risk.
-- [x] The PTY session is cleaned up on every exit path, including when a PTY stage fails — a leaked tmux session per canary run would be worse than the gap being closed
-- [x] Stages absorb the PTY timing race the way EXEC already does (bounded retry), so the prover does not become flaky and start firing its canary on timing
-- [x] A failure in either stage names *which* stage broke, matching the existing `broken_stage` contract
-- [x] JSON envelope extended additively — `stages.inject` / `stages.output` alongside the existing keys; no existing key renamed or removed
-- [x] Test seams let the new stages be exercised without a live PTY (mirroring `TERMLINK_SESSION_SELFTEST_TEST_EXEC_JSON`), so the canary translation stays verifiable
-- [x] Exit-code contract preserved: 0 proven / 1 broken (names the stage) / 2 tooling — a missing tmux must stay exit 2, never a false "broken"
-- [x] Verified by actually running it on this host, not asserted — `session-selftest.sh --json` returns `proven:true` with the new stages present
-- [x] Load-bearing: sabotaging the injected sentinel makes the INJECT stage fail rather than silently pass
-- [x] `docs/operations/session-selftest.md` updated so the documented stage list matches reality
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -118,11 +107,6 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-bash scripts/session-selftest.sh --json
-bash scripts/test-session-selftest.sh
-bash scripts/check-session-control-freshness.sh --quiet
-out=$(bash scripts/session-selftest.sh --json); echo "$out" | jq -e '.stages.inject == "PASS" and .stages.output == "PASS"'
-
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -186,10 +170,10 @@ out=$(bash scripts/session-selftest.sh --json); echo "$out" | jq -e '.stages.inj
 
 ## Updates
 
-### 2026-08-14T08:01:34Z — task-created [task-create-agent]
+### 2026-08-14T08:25:19Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2695-session-selftest-proves-exec-only-the-ch.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2700-wire-protocol-version-negotiation-into-t.md
 - **Context:** Initial task creation
 
-### 2026-08-14T08:01:56Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
+### 2026-08-14T08:25:35Z — status-update [task-update-agent]
+- **Change:** horizon: now → next

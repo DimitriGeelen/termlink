@@ -1,0 +1,43 @@
+# error-code-emission-allowlist (T-2699, T-2698 G1/G2)
+#
+# Error codes that are DEFINED but not emitted, each with a reason saying why and what
+# would change that. Git-tracked on purpose (T-2681): a guard whose reported health
+# depends on unversioned local state is a guard whose green is not evidence.
+#
+# THIS FILE IS A LEDGER OF AN OPEN QUESTION, NOT A SILENCER. Every entry below is a
+# published refusal the system cannot currently issue — i.e. a place where the
+# documented contract promises more than the code enforces. They are listed here so the
+# check stays green on KNOWN gaps while firing immediately on a NEW one; each is also
+# annotated at its definition in control.rs so a reader of the taxonomy is told.
+#
+# Removing a line re-fires that code. Adding one requires a reason — "reserved" alone
+# is not a reason, because "reserved" without a stated trigger is how these three came
+# to read as ordinary refusals in the protocol's error table for months (T-2698).
+
+# ── unenforced concurrency guard ────────────────────────────────────────────────
+# Documented in docs/reports/T-005-message-protocol-design.md as "Target cannot accept
+# commands (already executing)". No handler rejects a concurrent command — a second
+# `command.execute` against a busy session is ACCEPTED. Emitting this would mean
+# deciding what "busy" is (a command in flight? a PTY with a foreground job?) and
+# whether serialising is preferable to refusing; that is a product decision, not a
+# missing line. Until then the documented protection does not exist.
+SESSION_BUSY   # no handler refuses a concurrent command; would need a "busy" definition first
+
+# ── unenforced TTL ──────────────────────────────────────────────────────────────
+# Documented as "TTL exceeded before delivery". No path rejects an over-TTL message;
+# it is delivered late instead. Until T-2699 this value was ALSO being squatted by
+# artifact.rs for "artifact not found" (fixed — see ARTIFACT_NOT_FOUND, -32024), which
+# is why the collision hid the deadness: the code appeared on the wire, just never
+# meaning this.
+MESSAGE_EXPIRED   # no TTL enforcement path exists; squatting by artifact.rs fixed in T-2699
+
+# ── built, tested, wired to nothing ─────────────────────────────────────────────
+# The sharpest of the three. control.rs ships `check_protocol_version()` which builds
+# the structured error with {declared, required, method}, and
+# `check_protocol_version_rejects_when_declared_is_older` proves the builder works —
+# but there are ZERO callers outside control.rs. Version negotiation is defined,
+# unit-tested, documented, and never invoked, so the hub cannot refuse an out-of-date
+# peer. Wiring it is T-2700 (owner: human) because it begins REJECTING live peers below
+# the requirement, and this fleet has hosts on binaries ~1000 commits stale (T-2377).
+# A passing unit test on a builder is not evidence the builder is called.
+PROTOCOL_VERSION_TOO_OLD   # builder exists + tested, zero callers; wiring is T-2700 (human, wire-behaviour change)
