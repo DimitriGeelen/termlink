@@ -150,9 +150,19 @@ fn diff_json(name: &str, mcp: &Value, cli: &Value, ignore: &HashSet<&'static str
 // The fix is multi-thread tokio runtime so accept_loop can run on a worker
 // thread while the test thread is blocked in subprocess I/O. Applies to
 // every parity test that needs a socket roundtrip (parity_ping,
-// parity_status). Hub-less tests (parity_topics, parity_list_sessions,
-// parity_discover, parity_clean, parity_tofu_list, parity_info, etc.) do
-// not need the socket so they pass on current_thread too.
+// parity_status, parity_kv_full_cycle, parity_whoami_session_match,
+// parity_topics).
+//
+// T-2687 — `parity_topics` was previously listed here as NOT needing the
+// socket, on the grounds that it is "hub-less". That conflated two different
+// things: it needs no HUB, but it does start a SESSION and the CLI subprocess
+// must RPC `event.topics` to that session's socket. On current_thread the
+// blocking `.output()` in `call_cli` starved the accept loop, the CLI timed
+// out, and the CLI reported `sessions_unreachable: 1` where the in-runtime MCP
+// call reported 0 — a pure harness artifact presented as a parity failure.
+// The remaining hub-less tests genuinely need no socket: parity_list_sessions
+// and parity_discover read registration FILES rather than RPCing, and
+// parity_clean / parity_tofu_list / parity_info touch neither.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn parity_ping() {
     let _lock = ENV_LOCK.lock().await;
@@ -199,7 +209,9 @@ async fn parity_ping() {
 // is useful telemetry for fleet inspection.
 // ---------------------------------------------------------------------------
 
-#[tokio::test]
+// T-2687: multi_thread — the CLI subprocess must RPC `event.topics` to the
+// session started below, and `call_cli` blocks the test thread while it does.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn parity_topics() {
     let _lock = ENV_LOCK.lock().await;
     let dir = TestDir::new("parity-topics");

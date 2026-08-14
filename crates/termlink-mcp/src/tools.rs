@@ -384,6 +384,55 @@ pub(crate) fn aggregate_governor_entries(
     per_hub
 }
 
+/// T-2687 — outcome of probing one session for its event topics.
+///
+/// Mirrors the CLI's `TopicsProbe` (termlink-cli `commands/events.rs`, T-2624).
+/// Duplicated rather than shared across crates per the T-2069 convention for tiny
+/// pure helpers. The two surfaces must agree on what "skipped" MEANS, not merely on
+/// the field names — a session that timed out and one that returned an unparseable
+/// result are both excluded from the inventory, and a consumer is entitled to know
+/// which and how many.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum TopicsProbeMcp {
+    /// The session answered with a topic list (possibly empty).
+    Topics(Vec<String>),
+    /// Timed out or the transport failed.
+    Unreachable,
+    /// Answered, but the result was an error or had no `topics` array.
+    BadResult,
+}
+
+/// T-2687 — aggregate per-session probe outcomes into the inventory plus the
+/// partial-inventory counters.
+///
+/// Sessions reporting an EMPTY topic list are deliberately excluded from
+/// `session_topics` (they contribute nothing to an inventory of topics) but are NOT
+/// counted as skipped — they were reached and answered truthfully. This matches the
+/// CLI's `aggregate_topics_probes` exactly.
+pub(crate) fn aggregate_topics_probes_mcp(
+    probes: Vec<(String, TopicsProbeMcp)>,
+) -> (
+    std::collections::BTreeMap<String, Vec<String>>,
+    usize,
+    usize,
+) {
+    let mut session_topics = std::collections::BTreeMap::new();
+    let mut unreachable = 0usize;
+    let mut bad_result = 0usize;
+    for (name, probe) in probes {
+        match probe {
+            TopicsProbeMcp::Unreachable => unreachable += 1,
+            TopicsProbeMcp::BadResult => bad_result += 1,
+            TopicsProbeMcp::Topics(list) => {
+                if !list.is_empty() {
+                    session_topics.insert(name, list);
+                }
+            }
+        }
+    }
+    (session_topics, unreachable, bad_result)
+}
+
 fn json_err(msg: impl std::fmt::Display) -> String {
     serde_json::to_string_pretty(&serde_json::json!({"ok": false, "error": msg.to_string()}))
         .unwrap_or_else(|e| format!("{{\"ok\":false,\"error\":\"{e}\"}}" ))
@@ -13866,32 +13915,55 @@ impl TermLinkTools {
         };
 
         if registrations.is_empty() {
+            // T-2687: emit the full field set (zeroed) so the empty path is
+            // structurally identical to the populated one and to the CLI. T-2624
+            // added the partial-inventory fields to the populated path only, which
+            // left BOTH surfaces silently shape-shifting when no session exists.
             return serde_json::json!({
                 "ok": true,
                 "sessions": [],
                 "total_topics": 0,
                 "total_sessions": 0,
+                "sessions_unreachable": 0,
+                "sessions_bad_result": 0,
+                "sessions_skipped": 0,
+                "sessions_probed": 0,
             }).to_string();
         }
 
         let timeout = std::time::Duration::from_secs(5);
-        let mut session_topics: std::collections::BTreeMap<String, Vec<String>> = std::collections::BTreeMap::new();
+        let total_probed = registrations.len();
+        // Size from the materialized collection directly, not via `total_probed`: the
+        // capacity is then bounded by an allocation that has already succeeded, which
+        // is both true and visible to check-alloc-sink-clamps (T-2527) — it clears
+        // `.len()` of a materialized collection but not a bare identifier.
+        let mut probes: Vec<(String, TopicsProbeMcp)> = Vec::with_capacity(registrations.len());
 
         for reg in &registrations {
             let rpc_future = client::rpc_call(reg.socket_path(), "event.topics", serde_json::json!({}));
-            if let Ok(Ok(resp)) = tokio::time::timeout(timeout, rpc_future).await
-                && let Ok(result) = client::unwrap_result(resp)
-                && let Some(topics) = result["topics"].as_array()
-            {
-                let topic_list: Vec<String> = topics
-                    .iter()
-                    .filter_map(|t| t.as_str().map(String::from))
-                    .collect();
-                if !topic_list.is_empty() {
-                    session_topics.insert(reg.display_name.clone(), topic_list);
-                }
-            }
+            // T-2687: classify each probe explicitly instead of letting a failed
+            // session fall through an `if let` chain into silence. Aggregation lives
+            // in the pure `aggregate_topics_probes_mcp` helper for unit-testability,
+            // mirroring the CLI's structure (events.rs `aggregate_topics_probes`).
+            let probe = match tokio::time::timeout(timeout, rpc_future).await {
+                Ok(Ok(resp)) => match client::unwrap_result(resp) {
+                    Ok(result) => match result["topics"].as_array() {
+                        Some(topics) => TopicsProbeMcp::Topics(
+                            topics
+                                .iter()
+                                .filter_map(|t| t.as_str().map(String::from))
+                                .collect(),
+                        ),
+                        None => TopicsProbeMcp::BadResult,
+                    },
+                    Err(_) => TopicsProbeMcp::BadResult,
+                },
+                Ok(Err(_)) | Err(_) => TopicsProbeMcp::Unreachable,
+            };
+            probes.push((reg.display_name.clone(), probe));
         }
+
+        let (session_topics, unreachable, bad_result) = aggregate_topics_probes_mcp(probes);
 
         let total: usize = session_topics.values().map(|v| v.len()).sum();
         let total_sessions = session_topics.len();
@@ -13905,6 +13977,14 @@ impl TermLinkTools {
             "sessions": sessions,
             "total_topics": total,
             "total_sessions": total_sessions,
+            // T-2624 partial-inventory signal, migrated to MCP by T-2687: an agent
+            // consuming this tool can now tell the topic set excludes sessions that
+            // timed out or errored, instead of reading a truncated inventory as
+            // complete (Directive #2 — no silent failures).
+            "sessions_unreachable": unreachable,
+            "sessions_bad_result": bad_result,
+            "sessions_skipped": unreachable + bad_result,
+            "sessions_probed": total_probed,
         });
         serde_json::to_string_pretty(&result).unwrap_or_else(json_err)
     }
@@ -29861,6 +29941,45 @@ impl TermLinkTools {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // === T-2687: topics probe classification (partial-inventory signal) ===
+
+    #[test]
+    fn topics_probe_counts_unreachable_and_bad_result_separately() {
+        let (topics, unreachable, bad) = aggregate_topics_probes_mcp(vec![
+            ("s1".into(), TopicsProbeMcp::Topics(vec!["a".into(), "b".into()])),
+            ("s2".into(), TopicsProbeMcp::Unreachable),
+            ("s3".into(), TopicsProbeMcp::Topics(vec!["c".into()])),
+            ("s4".into(), TopicsProbeMcp::BadResult),
+            ("s5".into(), TopicsProbeMcp::Unreachable),
+        ]);
+        assert_eq!(topics.len(), 2, "only reachable sessions with topics are inventoried");
+        assert_eq!(unreachable, 2, "both unreachable sessions counted");
+        assert_eq!(bad, 1, "bad-result counted separately from unreachable");
+        assert_eq!(topics.get("s1").map(|v| v.len()), Some(2));
+        assert_eq!(topics.get("s3").map(|v| v.len()), Some(1));
+    }
+
+    #[test]
+    fn topics_probe_empty_list_is_not_skipped() {
+        // A session that answered with zero topics was REACHED. It contributes
+        // nothing to the inventory but must not inflate the skipped counters —
+        // that would report a partial inventory where none exists.
+        let (topics, unreachable, bad) = aggregate_topics_probes_mcp(vec![
+            ("quiet".into(), TopicsProbeMcp::Topics(vec![])),
+        ]);
+        assert!(topics.is_empty(), "empty topic list is excluded from the inventory");
+        assert_eq!((unreachable, bad), (0, 0), "a reachable session is never 'skipped'");
+    }
+
+    #[test]
+    fn topics_probe_all_healthy_reports_zero_skipped() {
+        let (topics, unreachable, bad) = aggregate_topics_probes_mcp(vec![
+            ("s1".into(), TopicsProbeMcp::Topics(vec!["x".into()])),
+        ]);
+        assert_eq!(topics.len(), 1);
+        assert_eq!(unreachable + bad, 0, "a complete inventory reports zero skipped");
+    }
 
     // === T-2553: hub-down error is actionable (Constitutional Directive #3) ===
 
