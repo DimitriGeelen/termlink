@@ -867,6 +867,100 @@ sleep-on-error before the next iteration (the T-2670/T-2671/T-2673 remediation) 
 error path provably exits the loop — add the loop's signature to the allowlist with a cited
 reason.
 
+### Running the guard layer — `scripts/run-guard-layer.sh` (T-2684)
+
+**One command runs every source-level guard.** Before T-2684 there was none, and
+nothing automatic ran them at all.
+
+```bash
+bash scripts/run-guard-layer.sh            # all static checks + fixture suites (seconds)
+bash scripts/run-guard-layer.sh --list     # what the layer consists of
+bash scripts/run-guard-layer.sh --tests    # ...plus `cargo test --workspace` (minutes)
+bash scripts/run-guard-layer.sh --json     # {ok, members[], summary} for scripting
+```
+
+TermLink's guards split in two, and only one half was ever automated. The **runtime**
+guards — the 17 cron canaries above — are wired to cron and heartbeat daily. The
+**source-level** guards, which protect the code that changes on every commit, were
+executed by nothing: T-2683 grepped the whole tree and found the four static checks
+referenced only by their own fixture suites and by `.context/episodic/*`, the records
+of the tasks that created them. `release.yml` ran `cargo build --release` and never
+`cargo test`; `doc-lint.yml` ran 2 of 28 check scripts; the pre-push audit runs the
+`structure` section only. That is precisely the disease the static checks exist to
+cure — `check-alloc-sink-clamps.sh`'s own header says "the convention is by
+discipline, not enforced" — reproduced one level up, where nothing was watching.
+
+**Membership is declared, not guessed.** A static check joins the layer by carrying a
+marker in its own header:
+
+```
+# guard-layer: source [extra args...]
+```
+
+`source` means "safe to run anywhere: no live hub, no network, no host state". The
+optional trailing args are how the check wants to be invoked here — chiefly
+`--no-heartbeat`, so a check run from the runner cannot refresh its cron heartbeat and
+mask a dead cron from the T-1723 meta-canary. Fixture suites (`tests/*fixtures*.sh`)
+are members by naming convention; they are hermetic by construction. A
+`scripts/check-*.sh` with **no** marker is reported as unclassified rather than
+silently ignored — a forgotten marker is itself the shipped-but-dark condition. Most
+unmarked checks are legitimately runtime canaries and belong to cron.
+
+**Verdicts preserve the exit-code contract the layer already uses:** `PASS` (rc 0) ·
+`FAIL` (rc 1 — a guard fired, a real finding) · `ERROR` (rc 2 or an unexpected status
+— the guard *could not run*) · `SKIP`. Keeping ERROR distinct from PASS is the point:
+a check that never looked must never read as a clean bill. Roll-up: any FAIL → exit 1;
+else any ERROR → exit 2; else 0 — findings dominate tooling errors, mirroring
+`fleet verify`'s "drift dominates". A member that hangs is bounded by
+`GUARD_LAYER_TIMEOUT` (default 300s) and counts as ERROR, never PASS.
+
+**Wired into CI by T-2686.** `doc-lint.yml` gains a `guard-layer` job (runs on every
+push and PR — no Rust build, seconds), and `release.yml` gains a `test` job running
+`cargo test --workspace` **plus** the guard layer, which both build jobs now `needs:`
+— so a red suite blocks the build and no binary is produced at all. That gate found
+its first real defect immediately: `parity_topics` had been failing since 2026-08-12
+(T-2624 added four partial-inventory fields to the CLI's `topics --json` and never to
+the MCP tool — fixed in T-2687) with nothing to surface it.
+
+Test seams: `GUARD_LAYER_SCRIPTS_DIR`, `GUARD_LAYER_TESTS_DIR`, `GUARD_LAYER_TIMEOUT`.
+Fixtures: `bash tests/guard-layer-runner-fixtures.sh` (27 assertions).
+
+### Canary log hygiene — split the streams (T-2685)
+
+Every canary implements `exit 0 healthy / exit 1 FIRING / exit 2 tooling error`, and
+T-2557 states why the exit-2 class exists: *"This split keeps a firing log meaningful:
+it fills ONLY when session control genuinely broke, never on a transient hub-down."*
+
+**The crontab used to throw that split away.** All 30 job lines across all 24 crontabs
+were written `>> <findings>.log 2>&1`, merging stderr into the findings log — so a
+check that *could not run* wrote into the channel whose entire documented meaning is
+"the watched thing is broken". T-2683 found a live instance:
+`.release-mirror-canary.log` held `error: origin HEAD empty` while the script itself
+exited 0 with "GitHub mirror: synced", which per this file directs an operator to
+rotate a GitHub token for a fault that did not exist.
+
+The compounding harm is worse than one false positive: **"empty log = healthy" is a
+one-bit channel.** Once a tooling error dirties the log, a subsequent genuine finding
+appends to an already-non-empty file and changes nothing an operator can see — the
+canary is not merely noisy, it is *deaf* until someone truncates it by hand.
+
+The correct idiom, now used everywhere:
+
+```
+… bash scripts/check-<x>.sh --quiet >> .context/working/.<x>-canary.log 2>> .context/working/.<x>-canary.log.stderr
+```
+
+Nothing is lost — the diagnostic stream is preserved, just not conflated with the
+signal. The `.stderr` suffix deliberately does not match `/canaries`' `.*-canary.log`
+discovery glob (`canary-status.sh:97`). `2>/dev/null` is **also** wrong: it trades a
+false positive for a silent failure, Directive #2 violated inside the monitoring
+layer. `scripts/check-canary-log-hygiene.sh` enforces this, carries the
+`# guard-layer: source` marker, and fires on either mistake. Ad-hoc:
+`bash scripts/check-canary-log-hygiene.sh` (0 clean / 1 firing / 2 tooling; `--json`;
+seam `CANARY_HYGIENE_SRC_DIR`). Fixtures: `bash tests/canary-log-hygiene-fixtures.sh`
+(19 assertions). See `docs/operations/substrate-cron-recipes.md` § "The redirect
+idiom".
+
 ## Project-Specific Rules
 
 ### Hub Auth Rotation Protocol
