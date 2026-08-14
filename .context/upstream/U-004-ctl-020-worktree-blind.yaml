@@ -1,0 +1,52 @@
+---
+id: U-004
+title: "CTL-020 cron audit check fires unconditionally in linked worktrees, and its mitigation is harmful"
+created: 2026-08-14T20:48:00Z
+source_project: 010-termlink
+source_task: T-2715
+status: pending
+severity: medium
+component: agents/audit/audit.sh
+context: |
+  Found during a full `fw audit` remediation pass in a linked worktree.
+
+  CTL-020 warns "Cron audit directory missing (<root>/.context/audits/cron)" on
+  every audit run in a linked worktree, and the directory it looks for is one
+  the project has deliberately arranged never to exist there:
+  `.gitignore:54` carries `.context/audits/cron/`, because it is host-local
+  continuous-audit output. A `git worktree add` therefore cannot produce it, and
+  cron runs from the main checkout.
+
+  The audit ALREADY knows how to handle this. It carries `fw_is_linked_worktree`
+  and uses it at two adjacent sites to skip the cron-drift and cron-misload
+  checks with "cron is host-level, managed from the main checkout". CTL-020 is
+  the same class and was simply left behind when those two were fixed.
+evidence: |
+  - audit.sh:3213 — CRON_DIR="$AUDITS_DIR/cron"; grace_warn on missing dir
+  - .gitignore:54 — `.context/audits/cron/` (gitignored by design)
+  - audit.sh:1638 and audit.sh:1708 — existing `fw_is_linked_worktree` guards
+  - audit.sh:1644 and audit.sh:1723 — the info lines those two emit
+  - audit.sh:1714 — already names this exact hazard for the sibling check:
+    "A linked worktree derives a worktree-named target that is never installed."
+suggestion: |
+  Guard the CTL-020 block with `fw_is_linked_worktree "$PROJECT_ROOT"` and emit
+  the same `info` skip line the two siblings already use.
+
+  TWO WRONG FIXES, both worth naming explicitly so the report is not
+  "remediated" by either:
+
+  1. Following the printed mitigation, `fw audit schedule install`, in a
+     worktree installs a HOST-LEVEL cron entry pointing at $PROJECT_ROOT — a
+     directory that is deleted when the worktree is removed. The mitigation is
+     not merely useless here, it is actively harmful, and audit.sh:1714 already
+     documents that hazard for the sibling check.
+
+  2. `mkdir -p .context/audits/cron` clears the warning by converting it into a
+     different one — the populated branch then reports "No cron audit files in
+     last hour", because an empty directory has no recent files. It trades a
+     truthful "does not apply here" for a false "continuous auditing is broken",
+     and fabricates host state to do it.
+
+  The durable guard is a fixture running `fw audit` inside a `git worktree add`,
+  asserting no check reports a failure whose cause is the worktree layout
+  itself. That same fixture covers U-003 — fix them together.

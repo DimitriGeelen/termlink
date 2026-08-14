@@ -1,0 +1,48 @@
+---
+id: U-002
+title: "Hook telemetry counts intentional exit-2 blocks as hook failures"
+created: 2026-08-14T20:46:00Z
+source_project: 010-termlink
+source_task: T-2713
+status: pending
+severity: medium
+component: lib/hook-telemetry.sh
+context: |
+  Found during a full `fw audit` remediation pass.
+
+  lib/hook-telemetry.sh treats ANY non-zero hook exit as a failure:
+
+      if [ "$exit_code" != "0" ]; then
+          _fw_telemetry_increment "$working_dir/.hook-failure-counter" "$hookname"
+
+  In Claude Code, exit 2 is not an error — it is the documented "block this tool
+  call" signal, and it is how every PreToolUse gate does its job. So a gate that
+  works perfectly is recorded as a failing hook, and the audit's hook-threshold
+  check fires on it.
+
+  The perverse consequence: the more reliably a safety gate does what it exists
+  to do, the worse its telemetry looks. Every blocking gate in the framework is
+  exposed to this.
+evidence: |
+  - lib/hook-telemetry.sh:28 — the `!= 0` test
+  - agents/context/check-human-ac-tick.py:289 — `return 2`, the ONLY non-zero
+    return in the file, and it is the intentional T-1731 Human-AC-tick block.
+    Every other path in that file returns 0 (lines 162, 166, 173, 191, 209, 217,
+    221, 236, 246, 298). So 100% of this hook's recorded "failures" are
+    successful blocks.
+  - The warning is intermittent by construction: it fires when the fixed
+    numerator (2 blocks) crosses the 0.10 ratio against a growing denominator.
+    Observed self-clearing to PASS during this same session with nothing about
+    the hook changed — ordinary edits simply grew the denominator past 20. A
+    metric that improves because unrelated activity increased is not measuring
+    what it claims to.
+suggestion: |
+  Treat exit 2 as its own class rather than folding it into failure:
+
+  - count exit 2 in a `.hook-block-counter`, distinct from `.hook-failure-counter`
+  - keep exit 1 and other non-zero codes as failures
+  - have the audit's hook-threshold check read the failure counter only
+
+  Blocks are worth counting — a gate firing constantly may indicate a workflow
+  problem — but they are a different signal from a hook that crashed, and
+  conflating them makes both unreadable.

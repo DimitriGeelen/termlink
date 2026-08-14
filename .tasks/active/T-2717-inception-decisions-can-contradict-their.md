@@ -4,7 +4,7 @@ name: "Inception decisions can contradict their own recorded rationale"
 description: >
   Two of six completed inceptions record Decision GO with a rationale arguing DEFER or NO-GO verbatim; nothing detects a verdict that contradicts its attached reasoning
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T20:30:13Z
-last_update: 2026-08-14T20:30:13Z
+last_update: 2026-08-14T20:33:53Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -220,3 +220,6 @@ re-vendor. Deliverable is an upstream report, not an edit under
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2717-inception-decisions-can-contradict-their.md
 - **Context:** Initial task creation
+
+### 2026-08-14T20:33:53Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

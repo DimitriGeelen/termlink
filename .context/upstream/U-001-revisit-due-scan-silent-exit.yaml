@@ -1,0 +1,50 @@
+---
+id: U-001
+title: "revisit-due-scan.sh exits 0 when it cannot find the tasks dir"
+created: 2026-08-14T20:45:00Z
+source_project: 010-termlink
+source_task: T-2711
+status: pending
+severity: medium
+component: agents/context/revisit-due-scan.sh
+context: |
+  Found during a full `fw audit` remediation pass in a linked worktree.
+
+  revisit-due-scan.sh resolves PROJECT_ROOT by walking up for a directory
+  containing `.framework.yaml` OR `FRAMEWORK.md`. In a consumer project that
+  vendors the framework, `.agentic-framework/` carries FRAMEWORK.md and is
+  nearer the script than the consumer root, so PROJECT_ROOT resolves to the
+  vendored framework directory rather than the consumer project.
+
+  It then finds no `.tasks/` there and returns:
+
+      revisit-due-scan: tasks dir not found at $TASKS_DIR
+      exit 0
+
+  Exit 0 means "scanned successfully, nothing due". A caller — including a cron
+  job — cannot distinguish "no revisits are due" from "scanned the wrong
+  directory and saw nothing at all".
+evidence: |
+  - agents/context/revisit-due-scan.sh:50-100 — the PROJECT_ROOT walk matching
+    either marker, and the `exit 0` on missing tasks dir
+  - The vendored framework at .agentic-framework/ carries FRAMEWORK.md, so it
+    matches the walk before the consumer root does
+  - Scoping note: `fw task revisit-due` works CORRECTLY and reports both overdue
+    revisits (T-1898, 39 days; T-2250, 20 days). The defect is in the standalone
+    scan script only. Do not close this as invalid on the strength of the verb.
+suggestion: |
+  Two changes, either of which alone leaves a gap:
+
+  1. Prefer `.framework.yaml` over `FRAMEWORK.md` when both are found during the
+     upward walk — `.framework.yaml` is the consumer marker, FRAMEWORK.md is
+     present in the framework itself and is therefore ambiguous.
+  2. Return a non-zero exit (2, matching the tooling-error convention used
+     across the canary layer) when the tasks dir cannot be found. A scan that
+     did not scan must never report success.
+
+  The durable guard is a test that runs the script from inside a consumer
+  project that vendors the framework, and asserts it finds the CONSUMER's tasks.
+related_learning: |
+  Same shape as U-003 and U-004 filed alongside it: a check whose verdict rests
+  on a layout assumption that no longer holds. Reporting success after doing
+  nothing is the Directive #2 (no silent failures) half of it.
