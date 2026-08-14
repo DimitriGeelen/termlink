@@ -1,8 +1,8 @@
 ---
-id: T-2699
-name: "Nothing detects an error code that is defined and documented but never emitted"
+id: T-2703
+name: "The spoke-to-spoke mesh invariant is guarded by nothing (T-2569 guards a different edge)"
 description: >
-  23 codes defined in control.rs::error_code; three have zero emission sites — SESSION_BUSY, MESSAGE_EXPIRED, PROTOCOL_VERSION_TOO_OLD. check-error-code-docs.sh verifies doc-to-definition pairing but never asks whether the code can actually be returned, so the published refusal taxonomy can contain fiction indefinitely (T-2698 G1).
+  The architecture doc's decisive invariant is 'spokes never connect to one another'. T-2569's tripwire scans only the hub crate and forbids hub-to-hub federation — a different edge. termlink-session ships a generic client that connects to any unix path or TCP host:port, so a spoke-to-spoke mesh could be added and no test would fail (T-2702 F1).
 
 status: started-work
 workflow_type: build
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-14T08:25:09Z
-last_update: 2026-08-14T08:50:35Z
+created: 2026-08-14T11:27:41Z
+last_update: 2026-08-14T11:28:05Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,7 +30,7 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2699: Nothing detects an error code that is defined and documented but never emitted
+# T-2703: The spoke-to-spoke mesh invariant is guarded by nothing (T-2569 guards a different edge)
 
 ## Context
 
@@ -40,18 +40,15 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] `scripts/check-error-code-emission.sh` flags every `error_code::` constant with no emission site in the product crates — the class `check-error-code-docs.sh` cannot see, because it only verifies doc↔definition pairing
-- [x] Detection covers BOTH the symbolic form (`error_code::NAME`) and the bare numeric literal, so a code emitted as `-32004` is not miscounted as dead
-- [x] The defining file is excluded from the emission scan — a constant must not count as its own use
-- [x] A code whose only "use" is a **builder that itself has no callers** is still reported: `check_protocol_version` is defined, unit-tested, and invoked by nothing, which is exactly the case that must not read clean
-- [x] Genuinely-reserved codes are acknowledged in `.context/checks/error-code-emission-allowlist` (git-tracked per T-2681) with a cited reason stating WHY it is not emitted and what would change that
-- [x] Carries the `# guard-layer: source` marker so the T-2684 runner executes it
-- [x] Exit codes 0 clean / 1 unacknowledged dead code / 2 tooling; `--json`; `--root` + `--allowlist` for fixtures; `--quiet` / `--no-heartbeat`
-- [x] Fixture suite `tests/error-code-emission-fixtures.sh` covers: emitted code passes, dead code fires, allowlisted dead code suppressed, numeric-literal emission counts as emitted, defining-file-only use does NOT count, absent root is a tooling error
-- [x] The three real dead codes are acknowledged with honest reasons rather than hidden — the allowlist is the ledger of an open question, not a silencer
-- [x] `control.rs` annotates each of the three at its definition so the contract stops overstating enforcement; no constant renamed, no value changed
-- [x] Load-bearing: removing an allowlist entry re-fires that code
-- [x] `cargo test --workspace` green
+- [x] A tripwire test guards the **spoke↔spoke** edge — the invariant T-2569 does NOT cover, since it scans only the hub crate and forbids hub↔hub federation
+- [x] It enumerates every outbound-connection construction site in `termlink-session/src`, pinning the count and each site's legitimate purpose, so a NEW outbound path fails the build until deliberately acknowledged (the T-2569 `EXPECTED_OUTBOUND_SITES` idiom)
+- [x] Connecting to the **hub** stays legal — the star requires it; the test must distinguish "spoke → hub" from "spoke → spoke", not ban outbound connections
+- [x] Connecting to a **local session socket from an operator tool** stays legal — §3 forbids agents meshing with each other, not a CLI reaching a local session; banning that would be a false positive that makes the guard unusable
+- [x] The test explains in-file WHY the mesh is forbidden, citing §3's decisive argument (a mesh distributes fragility across N² links with no central durable replay and silent partial-partition divergence), so a future reader knows the cost of "just add a direct channel"
+- [x] It documents its own residual: what shape of spoke↔spoke connection it would still miss
+- [x] Load-bearing: adding a simulated peer-to-peer connection site makes it fail; removing it returns to green
+- [x] Comment/string mentions of a socket path do not trip it — prose about connecting is not connecting
+- [ ] `cargo test -p termlink-session` green, and `cargo test --workspace` green
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -117,57 +114,53 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-bash tests/error-code-emission-fixtures.sh
-bash scripts/check-error-code-emission.sh --quiet
-bash scripts/check-error-code-docs.sh
-bash scripts/run-guard-layer.sh --quiet
-cargo test -p termlink-protocol --lib artifact_not_found
+cargo test -p termlink-session --test no_spoke_mesh_tripwire
+cargo test -p termlink-session
 
 ## RCA
 
-**Symptom:** three of the 23 codes in `control.rs::error_code` had no emission site
-anywhere — `SESSION_BUSY` (-32002), `MESSAGE_EXPIRED` (-32004),
-`PROTOCOL_VERSION_TOO_OLD` (-32011) — while `docs/reports/T-005-message-protocol-design.md`
-lists them in the protocol's error table as ordinary refusals. Investigating the
-numeric-emission path then found something worse: `termlink-hub/src/artifact.rs`
-emitted the bare literal `-32004` at three sites for "artifact not found", so one wire
-code carried two incompatible meanings — an expired message and a missing artifact,
-which demand opposite client responses.
+**Symptom:** the architecture doc the charter calls authoritative declares five
+invariants that "must not be violated". The first — *"Strict star; spokes never connect
+to one another"*, which §3 defends over forty lines and calls decisive — was enforced by
+nothing.
 
-**Root cause — two mechanisms.** (1) The taxonomy is a set of *assertions* ("this
-system will refuse you under condition X") and nothing checked that any of them could
-occur; a constant plus a doc line was sufficient to publish a refusal. (2) The named
-taxonomy can be bypassed entirely by writing the number by hand, and
-`check-error-code-docs.sh` — which verifies doc↔definition pairing — structurally
-cannot see a literal inside a handler.
+**Root cause:** `no_federation_tripwire.rs` (T-2569) *looks* like it covers this, and
+was cited in T-2678 as closing charter non-goal #1. It does — but non-goal #1 is
+hub↔hub **federation**, and the invariant here is spoke↔spoke **mesh**. Two different
+edges of the same topology. The tripwire scans `CARGO_MANIFEST_DIR/src` of the *hub*
+crate only, so the entire client side was unguarded, while `termlink-session/src`
+ships a generic RPC client that dials any unix path or TCP host:port with nothing
+constraining the target.
 
-`PROTOCOL_VERSION_TOO_OLD` is the sharpest case and shows why ordinary coverage misses
-this: `control.rs` ships `check_protocol_version()` plus a passing test
-`check_protocol_version_rejects_when_declared_is_older`. The builder is covered; the
-builder has zero callers. **Coverage of a builder says nothing about whether the
-builder is called** — the T-2683 pattern (a guard nothing executes) in compiled Rust
-rather than in shell.
+**Why structurally allowed:** the two edges share a vocabulary ("strict star", "no
+peer-to-peer"), so a guard on one reads as a guard on both. T-2678 built the matrix of
+charter **non-goals**; nobody had built one for the architecture document's
+**invariants**, and the overlap in wording made the gap invisible from either side.
 
-**Why structurally allowed:** the previous review (T-2694) established that positive
-capability claims had provers only 1-in-4; this is the same disease in the error
-surface, which nobody had thought of as a set of claims at all. A refusal is an
-assertion about behaviour exactly like a capability is.
+**Prevention:** `crates/termlink-session/tests/no_spoke_mesh_tripwire.rs` pins the real
+structural property — production connections are confined to four enumerated
+transport/probe modules (`client.rs` 5, `transport.rs` 3, `tofu.rs` 1,
+`ws_consumer.rs` 1), each read and confirmed to dial the hub, a local session control
+plane, or a hub-router proxy. A mesh appears either as a new site inside one (count
+check) or, far more likely, as a socket opened in a fifth module (containment check).
+Proven load-bearing: a simulated peer-to-peer connect in `discovery.rs` fails it;
+removing it returns to green. Comment mentions do not trip it.
 
-**Prevention:** `check-error-code-emission.sh` flags any code with no emission site,
-counts a bare numeric literal as an emission, strips comments first (prose about a code
-is not a use of it), and excludes the defining file so a constant cannot count as its
-own use — nor can a builder that sits beside it with no callers. It carries the
-`# guard-layer: source` marker, so T-2684's runner and T-2686's per-commit CI job
-execute it. The three known-dead codes are declared in
-`.context/checks/error-code-emission-allowlist` with reasons, and annotated at their
-definitions with ⚠️ **NOT ENFORCED** so a reader of the taxonomy is told. The collision
-is fixed by `ARTIFACT_NOT_FOUND` (-32024), pinned by
-`artifact_not_found_does_not_reuse_message_expired`.
+**Two corrections made during the build, both kept visible:**
 
-**Found by the check's own fixtures:** fixture 8 named codes `A1/A2/A3` and revealed
-the scanner's constant-name class was `[A-Z_]+`, silently skipping any code containing
-a digit — the check would have reported clean on a taxonomy it never fully read.
-Widened to `[A-Z0-9_]+`.
+1. The tripwire was first written asserting all connects live in `client.rs`. That
+   premise came from a `grep` truncated at ten results and was simply false — the check
+   failed on its own first run against `transport.rs`, `tofu.rs` and `ws_consumer.rs`.
+   The corrected enumeration is a stronger invariant than the guess, because it is the
+   actual answer to "what can a spoke dial".
+2. The scanner initially removed test code by truncating at the first `#[cfg(test)]`.
+   `discovery.rs` has its test module at line 89 of 176, so that discarded **half the
+   file unscanned** — and the load-bearing probe appended at the end did not fire.
+   Replaced with brace-counting that skips only the guarded item's body. A guard that
+   silently reads less than it claims is the exact failure mode this review series
+   keeps finding elsewhere (T-2680's scope over-report, T-2699's comment-as-emission
+   and digit-blind regex); catching it in my own guard is the same class, not a
+   different one.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -230,10 +223,10 @@ Widened to `[A-Z0-9_]+`.
 
 ## Updates
 
-### 2026-08-14T08:25:09Z — task-created [task-create-agent]
+### 2026-08-14T11:27:41Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2699-nothing-detects-an-error-code-that-is-de.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2703-the-spoke-to-spoke-mesh-invariant-is-gua.md
 - **Context:** Initial task creation
 
-### 2026-08-14T08:25:49Z — status-update [task-update-agent]
+### 2026-08-14T11:28:05Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
