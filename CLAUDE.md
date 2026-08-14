@@ -507,8 +507,18 @@ passive detection: a claim can sit expired, or a work-topic accumulate stuck cla
 for days with nothing firing (an idle worker's slot never reopens; a crashed
 worker's lease never gets noticed). The substrate already ships the detector
 primitive — `channel claims-summary --all --only-stuck --json` (T-2076) computes
-stuckness via the T-2042 heuristic (`expired_count > 0` OR
+stuckness via the T-2042 heuristic (a lease lapsed within the last 15min OR
 `oldest_active_age_ms > 60_000`) and returns a truthful fleet-wide `stuck_count`.
+**T-2709 narrowed the first arm**, which was `expired_count > 0` — a monotonic
+latch. Expired claim rows are reaped lazily and only when the SAME
+`(topic, offset)` is re-claimed, so on a topic nobody re-claims the row persists
+for the life of the hub's SQLite and the "stuck" verdict never clears. Measured
+here: 11 topics latched true, every one with `active_count: 0` (nothing held,
+nothing that *could* be stuck), one carrying 81 expired rows. This canary sat on
+that predicate, so it fired daily on permanent debris — the precise mechanism by
+which a guard teaches its operator to stop reading it. The arm now keys on
+`newest_expired_at_ms` so it self-clears; a hub predating the field reports
+absent, which reads as "no recent expiry", never as stuck.
 A daily cron runs `scripts/check-stuck-claims-freshness.sh --quiet` (see
 `.context/cron/stuck-claims-canary.crontab`) and appends to
 `.context/working/.stuck-claims-canary.log`. Empty log = healthy.

@@ -248,9 +248,10 @@ one-shot envelope) — pick one. SIGINT exits cleanly.
 
 **Fleet-wide sweep (Slice 9).** When the operator does not know which
 topic to check — typical incident triage cold-start — `--all` sweeps
-every topic on the hub in one shot. Topics with `expired_count > 0` OR
-`oldest_active_age > 60s` get a `[POTENTIALLY STUCK]` annotation so the
-list is visually scannable:
+every topic on the hub in one shot. Topics with a lease that lapsed in the
+last 15 minutes OR `oldest_active_age > 60s` get a `[POTENTIALLY STUCK]`
+annotation so the list is visually scannable (T-2709 narrowed the first arm
+from `expired_count > 0`, which latched permanently — see below):
 
 ```
 $ termlink channel claims-summary --all
@@ -273,6 +274,33 @@ The `topic` positional and `--all` flag are mutually exclusive —
 exactly one is required. Run `claims-summary --all` cold; once a
 suspicious topic is identified, drill in with
 `channel claims <topic>` for the per-claim breakdown.
+
+**Reading `expired_count` correctly (T-2709).** `expired_count` is
+**cumulative history, not current state** — it only ever grows. Expired
+rows are reaped lazily, and only for the *same* `(topic, offset)` when
+someone re-claims that exact offset; on a topic nobody re-claims, the row
+stays in the `claims` table for the life of the hub's SQLite. A topic can
+therefore show `active_count: 0, expired_count: 81` — eighty-one rows of
+ancient history and *nothing whatsoever held right now*.
+
+The stuck heuristic originally read `expired_count > 0`, which made it a
+**monotonic latch**: once any lease anywhere on a topic lapsed unreclaimed,
+that topic reported `potentially_stuck: true` permanently. On this fleet
+that meant 11 topics latched true — every one of them with `active_count: 0`
+— and a daily canary (T-2556) firing on them forever. A guard that fires
+every day regardless of system state is not merely noisy; it trains its
+operator to stop reading it, which costs you the one firing that mattered.
+
+It was also backwards on its own terms. Lease expiry is this substrate's
+*documented recovery mechanism* — "if the holder is dead the lease
+auto-expires" — so firing on it reported successful recovery as an ongoing
+fault.
+
+Use `newest_expired_at_ms` (the most recent lapse) for any "is something
+wrong **now**?" question. Use `expired_count` only to ask "has work ever
+been abandoned here?". A hub predating T-2709 omits `newest_expired_at_ms`;
+clients must read absent as *no recent expiry*, never as stuck, or every
+topic on an older hub lights up at once.
 
 **Stuck-worker intervention (Slice 11).** Detection (Slices 8 + 9)
 surfaces the stuck claim; ordinary `channel release` refuses to clear
@@ -703,7 +731,7 @@ These are intentional scope cuts to keep the primitive small and orthogonal. The
 - **Slice 6 (T-2039):** `channel.claims_summary` aggregate RPC + Rust client + CLI verb — answers "how busy / is anything stuck?" in one O(1) call. Operator signal for stuck-worker / load-pattern detection.
 - **Slice 7 (T-2040):** `termlink_channel_claims_summary` MCP tool — agent-callable companion for AI investigators to query topic load + stuck-worker state without shelling out.
 - **Slice 8 (T-2041):** `channel claims-summary --watch <secs>` continuous-monitor CLI mode — re-runs the aggregate every N seconds (clamped 5..=3600), clears the screen between frames, tolerates per-tick fetch errors. Hands-off form of the cron stuck-worker recipe; ideal for incident triage side terminals.
-- **Slice 9 (T-2042):** `channel claims-summary --all` fleet-wide sweep — queries `channel.list` and per-topic calls `channel.claims_summary`, annotates `[POTENTIALLY STUCK]` on topics with `expired_count > 0` OR `oldest_active_age_ms > 60_000`, footer reports total + stuck counts. Composes with `--watch` (live fleet dashboard) and `--json` (`{ok, topic_count, stuck_count, topics: [...]}` envelope). Per-topic fetch errors during the sweep are non-fatal.
+- **Slice 9 (T-2042):** `channel claims-summary --all` fleet-wide sweep — queries `channel.list` and per-topic calls `channel.claims_summary`, annotates `[POTENTIALLY STUCK]` on topics with a lease that lapsed in the last 15min (T-2709; was `expired_count > 0`, a latch that never cleared) OR `oldest_active_age_ms > 60_000`, footer reports total + stuck counts. Composes with `--watch` (live fleet dashboard) and `--json` (`{ok, topic_count, stuck_count, topics: [...]}` envelope). Per-topic fetch errors during the sweep are non-fatal.
 - **Slice 10 (T-2043):** `termlink_channel_claims_summary_all` MCP tool — symmetric closure of the fleet-wide sweep for AI investigator agents. Same envelope shape as Slice 9 (`{ok, topic_count, stuck_count, topics: [...]}` with `potentially_stuck: bool` per topic). Read-only; no auth, no network beyond hub UDS. The cold-start verb when an agent must answer "which topic has the stuck worker?" without shelling out.
 - **Slice 11 (T-2044):** `channel claim-force-release` + `termlink_channel_claim_force_release` — operator-Tier-0 intervention verb that bypasses `claimed_by == claimer` ownership check. Closes the operations loop from observability (Slices 8/9/10) to intervention: detection → diagnosis → force-release. Semantics match `release(ack=false)`; cursor untouched, slot freed. Returns `{forced_from, forced_reason}` audit anchors. Single-operator-per-hub trust model documented under G-064.
 - **Primitive #3 (T-2046, T-2021 GO):** `channel.transfer_claim` RPC + `termlink channel claim-transfer` CLI + `termlink_channel_claim_transfer` MCP — atomic cooperative ownership transfer of an existing claim. The orchestrator-to-worker handoff path that eliminates the release-then-claim race. Distinct from `claim-force-release`: transfer is `by`-gated (`CLAIM_NOT_OWNED` when mismatched), force-release bypasses ownership entirely. Lease timestamps survive the transfer; only `claimed_by` mutates. Pairs with `agent.find_idle` (T-2045) for the full assign workflow.

@@ -399,3 +399,11 @@
 [pre-compact] [manual] Handover generated at 2026-08-12T22:09:57Z
 [pre-compact] [manual] Handover generated at 2026-08-12T22:50:31Z
 [pre-compact] [manual] Handover generated at 2026-08-13T08:13:18Z
+[pre-compact] [manual] Handover generated at 2026-08-14T05:37:34Z
+[checkpoint] [auto] Handover FAILED at 2026-08-14T12:03:51Z — see /opt/termlink/.claude/worktrees/charter-review-2026-0814/.context/working/.checkpoint.handover.stderr
+[checkpoint] [auto] Handover FAILED at 2026-08-14T14:20:28Z — see /opt/termlink/.claude/worktrees/charter-review-2026-0814/.context/working/.checkpoint.handover.stderr
+[checkpoint] [auto] Handover FAILED at 2026-08-14T14:38:19Z — see /opt/termlink/.claude/worktrees/charter-review-2026-0814/.context/working/.checkpoint.handover.stderr
+[checkpoint] [auto] Handover FAILED at 2026-08-14T14:48:23Z — see /opt/termlink/.claude/worktrees/charter-review-2026-0814/.context/working/.checkpoint.handover.stderr
+[checkpoint] [auto] Handover FAILED at 2026-08-14T15:08:51Z — see /opt/termlink/.claude/worktrees/charter-review-2026-0814/.context/working/.checkpoint.handover.stderr
+[checkpoint] [auto] Handover FAILED at 2026-08-14T15:23:14Z — see /opt/termlink/.claude/worktrees/charter-review-2026-0814/.context/working/.checkpoint.handover.stderr
+[pre-compact] [manual] Handover generated at 2026-08-14T15:39:54Z

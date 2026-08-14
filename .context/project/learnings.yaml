@@ -3137,3 +3137,9 @@ learnings:
   date: 2026-08-14
   context: Added via context agent
   application: TBD
+- id: PL-340
+  learning: "A guard predicate built on a monotonically-increasing counter can never return to green — it latches. Before wiring a canary to a condition, ask what makes it FALSE again; if nothing does, the guard reports history as current state and fires forever. T-2709: is_potentially_stuck used expired_count>0, but expired claim rows are reaped only on re-claim of the same (topic,offset), so 11 topics stayed 'stuck' for ~62 days with active_count 0. Fix: key on a recency marker (newest_expired_at_ms), not a cumulative count. Corollary: a unit test can PIN such a bug as intended behaviour when it has no time axis — the old test asserted the latch and passed forever."
+  source: P-001
+  task: T-2709
+  date: 2026-08-14
+  context: Added via context agent

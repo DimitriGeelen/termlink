@@ -241,8 +241,16 @@ pub mod method {
     /// to need `channel.renew`. `next_active_expiry_ms` tells the operator
     /// when the next slot frees up without intervention.
     /// Params: `{ topic }` → `{ ok, topic, active_count, expired_count,
-    /// oldest_active_at_ms?, oldest_active_age_ms?, next_active_expiry_ms? }`.
-    /// All three `*_ms?` fields are `null` when `active_count == 0`.
+    /// oldest_active_at_ms?, oldest_active_age_ms?, next_active_expiry_ms?,
+    /// newest_expired_at_ms? }`.
+    /// The first three `*_ms?` fields are `null` when `active_count == 0`.
+    /// T-2709: `newest_expired_at_ms` is the complement — `null` when
+    /// `expired_count == 0`, otherwise the most recent lapse. Prefer it over
+    /// `expired_count` for any "is something wrong NOW" question:
+    /// `expired_count` only ever grows (rows are reaped lazily, and only when
+    /// the same `(topic, offset)` is re-claimed), so it answers "was work ever
+    /// abandoned here", not "is work abandoned now". Absent on pre-T-2709
+    /// hubs; treat absent as "no recent expiry", never as stuck.
     /// Errors: `CHANNEL_TOPIC_UNKNOWN` (-32013) — same shape as
     /// `channel.claims`. Old hubs return `MethodNotFound` (-32601).
     pub const CHANNEL_CLAIMS_SUMMARY: &str = "channel.claims_summary";

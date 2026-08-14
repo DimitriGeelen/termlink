@@ -11457,6 +11457,7 @@ pub(crate) async fn cmd_channel_claims_summary(
                 "oldest_active_at_ms": summary.oldest_active_at_ms,
                 "oldest_active_age_ms": summary.oldest_active_age_ms,
                 "next_active_expiry_ms": summary.next_active_expiry_ms,
+                "newest_expired_at_ms": summary.newest_expired_at_ms,
             })
         );
         return Ok(());
@@ -11465,15 +11466,62 @@ pub(crate) async fn cmd_channel_claims_summary(
     Ok(())
 }
 
+/// T-2709: current wall-clock in epoch-millis (matches the hub's `claimed_until`
+/// units). Local helper — a tiny duplicated primitive per the
+/// no-cross-crate-share convention for such helpers (mirrors
+/// `claim_client::now_ms`).
+fn now_unix_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
+}
+
+/// T-2709: how recently a lease must have lapsed for the abandonment to still
+/// count as operationally interesting. 15 minutes is well past any runbook TTL
+/// (default 30s, hub-clamped to 1h) yet short enough that a topic goes quiet
+/// the same session it was abandoned.
+pub(crate) const RECENT_EXPIRY_WINDOW_MS: i64 = 15 * 60 * 1000;
+
 /// T-2042: heuristic for "this topic is worth investigating". Any of:
-///   - `expired_count > 0` — workers died without releasing claims
+///   - a lease lapsed within [`RECENT_EXPIRY_WINDOW_MS`] — a worker very
+///     likely died mid-unit and that work may need re-dispatch
 ///   - `oldest_active_age_ms > 60_000` — longest-held claim is over 1 minute
 ///     old (longer than typical worker TTLs in the runbook)
 ///
 /// 60_000ms is conservative — picked above the 30s default TTL from the
 /// runbook so a healthy near-TTL worker doesn't trip the flag.
+///
+/// T-2709 narrowed the first arm. It was `expired_count > 0`, which is a
+/// **monotonic latch**: expired rows are reaped lazily and only for the same
+/// `(topic, offset)`, so on a topic nobody re-claims the row — and therefore
+/// the "stuck" verdict — persists for the life of the hub's SQLite, even with
+/// `active_count == 0` where nothing is held and nothing *can* be stuck.
+/// Measured on workstation-107: 11 topics latched true, all with
+/// `active_count: 0`, one carrying 81 expired rows. A daily canary sits on
+/// this predicate (T-2556), so the latch meant a permanent daily false alarm —
+/// the precise way a guard teaches its operator to stop reading it.
+///
+/// It is also semantically backwards: lease expiry is the substrate's own
+/// documented recovery ("if the holder is dead the lease auto-expires"), so
+/// firing on it reports successful recovery as an ongoing fault.
 fn is_potentially_stuck(summary: &termlink_session::claim_client::ClaimsAggregate) -> bool {
-    summary.expired_count > 0
+    is_potentially_stuck_at(summary, now_unix_ms())
+}
+
+/// Pure, clock-free core of [`is_potentially_stuck`] — `now_ms` is injected so
+/// the recency window can be tested at both edges without sleeping.
+pub(crate) fn is_potentially_stuck_at(
+    summary: &termlink_session::claim_client::ClaimsAggregate,
+    now_ms: i64,
+) -> bool {
+    let recently_abandoned = summary
+        .newest_expired_at_ms
+        // Absent field (pre-T-2709 hub) => None => false. Never "stuck":
+        // an old hub must not light up every topic at once.
+        .map(|at| now_ms.saturating_sub(at) <= RECENT_EXPIRY_WINDOW_MS)
+        .unwrap_or(false);
+    recently_abandoned
         || summary.oldest_active_age_ms.map(|a| a > 60_000).unwrap_or(false)
 }
 
@@ -12291,6 +12339,7 @@ async fn render_claims_summary_fleet_json(addr: &TransportAddr, only_stuck: bool
                     "oldest_active_at_ms": summary.oldest_active_at_ms,
                     "oldest_active_age_ms": summary.oldest_active_age_ms,
                     "next_active_expiry_ms": summary.next_active_expiry_ms,
+                    "newest_expired_at_ms": summary.newest_expired_at_ms,
                     "potentially_stuck": stuck,
                 }));
             }

@@ -34,21 +34,44 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Verified 2026-08-14 after the budget gate cleared. Every AC below was ticked
+against a real measurement, not an inference — the previous session committed
+this change explicitly marked UNVERIFIED because the gate blocked all four
+checks.
+
+**Evidence:**
+- `fw doctor` — 0 failures, 6 warnings (none new; enforcement baseline reported
+  intact, which is the L-398 check).
+- `bash scripts/run-guard-layer.sh` — PASS, 25/25 members clean.
+- `cargo test --workspace` — exit 0.
+- Watchtower — starts on :3003, health check passes. `/` `/tasks` and crucially
+  `/arcs` all return **200**. `/arcs` is the specific blueprint whose
+  `lib.arc_membership` import was missing, so a 200 there is what actually
+  proves the fix rather than a healthy root page.
+
+**Rollback (one command).** `.agentic-framework` is force-tracked in git
+(2366 files), so the re-vendor is revertible without touching `fw update`'s
+own backup:
+
+```
+git checkout a46e8e726 -- .agentic-framework
+```
+
+`a46e8e726` is the last commit before the re-vendor (`c933f8eb7`).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `lib/arc_membership.py` exists after the re-vendor, so `web/blueprints/arcs.py`'s import resolves
-- [ ] Watchtower actually **starts and serves** — verified by an HTTP 200, not by "the command returned 0"
-- [ ] The re-vendor uses the sanctioned `fw update` path, which saves a rollback backup, rather than a hand-rolled `rm -rf` + copy
-- [ ] `fw doctor` reports no new failures versus the pre-change baseline (the vendored framework supplies the hooks governing this session — replacing it must not silently break enforcement)
-- [ ] The enforcement baseline is checked: if `.claude/settings.json`-governed hooks changed, that is surfaced rather than left to accumulate as a silent `fw doctor` FAIL (L-398)
-- [ ] `bash scripts/run-guard-layer.sh` still passes 25/25 — the guard layer's fixtures shell out to framework paths, so a framework swap could break them
-- [ ] `cargo test --workspace` green — the framework swap must not disturb the product build
-- [ ] The version-comparison trap is recorded: vendored 1.6.295 vs upstream 1.6.145 reads as a downgrade but upstream carries T-2774 (> termlink's T-2704), so the patch numbers are non-comparable across lineages — the T-2359 lesson, and the reason this was nearly mis-actioned
-- [ ] Rollback path stated in the task so the operator can undo it in one command
+- [x] `lib/arc_membership.py` exists after the re-vendor, so `web/blueprints/arcs.py`'s import resolves
+- [x] Watchtower actually **starts and serves** — verified by an HTTP 200, not by "the command returned 0"
+- [x] The re-vendor uses the sanctioned `fw update` path, which saves a rollback backup, rather than a hand-rolled `rm -rf` + copy
+- [x] `fw doctor` reports no new failures versus the pre-change baseline (the vendored framework supplies the hooks governing this session — replacing it must not silently break enforcement)
+- [x] The enforcement baseline is checked: if `.claude/settings.json`-governed hooks changed, that is surfaced rather than left to accumulate as a silent `fw doctor` FAIL (L-398)
+- [x] `bash scripts/run-guard-layer.sh` still passes 25/25 — the guard layer's fixtures shell out to framework paths, so a framework swap could break them
+- [x] `cargo test --workspace` green — the framework swap must not disturb the product build
+- [x] The version-comparison trap is recorded: vendored 1.6.295 vs upstream 1.6.145 reads as a downgrade but upstream carries T-2774 (> termlink's T-2704), so the patch numbers are non-comparable across lineages — the T-2359 lesson, and the reason this was nearly mis-actioned
+- [x] Rollback path stated in the task so the operator can undo it in one command
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

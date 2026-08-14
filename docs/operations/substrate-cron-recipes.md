@@ -238,9 +238,15 @@ See `substrate-broadcast-with-replay.md` (cv_index) and
 
 ## Recipe 5: Page on stuck claims (T-2072)
 
-Fire when a topic enters `stuck` state — `expired_count > 0` OR
-`oldest_active_age_ms > 60_000`. Indicates a worker crashed mid-task
-and didn't release, OR claims are being acquired but not renewed.
+Fire when a topic enters `stuck` state — a lease lapsed within the last
+15 minutes OR `oldest_active_age_ms > 60_000`. Indicates a worker crashed
+mid-task and didn't release, OR claims are being acquired but not renewed.
+
+T-2709 narrowed the first arm from `expired_count > 0`, which could never
+clear (expired rows are reaped only on re-claim of the same offset, so an
+abandoned topic stayed "stuck" permanently). If you have a notify script
+gating on `TERMLINK_CLAIM_EXPIRED_COUNT`, switch it to the stuck flag —
+the count is cumulative history, not current state.
 
 **Notify script** (`/usr/local/bin/page-on-stuck-claim.sh`):
 

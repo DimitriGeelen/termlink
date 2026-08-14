@@ -218,6 +218,7 @@ async fn fetch_claim(
                         "oldest_active_at_ms": summary.oldest_active_at_ms,
                         "oldest_active_age_ms": summary.oldest_active_age_ms,
                         "next_active_expiry_ms": summary.next_active_expiry_ms,
+                        "newest_expired_at_ms": summary.newest_expired_at_ms,
                         "potentially_stuck": stuck,
                     }));
                 }
@@ -2049,15 +2050,101 @@ not json at all
             oldest_active_at_ms: Some(123),
             oldest_active_age_ms: Some(5_000),
             next_active_expiry_ms: Some(456),
+            newest_expired_at_ms: None,
         };
         assert!(!is_potentially_stuck(&healthy));
-        // Expired count > 0 → stuck.
-        let mut expired_stuck = healthy.clone();
-        expired_stuck.expired_count = 1;
-        assert!(is_potentially_stuck(&expired_stuck));
-        // Oldest age > 60s → stuck.
+        // Oldest age > 60s → stuck. (Unchanged by T-2709.)
         let mut age_stuck = healthy.clone();
         age_stuck.oldest_active_age_ms = Some(95_000);
         assert!(is_potentially_stuck(&age_stuck));
+    }
+
+    /// T-2709: the expired arm is recency-windowed, not a latch.
+    #[test]
+    fn expired_claims_only_flag_stuck_while_recent() {
+        use super::super::channel::{is_potentially_stuck_at, RECENT_EXPIRY_WINDOW_MS};
+        use termlink_session::claim_client::ClaimsAggregate;
+        const NOW: i64 = 1_800_000_000_000;
+
+        // A topic whose claims have ALL lapsed: nothing is held, so nothing
+        // can be stuck — the exact shape of all 11 latched topics measured on
+        // workstation-107 (active_count 0, expired_count 1..81).
+        let abandoned = ClaimsAggregate {
+            topic: "substrate-drain-demo".into(),
+            active_count: 0,
+            expired_count: 81,
+            oldest_active_at_ms: None,
+            oldest_active_age_ms: None,
+            next_active_expiry_ms: None,
+            newest_expired_at_ms: Some(NOW - 1_000),
+        };
+
+        // Just lapsed → worth a look: a worker probably died mid-unit.
+        assert!(
+            is_potentially_stuck_at(&abandoned, NOW),
+            "a lease that lapsed 1s ago should still flag"
+        );
+
+        // Inside the window, at the boundary → still flags (inclusive edge).
+        let at_edge = ClaimsAggregate {
+            newest_expired_at_ms: Some(NOW - RECENT_EXPIRY_WINDOW_MS),
+            ..abandoned.clone()
+        };
+        assert!(
+            is_potentially_stuck_at(&at_edge, NOW),
+            "boundary is inclusive"
+        );
+
+        // One ms past the window → goes quiet. THIS is the regression that
+        // matters: under the pre-T-2709 `expired_count > 0` predicate this
+        // stayed true forever, because expired rows are only reaped when the
+        // same (topic, offset) is re-claimed — which never happens on an
+        // abandoned topic. A daily canary (T-2556) sat on it.
+        let stale = ClaimsAggregate {
+            newest_expired_at_ms: Some(NOW - RECENT_EXPIRY_WINDOW_MS - 1),
+            ..abandoned.clone()
+        };
+        assert!(
+            !is_potentially_stuck_at(&stale, NOW),
+            "an ancient abandonment must not latch the topic stuck forever"
+        );
+
+        // A day later, with 81 expired rows still sitting in the table.
+        let ancient = ClaimsAggregate {
+            newest_expired_at_ms: Some(NOW - 24 * 60 * 60 * 1000),
+            ..abandoned.clone()
+        };
+        assert!(
+            !is_potentially_stuck_at(&ancient, NOW),
+            "expired_count alone must never drive the verdict"
+        );
+
+        // An active claim held too long still flags even when the expiry is
+        // ancient — T-2709 narrowed only the expired arm.
+        let ancient_but_held = ClaimsAggregate {
+            active_count: 1,
+            oldest_active_age_ms: Some(95_000),
+            ..ancient.clone()
+        };
+        assert!(is_potentially_stuck_at(&ancient_but_held, NOW));
+    }
+
+    /// T-2709 back-compat: a hub predating the change omits the field, which
+    /// must read as "no recent expiry" — never as stuck. Getting this backwards
+    /// would light up every topic on an older hub at once.
+    #[test]
+    fn absent_expiry_marker_is_not_stuck() {
+        use super::super::channel::is_potentially_stuck_at;
+        use termlink_session::claim_client::ClaimsAggregate;
+        let old_hub = ClaimsAggregate {
+            topic: "t".into(),
+            active_count: 0,
+            expired_count: 7,
+            oldest_active_at_ms: None,
+            oldest_active_age_ms: None,
+            next_active_expiry_ms: None,
+            newest_expired_at_ms: None,
+        };
+        assert!(!is_potentially_stuck_at(&old_hub, 1_800_000_000_000));
     }
 }

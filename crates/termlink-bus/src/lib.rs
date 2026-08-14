@@ -2091,6 +2091,55 @@ mod tests {
         assert!(s.oldest_active_at_ms.is_none());
         assert!(s.oldest_active_age_ms.is_none());
         assert!(s.next_active_expiry_ms.is_none());
+        // T-2709: the expiry-recency marker IS populated here — it is the one
+        // signal available when every row has lapsed, and the only way a
+        // consumer can distinguish "a worker just died" from "this topic was
+        // abandoned months ago".
+        assert!(
+            s.newest_expired_at_ms.is_some(),
+            "an expired row must carry its lapse time"
+        );
+    }
+
+    /// T-2709: `newest_expired_at_ms` is a MAX over expired rows only — it must
+    /// track the most RECENT lapse, and must ignore rows that are still live.
+    /// This is what lets the stuck predicate self-clear instead of latching.
+    #[tokio::test]
+    async fn claims_summary_newest_expired_marker_is_max_over_expired_only() {
+        let (_dir, bus) = tmp_bus();
+        bus.create_topic("t", Retention::Forever).unwrap();
+        bus.post("t", &env("t", b"m0")).await.unwrap();
+        bus.post("t", &env("t", b"m1")).await.unwrap();
+        bus.post("t", &env("t", b"m2")).await.unwrap();
+
+        // Two claims that lapse at different times, plus one long-lived claim.
+        let a = bus.claim_offset("t", 0, "worker-A", 1).unwrap();
+        tokio::time::sleep(Duration::from_millis(30)).await;
+        let b = bus.claim_offset("t", 1, "worker-B", 1).unwrap();
+        let live = bus.claim_offset("t", 2, "worker-C", 600_000).unwrap();
+        tokio::time::sleep(Duration::from_millis(30)).await;
+
+        let s = bus.claims_summary("t").unwrap();
+        assert_eq!(s.active_count, 1, "worker-C is still holding offset 2");
+        assert_eq!(s.expired_count, 2, "worker-A and worker-B lapsed");
+        let newest = s.newest_expired_at_ms.expect("two rows have lapsed");
+
+        // It is worker-B's deadline (the LATER of the two lapsed), not
+        // worker-A's — a MIN, or a first-row read, would return the older one
+        // and make a fresh abandonment look ancient.
+        assert!(
+            b.claimed_until > a.claimed_until,
+            "test precondition: B must lapse after A"
+        );
+        assert_eq!(
+            newest, b.claimed_until,
+            "marker must be the MAX over expired rows"
+        );
+        // And it must not have been dragged forward by the still-live claim.
+        assert!(
+            newest < live.claimed_until,
+            "an active claim's deadline must not leak into the expired marker"
+        );
     }
 
     #[tokio::test]

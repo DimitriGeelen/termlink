@@ -14,10 +14,23 @@
 #
 # The substrate already ships the detector primitive: `channel claims-summary --all
 # --only-stuck --json` (T-2076) computes stuckness via the T-2042 heuristic
-# (expired_count > 0 OR oldest_active_age_ms > 60_000) and returns a truthful
-# fleet-wide `stuck_count`. This canary wraps that: it FIRES (exit 1) when
-# stuck_count > 0, turning a silently-stuck work-topic into a daily alert. Empty
-# log = healthy — the same convention as the other canaries (CLAUDE.md).
+# (a lease lapsed within the last 15min OR oldest_active_age_ms > 60_000) and
+# returns a truthful fleet-wide `stuck_count`. This canary wraps that: it FIRES
+# (exit 1) when stuck_count > 0, turning a silently-stuck work-topic into a
+# daily alert. Empty log = healthy — the same convention as the other canaries
+# (CLAUDE.md).
+#
+# T-2709: the first arm used to be `expired_count > 0`, which could never clear.
+# Expired claim rows are reaped only when the SAME (topic, offset) is
+# re-claimed, so on an abandoned topic the row — and the "stuck" verdict —
+# persisted for the life of the hub's SQLite. This canary consequently fired
+# daily on 11 topics whose leases had lapsed ~62 days earlier, every one with
+# active_count 0 (nothing held, nothing that could BE stuck). That is worse
+# than a missing guard: a canary that fires every day regardless of system
+# state trains its operator to stop reading it, so it also costs you the one
+# firing that mattered. No change was needed here — the gate reads `stuck_count`
+# from the CLI, so it inherits the corrected predicate — but the fix is noted
+# because this script's own header taught the wrong rule.
 #
 # Exit codes: 0 healthy (no stuck claims) · 1 firing (>=1 stuck topic) · 2 tooling error
 set -u

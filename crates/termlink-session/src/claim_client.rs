@@ -106,6 +106,12 @@ pub struct ClaimsAggregate {
     pub oldest_active_at_ms: Option<i64>,
     pub oldest_active_age_ms: Option<i64>,
     pub next_active_expiry_ms: Option<i64>,
+    /// T-2709: unix-ms of the most recent lapsed lease, or `None` when there
+    /// are no expired rows. Also `None` when talking to a hub predating
+    /// T-2709 — such a hub simply omits the field, and "absent" must be read
+    /// as "no recent expiry known", never as "stuck". Defaulting the other way
+    /// would make every topic on an older hub report stuck at once.
+    pub newest_expired_at_ms: Option<i64>,
 }
 
 /// Typed view of the four claim-specific JSON-RPC error codes plus the two
@@ -440,6 +446,9 @@ fn parse_claims_summary_response(
             let oldest_active_at_ms = opt_i64(r, "oldest_active_at_ms");
             let oldest_active_age_ms = opt_i64(r, "oldest_active_age_ms");
             let next_active_expiry_ms = opt_i64(r, "next_active_expiry_ms");
+            // Absent on pre-T-2709 hubs — `opt_i64` yields None, which the
+            // stuck predicate reads as "no recent expiry" (never as stuck).
+            let newest_expired_at_ms = opt_i64(r, "newest_expired_at_ms");
             Ok(ClaimsAggregate {
                 topic: topic_hint.to_string(),
                 active_count,
@@ -447,6 +456,7 @@ fn parse_claims_summary_response(
                 oldest_active_at_ms,
                 oldest_active_age_ms,
                 next_active_expiry_ms,
+                newest_expired_at_ms,
             })
         }
         RpcResponse::Error(e) => Err(map_hub_error(e.error.code, e.error.message, e.error.data)),

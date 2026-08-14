@@ -1,10 +1,10 @@
 ---
-id: T-2706
-name: "Stuck-claims canary fires daily on 11 test-residue topics"
+id: T-2710
+name: "Canary test seams ship unexercised — 8 of 9 have no fixture suite"
 description: >
-  substrate_status --only_pressured reports stuck_count 11 of 770 topics. Every one has active_count 0 with only expired claims, and all are demo/test residue (substrate-drain-demo x8, drain-fix-verify, drain-probe, work-queue). The T-2556 canary fires daily on debris, training operators to ignore it — the guard-gets-deleted failure mode. Clean the topics or exclude them.
+  Nine runtime canaries ship a *_TEST_JSON seam (PL-213) explicitly so their exit-code contract can be verified without a live hub, but only check-charter-drift has a fixture suite that uses it. The other eight seams exist and nothing runs them — dormant tooling (PL-168) one level up. Concretely: the stuck-claims canary's HEALTHY path had never been asserted, which is why it could fire daily for ~62 days on latched debris (T-2709) with no test noticing. Adds tests/stuck-claims-check-fixtures.sh and files the remaining seven.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
 horizon: now
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-14T15:10:25Z
-last_update: 2026-08-14T15:10:25Z
+created: 2026-08-14T16:59:52Z
+last_update: 2026-08-14T16:59:52Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,86 +30,72 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2706: Stuck-claims canary fires daily on 11 test-residue topics
+# T-2710: Canary test seams ship unexercised — 8 of 9 have no fixture suite
 
 ## Context
 
-**CORRECTION (2026-08-14) — this task's framing was wrong, and the correction
-matters more than the original finding.**
+Found while closing T-2709 (the stuck-claim latch), asking the G-019 question:
+not "why did the predicate break" but "why was the framework blind to it for
+~62 days?"
 
-Filed as "11 test-residue topics need cleaning up or excluding." Reading the
-code showed the topics were not the problem at all. `is_potentially_stuck`
-fired on `expired_count > 0`, and expired claim rows are reaped only when the
-SAME `(topic, offset)` is re-claimed (`meta.rs`, `WHERE topic = ?1 AND offset =
-?2`). On a topic nobody re-claims, the row — and therefore the "stuck" verdict —
-persists for the life of the hub's SQLite. The predicate was a **monotonic
-latch**.
+The answer is that the canary was never executed by any test. It ships a
+`TERMLINK_STUCK_CLAIMS_TEST_JSON` seam — added in T-2556 specifically so its
+verdict could be verified without a live hub — and nothing ever used it. That
+is PL-168's "a canary without a trigger is dormant tooling", one level up: here
+the *test seam* is the dormant thing.
 
-So the proposed remedies were both wrong:
-- *Cleaning up the 11 topics* would have worked exactly once. The next
-  abandoned claim on any topic — including a real production one — latches it
-  permanently, and the canary is noisy again with no one the wiser.
-- *Excluding them* would have written the 11 names into an allowlist and
-  declared the matter closed, hiding a defect that affects every topic.
+**Measured state — 9 canaries carry a test seam, 1 has a fixture suite:**
 
-Both would have removed the symptom while leaving a guard that can never
-return to green. That is the "guard gets deleted" failure mode this task's own
-ACs warned about — arrived at from the other direction.
-
-**Root cause is fixed in T-2709**, which narrows the expired arm to a recency
-window (`newest_expired_at_ms`) so the flag self-clears. The 11 topics need no
-disposition: their expiries are days old, so they fall outside the window and go
-quiet on their own once the fixed binary is deployed.
-
-**What remains for this task** is only the verification: after the new binary is
-installed and the hub restarted, re-measure `stuck_count` and confirm it
-reflects genuine stuck work. Recorded honestly either way.
-
-**Live evidence that the fix silences these (measured 2026-08-14, before
-deploy).** Two representative topics, read via `channel claims
---include-expired`:
-
-| topic | `claimed_until` | age at measurement |
+| canary | seam | fixture suite |
 |---|---|---|
-| `work-queue` | 1781341864363 | ~62 days |
-| `drain-probe-1425555` | 1781359269709 | ~62 days |
+| `check-charter-drift-freshness.sh` | ✅ | ✅ `charter-drift-check-fixtures.sh` |
+| `check-stuck-claims-freshness.sh` | ✅ | ✅ **added here** (T-2710) |
+| `check-fleet-binary-freshness.sh` | ✅ | ❌ |
+| `check-forever-archival-freshness.sh` | ✅ | ❌ |
+| `check-topic-growth-freshness.sh` | ✅ | ❌ |
+| `check-session-control-freshness.sh` | ✅ | ❌ |
+| `check-dead-letter-freshness.sh` | ✅ | ❌ |
+| `check-waker-liveness-freshness.sh` | ✅ | ❌ |
+| `check-unconfirmed-delivery-freshness.sh` | ✅ | ❌ |
 
-Both lapsed roughly two months ago — far outside the 15-minute recency window —
-so both fall silent once the fixed binary is serving.
+**Honest scope limit — what this does and does not buy.** A fixture feeds the
+canary canned JSON, so it verifies the canary's *translation* of a hub verdict
+into an exit code. It would NOT have caught T-2709 itself, because that defect
+lived upstream in the CLI predicate that computes `stuck_count`. Claiming
+otherwise would be exactly the over-scoped green this session has been
+correcting elsewhere (T-2680).
 
-Note this also settles the AC that asked for `work-queue` to be judged
-SEPARATELY from the demo topics, on the theory it might be a real work topic.
-It isn't currently live work: its single claim lapsed ~62 days ago under
-claimer `root-claude-dimitrimintdev`. It was history too. The instinct to
-judge it separately was right; the conclusion is that it needs no action
-either.
+What it does buy is real: the exit-code contract every canary depends on
+(`0 healthy / 1 firing / 2 tooling`) is currently unverified for 8 of 9, and
+that contract is load-bearing — T-2557 states plainly that keeping tooling
+errors out of the firing class is what makes a firing log meaningful, and T-2685
+found the same distinction being thrown away in the crontab redirects. A canary
+that returns 0 when it should return 2 reports a broken substrate as healthy.
+Nothing tests that today.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] The 11 flagged topics are dispositioned — each is either cleaned up or explicitly excluded, with the reason recorded
-- [ ] The distinction is preserved: all 11 have `active_count: 0` with only EXPIRED claims, so nothing is genuinely held; the T-2042 heuristic fires on `expired_count > 0`, which is correct for real work and wrong for abandoned test topics
-- [ ] Demo/test residue is identified by name and dealt with as a class — `substrate-drain-demo*` (×8), `drain-fix-verify-*`, `drain-probe-*` — rather than one-off
-- [ ] `work-queue` (1 expired claim) is judged SEPARATELY from the demo topics: it is a plausibly-real work topic and must not be swept up in a bulk cleanup
-- [ ] After the change, `substrate_status --only_pressured` reports a stuck_count that reflects genuine stuck work, so a firing canary is worth reading
-- [ ] If exclusion is chosen over cleanup, the exclusion is declared in the canary's own config with a cited reason — not hidden in a threshold bump
-- [ ] The scale is recorded for context: 11 of 770 topics, i.e. the canary's signal was ~100% noise on this host
-
-<!-- Origin: T-2705 session, live MCP diagnostics under a critical budget gate.
-     Why this matters beyond tidiness: a canary that fires daily on debris trains
-     operators to ignore it, which is the "guard gets deleted" failure mode this
-     session documented repeatedly (T-2680 scope over-report, T-2699 dead refusals).
-     A guard whose firing means nothing is worse than no guard, because it also
-     consumes the attention a real firing would need. -->
+- [x] The gap is measured, not estimated: 9 canaries carry a `*_TEST_JSON` / `*_TEST_RC` seam, 1 has a fixture suite, 8 do not
+- [x] `tests/stuck-claims-check-fixtures.sh` exists and passes, covering the full exit-code contract: healthy (0), firing (1), and BOTH tooling paths (2) — malformed envelope, unparseable JSON, empty output
+- [x] The healthy path is asserted, including that `--quiet` prints NOTHING on a healthy cycle — that silence is precisely what makes "empty log = healthy" true for the cron redirect, and it had never been tested
+- [x] `--quiet` is also asserted to still speak when firing (a silent canary is a dead canary)
+- [x] A fetch error (`ok:false` topic) is proven NOT to fire on its own while still being counted and warned about
+- [x] A load-bearing T-2709 regression: a topic with `expired_count: 81` and `active_count: 0` that the hub reports NOT stuck must exit 0 — pinning that the canary keys on the hub's `stuck_count`/`potentially_stuck` verdict and never on `expired_count`
+- [x] The converse is also pinned — the same topic DOES fire when the hub flags it — so the fixture cannot be satisfied by ignoring expired topics wholesale
+- [x] Fixtures run with `--no-heartbeat` so a test run can never refresh the real cron heartbeat and mask a dead cron from the T-1723 meta-canary
+- [x] The suite is picked up by `scripts/run-guard-layer.sh` automatically via the `tests/*fixtures*.sh` naming convention (verified with `--list`)
+- [x] `bash scripts/run-guard-layer.sh` passes with the new member included
+- [ ] The remaining 7 unexercised seams are named in this task so the gap is visible rather than implied
 
 ### Human
-- [ ] [REVIEW] Decide cleanup vs exclusion for the demo topics
+- [ ] [REVIEW] Decide whether the remaining 7 canaries get fixture suites now or later
   **Steps:**
-  1. `termlink channel claims-summary --all --only-stuck`
-  2. Confirm the `substrate-drain-demo*` / `drain-*` topics are disposable test residue
-  **Expected:** agreement that they can be removed or permanently excluded
-  **If not:** say which must be retained and why, so the exclusion list cites a real reason
+  1. Read the list of 7 in the Context section below
+  2. Decide: build all 7 now, or file as backlog
+  **Expected:** a call on scope — each is ~20 assertions of the same shape as the stuck-claims suite
+  **If not now:** say so and they stay filed; the point of this AC is that they are not silently forgotten
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -238,7 +224,7 @@ either.
 
 ## Updates
 
-### 2026-08-14T15:10:25Z — task-created [task-create-agent]
+### 2026-08-14T16:59:52Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2706-stuck-claims-canary-fires-daily-on-11-te.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2710-canary-test-seams-ship-unexercised--8-of.md
 - **Context:** Initial task creation

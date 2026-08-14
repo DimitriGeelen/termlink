@@ -1,5 +1,20 @@
 use std::sync::Arc;
 
+/// T-2709: recency window for treating a lapsed lease as still operationally
+/// interesting. Duplicated from the CLI's `channel::RECENT_EXPIRY_WINDOW_MS`
+/// per the no-cross-crate-share convention for tiny primitives; the two must
+/// stay in agreement so an agent pivoting between the CLI and MCP surfaces
+/// sees the same `potentially_stuck` verdict (the T-2043 alignment rule).
+const RECENT_EXPIRY_WINDOW_MS: i64 = 15 * 60 * 1000;
+
+/// T-2709: wall-clock epoch-millis, matching the hub's `claimed_until` units.
+fn now_unix_ms_for_claims() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
+}
+
 use base64::Engine as _;
 use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
@@ -1073,7 +1088,7 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_channel_renew", "Extend the lease on a held claim (for long-running workers)"),
             ("termlink_channel_claims", "List current claim rows on a topic (read-only introspection, no claim attempt)"),
             ("termlink_channel_claims_summary", "Aggregate claim state on a topic — O(1) busy/stuck-worker signal (active+expired counts, oldest-active age, next free slot)"),
-            ("termlink_channel_claims_summary_all", "Fleet-wide sweep: aggregate claim state on every topic, annotates each with potentially_stuck (expired>0 OR oldest_active_age>60s). Cold-start investigator verb when you don't know which topic to check"),
+            ("termlink_channel_claims_summary_all", "Fleet-wide sweep: aggregate claim state on every topic, annotates each with potentially_stuck (a lease lapsed in the last 15min OR oldest_active_age>60s). Cold-start investigator verb when you don't know which topic to check"),
             ("termlink_channel_claims_history", "T-2075/T-2074 — retrospective read of ~/.termlink/claims.log NDJSON (written by `channel claims-summary --watch --log`). Per-topic aggregate of transition/new/removed event counts within --since-days window"),
         ]),
         ("channel_poll", vec![
@@ -22457,7 +22472,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_claims_summary",
-        description = "Aggregate claim state for a topic — 'how busy is this topic, is anything stuck?' in one O(1) call (vs `termlink_channel_claims` full-list). Returns `{ok, topic, active_count, expired_count, oldest_active_at_ms?, oldest_active_age_ms?, next_active_expiry_ms?}`. Signals: growing `expired_count` with low active = workers dying without releasing; `oldest_active_age_ms` near a worker's ttl = stuck or about to renew; `next_active_expiry_ms` = when the next slot frees. All `*_ms` null when `active_count==0`. Error: CHANNEL_TOPIC_UNKNOWN (-32013). Pure read."
+        description = "Aggregate claim state for a topic — 'how busy is this topic, is anything stuck?' in one O(1) call (vs `termlink_channel_claims` full-list). Returns `{ok, topic, active_count, expired_count, oldest_active_at_ms?, oldest_active_age_ms?, next_active_expiry_ms?, newest_expired_at_ms?}`. Signals: `newest_expired_at_ms` close to now = a worker just died without releasing (T-2709; prefer this over `expired_count`, which only ever grows — expired rows are reaped lazily and only on re-claim of the same offset, so a high count may be years of history, not a current fault); `oldest_active_age_ms` near a worker's ttl = stuck or about to renew; `next_active_expiry_ms` = when the next slot frees. All `*_ms` null when `active_count==0`. Error: CHANNEL_TOPIC_UNKNOWN (-32013). Pure read."
     )]
     async fn termlink_channel_claims_summary(
         &self,
@@ -22485,7 +22500,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_claims_summary_all",
-        description = "Fleet-wide claim-state sweep — the cold-start investigator when you don't yet know which topic has the stuck worker. One row per topic plus a `potentially_stuck` flag (heuristic: `expired_count > 0` OR `oldest_active_age_ms > 60_000`). Returns `{ok, topic_count, stuck_count, shown, only_stuck, topics:[{ok, topic, active_count, expired_count, oldest_active_age_ms?, next_active_expiry_ms?, potentially_stuck}]}`. Per-topic fetch errors non-fatal (`{ok:false, topic, error}`; sweep continues). `only_stuck` (default false) drops non-stuck rows (errors always kept); `stuck_count` stays fleet-wide truth. Read-only."
+        description = "Fleet-wide claim-state sweep — the cold-start investigator when you don't yet know which topic has the stuck worker. One row per topic plus a `potentially_stuck` flag (heuristic: a lease lapsed within the last 15min OR `oldest_active_age_ms > 60_000`). T-2709: the expired arm is recency-windowed via `newest_expired_at_ms`, NOT `expired_count > 0` — the latter latched true forever because expired rows are reaped only when the same (topic, offset) is re-claimed. Returns `{ok, topic_count, stuck_count, shown, only_stuck, topics:[{ok, topic, active_count, expired_count, oldest_active_age_ms?, next_active_expiry_ms?, potentially_stuck}]}`. Per-topic fetch errors non-fatal (`{ok:false, topic, error}`; sweep continues). `only_stuck` (default false) drops non-stuck rows (errors always kept); `stuck_count` stays fleet-wide truth. Read-only."
     )]
     async fn termlink_channel_claims_summary_all(
         &self,
@@ -22541,9 +22556,22 @@ impl TermLinkTools {
                         // T-2043: apply Slice 9's stuck heuristic to keep
                         // CLI/MCP semantics aligned for agents pivoting
                         // between the two surfaces.
-                        let expired = result["expired_count"].as_u64().unwrap_or(0);
+                        // T-2709: recency-windowed, matching the CLI predicate.
+                        // The old form was `expired_count > 0`, a monotonic
+                        // latch — expired rows are reaped only when the same
+                        // (topic, offset) is re-claimed, so an abandoned topic
+                        // reported stuck forever. Absent field (pre-T-2709 hub)
+                        // reads as "no recent expiry", never as stuck.
                         let age = result["oldest_active_age_ms"].as_i64();
-                        let stuck = expired > 0 || age.map(|a| a > 60_000).unwrap_or(false);
+                        let recently_abandoned = result["newest_expired_at_ms"]
+                            .as_i64()
+                            .map(|at| {
+                                now_unix_ms_for_claims().saturating_sub(at)
+                                    <= RECENT_EXPIRY_WINDOW_MS
+                            })
+                            .unwrap_or(false);
+                        let stuck =
+                            recently_abandoned || age.map(|a| a > 60_000).unwrap_or(false);
                         if stuck {
                             stuck_count += 1;
                         }

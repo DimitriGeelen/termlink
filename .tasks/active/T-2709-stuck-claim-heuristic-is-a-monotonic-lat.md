@@ -1,8 +1,8 @@
 ---
-id: T-2706
-name: "Stuck-claims canary fires daily on 11 test-residue topics"
+id: T-2709
+name: "Stuck-claim heuristic is a monotonic latch that never clears"
 description: >
-  substrate_status --only_pressured reports stuck_count 11 of 770 topics. Every one has active_count 0 with only expired claims, and all are demo/test residue (substrate-drain-demo x8, drain-fix-verify, drain-probe, work-queue). The T-2556 canary fires daily on debris, training operators to ignore it — the guard-gets-deleted failure mode. Clean the topics or exclude them.
+  is_potentially_stuck (channel.rs:11475) fires on expired_count>0, but expired claim rows are reaped ONLY when someone re-claims that exact (topic,offset) (meta.rs:434). On a topic nobody re-claims, one abandoned claim marks it potentially_stuck forever, with active_count=0 so nothing is actually held. The T-2556 canary built on it then fires daily for the life of the host. Add a recency window so an expired lease — which IS the substrate's own auto-recovery mechanism — stops being reported as a current fault.
 
 status: started-work
 workflow_type: build
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-14T15:10:25Z
-last_update: 2026-08-14T15:10:25Z
+created: 2026-08-14T16:38:41Z
+last_update: 2026-08-14T16:39:41Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,86 +30,69 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2706: Stuck-claims canary fires daily on 11 test-residue topics
+# T-2709: Stuck-claim heuristic is a monotonic latch that never clears
 
 ## Context
 
-**CORRECTION (2026-08-14) — this task's framing was wrong, and the correction
-matters more than the original finding.**
+Found while dispositioning T-2706, which had been filed as "the stuck-claims
+canary fires on 11 test-residue topics — clean them up or exclude them."
+Reading the code showed the topics were incidental. The predicate itself could
+never return to green.
 
-Filed as "11 test-residue topics need cleaning up or excluding." Reading the
-code showed the topics were not the problem at all. `is_potentially_stuck`
-fired on `expired_count > 0`, and expired claim rows are reaped only when the
-SAME `(topic, offset)` is re-claimed (`meta.rs`, `WHERE topic = ?1 AND offset =
-?2`). On a topic nobody re-claims, the row — and therefore the "stuck" verdict —
-persists for the life of the hub's SQLite. The predicate was a **monotonic
-latch**.
+**The two halves, both in-tree:**
 
-So the proposed remedies were both wrong:
-- *Cleaning up the 11 topics* would have worked exactly once. The next
-  abandoned claim on any topic — including a real production one — latches it
-  permanently, and the canary is noisy again with no one the wiser.
-- *Excluding them* would have written the 11 names into an allowlist and
-  declared the matter closed, hiding a defect that affects every topic.
+```rust
+// crates/termlink-cli/src/commands/channel.rs
+fn is_potentially_stuck(summary: &ClaimsAggregate) -> bool {
+    summary.expired_count > 0                                   // ← latches
+        || summary.oldest_active_age_ms.map(|a| a > 60_000).unwrap_or(false)
+}
+```
 
-Both would have removed the symptom while leaving a guard that can never
-return to green. That is the "guard gets deleted" failure mode this task's own
-ACs warned about — arrived at from the other direction.
+```sql
+-- crates/termlink-bus/src/meta.rs — the ONLY reap of expired rows
+DELETE FROM claims
+ WHERE topic = ?1 AND offset = ?2 AND claimed_until <= ?3
+```
 
-**Root cause is fixed in T-2709**, which narrows the expired arm to a recency
-window (`newest_expired_at_ms`) so the flag self-clears. The 11 topics need no
-disposition: their expiries are days old, so they fall outside the window and go
-quiet on their own once the fixed binary is deployed.
+The reap is scoped to a single `(topic, offset)` and runs only inside the claim
+path. Nobody re-claims an abandoned topic, so nothing ever deletes the row, so
+`expired_count > 0` holds forever.
 
-**What remains for this task** is only the verification: after the new binary is
-installed and the hub restarted, re-measure `stuck_count` and confirm it
-reflects genuine stuck work. Recorded honestly either way.
+**Live measurement (workstation-107, 770 topics):** 11 flagged stuck, every one
+with `active_count: 0` — nothing held, nothing that *could* be stuck — with
+expired counts from 1 to 81. Two sampled directly via
+`channel claims --include-expired`: `work-queue` and `drain-probe-1425555` both
+lapsed ~62 days ago. The canary (T-2556) had been firing daily on two-month-old
+history.
 
-**Live evidence that the fix silences these (measured 2026-08-14, before
-deploy).** Two representative topics, read via `channel claims
---include-expired`:
-
-| topic | `claimed_until` | age at measurement |
-|---|---|---|
-| `work-queue` | 1781341864363 | ~62 days |
-| `drain-probe-1425555` | 1781359269709 | ~62 days |
-
-Both lapsed roughly two months ago — far outside the 15-minute recency window —
-so both fall silent once the fixed binary is serving.
-
-Note this also settles the AC that asked for `work-queue` to be judged
-SEPARATELY from the demo topics, on the theory it might be a real work topic.
-It isn't currently live work: its single claim lapsed ~62 days ago under
-claimer `root-claude-dimitrimintdev`. It was history too. The instinct to
-judge it separately was right; the conclusion is that it needs no action
-either.
+**Scope note.** The fix deliberately does not reap expired rows, which was the
+other candidate remedy. Reaping would destroy the forensic record
+`--include-expired` exists to serve ("who held this offset before it lapsed?"),
+and it would trade a false-positive problem for a data-loss one. The rows are
+fine; reading them as current state was the defect.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] The 11 flagged topics are dispositioned — each is either cleaned up or explicitly excluded, with the reason recorded
-- [ ] The distinction is preserved: all 11 have `active_count: 0` with only EXPIRED claims, so nothing is genuinely held; the T-2042 heuristic fires on `expired_count > 0`, which is correct for real work and wrong for abandoned test topics
-- [ ] Demo/test residue is identified by name and dealt with as a class — `substrate-drain-demo*` (×8), `drain-fix-verify-*`, `drain-probe-*` — rather than one-off
-- [ ] `work-queue` (1 expired claim) is judged SEPARATELY from the demo topics: it is a plausibly-real work topic and must not be swept up in a bulk cleanup
-- [ ] After the change, `substrate_status --only_pressured` reports a stuck_count that reflects genuine stuck work, so a firing canary is worth reading
-- [ ] If exclusion is chosen over cleanup, the exclusion is declared in the canary's own config with a cited reason — not hidden in a threshold bump
-- [ ] The scale is recorded for context: 11 of 770 topics, i.e. the canary's signal was ~100% noise on this host
-
-<!-- Origin: T-2705 session, live MCP diagnostics under a critical budget gate.
-     Why this matters beyond tidiness: a canary that fires daily on debris trains
-     operators to ignore it, which is the "guard gets deleted" failure mode this
-     session documented repeatedly (T-2680 scope over-report, T-2699 dead refusals).
-     A guard whose firing means nothing is worse than no guard, because it also
-     consumes the attention a real firing would need. -->
+- [x] The latch is proven, not asserted: a test shows a topic with only-expired claims reports `potentially_stuck: true` indefinitely under the old predicate, because the lazy reap in `meta.rs` is scoped `WHERE topic = ?1 AND offset = ?2` and therefore never runs for an offset nobody re-claims
+- [x] `ClaimsSummary` gains a recency marker (`newest_expired_at_ms` — `MAX(claimed_until)` over rows where `claimed_until <= now`), computed in the SAME single SQL aggregate so the read stays one query
+- [x] The marker is plumbed end-to-end and is not silently dropped at any hop: bus `ClaimsSummary` → hub `channel.rs` JSON → session `claim_client::ClaimsAggregate` → CLI predicate → MCP envelope
+- [x] `is_potentially_stuck` fires on an expired claim ONLY when the expiry is recent (within a stated window), so the flag self-clears; a long-abandoned topic goes quiet
+- [x] The active-claim half of the predicate (`oldest_active_age_ms > 60_000`) is preserved unchanged — that half was never the defect
+- [x] Backward compatibility is explicit: a hub predating this change omits the field, and the client treats absent as "no recent expiry" rather than defaulting to stuck (an older hub must not start reporting every topic stuck)
+- [x] The semantic argument is recorded in-code: an expired lease is the substrate's OWN documented auto-recovery ("if the holder is dead the lease auto-expires"), so reporting a successfully-expired lease as a current fault contradicts the design it is monitoring
+- [x] `cargo test --workspace` green
+- [ ] The 11 live topics on this host are re-measured after the fix and the new `stuck_count` is reported honestly, whatever it is
 
 ### Human
-- [ ] [REVIEW] Decide cleanup vs exclusion for the demo topics
+- [ ] [REVIEW] Confirm the recency window is the right semantic
   **Steps:**
-  1. `termlink channel claims-summary --all --only-stuck`
-  2. Confirm the `substrate-drain-demo*` / `drain-*` topics are disposable test residue
-  **Expected:** agreement that they can be removed or permanently excluded
-  **If not:** say which must be retained and why, so the exclusion list cites a real reason
+  1. Read the new predicate in `crates/termlink-cli/src/commands/channel.rs` (`is_potentially_stuck`)
+  2. Decide whether "a claim expired within the window" is the signal you want, versus dropping the expired half of the predicate entirely
+  **Expected:** agreement that a recently-abandoned worker is worth flagging but an ancient one is not
+  **If not:** say which semantic you want and the predicate changes to match
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -168,6 +151,12 @@ either.
 # stdin on. `echo "$out"` is small and immediate; grep scans the whole captured
 # string anyway, so the tail-3 was cosmetic. Drop it: `echo "$out" | grep -q PAT`.
 #
+cargo test -p termlink-bus claims_summary
+cargo test -p termlink stuck
+cargo test -p termlink expired_claims_only_flag_stuck_while_recent
+cargo test -p termlink absent_expiry_marker_is_not_stuck
+bash scripts/run-guard-layer.sh
+
 # Enforcement-baseline hint (L-398, T-1886): if you edited `.claude/settings.json`
 # (added/removed/reorganised hooks), add `bin/fw enforcement baseline` to your
 # Verification block. Otherwise the canonical hash diverges and `fw doctor`
@@ -176,6 +165,57 @@ either.
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
 ## RCA
+
+**Symptom:** `channel claims-summary --all --only-stuck` reports 11 of 770
+topics `potentially_stuck`. Every one has `active_count: 0` — nothing is held —
+and expired counts from 1 to 81. The T-2556 canary sits on this predicate and
+had been firing daily on all of them.
+
+**Root cause:** `is_potentially_stuck` fired on `expired_count > 0`, and
+`expired_count` never decreases. Expired claim rows are reaped lazily by the
+`DELETE` inside the claim path (`meta.rs`), scoped
+`WHERE topic = ?1 AND offset = ?2` — so a row is only removed when someone
+re-claims that *exact* offset. On a topic nobody re-claims, the row lives for
+the life of the hub's SQLite file. The predicate was therefore a **monotonic
+latch**: once true, true forever, regardless of the system being perfectly
+healthy.
+
+**Why structurally allowed:** two gaps, one mechanical and one conceptual.
+
+Mechanically, the unit test asserted exactly the latching behaviour
+(`expired_stuck.expired_count = 1; assert!(is_potentially_stuck(...))`) — it
+pinned the bug in place as intended behaviour, so every test run confirmed it.
+The test could not distinguish "fires on abandonment" from "fires forever"
+because it never advanced a clock; there was no time axis in the test at all.
+
+Conceptually, the predicate contradicted the design it monitored. Lease expiry
+is the substrate's own documented auto-recovery — "if the holder is dead the
+lease auto-expires" — so the code treated the recovery mechanism as the fault.
+Nothing in the guard layer checks a *semantic* inversion of that kind; the
+static checks ask about resource safety, not "does this alarm mean what its
+name says".
+
+The blindness is the more expensive half. This is the G-019 pattern one level
+up: a canary was built (T-2556) on a predicate that could never clear, so the
+guard's daily firing carried zero information. A guard that fires every day
+independent of system state doesn't just fail to help — it consumes the
+attention a real firing would need, and trains its operator to stop looking.
+That is the same failure this session documented in T-2680 (a canary
+over-reporting its scope) and T-2699 (refusals that could never be emitted).
+
+**Prevention:** distinct from the fix.
+- The replacement test injects `now_ms` and asserts *both* edges of the window,
+  including one millisecond past it. A latch cannot pass it.
+- `is_potentially_stuck_at` is a pure clock-free function, so the time-dependent
+  behaviour is testable at all — the previous shape made the defect unprovable.
+- The corrected semantics are recorded where a reader hits them: the field doc
+  on `newest_expired_at_ms`, the predicate doc, the protocol RPC doc, both MCP
+  tool descriptions, `docs/operations/substrate-claim-primitive.md` (a new
+  "Reading `expired_count` correctly" section), the cron recipe, CLAUDE.md, and
+  `.claude/commands/claims.md` — every place that previously taught the wrong
+  rule now teaches why it was wrong.
+- Back-compat is pinned by its own test: an absent field must read as "not
+  stuck", never as stuck, or an older hub lights up every topic at once.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -238,7 +278,10 @@ either.
 
 ## Updates
 
-### 2026-08-14T15:10:25Z — task-created [task-create-agent]
+### 2026-08-14T16:38:41Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2706-stuck-claims-canary-fires-daily-on-11-te.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2709-stuck-claim-heuristic-is-a-monotonic-lat.md
 - **Context:** Initial task creation
+
+### 2026-08-14T16:39:41Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

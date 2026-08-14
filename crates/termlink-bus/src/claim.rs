@@ -118,4 +118,23 @@ pub struct ClaimsSummary {
     /// claims — i.e. when the next slot will free up without `release`.
     /// `None` when `active_count == 0`.
     pub next_active_expiry_ms: Option<i64>,
+    /// T-2709: wall-clock unix-ms of the MOST RECENT `claimed_until` among
+    /// EXPIRED rows — i.e. when the last lease on this topic lapsed.
+    /// `None` when `expired_count == 0`.
+    ///
+    /// Exists because `expired_count` alone is a **monotonic latch**. Expired
+    /// rows are reaped lazily and only for the *same* `(topic, offset)` (see
+    /// the `DELETE` in `meta.rs::claim`), so on a topic nobody re-claims, one
+    /// abandoned lease leaves a row that never goes away. Any predicate of the
+    /// form `expired_count > 0` therefore stays true forever, even with
+    /// `active_count == 0` — a topic where, by definition, nothing is held and
+    /// nothing *can* be stuck.
+    ///
+    /// The deeper point: lease expiry is the substrate's OWN documented
+    /// recovery path ("if the holder is dead the lease auto-expires"). Treating
+    /// a successfully-expired lease as a standing fault reports the recovery
+    /// mechanism as the failure. This marker lets a consumer ask the question
+    /// that actually has operational meaning — "did a worker abandon work
+    /// *recently*?" — which self-clears as the expiry ages out.
+    pub newest_expired_at_ms: Option<i64>,
 }
