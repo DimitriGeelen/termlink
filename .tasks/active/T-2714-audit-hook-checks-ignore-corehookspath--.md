@@ -1,13 +1,13 @@
 ---
-id: T-2712
-name: "Fabric watch patterns exclude the guard layer — coverage measured over a subset"
+id: T-2714
+name: "Audit hook checks ignore core.hooksPath — unfixable warning in linked worktrees"
 description: >
-  Widen watch-patterns.yaml to cover scripts/tests that already carry cards, and register the newly-visible files
+  audit.sh tests PROJECT_ROOT/.git/hooks/* which cannot exist in a worktree, so CTL-011 and the commit-msg check warn forever and install-hooks cannot clear them
 
-status: started-work
-workflow_type: refactor
+status: captured
+workflow_type: build
 owner: agent
-horizon: now
+horizon: next
 tags: []
 components: []
 related_tasks: []
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-14T18:50:18Z
-last_update: 2026-08-14T18:51:59Z
+created: 2026-08-14T18:57:33Z
+last_update: 2026-08-14T18:57:33Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,51 +30,67 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2712: Fabric watch patterns exclude the guard layer — coverage measured over a subset
+# T-2714: Audit hook checks ignore core.hooksPath — unfixable warning in linked worktrees
 
 ## Context
 
-`fw audit` reported *"Fabric: 48 card(s) point at files no watch pattern
-covers — the registry already treats these as components; drift checks cannot
-see them, so coverage is measured over a subset"*. The uncovered cards were
-almost entirely the **guard layer**: 34 under `scripts/` (the `check-*.sh`
-canaries and static checks), plus the shell and Rust test suites. Those are the
-files this project documents most heavily, and someone had deliberately
-registered cards for them — but `.fabric/watch-patterns.yaml` listed only
-`crates/*/src/**/*.rs`, `lib/`, `web/`, `agents/`, `bin/`, so drift detection
-could not see a single one.
+`fw audit` raised two hook warnings in this worktree — CTL-011 *"pre-push hook
+missing or not executable"* and *"No commit-msg hook"*. Both are wrong, and
+neither can be cleared by the mitigation they recommend.
 
-**The interesting part is what that did to the numbers.** Card-edge coverage
-read `31/150 (18%) have no edges`, which sounds like a healthy graph. It was
-measured over the subset the patterns happened to match. Widening the patterns
-and registering what they expose moves it to `193/344 (56%)` — and *nothing got
-worse*. Those 188 files always had no edges; they were simply not being counted.
-18% was the flattering number, 56% is the real one.
+`audit.sh:2393` tests:
 
-That is the same failure this repo has closed repeatedly one layer down: a guard
-reporting green over a narrower scope than it appears to cover (T-2680's canary
-that called 214 tools clean while scanning for six name patterns; T-2681's
-allowlists whose green depended on untracked local state). It is worth stating
-plainly because the honest fix makes a headline metric look three times worse,
-and the next person to read `193/344` will be tempted to "improve" it by
-narrowing the patterns again.
+```sh
+if [ -f "$PROJECT_ROOT/.git/hooks/commit-msg" ]; then
+```
 
-**Deliberately left uncovered (4 cards).** `install.sh`,
-`systemd-templates/*.service`, `docs/guides/upstream-reporting.md`, and
-`.claude/commands/capture.md` have cards because they are real components, but
-they are not source files and inventing globs to chase four singletons would
-make the pattern list meaningless. The residual 4 is intentional, not a
-leftover.
+In a **linked worktree** `.git` is a text file containing `gitdir: ...`, not a
+directory, so `$PROJECT_ROOT/.git/hooks/<anything>` can never exist. The check is
+structurally incapable of passing here. Worse, this repo sets
+`core.hooksPath = /opt/termlink/.git/hooks`, which git honours and the audit
+ignores entirely.
+
+The hooks are installed and **do fire**:
+
+```
+$ git rev-parse --git-path hooks/commit-msg
+/opt/termlink/.git/hooks/commit-msg
+$ git config core.hooksPath
+/opt/termlink/.git/hooks
+```
+
+and empirically — the commit for T-2712 ran the post-commit hook, printing
+`Task T-2712 updated (...)`.
+
+**The trap this sets.** The mitigation reads *"Install hooks: ./agents/git/git.sh
+install-hooks"*. Running it does the right thing — it writes to the common hooks
+dir, which is where git actually looks — and the warning persists anyway. An
+operator following the instruction concludes either that install-hooks is broken
+or that the warning is noise. During this very audit I ran it and reported CTL-011
+as remediated before re-running the check; it was not, and could not have been.
+A mitigation that cannot fix its own finding is worse than no mitigation, because
+it burns the operator's trust in the check.
+
+Sibling of the two other resolution defects found in the same pass: T-2711
+(`PROJECT_ROOT` walk matching the vendored framework's `FRAMEWORK.md` before the
+consumer's `.framework.yaml`) and T-2713 (hook telemetry counting exit-2 blocks
+as failures). All three share a shape — a check whose verdict is decided by an
+assumption about layout that no longer holds.
+
+**Cross-repo.** `agents/audit/audit.sh` is vendored; a local edit is erased on
+re-vendor. Deliverable is an upstream report, not an edit under
+`.agentic-framework/`.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] `.fabric/watch-patterns.yaml` covers the file classes that already carry cards: `scripts/**/*.sh`, `tests/**/*.sh`, `crates/*/tests/**/*.rs`, `scripts/**/*.py`, `crates/*/build.rs`
-- [x] The widening is justified in-file, so the next reader knows why the list grew and does not narrow it back
-- [x] `fw fabric drift` reports every watched file registered (was: 4 unregistered against the narrow patterns; now 352/352 against the wide ones)
-- [x] The `card(s) point at files no watch pattern covers` warning drops from 48 to 4, and the residual 4 are named and justified rather than silently tolerated
-- [x] The edge-coverage metric shift (18% → 56%) is recorded as a measurement-scope change, NOT reported as a regression or quietly omitted
-- [x] Registration is done via `fw fabric scan` + `fw fabric enrich` so derived edges are captured (56 new edges across session/cli/mcp/protocol/agent-mesh), not by hand-writing skeletons
+- [ ] The report cites `audit.sh:2393` (and the CTL-011 site) as hardcoding `$PROJECT_ROOT/.git/hooks/`
+- [ ] It shows the worktree evidence: `.git` is a file, `core.hooksPath` is set, and `git rev-parse --git-path hooks/...` resolves elsewhere
+- [ ] It includes the empirical proof that hooks fire regardless (post-commit hook output on a real commit), so upstream does not "fix" this by reinstalling hooks
+- [ ] It states the false-mitigation problem explicitly — `install-hooks` succeeds and the warning survives
+- [ ] A concrete remedy is proposed: resolve via `git rev-parse --git-path hooks/<name>` rather than string-concatenating `.git/hooks`, which handles worktrees and `core.hooksPath` in one call
+- [ ] Filed to `framework:pickup` and the post confirmed present
+- [ ] No file under `.agentic-framework/` is edited by this task
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -109,17 +125,6 @@ leftover.
 
 ## Verification
 
-# Drift must be clean against the WIDE patterns (the narrow-pattern clean bill
-# was the defect, so this only means anything with the new globs in place).
-out=$(.agentic-framework/bin/fw audit --sections structure 2>&1); echo "$out" | grep -q "Fabric drift: all"
-# The uncovered-card warning is down to the 4 deliberate non-source singletons.
-out=$(.agentic-framework/bin/fw audit --sections structure 2>&1); echo "$out" | grep -q "4 card(s) point at files no watch pattern covers"
-# The guard layer is actually watched now — spot-check a canary and a fixture suite.
-test -f .fabric/components/scripts-check-stuck-claims-freshness.yaml
-test -f .fabric/components/tests-stuck-claims-check-fixtures.yaml
-# The patterns file still explains itself (guards against a silent re-narrowing).
-grep -q "T-2712" .fabric/watch-patterns.yaml
-
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
@@ -152,6 +157,31 @@ grep -q "T-2712" .fabric/watch-patterns.yaml
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
 ## RCA
+
+**Symptom:** CTL-011 and the commit-msg check warn in a linked worktree even
+though the hooks are installed and firing, and running the recommended
+`install-hooks` does not clear either warning.
+
+**Root cause:** both checks decide by `test -f "$PROJECT_ROOT/.git/hooks/<name>"`.
+That assumes `.git` is a directory — true for a normal clone, false for a linked
+worktree, where it is a pointer file. It also ignores `core.hooksPath`, which
+overrides the location outright. Git exposes the correct answer through
+`git rev-parse --git-path hooks/<name>`; the audit reimplements the lookup by
+string concatenation instead of asking git.
+
+**Why structurally allowed:** the check predates worktree use in this project and
+was written when the assumption held. The audit already knows it is running in a
+worktree — it prints *"Cron drift checks skipped — linked worktree"* two sections
+earlier — so the context is available; it simply is not consulted at these two
+sites. Nothing tests the audit's own checks against a worktree layout, so a check
+that can never pass there looks identical to one that is merely reporting a real
+problem.
+
+**Prevention:** replace the concatenation with `git rev-parse --git-path`, which
+resolves worktrees and `core.hooksPath` together. The durable guard is a test
+that runs the hook checks inside a `git worktree add` fixture and asserts they
+PASS when hooks are installed — without it, the next path-derived check will make
+the same assumption.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -214,10 +244,7 @@ grep -q "T-2712" .fabric/watch-patterns.yaml
 
 ## Updates
 
-### 2026-08-14T18:50:18Z — task-created [task-create-agent]
+### 2026-08-14T18:57:33Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2712-fabric-watch-patterns-exclude-the-guard-.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2714-audit-hook-checks-ignore-corehookspath--.md
 - **Context:** Initial task creation
-
-### 2026-08-14T18:51:39Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work

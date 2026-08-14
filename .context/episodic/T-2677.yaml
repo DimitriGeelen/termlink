@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2677: clamp inject_delay_ms to prevent Instant+Duration overflow panic on command.inject
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-14T18:59:19Z
+# ============================================================================
+
+task_id: T-2677
+task_name: "clamp inject_delay_ms to prevent Instant+Duration overflow panic on command.inject"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-13T11:49:12Z
+completed: 2026-08-13T11:52:26Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  clamp inject_delay_ms to prevent Instant+Duration overflow panic on command.inject
+
+# Key outcomes
+outcomes:
+  - 'A pure `effective_inject_delay_ms(requested: Option<u64>) -> u64` helper clamps the'
+  - 'The `command.inject` handler resolves `delay_ms` through the new helper (no raw'
+  - 'A unit test proves the clamp is load-bearing: `u64::MAX` in → `MAX_INJECT_DELAY_MS`'
+  - '`cargo build -p termlink-session` and `cargo test -p termlink-session --lib` pass.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-08-13 — MAX_INJECT_DELAY_MS ceiling value'
+    chose: '`MAX_INJECT_DELAY_MS = 60_000` (60s) via a dedicated const.'
+    rationale: 'Inter-key inject delays are milliseconds-to-seconds in any legitimate use'
+    alternatives_rejected: ['reusing `MAX_SUBSCRIBE_TIMEOUT_MS` (3_600_000). Consistent numerals, but a']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2677-clamp-injectdelayms-to-prevent-instantdu.md
+generated_by: context-agent-hybrid

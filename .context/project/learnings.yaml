@@ -3143,3 +3143,9 @@ learnings:
   task: T-2709
   date: 2026-08-14
   context: Added via context agent
+- id: PL-341
+  learning: "A coverage metric is only as honest as the scope it samples: fabric edge-coverage read 18% because watch-patterns.yaml never matched the 188 guard-layer scripts that already had cards — widening it to the true scope moved the same metric to 56% without anything getting worse. Third instance of this class (T-2680 charter-drift scanning 6 name patterns while reporting 214 tools clean; T-2681 allowlists whose green depended on untracked local state). When a guard reports green, ask what it did NOT look at before believing it."
+  source: P-001
+  task: T-2712
+  date: 2026-08-14
+  context: Added via context agent

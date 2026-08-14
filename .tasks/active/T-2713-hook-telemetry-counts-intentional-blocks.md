@@ -1,13 +1,13 @@
 ---
-id: T-2712
-name: "Fabric watch patterns exclude the guard layer — coverage measured over a subset"
+id: T-2713
+name: "Hook telemetry counts intentional blocks (exit 2) as hook failures"
 description: >
-  Widen watch-patterns.yaml to cover scripts/tests that already carry cards, and register the newly-visible files
+  fw_record_hook_fire treats any non-zero exit as failure, so a blocking enforcement hook trips the T-1626 hook-decay alarm by working correctly
 
-status: started-work
-workflow_type: refactor
+status: captured
+workflow_type: build
 owner: agent
-horizon: now
+horizon: next
 tags: []
 components: []
 related_tasks: []
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-14T18:50:18Z
-last_update: 2026-08-14T18:51:59Z
+created: 2026-08-14T18:54:20Z
+last_update: 2026-08-14T18:54:20Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,51 +30,70 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2712: Fabric watch patterns exclude the guard layer — coverage measured over a subset
+# T-2713: Hook telemetry counts intentional blocks (exit 2) as hook failures
 
 ## Context
 
-`fw audit` reported *"Fabric: 48 card(s) point at files no watch pattern
-covers — the registry already treats these as components; drift checks cannot
-see them, so coverage is measured over a subset"*. The uncovered cards were
-almost entirely the **guard layer**: 34 under `scripts/` (the `check-*.sh`
-canaries and static checks), plus the shell and Rust test suites. Those are the
-files this project documents most heavily, and someone had deliberately
-registered cards for them — but `.fabric/watch-patterns.yaml` listed only
-`crates/*/src/**/*.rs`, `lib/`, `web/`, `agents/`, `bin/`, so drift detection
-could not see a single one.
+`fw audit` raised *"Hook threshold: 1 hook(s) failing over threshold (T-1626) —
+`FAIL|check-human-ac-tick|20|2|0.1000`"*, whose documented meaning is "this hook
+is failing in production, not just on the /tmp probe" and whose auto-registered
+concern text suggests the hook "has decayed silently".
 
-**The interesting part is what that did to the numbers.** Card-edge coverage
-read `31/150 (18%) have no edges`, which sounds like a healthy graph. It was
-measured over the subset the patterns happened to match. Widening the patterns
-and registering what they expose moves it to `193/344 (56%)` — and *nothing got
-worse*. Those 188 files always had no edges; they were simply not being counted.
-18% was the flattering number, 56% is the real one.
+It has not. `check-human-ac-tick` returns non-zero on exactly one path
+(`check-human-ac-tick.py:289`): the branch that **blocks an agent from ticking a
+Human AC** — the entire purpose of the hook (T-1731, closing G2 from T-1729).
+Every other path returns 0. The two recorded "failures" are two occasions on
+which the guard worked.
 
-That is the same failure this repo has closed repeatedly one layer down: a guard
-reporting green over a narrower scope than it appears to cover (T-2680's canary
-that called 214 tools clean while scanning for six name patterns; T-2681's
-allowlists whose green depended on untracked local state). It is worth stating
-plainly because the honest fix makes a headline metric look three times worse,
-and the next person to read `193/344` will be tempted to "improve" it by
-narrowing the patterns again.
+The conflation is in `lib/hook-telemetry.sh:28`:
 
-**Deliberately left uncovered (4 cards).** `install.sh`,
-`systemd-templates/*.service`, `docs/guides/upstream-reporting.md`, and
-`.claude/commands/capture.md` have cards because they are real components, but
-they are not source files and inventing globs to chase four singletons would
-make the pattern list meaningless. The residual 4 is intentional, not a
-leftover.
+```sh
+if [ "$exit_code" != "0" ]; then
+    _fw_telemetry_increment "$working_dir/.hook-failure-counter" "$hookname"
+fi
+```
+
+Any non-zero exit is a failure. But in the Claude Code hook protocol **exit 2 is
+the documented "block the tool call" code**, semantically distinct from other
+non-zero exits, which mean the hook itself errored. Treating them alike makes a
+correctly-enforcing hook statistically indistinguishable from a broken one.
+
+**Why this matters more than a cosmetic miscount.** The consequence is
+structural: any blocking hook whose block rate exceeds `FAIL_RATIO` (0.10) is
+*guaranteed* to trip this alarm, and the mitigation on offer — `hook-threshold.py
+--register` — files a G-concern against a hook that is working perfectly. That
+inverts the T-1626 signal it exists to carry (hooks decaying silently, e.g. bare
+relative paths under cd-drift), and it teaches the operator that this warning is
+noise. That is the same "a guard that fires regardless of system state trains you
+to stop reading it" failure closed in T-2709 earlier this session, one layer up
+in the telemetry.
+
+`check-human-ac-tick` is the sharpest case because blocking is *all* it does, but
+the flaw applies to every Tier-0/Tier-1 gate: `check-tier0`, `check-active-task`,
+`budget-gate`, `check-project-boundary` all block by design and all currently sit
+at 0 failures only because they have not blocked recently.
+
+**Discovery note.** This did not appear because anything broke today. The two
+failures date to `~2026-08-14T01:06` (mtime of `.hook-failure-counter`); routine
+task-file edits during the audit remediation carried the fire count to the
+`MIN_FIRES=20` floor, at which point 2/20 landed exactly on the 0.10 threshold.
+The alarm was latent for hours and surfaced on an unrelated trigger.
+
+**Cross-repo.** `lib/hook-telemetry.sh` and `lib/hook-threshold.py` are vendored
+framework files; a local edit is erased on the next re-vendor. Deliverable is an
+upstream report, not an edit under `.agentic-framework/` (same disposition as
+T-2711).
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] `.fabric/watch-patterns.yaml` covers the file classes that already carry cards: `scripts/**/*.sh`, `tests/**/*.sh`, `crates/*/tests/**/*.rs`, `scripts/**/*.py`, `crates/*/build.rs`
-- [x] The widening is justified in-file, so the next reader knows why the list grew and does not narrow it back
-- [x] `fw fabric drift` reports every watched file registered (was: 4 unregistered against the narrow patterns; now 352/352 against the wide ones)
-- [x] The `card(s) point at files no watch pattern covers` warning drops from 48 to 4, and the residual 4 are named and justified rather than silently tolerated
-- [x] The edge-coverage metric shift (18% → 56%) is recorded as a measurement-scope change, NOT reported as a regression or quietly omitted
-- [x] Registration is done via `fw fabric scan` + `fw fabric enrich` so derived edges are captured (56 new edges across session/cli/mcp/protocol/agent-mesh), not by hand-writing skeletons
+- [ ] The claim is evidenced, not asserted: cite `check-human-ac-tick.py:289` as the only non-zero return and `hook-telemetry.sh:28` as the conflation point
+- [ ] The report states that exit 2 is the Claude Code "block" code and that other non-zero codes mean hook error, since the fix depends on that distinction
+- [ ] The blast radius is named — every blocking gate (`check-tier0`, `check-active-task`, `budget-gate`, `check-project-boundary`) is subject to the same false alarm, not just this one hook
+- [ ] A concrete remedy is proposed: count exit 2 as a `blocks` counter separate from `failures`, and threshold only on genuine failures
+- [ ] The report warns against the tempting non-fix — re-baselining via `--register`, which would file a concern against a healthy hook and bury the real T-1626 signal
+- [ ] Filed to `framework:pickup` and the post confirmed present
+- [ ] No file under `.agentic-framework/` is edited by this task
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -109,17 +128,6 @@ leftover.
 
 ## Verification
 
-# Drift must be clean against the WIDE patterns (the narrow-pattern clean bill
-# was the defect, so this only means anything with the new globs in place).
-out=$(.agentic-framework/bin/fw audit --sections structure 2>&1); echo "$out" | grep -q "Fabric drift: all"
-# The uncovered-card warning is down to the 4 deliberate non-source singletons.
-out=$(.agentic-framework/bin/fw audit --sections structure 2>&1); echo "$out" | grep -q "4 card(s) point at files no watch pattern covers"
-# The guard layer is actually watched now — spot-check a canary and a fixture suite.
-test -f .fabric/components/scripts-check-stuck-claims-freshness.yaml
-test -f .fabric/components/tests-stuck-claims-check-fixtures.yaml
-# The patterns file still explains itself (guards against a silent re-narrowing).
-grep -q "T-2712" .fabric/watch-patterns.yaml
-
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
@@ -152,6 +160,30 @@ grep -q "T-2712" .fabric/watch-patterns.yaml
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
 ## RCA
+
+**Symptom:** `fw audit` reports `FAIL|check-human-ac-tick|20|2|0.1000` under a
+check whose stated meaning is "the hook is failing in production" and whose
+auto-registered concern says it "has decayed silently". The hook is healthy; the
+two non-zero exits are two successful policy blocks.
+
+**Root cause:** `lib/hook-telemetry.sh:28` classifies by `exit_code != 0`, which
+merges two different meanings of non-zero. In the Claude Code hook protocol exit
+2 means *the hook deliberately blocked the tool call*; other non-zero codes mean
+*the hook itself failed*. The telemetry has one bucket for both, so "enforced a
+policy" and "crashed" are the same event.
+
+**Why structurally allowed:** the counter was added (T-1628) to detect hooks
+failing silently, and at that time the hooks under suspicion were ones that
+errored rather than blocked. Nothing encoded the protocol's distinction between
+block and error, and no test asserts that a blocking hook stays `ok` — so the
+gap only becomes visible once a blocking hook accumulates enough fires to reach
+`MIN_FIRES`, which for a rarely-triggered guard can take weeks.
+
+**Prevention:** split the counter — `blocks` (exit 2) recorded separately from
+`failures` (other non-zero), with the threshold reading only `failures`. The
+durable guard is a test that fires a hook returning 2 and asserts it is NOT
+counted as a failure; without that, the two meanings will re-merge the next time
+someone simplifies the condition.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -214,10 +246,7 @@ grep -q "T-2712" .fabric/watch-patterns.yaml
 
 ## Updates
 
-### 2026-08-14T18:50:18Z — task-created [task-create-agent]
+### 2026-08-14T18:54:20Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2712-fabric-watch-patterns-exclude-the-guard-.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2713-hook-telemetry-counts-intentional-blocks.md
 - **Context:** Initial task creation
-
-### 2026-08-14T18:51:39Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
