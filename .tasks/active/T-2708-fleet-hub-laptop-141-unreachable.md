@@ -40,8 +40,36 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] The failure is correctly classified as **HOST-level, not hub-level** — `fleet_doctor` returns `No route to host (os error 113)`, which means the machine is unreachable at the network layer, NOT that the hub process crashed
+- [ ] Remediation therefore targets power/network/routing to 192.168.10.141, **not** `systemctl restart termlink-hub` — restarting a hub on a host you cannot route to is not a fix
+- [ ] Confirm whether laptop-141 is intentionally offline (a laptop may simply be shut) before treating this as an incident
+- [ ] If intentionally transient, decide whether it belongs in `hubs.toml` at all — a permanently-listed unreachable profile makes every fleet sweep report `fail: 1` forever, which is the same signal-erosion problem as T-2706
+- [ ] The other 4 hubs stay healthy throughout: `local-test`, `ring20-dashboard`, `ring20-management`, `workstation-107-public` (latencies 41–106 ms)
+
+<!-- CORRECTION (recorded rather than silently amended): this task was filed saying
+     "confirm whether the host is intentionally offline or the hub needs restarting".
+     A follow-up fleet_doctor probe returned `No route to host (os error 113)` — the
+     host is unreachable at the network layer, so "the hub needs restarting" was the
+     wrong half of that disjunction. Precision matters here because the two
+     remediations are entirely different.
+
+     POSITIVE FINDING from the same probe, recorded because this session has
+     overwhelmingly produced problems and a clean bill is also evidence:
+     `topic_durability=true` returns verdict DURABLE across ALL four reachable hubs —
+     every one has runtime_dir=/var/lib/termlink with runtime_dir_volatile=false, and
+     audit_present=true. PL-021 (volatile runtime_dir on /tmp causing BOTH the HMAC
+     secret and TLS cert to rotate on every reboot — the structural cause of repeated
+     auth-mismatch incidents and G-058's 16-day silent mirror failure) is
+     STRUCTURALLY CLOSED fleet-wide. hubs_volatile is empty; hubs_missing is empty;
+     hubs_unsupported is empty. That is the axis which historically broke this fleet
+     most often, and it is now clean. -->
+
+### Human
+- [ ] [REVIEW] Is laptop-141 meant to be online?
+  **Steps:**
+  1. Check whether 192.168.10.141 is powered on and on the network
+  **Expected:** a yes/no that decides incident vs. expected-offline
+  **If not reachable by design:** consider removing it from `hubs.toml` so fleet sweeps stop reporting a permanent `fail: 1`
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
