@@ -151,6 +151,44 @@ assert_rc "multiple stuck topics fire" 1 "$(run)"
 assert_eq "all stuck topics are listed" "2" "$(run_json | jq -r '.stuck | length')"
 assert_eq "stuck_count matches" "2" "$(run_json | jq -r '.stuck_count')"
 
+# --- fixture 9 (T-2709): a half-inert check must NOT report a bare "healthy" ---
+# Against a hub predating T-2709 the abandoned-claim arm cannot fire at all, so
+# stuck_count 0 means "we could not look", not "nothing is wrong". Non-firing
+# (a capability gap is not a stuck claim, per PL-219) but it must be SAID.
+cat > "$FIX" <<'EOF'
+{"ok":true,"topic_count":770,"stuck_count":0,"shown":0,"only_stuck":true,
+ "expired_arm_inert":true,"topics":[]}
+EOF
+assert_rc "a degraded (half-inert) check still exits 0" 0 "$(run)"
+case "$(run_out)" in
+    *DEGRADED*) ok "degraded run says so instead of a bare 'healthy'" ;;
+    *) bad "a half-inert check must not report plain healthy" ;;
+esac
+case "$(run_out)" in
+    *newest_expired_at_ms*) ok "degraded note names the missing field" ;;
+    *) bad "degraded note should name newest_expired_at_ms" ;;
+esac
+
+# The flag must not leak into the healthy path when the hub DOES serve it.
+cat > "$FIX" <<'EOF'
+{"ok":true,"topic_count":770,"stuck_count":0,"shown":0,"only_stuck":true,
+ "expired_arm_inert":false,"topics":[]}
+EOF
+case "$(run_out)" in
+    *DEGRADED*) bad "a fully-capable hub must not be reported degraded" ;;
+    *) ok "fully-capable hub reports plain healthy" ;;
+esac
+
+# An older CLI omits the field entirely — absent must read as "not inert",
+# never as degraded, or every pre-T-2709 CLI would cry wolf.
+cat > "$FIX" <<'EOF'
+{"ok":true,"topic_count":770,"stuck_count":0,"shown":0,"only_stuck":true,"topics":[]}
+EOF
+case "$(run_out)" in
+    *DEGRADED*) bad "absent expired_arm_inert must not be read as degraded" ;;
+    *) ok "absent expired_arm_inert reads as not-degraded" ;;
+esac
+
 echo
 echo "stuck-claims-check fixtures: $pass passed, $fail failed"
 [ "$fail" -eq 0 ] || exit 1

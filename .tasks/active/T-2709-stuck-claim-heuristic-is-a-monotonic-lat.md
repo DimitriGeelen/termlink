@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T16:38:41Z
-last_update: 2026-08-14T16:39:41Z
+last_update: 2026-08-14T17:04:20Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -72,6 +72,48 @@ other candidate remedy. Reaping would destroy the forensic record
 and it would trade a false-positive problem for a data-loss one. The rows are
 fine; reading them as current state was the defect.
 
+## Post-fix measurement — and why the green number is only half the story
+
+Re-measured with the freshly-built binary against the running hub:
+
+```
+$ ./target/release/termlink channel claims-summary --all --only-stuck --json
+{"ok":true,"only_stuck":true,"shown":0,"stuck_count":0,"topic_count":770,"topics":[]}
+```
+
+`stuck_count` 11 → 0. But checking *why* before claiming credit:
+
+```
+$ ./target/release/termlink channel claims-summary work-queue --json
+{"active_count":0,"expired_count":1,"newest_expired_at_ms":null, ...}
+```
+
+`expired_count: 1` with `newest_expired_at_ms: null` is impossible on a hub that
+serves the field — the row exists and has a `claimed_until`. So the running hub
+(started ~1 day ago, pre-T-2709) omits it, and the 0 came from the **back-compat
+path**, not from the recency window doing its job.
+
+What that live run *does* prove: the new client works against an old hub without
+error, and absent-reads-as-not-stuck behaves as designed outside the unit tests.
+What it does **not** prove: that the window discriminates recent from ancient.
+Only the unit tests cover that, until a hub runs the new binary.
+
+**This surfaced a second defect, fixed here.** Against such a hub the
+abandoned-claim arm is not merely conservative — it is *completely inert*, and
+the check was reporting a cheerful `healthy (770 topics, 0 stuck)` while
+structurally unable to see that entire class. Green because we cannot look is
+not green. Two additions:
+
+- `claims-summary --all --json` computes `expired_arm_inert` (some topic has
+  expired rows but carries no marker — impossible on a capable hub) and emits a
+  stderr note naming the missing field and the remedy.
+- The canary appends a `DEGRADED:` clause to its healthy line. Deliberately
+  **non-firing** — a capability gap is not a stuck claim, which is PL-219's rule
+  — but never silent.
+
+Pinned by four fixtures, including that an older CLI omitting the field reads as
+not-degraded rather than crying wolf.
+
 ## Acceptance Criteria
 
 ### Agent
@@ -84,7 +126,8 @@ fine; reading them as current state was the defect.
 - [x] Backward compatibility is explicit: a hub predating this change omits the field, and the client treats absent as "no recent expiry" rather than defaulting to stuck (an older hub must not start reporting every topic stuck)
 - [x] The semantic argument is recorded in-code: an expired lease is the substrate's OWN documented auto-recovery ("if the holder is dead the lease auto-expires"), so reporting a successfully-expired lease as a current fault contradicts the design it is monitoring
 - [x] `cargo test --workspace` green
-- [ ] The 11 live topics on this host are re-measured after the fix and the new `stuck_count` is reported honestly, whatever it is
+- [x] The 11 live topics on this host are re-measured after the fix and the new `stuck_count` is reported honestly, whatever it is — measured `stuck_count: 0` (from 11), but see the caveat below: on THIS hub that number comes from the back-compat path, not from the recency window
+- [x] The half-inert case is not reported as plain "healthy" — a hub that omits `newest_expired_at_ms` cannot fire the abandoned-claim arm at all, so `stuck_count: 0` there means "could not look", and both the CLI (`expired_arm_inert` + stderr note) and the canary (`DEGRADED:` suffix) now say so
 
 ### Human
 - [ ] [REVIEW] Confirm the recency window is the right semantic

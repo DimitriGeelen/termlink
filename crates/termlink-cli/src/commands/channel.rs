@@ -12317,12 +12317,23 @@ async fn render_claims_summary_fleet_json(addr: &TransportAddr, only_stuck: bool
     let topics = fetch_topic_names(addr).await?;
     let mut entries: Vec<serde_json::Value> = Vec::with_capacity(topics.len());
     let mut stuck_count: u64 = 0;
+    // T-2709: does this hub actually serve the expiry-recency marker? A hub
+    // predating T-2709 omits it, so the expired arm of the stuck predicate is
+    // INERT against that hub — only the active-age arm can fire. Reporting
+    // `stuck_count: 0` without saying so would be a silent degradation: green
+    // because we cannot see, not green because nothing is wrong. Detected as
+    // "some topic has expired rows but carries no marker", which is impossible
+    // on a hub that serves the field.
+    let mut expired_arm_inert = false;
     for t in &topics {
         match termlink_session::claim_client::channel_claims_summary(addr, t).await {
             Ok(summary) => {
                 let stuck = is_potentially_stuck(&summary);
                 if stuck {
                     stuck_count += 1;
+                }
+                if summary.expired_count > 0 && summary.newest_expired_at_ms.is_none() {
+                    expired_arm_inert = true;
                 }
                 // T-2076: --only-stuck filters out non-stuck successful rows
                 // BUT keeps the stuck_count truthful (counted above before
@@ -12361,9 +12372,18 @@ async fn render_claims_summary_fleet_json(addr: &TransportAddr, only_stuck: bool
             "stuck_count": stuck_count,
             "shown": shown,
             "only_stuck": only_stuck,
+            "expired_arm_inert": expired_arm_inert,
             "topics": entries,
         })
     );
+    if expired_arm_inert {
+        eprintln!(
+            "note: this hub does not serve `newest_expired_at_ms` (pre-T-2709), so the \
+             abandoned-claim half of the stuck check cannot fire — only the \
+             oldest-active-age half is live. Upgrade the hub binary and restart it \
+             through its unit to restore full detection."
+        );
+    }
     Ok(())
 }
 

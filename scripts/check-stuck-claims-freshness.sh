@@ -105,6 +105,12 @@ if [ "$jq_rc" -ne 0 ] || [ -z "$stuck_count" ]; then
 fi
 topic_count="$(printf '%s' "$raw" | jq -r '.topic_count // 0' 2>/dev/null)"
 
+# T-2709: the CLI sets expired_arm_inert when the hub omits newest_expired_at_ms
+# while topics still carry expired rows — i.e. the abandoned-claim half of the
+# stuck predicate cannot fire on this hub. Absent on older CLIs → false.
+inert="$(printf '%s' "$raw" | jq -r '.expired_arm_inert // false' 2>/dev/null)"
+[ "$inert" = "true" ] || inert=false
+
 # Per-topic fetch errors (ok:false entries) are surfaced but do NOT themselves
 # fire — they could mask a stuck topic, so we note them as a soft warning.
 fetch_errors="$(printf '%s' "$raw" | jq -r '[.topics[]? | select(.ok == false)] | length' 2>/dev/null)"
@@ -129,6 +135,12 @@ fi
 if [ "$stuck_count" -eq 0 ]; then
     note=""
     [ "$fetch_errors" -gt 0 ] && note=" (warning: $fetch_errors topic(s) unreadable — could mask a stuck topic)"
+    # T-2709: never report a bare "healthy" when half the check is inert. A hub
+    # predating T-2709 omits newest_expired_at_ms, so the abandoned-claim arm
+    # cannot fire at all — 0 stuck then means "we could not look", not "nothing
+    # is wrong". Non-firing (this is a capability gap, not a stuck claim —
+    # PL-219's rule) but it must be SAID, or the guard degrades silently.
+    [ "$inert" = "true" ] && note="${note} (DEGRADED: hub predates T-2709 and omits newest_expired_at_ms — the abandoned-claim half of this check is inert; upgrade + restart the hub through its unit to restore it)"
     [ "$QUIET" -eq 1 ] || echo "check-stuck-claims: healthy (${topic_count:-0} topics, 0 stuck)${note}"
     exit 0
 fi
