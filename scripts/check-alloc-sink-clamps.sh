@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# guard-layer: source --no-heartbeat
 # check-alloc-sink-clamps.sh (T-2527, G-019 prevention for the T-2523/T-2526 class)
 #
 # WHY: twice in one window an adversarial hunter found a caller-supplied param

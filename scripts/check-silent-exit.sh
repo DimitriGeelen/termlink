@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# guard-layer: source --no-heartbeat
 # check-silent-exit.sh (T-2666, G-019 prevention for the T-2663 silent-text-exit class)
 #
 # WHY: a CLI subcommand that reaches `std::process::exit(<non-zero>)` on a user-facing

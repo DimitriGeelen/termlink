@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# guard-layer: source --no-heartbeat
 # check-busy-spin.sh (T-2672, G-019 prevention for the T-2658/T-2636/T-2640/T-2670/T-2671
 # long-poll busy-spin class)
 #

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# guard-layer: source
 # scripts/check-error-code-docs.sh
 #
 # T-2217 (Level-C prevention): lint operator-facing docs/skills for error-code

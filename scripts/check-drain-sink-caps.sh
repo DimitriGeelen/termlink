@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# guard-layer: source --no-heartbeat
 # check-drain-sink-caps.sh (T-2531, G-019 prevention for the T-2518/2524/2525/2529 class)
 #
 # WHY: four separate fixes in one campaign each closed ONE instance of the SAME class —
