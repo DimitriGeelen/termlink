@@ -42,6 +42,44 @@ All recipes assume:
 If you're new to the substrate, run `/preflight` first to confirm the
 environment is correctly configured before wiring monitoring.
 
+### ⚠️ The redirect idiom — split the streams (T-2685)
+
+Every canary implements the same three-way contract: **exit 0** healthy · **exit 1**
+FIRING (a real finding) · **exit 2** tooling error. The exit-2 class is deliberate —
+"the check could not run" is a categorically different fact from "the thing being
+watched is broken", and only one of them warrants the operator action documented for
+that canary.
+
+**The cron job line must preserve that split.** Write it as:
+
+```
+… bash scripts/check-<x>.sh --quiet >> .context/working/.<x>-canary.log 2>> .context/working/.<x>-canary.log.stderr
+```
+
+Not `2>&1`, and not `2>/dev/null`:
+
+| Redirect | What breaks |
+|---|---|
+| `2>&1` | A check that **could not run** writes into the log whose documented meaning is "the watched thing is broken". The operator acts on a fault that does not exist. |
+| `2>/dev/null` | A check that could not run fails **completely silently** — Directive #2 violated inside the monitoring layer. Trades a bad signal for no signal. |
+| `2>> <log>.stderr` | ✅ Nothing is lost; the diagnostic stream is preserved, just not conflated with the one-bit findings signal. |
+
+The `.stderr` suffix is chosen so it does **not** match `/canaries`' `.*-canary.log`
+discovery glob (`canary-status.sh:97`) — a tooling error can never be re-read as a
+finding by the operator's own tooling.
+
+**Why this is worth a table.** "Empty log = healthy" is a *one-bit channel*. Once a
+tooling error dirties the log, a subsequent **genuine** finding appends to an
+already-non-empty file and changes nothing an operator can see — the canary is not
+merely noisy, it is *deaf* until someone truncates it by hand. T-2683 found all 30
+job lines across all 24 crontabs using `2>&1`, and found the release-mirror canary
+already in exactly that deaf state: its log held `error: origin HEAD empty` while the
+mirror was in fact synced, directing an operator to rotate a GitHub token for nothing.
+
+`scripts/check-canary-log-hygiene.sh` enforces this and is a member of the T-2684
+guard layer, so `bash scripts/run-guard-layer.sh` catches the next canary written
+with the old idiom.
+
 ---
 
 ## Recipe 1: Nightly preflight canary (T-2160)

@@ -23,4 +23,4 @@ PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 07:27 UTC — offset from the :13 mirror, :17 unconfirmed-delivery,
 # :37 framework-pickup, :43 frozen-husk, :47 task-finalization canaries.
-27 7 * * * root cd /opt/termlink && bash scripts/check-stuck-claims-freshness.sh --quiet >> .context/working/.stuck-claims-canary.log 2>&1
+27 7 * * * root cd /opt/termlink && bash scripts/check-stuck-claims-freshness.sh --quiet >> .context/working/.stuck-claims-canary.log 2>> .context/working/.stuck-claims-canary.log.stderr

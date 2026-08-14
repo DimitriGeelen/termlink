@@ -21,4 +21,4 @@ PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 07:33 UTC — offset from the :27 stuck-claims, :17 unconfirmed-delivery,
 # :13 mirror, :43 frozen-husk, :47 task-finalization canaries.
-33 7 * * * root cd /opt/termlink && bash scripts/check-session-control-freshness.sh --quiet >> .context/working/.session-control-canary.log 2>&1
+33 7 * * * root cd /opt/termlink && bash scripts/check-session-control-freshness.sh --quiet >> .context/working/.session-control-canary.log 2>> .context/working/.session-control-canary.log.stderr

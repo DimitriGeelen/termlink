@@ -26,4 +26,4 @@ PATH=/usr/local/bin:/usr/bin:/bin
 # Daily at 07:53 UTC — offset from the :13/:17/:23/:43 canaries and the
 # :23/:53 early-morning heartbeats (nearest neighbours: 07:43 task-finalization,
 # 08:33 fleet-binary).
-53 7 * * * root cd /opt/termlink && bash scripts/check-waker-liveness-freshness.sh --expect-armed --quiet >> .context/working/.waker-liveness-canary.log 2>&1
+53 7 * * * root cd /opt/termlink && bash scripts/check-waker-liveness-freshness.sh --expect-armed --quiet >> .context/working/.waker-liveness-canary.log 2>> .context/working/.waker-liveness-canary.log.stderr

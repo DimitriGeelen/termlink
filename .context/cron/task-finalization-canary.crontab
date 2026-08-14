@@ -20,4 +20,4 @@ PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 06:47 UTC — offset from the :13 mirror, :37 framework-pickup,
 # :43 frozen-husk canaries and the :23/:53 heartbeats.
-47 6 * * * root cd /opt/termlink && bash scripts/check-task-finalization-freshness.sh --quiet >> .context/working/.task-finalization-canary.log 2>&1
+47 6 * * * root cd /opt/termlink && bash scripts/check-task-finalization-freshness.sh --quiet >> .context/working/.task-finalization-canary.log 2>> .context/working/.task-finalization-canary.log.stderr

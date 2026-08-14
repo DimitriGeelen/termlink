@@ -25,9 +25,9 @@ PATH=/usr/local/bin:/usr/bin:/bin
 # Daily at 06:07 UTC — minute :07 dodges :03 fleet-binary, :13 mirror, :17
 # heartbeat, :23 substrate-preflight, :33 meta-canary, :43 rollout audit.
 # Runs as root so cwd-into the repo doesn't trip permissions on .context/.
-7 6 * * * root cd /opt/termlink && bash scripts/check-fleet-capability-freshness.sh --quiet >> .context/working/.fleet-capability-canary.log 2>&1
+7 6 * * * root cd /opt/termlink && bash scripts/check-fleet-capability-freshness.sh --quiet >> .context/working/.fleet-capability-canary.log 2>> .context/working/.fleet-capability-canary.log.stderr
 
 # T-1723/T-2175 — meta-canary: fires ~100 minutes later, different minute, so a
 # cron lock or load race can't take both out together. --quiet means the log only
 # grows when the canary's heartbeat is stale (the canary itself broke).
-47 7 * * * root cd /opt/termlink && HEARTBEAT_FILE=.context/working/.fleet-capability-canary.heartbeat CANARY_NAME="fleet-capability canary" CANARY_PROBE_CMD="bash scripts/check-fleet-capability-freshness.sh --quiet --no-heartbeat" CANARY_CRON_PATH=/etc/cron.d/termlink-fleet-capability-canary bash scripts/check-canary-aliveness.sh --quiet >> .context/working/.canary-aliveness.log 2>&1
+47 7 * * * root cd /opt/termlink && HEARTBEAT_FILE=.context/working/.fleet-capability-canary.heartbeat CANARY_NAME="fleet-capability canary" CANARY_PROBE_CMD="bash scripts/check-fleet-capability-freshness.sh --quiet --no-heartbeat" CANARY_CRON_PATH=/etc/cron.d/termlink-fleet-capability-canary bash scripts/check-canary-aliveness.sh --quiet >> .context/working/.canary-aliveness.log 2>> .context/working/.canary-aliveness.log.stderr

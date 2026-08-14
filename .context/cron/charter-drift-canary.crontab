@@ -23,8 +23,8 @@ PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 08:17 UTC — offset from the :13 stale-waker-code / :33 fleet-binary
 # neighbours in the 08:00 hour.
-17 8 * * * root cd /opt/termlink && bash scripts/check-charter-drift-freshness.sh --quiet >> .context/working/.charter-drift-canary.log 2>&1
+17 8 * * * root cd /opt/termlink && bash scripts/check-charter-drift-freshness.sh --quiet >> .context/working/.charter-drift-canary.log 2>> .context/working/.charter-drift-canary.log.stderr
 
 # Meta-canary (T-1723): a second daily run 30m later verifies THIS canary is still
 # firing at all — the aliveness log grows when the heartbeat is stale (canary broke).
-47 8 * * * root cd /opt/termlink && HEARTBEAT_FILE=.context/working/.charter-drift-canary.heartbeat CANARY_NAME="charter-drift canary" CANARY_PROBE_CMD="bash scripts/check-charter-drift-freshness.sh --quiet --no-heartbeat" CANARY_CRON_PATH=/etc/cron.d/termlink-charter-drift-canary bash scripts/check-canary-aliveness.sh --quiet >> .context/working/.canary-aliveness.log 2>&1
+47 8 * * * root cd /opt/termlink && HEARTBEAT_FILE=.context/working/.charter-drift-canary.heartbeat CANARY_NAME="charter-drift canary" CANARY_PROBE_CMD="bash scripts/check-charter-drift-freshness.sh --quiet --no-heartbeat" CANARY_CRON_PATH=/etc/cron.d/termlink-charter-drift-canary bash scripts/check-canary-aliveness.sh --quiet >> .context/working/.canary-aliveness.log 2>> .context/working/.canary-aliveness.log.stderr

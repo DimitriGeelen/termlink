@@ -21,4 +21,4 @@ PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 07:51 UTC — offset from the :13 mirror, :17 unconfirmed-delivery,
 # :27 stuck-claims, :33 session-control, :39 dead-letter canaries.
-51 7 * * * root cd /opt/termlink && bash scripts/check-forever-archival-freshness.sh --quiet >> .context/working/.forever-archival-canary.log 2>&1
+51 7 * * * root cd /opt/termlink && bash scripts/check-forever-archival-freshness.sh --quiet >> .context/working/.forever-archival-canary.log 2>> .context/working/.forever-archival-canary.log.stderr

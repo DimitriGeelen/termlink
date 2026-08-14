@@ -20,4 +20,4 @@ PATH=/usr/local/bin:/usr/bin:/bin
 # :23 doorbell-mail-canary, :33 meta-canary, :43 rollout audit. Runs as root
 # so cwd-into the repo doesn't trip permissions and so it can read
 # /var/lib/termlink/hub.secret for local profile lookups.
-47 9 * * * root cd /opt/termlink && bash scripts/fleet-adoption-snapshot.sh >> .context/working/.fleet-adoption-snapshot.log 2>&1
+47 9 * * * root cd /opt/termlink && bash scripts/fleet-adoption-snapshot.sh >> .context/working/.fleet-adoption-snapshot.log 2>> .context/working/.fleet-adoption-snapshot.log.stderr
