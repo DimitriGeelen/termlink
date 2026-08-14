@@ -3123,3 +3123,17 @@ learnings:
   date: 2026-08-14
   context: Added via context agent
   application: TBD
+- id: PL-338
+  learning: "Two guards can share a vocabulary and cover different edges. TermLink's architecture doc declares 'strict star; spokes never connect to one another' — and T-2569's no_federation_tripwire uses the same words ('strict star', 'no peer-to-peer') while scanning ONLY the hub crate and forbidding hub-to-hub federation. That is charter non-goal #1, a different edge of the same topology. The spoke-to-spoke mesh the architecture doc calls decisive was enforced by nothing, and the gap survived a review series that had already built the non-goal matrix precisely BECAUSE the shared vocabulary made it look covered from either side. When a guard's name matches an invariant, read what it scans before crediting it."
+  source: P-001
+  task: T-2702
+  date: 2026-08-14
+  context: Added via context agent
+  application: TBD
+- id: PL-339
+  learning: "An invariant whose evidence was deliberately designed away is a value, not an invariant. TermLink's architecture doc section 10 lists 'Producer != judge at the seam' among invariants that MUST NOT BE VIOLATED, and section 9 defines it as: neither side self-certifies the boundary, the AEF layer signs off each hard-dependency primitive. The SAME section rejects a sign-off ceremony as 'enterprise scaffolding for a workshop'. Zero sign-off records exist; the only occurrence of the phrase in the document is the sentence rejecting it; and the cross-repo seam channel sat at 36-sent/0-received (G-063). Rejecting ceremony for a homelab was reasonable — the defect is keeping the word 'invariant' for something simultaneously made unverifiable. When declaring an invariant, ask what artifact its observance would produce; if the answer is none, call it a working agreement instead."
+  source: P-001
+  task: T-2702
+  date: 2026-08-14
+  context: Added via context agent
+  application: TBD
