@@ -1,13 +1,13 @@
 ---
-id: T-2705
-name: "Vendored framework is internally inconsistent — Watchtower cannot start (missing lib/arc_membership.py)"
+id: T-2708
+name: "Fleet hub laptop-141 unreachable"
 description: >
-  web/blueprints/arcs.py imports lib.arc_membership, which exists zero times in git and zero times on disk under .agentic-framework/. Watchtower crashes at create_app(). Upstream master has the module and is genuinely newer (its arcs.py carries T-2774 vs termlink at T-2704); the vendored VERSION 1.6.295 vs upstream 1.6.145 is a lineage/tag-epoch artifact, not a downgrade (the T-2359 lesson). Re-vendor via fw update.
+  substrate_status backpressure reports 4 of 5 hubs reachable; laptop-141 (192.168.10.141:9100) refuses connection. Not at capacity or rate-limited — simply down. Per PL-219 an unreachable hub is informational rather than firing, so nothing escalates it; confirm whether the host is intentionally offline or the hub needs restarting through its systemd unit (G-070).
 
-status: started-work
+status: captured
 workflow_type: build
-owner: agent
-horizon: now
+owner: human
+horizon: next
 tags: []
 components: []
 related_tasks: []
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-14T12:02:56Z
-last_update: 2026-08-14T12:13:55Z
+created: 2026-08-14T15:11:45Z
+last_update: 2026-08-14T15:12:26Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,7 +30,7 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2705: Vendored framework is internally inconsistent — Watchtower cannot start (missing lib/arc_membership.py)
+# T-2708: Fleet hub laptop-141 unreachable
 
 ## Context
 
@@ -40,15 +40,8 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `lib/arc_membership.py` exists after the re-vendor, so `web/blueprints/arcs.py`'s import resolves
-- [ ] Watchtower actually **starts and serves** — verified by an HTTP 200, not by "the command returned 0"
-- [ ] The re-vendor uses the sanctioned `fw update` path, which saves a rollback backup, rather than a hand-rolled `rm -rf` + copy
-- [ ] `fw doctor` reports no new failures versus the pre-change baseline (the vendored framework supplies the hooks governing this session — replacing it must not silently break enforcement)
-- [ ] The enforcement baseline is checked: if `.claude/settings.json`-governed hooks changed, that is surfaced rather than left to accumulate as a silent `fw doctor` FAIL (L-398)
-- [ ] `bash scripts/run-guard-layer.sh` still passes 25/25 — the guard layer's fixtures shell out to framework paths, so a framework swap could break them
-- [ ] `cargo test --workspace` green — the framework swap must not disturb the product build
-- [ ] The version-comparison trap is recorded: vendored 1.6.295 vs upstream 1.6.145 reads as a downgrade but upstream carries T-2774 (> termlink's T-2704), so the patch numbers are non-comparable across lineages — the T-2359 lesson, and the reason this was nearly mis-actioned
-- [ ] Rollback path stated in the task so the operator can undo it in one command
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -177,10 +170,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-08-14T12:02:56Z — task-created [task-create-agent]
+### 2026-08-14T15:11:45Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2705-vendored-framework-is-internally-inconsi.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2708-fleet-hub-laptop-141-unreachable.md
 - **Context:** Initial task creation
 
-### 2026-08-14T12:03:09Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
+### 2026-08-14T15:12:26Z — status-update [task-update-agent]
+- **Change:** horizon: now → next
