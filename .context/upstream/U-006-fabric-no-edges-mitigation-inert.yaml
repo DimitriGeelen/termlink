@@ -1,0 +1,72 @@
+---
+id: U-006
+title: "Fabric no-edges warning cannot be cleared by its own mitigation; edge model cannot express binary dependencies"
+created: 2026-08-14T21:00:00Z
+source_project: 010-termlink
+source_task: T-2718
+status: pending
+severity: medium
+component: agents/fabric/
+context: |
+  Found during a full `fw audit` remediation pass.
+
+  The audit warns "Fabric: 193/344 cards have no edges" with mitigation
+  "Run: fw fabric enrich". Running it changes nothing:
+
+      Cards enriched:    0
+      Total edges added: 0
+      Unresolved edge targets — Actionable: 0, Ignorable: 0
+
+  Zero added AND zero unresolved means the enricher is saturated, not blocked on
+  targets it cannot resolve. The warning has recurred 11 times in 14 days per
+  the audit's own trend analysis — the signature of a finding nobody can action.
+
+  This is the third instance found in one audit pass of a check whose printed
+  mitigation cannot fix its own finding; see U-003 and U-004.
+evidence: |
+  Measured in 010-termlink on 2026-08-14, across 149 files in scripts/:
+
+  - 0 source or invoke another repo script through the standard
+    ${SCRIPT_DIR} / ${REPO_ROOT} / ${PROJECT_ROOT} idiom
+  - 71 reference the termlink binary, via TERMLINK_BIN or TERMLINK="..."
+
+  Worked example, scripts/check-stuck-claims-freshness.sh:
+  - its only mention of another repo script (scripts/substrate-smoke.sh) is
+    inside a COMMENT on line 7
+  - its actual dependency is line 38: TERMLINK="${TERMLINK_BIN:-termlink}" —
+    a compiled binary resolved at runtime from the environment
+
+  The fabric edge model is file→file. These scripts depend on an artifact the
+  model has no way to name, so the information is not missing — the
+  relationship is not expressible. No parser improvement closes this.
+suggestion: |
+  Two candidate directions, deliberately not chosen here — the trade belongs to
+  whoever owns the fabric model:
+
+  1. Allow non-file edge targets, so a card can declare a dependency on a
+     binary, service, or build artifact (e.g. `- target: bin:termlink`,
+     `type: invokes`). Makes the graph express what is actually true, at the
+     cost of edges that no file-existence check can validate.
+
+  2. Scope the coverage metric to card types where file→file edges are
+     meaningful, and report leaf//binary-dependent cards as their own class
+     rather than as coverage debt.
+
+  TWO WRONG FIXES, named because both are tempting and both are worse than the
+  warning:
+
+  - Hand-authoring plausible edges to bring the number down. The edges would be
+    fiction, and the graph is consumed by `fw fabric impact` / `blast-radius`,
+    which would then mislead about real change impact.
+  - Re-narrowing .fabric/watch-patterns.yaml so fewer cards are counted. This
+    repo already hit that trap three times (T-2680, T-2681, T-2712) and recorded
+    it as PL-341. The 56% figure is honest precisely BECAUSE T-2712 widened the
+    patterns; it read a flattering 18% only while 188 guard-layer scripts were
+    invisible to the metric. Improving a number by changing what it measures is
+    the failure mode, not the fix.
+related_learning: |
+  PL-341 (010-termlink): a metric measured over a flattering subset is worse
+  than a bad metric, because it reads as complete. The consumer-side lesson for
+  the fabric is that "coverage below target" should distinguish "edges not yet
+  found" from "edges that cannot exist" — otherwise the metric generates
+  permanent, unactionable debt.
