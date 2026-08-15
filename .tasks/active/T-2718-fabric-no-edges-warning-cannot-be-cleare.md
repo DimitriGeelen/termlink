@@ -75,28 +75,53 @@ fabric's edge model is file→file; these scripts depend on an artifact the mode
 no way to name. **No parser improvement can close this**, because the information
 is not missing — the relationship is simply not expressible.
 
-### CORRECTION 2026-08-15 — the "0 of 149" measurement was too narrow
+### Correction — settled 2026-08-15, after three measurements
 
-The paragraph above overstates the case, and the error is the same shape as the one
-this task warns about. **"0 source another repo script" is true only of the three
-`${SCRIPT_DIR}` / `${REPO_ROOT}` / `${PROJECT_ROOT}` idioms that were grepped for.**
-Re-measured against invocation as well as sourcing:
+This section previously held a *first* correction which was also wrong. Both the
+original claim and that correction are recorded here, because the pattern they form
+is the finding.
+
+**Measurement 1 (original, too narrow).** "0 of 149 source another repo script" was
+true only of three variable idioms (`${SCRIPT_DIR}` / `${REPO_ROOT}` /
+`${PROJECT_ROOT}`) after `source`/`.` — then reported as though it covered invocation
+generally. Conclusion drawn: *no parser change closes this.*
+
+**Measurement 2 (first correction, too broad).** A single `grep -lE` for
+`(bash|sh|source|\.) +.*scripts/*.sh` returned 18 files, read as 18 real dependencies.
+Printing the matching lines shows most are **console hint-text and heredoc usage
+blocks** — `echo "  Reproduce: bash scripts/session-selftest.sh"` is a string, not a
+call. Worse, it cited `run-guard-layer.sh` as the proof case. That file resolves its
+~20 members at runtime:
 
 ```
-$ grep -lE '(bash|sh|source|\.) +[^ ]*scripts/[a-z0-9._-]+\.sh' scripts/*.sh | wc -l
-18
+for f in "$SCRIPTS_DIR"/check-*.sh; do ... m_cmd+=("bash $f $extra")
 ```
 
-**18 of 149** reference a sibling script by path — `tl-claude.sh` (5 referrers),
-`sweep-test-debris.sh` (5), `lint-doc-fenced-bash.sh` (3), `agent-send.sh` (3),
-`check-framework-pickup-freshness.sh` (3), and others. `run-guard-layer.sh` executing
-every `check-*.sh` is a real dependency by any reading; so is `comms-selftest.sh`
-calling `agent-send.sh`. These are **genuine file→file edges the enricher does not
-extract**, because it looks for `source`-style inclusion and these are invocations.
+No literal target name appears anywhere in it. The one example offered as proof that
+a parser *could* close the gap is the one case a parser provably **cannot** reach.
 
-So the honest split is: *some* of the 193 edgeless cards are enricher gaps that a
-parser change WOULD close, and the rest are the binary-dependency class that no
-parser can. The original claim collapsed the two.
+**Measurement 3 (verified by reading every matching line).** Excluding comments,
+heredocs, and echo/printf text: **17 of 149 files carry 28 statically-resolvable
+sibling dependencies.** The two gaps that hide them are small and specific:
+
+1. `$HERE` is not in the recognised directory-variable set at all — and it is the
+   dominant idiom here (`SEND="$HERE/agent-send.sh"`), accounting for most of the 28.
+2. The recognised variables match only after `source`/`.` — not after `bash`/`exec`,
+   nor in a bare `VAR="${SCRIPT_DIR}/x.sh"` binding executed later.
+
+`substrate-smoke.sh` is the clean example: four `bash "${SCRIPT_DIR}/…-demo.sh"` calls
+plus a `WORKER_LOOP=` binding, card has zero edges. `SCRIPT_DIR` is *already* a known
+variable; only the verb differs.
+
+**Settled position.** Closing both gaps takes 193 edgeless cards to ~176 — 56% to
+~61%. Real, and partial. The residual is genuinely inexpressible: `run-guard-layer.sh`
+by runtime glob, and 71 scripts whose dependency is the compiled `termlink` binary.
+
+**What this cost.** Three measurements, two of them written down and one of them filed
+outbound in U-006 before it was checked. Same defect each time — a single regex
+generalised past what it measured — in opposite directions. A count of zero deserves
+more suspicion than a count of a few, and any count headed somewhere outbound deserves
+its lines printed and read first.
 
 **This is the task's own warning turned on itself.** It cautions against measuring
 over a flattering subset (PL-341) and then reaches its structural conclusion from
@@ -126,14 +151,15 @@ Deliverable is an upstream report, not an edit under `.agentic-framework/`.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The report shows the mitigation is inert, citing the measured `enrich` output (0 enriched, 0 edges, 0 unresolved — the second zero is what proves saturation rather than blockage)
-- [ ] It quantifies why: 0 of 149 `scripts/` files source another repo script via the standard idiom, while 71 reference the `termlink` binary
-- [ ] It gives the worked example (`check-stuck-claims-freshness.sh`: script mention in a comment, real dependency `TERMLINK_BIN`)
-- [ ] It states the structural conclusion — a file→file edge model cannot express a dependency on a compiled binary, so no parser change closes this
-- [ ] It proposes the two candidate directions without choosing between them: allow non-file edge targets (binary/service/artifact), or scope the coverage metric to card types where file edges are meaningful
-- [ ] It warns explicitly against the two wrong fixes: hand-authoring edges to lower the number, and re-narrowing `watch-patterns.yaml` (the PL-341 trap, hit three times already — T-2680, T-2681, T-2712)
-- [ ] Filed as an upstream record under `.context/upstream/`
-- [ ] No file under `.agentic-framework/` is edited by this task
+- [x] The report shows the mitigation is inert, citing the measured `enrich` output (0 enriched, 0 edges, 0 unresolved — the second zero is what proves saturation rather than blockage)
+- [x] It quantifies the gap with a measurement that was verified by reading every matching line, not by trusting a grep count: **17 of 149** `scripts/` files carry **28** statically-resolvable sibling dependencies, while 71 reference the `termlink` binary *(revised twice — see §Correction; the original "0 of 149" and the first correction's "18 invocation edges" were both artefacts of generalising one regex past what it measured)*
+- [x] It names the two specific parser gaps that hide those 28: `$HERE` is not a recognised directory variable at all, and the recognised ones (`LIB_DIR`, `SCRIPT_DIR`) match only after `source`/`.`, never after `bash`/`exec` or in a bare `VAR=` binding
+- [x] It gives the worked example (`substrate-smoke.sh`: four `bash "${SCRIPT_DIR}/…-demo.sh"` calls plus a `WORKER_LOOP=` binding, card has zero edges — `SCRIPT_DIR` is already known, only the verb differs)
+- [x] It states the *bounded* structural conclusion — closing both gaps moves 193 edgeless cards to ~176 (56%→~61%), and the residual is genuinely inexpressible: `run-guard-layer.sh` resolves its ~20 members by runtime glob + header marker with no literal name in the file, and 71 scripts depend on a compiled binary a file→file model cannot name
+- [x] It proposes fixing the parser gaps first (unambiguous, no model implications), then the two candidate directions for the residual without choosing between them: allow non-file edge targets (binary/service/artifact), or scope the coverage metric to card types where file edges are meaningful
+- [x] It warns explicitly against the two wrong fixes: hand-authoring edges to lower the number, and re-narrowing `watch-patterns.yaml` (the PL-341 trap, hit three times already — T-2680, T-2681, T-2712)
+- [x] Filed as an upstream record under `.context/upstream/` *(U-006, corrected 2026-08-15)*
+- [x] No file under `.agentic-framework/` is edited by this task
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.

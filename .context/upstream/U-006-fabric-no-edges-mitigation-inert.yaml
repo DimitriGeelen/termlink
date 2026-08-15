@@ -1,6 +1,6 @@
 ---
 id: U-006
-title: "Fabric no-edges warning cannot be cleared by its own mitigation; edge model cannot express binary dependencies"
+title: "Fabric no-edges warning cannot be cleared by its own mitigation: two fixable parser gaps plus a residual the edge model cannot express"
 created: 2026-08-14T21:00:00Z
 source_project: 010-termlink
 source_task: T-2718
@@ -24,24 +24,63 @@ context: |
   This is the third instance found in one audit pass of a check whose printed
   mitigation cannot fix its own finding; see U-003 and U-004.
 evidence: |
-  Measured in 010-termlink on 2026-08-14, across 149 files in scripts/:
+  CORRECTED 2026-08-15. The first version of this record claimed "0 source or
+  invoke another repo script" and concluded "no parser improvement closes this".
+  Both were wrong, and the way they were wrong matters more than the numbers:
+  the original figure was measured over three specific variable idioms
+  (${SCRIPT_DIR} / ${REPO_ROOT} / ${PROJECT_ROOT}) after `source`/`.` only, and
+  then reported as though it covered invocation generally. A first correction
+  overshot in the other direction — it counted grep hits that were console
+  hint-text and heredoc usage blocks, and cited run-guard-layer.sh as proof,
+  which is precisely the one case a static parser provably cannot reach.
+  The numbers below are the third measurement, verified by reading every
+  matching line.
 
-  - 0 source or invoke another repo script through the standard
-    ${SCRIPT_DIR} / ${REPO_ROOT} / ${PROJECT_ROOT} idiom
+  Measured in 010-termlink on 2026-08-15, across 149 files in scripts/,
+  excluding comments, heredoc help blocks, and echo/printf hint text:
+
+  - 17 files carry 28 statically-resolvable sibling dependencies
   - 71 reference the termlink binary, via TERMLINK_BIN or TERMLINK="..."
 
-  Worked example, scripts/check-stuck-claims-freshness.sh:
-  - its only mention of another repo script (scripts/substrate-smoke.sh) is
-    inside a COMMENT on line 7
-  - its actual dependency is line 38: TERMLINK="${TERMLINK_BIN:-termlink}" —
-    a compiled binary resolved at runtime from the environment
+  So there ARE real file→file edges the enricher is missing, and the two gaps
+  that hide them are small and specific:
 
-  The fabric edge model is file→file. These scripts depend on an artifact the
-  model has no way to name, so the information is not missing — the
-  relationship is not expressible. No parser improvement closes this.
+  1. $HERE is not in the recognised directory-variable set at all. It is the
+     dominant idiom here — `SEND="$HERE/agent-send.sh"` and similar account for
+     most of the 28.
+  2. The recognised variables (LIB_DIR, SCRIPT_DIR) are only matched after
+     `source` or `.`. They are not matched after `bash`/`exec`, nor in a bare
+     `VAR="${SCRIPT_DIR}/x.sh"` binding that is executed later.
+
+  Worked example, scripts/substrate-smoke.sh — four invocations of the form
+  `out=$(bash "${SCRIPT_DIR}/substrate-drain-demo.sh" ...)` plus one
+  `WORKER_LOOP="${SCRIPT_DIR}/substrate-worker-loop.sh"` binding. Its card has
+  zero edges. SCRIPT_DIR is already a known variable; only the verb differs.
+
+  Closing both gaps would take 193 edgeless cards to roughly 176 — 56% coverage
+  to about 61%. Real, and partial.
+
+  The residual IS structural, and this is where the original conclusion holds:
+
+  - scripts/run-guard-layer.sh, the largest dependency hub in the repo, resolves
+    its ~20 members at RUNTIME by globbing `"$SCRIPTS_DIR"/check-*.sh` and then
+    filtering on a `# guard-layer: source` header marker. No literal target name
+    appears anywhere in the file. No static parser can reach it.
+  - The 71 scripts whose real dependency is the compiled `termlink` binary
+    depend on an artifact a file→file model has no way to name.
+
+  So the accurate statement is: a parser improvement closes about a third of the
+  gap, and the rest is not expressible in the current model.
 suggestion: |
-  Two candidate directions, deliberately not chosen here — the trade belongs to
-  whoever owns the fabric model:
+  0. FIRST, and unambiguously worth doing: close the two parser gaps named in
+     the evidence. Add $HERE to the recognised directory-variable set, and match
+     those variables after `bash`/`exec` and in bare `VAR=` bindings, not only
+     after `source`/`.`. This is a small change to detect_bash_sources() with no
+     model implications — it finds edges that genuinely exist and are already
+     expressible. It does NOT clear the warning on its own; see below.
+
+  Then two candidate directions for the residual, deliberately not chosen here —
+  that trade belongs to whoever owns the fabric model:
 
   1. Allow non-file edge targets, so a card can declare a dependency on a
      binary, service, or build artifact (e.g. `- target: bin:termlink`,
@@ -70,3 +109,12 @@ related_learning: |
   the fabric is that "coverage below target" should distinguish "edges not yet
   found" from "edges that cannot exist" — otherwise the metric generates
   permanent, unactionable debt.
+
+  Second-order lesson from this record's own correction history: the original
+  claim and its first correction were BOTH produced by a single grep whose
+  result was then generalised past what it measured — once too narrow (three
+  idioms after two verbs, reported as "invocation"), once too broad (hint-text
+  and heredocs counted as calls). Same defect, opposite directions, on the same
+  finding, three measurements before it settled. A count of zero deserves more
+  suspicion than a count of a few, and a count produced by one regex deserves
+  the lines printed and read before it is written down anywhere outbound.
