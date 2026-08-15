@@ -34,18 +34,50 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+The audit warned that 4 fabric cards pointed at files no watch pattern covered —
+so those files were components by the registry's own reckoning, yet invisible to
+drift checks, making coverage a measurement over a subset. `watch-patterns.yaml`
+had recorded all four as deliberate exclusions on the grounds that "inventing
+globs to chase them would make the pattern list meaningless."
+
+That reasoning is sound for one of the four and wrong for the other three. The
+distinction that matters is whether a glob widens to a **natural category
+boundary** or is hand-shaped around a single file:
+
+| card | category | files in it | verdict |
+|---|---|---|---|
+| `install.sh` | root shell sources | 1 | widen — `*.sh` is a natural boundary that happens to contain one file |
+| `docs/guides/upstream-reporting.md` | `docs/guides/` | 1 | widen — same |
+| `systemd-templates/…worker@.service` | `systemd-templates/` | 3 | widen + register the 2 uncarded siblings |
+| `.claude/commands/capture.md` | slash commands | **34** | do NOT widen — 33 are uncarded |
+
+The last one is the case the original comment was really about, and it stays
+open. Three resolutions were considered:
+
+- **Widen anyway** — flags 33 uncarded files, trading one warning for a bigger one.
+- **Glob `capture.md` alone** — precisely the fabrication the comment warns against.
+- **Register all 34** — considered seriously and rejected *for now*: `fw fabric
+  register` produces stub cards with no edges, so this would add 34 edgeless
+  cards and push the sibling "cards have no edges" warning from 193 to ~227.
+  Clearing one warning by worsening another is moving a problem, not solving it.
+  Registering all 34 **with their real edges** (each slash command wraps a
+  script) would be genuinely valuable, but that is a registry-scope decision on
+  its own merits, not audit cleanup.
+
+Result: 4 → 1, and the remaining 1 is a named decision rather than an
+unexplained exclusion. The warning still fires (its threshold is `-gt 0`), which
+is correct — there is a real open question, and it now says so.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Every glob added widens to a **natural category boundary** (all root shell sources; all files in `systemd-templates/`; all files in `docs/guides/`) — no glob is hand-shaped around a single file to dodge the drift check
-- [ ] Every file newly brought inside a widened glob carries a fabric card, so widening does not trade one warning for a larger uncarded-drift warning
-- [ ] The two uncarded `systemd-templates/*.service` siblings are registered as components
-- [ ] `.claude/commands/*.md` is deliberately NOT globbed, and `watch-patterns.yaml` records why in terms of the decision it defers (register all 34, or drop the singleton `capture.md` card) rather than as a vague exclusion
-- [ ] `fw fabric drift` reports no newly-uncarded files after the change
-- [ ] The audit's "card(s) point at files no watch pattern covers" count drops from 4 to 1, and the residual 1 is the named open decision above — not an unexplained remainder
+- [x] Every glob added widens to a **natural category boundary** (all root shell sources; all files in `systemd-templates/`; all files in `docs/guides/`) — no glob is hand-shaped around a single file to dodge the drift check
+- [x] Every file newly brought inside a widened glob carries a fabric card, so widening does not trade one warning for a larger uncarded-drift warning
+- [x] The two uncarded `systemd-templates/*.service` siblings are registered as components
+- [x] `.claude/commands/*.md` is deliberately NOT globbed, and `watch-patterns.yaml` records why in terms of the decision it defers (register all 34, or drop the singleton `capture.md` card) rather than as a vague exclusion
+- [x] `fw fabric drift` reports no newly-uncarded files after the change
+- [x] The audit's "card(s) point at files no watch pattern covers" count drops from 4 to 1, and the residual 1 is the named open decision above — not an unexplained remainder
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
