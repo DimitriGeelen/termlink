@@ -1,13 +1,13 @@
 ---
-id: T-2744
-name: "Session metadata records a frozen termlink_version, not the build version"
+id: T-2745
+name: "Stale-binary session detector — termlink list --stale-binary"
 description: >
-  Session metadata records a frozen termlink_version, not the build version
+  Herdr rank 12, rescoped: now that T-2744 makes metadata.termlink_version record the real build version, a --stale-binary filter over it is finally meaningful
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
-horizon: now
+horizon: next
 tags: []
 components: []
 related_tasks: []
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-15T19:30:28Z
-last_update: 2026-08-15T19:40:04Z
+created: 2026-08-15T19:40:24Z
+last_update: 2026-08-15T19:40:24Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,39 +30,50 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2744: Session metadata records a frozen termlink_version, not the build version
+# T-2745: Stale-binary session detector — termlink list --stale-binary
 
 ## Context
 
-Found while scoping herdr adoption backlog rank 12 (worker 4, R1 subset), which
-proposes `termlink sessions --stale-binary` on the stated grounds that
-`metadata.termlink_version` "is already written (`registration.rs:220`, `:286`),
-so it is a read over data we already have".
+Herdr adoption backlog rank 12 (worker 4, R1 subset), **refiled by T-2744 with a
+corrected premise.** Read this before starting: the backlog's own framing is
+wrong in a way that would have produced a guard that looked like it worked.
 
-**That premise is false, and the field is inert.** `registration.rs:286` records
-`env!("CARGO_PKG_VERSION")`, which resolves against `termlink-session`'s own
-`Cargo.toml` — pinned at `0.9.0` and never moved. The git-derived version this
-project actually versions by comes from a `build.rs` that emits
-`cargo:rustc-env=CARGO_PKG_VERSION`, and that override applies only to the crate
-being built. `termlink-cli` has such a build.rs. `termlink-mcp` has one.
-`termlink-session` — the crate that writes the field into session metadata —
-does not.
+The backlog says the detector is "a read over data we already have", citing
+`metadata.termlink_version` at `registration.rs:220`/`:286`. The field was
+indeed written — but it recorded `env!("CARGO_PKG_VERSION")` resolved against
+`termlink-session`'s own `Cargo.toml`, frozen at `0.9.0` since it was written,
+because that crate had no `build.rs` emitting the git-derived override its two
+sibling crates had. Every session ever registered, on every build, recorded the
+same string. Measured before the fix: live sessions reported `0.9.0` while
+`termlink --version` reported `0.11.720`.
 
-Measured on this host: every live session reports
-`"termlink_version":"0.9.0"` while `termlink --version` reports `0.11.720`.
-The field has recorded the same constant for every build ever made.
+Built on that, a `--stale-binary` filter would have compared a constant against
+the running version and answered "all stale" or "none stale" forever, with
+nothing in the output revealing it was reading a constant.
 
-This is PL-344 in its plainest form: a correct answer reached on two surfaces and
-never propagated to the third, and the third is the one that persists the value
-other tools are invited to trust. It is also why rank 12 must not be built first.
-A detector over this field would compare `0.9.0` against the running version and
-return either "every session is stale" or "none are", forever, with no way to
-tell from the output that it was reading a constant — a guard whose verdict rests
-on an assumption about its input that does not hold (PL-343), shipped green.
+**T-2744 fixed the field** (`termlink-session/build.rs`, pinned by
+`recorded_version_is_the_build_version_not_the_cargo_toml_constant`). A probe
+session now records `0.11.1359`, matching `termlink --version` exactly. The data
+carries information, so the detector can proceed.
 
-Scope here is the defect only: make the recorded version the build version. The
-detector is refiled as a follow-up so it can rest on data that carries
-information.
+One caveat to carry into the design: **sessions registered before T-2744 landed
+still hold `0.9.0` on disk.** They will compare as stale, which is arguably
+correct — they were registered by an older binary — but the version shown to the
+operator will be a placeholder rather than that binary's real version, so the
+output should not imply otherwise.
+
+Design decisions worth keeping from the original scoping:
+
+- **Unknown version counts as stale**, following T-2359's precedent for hubs
+  ("a peer too old to report its version is the staleness class itself"). The
+  alternative passes precisely the oldest sessions.
+- **Compare numerically, not lexically** — `0.11.9` must sort before
+  `0.11.1346`; a string compare gets this backwards, and that is the trap.
+- **State the lineage assumption.** Patch is commits-since-tag, so comparison is
+  meaningful only within one build lineage — the caveat
+  `.context/cron/fleet-version-floors.conf` already carries for hubs.
+- **Negative coverage is mandatory** (PL-219): an all-current fleet must return
+  nothing and say so, and a newer-than-self session must not be reported.
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
@@ -70,25 +81,8 @@ information.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-> **MEASURED (2026-08-15).** A probe session registered against a scratch
-> `TERMLINK_RUNTIME_DIR` records
-> `"termlink_version":"0.11.1359"`, and `termlink --version` reports
-> `termlink 0.11.1359` — exact match. Before the fix the same read returned
-> `0.9.0` against a binary reporting `0.11.720`. Probe and scratch dir removed
-> afterwards; no real session state was touched.
->
-> **LOAD-BEARING PROOF.** Replacing the git-derived value in `build.rs` with the
-> Cargo.toml constant fails
-> `recorded_version_is_the_build_version_not_the_cargo_toml_constant` with
-> `left: "0.9.0", right: "0.9.0"` — the exact frozen value the defect produced.
-> Restoring returns the crate to 463/463 and the tree to zero diff.
-
-- [x] `termlink-session` derives its version from git the way `termlink-cli` and `termlink-mcp` already do, so `metadata.termlink_version` records the build that registered the session
-- [x] A live `termlink list --json` shows a newly-registered session carrying the same version `termlink --version` reports — measured, not inferred from the code
-- [x] The build.rs re-run triggers match the CLI's, so the version does not freeze after the first build (the T-1057 bug this project already paid for once)
-- [x] A test pins that the recorded version is not the stale `0.9.0` crate constant, so the defect cannot silently return
-- [x] Load-bearing proof recorded: removing the git derivation makes that test fail
-- [x] The follow-up detector task is filed with the corrected premise, so rank 12 is not picked up again on the false one (T-2745)
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -154,42 +148,7 @@ information.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-cargo test -p termlink-session --lib
-cargo test -p termlink --bins
-bash scripts/run-guard-layer.sh
-
 ## RCA
-
-**Symptom:** every session registration recorded
-`metadata.termlink_version: "0.9.0"` regardless of which binary registered it.
-On this host, live sessions reported `0.9.0` against a binary reporting
-`0.11.720`.
-
-**Root cause:** `registration.rs:286` stamps `env!("CARGO_PKG_VERSION")`. This
-project versions by git tags, and the derivation is done by a `build.rs`
-emitting `cargo:rustc-env=CARGO_PKG_VERSION` — an override that applies **only
-to the crate being built**. `termlink-cli` had that build.rs. `termlink-mcp` had
-one. `termlink-session`, the crate that actually persists the value, did not, so
-its `env!` resolved to its own Cargo.toml constant.
-
-**Why structurally allowed:** two things, and the second is the general one.
-(i) Nothing ever read the field back, so a wrong value cost nothing and stayed
-invisible — it only surfaced when herdr rank 12 proposed *depending* on it.
-(ii) More generally, nothing detects a crate that reports a user-visible version
-without carrying the derivation. The convention lives in two hand-copied
-build.rs files; a third crate simply not having one is not a difference any
-check looks for. That is PL-344 — a correct answer reached on some surfaces and
-never propagated — with no structural backstop, exactly the shape the repo's
-static checks exist to convert from *discipline* into *enforcement*.
-
-**Prevention:** for this instance,
-`recorded_version_is_the_build_version_not_the_cargo_toml_constant` fails if the
-derivation is removed, and it compares against a build-script-exported copy of
-the Cargo.toml value rather than a hardcoded literal — so the test cannot go
-stale the way the field it guards did. For the general class, prevention does
-**not** yet exist: a fourth crate added tomorrow with the same omission would
-not be caught. Filed as T-2746 rather than left implicit, since a gap that is
-mitigated but not prevented is still open (G-019).
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -252,7 +211,7 @@ mitigated but not prevented is still open (G-019).
 
 ## Updates
 
-### 2026-08-15T19:30:28Z — task-created [task-create-agent]
+### 2026-08-15T19:40:24Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2744-stale-binary-session-detector--termlink-.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2745-stale-binary-session-detector--termlink-.md
 - **Context:** Initial task creation
