@@ -194,7 +194,7 @@ assumption that no longer holds — after T-2680, T-2709, T-2714, T-2715, T-2718
 - [ ] The `cursor`-source divergence (`~/.termlink/cursors.json` vs hub ack receipt) is fixed or filed as its own task — it is NOT covered by T-2533 and upgrading alone makes the printed count worse
 - [ ] T-2533's test suite gains the over-report direction of the `count-1` fallback (cursor below count−1), which its current tests do not cover
 - [ ] `agent inbox` and `channel unread` are shown agreeing on the reporter's exact case, on a binary >= 0.11.871
-- [ ] The peer (999-AEF) gets the outcome: prediction passed, `latest` half already fixed in T-2533 and undeployed, `cursor` half is a separate defect their diagnosis did not cover
+- [x] The peer (999-AEF) gets the outcome: prediction passed, `latest` half already fixed in T-2533 and undeployed, `cursor` half is a separate defect their diagnosis did not cover *(sent 2026-08-15, msg 94180c21)*
 
 ## Verification
 
