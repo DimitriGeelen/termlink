@@ -25,6 +25,30 @@ context: |
   job — cannot distinguish "no revisits are due" from "scanned the wrong
   directory and saw nothing at all".
 evidence: |
+  Reproduced 2026-08-15, verbatim:
+
+      $ bash .agentic-framework/agents/context/revisit-due-scan.sh
+      revisit-due-scan: tasks dir not found at
+        /opt/termlink/.claude/worktrees/charter-review-2026-0814/.agentic-framework/.tasks/active
+      $ echo $?
+      0
+
+  The resolved TASKS_DIR is inside `.agentic-framework/` — the VENDORED
+  framework — not the consumer project one level up, which does have `.tasks/`
+  holding 224 active tasks. The scan looked in the wrong tree, found nothing,
+  and reported success.
+
+  Run against the same repo at the same moment, the CLI verb finds both overdue
+  revisits:
+
+      $ fw task revisit-due
+      Ripe revisits (2026-08-15 UTC) — 2 task(s):
+      T-1898 fires 2026-07-06: Vendored Agent Runner — inception ...
+      T-2250 fires 2026-07-25: R5 telemetry plane design ...
+
+  Two code paths, the same question, opposite answers — and the one that is
+  wrong is the one wired to cron.
+
   - agents/context/revisit-due-scan.sh:50-100 — the PROJECT_ROOT walk matching
     either marker, and the `exit 0` on missing tasks dir
   - The vendored framework at .agentic-framework/ carries FRAMEWORK.md, so it
@@ -44,6 +68,15 @@ suggestion: |
 
   The durable guard is a test that runs the script from inside a consumer
   project that vendors the framework, and asserts it finds the CONSUMER's tasks.
+  NOT the same defect as the consumer-side T-1452, and the distinction matters
+  for triage. T-1452 (010-termlink) is "the G-053 revisit banner was never wired
+  into the handover" — a mechanism that does not exist yet, whose absence is
+  visible the moment anyone looks for the banner. This is the opposite failure:
+  the mechanism DOES exist, runs on schedule, and actively reports success while
+  scanning an empty directory. An unwired feature is discovered by its absence;
+  a silently-succeeding scan is discovered by nothing at all. Fixing T-1452
+  without fixing this would wire a banner to a scanner that always says "none
+  due" — the worse outcome, because it would then look wired.
 related_learning: |
   Same shape as U-003 and U-004 filed alongside it: a check whose verdict rests
   on a layout assumption that no longer holds. Reporting success after doing

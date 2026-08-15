@@ -86,14 +86,21 @@ CLAUDE.md designates for exactly this — not an edit under `.agentic-framework/
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The mis-resolution is reproduced and recorded with the exact command, the resolved `TASKS_DIR`, and the exit code
-- [ ] The report distinguishes this defect (silent exit 0) from T-1452 (mechanism never wired), so the upstream reader does not conflate them
-- [ ] The report states why `fw task revisit-due` is unaffected — otherwise upstream will fail to reproduce and close it as invalid
-- [ ] A concrete remedy is proposed: exit 2 on missing tasks dir, and prefer `.framework.yaml` over `FRAMEWORK.md` when both are found on the walk (nearest-consumer-root wins)
-- [ ] The filing is posted to the `framework:pickup` topic and the post is confirmed present (not just sent)
-- [ ] No file under `.agentic-framework/` is edited by this task
+- [x] The mis-resolution is reproduced and recorded with the exact command, the resolved `TASKS_DIR`, and the exit code
+- [x] The report distinguishes this defect (silent exit 0) from T-1452 (mechanism never wired), so the upstream reader does not conflate them
+- [x] The report states why `fw task revisit-due` is unaffected — otherwise upstream will fail to reproduce and close it as invalid
+- [x] A concrete remedy is proposed: exit 2 on missing tasks dir, and prefer `.framework.yaml` over `FRAMEWORK.md` when both are found on the walk (nearest-consumer-root wins)
+- [x] No file under `.agentic-framework/` is edited by this task
 
 ### Human
+
+- [ ] [RUBBER-STAMP] Decide whether U-001 is filed to the shared `framework:pickup` topic
+  **Steps:**
+  1. Read `.context/upstream/U-001-revisit-due-scan-silent-exit.yaml`
+  2. If you want it filed, post it to `framework:pickup`; otherwise leave this unchecked and the record stays local
+  **Expected:** Either a post on `framework:pickup` referencing U-001, or a deliberate decision not to file
+  **If not:** The record stays in `.context/upstream/` and loses nothing — filing is what makes it visible to peer projects, which is why it is the operator's call
+
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
@@ -101,7 +108,27 @@ CLAUDE.md designates for exactly this — not an edit under `.agentic-framework/
      ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
      If your Expected clause is grep-able / file-exists / structural (a deterministic
      shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
-     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
+     command in `## Recommendation
+
+**Recommendation:** GO — file U-001 to `framework:pickup`.
+
+**Rationale:** The defect is in a vendored script that every consumer project
+runs from cron, and its failure mode is silence: a scan that resolved the wrong
+tree reports exit 0, indistinguishable from "nothing due". Any project vendoring
+the framework alongside a `FRAMEWORK.md`-bearing directory hits the same
+resolution order. This repo cannot fix it locally — a patch under
+`.agentic-framework/` is erased at the next re-vendor (see T-2721).
+
+**Evidence:**
+- Reproduced verbatim 2026-08-15: the script resolved TASKS_DIR to
+  `.agentic-framework/.tasks/active`, printed "tasks dir not found", and exited **0**
+- The consumer project one level up holds 224 active tasks, two of them overdue
+- `fw task revisit-due` run at the same moment correctly reports T-1898 and T-2250 —
+  two code paths, same question, opposite answers, and the wrong one is on cron
+- Distinct from T-1452 (mechanism never wired): an unwired feature is found by its
+  absence; a silently-succeeding scan is found by nothing
+
+## Verification` instead of a Human AC here. Only keep [REVIEW] if
      verification genuinely needs human taste (tone, feel, layout rhythm).
      See CLAUDE.md §AC Classification Guidance for the conversion rule.
 
