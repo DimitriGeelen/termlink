@@ -990,20 +990,10 @@ fn build_worker_shell_cmd(
 }
 
 fn spawn_via_background(session_name: &str, shell_cmd: &str) -> Result<()> {
-    let child = std::process::Command::new("setsid")
-        .args(["sh", "-c", shell_cmd])
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .stdin(std::process::Stdio::null())
-        .spawn()
-        .or_else(|_| {
-            std::process::Command::new("sh")
-                .args(["-c", shell_cmd])
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .stdin(std::process::Stdio::null())
-                .spawn()
-        })
+    // T-2743: shares execution.rs's detach helper rather than repeating the
+    // spawn shape — this site and that one answer the same question, and the
+    // reason they previously drifted apart is that they were two copies.
+    let child = crate::commands::execution::spawn_detached(shell_cmd)
         .context("Failed to spawn background worker")?;
 
     let _ = child;

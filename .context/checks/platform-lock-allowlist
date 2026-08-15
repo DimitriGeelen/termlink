@@ -20,16 +20,23 @@
 # (T-2691), not acknowledged. An allowlist entry is for a site that behaves
 # correctly off Linux — never for one that fails quietly.
 
-# ── setsid: explicit fallback to a plain `sh -c` child ───────────────────────────
-# All three sites spawn `setsid sh -c <cmd>` and chain `.or_else(|_| Command::new("sh")
-# .args(["-c", cmd]))`. macOS has no `setsid` (it is util-linux), so the spawn errors
-# and the fallback runs: the process still starts, just without becoming a session
-# leader. Degraded but functional and non-silent at the call site.
-# NOTE: README §Backends says the `background` backend "Daemonizes with setsid" on
-# macOS — inaccurate; on macOS it is a non-daemonized `sh -c`. Corrected in T-2693.
-crates/termlink-cli/src/commands/dispatch.rs::spawn_via_background::cmd:setsid   # falls back to `sh -c` when setsid is absent (macOS); process starts, no session leader
-crates/termlink-cli/src/commands/execution.rs::spawn_via_background::cmd:setsid  # same or_else fallback as dispatch.rs
-crates/termlink-mcp/src/tools.rs::termlink_dispatch::cmd:setsid                  # same or_else fallback, MCP dispatch path
+# ── setsid: RETIRED by T-2743, not re-acknowledged ───────────────────────────────
+# Three entries lived here for the `setsid sh -c <cmd>` spawn sites, acknowledged as
+# "degraded but functional" because each chained `.or_else(|_| Command::new("sh"))`.
+# That reason was wrong on its own terms. This file's rule is that an entry must say
+# how the non-Linux path BEHAVES, and the entries described only the mechanism —
+# "process starts, no session leader" — while omitting the consequence: a child left
+# in the launcher's session receives the SIGHUP that ends an SSH connection. Since
+# outliving the launcher is the entire purpose of the `background` backend, macOS did
+# not get a degraded version of the feature, it got a silent absence of it. Worker 4
+# raised exactly this in the herdr review and was right.
+#
+# T-2743 removed the sites rather than rewording the entries: all three now call
+# `setsid(2)` in `pre_exec`. The syscall is POSIX and present on macOS — only the
+# `setsid(1)` BINARY is util-linux — so there is nothing platform-specific left to
+# acknowledge and no fallback to degrade into. Proven by
+# `a_backgrounded_child_leads_its_own_session` in `execution.rs`, with a control test
+# spawning the old shape so the assertion is known to be able to fail.
 
 # ── ufw / ss: unreachable off Linux by construction ──────────────────────────────
 # `cmd_doctor` runs `ufw status` and only enters the port-check block on

@@ -7927,6 +7927,47 @@ pub struct WhoamiParams {
 /// task may extract to a shared crate; for v1 duplication is the cheaper
 /// path (~40 LOC, no behavioural drift expected — both sides read the
 /// same `/proc/<pid>/stat` format).
+/// Spawn `sh -c <cmd>` fully detached from the launcher: a new session, with all
+/// three stdio streams on `/dev/null`.
+///
+/// T-2743. Mirrors `termlink-cli execution::spawn_detached` — duplicated rather
+/// than shared across crates, per the convention these small helpers already
+/// follow (T-2069).
+///
+/// The detachment is done with the `setsid(2)` syscall in `pre_exec`, not by
+/// exec'ing the `setsid(1)` binary. The binary is util-linux and absent on
+/// macOS, so the old code's `.or_else` fallback to a bare `sh -c` always fired
+/// there: the worker started — the call site saw success — but stayed in the
+/// launcher's session and died on SIGHUP when the connection dropped. For a
+/// dispatched background worker that is a silent failure, not a degradation.
+/// The syscall exists on both platforms, so no fallback is needed.
+///
+/// A `setsid(2)` failure is returned as a spawn error, which this caller
+/// already collects into `spawn_errors` — so it surfaces rather than producing
+/// a worker that is quietly not detached.
+fn spawn_detached(shell_cmd: &str) -> std::io::Result<std::process::Child> {
+    use std::os::unix::process::CommandExt;
+
+    let mut cmd = std::process::Command::new("sh");
+    cmd.args(["-c", shell_cmd])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .stdin(std::process::Stdio::null());
+
+    // SAFETY: runs in the forked child before exec. `setsid` is
+    // async-signal-safe, which is the constraint that applies here.
+    unsafe {
+        cmd.pre_exec(|| {
+            if libc::setsid() == -1 {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
+
+    cmd.spawn()
+}
+
 mod whoami_helpers {
     /// T-2691: can the ancestor walk work on this host at all?
     ///
@@ -13796,20 +13837,7 @@ impl TermLinkTools {
                 reg_parts.join(" ")
             );
 
-            match std::process::Command::new("setsid")
-                .args(["sh", "-c", &shell_cmd])
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .stdin(std::process::Stdio::null())
-                .spawn()
-                .or_else(|_| {
-                    std::process::Command::new("sh")
-                        .args(["-c", &shell_cmd])
-                        .stdout(std::process::Stdio::null())
-                        .stderr(std::process::Stdio::null())
-                        .stdin(std::process::Stdio::null())
-                        .spawn()
-                }) {
+            match spawn_detached(&shell_cmd) {
                 Ok(_) => {}
                 Err(e) => spawn_errors.push(format!("{worker_name}: {e}")),
             }

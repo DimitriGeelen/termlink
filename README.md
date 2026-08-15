@@ -255,18 +255,20 @@ termlink event collect hub task.done --count 3 --timeout 120  # Fan-in
 |---------|----------|-----|
 | `terminal` | macOS | Opens a new Terminal.app window via osascript |
 | `tmux` | macOS, Linux | Creates a tmux session (headless, attach with `tmux attach`) |
-| `background` | macOS, Linux | Daemonizes with `setsid` on Linux; falls back to a plain `sh -c` child on macOS (see note) |
+| `background` | macOS, Linux | Daemonizes: the child becomes a session leader via `setsid(2)`, so it outlives the launching terminal |
 | `auto` | Any | Picks `terminal` on macOS GUI, `tmux` if available, else `background` |
 
 Override with `--backend tmux` or set `TL_DISPATCH_BACKEND=tmux`.
 
-> **macOS note (T-2693).** `setsid` is a util-linux tool and is not present on macOS.
-> The `background` backend detects the failed spawn and falls back to `sh -c`, so the
-> process still starts — but it does **not** become a session leader, so it is not
-> fully daemonized and may be signalled when its parent terminal closes. Prefer
-> `--backend tmux` on macOS if you need the child to outlive the launching terminal.
-> This table previously said "Daemonizes with `setsid`" unconditionally, which was
-> inaccurate for the platform this project calls recommended.
+> **Daemonization is now uniform across platforms (T-2743).** This table used to
+> carry a macOS caveat, because the code exec'd the `setsid(1)` *binary* — a
+> util-linux tool absent on macOS — and fell back to a plain `sh -c` child there.
+> That child started but stayed in the launching shell's session, so it was
+> reached by the SIGHUP that ends an SSH connection: on macOS the backend
+> silently did not do the one thing it exists for. It now calls the `setsid(2)`
+> *syscall* in the forked child, which is POSIX and present on both platforms, so
+> no fallback is needed and the guarantee holds everywhere. If the syscall fails
+> the spawn fails loudly rather than returning a child that is quietly attached.
 
 ## Platform Support
 
