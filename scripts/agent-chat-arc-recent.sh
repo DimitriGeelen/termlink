@@ -424,7 +424,27 @@ if [ "$FORMAT" = json ]; then
                 hubs_failed: $failed,
                 failed_hubs: $failed_hubs,
                 fallback_hubs: $fallback_hubs,
-                unique_speakers: $speakers
+                unique_speakers: $speakers,
+                # T-2731: one field a caller can gate on. `ok` is about whether
+                # the COMMAND ran; this is about whether the ANSWER is complete.
+                # False when any hub was unreachable OR any served the T-1872
+                # partial head-read. Without it a caller has to know that a
+                # non-empty fallback_hubs implies partial data — knowledge
+                # encoded nowhere in the envelope, so every caller re-derives
+                # it or forgets. total_posts:0 on a degraded read does NOT mean
+                # the fleet is quiet; it means this read cannot tell you.
+                read_complete: (($failed == 0) and (($fallback_hubs | length) == 0)),
+                degraded_reasons: (
+                    (if $failed > 0
+                     then ["\($failed) hub(s) unreachable: " +
+                           (($failed_hubs | map(.hub)) | join(", "))]
+                     else [] end)
+                    +
+                    (if ($fallback_hubs | length) > 0
+                     then ["\($fallback_hubs | length) hub(s) served a partial head-read (seek-to-tail unavailable): " +
+                           ($fallback_hubs | join(", "))]
+                     else [] end)
+                )
             } + (if $excluded == 1 then {
                 heartbeat_posts: $hb_posts,
                 heartbeat_speakers: $hb_speakers,
@@ -469,7 +489,19 @@ else
         echo "  fallback: ${fb_summary} (seek-to-tail unavailable — data may be partial)"
     fi
     if [ "$total_posts" = "0" ]; then
-        echo "  (no posts matched filters)"
+        # T-2731: on a DEGRADED read, "no posts matched filters" is a claim
+        # about the fleet that the data does not support — some hubs were not
+        # read, or read only partially. Say what is true (the retrieved data is
+        # empty) and refuse to imply what is not (that there is nothing there).
+        # On a complete read the original line is unchanged: a warning that
+        # fires unconditionally is the alert fatigue PL-219 warns about.
+        if [ "$hubs_failed" -gt 0 ] || [ "${#fallback_hubs[@]}" -gt 0 ]; then
+            echo "  (no posts in the data retrieved — but this read was DEGRADED,"
+            echo "   so absence is NOT established. Silence here is indistinguishable"
+            echo "   from traffic on the hubs that did not answer completely.)"
+        else
+            echo "  (no posts matched filters)"
+        fi
     else
         printf '%-20s %-22s %-32s %-10s %s\n' "TS" "HUB" "SENDER" "TYPE" "PREVIEW"
         printf '%s' "$posts_json" | jq -r '.[] | [.ts_iso, .hub, .sender, .msg_type, .payload_preview] | @tsv' \
