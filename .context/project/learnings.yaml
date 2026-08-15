@@ -3179,3 +3179,9 @@ learnings:
   task: T-2746
   date: 2026-08-15
   context: Added via context agent
+- id: PL-347
+  learning: "skip_state_update (herdr rank 23): a rule that MATCHES, is REPORTED, and explicitly DECLINES to change state is a distinct and useful outcome — not a no-op and not a failure. TermLink already has this instinct in its exit-code contract: T-2557's exit-2 tooling class exists so 'a check that never looked must never read as a clean bill', and T-2685 split canary stderr from findings for the same reason. The generalisation worth remembering: any surface that INFERS something (a rule engine, a classifier, an auto-remediation path) needs a third outcome between 'acted' and 'did not match' — 'matched, and deliberately did not act' — because collapsing it into either one destroys information. Collapsed into 'did not match', the operator cannot see that the rule fired; collapsed into 'acted', they cannot see that nothing changed. No code needed today; record it against the day an inference surface is built."
+  source: P-001
+  task: T-2750
+  date: 2026-08-15
+  context: Added via context agent

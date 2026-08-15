@@ -40,7 +40,9 @@ anything in this section.**
 > 13 (T-2747) — plus **T-2739**, a third alt-screen surface
 > (`mirror_grid.rs`) that this backlog did not list, found by grepping after 16
 > and filed separately per one-bug-one-task.
-> Remaining: **20, 21, 23**; **18 and 19 are `owner: human`**.
+> Remaining: **20 and 21** (both ~1 d, both READ-only findings);
+> **18 and 19 are `owner: human`**. Rank **23 closed by recording** (T-2750 → PL-347):
+> zero-cost by design — the principle is written down, no code, no dependency.
 >
 > **Rank 22 is closed as PINNED-AND-DECLINED, not fixed (T-2749).** Worker 1's own
 > recommendation was to pin current behaviour and then decide, so that is what happened:

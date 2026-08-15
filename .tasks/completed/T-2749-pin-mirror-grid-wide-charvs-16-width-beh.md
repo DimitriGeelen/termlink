@@ -4,20 +4,20 @@ name: "Pin mirror-grid wide-char/VS-16 width behaviour with a characterization t
 description: >
   mirror_grid.rs drops combining marks and unicode-width 0.1 measures emoji-presentation as 1 while terminals draw 2; pin current behaviour and record an explicit decision rather than upgrading by momentum
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/mirror_grid.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-15T20:55:37Z
-last_update: 2026-08-15T20:55:37Z
-date_finished: null
+last_update: 2026-08-15T21:00:17Z
+date_finished: 2026-08-15T21:00:17Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -225,3 +225,6 @@ cargo test -p termlink --bins mirror_grid
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2749-pin-mirror-grid-wide-charvs-16-width-beh.md
 - **Context:** Initial task creation
+
+### 2026-08-15T21:00:17Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

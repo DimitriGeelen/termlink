@@ -815,3 +815,10 @@ decisions:
     date: 2026-08-15
     task: T-2746
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-096
+    decision: "Keep `unicode-width = \"0.1\"` (locked at 0.1.14) and keep dropping zero-width"
+    scope: project
+    date: 2026-08-15
+    task: T-2749
+    rationale: "Auto-captured from task file on completion"

@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2749: Pin mirror-grid wide-char/VS-16 width behaviour with a characterization test, then decide (herdr rank 22)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-15T21:00:56Z
+# ============================================================================
+
+task_id: T-2749
+task_name: "Pin mirror-grid wide-char/VS-16 width behaviour with a characterization test, then decide (herdr rank 22)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-15T20:55:37Z
+completed: 2026-08-15T21:00:17Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  mirror_grid.rs drops combining marks and unicode-width 0.1 measures emoji-presentation as 1 while terminals draw 2; pin current behaviour and record an explicit decision rather than upgrading by momentum
+
+# Key outcomes
+outcomes:
+  - 'CHARACTERIZATION tests pin the CURRENT behaviour of `MirrorGrid::put_char` for the'
+  - 'Each test carries a comment stating it is a characterization test — it pins present'
+  - 'The tests fail if the behaviour changes: proven by temporarily altering `put_char`'
+  - '`cargo test -p termlink --bins` passes'
+  - 'A DECISION is recorded in `## Decisions` on whether to take the `unicode-width`'
+  - 'The herdr backlog banner records rank 22''s outcome, including that this task'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-08-15 — Do not take the `unicode-width` major bump; pin and stop'
+    chose: 'Keep `unicode-width = "0.1"` (locked at 0.1.14) and keep dropping zero-width'
+    rationale: 'The defect is real but strictly cosmetic and strictly local. `➡️` reserves one'
+    alternatives_rejected: ['']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2749-pin-mirror-grid-wide-charvs-16-width-beh.md
+generated_by: context-agent-hybrid
