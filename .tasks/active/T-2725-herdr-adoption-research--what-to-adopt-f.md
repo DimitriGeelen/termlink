@@ -54,37 +54,37 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 - **IW-1: Which terminal-correctness edge cases does herdr's ~142-issue backlog
   name that TermLink's PTY layer does not handle?**
-  confidence: 0
-  disposition: <!-- pending worker herdr-w1-terminal -->
-  rationale: <!-- pending -->
+  confidence: 3
+  disposition: answered
+    rationale: worker 1 mapped 15 issue classes; 3 MEASURED live defects. Class A fixed in T-2727; class D filed as T-2728. .context/upstream/herdr-adopt-1-terminal-correctness.md
 
 - **IW-2: Is a hybrid presence model (protocol when available, heuristic
   screen-scrape fallback when not) worth having, or does a heuristic that can
   lie break the liveness contract T-2387's canary depends on?**
-  confidence: 0
-  disposition: <!-- pending worker herdr-w2-state -->
-  rationale: <!-- pending -->
+  confidence: 3
+  disposition: answered
+    rationale: DO NOT RECOMMEND wiring a heuristic into agent-presence/find-idle/peers — a heuristic that lies breaks the liveness contract T-2387 depends on. .context/upstream/herdr-adopt-2-agent-state.md
 
 - **IW-3: Is herdr's "CLI and socket API are the same surface" structurally
   better at preventing the CLI/MCP parity drift that went undetected from
   2026-08-12 until T-2686 wired cargo test into CI, and can we adopt it?**
-  confidence: 0
-  disposition: <!-- pending worker herdr-w3-parity -->
-  rationale: <!-- pending -->
+  confidence: 3
+  disposition: answered
+    rationale: Yes, decisively — but because they have ONE implementation, not because of codegen (worker flagged the mechanism INFERRED). Our two crates are already siblings on termlink-protocol; only the response-envelope literals are duplicated. .context/upstream/herdr-adopt-3-parity.md
 
 - **IW-4: Is herdr's client-server persistence architecture structurally more
   robust than our registration+heartbeat+pushwaker rail, given that three
   canaries (T-2239/T-2387/T-2405) exist because that rail keeps breaking?**
-  confidence: 0
-  disposition: <!-- pending worker herdr-w4-persistence -->
-  rationale: <!-- pending -->
+  confidence: 3
+  disposition: answered
+    rationale: No — worker found they are not looking rather than not failing. Two borrowable items (R1/R2); herdr --remote explicitly rejected. .context/upstream/herdr-adopt-4-persistence.md
 
 - **IW-5: What specifically makes herdr's onboarding frictionless, and which of
   it is adoptable without giving up the guarantees our hub/secret/TLS-pinning
   complexity buys?**
-  confidence: 0
-  disposition: <!-- pending worker herdr-w5-distribution -->
-  rationale: <!-- pending -->
+  confidence: 3
+  disposition: answered
+    rationale: Several concrete items incl. preflight resolving the wrong runtime_dir (backlog rank 3). Default runtime_dir change is human-owned. .context/upstream/herdr-adopt-5-distribution.md
 
 ## Exploration Plan
 
