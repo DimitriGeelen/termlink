@@ -3155,3 +3155,9 @@ learnings:
   task: T-2732
   date: 2026-08-15
   context: Added via context agent
+- id: PL-343
+  learning: "Guards/tests/reports whose verdict rests on a stale assumption about their INPUT are this repo's dominant recurring defect: 8 instances across 3 sessions (T-2680, T-2709, T-2726, T-2729, T-2731, T-2732, T-2734, T-2735). Signatures: a test asserting the defect is correct behaviour (T-2734: silent_when_root_but_path_not_tmp claimed /run/user is not the PL-021 footgun); a doc/description stating an order the code does not implement (T-2735: whoami chain); an or-chain that discards provenance one line before it is needed (T-2735); a guard placed before the data it must report on (T-2736). Diagnostic: when two guards disagree about identical state, suspect the TEST, not only the code."
+  source: P-001
+  task: T-2723
+  date: 2026-08-15
+  context: Added via context agent
