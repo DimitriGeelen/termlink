@@ -21,6 +21,23 @@ pub struct TerminalMode {
     pub alternate_screen: bool,
 }
 
+/// Escape sequences that move a terminal in (`true`) or out (`false`) of the
+/// alternate screen buffer (T-2738). See `scan_alternate_screen` for why all
+/// three DECSET variants are treated as equivalent and why `?1048` is excluded.
+const ALT_SCREEN_SEQUENCES: &[(&[u8], bool)] = &[
+    (b"\x1b[?1049h", true),
+    (b"\x1b[?1049l", false),
+    (b"\x1b[?1047h", true),
+    (b"\x1b[?1047l", false),
+    (b"\x1b[?47h", true),
+    (b"\x1b[?47l", false),
+];
+
+/// Length of the longest entry in [`ALT_SCREEN_SEQUENCES`], which sizes the
+/// cross-read carry. Asserted against the table in `alt_screen_max_seq_len_matches_table`
+/// so adding a longer sequence cannot silently under-size the carry.
+const ALT_SCREEN_MAX_SEQ_LEN: usize = 8;
+
 /// Errors from PTY operations.
 #[derive(Debug, thiserror::Error)]
 pub enum PtyError {
@@ -415,44 +432,62 @@ impl PtySession {
 
     /// Scan output bytes for alternate screen buffer escape sequences.
     ///
-    /// `\x1b[?1049h` enters alternate screen, `\x1b[?1049l` leaves it.
+    /// Three DECSET pairs put a terminal in and out of the alternate screen, and
+    /// a session can be driven by any of them (T-2738):
     ///
-    /// A single PTY read may deliver one of these 8-byte sequences in a chunk
-    /// shorter than the sequence, or split across a read boundary. Scanning each
-    /// chunk in isolation (`chunk.windows(8)`) would silently miss both cases, so
-    /// we prepend a rolling carry of the trailing `seq_len - 1` bytes from prior
-    /// reads and scan `[carry || chunk]`. Because the carry is strictly shorter
-    /// than a full sequence, no 8-byte window can lie entirely within it — a
-    /// sequence already applied in a previous chunk can never be re-detected, so
-    /// there is no double-counting.
+    /// - `\x1b[?1049h/l` — the modern combined save-cursor-and-switch
+    /// - `\x1b[?1047h/l` — switch only
+    /// - `\x1b[?47h/l`   — the original, still emitted by older/simpler TUIs
+    ///
+    /// For the question this flag answers — "is the session on the alternate
+    /// screen?" — all three are equivalent, so they share one table. `?1048` is
+    /// deliberately absent: it saves and restores the cursor without switching
+    /// screens.
+    ///
+    /// A single PTY read may deliver a sequence in a chunk shorter than the
+    /// sequence, or split across a read boundary. Scanning each chunk in
+    /// isolation would silently miss both cases, so we prepend a rolling carry
+    /// of the trailing `max_seq_len - 1` bytes from prior reads and scan
+    /// `[carry || chunk]`.
+    ///
+    /// **No-double-count invariant:** a match is applied only if it extends past
+    /// the carry into the new chunk. This used to be a consequence of every
+    /// sequence being exactly 8 bytes while the carry held 7 — no window could
+    /// fit inside the carry. That reasoning died with the 6-byte `?47h`, which
+    /// fits in a 7-byte carry comfortably, so the rule is now enforced directly
+    /// instead of inherited from a length coincidence.
     async fn scan_alternate_screen(
         chunk: &[u8],
         alt_screen: &Arc<Mutex<bool>>,
         carry: &Arc<Mutex<Vec<u8>>>,
     ) {
-        let enter_seq = b"\x1b[?1049h";
-        let leave_seq = b"\x1b[?1049l";
-        let seq_len = enter_seq.len(); // 8
-
         let mut carry_guard = carry.lock().await;
+        let carry_len = carry_guard.len();
 
         // Combined = trailing bytes carried from prior reads, then this read.
-        let mut combined = Vec::with_capacity(carry_guard.len() + chunk.len());
+        let mut combined = Vec::with_capacity(carry_len + chunk.len());
         combined.extend_from_slice(&carry_guard);
         combined.extend_from_slice(chunk);
 
+        // Positional scan: later matches win, so the last state change in the
+        // byte stream is the one that sticks.
         let mut changed = None;
-        for window in combined.windows(seq_len) {
-            if window == enter_seq {
-                changed = Some(true);
-            } else if window == leave_seq {
-                changed = Some(false);
+        for start in 0..combined.len() {
+            for (seq, enters) in ALT_SCREEN_SEQUENCES {
+                let end = start + seq.len();
+                // Past the end, or already fully seen on a previous call.
+                if end > combined.len() || end <= carry_len {
+                    continue;
+                }
+                if &combined[start..end] == *seq {
+                    changed = Some(*enters);
+                }
             }
         }
 
-        // Retain the last seq_len-1 bytes so a sequence straddling the next read
-        // boundary is still completed on the following call.
-        let keep = seq_len - 1;
+        // Retain the last max_seq_len-1 bytes so a sequence straddling the next
+        // read boundary is still completed on the following call.
+        let keep = ALT_SCREEN_MAX_SEQ_LEN - 1;
         if combined.len() > keep {
             let start = combined.len() - keep;
             *carry_guard = combined[start..].to_vec();
@@ -845,6 +880,114 @@ mod tests {
         // Simulate leaving alternate screen
         PtySession::scan_alternate_screen(b"\x1b[?1049l", &alt_screen, &carry).await;
         assert!(!*alt_screen.lock().await, "Should detect alternate screen leave");
+    }
+
+    /// T-2738: the carry is sized from the table, so a longer sequence added
+    /// later cannot silently under-size it and start dropping split reads.
+    #[test]
+    fn alt_screen_max_seq_len_matches_table() {
+        let longest = ALT_SCREEN_SEQUENCES
+            .iter()
+            .map(|(seq, _)| seq.len())
+            .max()
+            .expect("table is not empty");
+        assert_eq!(
+            ALT_SCREEN_MAX_SEQ_LEN, longest,
+            "ALT_SCREEN_MAX_SEQ_LEN must track the longest sequence in the table"
+        );
+    }
+
+    /// T-2738: the original 6-byte DECSET pair, still emitted by older TUIs.
+    #[tokio::test]
+    async fn alternate_screen_detects_legacy_47_variant() {
+        let alt_screen = Arc::new(Mutex::new(false));
+        let carry = Arc::new(Mutex::new(Vec::new()));
+
+        PtySession::scan_alternate_screen(b"\x1b[?47h", &alt_screen, &carry).await;
+        assert!(*alt_screen.lock().await, "?47h enters the alternate screen");
+
+        PtySession::scan_alternate_screen(b"\x1b[?47l", &alt_screen, &carry).await;
+        assert!(!*alt_screen.lock().await, "?47l leaves the alternate screen");
+    }
+
+    /// T-2738: the switch-only variant.
+    #[tokio::test]
+    async fn alternate_screen_detects_1047_variant() {
+        let alt_screen = Arc::new(Mutex::new(false));
+        let carry = Arc::new(Mutex::new(Vec::new()));
+
+        PtySession::scan_alternate_screen(b"\x1b[?1047h", &alt_screen, &carry).await;
+        assert!(*alt_screen.lock().await, "?1047h enters the alternate screen");
+
+        PtySession::scan_alternate_screen(b"\x1b[?1047l", &alt_screen, &carry).await;
+        assert!(!*alt_screen.lock().await, "?1047l leaves the alternate screen");
+    }
+
+    /// T-2738: the 6-byte variant split across a read boundary — the length the
+    /// fixed-8 window logic had no way to complete.
+    #[tokio::test]
+    async fn alternate_screen_detection_split_across_reads_six_byte_variant() {
+        let alt_screen = Arc::new(Mutex::new(false));
+        let carry = Arc::new(Mutex::new(Vec::new()));
+
+        // "\x1b[?47h" split as "\x1b[?4" (4 bytes) then "7h" (2 bytes).
+        PtySession::scan_alternate_screen(b"\x1b[?4", &alt_screen, &carry).await;
+        assert!(
+            !*alt_screen.lock().await,
+            "partial sequence must not trigger detection yet"
+        );
+        PtySession::scan_alternate_screen(b"7h", &alt_screen, &carry).await;
+        assert!(
+            *alt_screen.lock().await,
+            "?47h completed across the read boundary should flip state to true"
+        );
+    }
+
+    /// T-2738 (negative, PL-219): `?1048` saves and restores the cursor — it does
+    /// NOT switch screens. A scanner that matched loosely on `?104` would flip
+    /// the flag here and be wrong in the quiet direction.
+    #[tokio::test]
+    async fn alternate_screen_ignores_1048_cursor_save() {
+        let alt_screen = Arc::new(Mutex::new(false));
+        let carry = Arc::new(Mutex::new(Vec::new()));
+
+        PtySession::scan_alternate_screen(b"\x1b[?1048h", &alt_screen, &carry).await;
+        assert!(
+            !*alt_screen.lock().await,
+            "?1048h is a cursor save, not an alternate-screen switch"
+        );
+
+        // And it must not suppress a real switch arriving right after it.
+        PtySession::scan_alternate_screen(b"\x1b[?1049h", &alt_screen, &carry).await;
+        assert!(*alt_screen.lock().await, "?1049h still enters after a ?1048h");
+    }
+
+    /// T-2738: the no-double-count invariant, made observable.
+    ///
+    /// `?47h` is 6 bytes and the carry keeps 7, so after this chunk the whole
+    /// sequence sits inside the carry. Scanning a following chunk that contains
+    /// no sequence at all must not re-apply it. The externally-set `false` is
+    /// what makes the re-application visible — without it the stale match would
+    /// rewrite the same value and hide.
+    #[tokio::test]
+    async fn alternate_screen_does_not_reapply_a_sequence_held_in_carry() {
+        let alt_screen = Arc::new(Mutex::new(false));
+        let carry = Arc::new(Mutex::new(Vec::new()));
+
+        PtySession::scan_alternate_screen(b"\x1b[?47h", &alt_screen, &carry).await;
+        assert!(*alt_screen.lock().await);
+        assert!(
+            carry.lock().await.len() >= b"\x1b[?47h".len(),
+            "precondition: the carry is long enough to hold the whole sequence"
+        );
+
+        *alt_screen.lock().await = false;
+
+        PtySession::scan_alternate_screen(b"x", &alt_screen, &carry).await;
+        assert!(
+            !*alt_screen.lock().await,
+            "a sequence already applied and now living in the carry must not fire again"
+        );
     }
 
     /// T-2513: the enter sequence split across two reads must still be detected.
