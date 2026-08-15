@@ -1,118 +1,153 @@
-# Audit remediation — status after pass 2 (2026-08-14)
+# Audit remediation — status after pass 3 (2026-08-15)
 
-**State: 224 PASS / 10 WARN / 0 FAIL.** Was 30 WARN before pass 1, 20 before
-pass 2.
+**Trajectory: 30 WARN (pre-pass-1) → 20 → 10 → 6.** 0 FAIL throughout.
 
-Pass 2 executed group A of the original plan. All ten inception research-artifact
-warnings and both fabric-adjacent misreadings are resolved or correctly filed.
-**The remaining 10 are at the honest floor** — see "Why zero is not reachable".
+Pass 3 rejected pass 2's conclusion that 10 was "the honest floor". Four of those
+ten were **false findings** — the checks were structurally unable to pass in a
+linked worktree — and clearing a false warning by fixing its detector is not
+cosmetic, it is the only correct response.
 
-Everything is committed. Re-run `.agentic-framework/bin/fw audit` first to confirm
-the list still matches before acting on anything below.
-
----
-
-## What pass 2 did
-
-### A1 — CTL-020 → filed as T-2715 / U-004, not fixable here
-
-`.gitignore:54` excludes `.context/audits/cron/` by design, so a linked worktree
-can never have it. **Both obvious fixes are wrong**, and the record says so: the
-printed mitigation (`fw audit schedule install`) would aim a host cron entry at a
-path deleted with the worktree, and `mkdir -p` would swap the warning for
-"No cron audit files in last hour". The fix pattern already exists two sections up
-in `audit.sh` (`fw_is_linked_worktree`, used at :1638 and :1708).
-
-### A2 — C-002 → third symptom of T-2714, not a separate defect
-
-`audit.sh:3022` greps the same concatenated `$PROJECT_ROOT/.git/hooks` path. The
-installed hook **does** carry the `inception-research-warnings` marker (line 166)
-and the C-001 enforcement block (lines 164-195). So C-002 is a false negative
-about a **live safety gate** — worse than the sibling warnings, which merely claim
-a file is missing.
-
-### A3 — all ten research artifacts written (T-2716, completed)
-
-Pass 1 declined these as a block. That was too coarse. Checked per task: T-2486 had
-3/3 IW answered at confidence 3 with a shipped fix; T-2546 had A-1..A-4 verified
-with `file:line` evidence; the six completed ones carried decision + rationale +
-evidence. The trails existed — they just lived only in task files, and for the six
-completed, in `.tasks/completed/` where they are least likely to be read again.
-
-Each artifact declares itself a retrospective consolidation with its date and
-source. Where a task file had empty Problem Statement and Assumptions sections
-(T-1793, T-1830) the artifact says so rather than filling them in. No
-`fw inception decide` was run and no Human AC ticked on the four `owner: human`
-tasks.
-
-### A4 / A5 — resolved
-
-Uncommitted churn is committed. The 26 bypasses are **reviewed and clean**:
-exactly 24 `FW_SWITCH_FOCUS` (framework's own handover flow) + 2
-`FW_ALLOW_EMPTY_RECOMMENDATION`. No `--force`, `--no-verify`, `--skip-sovereignty`
-or `FW_ALLOW_HUMAN_AC_TICK` in the 7-day window. It ages out unaided.
-
-### Two findings the warnings did not show
-
-**T-2717 / U-005 — inception decisions can contradict their own rationale.**
-T-1793 records `Decision: GO` carrying the DEFER rationale verbatim; T-2288
-records `Decision: GO` carrying the NO-GO rationale, including *"a
-termlink-driven build now would violate the gate."* The four consistent cases all
-had a GO recommendation already, so the divergence lands exactly where the
-recommendation was **not** GO — two instances five weeks apart. `--rationale` is
-mandatory (`lib/inception.sh:421`), so this is not tool auto-fill. Whether each was
-a deliberate override or a mis-typed verdict is **unrecoverable**, which is the
-defect: nothing detects a verdict contradicting the reasoning beside it. No
-decision field was altered — that is a human-sovereignty record.
-
-**T-2718 / U-006 — the fabric no-edges mitigation is inert.** `fw fabric enrich`
-reports 0 enriched, 0 edges, **and 0 unresolved targets** — saturated, not
-blocked. Across 149 files in `scripts/`: **0** source another repo script via the
-standard idiom; **71** reference the `termlink` binary. The edge model is
-file→file and cannot name a compiled binary, so no parser change closes this.
+Re-run `.agentic-framework/bin/fw audit` before acting on anything below. Note it
+takes **>15 minutes**: CTL-013 re-runs the verification suites of the three most
+recently completed tasks, which includes `cargo test`. Budget for that or run
+`--section <name>` for a targeted check.
 
 ---
 
-## The 10 remaining warnings, and why each stands
+## What pass 3 did
 
-| # | Warning | Owner | Why it stands |
+### Four false findings fixed at the detector (T-2721)
+
+| check | why it was false | now |
+|---|---|---|
+| No commit-msg hook | concatenated `$PROJECT_ROOT/.git/hooks/…`; in a worktree `.git` is a **file**, so that path can never exist | PASS |
+| C-002 research gate | same concatenation — asserted a **live safety gate was missing** while it was installed and enforcing | PASS |
+| CTL-011 pre-push | same concatenation | PASS (hook proven executable) |
+| CTL-020 cron audits | `.context/audits/cron/` is gitignored, so it cannot exist in a worktree | INFO skip |
+
+Three are fixed by resolving through `git rev-parse --git-path hooks/<name>`, which
+handles a normal checkout, a worktree, **and** `core.hooksPath` in one call — so
+those checks now genuinely *verify* rather than being suppressed. Only CTL-020 is
+skipped, matching the `fw_is_linked_worktree` idiom already used by the cron-drift
+and cron-misload checks in the same file.
+
+**This edits vendored code and will be erased on the next re-vendor.** That is
+recorded in T-2705 §Updates — the re-vendor task itself — because a warning written
+inside `audit.sh` cannot survive the event it warns about. U-003 and U-004 remain
+the durable upstream path and are deliberately still open.
+
+**A bug in the fix, caught by verification.** The helper was first defined *inside*
+the `enforcement` section block. A full run masked this (enforcement defines it
+before the later sections use it), but `--section oe-daily` alone called an
+undefined function and resolved to the empty string — producing a false WARN with a
+blank Evidence line. Found only by testing each section in isolation. Hoisted to top
+level.
+
+### Two corrections to pass 2's own claims
+
+Both were cases of a confident conclusion resting on a measurement narrower than the
+claim it supported — the exact defect this whole review has been cataloguing.
+
+**1. "0 of 149 scripts depend on another repo script" (T-2718) was wrong.** That
+held only for the three `${SCRIPT_DIR}` / `${REPO_ROOT}` / `${PROJECT_ROOT}` idioms
+that were grepped. Re-measured including *invocation*:
+
+```
+$ grep -lE '(bash|sh|source|\.) +[^ ]*scripts/[a-z0-9._-]+\.sh' scripts/*.sh | wc -l
+18
+```
+
+`run-guard-layer.sh` executing every `check-*.sh` is a dependency by any reading. So
+"no parser improvement can close this" is false — a parser change closes *part* of
+it; the binary-dependency remainder is structural. A measurement returning exactly
+zero deserves more suspicion than one returning a few.
+
+**2. "The 26 bypasses are the framework's own handover flow" was wrong.** Verified:
+`FW_SWITCH_FOCUS=1` is a mechanism a **caller types** to override the focus-drift
+gate. `bin/fw:6639` only *suggests* it in an error message; no framework script
+sets it. All 24 are deliberate agent-initiated Tier-2 bypasses. **Warning #5 is a
+true signal and should not be dismissed** — 24 focus-gate overrides in 7 days is
+exactly the "safety-bypass-as-pattern" the check exists to surface.
+
+### Verified from the peer report (T-2719 / T-2720 / U-007)
+
+Ran the peer's falsifiable prediction before touching code. It passed, but the
+source disagreed with half the diagnosis, and the code half was **already fixed and
+undeployed**:
+
+- `latest` operand → T-2533 (`ac859d321`, 2026-08-08, **v0.11.871**), a silent
+  data-loss fix. Fleet runs **0.11.720**.
+- `cursor` operand → a *different* defect: `agent inbox` reads local
+  `~/.termlink/cursors.json`, `agent unread` reads the hub-side ack receipt. Two
+  stores, never reconciled. **Upgrading alone makes the printed count worse** (a
+  correct `latest` of 11867 minus a stale cursor of 1611 = 10256, against a true 30).
+- Nothing caught the stale binary because the fleet-binary canary's floor is a
+  hand-written constant last touched 2026-07-27. Floors raised to 0.11.871; the
+  unchanged script now fires and names all three hubs.
+
+---
+
+## The 6 remaining warnings
+
+| # | Warning | Clearable by an agent? | What actually clears it |
 |---|---|---|---|
-| 1 | Arc `arc-substrate-fitness` stale | **human** | T-2250 is its only open task; both offered mitigations are illegitimate (see D1) |
-| 2 | Fabric 193/344 no edges | filed **T-2718** | mitigation inert; largely structural, not backlog |
-| 3 | Fabric 4 cards uncovered | settled **T-2712** | deliberate; the 4 are real components but not source |
-| 4 | Uncommitted changes | transient | session churn; clears on the next commit |
-| 5 | Gate-bypass 26 in 7 days | reviewed | all benign; rolling window ages out |
-| 6 | No commit-msg hook | filed **T-2714** | vendored; unfixable in a worktree |
-| 7 | Learnings ready for promotion | **human** | curation decision (D2) |
-| 8 | C-002 research-artifact check | filed **T-2714** | same root cause as #6 |
-| 9 | CTL-020 cron audit dir | filed **T-2715** | vendored; unfixable in a worktree |
-| 10 | CTL-011 pre-push hook | filed **T-2714** | same root cause as #6 |
+| 1 | Arc `arc-substrate-fitness` stale | **No — sovereign** | Human resolves the 20-day-overdue T-2250 revisit, or approves drivers via `fw arc approve-driver … --i-am-human` |
+| 2 | Fabric 193/344 no edges | **Partly** | A parser change would add ~18 scripts' invocation edges; the rest is structural (binary deps a file→file model cannot express) |
+| 3 | Fabric 4 cards uncovered | **No — deliberate** | `.fabric/watch-patterns.yaml` documents this on purpose |
+| 4 | Uncommitted changes | Yes, transient | A commit. Note the audit *writes its own report*, so a run dirties the tree it then warns about |
+| 5 | Gate-bypass 26 in 7 days | **No — and it is correct** | Rolling 7-day window; ages out only if agents stop overriding the focus gate |
+| 6 | Learnings ready for promotion | **No — curation** | Human runs `fw promote PL-XXX --name "…" --directive DN` |
 
-Six of the ten (#2, #6, #8, #9, #10, and #3's rationale) are **framework defects
-in vendored files**. A local edit is erased on re-vendor, so each is recorded
-under `.context/upstream/` instead.
+### Why #3 cannot be cleared honestly
+
+The four cards are `.claude/commands/capture.md`, `docs/guides/upstream-reporting.md`,
+`install.sh`, `systemd-templates/termlink-substrate-worker@.service`. Two could be
+covered cheaply. The other two are markdown — and globbing `docs/**/*.md` would
+newly register *hundreds* of uncarded files, trading one warning for a much larger
+one. That is the "inventing globs makes the pattern list meaningless" case
+`watch-patterns.yaml` already documents.
+
+### Prepared work for #6 (human decides; this is only the proposal)
+
+The check fires on **application count alone**, so it cannot distinguish a reusable
+principle from an incident note that happens to be referenced often. Triaged:
+
+**Practice-shaped — worth promoting:**
+- `PL-168` (17) — *a detector without a trigger is not prevention*. The strongest of
+  the set; it generalizes past its origin incident (G-058). Suggest **D1**.
+- `PL-213` (23) — *proof scripts must assert the property they claim, not the
+  happy-path outcome*. Suggest **D2**.
+- `PL-206` (17) — *fenced code in docs is inert and lapses silently*. Suggest **D2**.
+
+**Not practice-shaped — recommend NOT promoting:**
+- `PL-209` (18) — an incident observation carrying an open "Next: investigate…".
+  That is a task, not a practice.
+- `PL-195` (11) — a specific bug, already filed as T-1874.
+- `PL-172` (13) — a narrow MCP-parity recipe; useful, but a technique note.
 
 ---
 
-## Why zero is not reachable
+## Why "zero" is still not the target
 
-Reaching 0 WARN from here requires either **lying** (#2, #3, #4, #5 — fabricate
-edges, narrow the watch patterns, `mkdir` a directory to fake host state) or
-**overstepping** (#1, #7 — close a human-owned inception, self-serve a promotion
-decision). Avoiding exactly those two failure modes is what the remaining warnings
-are for.
+Reaching 0 from here requires **fabrication** (#3 fake globs, #4 impossible while the
+audit dirties its own tree) or **overstepping** (#1 closing a sovereign arc, #6
+self-serving a curation decision, #5 silencing a signal that is telling the truth).
 
-**If a future pass reports 0 WARN, check what it narrowed or faked to get there.**
-This repo has hit the narrow-the-metric trap three times already — T-2680, T-2681,
-T-2712 — recorded as PL-341.
+The audit itself offers a fabrication as a mitigation: warning #1 suggests
+`fw task update T-XXX --last-update $(date -u +%FT%TZ)` — touching a timestamp so
+the staleness check stops firing. That was not done.
+
+**If a future pass reports 0 WARN, check what it faked or narrowed to get there.**
+This repo has hit the narrow-the-metric trap four times now — T-2680, T-2681, T-2712,
+and (twice, in its own analysis) pass 2 — recorded as PL-341.
 
 ---
 
-## Next actions
+## Open items
 
-### Ready to run — outward filing (needs operator authorisation)
+### Outward filing — needs operator authorisation
 
-Six upstream records are written and validated under `.context/upstream/`:
+Seven upstream records under `.context/upstream/`, validated:
 
 | | Task | Sev | Summary |
 |---|---|---|---|
@@ -122,43 +157,24 @@ Six upstream records are written and validated under `.context/upstream/`:
 | U-004 | T-2715 | med | CTL-020 worktree-blind; its mitigation is harmful |
 | U-005 | T-2717 | **high** | inception decision can contradict its own rationale |
 | U-006 | T-2718 | med | fabric no-edges mitigation is inert |
+| U-007 | T-2720 | **high** | a shipped hub-side rail never moved the deploy floor |
 
-This is Path 2 of `docs/guides/upstream-reporting.md` — the persistent record the
-guide prescribes *before* delivery. **The outward post to the shared
-`framework:pickup` topic was deliberately not made**: it is visible to peer
-projects, so it is the operator's call. The `Filed to framework:pickup` AC on each
-of the six tasks is correspondingly unticked and all six stay open.
+The post to the shared `framework:pickup` topic is **deliberately not made** — it is
+visible to peer projects, so it is the operator's call. The `Filed to
+framework:pickup` AC on each task stays unticked.
 
-**U-003 and U-004 share one root shape and one fix** — a fixture that runs the
-audit inside a `git worktree add`. Each record says so, so they are not fixed twice
-or half-fixed.
+### Operator actions
 
-### Human decisions (D)
+- **Upgrade the three hubs** to ≥0.11.871 (install binary, restart *through* the
+  systemd unit per G-070). Until then the fleet runs a known silent-data-loss bug and
+  the canary will name it daily — which is now the correct behaviour.
+- **T-1898** revisit — 40 days overdue.
+- **T-2250** revisit — 21 days overdue. This is what keeps warning #1 alive.
 
-- **T-1898** — revisit fired 2026-07-06, now **39 days** overdue. Evidence needed:
-  operator authorises the 5h-agent + 24h-observation spike, OR ring20-management
-  goes silent >24h again.
-- **T-2250** — revisit fired 2026-07-25, **20 days** overdue. Evidence needed: R7
-  hygiene cleanup landed + R4 daily-aggregated-push validated live. **This is what
-  keeps warning #1 alive.**
-- **Five promotion candidates**: PL-213 (23 applications), PL-209 (18), PL-168
-  (17), PL-206 (17), PL-172 (13).
+### Still open for an agent
 
-Nothing calls `fw task revisit-due` automatically because T-1452 (cron + handover
-banner) is still `started-work`, `owner: human` — the field is written and the verb
-reads it correctly, but no one runs it.
-
----
-
-## Operational note
-
-Pass 2 ran to completion after `/compact` reset the budget gate, and hit the wall
-again at ~289K while wrapping up. The gate counts cumulative session transcript
-tokens, so it returns to critical roughly every pass. To run hands-off:
-
-```
-cd /opt/termlink/.claude/worktrees/charter-review-2026-0814 && claude-fw
-```
-
-`/compact` also resets it for one more pass, but without `claude-fw` the same wall
-returns.
+- **T-2719** — reconcile the two cursor stores. Do *not* treat the binary upgrade as
+  the fix.
+- Two peer-reported usability items, captured in T-2719 and needing their own tasks:
+  `agent recent <topic>` resolving its positional as a session, and no verb mapping a
+  fingerprint to a name.
