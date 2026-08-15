@@ -2389,12 +2389,33 @@ else
     pass "Gate-bypass log: clean (no bypasses recorded)"
 fi
 
+# T-2714: resolve a git hook path correctly in BOTH a normal checkout and a
+# linked worktree. In a worktree `.git` is a FILE, not a directory, so the
+# literal "$PROJECT_ROOT/.git/hooks/<name>" can NEVER exist and every hook
+# check reported a false negative — including C-002, which claims a live
+# safety gate is missing while it is installed and enforcing.
+# `git rev-parse --git-path` resolves both layouts and also honours
+# core.hooksPath, so the checks now verify rather than skip.
+_resolve_hook_path() { # $1 = hook name → absolute path (may not exist)
+    local _p
+    _p=$(git -C "$PROJECT_ROOT" rev-parse --git-path "hooks/$1" 2>/dev/null) || _p=""
+    if [ -z "$_p" ]; then
+        printf '%s\n' "$PROJECT_ROOT/.git/hooks/$1"
+        return
+    fi
+    case "$_p" in
+        /*) printf '%s\n' "$_p" ;;
+        *)  printf '%s\n' "$PROJECT_ROOT/$_p" ;;
+    esac
+}
+
 # Check for commit-msg hook (validates task references)
-if [ -f "$PROJECT_ROOT/.git/hooks/commit-msg" ]; then
+_commit_msg_hook=$(_resolve_hook_path commit-msg)
+if [ -f "$_commit_msg_hook" ]; then
     pass "Commit-msg hook installed"
 else
     warn "No commit-msg hook" \
-         ".git/hooks/commit-msg not found" \
+         "$_commit_msg_hook not found" \
          "Install hooks: ./agents/git/git.sh install-hooks"
 fi
 
@@ -3019,11 +3040,12 @@ if [ "$c001_missing" -eq 0 ]; then
 fi
 
 # C-002 OE: Check commit-msg hook has research artifact check installed
-if grep -q "inception-research-warnings" "$PROJECT_ROOT/.git/hooks/commit-msg" 2>/dev/null; then
+_c002_hook=$(_resolve_hook_path commit-msg)   # T-2714: worktree-safe resolution
+if grep -q "inception-research-warnings" "$_c002_hook" 2>/dev/null; then
     pass "C-002: commit-msg hook has research artifact check"
 else
     warn "C-002: commit-msg hook missing research artifact check" \
-         "Hook at .git/hooks/commit-msg doesn't contain C-002 gate" \
+         "Hook at $_c002_hook doesn't contain C-002 gate" \
          "Reinstall hooks: fw git install-hooks (or manually add C-002)"
 fi
 
@@ -3212,7 +3234,14 @@ fi
 
 # CTL-020 OE: Continuous Audit — cron audit files produced recently
 CRON_DIR="$AUDITS_DIR/cron"
-if [ -d "$CRON_DIR" ]; then
+if fw_is_linked_worktree "$PROJECT_ROOT"; then
+    # T-2715: cron is HOST-level and `.context/audits/cron/` is gitignored, so a
+    # linked worktree can never contain it — the check was structurally unable to
+    # pass here. Worse, its own mitigation was harmful: `fw audit schedule install`
+    # would aim a host cron entry at a path that disappears with the worktree.
+    # Same skip idiom as the cron-drift and cron-misload checks above.
+    info "CTL-020 skipped — linked worktree (cron audits are host-level, produced from the main checkout)"
+elif [ -d "$CRON_DIR" ]; then
     recent_cron=$(find "$CRON_DIR" -name '*.yaml' -mmin -60 -not -name 'LATEST*' 2>/dev/null | wc -l | tr -d ' ')
     if [ "$recent_cron" -gt 0 ]; then
         pass "CTL-020: $recent_cron cron audit file(s) in last hour"
@@ -3372,11 +3401,12 @@ else
 fi
 
 # CTL-011 OE: Audit Push Gate — pre-push hook installed
-if [ -x "$PROJECT_ROOT/.git/hooks/pre-push" ]; then
+_prepush_hook=$(_resolve_hook_path pre-push)   # T-2714: worktree-safe resolution
+if [ -x "$_prepush_hook" ]; then
     pass "CTL-011: pre-push hook installed and executable"
 else
     warn "CTL-011: pre-push hook missing or not executable" \
-         "$PROJECT_ROOT/.git/hooks/pre-push" \
+         "$_prepush_hook" \
          "Run: fw git install-hooks"
 fi
 

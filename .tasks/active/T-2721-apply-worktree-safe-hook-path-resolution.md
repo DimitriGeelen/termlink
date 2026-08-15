@@ -1,8 +1,8 @@
 ---
-id: T-2718
-name: "Fabric no-edges warning cannot be cleared by its own mitigation"
+id: T-2721
+name: "Apply worktree-safe hook-path resolution locally in vendored audit.sh (transient until re-vendor)"
 description: >
-  193/344 cards have no edges and fw fabric enrich adds zero; most edgeless cards are leaf scripts whose real dependency is the termlink binary, which the file-to-file edge model cannot express
+  Four audit checks (commit-msg, C-002, CTL-011, CTL-020) report false findings in a linked worktree because they concatenate PROJECT_ROOT/.git/hooks or require a gitignored cron dir; apply the git rev-parse --git-path fix locally so the audit is truthful now, while U-003/U-004 remain the durable upstream path
 
 status: started-work
 workflow_type: build
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-14T20:38:32Z
-last_update: 2026-08-14T20:38:32Z
+created: 2026-08-15T05:38:10Z
+last_update: 2026-08-15T05:41:23Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,110 +30,55 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2718: Fabric no-edges warning cannot be cleared by its own mitigation
+# T-2721: Apply worktree-safe hook-path resolution locally in vendored audit.sh (transient until re-vendor)
 
 ## Context
 
-`fw audit` reports:
+Sibling of T-2714 (U-003) and T-2715 (U-004), which report these defects upstream.
+Those tasks deliberately carry the AC *"No file under `.agentic-framework/` is
+edited"* — the vendored tree is overwritten on re-vendor, so a local edit is not a
+durable fix. **This task exists so that constraint stays intact**: the local edit is
+a separate, explicitly-transient deliverable, not a quiet amendment to T-2714.
 
-```
-[WARN] Fabric: 193/344 cards have no edges
-       Evidence: Graph coverage below target
-       Mitigation: Run: fw fabric enrich
-```
+**Why do it locally at all.** Four audit checks report findings that are **false in
+a linked worktree**, and one of them is a false negative about a *live safety gate*:
 
-**Running the mitigation does nothing.** Measured 2026-08-14:
+| check | site | why it is false here |
+|---|---|---|
+| commit-msg hook | `audit.sh:2393` | concatenates `$PROJECT_ROOT/.git/hooks/…`; in a worktree `.git` is a **file**, so that path can never exist |
+| C-002 research gate | `audit.sh:3022` | same concatenation — claims the C-001 gate is missing while it is installed and enforcing (marker at hook line 166) |
+| CTL-011 pre-push | `audit.sh:3375` | same concatenation |
+| CTL-020 cron audits | `audit.sh:3236` | `.context/audits/cron/` is gitignored, so it cannot exist in a worktree |
 
-```
-Cards enriched:    0
-Total edges added: 0
-Unresolved edge targets — Actionable: 0, Ignorable: 0
-```
+An audit that reports four findings which are not true is worse than one that
+reports nothing: it trains its reader to discount the output, and it buries the
+warnings that *are* real. Leaving them standing to preserve a vendoring preference
+inverts the priority.
 
-Zero added *and* zero unresolved: the enricher is saturated, not merely stuck on
-targets it cannot resolve. This is the third instance found in one audit pass of a
-check whose printed mitigation cannot fix its own finding — the others are T-2714
-(`install-hooks` for a check that reads the wrong path) and T-2715 (`fw audit
-schedule install` for a directory that is gitignored). It has recurred **11 times
-in 14 days** per the audit's own trend analysis, which is what a warning nobody can
-action looks like over time.
+**The fix is not a skip for three of the four.** `git rev-parse --git-path
+hooks/<name>` resolves a normal checkout **and** a worktree **and** honours
+`core.hooksPath` in one call, so those checks now genuinely *verify* rather than
+being suppressed. Only CTL-020 is skipped, matching the existing
+`fw_is_linked_worktree` idiom already used by the cron-drift and cron-misload checks
+in the same file (`audit.sh:1638`, `:1708`) — cron is host-level and its audit
+directory is gitignored, so there is nothing in a worktree to verify.
 
-**Why the edges are absent, measured rather than assumed.** Of 149 files in
-`scripts/`:
-
-- **0** source or invoke another repo script through the standard
-  `${SCRIPT_DIR}` / `${REPO_ROOT}` / `${PROJECT_ROOT}` idiom
-- **71** reference the `termlink` binary, via `TERMLINK_BIN` or `TERMLINK="..."`
-
-Spot-checked `scripts/check-stuck-claims-freshness.sh`: its only mention of another
-script (`scripts/substrate-smoke.sh`) is inside a comment, and its actual
-dependency is `TERMLINK="${TERMLINK_BIN:-termlink}"` — a **compiled binary resolved
-at runtime from the environment**.
-
-So for a large share of these cards there is no file-to-file edge to find. The
-fabric's edge model is file→file; these scripts depend on an artifact the model has
-no way to name. **No parser improvement can close this**, because the information
-is not missing — the relationship is simply not expressible.
-
-### CORRECTION 2026-08-15 — the "0 of 149" measurement was too narrow
-
-The paragraph above overstates the case, and the error is the same shape as the one
-this task warns about. **"0 source another repo script" is true only of the three
-`${SCRIPT_DIR}` / `${REPO_ROOT}` / `${PROJECT_ROOT}` idioms that were grepped for.**
-Re-measured against invocation as well as sourcing:
-
-```
-$ grep -lE '(bash|sh|source|\.) +[^ ]*scripts/[a-z0-9._-]+\.sh' scripts/*.sh | wc -l
-18
-```
-
-**18 of 149** reference a sibling script by path — `tl-claude.sh` (5 referrers),
-`sweep-test-debris.sh` (5), `lint-doc-fenced-bash.sh` (3), `agent-send.sh` (3),
-`check-framework-pickup-freshness.sh` (3), and others. `run-guard-layer.sh` executing
-every `check-*.sh` is a real dependency by any reading; so is `comms-selftest.sh`
-calling `agent-send.sh`. These are **genuine file→file edges the enricher does not
-extract**, because it looks for `source`-style inclusion and these are invocations.
-
-So the honest split is: *some* of the 193 edgeless cards are enricher gaps that a
-parser change WOULD close, and the rest are the binary-dependency class that no
-parser can. The original claim collapsed the two.
-
-**This is the task's own warning turned on itself.** It cautions against measuring
-over a flattering subset (PL-341) and then reaches its structural conclusion from
-three hand-picked grep patterns. A measurement that finds exactly zero deserves more
-suspicion than one that finds a few — zero usually means the probe was wrong, not
-that the phenomenon is absent. Recording it here rather than silently amending the
-paragraph, because the reasoning error is the more useful artifact.
-
-The conclusion that survives: fixing the parser will NOT clear this warning (18
-scripts gaining a few edges each does not move 193/344 materially), and
-hand-authoring edges is still the wrong fix. What changes is the *claim* — from
-"no parser improvement can close this" to "a parser improvement closes part of it,
-and the remainder is structural".
-
-**Why this matters beyond one warning.** The number is now honest — T-2712 widened
-`watch-patterns.yaml` so the 188 guard-layer scripts are counted at all, moving the
-figure from a flattering 31/150 (18%) to a truthful 193/344 (56%), recorded as
-PL-341. The risk now is the opposite one: a future pass reads 56% as a backlog and
-either burns a session trying to enrich un-enrichable cards, or worse, hand-authors
-plausible-looking edges to bring the number down. That would re-break exactly what
-T-2712 fixed. This task exists so the next reader knows the figure is largely
-structural before deciding what to do about it.
-
-**Cross-repo.** `agents/fabric/` is vendored; a local edit is erased on re-vendor.
-Deliverable is an upstream report, not an edit under `.agentic-framework/`.
+**Transience is the known cost, and it is not hypothetical.** T-2705 re-vendored the
+framework on 2026-08-14, ~1000 commits of churn in one commit. The next re-vendor
+erases this edit and the four false findings return. That is precisely why U-003 and
+U-004 remain the durable path and are NOT closed by this task.
 
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The report shows the mitigation is inert, citing the measured `enrich` output (0 enriched, 0 edges, 0 unresolved — the second zero is what proves saturation rather than blockage)
-- [ ] It quantifies why: 0 of 149 `scripts/` files source another repo script via the standard idiom, while 71 reference the `termlink` binary
-- [ ] It gives the worked example (`check-stuck-claims-freshness.sh`: script mention in a comment, real dependency `TERMLINK_BIN`)
-- [ ] It states the structural conclusion — a file→file edge model cannot express a dependency on a compiled binary, so no parser change closes this
-- [ ] It proposes the two candidate directions without choosing between them: allow non-file edge targets (binary/service/artifact), or scope the coverage metric to card types where file edges are meaningful
-- [ ] It warns explicitly against the two wrong fixes: hand-authoring edges to lower the number, and re-narrowing `watch-patterns.yaml` (the PL-341 trap, hit three times already — T-2680, T-2681, T-2712)
-- [ ] Filed as an upstream record under `.context/upstream/`
-- [ ] No file under `.agentic-framework/` is edited by this task
+- [x] All three hook checks resolve via `git rev-parse --git-path hooks/<name>` with a fallback to the literal path, so they work in a normal checkout and a worktree
+- [x] The resolver handles git returning a **relative** path (normal checkout) as well as an absolute one (worktree)
+- [x] CTL-020 skips on a linked worktree via the existing `fw_is_linked_worktree` helper, using `info` (not `warn`), matching the two cron checks in the same file
+- [x] Warning text now prints the **resolved** path rather than a hardcoded `.git/hooks/...` string, so a future reader sees what was actually checked
+- [x] `bash -n` passes on the edited script
+- [ ] A full `fw audit` run confirms the four findings are gone and no new finding appeared in their place
+- [x] T-2714 and T-2715 remain open with their upstream ACs unticked — this task does not close them, because a local edit is not the prevention
+- [x] The transience is recorded where the next re-vendor will be felt, so the regression is expected rather than rediscovered *(T-2705 §Updates — the re-vendor task itself; a note inside `audit.sh` cannot survive the event it warns about)*
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -262,7 +207,10 @@ Deliverable is an upstream report, not an edit under `.agentic-framework/`.
 
 ## Updates
 
-### 2026-08-14T20:38:32Z — task-created [task-create-agent]
+### 2026-08-15T05:38:10Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2718-fabric-no-edges-warning-cannot-be-cleare.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2721-apply-worktree-safe-hook-path-resolution.md
 - **Context:** Initial task creation
+
+### 2026-08-15T05:41:23Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

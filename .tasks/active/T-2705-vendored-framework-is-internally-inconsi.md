@@ -200,6 +200,26 @@ git checkout a46e8e726 -- .agentic-framework
 
 ## Updates
 
+### 2026-08-15 — ⚠ READ BEFORE THE NEXT RE-VENDOR (T-2721 local patch will be erased)
+
+`.agentic-framework/agents/audit/audit.sh` currently carries a **local patch** that
+is NOT upstream. A re-vendor overwrites it and four false audit findings return:
+
+- `_resolve_hook_path()` helper (added just above the commit-msg hook check) — uses
+  `git rev-parse --git-path hooks/<name>` instead of concatenating
+  `$PROJECT_ROOT/.git/hooks/…`, which cannot resolve in a linked worktree because
+  `.git` is a file there. Consumed by the **commit-msg**, **C-002**, and **CTL-011**
+  checks.
+- **CTL-020** — now skips on a linked worktree via `fw_is_linked_worktree`, matching
+  the cron-drift / cron-misload checks in the same file.
+
+If those four warnings reappear after a re-vendor, this is why — reapply from T-2721
+(or, better, check whether upstream has taken U-003 / U-004, which are the durable
+fix; if so, drop the local patch rather than reapplying it).
+
+Recorded here rather than in a comment inside `audit.sh`, because a note living in
+the file that gets overwritten cannot survive the event it warns about.
+
 ### 2026-08-14T12:02:56Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2705-vendored-framework-is-internally-inconsi.md
