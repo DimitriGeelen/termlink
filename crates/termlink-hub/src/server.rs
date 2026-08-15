@@ -35,11 +35,20 @@ pub fn hub_socket_path() -> PathBuf {
 /// Returns true if the warning was emitted (used by tests; production callers
 /// can ignore the return).
 ///
-/// Conditions for warning (all must hold):
+/// Conditions for warning (both must hold):
 ///   1. `TERMLINK_RUNTIME_DIR` is unset (operator did not explicitly choose)
-///   2. Effective UID is 0 (root — non-root /tmp/termlink-UID is the
-///      documented default for interactive sessions and not a footgun)
-///   3. The resolved default path starts with `/tmp/`
+///   2. The resolved default path sits under a volatile root — see
+///      [`VOLATILE_DEFAULT_ROOTS`]
+///
+/// T-2734 removed a third condition, `uid == 0`, and the reasoning that
+/// justified it ("non-root `/tmp/termlink-UID` is the documented default for
+/// interactive sessions and not a footgun"). `substrate-preflight.sh` treats
+/// that same state as a failure at any uid, so the two guards contradicted
+/// each other about identical state — and PL-021's consequence does not depend
+/// on who owns the directory: a wiped runtime_dir regenerates `hub.secret`
+/// whoever started the hub. "It is the documented default" argues the operator
+/// should not be *blamed*, which is a point about wording, not about whether to
+/// tell them.
 fn warn_if_volatile_default_runtime_dir() -> bool {
     let uid = unsafe { libc::getuid() };
     warn_if_volatile_default_runtime_dir_impl(uid, discovery::runtime_dir())
@@ -54,25 +63,42 @@ fn warn_if_volatile_default_runtime_dir_impl(uid: u32, resolved: PathBuf) -> boo
         return false;
     }
 
-    if uid != 0 {
-        return false;
-    }
-
     let resolved_str = resolved.to_string_lossy();
-    if !resolved_str.starts_with("/tmp/") {
+    if !VOLATILE_DEFAULT_ROOTS.iter().any(|r| resolved_str.starts_with(r)) {
         return false;
     }
 
     tracing::warn!(
         resolved = %resolved.display(),
-        "Hub starting as root with TERMLINK_RUNTIME_DIR unset — falling through to volatile /tmp default. \
-         If /tmp is wiped on reboot (tmpfs OR systemd-tmpfiles D /tmp, PL-021), hub.secret + TLS cert \
-         + bus state will be regenerated on next boot and ALL TOFU-pinned clients will need to re-auth. \
-         For production: set TERMLINK_RUNTIME_DIR=/var/lib/termlink (ensure dir exists, owned by root, 0700), \
-         or install the systemd unit at .context/systemd/termlink-hub.service which carries the env."
+        uid = uid,
+        "Hub starting with TERMLINK_RUNTIME_DIR unset — falling through to a volatile default. \
+         If this path is wiped (tmpfs, systemd-tmpfiles `D /tmp`, or /run/user torn down at your \
+         last logout — PL-021), hub.secret + TLS cert + bus state are regenerated and ALL \
+         TOFU-pinned clients must re-auth. This is the framework's default, not a mistake you made. \
+         For anything long-lived: set TERMLINK_RUNTIME_DIR=/var/lib/termlink (dir must exist, 0700), \
+         or install the systemd unit at .context/systemd/termlink-hub.service which carries the env. \
+         `/preflight` resolves the path against the real mount table and is authoritative."
     );
     true
 }
+
+/// Path prefixes that `discovery.rs` can resolve to and that do not survive.
+///
+/// T-2734. This list is a **heuristic**, deliberately: the authoritative
+/// volatility test is `substrate-preflight.sh`, which since T-2729 resolves the
+/// path the binary actually opens and asks the mount table what kind of
+/// filesystem it is. Reproducing that here would mean reading `/proc/mounts`
+/// from the hub's start path, adding a Linux-only dependency that
+/// `check-platform-lock.sh` exists to keep out (Directive #4). So this covers
+/// the roots `discovery.rs` can actually produce and defers precision.
+///
+/// `/run/` is the one that matters most and the one the previous `/tmp/`-only
+/// test could never see: `$XDG_RUNTIME_DIR` is consulted *before* `/tmp`, so a
+/// normal systemd user session lands on `/run/user/<uid>/termlink` — a tmpfs
+/// destroyed at that user's last logout, which is sooner than a reboot. The
+/// old check reported nothing there, which is precisely where an operator most
+/// needs telling.
+const VOLATILE_DEFAULT_ROOTS: &[&str] = &["/run/", "/tmp/", "/var/tmp/", "/dev/shm/"];
 
 /// Return the hub secret file path: `runtime_dir()/hub.secret`.
 pub fn hub_secret_path() -> PathBuf {
@@ -3547,8 +3573,15 @@ mod tests {
             }
         }
 
+        /// T-2734: this test previously asserted the OPPOSITE — that a non-root
+        /// hub on `/tmp` must stay silent, because "the documented default is
+        /// not a footgun". `substrate-preflight.sh` failed on that same state
+        /// at any uid, so the two guards contradicted each other, and PL-021's
+        /// consequence is uid-independent: a wiped `/tmp` regenerates
+        /// `hub.secret` whoever owns it. The old assertion encoded the
+        /// disagreement rather than catching it.
         #[tokio::test]
-        async fn silent_when_non_root() {
+        async fn warns_when_non_root_on_volatile_path() {
             let _lock = ENV_LOCK.lock().await;
             let prev = std::env::var("TERMLINK_RUNTIME_DIR").ok();
             unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
@@ -3557,7 +3590,75 @@ mod tests {
                 1000,
                 PathBuf::from("/tmp/termlink-1000"),
             );
-            assert!(!fired, "non-root /tmp is the documented default, not a footgun");
+            assert!(fired, "a wiped /tmp costs the secret at any uid, not just root");
+
+            if let Some(v) = prev {
+                unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", v) };
+            }
+        }
+
+        /// T-2734: the path a normal systemd user session actually gets.
+        /// `discovery.rs` consults `$XDG_RUNTIME_DIR` BEFORE `/tmp`, so this is
+        /// the common case — and `/run/user/N` is a tmpfs systemd tears down at
+        /// the user's last logout, sooner than a reboot. The previous
+        /// `starts_with("/tmp/")` test could not see it, leaving the guard
+        /// silent exactly where it was most needed.
+        #[tokio::test]
+        async fn warns_on_xdg_runtime_dir_path() {
+            let _lock = ENV_LOCK.lock().await;
+            let prev = std::env::var("TERMLINK_RUNTIME_DIR").ok();
+            unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+
+            let fired = super::super::warn_if_volatile_default_runtime_dir_impl(
+                1000,
+                PathBuf::from("/run/user/1000/termlink"),
+            );
+            assert!(fired, "/run/user is a tmpfs destroyed at last logout");
+
+            if let Some(v) = prev {
+                unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", v) };
+            }
+        }
+
+        /// The guard must stay quiet where it should. A warning that fires on a
+        /// correctly-configured host is PL-219 alert fatigue, and this one is
+        /// load-bearing for the repo's worst production class — it cannot
+        /// afford to be ignored.
+        #[tokio::test]
+        async fn silent_on_persistent_path() {
+            let _lock = ENV_LOCK.lock().await;
+            let prev = std::env::var("TERMLINK_RUNTIME_DIR").ok();
+            unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+
+            for path in ["/var/lib/termlink", "/opt/termlink/state", "/home/x/.termlink"] {
+                let fired = super::super::warn_if_volatile_default_runtime_dir_impl(
+                    0,
+                    PathBuf::from(path),
+                );
+                assert!(!fired, "{path} persists — warning here would be noise");
+            }
+
+            if let Some(v) = prev {
+                unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", v) };
+            }
+        }
+
+        /// `/var/tmp` is NOT a `/tmp` prefix match but is reboot-volatile on
+        /// many distros; `/dev/shm` is always tmpfs. Both are reachable via
+        /// `$TMPDIR`, which `discovery.rs` honours.
+        #[tokio::test]
+        async fn warns_on_other_volatile_roots() {
+            let _lock = ENV_LOCK.lock().await;
+            let prev = std::env::var("TERMLINK_RUNTIME_DIR").ok();
+            unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
+
+            for path in ["/var/tmp/termlink-0", "/dev/shm/termlink-0"] {
+                let fired = super::super::warn_if_volatile_default_runtime_dir_impl(
+                    0,
+                    PathBuf::from(path),
+                );
+                assert!(fired, "{path} does not survive and must warn");
+            }
 
             if let Some(v) = prev {
                 unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", v) };
@@ -3585,18 +3686,34 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn silent_when_root_but_path_not_tmp() {
+        async fn warns_when_root_on_xdg_runtime_dir() {
             let _lock = ENV_LOCK.lock().await;
             let prev = std::env::var("TERMLINK_RUNTIME_DIR").ok();
             unsafe { std::env::remove_var("TERMLINK_RUNTIME_DIR") };
 
-            // Hypothetical: root + XDG_RUNTIME_DIR set, so resolved path is
-            // outside /tmp. Not the footgun pattern.
+            // T-2734 INVERTED THIS ASSERTION. It read:
+            //
+            //     // Hypothetical: root + XDG_RUNTIME_DIR set, so resolved path
+            //     // is outside /tmp. Not the footgun pattern.
+            //     assert!(!fired, "non-/tmp resolution is not the PL-021 footgun");
+            //
+            // `/run/user/N` is a tmpfs systemd destroys at that user's last
+            // logout. It is not merely *a* PL-021 footgun, it is a worse one
+            // than `/tmp` — it dies sooner and without a reboot to prompt
+            // suspicion. The test asserted the guard's silence was correct, so
+            // it could never catch the guard being wrong: it was written from
+            // the `starts_with("/tmp/")` implementation rather than from what
+            // survives a reboot, and then read back as proof. Same shape as
+            // T-2728, where a test asserted `ESC X` behaves as a bare escape
+            // because the code said so.
+            //
+            // Kept (rather than deleted) with the name changed, so the history
+            // of the claim stays visible to the next reader.
             let fired = super::super::warn_if_volatile_default_runtime_dir_impl(
                 0,
                 PathBuf::from("/run/user/0/termlink"),
             );
-            assert!(!fired, "non-/tmp resolution is not the PL-021 footgun");
+            assert!(fired, "/run/user is tmpfs — volatile, and sooner than /tmp");
 
             if let Some(v) = prev {
                 unsafe { std::env::set_var("TERMLINK_RUNTIME_DIR", v) };
