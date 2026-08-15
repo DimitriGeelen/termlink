@@ -67,6 +67,18 @@ pub struct PtySession {
     last_mode: Arc<Mutex<Option<TerminalMode>>>,
 }
 
+/// Initial PTY row count, applied at `openpty` time (T-2727).
+///
+/// Not a preference — a floor. `openpty` supplies 0x0 when handed a NULL
+/// `winp`, so without this a fresh session reports a zero-sized terminal to
+/// its child. 80x24 is the VT100 default every terminal emulator falls back
+/// to. Any real size arrives later via [`PtySession::resize`].
+pub const DEFAULT_PTY_ROWS: u16 = 24;
+
+/// Initial PTY column count, applied at `openpty` time (T-2727).
+/// See [`DEFAULT_PTY_ROWS`].
+pub const DEFAULT_PTY_COLS: u16 = 80;
+
 impl PtySession {
     /// Spawn a new PTY session running the given shell command.
     ///
@@ -103,13 +115,35 @@ impl PtySession {
         let mut master_fd: libc::c_int = 0;
         let mut slave_fd: libc::c_int = 0;
 
+        // T-2727: seed an initial window size.
+        //
+        // `openpty` with a NULL `winp` leaves the pty at rows=0, cols=0 — the
+        // kernel supplies no default (verified: `os.openpty()` + TIOCGWINSZ
+        // reports 0x0). Every session therefore started life claiming a
+        // zero-sized terminal until some caller happened to drive `resize()`,
+        // and nothing in the spawn path does. Full-screen children — vim,
+        // less, top, and the agent TUIs this tool exists to host — query
+        // TIOCGWINSZ at startup and get a degenerate answer.
+        //
+        // This is a FLOOR, not a pin: `resize()` (and the `command.resize` RPC
+        // / client Resize frame that call it) still override it freely. 80x24
+        // is the historical VT100 default and what every terminal emulator
+        // falls back to, so a child that never gets a real size behaves the
+        // way it would under any other terminal rather than uniquely badly.
+        let initial_ws = libc::winsize {
+            ws_row: DEFAULT_PTY_ROWS,
+            ws_col: DEFAULT_PTY_COLS,
+            ws_xpixel: 0,
+            ws_ypixel: 0,
+        };
+
         let ret = unsafe {
             libc::openpty(
                 &mut master_fd,
                 &mut slave_fd,
                 std::ptr::null_mut(),
                 std::ptr::null_mut(),
-                std::ptr::null_mut(),
+                &initial_ws,
             )
         };
         if ret != 0 {
@@ -471,6 +505,49 @@ mod tests {
     use super::*;
 
     use crate::test_util::PTY_LOCK;
+
+    /// T-2727: a freshly spawned PTY must report a usable window size.
+    ///
+    /// Load-bearing: revert the `&initial_ws` argument in `spawn_with_env`
+    /// back to `std::ptr::null_mut()` and this test fails with 0x0. Without
+    /// it, a full-screen child (vim, less, top, an agent TUI) queries
+    /// TIOCGWINSZ at startup and is told the terminal has no size.
+    #[tokio::test]
+    async fn spawn_has_nonzero_winsize() {
+        let _guard = PTY_LOCK.lock().await;
+        let session = PtySession::spawn(Some("/bin/sh"), 1024).unwrap();
+
+        let mut ws: libc::winsize = unsafe { std::mem::zeroed() };
+        let fd = session.master_read.as_raw_fd();
+        let ret = unsafe { libc::ioctl(fd, libc::TIOCGWINSZ, &mut ws) };
+        assert_eq!(ret, 0, "TIOCGWINSZ should succeed on the pty master");
+
+        assert!(
+            ws.ws_row > 0 && ws.ws_col > 0,
+            "fresh PTY reported a degenerate {}x{} window size — a child \
+             querying TIOCGWINSZ would be told the terminal has no size",
+            ws.ws_col,
+            ws.ws_row
+        );
+        assert_eq!(ws.ws_row, DEFAULT_PTY_ROWS);
+        assert_eq!(ws.ws_col, DEFAULT_PTY_COLS);
+    }
+
+    /// T-2727: the seeded size is a FLOOR, not a pin — `resize()` still wins.
+    #[tokio::test]
+    async fn resize_overrides_default_winsize() {
+        let _guard = PTY_LOCK.lock().await;
+        let session = PtySession::spawn(Some("/bin/sh"), 1024).unwrap();
+
+        session.resize(120, 40).unwrap();
+
+        let mut ws: libc::winsize = unsafe { std::mem::zeroed() };
+        let fd = session.master_read.as_raw_fd();
+        let ret = unsafe { libc::ioctl(fd, libc::TIOCGWINSZ, &mut ws) };
+        assert_eq!(ret, 0, "TIOCGWINSZ should succeed on the pty master");
+        assert_eq!(ws.ws_col, 120, "caller-driven resize must override default");
+        assert_eq!(ws.ws_row, 40, "caller-driven resize must override default");
+    }
 
     #[tokio::test]
     async fn spawn_and_exit() {
