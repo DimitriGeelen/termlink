@@ -50,29 +50,25 @@ local hub AND no profiles still has nothing to talk to.
 ## Acceptance Criteria
 
 ### Agent
-> **STATE AT HANDOVER (2026-08-15).** Implementation and fixtures are COMPLETE
-> and committed; the new suite `tests/substrate-preflight-hubs-toml-fixtures.sh`
-> ran **10/10 green** against the fix. The task is deliberately left OPEN
-> because the budget gate fired (critical, ~290k) and blocked Bash before the
-> load-bearing proof could be recorded and before P-011 could run the
-> Verification block. Nothing is half-written: the `if false;` temp-revert used
-> for the proof was restored and verified by reading the file back
-> (`substrate-preflight.sh:441` reads `if [ -S "$sock" ]; then`), so the tree is
-> clean.
->
-> **To finish (one session, minutes):** run the proof —
-> `sed -i 's/if \[ -S "$sock" \]; then/if false; then/' scripts/substrate-preflight.sh`,
-> confirm fixture 1 fails, restore, confirm 10/10 — then tick the last two ACs
-> and close normally. Do not tick them before running it.
+> **LOAD-BEARING PROOF (2026-08-15, recorded after the budget gate cleared).**
+> Replacing the new conditional's test with `if false;` — which reproduces the
+> pre-T-2742 behaviour exactly, since the socket branch becomes unreachable and
+> every missing-hubs.toml run falls through to the warn — makes fixture 1 fail
+> **2 assertions** (`.status` is `warn` not `pass`; the message carries the
+> no-hub-to-talk-to text instead of the by-design text). Fixtures 2, 3 and 4
+> stay green throughout, which is the shape that matters: the narrowing touched
+> only the local-only branch, so the controls must not move. Restoring returns
+> the suite to **10/10** and the tree to a zero-diff state
+> (`git diff scripts/` empty, `TEMP-REVERT` count 0).
 
-- [ ] Check 2 distinguishes "no hubs.toml AND a local hub socket exists" (a valid local-only install) from "no hubs.toml AND no local hub" (genuinely nothing to talk to)
-- [ ] The local-only case emits `pass`, not `warn`, and its message states that fleet verbs are empty *by design* so the operator is not left wondering
-- [ ] The no-hub-at-all case still warns and still names `termlink fleet profile add` — the guard is narrowed, not removed
-- [ ] The socket path is resolved with the script's existing `resolve_runtime_dir`, not a hardcoded `/tmp` path (the T-2729 trap)
-- [ ] The "present but no [hubs.NAME] sections" branch keeps its existing behaviour
-- [ ] Fixture coverage for all three states (local-only pass, no-hub warn, populated pass), driven by a test seam rather than the real `$HOME`
-- [ ] Load-bearing proof recorded: reverting the conditional makes the local-only fixture fail
-- [ ] `bash -n scripts/substrate-preflight.sh` parses, the preflight fixture suites pass, and `scripts/run-guard-layer.sh` is clean
+- [x] Check 2 distinguishes "no hubs.toml AND a local hub socket exists" (a valid local-only install) from "no hubs.toml AND no local hub" (genuinely nothing to talk to)
+- [x] The local-only case emits `pass`, not `warn`, and its message states that fleet verbs are empty *by design* so the operator is not left wondering
+- [x] The no-hub-at-all case still warns and still names `termlink fleet profile add` — the guard is narrowed, not removed
+- [x] The socket path is resolved with the script's existing `resolve_runtime_dir`, not a hardcoded `/tmp` path (the T-2729 trap)
+- [x] The "present but no [hubs.NAME] sections" branch keeps its existing behaviour
+- [x] Fixture coverage for all three states (local-only pass, no-hub warn, populated pass), driven by a test seam rather than the real `$HOME`
+- [x] Load-bearing proof recorded: reverting the conditional makes the local-only fixture fail
+- [x] `bash -n scripts/substrate-preflight.sh` parses, the preflight fixture suites pass, and `scripts/run-guard-layer.sh` is clean
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -144,6 +140,31 @@ bash tests/substrate-preflight-runtime-dir-fixtures.sh
 bash scripts/run-guard-layer.sh
 
 ## RCA
+
+**Symptom:** On a host with a working local hub and no `~/.termlink/hubs.toml`,
+`/preflight` Check 2 reported `warn` — "hubs.toml missing" — on every single
+run, even though nothing was wrong and no operator action would have helped.
+
+**Root cause:** The check treated the presence of `hubs.toml` as the question,
+when the question that matters is whether there is any hub to talk to.
+`config.rs:112-128` parses an absent file as an empty config, and the local hub
+is reached at `runtime_dir()/hub.sock` with no profile involved. A
+purely-local install therefore never needs the file, and the check had no way
+to express that.
+
+**Why structurally allowed:** the check was written from the fleet operator's
+vantage point, where a profile is always needed, and the local-only install was
+simply never a case anyone enumerated. Nothing in the guard layer asks whether
+a check can fire on a healthy state — the fixture suites that exist prove
+checks *fire*, and a check that over-fires passes those just as well as a
+correct one. That is the same asymmetry PL-219 names.
+
+**Prevention:** `tests/substrate-preflight-hubs-toml-fixtures.sh` pins all four
+states, and fixture 1 is specifically the healthy-state-must-not-warn case —
+the assertion class that was missing. It runs off the
+`TERMLINK_PREFLIGHT_HUBS_TOML` seam and a scratch `TERMLINK_RUNTIME_DIR` with a
+real AF_UNIX socket, so it is hermetic and cannot pass by accident on a host
+that happens to be configured a particular way.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
