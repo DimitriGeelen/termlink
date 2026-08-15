@@ -1,8 +1,8 @@
 ---
-id: T-2732
-name: "Restore terminal private modes on detach — alt-screen/mouse/paste leak (herdr item 4)"
+id: T-2733
+name: "Scrollback cuts mid-UTF-8 character — U+FFFD corruption on --bytes and ring overflow (herdr item 5)"
 description: >
-  Restore terminal private modes on detach — alt-screen/mouse/paste leak (herdr item 4)
+  Scrollback cuts mid-UTF-8 character — U+FFFD corruption on --bytes and ring overflow (herdr item 5)
 
 status: started-work
 workflow_type: build
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-15T09:54:11Z
-last_update: 2026-08-15T09:54:11Z
+created: 2026-08-15T10:45:58Z
+last_update: 2026-08-15T10:45:58Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,67 +30,63 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2732: Restore terminal private modes on detach — alt-screen/mouse/paste leak (herdr item 4)
+# T-2733: Scrollback cuts mid-UTF-8 character — U+FFFD corruption on --bytes and ring overflow (herdr item 5)
 
 ## Context
 
-Herdr adoption backlog item 4 (rank 4, GREP-PROVEN ABSENCE — the strongest
-non-measured evidence class in that document).
+Herdr adoption backlog item 5 (rank 5).
 
-`cmd_attach` and the data-plane streaming attach in
-`crates/termlink-cli/src/commands/pty.rs` both save the operator's `termios`,
-enter raw mode, run their loop, and restore `termios` on detach. `termios` is
-the *only* thing they restore.
+`ScrollbackBuffer` is a `VecDeque<u8>` — a byte ring, deliberately, because it
+stores raw terminal output including ANSI sequences. Three of its cuts land on
+arbitrary byte offsets:
 
-But a child running under the session writes bytes straight through to the
-operator's terminal, and those bytes can switch on terminal **private modes**:
-alternate screen (`?1049h` / `?1047h` / `?47h`), mouse reporting
-(`?1000h`–`?1006h`), bracketed paste (`?2004h`), focus reporting (`?1004h`).
-Those modes live in the *terminal emulator*, not in `termios`, so
-`tcsetattr` cannot undo them. Detach from a child sitting in `vim`, `less`, or
-`htop` and the operator is returned to a shell that is still on the alternate
-screen, still emitting escape garbage on every mouse move, still wrapping
-pastes in `\e[200~`.
+- `last_n_bytes(n)` starts at `len - n` (`scrollback.rs:41`)
+- `append` drains `..overflow` when the ring is full (`:33`)
+- `append` keeps `data[len - max_bytes..]` when a single write exceeds capacity
+  (`:26`)
 
-Grep across the tree finds **no emission site for any of these sequences in
-product code** — the only hits are `mirror_grid.rs` tests feeding the
-*detector*. So TermLink can recognise that a child entered alt screen and
-still has no way to leave it. herdr closed its issue #2581 for this class,
-which is field proof the class bites; the vocabulary came from there, the
-defect is ours.
+A multi-byte character straddling any of those offsets is cut in half.
+`handler.rs` then runs the bytes through `from_utf8_lossy`, so the partial
+character surfaces as U+FFFD — a replacement glyph in output the operator is
+reading to decide what happened. Nothing errors; the text is simply wrong at
+that one position.
 
-The backlog named two detach sites; reading found a third (`cmd_mirror --raw`,
-byte passthrough with no raw-mode entry, so the `cfmakeraw` grep that located
-the other two could not see it). One fix for all three: a single shared helper,
-because T-2728 (two copies
-of `strip_ansi_codes` carrying the same two defects for as long as they both
-existed) is the freshest evidence in this repo that a duplicated terminal
-primitive diverges.
+**Why this is rank 5 and not higher, stated honestly:** the *default* read path
+is safe. `last_n_lines` cuts on `\n`, which is ASCII and therefore always a
+character boundary. Only `--bytes` and ring overflow corrupt. But `cmd_interact`
+polls with `bytes: 131072` (`commands/pty.rs:104–107`), so the corrupting path
+is on a live verb, not a theoretical one.
+
+The fix already half-exists in-tree: `char_boundary_floor`
+(`commands/pty.rs:1094`). It cannot be reused as-is — it takes `&str` (we hold
+bytes that are not guaranteed valid UTF-8) and it moves **backward**, which is
+correct for truncating a tail and wrong for a front cut. Moving backward from a
+start offset would *include* the orphaned lead byte instead of dropping it.
+This needs the ceiling direction: advance forward past continuation bytes.
 
 ## Acceptance Criteria
 
 ### Agent
-- [x] A single helper emits the private-mode restore sequence; every detach
-      site in `commands/pty.rs` calls it — no second copy of the byte string.
-      Three sites, not the two the backlog named: `cmd_attach`, the data-plane
-      streaming attach, and `cmd_mirror`. The third surfaced while reading —
-      `--raw` mirror is byte passthrough, so it leaks identically, and it was
-      invisible to the `cfmakeraw` grep that found the other two because it
-      never enters raw mode
-- [x] The sequence disables, at minimum: alternate screen (all three variants
-      `?1049l` / `?1047l` / `?47l`), mouse reporting (`?1000l`–`?1006l`),
-      bracketed paste (`?2004l`), focus reporting (`?1004l`)
-- [x] Restore is emitted BEFORE `termios` is restored, so it is written while
-      the terminal is still in the known raw state
-- [x] Restore is emitted on BOTH the normal-return and the error-return path —
-      a detach caused by a failed loop leaves the terminal no worse than a
-      clean one
-- [x] Unit test asserts the exact byte content of the helper's output, so a
-      future edit that silently drops a mode fails the suite
-- [x] Unit test asserts the ordering property (restore precedes termios
-      handoff) at the level the code structure permits
-- [x] `cargo test --workspace` passes with no new failures
-- [x] `bash scripts/run-guard-layer.sh` stays clean
+- [ ] A boundary helper in `scrollback.rs` advances a start offset FORWARD past
+      UTF-8 continuation bytes (`0b10xxxxxx`), so a front cut never begins
+      mid-character
+- [ ] The helper is bounded — it advances at most 3 bytes and then yields the
+      original offset unchanged, so non-UTF-8 / binary terminal output is never
+      trimmed arbitrarily
+- [ ] All three cut sites use it: `last_n_bytes`, the `append` overflow drain,
+      and the `append` oversized-write tail-keep
+- [ ] `last_n_lines` is left alone, with a comment stating why (`\n` is ASCII,
+      so its cut is already a boundary) — so the next reader does not "fix" it
+- [ ] Test: a buffer of multi-byte characters read via `last_n_bytes` at an
+      offset that splits one returns valid UTF-8 with no U+FFFD
+- [ ] Test: ring overflow that splits a multi-byte character leaves the buffer
+      starting on a boundary
+- [ ] Test: an oversized single write that splits a character keeps a boundary
+      start
+- [ ] Test: binary (non-UTF-8) content is not over-trimmed by the bounded scan
+- [ ] Each test is demonstrated load-bearing — reverting the fix makes it fail
+- [ ] `cargo test -p termlink-session` passes
+- [ ] `bash scripts/run-guard-layer.sh` stays clean
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -156,14 +152,12 @@ primitive diverges.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-# The targeted unit tests for the restore sequence + its ordering.
-cargo test -p termlink private_mode
-# Exactly one definition of the helper — the anti-duplication AC (T-2728 lesson).
-n=$(grep -c 'fn restore_terminal_private_modes' crates/termlink-cli/src/commands/pty.rs); [ "$n" = "1" ]
-# Definition + both detach call sites = at least 3 mentions.
-n=$(grep -c 'restore_terminal_private_modes' crates/termlink-cli/src/commands/pty.rs); [ "$n" -ge 3 ]
-# Whole workspace still green.
-cargo test --workspace
+# The scrollback boundary tests.
+cargo test -p termlink-session scrollback
+# The helper exists and every cut site routes through it (3 sites + definition).
+n=$(grep -c 'utf8_boundary_ceil' crates/termlink-session/src/scrollback.rs); [ "$n" -ge 4 ]
+# Whole session crate still green.
+cargo test -p termlink-session
 # Static guard layer still clean.
 bash scripts/run-guard-layer.sh
 
@@ -182,38 +176,6 @@ bash scripts/run-guard-layer.sh
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
-
-**Symptom:** Detaching from a session whose child had entered the alternate
-screen, enabled mouse reporting, enabled bracketed paste, or hidden the cursor
-returned the operator to a terminal still in that state — shell prompt drawn on
-the alt screen, escape bytes typed into the command line on every mouse move,
-pastes wrapped in `\e[200~`, or no visible cursor. Recovery required `reset`.
-
-**Root cause:** Both detach paths restored `termios` and only `termios`.
-`termios` is kernel line-discipline state; private modes are emulator state.
-`tcsetattr` cannot reach them, so no amount of correctness in the termios
-handling could have fixed this — the restore was complete with respect to the
-wrong layer.
-
-**Why structurally allowed:** the tree already had a *detector* for this exact
-condition (`PtySession::scan_alternate_screen`, with four unit tests covering
-split reads and byte-at-a-time feeds) and no emitter anywhere. Detection was
-built to answer `termlink status`; nothing connected "we can see the child
-entered alt screen" to "so we must leave it on the way out". Worker 1's cluster
-framing names the shared root behind items A/B/C of the herdr review:
-**TermLink models a PTY nobody is watching** — which is charter-correct, and is
-precisely why nothing in the tree sizes that PTY (item 2, T-2727), tears down
-its modes (this item), or answers its queries (item 8, still open). The blind
-spot is one assumption, surfacing three times.
-
-**Prevention:** three unit tests pin the byte content, the all-disables
-invariant, and the ordering. Dropping any sequence fails the first
-(demonstrated: removing `?1047l` fails it). The all-disables test is the one
-that matters most — the set is emitted unconditionally, which is only safe
-while every sequence turns something off, and a single stray `h` would switch a
-mode ON in the terminal of every operator who detaches. The structural fix is
-that both sites call one `restore_terminal`, so the ordering lives in one place
-and cannot drift the way `strip_ansi_codes` did (T-2728).
 
 ## Evolution
 
@@ -262,7 +224,7 @@ and cannot drift the way `strip_ansi_codes` did (T-2728).
 
 ## Updates
 
-### 2026-08-15T09:54:11Z — task-created [task-create-agent]
+### 2026-08-15T10:45:58Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2732-restore-terminal-private-modes-on-detach.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2733-scrollback-cuts-mid-utf-8-character--uff.md
 - **Context:** Initial task creation

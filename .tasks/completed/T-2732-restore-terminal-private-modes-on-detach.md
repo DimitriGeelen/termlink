@@ -1,23 +1,23 @@
 ---
-id: T-2723
-name: "Handover commit under T-1452 collides with the focus gate, generating most safety bypasses"
+id: T-2732
+name: "Restore terminal private modes on detach — alt-screen/mouse/paste leak (herdr item 4)"
 description: >
-  Handover commit under T-1452 collides with the focus gate, generating most safety bypasses
+  Restore terminal private modes on detach — alt-screen/mouse/paste leak (herdr item 4)
 
 status: work-completed
 workflow_type: build
-owner: human
-horizon: now
+owner: agent
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/pty.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-15T06:19:38Z
-last_update: 2026-08-15T09:45:22Z
-date_finished: 2026-08-15T06:23:54Z
+created: 2026-08-15T09:54:11Z
+last_update: 2026-08-15T10:31:07Z
+date_finished: 2026-08-15T10:31:07Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -30,31 +30,69 @@ date_finished: 2026-08-15T06:23:54Z
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2723: Handover commit under T-1452 collides with the focus gate, generating most safety bypasses
+# T-2732: Restore terminal private modes on detach — alt-screen/mouse/paste leak (herdr item 4)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Herdr adoption backlog item 4 (rank 4, GREP-PROVEN ABSENCE — the strongest
+non-measured evidence class in that document).
+
+`cmd_attach` and the data-plane streaming attach in
+`crates/termlink-cli/src/commands/pty.rs` both save the operator's `termios`,
+enter raw mode, run their loop, and restore `termios` on detach. `termios` is
+the *only* thing they restore.
+
+But a child running under the session writes bytes straight through to the
+operator's terminal, and those bytes can switch on terminal **private modes**:
+alternate screen (`?1049h` / `?1047h` / `?47h`), mouse reporting
+(`?1000h`–`?1006h`), bracketed paste (`?2004h`), focus reporting (`?1004h`).
+Those modes live in the *terminal emulator*, not in `termios`, so
+`tcsetattr` cannot undo them. Detach from a child sitting in `vim`, `less`, or
+`htop` and the operator is returned to a shell that is still on the alternate
+screen, still emitting escape garbage on every mouse move, still wrapping
+pastes in `\e[200~`.
+
+Grep across the tree finds **no emission site for any of these sequences in
+product code** — the only hits are `mirror_grid.rs` tests feeding the
+*detector*. So TermLink can recognise that a child entered alt screen and
+still has no way to leave it. herdr closed its issue #2581 for this class,
+which is field proof the class bites; the vocabulary came from there, the
+defect is ours.
+
+The backlog named two detach sites; reading found a third (`cmd_mirror --raw`,
+byte passthrough with no raw-mode entry, so the `cfmakeraw` grep that located
+the other two could not see it). One fix for all three: a single shared helper,
+because T-2728 (two copies
+of `strip_ansi_codes` carrying the same two defects for as long as they both
+existed) is the freshest evidence in this repo that a duplicated terminal
+primitive diverges.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] The bypass log is analysed by task, not just counted: **13 of the 24** focus-drift bypasses in the 7-day window are task `T-1452`, the session-handover task — the single largest generator by a wide margin (next is 4)
-- [x] The mechanism is stated precisely: at session end, focus is necessarily on the *working* task, while the mandatory handover commit references `T-1452`, so the focus-drift gate fires on a step the framework itself prescribes
-- [x] It is demonstrated that the bypass is avoidable — `fw context focus T-1452` → commit → refocus works and was used twice in this session instead of `FW_SWITCH_FOCUS=1` — so the finding is about imposed friction, not an impossible gate
-- [x] The distinction is drawn from the earlier wrong reading: no framework script *sets* `FW_SWITCH_FOCUS`, which was verified and remains true; the framework generates these bypasses by prescribing a flow its gate blocks, not by typing the bypass itself
-- [x] Filed as an upstream record under `.context/upstream/` — the collision is in vendored handover/gate tooling, not in this repo
+- [x] A single helper emits the private-mode restore sequence; every detach
+      site in `commands/pty.rs` calls it — no second copy of the byte string.
+      Three sites, not the two the backlog named: `cmd_attach`, the data-plane
+      streaming attach, and `cmd_mirror`. The third surfaced while reading —
+      `--raw` mirror is byte passthrough, so it leaks identically, and it was
+      invisible to the `cfmakeraw` grep that found the other two because it
+      never enters raw mode
+- [x] The sequence disables, at minimum: alternate screen (all three variants
+      `?1049l` / `?1047l` / `?47l`), mouse reporting (`?1000l`–`?1006l`),
+      bracketed paste (`?2004l`), focus reporting (`?1004l`)
+- [x] Restore is emitted BEFORE `termios` is restored, so it is written while
+      the terminal is still in the known raw state
+- [x] Restore is emitted on BOTH the normal-return and the error-return path —
+      a detach caused by a failed loop leaves the terminal no worse than a
+      clean one
+- [x] Unit test asserts the exact byte content of the helper's output, so a
+      future edit that silently drops a mode fails the suite
+- [x] Unit test asserts the ordering property (restore precedes termios
+      handoff) at the level the code structure permits
+- [x] `cargo test --workspace` passes with no new failures
+- [x] `bash scripts/run-guard-layer.sh` stays clean
 
 ### Human
-
-- [ ] [RUBBER-STAMP] Decide whether U-008 is filed to the shared `framework:pickup` topic
-  **Steps:**
-  1. Read `.context/upstream/U-008-handover-commit-collides-with-focus-gate.yaml`
-  2. If you want it filed, post it to `framework:pickup`; if not, leave this unchecked and the record stays local
-  **Expected:** Either a post on `framework:pickup` referencing U-008, or a deliberate decision not to file
-  **If not:** The record stays in `.context/upstream/` and loses nothing — filing is what makes it visible to peer projects, which is why it is your call and not the agent's
-
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
@@ -84,30 +122,6 @@ date_finished: 2026-08-15T06:23:54Z
        Conversion: this AC should be moved to ### Agent and
        `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` added to ## Verification.
 -->
-
-## Recommendation
-
-**Recommendation:** GO — file U-008 to `framework:pickup`.
-
-**Rationale:** The finding is not specific to this project. Any consumer of the
-framework that follows the Session End Protocol hits the same collision at every
-session end, and the same 50%-plus share of its safety-bypass log will be its own
-handover step. That makes the count untrustworthy everywhere, not just here — and
-the audit's mitigation ("investigate the callers") sends the reader to inspect 24
-entries of which 13 are the framework's own prescribed flow. The fix proposed in
-direction 1 is small and lives entirely in `fw handover --commit`, which already
-knows both the task it commits under and the focus it would displace.
-
-The reason to file rather than keep it local is that this repo cannot fix it: the
-handover agent and the focus gate are both vendored, so a local patch is erased at
-the next re-vendor (as T-2721 documents for the audit-hook patch).
-
-**Evidence:**
-- `.context/working/.gate-bypass-log.yaml` — 26 entries in the 7-day window; grouped by task: T-1452 ×13, T-1166 ×4, T-2567 ×3, T-1291 ×3, T-2672 ×1, plus 2 inception filings on a different flag
-- 24 of 26 are `flag: FW_SWITCH_FOCUS=1`, `caller: check-active-task focus-drift`
-- Verified NOT machine-generated: no framework script sets the variable; `bin/fw:6639` only names it in an error string — an earlier reading of this same data got that wrong, and the correction is recorded in U-008
-- Demonstrated avoidable: this session hit the gate twice and cleared it both times with `fw context focus <task>` instead of the bypass, so the sanctioned path works and the issue is imposed friction, not an impossible gate
-- `PL-265` already records the adjacent collision (the gate blocking `fw handover` on a just-completed focus task), which is evidence the session-end path is systematically under-tested against its own gates
 
 ## Verification
 
@@ -142,6 +156,17 @@ the next re-vendor (as T-2721 documents for the audit-hook patch).
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+# The targeted unit tests for the restore sequence + its ordering.
+cargo test -p termlink private_mode
+# Exactly one definition of the helper — the anti-duplication AC (T-2728 lesson).
+n=$(grep -c 'fn restore_terminal_private_modes' crates/termlink-cli/src/commands/pty.rs); [ "$n" = "1" ]
+# Definition + both detach call sites = at least 3 mentions.
+n=$(grep -c 'restore_terminal_private_modes' crates/termlink-cli/src/commands/pty.rs); [ "$n" -ge 3 ]
+# Whole workspace still green.
+cargo test --workspace
+# Static guard layer still clean.
+bash scripts/run-guard-layer.sh
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -157,6 +182,38 @@ the next re-vendor (as T-2721 documents for the audit-hook patch).
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** Detaching from a session whose child had entered the alternate
+screen, enabled mouse reporting, enabled bracketed paste, or hidden the cursor
+returned the operator to a terminal still in that state — shell prompt drawn on
+the alt screen, escape bytes typed into the command line on every mouse move,
+pastes wrapped in `\e[200~`, or no visible cursor. Recovery required `reset`.
+
+**Root cause:** Both detach paths restored `termios` and only `termios`.
+`termios` is kernel line-discipline state; private modes are emulator state.
+`tcsetattr` cannot reach them, so no amount of correctness in the termios
+handling could have fixed this — the restore was complete with respect to the
+wrong layer.
+
+**Why structurally allowed:** the tree already had a *detector* for this exact
+condition (`PtySession::scan_alternate_screen`, with four unit tests covering
+split reads and byte-at-a-time feeds) and no emitter anywhere. Detection was
+built to answer `termlink status`; nothing connected "we can see the child
+entered alt screen" to "so we must leave it on the way out". Worker 1's cluster
+framing names the shared root behind items A/B/C of the herdr review:
+**TermLink models a PTY nobody is watching** — which is charter-correct, and is
+precisely why nothing in the tree sizes that PTY (item 2, T-2727), tears down
+its modes (this item), or answers its queries (item 8, still open). The blind
+spot is one assumption, surfacing three times.
+
+**Prevention:** three unit tests pin the byte content, the all-disables
+invariant, and the ordering. Dropping any sequence fails the first
+(demonstrated: removing `?1047l` fails it). The all-disables test is the one
+that matters most — the set is emitted unconditionally, which is only safe
+while every sequence turns something off, and a single stray `h` would switch a
+mode ON in the terminal of every operator who detaches. The structural fix is
+that both sites call one `restore_terminal`, so the ordering lives in one place
+and cannot drift the way `strip_ansi_codes` did (T-2728).
 
 ## Evolution
 
@@ -205,10 +262,10 @@ the next re-vendor (as T-2721 documents for the audit-hook patch).
 
 ## Updates
 
-### 2026-08-15T06:19:38Z — task-created [task-create-agent]
+### 2026-08-15T09:54:11Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2723-handover-commit-under-t-1452-collides-wi.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2732-restore-terminal-private-modes-on-detach.md
 - **Context:** Initial task creation
 
-### 2026-08-15T06:23:54Z — status-update [task-update-agent]
+### 2026-08-15T10:31:07Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed
