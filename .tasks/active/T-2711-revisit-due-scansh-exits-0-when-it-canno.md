@@ -4,10 +4,10 @@ name: "revisit-due-scan.sh exits 0 when it cannot find the tasks dir"
 description: >
   Direct invocation of revisit-due-scan.sh mis-resolves PROJECT_ROOT in vendored mode and reports success
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T18:42:09Z
-last_update: 2026-08-14T18:42:09Z
+last_update: 2026-08-15T06:31:29Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -108,27 +108,7 @@ CLAUDE.md designates for exactly this — not an edit under `.agentic-framework/
      ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
      If your Expected clause is grep-able / file-exists / structural (a deterministic
      shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
-     command in `## Recommendation
-
-**Recommendation:** GO — file U-001 to `framework:pickup`.
-
-**Rationale:** The defect is in a vendored script that every consumer project
-runs from cron, and its failure mode is silence: a scan that resolved the wrong
-tree reports exit 0, indistinguishable from "nothing due". Any project vendoring
-the framework alongside a `FRAMEWORK.md`-bearing directory hits the same
-resolution order. This repo cannot fix it locally — a patch under
-`.agentic-framework/` is erased at the next re-vendor (see T-2721).
-
-**Evidence:**
-- Reproduced verbatim 2026-08-15: the script resolved TASKS_DIR to
-  `.agentic-framework/.tasks/active`, printed "tasks dir not found", and exited **0**
-- The consumer project one level up holds 224 active tasks, two of them overdue
-- `fw task revisit-due` run at the same moment correctly reports T-1898 and T-2250 —
-  two code paths, same question, opposite answers, and the wrong one is on cron
-- Distinct from T-1452 (mechanism never wired): an unwired feature is found by its
-  absence; a silently-succeeding scan is found by nothing
-
-## Verification` instead of a Human AC here. Only keep [REVIEW] if
+     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
      verification genuinely needs human taste (tone, feel, layout rhythm).
      See CLAUDE.md §AC Classification Guidance for the conversion rule.
 
@@ -150,6 +130,26 @@ resolution order. This repo cannot fix it locally — a patch under
        Conversion: this AC should be moved to ### Agent and
        `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` added to ## Verification.
 -->
+
+## Recommendation
+
+**Recommendation:** GO — file U-001 to `framework:pickup`.
+
+**Rationale:** The defect is in a vendored script that every consumer project runs
+from cron, and its failure mode is silence: a scan that resolved the wrong tree
+reports exit 0, indistinguishable from "nothing due". Any project that vendors the
+framework alongside a `FRAMEWORK.md`-bearing directory hits the same resolution
+order. This repo cannot fix it locally — a patch under `.agentic-framework/` is
+erased at the next re-vendor (see T-2721).
+
+**Evidence:**
+- Reproduced verbatim 2026-08-15: the script resolved `TASKS_DIR` to
+  `.agentic-framework/.tasks/active`, printed "tasks dir not found", exited **0**
+- The consumer project one level up holds 224 active tasks, two of them overdue
+- `fw task revisit-due` at the same moment correctly reports T-1898 and T-2250 —
+  two code paths, one question, opposite answers, and the wrong one is on cron
+- Distinct from T-1452 (mechanism never wired): an unwired feature is found by its
+  absence; a silently-succeeding scan is found by nothing
 
 ## Verification
 
@@ -283,3 +283,7 @@ durable guard is widening the existing T-2648 `PROJECT_ROOT` audit check to cove
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2711-revisit-due-scansh-exits-0-when-it-canno.md
 - **Context:** Initial task creation
+
+### 2026-08-15T06:31:29Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)
