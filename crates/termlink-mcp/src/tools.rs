@@ -7947,6 +7947,85 @@ mod whoami_helpers {
         procfs_available_at("/proc")
     }
 
+    /// T-2735 — verdict of cross-checking an *inherited* identity claim against
+    /// the process ancestor chain. Mirrors `termlink-cli metadata::EnvClaimCheck`
+    /// (T-2069 convention: small pure helpers are duplicated, not shared across
+    /// crates), and is fixed on the same commit as the CLI per the T-2687
+    /// `parity_topics` lesson — a rail hardened on one surface and not its
+    /// sibling is the divergence this repo keeps rediscovering.
+    ///
+    /// `TERMLINK_SESSION_ID` is seeded into a spawned session's shell and then
+    /// inherited by every descendant, so it says only that *some ancestor* once
+    /// belonged to that session — not that this process does. Consuming it ahead
+    /// of the PID-walk turned a stale value into a confident wrong answer.
+    #[derive(Debug, PartialEq, Eq)]
+    pub(super) enum EnvClaimCheck {
+        Confirmed { ancestor_pid: u32 },
+        Conflict { walked_id: String, ancestor_pid: u32 },
+        NoWalkEvidence,
+        Unavailable,
+    }
+
+    /// Pure core of the cross-check — ancestors and sessions injected so every
+    /// branch is testable without a real process tree.
+    pub(super) fn check_env_claim(
+        claimed_id: &str,
+        sessions: &[termlink_session::registration::Registration],
+        ancestors: &[u32],
+        procfs: bool,
+    ) -> EnvClaimCheck {
+        if !procfs {
+            return EnvClaimCheck::Unavailable;
+        }
+        for pid in ancestors {
+            if let Some(reg) = sessions.iter().find(|s| s.pid == *pid) {
+                return if reg.id.as_str() == claimed_id {
+                    EnvClaimCheck::Confirmed { ancestor_pid: *pid }
+                } else {
+                    EnvClaimCheck::Conflict {
+                        walked_id: reg.id.as_str().to_string(),
+                        ancestor_pid: *pid,
+                    }
+                };
+            }
+        }
+        EnvClaimCheck::NoWalkEvidence
+    }
+
+    /// Decorate a whoami card with the env-claim verdict. Kept beside the check
+    /// so the two cannot drift, and keyed identically to the CLI card.
+    pub(super) fn decorate_env_claim(
+        card: &mut serde_json::Value,
+        claimed_id: &str,
+        check: &EnvClaimCheck,
+    ) {
+        card["resolved_via"] = serde_json::json!("env");
+        match check {
+            EnvClaimCheck::Confirmed { ancestor_pid } => {
+                card["env_claim_verified"] = serde_json::json!("confirmed");
+                card["pid_walk_match"] = serde_json::json!(ancestor_pid);
+            }
+            EnvClaimCheck::Conflict { walked_id, ancestor_pid } => {
+                card["env_claim_verified"] = serde_json::json!("conflict");
+                card["env_claim_conflict"] = serde_json::json!({
+                    "claimed_id": claimed_id,
+                    "ancestor_owned_by": walked_id,
+                    "ancestor_pid": ancestor_pid,
+                    "hint": "TERMLINK_SESSION_ID names a session that does not own this process. \
+                             It is inherited by every descendant of a spawned shell, so it is \
+                             probably stale. Unset it (or set it to the id above) to let the \
+                             PID-ancestor walk answer.",
+                });
+            }
+            EnvClaimCheck::NoWalkEvidence => {
+                card["env_claim_verified"] = serde_json::json!("unconfirmed");
+            }
+            EnvClaimCheck::Unavailable => {
+                card["env_claim_verified"] = serde_json::json!("unavailable-no-procfs");
+            }
+        }
+    }
+
     pub(super) fn walk_ancestor_pids(start: u32) -> Vec<u32> {
         let mut chain = vec![start];
         let mut current = start;
@@ -11821,7 +11900,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_whoami",
-        description = "Identify which TermLink session is the caller. Resolution chain: session_hint → name_hint → $TERMLINK_SESSION_ID env → PID-walk ancestor chain → ambiguous candidate list. Mirrors `termlink whoami` CLI behaviour. Returns an identity card (id, display_name, state, pid, uid, roles, tags, capabilities, cwd, identity_fingerprint, identity_shared_with) or a candidate list when ambiguous."
+        description = "Identify which TermLink session is the caller. Resolution chain: session_hint → $TERMLINK_SESSION_ID env → name_hint → PID-walk ancestor chain → ambiguous candidate list. Mirrors `termlink whoami` CLI behaviour. Returns an identity card (id, display_name, state, pid, uid, roles, tags, capabilities, cwd, identity_fingerprint, identity_shared_with) or a candidate list when ambiguous. When the answer came from the inherited env var, the card carries `resolved_via: \"env\"` and `env_claim_verified` (confirmed | conflict | unconfirmed | unavailable-no-procfs); on `conflict` an `env_claim_conflict` object names the session that actually owns this process — treat the identity as untrustworthy."
     )]
     async fn termlink_whoami(&self, Parameters(p): Parameters<WhoamiParams>) -> String {
         // T-1933: parity with `termlink whoami` (CLI metadata.rs:529).
@@ -11830,14 +11909,34 @@ impl TermLinkTools {
         let env_hint = std::env::var("TERMLINK_SESSION_ID")
             .ok()
             .filter(|s| !s.is_empty());
-        let query = p.session_hint.or(env_hint).or(p.name_hint);
+        // T-2735: precedence unchanged, but carry the winner's PROVENANCE so an
+        // inherited claim can be cross-checked. An explicit session_hint/name_hint
+        // is the caller stating intent; the env var is something they inherited
+        // without necessarily knowing it.
+        let (query, from_env) = match p.session_hint {
+            Some(s) => (Some(s), false),
+            None => match env_hint {
+                Some(e) => (Some(e), true),
+                None => (p.name_hint, false),
+            },
+        };
 
         if let Some(q) = query.as_deref() {
             match manager::find_session(q) {
                 Ok(reg) => {
                     let all = manager::list_sessions(false).unwrap_or_default();
                     let shared = count_shared_identity(&reg, &all);
-                    return whoami_card_json(&reg, None, shared).to_string();
+                    let mut card = whoami_card_json(&reg, None, shared);
+                    if from_env {
+                        let check = whoami_helpers::check_env_claim(
+                            reg.id.as_str(),
+                            &all,
+                            &whoami_helpers::walk_ancestor_pids(std::process::id()),
+                            whoami_helpers::procfs_available(),
+                        );
+                        whoami_helpers::decorate_env_claim(&mut card, reg.id.as_str(), &check);
+                    }
+                    return card.to_string();
                 }
                 Err(e) => {
                     return serde_json::json!({
@@ -30021,6 +30120,118 @@ mod tests {
         assert!(!whoami_helpers::procfs_available_at(dir.to_str().unwrap()));
         let _ = std::fs::remove_dir_all(&dir);
         assert!(!whoami_helpers::procfs_available_at("/definitely/not/a/procfs"));
+    }
+
+    // === T-2735: inherited TERMLINK_SESSION_ID cross-check (CLI parity) ===
+    //
+    // These mirror `termlink-cli metadata::tests` case for case. The point of
+    // duplicating them is the T-2687 lesson: the MCP surface silently lagged the
+    // CLI on `topics --json` for days because only one side had a test.
+
+    fn mcp_reg(id: &str, pid: u32) -> termlink_session::registration::Registration {
+        let json = format!(
+            r#"{{
+                "version": 1,
+                "id": "{id}",
+                "display_name": "s-{id}",
+                "pid": {pid},
+                "uid": 0,
+                "addr": {{ "type": "unix", "path": "/tmp/test.sock" }},
+                "created_at": "2026-05-01T17:00:00Z",
+                "heartbeat_at": "2026-05-01T17:00:00Z",
+                "state": "ready",
+                "capabilities": [],
+                "roles": [],
+                "tags": [],
+                "metadata": {{ "cwd": "/tmp" }}
+            }}"#
+        );
+        serde_json::from_str(&json).expect("Registration JSON shape valid in test")
+    }
+
+    #[test]
+    fn mcp_env_claim_conflict_is_reported() {
+        let sessions = vec![mcp_reg("tl-aaaa", 1111), mcp_reg("tl-bbbb", 2222)];
+        assert_eq!(
+            whoami_helpers::check_env_claim("tl-aaaa", &sessions, &[9999, 2222, 1], true),
+            whoami_helpers::EnvClaimCheck::Conflict {
+                walked_id: "tl-bbbb".to_string(),
+                ancestor_pid: 2222
+            },
+            "MCP must reach the same verdict as the CLI on the same evidence"
+        );
+    }
+
+    #[test]
+    fn mcp_env_claim_owning_the_chain_is_confirmed() {
+        let sessions = vec![mcp_reg("tl-aaaa", 1111)];
+        assert_eq!(
+            whoami_helpers::check_env_claim("tl-aaaa", &sessions, &[9999, 1111, 1], true),
+            whoami_helpers::EnvClaimCheck::Confirmed { ancestor_pid: 1111 }
+        );
+    }
+
+    #[test]
+    fn mcp_env_claim_without_procfs_is_unavailable_not_confirmed() {
+        let sessions = vec![mcp_reg("tl-aaaa", 1111)];
+        assert_eq!(
+            whoami_helpers::check_env_claim("tl-aaaa", &sessions, &[9999, 1111, 1], false),
+            whoami_helpers::EnvClaimCheck::Unavailable,
+            "'could not check' must never render as 'checked and fine' (T-2691 lesson)"
+        );
+    }
+
+    #[test]
+    fn mcp_no_registered_ancestor_is_not_a_conflict() {
+        let sessions = vec![mcp_reg("tl-aaaa", 1111)];
+        assert_eq!(
+            whoami_helpers::check_env_claim("tl-aaaa", &sessions, &[9999, 8888, 1], true),
+            whoami_helpers::EnvClaimCheck::NoWalkEvidence
+        );
+    }
+
+    #[test]
+    fn mcp_conflict_card_keys_match_the_cli_card() {
+        // Key-for-key parity with `whoami_card_json` on the CLI side. If either
+        // surface renames a key, this fails on the MCP side and the CLI test
+        // fails on its own — the divergence cannot ship quietly.
+        let mut card = serde_json::json!({"ok": true});
+        let check = whoami_helpers::EnvClaimCheck::Conflict {
+            walked_id: "tl-bbbb".to_string(),
+            ancestor_pid: 2222,
+        };
+        whoami_helpers::decorate_env_claim(&mut card, "tl-aaaa", &check);
+        assert_eq!(card["resolved_via"].as_str(), Some("env"));
+        assert_eq!(card["env_claim_verified"].as_str(), Some("conflict"));
+        assert_eq!(card["env_claim_conflict"]["claimed_id"].as_str(), Some("tl-aaaa"));
+        assert_eq!(
+            card["env_claim_conflict"]["ancestor_owned_by"].as_str(),
+            Some("tl-bbbb")
+        );
+        assert_eq!(card["env_claim_conflict"]["ancestor_pid"].as_u64(), Some(2222));
+    }
+
+    #[test]
+    fn mcp_whoami_description_states_the_order_the_code_implements() {
+        // T-2735: the description used to read "session_hint → name_hint → env"
+        // while the code was `session_hint.or(env_hint).or(name_hint)` — env
+        // beats name_hint. An agent choosing between the two params was reading
+        // a contract the code did not honour. The description IS the contract on
+        // this surface, so it is pinned.
+        let tools = TermLinkTools::tool_router();
+        let whoami = tools
+            .list_all()
+            .into_iter()
+            .find(|t| t.name == "termlink_whoami")
+            .expect("termlink_whoami is registered");
+        let desc = whoami.description.clone().unwrap_or_default().to_string();
+        let env_pos = desc.find("$TERMLINK_SESSION_ID").expect("env var named in chain");
+        let name_pos = desc.find("name_hint").expect("name_hint named in chain");
+        assert!(
+            env_pos < name_pos,
+            "description must list the env var BEFORE name_hint, matching \
+             session_hint.or(env_hint).or(name_hint); got: {desc}"
+        );
     }
 
     // === T-2687: topics probe classification (partial-inventory signal) ===

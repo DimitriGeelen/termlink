@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-15T12:16:23Z
-last_update: 2026-08-15T12:18:36Z
+last_update: 2026-08-15T12:24:55Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,38 +34,68 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Herdr adoption backlog item 6 (rank 6), plus a second defect in the same
+handler found while reading it.
+
+`TERMLINK_SESSION_ID` is seeded into a spawned session's shell
+(`session.rs:277`) and is then inherited by **every descendant of that shell**.
+So the variable does not say "this process belongs to session X" — only that
+*some ancestor once did*. `whoami` consumed it at `metadata.rs:538`
+(`session_hint.or(env_hint).or(name_hint)`) and short-circuited **ahead of** the
+T-1303 PID-ancestor walk, returning the claimed identity with no check and full
+confidence. A stale or foreign value therefore produced a confident **wrong
+answer to the one question the command exists to answer**. Same shape at
+`tools.rs:11830` on the MCP surface.
+
+**Second defect, found by reading the handler.** The `termlink_whoami` tool
+description advertised the chain as `session_hint → name_hint → env → PID-walk`
+while the code is `session_hint.or(env_hint).or(name_hint)` — **env beats
+name_hint**. On the MCP surface the description *is* the contract: an agent
+choosing between the two parameters was reading an order the code did not
+honour. Fixed here rather than filed separately, because it is the same handler
+and the same reading pass.
+
+**Scope boundary, stated.** This does NOT change which source wins. The env var
+still resolves the query exactly where it did before, and no call that works
+today starts failing. The reason is that the variable is not a security
+boundary — abusing it already requires a process running inside the session —
+so escalating to a refusal would cost working setups more than it protects.
+What was missing was not enforcement but *legibility*: the answer never said
+where it came from, so a wrong one was indistinguishable from a right one.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] When identity resolves from the **inherited env var** (not an explicit
+- [x] When identity resolves from the **inherited env var** (not an explicit
       `--session` / `session_hint`) and the PID-ancestor walk is available, the
       env claim is cross-checked against the walk instead of being trusted blind
-- [ ] A disagreement between the env claim and the PID-walk is **surfaced, not
-      silently resolved**: the identity card names which source answered and
-      that the two disagree (Directive #2 — no silent wrong answers)
-- [ ] Resolution ORDER is unchanged — env still wins where it wins today. This
-      task makes the answer legible; it does not redefine the contract, because
-      the env var is not a security boundary (exploitation already requires an
-      inside-the-session actor) and a silent order change would break callers
-- [ ] The `termlink_whoami` MCP tool description is corrected: it currently
-      documents `session_hint → name_hint → env → PID-walk` while the code is
-      `session_hint.or(env_hint).or(name_hint)` — env beats name_hint. The
-      description is the contract an agent reads, so it must match the code
-- [ ] CLI (`metadata.rs:538`) and MCP (`tools.rs:11830`) are fixed **together**,
-      per the T-2687 `parity_topics` lesson (a rail hardened on one surface and
-      not the sibling is the divergence this repo keeps catching)
-- [ ] A test proves the cross-check fires when a stale/foreign
+      (`check_env_claim`, CLI + MCP)
+- [x] A disagreement between the env claim and the PID-walk is **surfaced, not
+      silently resolved**: `resolved_via: "env"` names the source,
+      `env_claim_verified` carries the verdict, and `env_claim_conflict` names
+      the session that actually owns the process (Directive #2)
+- [x] Resolution ORDER is unchanged — env still wins where it wins today. Only
+      the winner's PROVENANCE is now carried forward
+- [x] The `termlink_whoami` MCP tool description is corrected to
+      `session_hint → env → name_hint → PID-walk`, matching the code, and is
+      pinned by `mcp_whoami_description_states_the_order_the_code_implements`
+- [x] CLI (`metadata.rs`) and MCP (`tools.rs`) fixed on the same commit pair,
+      per the T-2687 `parity_topics` lesson
+- [x] A test proves the cross-check fires when a stale/foreign
       `TERMLINK_SESSION_ID` names a live session that does NOT own the caller's
-      ancestor chain — the actual defect, not a proxy for it
-- [ ] A test proves the quiet path stays quiet: env claim that DOES own the
-      ancestor chain produces no warning (PL-219 — a guard that always fires is
-      noise)
-- [ ] New tests demonstrated load-bearing by temp-revert
-- [ ] `cargo test -p termlink --lib` and `cargo test -p termlink-mcp` pass
-- [ ] `bash scripts/run-guard-layer.sh` stays clean
+      ancestor chain (`env_claim_conflicting_with_ancestor_walk_is_reported`,
+      `mcp_env_claim_conflict_is_reported`)
+- [x] A test proves the quiet path stays quiet
+      (`env_claim_owning_the_ancestor_chain_stays_quiet`,
+      `no_registered_ancestor_is_not_evidence_against_the_claim`) — PL-219
+- [x] New tests demonstrated load-bearing by temp-revert: reverting
+      `check_env_claim` to unconditional trust failed **5** CLI tests; reverting
+      the description order failed the MCP description test. Both restored to a
+      byte-identical tree
+- [x] `cargo test -p termlink --bins commands::metadata::tests` (23 passed) and
+      `cargo test -p termlink-mcp --lib` (915 passed) pass
+- [x] `bash scripts/run-guard-layer.sh` stays clean (27/27)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -131,25 +161,48 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-cargo test -p termlink --lib whoami
+# `termlink` is a bin-only package — `--lib` errors with "no library targets".
+cargo test -p termlink --bins commands::metadata::tests
 cargo test -p termlink-mcp --lib
 bash scripts/run-guard-layer.sh
 
-## RCA
+**Symptom.** `termlink whoami` (and `termlink_whoami`) could confidently report
+the wrong session identity. Not an error, not an ambiguity — a clean, complete
+identity card naming a session the calling process does not belong to.
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Root cause.** `TERMLINK_SESSION_ID` is an *inherited* value, but was consumed
+as if it were an *asserted* one. It is seeded into a spawned session's shell and
+inherited by every descendant, so its presence proves only that some ancestor
+once belonged to that session. The handler resolved it ahead of the T-1303
+PID-ancestor walk — the one mechanism that could have contradicted it — and
+returned immediately, so the contradicting evidence was never gathered.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Why structurally allowed.** Two reinforcing reasons. First, the resolution
+chain was written as a single `or`-chain
+(`session_hint.or(env_hint).or(name_hint)`), which discards *provenance* by
+construction: after that line, nothing downstream can tell whether the answer
+came from a flag the caller typed or a variable they inherited without knowing.
+The information needed to distinguish trustworthy from inherited was destroyed
+one line before the point where it mattered. Second, the tool description on the
+MCP surface stated a *different* chain order from the code, so the written
+contract could not be used to audit the behaviour — reading the docs would have
+confirmed a chain the code did not implement.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Prevention.** Provenance is now carried through the chain (`from_env`) rather
+than discarded, so the cross-check is possible at all; `check_env_claim` is a
+pure function over (claim, sessions, ancestors, procfs) with all four branches
+unit-tested on both surfaces; the verdict is tri-state so "could not check" can
+never render as "checked and fine" (the T-2691 conflation); and the MCP
+description is pinned by a test that fails if it drifts from the code again.
+
+**Class note (8th instance).** Same shape as the seven before it — *a guard,
+test, or report whose verdict rests on an assumption about its input that no
+longer holds*. Here the assumption was "this env var was set by whoever is
+asking". The MCP description defect is a close relative: a contract asserting an
+order the code does not implement. The recurrence rate across three sessions
+(T-2680, T-2709, T-2726, T-2729, T-2731, T-2732, T-2734, and this) is the
+argument for registering it as a concern rather than fixing instances — a
+sovereignty call, flagged and not taken.
 
 ## Evolution
 
