@@ -1,8 +1,8 @@
 ---
-id: T-2734
-name: "Hub volatile-runtime_dir warning disagrees with preflight — root-only gate and /tmp-prefix test (herdr item 7)"
+id: T-2735
+name: "Inherited TERMLINK_SESSION_ID trusted without ownership check — short-circuits the T-1303 PID-walk (herdr item 6)"
 description: >
-  Hub volatile-runtime_dir warning disagrees with preflight — root-only gate and /tmp-prefix test (herdr item 7)
+  Inherited TERMLINK_SESSION_ID trusted without ownership check — short-circuits the T-1303 PID-walk (herdr item 6)
 
 status: started-work
 workflow_type: build
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-15T11:22:16Z
-last_update: 2026-08-15T11:22:16Z
+created: 2026-08-15T12:16:23Z
+last_update: 2026-08-15T12:16:23Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,75 +30,41 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2734: Hub volatile-runtime_dir warning disagrees with preflight — root-only gate and /tmp-prefix test (herdr item 7)
+# T-2735: Inherited TERMLINK_SESSION_ID trusted without ownership check — short-circuits the T-1303 PID-walk (herdr item 6)
 
 ## Context
 
-Herdr adoption backlog item 7 (rank 7), plus a second defect in the same
-function found while reading it.
-
-`warn_if_volatile_default_runtime_dir_impl` (`termlink-hub/src/server.rs:52`)
-is the hub-side guard against PL-021 — the repo's worst production failure
-class, where `hub.secret` and the TLS cert regenerate and every TOFU-pinned
-client must re-auth. It stays silent in two cases it should not:
-
-**(a) the root-only gate.** `if uid != 0 { return false; }`, justified in the
-doc comment as "non-root `/tmp/termlink-UID` is the documented default for
-interactive sessions and not a footgun". `substrate-preflight.sh` FAILs on the
-same state regardless of uid. **Two guards disagree about whether identical
-state is dangerous**, and PL-021's consequence is uid-independent: a wiped
-`/tmp` regenerates the secret whoever owns it.
-
-**(b) the `/tmp/` prefix test.** `!resolved_str.starts_with("/tmp/")` decides
-volatility by path spelling. That is exactly the assumption T-2729 removed from
-preflight last session: `discovery.rs` resolves `$XDG_RUNTIME_DIR/termlink` =
-`/run/user/<uid>/termlink` **before** it ever reaches `/tmp`, and that is a
-tmpfs systemd destroys at the user's last logout — sooner than a reboot. It
-matches no `/tmp` prefix, so the hub is silent on the volatile path a normal
-systemd session actually gets. Fixing (a) alone would make the two guards agree
-about uid while still disagreeing about paths, and would let this task claim
-they agree.
-
-**Scope boundary, stated:** preflight is the authoritative detector and does
-real mount-type resolution (T-2729). This is a start-time warning, and reading
-`/proc/mounts` here would add a Linux-only dependency that
-`check-platform-lock.sh` exists to prevent (D4). So this widens the prefix set
-to the volatile roots `discovery.rs` can actually produce rather than
-reimplementing mount detection. Strictly better than today, and honest about
-being a heuristic — the precise answer stays in preflight.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
-> **STATE AT SESSION END (2026-08-15):** code + tests written and committed;
-> `cargo test -p termlink-hub runtime_dir_warn` observed **7/7 green** before
-> the session hit the critical budget gate. NOT closed: the full
-> `cargo test -p termlink-hub` run and the guard layer were never executed
-> under this task, so the P-011 gate has not been satisfied. Next session:
-> run the `## Verification` block first, then finish the load-bearing proof
-> noted below.
->
-> **Load-bearing evidence so far, precisely:** the prefix widening IS proven —
-> with the fix in place the pre-existing test `silent_when_root_but_path_not_tmp`
-> FAILED, because it asserted the old (wrong) behaviour on `/run/user/0`. The
-> uid-gate removal is NOT yet proven by a demonstrated revert; the temp-revert
-> run was blocked by the budget gate before it executed. Do not record it as
-> demonstrated until that run exists.
-
-- [ ] The root-only early return is removed; the warning fires for any uid on a
-      volatile default
-- [ ] Non-root wording does not imply the operator did something wrong — the
-      default is the framework's choice, not theirs
-- [ ] Volatility test covers every volatile root `discovery.rs` can resolve to:
-      `/run/`, `/tmp/`, `/var/tmp/`, `/dev/shm/` — not `/tmp/` alone
-- [ ] A persistent path (`/var/lib/termlink`) still does NOT warn — the guard
-      must stay quiet where it should, or it becomes PL-219 alert fatigue
-- [ ] `TERMLINK_RUNTIME_DIR` set still suppresses the warning (operator has
-      declared intent) — existing behaviour preserved
-- [ ] Truth-table tests extended: non-root volatile warns, `/run/user/N` warns,
-      persistent path stays silent
+<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
+- [ ] When identity resolves from the **inherited env var** (not an explicit
+      `--session` / `session_hint`) and the PID-ancestor walk is available, the
+      env claim is cross-checked against the walk instead of being trusted blind
+- [ ] A disagreement between the env claim and the PID-walk is **surfaced, not
+      silently resolved**: the identity card names which source answered and
+      that the two disagree (Directive #2 — no silent wrong answers)
+- [ ] Resolution ORDER is unchanged — env still wins where it wins today. This
+      task makes the answer legible; it does not redefine the contract, because
+      the env var is not a security boundary (exploitation already requires an
+      inside-the-session actor) and a silent order change would break callers
+- [ ] The `termlink_whoami` MCP tool description is corrected: it currently
+      documents `session_hint → name_hint → env → PID-walk` while the code is
+      `session_hint.or(env_hint).or(name_hint)` — env beats name_hint. The
+      description is the contract an agent reads, so it must match the code
+- [ ] CLI (`metadata.rs:538`) and MCP (`tools.rs:11830`) are fixed **together**,
+      per the T-2687 `parity_topics` lesson (a rail hardened on one surface and
+      not the sibling is the divergence this repo keeps catching)
+- [ ] A test proves the cross-check fires when a stale/foreign
+      `TERMLINK_SESSION_ID` names a live session that does NOT own the caller's
+      ancestor chain — the actual defect, not a proxy for it
+- [ ] A test proves the quiet path stays quiet: env claim that DOES own the
+      ancestor chain produces no warning (PL-219 — a guard that always fires is
+      noise)
 - [ ] New tests demonstrated load-bearing by temp-revert
-- [ ] `cargo test -p termlink-hub` passes
+- [ ] `cargo test -p termlink --lib` and `cargo test -p termlink-mcp` pass
 - [ ] `bash scripts/run-guard-layer.sh` stays clean
 
 ### Human
@@ -165,8 +131,8 @@ being a heuristic — the precise answer stays in preflight.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-cargo test -p termlink-hub runtime_dir_warn
-cargo test -p termlink-hub
+cargo test -p termlink --lib whoami
+cargo test -p termlink-mcp --lib
 bash scripts/run-guard-layer.sh
 
 ## RCA
@@ -232,7 +198,7 @@ bash scripts/run-guard-layer.sh
 
 ## Updates
 
-### 2026-08-15T11:22:16Z — task-created [task-create-agent]
+### 2026-08-15T12:16:23Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2734-hub-volatile-runtimedir-warning-disagree.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2735-inherited-termlinksessionid-trusted-with.md
 - **Context:** Initial task creation
