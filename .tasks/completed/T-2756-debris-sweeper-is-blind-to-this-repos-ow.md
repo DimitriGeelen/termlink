@@ -4,20 +4,20 @@ name: "debris sweeper is blind to this repo's own prover topics"
 description: >
   debris sweeper is blind to this repo's own prover topics
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/sweep-test-debris.sh, tests/sweep-debris-census-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-15T22:45:30Z
-last_update: 2026-08-15T22:45:30Z
-date_finished: null
+last_update: 2026-08-15T22:54:11Z
+date_finished: 2026-08-15T22:54:11Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -153,7 +153,9 @@ bash -c 'bash scripts/sweep-test-debris.sh 2>&1 | grep -qi "not swept\|allowlist
 bash -c 'bash scripts/sweep-test-debris.sh --list-only 2>/dev/null | grep -qv " " || true'
 bash -c 'test -z "$(bash scripts/sweep-test-debris.sh --list-only 2>/dev/null | grep -i "census\|unclassified\|denied" || true)"'
 # The deny guard still beats the allowlist (safety property, not cosmetics).
-grep -q "deny_topic .* && continue" scripts/sweep-test-debris.sh
+# Asserts ORDERING directly — the deny call site must precede the allow call site —
+# rather than matching one particular source formatting. A reorder fires this.
+bash -c 'd=$(grep -n "deny_topic \"\$n\"" scripts/sweep-test-debris.sh | head -1 | cut -d: -f1); a=$(grep -n "allow_topic \"\$n\"" scripts/sweep-test-debris.sh | head -1 | cut -d: -f1); test -n "$d" && test -n "$a" && test "$d" -lt "$a"'
 # Dry-run is still the default — no --yes means no deletion.
 grep -q 'yes" -ne 1' scripts/sweep-test-debris.sh
 # The guard layer stays green.
@@ -253,3 +255,6 @@ bash scripts/run-guard-layer.sh
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2756-debris-sweeper-is-blind-to-this-repos-ow.md
 - **Context:** Initial task creation
+
+### 2026-08-15T22:54:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
