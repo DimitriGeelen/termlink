@@ -4,10 +4,10 @@ name: "preflight docs describe the pre-T-2729 Check 1 and hand out a /tmp-only d
 description: >
   preflight docs describe the pre-T-2729 Check 1 and hand out a /tmp-only diagnostic
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-15T09:06:47Z
-last_update: 2026-08-15T09:06:47Z
-date_finished: null
+last_update: 2026-08-15T09:10:46Z
+date_finished: 2026-08-15T09:10:46Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -240,3 +240,6 @@ preflight fixes is the pattern, not the exception.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2730-preflight-docs-describe-the-pre-t-2729-c.md
 - **Context:** Initial task creation
+
+### 2026-08-15T09:10:46Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
