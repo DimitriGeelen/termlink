@@ -850,3 +850,24 @@ decisions:
     date: 2026-08-15
     task: T-2751
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-101
+    decision: "Make `## Installation` match Quick Start's ordering (one-liner, Homebrew,"
+    scope: project
+    date: 2026-08-15
+    task: T-2752
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-102
+    decision: "Retitle to \"Homebrew (macOS)\" and note it also works on Linux with the"
+    scope: project
+    date: 2026-08-15
+    task: T-2752
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-103
+    decision: "Rewrite `install-check.yml`'s header to name its scope (from-source only), say"
+    scope: project
+    date: 2026-08-15
+    task: T-2752
+    rationale: "Auto-captured from task file on completion"

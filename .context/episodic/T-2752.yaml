@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2752: README Installation section contradicts Quick Start — omits install.sh, the recommended path
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-15T21:41:00Z
+# ============================================================================
+
+task_id: T-2752
+task_name: "README Installation section contradicts Quick Start — omits install.sh, the recommended path"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-15T21:34:07Z
+completed: 2026-08-15T21:39:33Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  README Installation section contradicts Quick Start — omits install.sh, the recommended path
+
+# Key outcomes
+outcomes:
+  - '`## Installation` presents `install.sh` as a documented option, in the same relative'
+  - 'The Homebrew subsection''s scope claim matches Quick Start''s ("macOS") rather than'
+  - 'The `~/.cargo/bin/termlink` statement is scoped to the from-source path rather than'
+  - 'The user-level / no-sudo option is documented (`--prefix=$HOME/.local`), since that is'
+  - '`install-check.yml`''s header no longer calls `cargo install --git` "the documented'
+  - 'No behaviour change: `install.sh`, `release.yml` and the formula are untouched, proven'
+  - '`bash scripts/check-release-artifact-drift.sh` still clean (the T-2751 guard is not'
+  - 'Guard layer still PASS across all members'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-08-15 — reconcile toward Quick Start, not toward the Installation section'
+    chose: 'Make `## Installation` match Quick Start''s ordering (one-liner, Homebrew,'
+    rationale: 'The one-liner is the better default on the merits — it needs no toolchain and no'
+    alternatives_rejected: ['*Collapse to one section and link* — Quick Start''s compact block earns its']
+  - decision: '2026-08-15 — kept the Homebrew-on-Linux option, dropped only the "recommended" claim'
+    chose: 'Retitle to "Homebrew (macOS)" and note it also works on Linux with the'
+    rationale: 'Homebrew on Linux genuinely works; the formula ships a linux-aarch64 and a'
+  - decision: '2026-08-15 — the CI header states what it does NOT cover'
+    chose: 'Rewrite `install-check.yml`''s header to name its scope (from-source only), say'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2752-readme-installation-section-contradicts-.md
+generated_by: context-agent-hybrid
