@@ -1032,6 +1032,53 @@ Current tree: 4 crates scanned (cli / mcp / hub / session), 0 firing, 0 allowlis
 the emit from `crates/termlink-session/build.rs` fires it with `never emits …`; deleting the
 file fires it with `has no build.rs` — the two failure shapes report distinct reasons.
 
+### MCP/CLI parity census check (T-2747, herdr rank 13 — coverage, not execution)
+
+The eighth source-level static check. `crates/termlink-mcp/tests/parity.rs` asserts that an
+MCP tool and its CLI verb produce the same structured output. **It covers 24 tools. There
+are 260.** The other 236 are not passing — they are UNEXAMINED, and nothing distinguished
+those two states.
+
+That is the T-2680 lesson one layer up. The charter-drift canary once reported
+`{checked:214, live_off_charter:0}`, which read as "all 214 trace to the charter" when it
+had only ever looked for six known families. A suite covering 9.2% of a surface and saying
+nothing about the rest has the same shape: its green is a statement about the 24 and gets
+read as a statement about the 260. The guard layer had no member that knew the two surfaces
+are supposed to correspond (`ls scripts/ | grep -i parit` → nothing).
+
+**Distinct from T-2686.** `parity_topics` WAS covered and DID catch T-2624 — what failed
+from 2026-08-12 is that *nothing ran it*. T-2686 closed the **execution** gap; this closes
+the **coverage** gap. Different bugs.
+
+**What it does not do:** it does not prevent drift and does not verify that any two
+implementations agree. It answers one question — is every MCP tool either ASSERTED by a
+parity case or ACKNOWLEDGED with a cited reason? It converts *unexamined* into
+*acknowledged*. The value is the **ratchet**: all 236 uncovered tools are enumerated in
+`.context/checks/mcp-parity-census-allowlist` (git-tracked per T-2681, a ledger of an open
+question in the T-2483/T-2548 tradition, worked down by **T-2748**), so a NEW MCP tool added
+tomorrow is in neither set and fires on the next run. Today's gap is frozen and visible;
+tomorrow's requires a decision. Both output paths — including the clean one — state the
+census (`260 tools: 24 asserted, 236 acknowledged, 9.2%`) plus the scope disclaimer, so a
+green can never be misread as full coverage.
+
+**Counting note.** Three counts of "`*_mcp` parallel helpers" were circulating — 83 (T-1904),
+68 (`parity.rs` header as of T-2683/T-2689), 94 (herdr worker 3) — none asserted correct.
+Measured: **79** distinct `fn *_mcp` names. They disagree because the unit is ill-defined:
+`fn to_json_mcp` alone occurs 26 times as a small helper redefined inside separate functions,
+and counting it as 26 parallel implementations is as defensible as counting it as one. The
+check therefore counts **tools** (`name = "termlink_…"` inside `#[tool(…)]`) — a unit with
+exactly one meaning — not helpers.
+
+Comment lines are stripped on both sides: `tools.rs` contains a doc comment quoting
+`name = "termlink_help"` that would inflate the total, and `parity.rs` discusses tool names
+in prose that would mark them covered without asserting anything. Exit 0 clean / 1 firing /
+2 tooling (an empty tool surface is a tooling error, never a clean census). `--json`,
+`--tools-file`, `--parity-file`, `--allowlist`. Ad-hoc:
+`bash scripts/check-mcp-parity-census.sh`. Fixtures:
+`bash tests/mcp-parity-census-fixtures.sh` (26 assertions). **Load-bearing:** deleting an
+allowlist line re-fires that tool; renaming a covered tool's reference in `parity.rs` moves
+it from covered to unexamined (24→23, 9.2%→8.8%) and fires it.
+
 ### Running the guard layer — `scripts/run-guard-layer.sh` (T-2684)
 
 **One command runs every source-level guard.** Before T-2684 there was none, and
