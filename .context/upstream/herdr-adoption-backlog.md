@@ -34,6 +34,16 @@ Issue *titles* and doc *quotes* are cited as factual evidence that a class exist
 is reference, not derivative use. **No attribution or NOTICE handling is triggered by
 anything in this section.**
 
+> **Status as of 2026-08-15.** Ranks **1–10, 14 and 16 are CLOSED.** Closed this
+> session: 9 (T-2737), 16 (T-2738), 10 (T-2740), 14 (T-2741) — plus **T-2739**,
+> a third alt-screen surface (`mirror_grid.rs`) that this backlog did not list,
+> found by grepping after 16 and filed separately per one-bug-one-task.
+> Remaining: **11, 12, 13, 15, 17, 20–23**; **18 and 19 are `owner: human`**.
+> Next in rank order is **11** (`setsid` fallback drops `nohup` off Linux),
+> which carries an UNREPRODUCED hazard — worth reading before starting, since
+> item 17 ("survives SSH disconnect has no test") is the guard that would have
+> caught it and may be the better first move.
+
 | # | Item | Evidence class | Effort | Directive |
 |---|---|---|---|---|
 | 1 | **`strip_ansi` mangles real text** (worker 1, class D) | **MEASURED** | ~1 d | D2 |
