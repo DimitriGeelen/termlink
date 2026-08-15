@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-15T12:49:27Z
-last_update: 2026-08-15T12:49:27Z
+last_update: 2026-08-15T12:51:20Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,35 +34,61 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Herdr adoption backlog item 8 (rank 8), scoped by the backlog to legibility
+only. Reading the handler found the defect was larger than filed.
+
+The backlog's framing: nothing in the tree reads child output looking for DSR
+`CSI 6n` / `CSI 14t|16t` / OSC 10/11/4 and replies, so a child that queries and
+waits blocks to the deadline with an empty diff. Worker 1's cluster analysis is
+the right root: **TermLink models a PTY nobody is watching** — which is
+charter-correct, and is exactly why nothing sizes it, tears down its modes
+(T-2732), or answers it.
+
+**What reading `cmd_interact` added.** The timeout branch does not merely fail to
+explain itself — it reports `"output": ""` in JSON and a bare "Timeout after Ns
+waiting for command to complete". The poll loop had *already collected* the
+child's output and computed the diff; the deadline check sits above that code, so
+the evidence was gathered, paid for, and then discarded at the one moment it was
+needed. Retaining it is the larger half of this fix; naming the cause is the
+smaller half.
+
+**Scope boundary, stated.** No DSR/OSC responder is built. Answering these
+queries means TermLink starts pretending to be a terminal emulator, which is a
+separate design decision with real consequences for what the product claims to
+be — the backlog says so, and this task holds that line. The remedy shipped here
+is that the operator is told what is happening and why no retry will help.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `interact`'s timeout no longer reports `"output": ""` — it returns the
-      diff the poll loop already collected. Today that evidence is gathered and
-      then thrown away, which is the larger half of the defect
-- [ ] The timeout names a **cause**, not just the deadline: an unanswered
-      terminal query, no output at all, or output-without-marker
-- [ ] Unanswered terminal queries are detected for the sequences a child
-      actually waits on: DSR `CSI 6n`, `CSI 14t` / `16t` / `18t`, DA1 `CSI c`,
-      DA2 `CSI >c`, kitty `CSI ?u`, and OSC 10/11/4 colour queries
-- [ ] Detection requires the query to be genuinely **unanswered** — a query with
-      real output after it is NOT flagged, because the child evidently continued
-- [ ] Each cause carries an actionable hint. For the query case it must say
-      plainly that nothing is behind this PTY to answer, since that is
-      charter-correct behaviour and not a bug to be fixed by the operator
-- [ ] Text and `--json` modes both carry cause + hint + retained output; the
-      JSON gains `cause` and `hint` keys
-- [ ] Classification is a pure function over the diff, unit-tested per branch —
-      no PTY, no session, no sleep
-- [ ] **Scope: legibility only.** No DSR/OSC responder is built. Answering these
-      queries would mean TermLink starts pretending to be a terminal emulator,
-      which is a separate design decision and explicitly out of scope
-- [ ] New tests demonstrated load-bearing by temp-revert
-- [ ] `cargo test -p termlink --bins commands::pty` passes
-- [ ] `bash scripts/run-guard-layer.sh` stays clean
+- [x] `interact`'s timeout no longer reports `"output": ""` — `last_diff` retains
+      what the poll loop collected and `tail_for_diagnosis` returns a bounded,
+      UTF-8-safe tail of it in both output modes
+- [x] The timeout names a **cause**: `InteractTimeout::{UnansweredQuery,
+      NoOutput, NoMarker}`, rendered into the error line
+- [x] Unanswered terminal queries detected for `CSI 6n`, `CSI 14t/16t/18t`,
+      DA1 `CSI c`, DA2 `CSI >c`, kitty `CSI ?u`, OSC 10/11/4
+      (`TERMINAL_QUERIES`)
+- [x] Detection requires the query to be genuinely unanswered —
+      `has_meaningful_output_after` ignores whitespace AND neighbouring escape
+      sequences, so a child that continued is not flagged
+      (`a_query_that_was_answered_and_moved_on_is_not_flagged`)
+- [x] Each cause carries an actionable hint; the query hint states the silence is
+      by design and no retry will help
+      (`query_hint_says_the_silence_is_by_design`)
+- [x] Text and `--json` both carry cause + hint + retained output; JSON gains
+      `cause` and `hint` keys alongside `bytes_captured`
+- [x] `classify_interact_timeout` is pure over the diff — 11 unit tests, no PTY,
+      no session, no sleep
+- [x] **Scope held: legibility only.** No responder built; the hint points at
+      `termlink attach` (where the operator's own terminal replies) rather than
+      making TermLink answer
+- [x] New tests demonstrated load-bearing by temp-revert: replacing the
+      classifier with unconditional `NoMarker` failed **6** tests; restored to a
+      byte-identical tree, 46/46 green
+- [x] `cargo test -p termlink --bins commands::pty` passes (46 passed)
+- [x] `bash scripts/run-guard-layer.sh` stays clean (27/27)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -133,6 +159,37 @@ cargo test -p termlink --bins commands::pty
 bash scripts/run-guard-layer.sh
 
 ## RCA
+
+**Symptom.** `termlink interact` on a child that queries the terminal blocks to
+the deadline and then reports "Timeout after Ns waiting for command to complete"
+with `"output": ""`. The operator is told their command was slow, given no
+evidence, and left to conclude the fault is in the command or the timeout value.
+Neither is true, and no amount of retrying or raising `--timeout` helps.
+
+**Root cause.** Two independent gaps, in the same eight lines. (1) TermLink
+drives a PTY with no terminal emulator behind it, so DSR/OSC queries are never
+answered — charter-correct, but the child blocks forever and nothing said so.
+(2) The deadline check sits *above* the code that computes the output diff, so at
+the moment of failure the collected evidence was out of scope and the branch
+filled the field with an empty string rather than reaching for it.
+
+**Why structurally allowed.** The timeout branch was written as a *guard* — an
+early bail at the top of the loop — and guards are habitually written before the
+work they protect. That placement is why it had nothing to report: it ran before
+the data existed on every iteration, including the last. Nothing tested it,
+because testing it required a live PTY, a real child, and a real wall-clock
+deadline; the decision was entangled with the loop, so it was effectively
+untestable and stayed untested. That is the same shape as several findings this
+session — the logic was fine as far as it was written, and no one could see what
+it left out.
+
+**Prevention.** The decision is now a pure function over the diff
+(`classify_interact_timeout`), so all three branches are unit-testable without a
+PTY, and the loop retains its freshest diff specifically so the guard has
+something to say. `has_meaningful_output_after` deliberately does not count
+whitespace or neighbouring escape sequences as progress — the two ways the
+detector would have quietly missed the case it exists for. Eleven tests, six of
+which fail if the classifier is reverted to unconditional `NoMarker`.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).

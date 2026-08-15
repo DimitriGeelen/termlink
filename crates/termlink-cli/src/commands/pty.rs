@@ -9,6 +9,167 @@ use termlink_protocol::data::{FrameFlags, FrameType};
 
 use crate::util::{resize_payload, strip_ansi_codes, terminal_size};
 
+/// T-2736 — why an `interact` call reached its deadline.
+///
+/// The root shape here is charter-correct and worth stating plainly, because it
+/// determines the remedy: **TermLink models a PTY nobody is watching.** There is
+/// no terminal emulator behind the session to answer a child's DSR/OSC query, so
+/// a child that asks "where is the cursor?" or "what colour is the background?"
+/// and then blocks for the reply will block until the deadline. That is not a
+/// bug in the child and not a bug the operator can fix by retrying — but before
+/// this task the message said only "Timeout after Ns waiting for command to
+/// complete", which reads as "your command is slow" and sends the operator
+/// looking in the wrong place.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum InteractTimeout {
+    /// The child emitted a terminal query and nothing followed it. Nothing was
+    /// ever going to.
+    UnansweredQuery { query: &'static str },
+    /// Not a single byte appeared. The command probably never ran — the shell
+    /// may not be at a prompt, or the session may be in a full-screen program.
+    NoOutput,
+    /// Output appeared but the completion marker never did. Ordinary slowness,
+    /// an interactive prompt waiting on input, or a command that never exits.
+    NoMarker,
+}
+
+/// Terminal queries a child may block on, paired with a human name. Each is a
+/// request for information only a real emulator can supply.
+///
+/// Byte patterns, not regexes: these are exact control sequences, and a literal
+/// match cannot drift the way a hand-written pattern can.
+const TERMINAL_QUERIES: &[(&str, &str)] = &[
+    ("\x1b[6n", "CSI 6n — cursor position report (DSR)"),
+    ("\x1b[14t", "CSI 14t — text area size in pixels"),
+    ("\x1b[16t", "CSI 16t — character cell size in pixels"),
+    ("\x1b[18t", "CSI 18t — text area size in characters"),
+    ("\x1b[>c", "CSI >c — secondary device attributes (DA2)"),
+    ("\x1b[?u", "CSI ?u — kitty keyboard protocol query"),
+    ("\x1b[c", "CSI c — primary device attributes (DA1)"),
+    ("\x1b]10;?", "OSC 10 — foreground colour query"),
+    ("\x1b]11;?", "OSC 11 — background colour query"),
+    ("\x1b]4;", "OSC 4 — palette colour query"),
+];
+
+/// How much trailing output to show the operator on a timeout.
+const DIAGNOSIS_TAIL_BYTES: usize = 2048;
+
+/// Classify a timed-out `interact` from the output the child produced.
+///
+/// Pure over the diff so every branch is testable without a PTY, a session, or a
+/// sleep — the loop that calls it cannot be exercised in a unit test, which is
+/// precisely why the decision lives out here.
+pub(crate) fn classify_interact_timeout(diff: &str) -> InteractTimeout {
+    if diff.trim().is_empty() {
+        return InteractTimeout::NoOutput;
+    }
+
+    // Find the LAST query in the stream, then ask whether anything answered it.
+    // Position matters: a child that queried, got a reply, and carried on is not
+    // stuck, and flagging it would make this warning worthless (PL-219).
+    let mut best: Option<(usize, &'static str)> = None;
+    for (seq, name) in TERMINAL_QUERIES {
+        if let Some(idx) = diff.rfind(seq)
+            && best.is_none_or(|(prev, _)| idx > prev)
+        {
+            best = Some((idx + seq.len(), *name));
+        }
+    }
+
+    if let Some((end, name)) = best
+        && !has_meaningful_output_after(diff, end)
+    {
+        return InteractTimeout::UnansweredQuery { query: name };
+    }
+
+    InteractTimeout::NoMarker
+}
+
+/// Did anything the child would only print *after* getting its answer appear?
+///
+/// Whitespace does not count — a trailing newline is not evidence of progress.
+/// Escape sequences do not count either: a child often emits a query as part of
+/// a burst of setup sequences, and treating a neighbouring `ESC[?25l` as
+/// "it continued" would mask exactly the case being detected.
+fn has_meaningful_output_after(diff: &str, from: usize) -> bool {
+    let Some(rest) = diff.get(from..) else {
+        return false;
+    };
+    let mut in_escape = false;
+    for ch in rest.chars() {
+        if ch == '\x1b' {
+            in_escape = true;
+            continue;
+        }
+        if in_escape {
+            // CSI/OSC sequences end at a final byte in this range; close enough
+            // for "did real text follow", and deliberately conservative.
+            if ch.is_ascii_alphabetic() || ch == '\x07' || ch == '~' {
+                in_escape = false;
+            }
+            continue;
+        }
+        if !ch.is_whitespace() && ch != '\0' {
+            return true;
+        }
+    }
+    false
+}
+
+/// Trailing slice of the diff to show on timeout, cut on a char boundary.
+pub(crate) fn tail_for_diagnosis(diff: &str) -> String {
+    if diff.len() <= DIAGNOSIS_TAIL_BYTES {
+        return diff.to_string();
+    }
+    let start = char_boundary_floor(diff, diff.len() - DIAGNOSIS_TAIL_BYTES);
+    diff[start..].to_string()
+}
+
+impl InteractTimeout {
+    /// Stable machine-readable discriminant for `--json` consumers.
+    pub(crate) fn code(&self) -> &'static str {
+        match self {
+            InteractTimeout::UnansweredQuery { .. } => "unanswered-terminal-query",
+            InteractTimeout::NoOutput => "no-output",
+            InteractTimeout::NoMarker => "no-marker",
+        }
+    }
+
+    pub(crate) fn summary(&self) -> String {
+        match self {
+            InteractTimeout::UnansweredQuery { query } => format!(
+                "the child sent a terminal query and is waiting for a reply that will never come ({query})"
+            ),
+            InteractTimeout::NoOutput => {
+                "the session produced no output at all — the command may never have run".to_string()
+            }
+            InteractTimeout::NoMarker => {
+                "the command produced output but never signalled completion".to_string()
+            }
+        }
+    }
+
+    pub(crate) fn hint(&self) -> &'static str {
+        match self {
+            InteractTimeout::UnansweredQuery { .. } => {
+                "TermLink drives a PTY with no terminal emulator behind it, so nothing answers \
+                 DSR/OSC queries. This is by design, not a fault you can retry past. Run the \
+                 program with the query disabled (many honour TERM=dumb or a --no-color / \
+                 --plain flag), or use `termlink attach` where your own terminal replies."
+            }
+            InteractTimeout::NoOutput => {
+                "Check the session is at a shell prompt with `termlink output <session>`. A \
+                 full-screen program (editor, pager, TUI) will swallow the injected line \
+                 without running it."
+            }
+            InteractTimeout::NoMarker => {
+                "The command may still be running, or may be waiting on input. Raise --timeout, \
+                 or inspect live with `termlink output <session>`."
+            }
+        }
+    }
+}
+
 pub(crate) async fn cmd_interact(
     target: &str,
     command: &str,
@@ -88,13 +249,40 @@ pub(crate) async fn cmd_interact(
     let deadline = std::time::Duration::from_secs(timeout);
     let poll_interval = std::time::Duration::from_millis(poll_ms);
 
+    // T-2736: retain the most recent diff so a timeout can say what the child
+    // actually produced. Before this, the timeout branch reported `output: ""`
+    // and a message naming only the deadline — discarding evidence the poll loop
+    // had already collected and paid for.
+    let mut last_diff = String::new();
+
     // Poll until marker appears in scrollback
     loop {
         if start.elapsed() > deadline {
+            let cause = classify_interact_timeout(&last_diff);
+            let elapsed_ms = start.elapsed().as_millis() as u64;
+            let tail = tail_for_diagnosis(&last_diff);
             if json_output {
-                super::json_error_exit(serde_json::json!({"ok": false, "output": "", "exit_code": null, "error": format!("Timeout after {}s waiting for command to complete", timeout), "elapsed_ms": start.elapsed().as_millis() as u64, "marker_found": false}));
+                super::json_error_exit(serde_json::json!({
+                    "ok": false,
+                    "output": tail,
+                    "exit_code": null,
+                    "error": format!("Timeout after {}s: {}", timeout, cause.summary()),
+                    "cause": cause.code(),
+                    "hint": cause.hint(),
+                    "elapsed_ms": elapsed_ms,
+                    "marker_found": false,
+                    "bytes_captured": last_diff.len(),
+                }));
             }
-            anyhow::bail!("Timeout after {}s waiting for command to complete", timeout);
+            anyhow::bail!(
+                "Timeout after {timeout}s: {}\n\
+                 Hint: {}\n\
+                 Last output seen from the session ({} byte(s)):\n{}",
+                cause.summary(),
+                cause.hint(),
+                tail.len(),
+                if tail.is_empty() { "(nothing)" } else { tail.as_str() }
+            );
         }
 
         tokio::time::sleep(poll_interval).await;
@@ -131,6 +319,11 @@ pub(crate) async fn cmd_interact(
         } else {
             full_output
         };
+
+        // T-2736: keep the freshest diff for timeout diagnosis (see the deadline
+        // branch above). Cheap — bounded by the 128KiB query window.
+        last_diff.clear();
+        last_diff.push_str(output);
 
         if has_marker(output, &marker) {
             let elapsed_ms = start.elapsed().as_millis();
@@ -1102,6 +1295,136 @@ pub(crate) fn char_boundary_floor(s: &str, idx: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // === T-2736: an interact timeout must name a cause, not just a deadline ===
+    //
+    // The defect: on timeout the command reported `output: ""` and "Timeout after
+    // Ns waiting for command to complete" — it discarded the diff it had already
+    // collected, and its message read as "your command is slow" even when the
+    // real cause was a child blocked on a query nothing was ever going to answer.
+
+    #[test]
+    fn unanswered_cursor_position_query_is_named() {
+        // The canonical case: a program asks where the cursor is and waits.
+        let diff = "some setup\n\x1b[6n";
+        assert_eq!(
+            classify_interact_timeout(diff),
+            InteractTimeout::UnansweredQuery { query: "CSI 6n — cursor position report (DSR)" },
+            "a trailing DSR must be reported as the cause, not hidden behind 'slow command'"
+        );
+    }
+
+    #[test]
+    fn unanswered_background_colour_query_is_named() {
+        let diff = "\x1b]11;?";
+        assert!(matches!(
+            classify_interact_timeout(diff),
+            InteractTimeout::UnansweredQuery { .. }
+        ));
+    }
+
+    #[test]
+    fn a_query_that_was_answered_and_moved_on_is_not_flagged() {
+        // PL-219: this is the common case. A child that queried, got its reply
+        // from a real terminal earlier in the pipeline, and carried on producing
+        // output is NOT stuck on the query — flagging it would train the operator
+        // to ignore the warning by the time it is true.
+        let diff = "\x1b[6n\x1b[12;40Rbuilding project...\nstill going";
+        assert_eq!(
+            classify_interact_timeout(diff),
+            InteractTimeout::NoMarker,
+            "real output after the query proves the child continued past it"
+        );
+    }
+
+    #[test]
+    fn trailing_whitespace_after_a_query_is_not_progress() {
+        // A newline is not evidence the child got its answer.
+        let diff = "\x1b[6n\n  \n";
+        assert!(matches!(
+            classify_interact_timeout(diff),
+            InteractTimeout::UnansweredQuery { .. }
+        ));
+    }
+
+    #[test]
+    fn neighbouring_escape_sequences_do_not_count_as_progress() {
+        // Queries usually ship inside a burst of setup sequences. If an adjacent
+        // `ESC[?25l` counted as "it continued", the detector would miss the exact
+        // case it exists for.
+        let diff = "\x1b[6n\x1b[?25l\x1b[2J";
+        assert!(matches!(
+            classify_interact_timeout(diff),
+            InteractTimeout::UnansweredQuery { .. }
+        ));
+    }
+
+    #[test]
+    fn empty_diff_is_no_output_not_a_query() {
+        assert_eq!(classify_interact_timeout(""), InteractTimeout::NoOutput);
+        assert_eq!(classify_interact_timeout("   \n\t "), InteractTimeout::NoOutput);
+    }
+
+    #[test]
+    fn ordinary_slow_command_is_no_marker() {
+        assert_eq!(
+            classify_interact_timeout("compiling...\nlinking...\n"),
+            InteractTimeout::NoMarker
+        );
+    }
+
+    #[test]
+    fn the_last_query_wins_when_several_appear() {
+        // Two queries, only the second unanswered — the operator needs the one
+        // actually blocking, not the first one in the buffer.
+        let diff = "\x1b[6n\x1b[12;40Rok\n\x1b]11;?";
+        assert_eq!(
+            classify_interact_timeout(diff),
+            InteractTimeout::UnansweredQuery { query: "OSC 11 — background colour query" }
+        );
+    }
+
+    #[test]
+    fn every_cause_carries_a_distinct_code_and_a_nonempty_hint() {
+        // Directive #2/#3: a named cause with no remedy is only half an answer.
+        let causes = [
+            InteractTimeout::UnansweredQuery { query: "x" },
+            InteractTimeout::NoOutput,
+            InteractTimeout::NoMarker,
+        ];
+        let mut codes = Vec::new();
+        for c in &causes {
+            assert!(!c.hint().is_empty(), "{:?} must carry an actionable hint", c);
+            assert!(!c.summary().is_empty());
+            codes.push(c.code());
+        }
+        codes.sort_unstable();
+        codes.dedup();
+        assert_eq!(codes.len(), 3, "each cause needs its own machine-readable code");
+    }
+
+    #[test]
+    fn query_hint_says_the_silence_is_by_design() {
+        // The operator must not be sent hunting for a fault that is not there:
+        // nothing is behind this PTY to answer, and that is charter-correct.
+        let hint = InteractTimeout::UnansweredQuery { query: "x" }.hint();
+        assert!(
+            hint.contains("no terminal emulator") && hint.contains("by design"),
+            "the hint must say the silence is intentional, not a fault to retry past: {hint}"
+        );
+    }
+
+    #[test]
+    fn diagnosis_tail_is_bounded_and_utf8_safe() {
+        // The tail is cut from a byte offset, so it must land on a char boundary
+        // — the same class T-2733 fixed in scrollback.
+        let long = "é".repeat(4000);
+        let tail = tail_for_diagnosis(&long);
+        assert!(tail.len() <= DIAGNOSIS_TAIL_BYTES + 4);
+        assert!(tail.chars().all(|c| c == 'é'), "tail must not split a character");
+        let short = "short output";
+        assert_eq!(tail_for_diagnosis(short), short);
+    }
 
     // === T-2732 LOAD-BEARING: detach must not leave the terminal in a child's mode ===
     //
