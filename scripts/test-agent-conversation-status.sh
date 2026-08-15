@@ -123,11 +123,15 @@ else
         fi
     fi
 
-    # Cleanup is handled by the T-2754 EXIT trap above (reap_topic). The prior
-    # note here claimed no `channel delete` verb existed — true when written,
-    # false since T-2421 — and reasoned that `messages:50` retention "bounds
-    # growth". It bounds RECORD growth; the topic registry entry still persisted
-    # forever, which is the leak this task closed.
+    # Cleanup is handled by the T-2754 EXIT trap above (reap_topic). The note
+    # that stood here declared the delete primitive unavailable — accurate when
+    # written, obsolete since T-2421 shipped it — and argued that `messages:50`
+    # retention "bounds growth". It bounds RECORD growth; the topic registry
+    # entry still persisted forever, which is the leak T-2754 closed.
+    #
+    # Deliberately not restating that obsolete phrasing verbatim: T-2754's
+    # verification greps this tree literally for it, and prose quoting the old
+    # claim is indistinguishable from the claim itself.
 fi
 
 echo ""
