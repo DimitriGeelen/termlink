@@ -45,9 +45,16 @@ date_finished: null
 - [x] It is demonstrated that the bypass is avoidable — `fw context focus T-1452` → commit → refocus works and was used twice in this session instead of `FW_SWITCH_FOCUS=1` — so the finding is about imposed friction, not an impossible gate
 - [x] The distinction is drawn from the earlier wrong reading: no framework script *sets* `FW_SWITCH_FOCUS`, which was verified and remains true; the framework generates these bypasses by prescribing a flow its gate blocks, not by typing the bypass itself
 - [x] Filed as an upstream record under `.context/upstream/` — the collision is in vendored handover/gate tooling, not in this repo
-- [ ] Filed to the shared `framework:pickup` topic *(operator's call — visible to peer projects)*
 
 ### Human
+
+- [ ] [RUBBER-STAMP] Decide whether U-008 is filed to the shared `framework:pickup` topic
+  **Steps:**
+  1. Read `.context/upstream/U-008-handover-commit-collides-with-focus-gate.yaml`
+  2. If you want it filed, post it to `framework:pickup`; if not, leave this unchecked and the record stays local
+  **Expected:** Either a post on `framework:pickup` referencing U-008, or a deliberate decision not to file
+  **If not:** The record stays in `.context/upstream/` and loses nothing — filing is what makes it visible to peer projects, which is why it is your call and not the agent's
+
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.

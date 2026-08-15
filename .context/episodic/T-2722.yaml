@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2722: Bring carded-but-unwatched fabric files into drift coverage at category boundaries
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-15T06:22:34Z
+# ============================================================================
+
+task_id: T-2722
+task_name: "Bring carded-but-unwatched fabric files into drift coverage at category boundaries"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-15T06:16:23Z
+completed: 2026-08-15T06:22:29Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Bring carded-but-unwatched fabric files into drift coverage at category boundaries
+
+# Key outcomes
+outcomes:
+  - 'Every glob added widens to a **natural category boundary** (all root shell sources; all files in `systemd-templates/`; all files in `docs/guides/`) — no glob is hand-shaped around a single file to dodge the drift check'
+  - 'Every file newly brought inside a widened glob carries a fabric card, so widening does not trade one warning for a larger uncarded-drift warning'
+  - 'The two uncarded `systemd-templates/*.service` siblings are registered as components'
+  - '`.claude/commands/*.md` is deliberately NOT globbed, and `watch-patterns.yaml` records why in terms of the decision it defers (register all 34, or drop the singleton `capture.md` card) rather than as a vague exclusion'
+  - '`fw fabric drift` reports no newly-uncarded files after the change'
+  - 'The audit''s "card(s) point at files no watch pattern covers" count drops from 4 to 1, and the residual 1 is the named open decision above — not an unexplained remainder'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2722-bring-carded-but-unwatched-fabric-files-.md
+generated_by: context-agent-hybrid
