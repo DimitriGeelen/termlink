@@ -40,9 +40,18 @@ anything in this section.**
 > 13 (T-2747) — plus **T-2739**, a third alt-screen surface
 > (`mirror_grid.rs`) that this backlog did not list, found by grepping after 16
 > and filed separately per one-bug-one-task.
-> Remaining: **20 and 21** (both ~1 d, both READ-only findings);
+> Remaining: **21 only** (~1 d, READ-only, self-ranked last by its own worker);
 > **18 and 19 are `owner: human`**. Rank **23 closed by recording** (T-2750 → PL-347):
 > zero-cost by design — the principle is written down, no code, no dependency.
+>
+> **Rank 20 is closed as ALREADY-IMPLEMENTED (T-2751) — its premise was false.** The item
+> proposed building a `curl | sh` installer; `install.sh` has existed since T-1134 with
+> checksum verification, five-target detection, a no-sudo fallback and a PATH warning.
+> Nothing was built for the item. Investigating it did surface a real gap — the artifact-name
+> list lives as three hand-maintained copies with nothing checking they agree, and the
+> primary advertised install path has zero CI coverage while the least-used one is guarded —
+> so T-2751 shipped `check-release-artifact-drift.sh` (9th static check, 34 fixtures)
+> instead. See the rank-20 entry below for the full correction.
 >
 > **Rank 22 is closed as PINNED-AND-DECLINED, not fixed (T-2749).** Worker 1's own
 > recommendation was to pin current behaviour and then decide, so that is what happened:
@@ -314,6 +323,29 @@ here.
 **20. `curl | sh` installer — rank 20.** Independently implemented, herdr's shape only
 (single binary, `~/.local/bin`, no sudo, os/arch from `uname`, writes no config, does not
 edit shell rc). Optional; item 14 delivers most of the benefit for an hour.
+
+> **CLOSED 2026-08-15 (T-2751) as ALREADY-IMPLEMENTED — the premise above is false.**
+> `install.sh` has existed at the repo root since **T-1134**: 159 lines, checksum-verified
+> against the release's `checksums.txt` before install, five-target `uname` detection with
+> an automatic musl fallback when glibc is absent, a no-sudo path that hints
+> `PREFIX=$HOME/.local` (install.sh:152), and a PATH warning (install.sh:158). It writes no
+> config and does not edit shell rc. It is the **first** option in README Quick Start. Every
+> element of "herdr's shape" is present; only the default prefix differs (`/usr/local`), and
+> that is a deliberate choice with a documented fallback — not a missing capability. Nothing
+> was built for this item.
+>
+> **What the investigation did find, and what was built instead.** The artifact-name list
+> lives as three hand-maintained copies (`install.sh` case arms, `release.yml` publish block,
+> `homebrew/Formula/termlink.rb` url lines) with nothing verifying they agree — the T-2484
+> three-copies shape applied to release artifacts. Worse: `install.sh` is the primary
+> advertised install path and has **zero** CI coverage, while `install-check.yml` guards the
+> *third* option (`cargo install --git`) and its own header still calls that "the documented
+> installation path". A rename would surface as `die "failed to download"` on a stranger's
+> machine, not as a red build on ours. T-2751 shipped
+> `scripts/check-release-artifact-drift.sh` (9th static check, guard-layer member, 34
+> fixtures) to close that. **The item's value was in reading it, not in doing it** — which is
+> the second time in this backlog that investigating an item produced something better than
+> the item (cf. rank 13, where the measurement corrected three circulating counts).
 
 **21. `hubs.d/` — rank 21, last by the worker's own assessment.** T-2681 already validated
 bundled-with-local-override in this repo (`.context/checks/<name>-allowlist`, tracked, env/

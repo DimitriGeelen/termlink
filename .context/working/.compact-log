@@ -436,3 +436,5 @@
 [pre-compact] [manual] Handover generated at 2026-08-15T18:59:33Z
 [checkpoint] [auto] Handover FAILED at 2026-08-15T20:03:15Z — see /opt/termlink/.claude/worktrees/charter-review-2026-0814/.context/working/.checkpoint.handover.stderr
 [pre-compact] [manual] Handover generated at 2026-08-15T20:15:19Z
+[checkpoint] [auto] Handover FAILED at 2026-08-15T21:02:39Z — see /opt/termlink/.claude/worktrees/charter-review-2026-0814/.context/working/.checkpoint.handover.stderr
+[pre-compact] [manual] Handover generated at 2026-08-15T21:12:34Z

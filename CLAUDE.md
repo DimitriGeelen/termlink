@@ -1079,6 +1079,59 @@ in prose that would mark them covered without asserting anything. Exit 0 clean /
 allowlist line re-fires that tool; renaming a covered tool's reference in `parity.rs` moves
 it from covered to unexamined (24→23, 9.2%→8.8%) and fires it.
 
+### Release-artifact drift check (T-2751, the install path nothing guarded)
+
+The ninth source-level static check. The release artifact-name list exists as **three
+hand-maintained copies** — `install.sh:70-81` (case arms choosing what to download),
+`.github/workflows/release.yml` (the publish block), `homebrew/Formula/termlink.rb` (url
+lines) — and nothing verified they agree. Same shape as T-2484 (the charter sentence as
+three copies with no transclusion), applied to release artifacts instead of prose.
+
+**Why this one is sharper than ordinary drift.** `install.sh` is the **first** option in
+README Quick Start, advertised as "no toolchain required" — the path a new user takes. It
+has zero CI coverage. `install-check.yml` guards the **third** option (`cargo install
+--git`) and its header still calls that "the documented installation path", which is stale.
+So the guarded path is the least-used one, while the unguarded one is piped into `sh` on a
+stranger's machine, where a rename surfaces as `die "failed to download"` on **their** host
+rather than as a red build on ours. Same class as T-2683 (static checks nothing ran) and
+T-2686 (`parity_topics` failing undetected since 2026-08-12).
+
+**install.sh ↔ release.yml is checked bidirectionally**, because the two directions fail
+differently and only one of them is loud: *offered-but-unpublished* (install.sh selects a
+name release.yml does not ship → the user gets a 404) versus *published-but-unreachable*
+(release.yml ships a name install.sh never selects → we build and host a target the primary
+installer cannot deliver, and **nobody sees an error** — the Directive #2 shape). They are
+reported separately.
+
+**The formula is checked as a SUBSET, not an equality.** Every artifact it references must
+be published; a published artifact it omits does not fire — the gnu `linux-x86_64` variant
+is deliberately excluded in favour of the musl static one (T-1135), so equality would fire
+daily on a decision already made. Only `url "…releases/download/…"` lines are parsed, never
+any `termlink-*` token: the formula also contains `Dir["termlink-*"].first`, a runtime glob
+that is not an artifact name.
+
+**Scope — it compares NAMES and nothing else.** It does not verify an asset is
+downloadable, that `checksums.txt` carries a line for it, or that the binary runs. A
+release publishing all five names as empty files passes. Both output paths state this, so a
+green is never misread as "the install path works" (T-2680). There is deliberately **no
+allowlist**: unlike the sibling checks, every mismatch here is a real defect with a real fix,
+so an allowlist could only ever silence a genuine break. An empty extraction from either
+side is exit 2, never a clean census — "0 agrees with 0" is vacuously true and would report
+green over a parse that silently stopped matching (the T-2747 zero-tools lesson).
+
+Current tree: 5 published, 5 offered, 4 in formula — clean. Exit 0 clean / 1 firing /
+2 tooling. `--json`, `--quiet`, `--install-sh`/`--release-yml`/`--formula` for fixtures.
+Ad-hoc: `bash scripts/check-release-artifact-drift.sh`. Fixtures:
+`bash tests/release-artifact-drift-fixtures.sh` (34 assertions, including a PL-219 control
+that the real tree scans clean). **Load-bearing:** renaming one case arm in `install.sh`
+fires it twice — once per direction, correctly attributed — and restoring returns it to clean.
+
+**Origin note.** This came out of herdr backlog **rank 20**, which proposed *building* a
+`curl | sh` user-level installer. That premise was false — `install.sh` has existed since
+T-1134 with checksum verification, multi-arch detection, a no-sudo fallback and a PATH
+warning. Rank 20 is closed as ALREADY-IMPLEMENTED. The gap was never the installer; it was
+that nothing guarded it.
+
 ### Running the guard layer — `scripts/run-guard-layer.sh` (T-2684)
 
 **One command runs every source-level guard.** Before T-2684 there was none, and
