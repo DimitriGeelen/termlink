@@ -1,5 +1,5 @@
 pub mod agent_identity;
-pub(crate) mod ansi;
+pub mod ansi;
 pub mod artifact;
 pub mod auth;
 pub mod known_peers;

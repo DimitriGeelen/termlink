@@ -1,55 +1,19 @@
 use std::io::IsTerminal;
 
 /// Strip ANSI escape sequences from a string.
-pub(crate) fn strip_ansi_codes(s: &str) -> String {
-    // Match: ESC[ ... final byte (letters), ESC] ... ST, and other OSC/CSI sequences
-    let mut result = String::with_capacity(s.len());
-    let mut chars = s.chars().peekable();
-    while let Some(c) = chars.next() {
-        if c == '\x1b' {
-            // ESC sequence
-            match chars.peek() {
-                Some('[') => {
-                    // CSI sequence: ESC [ params final_byte
-                    chars.next(); // consume '['
-                    while let Some(&ch) = chars.peek() {
-                        chars.next();
-                        if ch.is_ascii_alphabetic() || ch == 'h' || ch == 'l' || ch == 'K' || ch == 'J' || ch == 'H' {
-                            break;
-                        }
-                    }
-                }
-                Some(']') => {
-                    // OSC sequence: ESC ] ... BEL or ESC \ (ST)
-                    chars.next(); // consume ']'
-                    while let Some(&ch) = chars.peek() {
-                        chars.next();
-                        if ch == '\x07' {
-                            break; // BEL terminates OSC
-                        }
-                        if ch == '\x1b' {
-                            // ESC \ (ST) terminates OSC
-                            if chars.peek() == Some(&'\\') {
-                                chars.next();
-                            }
-                            break;
-                        }
-                    }
-                }
-                _ => {
-                    // Unknown ESC sequence, skip next char
-                    chars.next();
-                }
-            }
-        } else if c == '\r' {
-            // Skip carriage returns (terminal artifact)
-            continue;
-        } else {
-            result.push(c);
-        }
-    }
-    result
-}
+///
+/// T-2728: this was a second, near-identical copy of
+/// `termlink_session::ansi::strip_ansi_codes`. Both copies carried the same two
+/// defects — a CSI scan that terminated on `is_ascii_alphabetic()` rather than
+/// the ECMA-48 final-byte range (so `"\x1b[3~hello"` returned `"ello"`), and a
+/// catch-all arm that emitted DCS/APC payloads as visible text. Two copies is
+/// precisely why that survived: fixing one leaves the other wrong, and nothing
+/// compared them.
+///
+/// It is now a re-export, so there is exactly one implementation and the
+/// divergence cannot recur. `termlink-cli` already depended on
+/// `termlink-session` (`Cargo.toml:9`), so this costs no new dependency.
+pub(crate) use termlink_session::ansi::strip_ansi_codes;
 
 pub(crate) fn truncate(s: &str, max: usize) -> String {
     if s.chars().count() <= max {
@@ -207,6 +171,28 @@ mod tests {
         let input = "\x1b[0;32mOK\x1b[0m  Framework installation";
         let result = strip_ansi_codes(input);
         assert_eq!(result, "OK  Framework installation");
+    }
+
+    /// T-2728: pinned on the CLI side as well as in `termlink-session`.
+    ///
+    /// These duplicate the session-crate tests deliberately. The function is
+    /// now a re-export, so if anyone ever reintroduces a local copy here, the
+    /// copy must satisfy the same contract or this fails. That is the guard
+    /// against the divergence that produced the defect in the first place.
+    #[test]
+    fn strip_ansi_csi_non_alphabetic_final_byte() {
+        assert_eq!(strip_ansi_codes("\x1b[3~hello"), "hello");
+        assert_eq!(
+            strip_ansi_codes("\x1b[200~pasted text\x1b[201~"),
+            "pasted text"
+        );
+    }
+
+    /// T-2728: DCS/APC payloads must not be emitted as visible text.
+    #[test]
+    fn strip_ansi_string_sequences_consume_payload() {
+        assert_eq!(strip_ansi_codes("a\x1bPq some payload \x1b\\b"), "ab");
+        assert_eq!(strip_ansi_codes("a\x1b_Gf=100,s=1;AAAA\x1b\\b"), "ab");
     }
 
     #[test]

@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-15T08:06:36Z
-last_update: 2026-08-15T08:06:36Z
+last_update: 2026-08-15T08:12:27Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -95,6 +95,72 @@ test in both modules so a future divergence fails the suite.
 payload does not appear in the output. A test that passes before the fix is
 testing nothing — that check is what proved T-2727's regression test
 load-bearing.
+
+---
+
+## STATUS: implemented once, reverted at the budget gate — re-apply, then fix ONE test
+
+Both defects were **reproduced and fixed** in a prior attempt; the change was
+reverted only because the budget gate reached critical with one pre-existing
+test red, and committing a red tree would trip the T-2686 release gate. The
+implementation below is known-good and took ~15 minutes. Re-apply it verbatim.
+
+**Confirmed failing output before the fix** (this is the reproduction, keep it):
+
+```
+strip_ansi_csi_non_alphabetic_final_byte   left: "ello"               right: "hello"
+strip_ansi_string_sequences_consume_payload left: "aq some payload b" right: "ab"
+```
+
+### The change, in four parts
+
+1. `crates/termlink-session/src/ansi.rs` — add
+   `fn is_csi_final(ch: char) -> bool { ('\x40'..='\x7e').contains(&ch) }` and
+   use it as the CSI break condition.
+2. Same file — widen the OSC arm to
+   `Some(']') | Some('P') | Some('X') | Some('^') | Some('_') =>`, so the
+   string sequences share OSC's run-to-ST discipline.
+3. `crates/termlink-session/src/lib.rs` — `pub(crate) mod ansi;` → `pub mod ansi;`,
+   and `strip_ansi_codes` → `pub`.
+4. `crates/termlink-cli/src/util.rs` — delete the local copy, replace with
+   `pub(crate) use termlink_session::ansi::strip_ansi_codes;`. Only one call
+   site consumes it (`commands/pty.rs:143`), so this is a small diff. Keep
+   duplicate regression tests in the CLI test module: if anyone reintroduces a
+   local copy, it must satisfy the same contract.
+
+### THE ONE THING THAT BIT ME — read before re-applying
+
+An existing test fails after the fix, and **it is the test that is wrong, not
+the fix**:
+
+```rust
+fn strip_ansi_bare_escape_consumed() {
+    assert_eq!(strip_ansi_codes("\x1bXrest"), "rest");   // ← now returns ""
+}
+```
+
+It was written to pin the catch-all "a bare two-character escape is consumed"
+behaviour, and picked `X` as an arbitrary unknown escape character. **`X` is not
+arbitrary: `ESC X` is SOS (Start Of String), 0x58** — a string sequence that
+runs to ST. With no ST in `"\x1bXrest"` the correct output is `""`, which is what
+the fixed implementation returns and what the new
+`strip_ansi_string_sequences_consume_payload` test already asserts for the
+unterminated-DCS case.
+
+Fix by choosing an escape that really is bare — `ESC 7` (DECSC, save cursor) or
+`ESC c` (RIS) — and leave a comment saying why `X` was replaced, so nobody
+"restores" it later:
+
+```rust
+// ESC 7 (DECSC) is a genuine two-character escape. Do NOT use ESC X here:
+// that is SOS, a string sequence consumed through ST (T-2728).
+assert_eq!(strip_ansi_codes("\x1b7rest"), "rest");
+```
+
+`cargo test -p termlink-session -p termlink` is then green (note the CLI crate's
+package name is **`termlink`**, not `termlink-cli` — `-p termlink-cli` errors
+with "did not match any packages"). Measured before the revert: 1078 + 174 + 438
+passing, with only `strip_ansi_bare_escape_consumed` red.
 
 ## Acceptance Criteria
 
