@@ -5,13 +5,13 @@ commit-cadence=19
 check-fabric-new-file=5
 pre-compact=1
 check-agent-dispatch=1
-check-project-boundary=104
-error-watchdog=74
-checkpoint=100
-check-tier0=85
-budget-gate=68
-check-active-task=67
-loop-detect=68
-audit-task-tools=67
+check-project-boundary=107
+error-watchdog=76
+checkpoint=102
+check-tier0=88
+budget-gate=70
+check-active-task=70
+loop-detect=70
+audit-task-tools=69
 
 
