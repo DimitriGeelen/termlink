@@ -167,9 +167,20 @@ mod tests {
         assert_eq!(strip_ansi_codes(input), expected);
     }
 
+    /// A genuine *bare* two-character escape: `ESC 7` is DECSC (save cursor),
+    /// which carries no payload and ends after its second byte.
+    ///
+    /// T-2728: this test previously used `ESC X` as an "arbitrary unknown"
+    /// escape, but `X` (0x58) is not arbitrary — it is SOS, a *string* sequence
+    /// consumed through ST, so the correct result is `""`, not `"rest"`. The
+    /// test was encoding the old catch-all "skip one character" bug. Do NOT
+    /// restore `ESC X` here; add it to
+    /// `strip_ansi_string_sequences_consume_payload` instead, where it belongs.
     #[test]
     fn strip_ansi_bare_escape_consumed() {
-        assert_eq!(strip_ansi_codes("\x1bXrest"), "rest");
+        assert_eq!(strip_ansi_codes("\x1b7rest"), "rest");
+        // ESC 8 (DECRC, restore cursor) — the other half of the pair.
+        assert_eq!(strip_ansi_codes("\x1b8rest"), "rest");
     }
 
     #[test]

@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-15T08:06:36Z
-last_update: 2026-08-15T08:18:58Z
+last_update: 2026-08-15T08:19:27Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -98,28 +98,24 @@ load-bearing.
 
 ---
 
-## STATUS: fix IS COMMITTED (2ec87688c). ONE test is red. Change one line and this is done.
+## STATUS: COMPLETE. Tree is green.
 
-**Do NOT re-apply the change below — it is already in the tree.** An earlier
-draft of this section said "reverted"; that was wrong. The revert was attempted
-and the budget gate blocked `git checkout` (only commit/push/handover are
-permitted at critical), so the work was committed instead, deliberately and
-with the red test named in the commit message.
+**Do NOT re-apply the change below — it is already in the tree.** This section
+is a record of what landed, kept so the diff can be reviewed against its intent.
 
-**The only outstanding work is the one-line test correction in "THE ONE THING
-THAT BIT ME" below.** Everything else is done and verified.
+The work landed across two commits because the context budget hit its critical
+gate mid-change:
 
-State at commit `2ec87688c`:
+- `2ec87688c` — both defects fixed, the two implementations consolidated, and
+  one pre-existing test (`strip_ansi_bare_escape_consumed`) left RED. The gate
+  blocks `git checkout` at critical, so the revert was impossible and the work
+  was committed deliberately, with the red test named in the commit message
+  rather than left to look finished.
+- this commit — corrected that one test. `ESC X` → `ESC 7`.
 
-- both defects fixed and their regression tests passing
-- the two implementations consolidated into one
-- `strip_ansi_bare_escape_consumed` RED — a pre-existing test whose expectation
-  was wrong (see below)
-- measured: 1078 + 174 + 438 passing, exactly 1 failing
-
-The "change, in four parts" section below is retained as a description of what
-landed, so the diff can be reviewed against its intent — not as instructions to
-repeat.
+Measured now: `cargo test -p termlink-session -p termlink` → **1078 + 174 + 439
+passing, 0 failing**. (At `2ec87688c` it was 1078 + 174 + 438 passing, exactly 1
+failing.)
 
 **Confirmed failing output before the fix** (this is the reproduction, keep it):
 
@@ -144,9 +140,9 @@ strip_ansi_string_sequences_consume_payload left: "aq some payload b" right: "ab
    duplicate regression tests in the CLI test module: if anyone reintroduces a
    local copy, it must satisfy the same contract.
 
-### THE ONE THING THAT BIT ME — read before re-applying
+### THE ONE THING THAT BIT ME — resolved, kept as the reasoning record
 
-An existing test fails after the fix, and **it is the test that is wrong, not
+An existing test failed after the fix, and **it was the test that was wrong, not
 the fix**:
 
 ```rust
@@ -163,36 +159,45 @@ the fixed implementation returns and what the new
 `strip_ansi_string_sequences_consume_payload` test already asserts for the
 unterminated-DCS case.
 
-Fix by choosing an escape that really is bare — `ESC 7` (DECSC, save cursor) or
-`ESC c` (RIS) — and leave a comment saying why `X` was replaced, so nobody
-"restores" it later:
+Fixed by choosing escapes that really are bare — `ESC 7` (DECSC, save cursor)
+and `ESC 8` (DECRC, restore cursor) — with a comment in the test saying why `X`
+was replaced, so nobody "restores" it later. `ESC X` did not simply move; it now
+lives in `strip_ansi_string_sequences_consume_payload`, asserting the *opposite*
+expectation, which is where an SOS case belongs.
 
-```rust
-// ESC 7 (DECSC) is a genuine two-character escape. Do NOT use ESC X here:
-// that is SOS, a string sequence consumed through ST (T-2728).
-assert_eq!(strip_ansi_codes("\x1b7rest"), "rest");
-```
+Note the CLI crate's package name is **`termlink`**, not `termlink-cli` —
+`-p termlink-cli` errors with "did not match any packages". The `## Verification`
+block below uses the correct name; the AC wording that said `termlink-cli` was
+itself wrong and is corrected.
 
-`cargo test -p termlink-session -p termlink` is then green (note the CLI crate's
-package name is **`termlink`**, not `termlink-cli` — `-p termlink-cli` errors
-with "did not match any packages"). Measured before the revert: 1078 + 174 + 438
-passing, with only `strip_ansi_bare_escape_consumed` red.
+**The generalisable lesson.** This test passed for as long as it existed while
+asserting behaviour the spec contradicts, because it was written from the
+implementation rather than from ECMA-48 — the author picked `X` meaning "some
+letter, nothing special", and the implementation agreed because it had the same
+gap. A test derived from the code under test cannot detect a defect the code
+already has. Same shape as T-2680 and T-2709: a guard whose verdict rests on an
+assumption about its input that nobody re-checked.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] CSI sequences terminate on the ECMA-48 final-byte range `0x40..=0x7E`,
+- [x] CSI sequences terminate on the ECMA-48 final-byte range `0x40..=0x7E`,
       not on `is_ascii_alphabetic()` — so `"\x1b[3~hello"` yields `"hello"`,
       not `"ello"`
-- [ ] DCS / SOS / PM / APC string sequences (`ESC P`, `ESC X`, `ESC ^`,
+- [x] DCS / SOS / PM / APC string sequences (`ESC P`, `ESC X`, `ESC ^`,
       `ESC _`) consume through their ST terminator instead of emitting the
       payload as text
-- [ ] BOTH implementations are fixed — `termlink-session/src/ansi.rs` and
-      `termlink-cli/src/util.rs` — since the divergence risk is the point
-- [ ] Regression tests covering tilde-final CSI, bracketed paste, and a DCS
+- [x] BOTH implementations are fixed — `termlink-session/src/ansi.rs` and
+      `termlink-cli/src/util.rs` — since the divergence risk is the point.
+      Satisfied by *removing* the divergence: `util.rs` now re-exports the
+      session implementation, so there is one implementation to fix
+- [x] Regression tests covering tilde-final CSI, bracketed paste, and a DCS
       payload exist in BOTH modules and FAIL against the pre-fix code
-- [ ] `cargo test -p termlink-session -p termlink-cli` reports no FAILED
+      (measured: `left: "ello"` / `left: "aq some payload b"`)
+- [x] `cargo test -p termlink-session -p termlink` reports no FAILED
+      (the CLI package is named `termlink`; the original AC's `-p termlink-cli`
+      does not resolve — corrected here rather than left to mislead)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -257,6 +262,20 @@ passing, with only `strip_ansi_bare_escape_consumed` red.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+# The suite must be green. Capture-first per L-387; the CLI package is named
+# `termlink`, not `termlink-cli`.
+out=$(cargo test -p termlink-session -p termlink 2>&1); ! echo "$out" | grep -q "FAILED"
+
+# There must be exactly ONE implementation. The whole reason both defects
+# survived is that a reader fixing one copy left the other wrong, so this
+# asserts the CLI re-exports rather than redefines.
+grep -q "pub(crate) use termlink_session::ansi::strip_ansi_codes" crates/termlink-cli/src/util.rs
+
+# `ESC X` must never be reinstated as a *bare-escape* expectation: it is SOS,
+# and asserting it yields "rest" is precisely the wrong-test this task fixed.
+# (It is legitimate elsewhere — the string-sequence test asserts it yields "".)
+! grep -qF 'x1bXrest"), "rest"' crates/termlink-session/src/ansi.rs
 
 ## RCA
 
