@@ -3173,3 +3173,9 @@ learnings:
   task: T-2743
   date: 2026-08-15
   context: Added via context agent
+- id: PL-346
+  learning: "A learning entry, however precise, is not prevention. PL-148 (2026-05-03, T-1458) named this bug class exactly: the missing build.rs, the frozen Cargo.toml version, why the obvious unit test is a tautology that cannot detect it, and the precise detection lever ('a version histogram matching the workspace Cargo.toml literal exactly'). It was accurate, specific, actionable — and the identical class recurred in a different crate 3.5 months later (T-2744, termlink-session recording 0.9.0 while the binary was at 0.11.720). A recorded learning only fires if an agent happens to read it while looking at the right crate; nothing made it load-bearing. Rule: when a learning describes a class that recurs SILENTLY (wrong answer, not an error), escalate it to a structural check in the same session it is written. Treat a second instance of a documented class as evidence the documentation was the wrong instrument, not as evidence that someone failed to read it."
+  source: P-001
+  task: T-2746
+  date: 2026-08-15
+  context: Added via context agent

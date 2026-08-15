@@ -801,3 +801,17 @@ decisions:
     date: 2026-08-13
     task: T-2676
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-094
+    decision: "Build the static check. Leave the three hand-copied `build.rs` files as they are."
+    scope: project
+    date: 2026-08-15
+    task: T-2746
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-095
+    decision: "Flag a crate whose only `env!(\"CARGO_PKG_VERSION\")` use is inside a test."
+    scope: project
+    date: 2026-08-15
+    task: T-2746
+    rationale: "Auto-captured from task file on completion"

@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2746: Guard: a crate reporting a user-visible version must carry the git derivation
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-15T20:31:34Z
+# ============================================================================
+
+task_id: T-2746
+task_name: "Guard: a crate reporting a user-visible version must carry the git derivation"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-15T19:41:53Z
+completed: 2026-08-15T20:28:28Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  G-019 prevention for T-2744: nothing detects a crate whose user-visible version comes from Cargo.toml because it lacks the build.rs derivation its siblings carry
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-version-derivation.sh` exists, carries the `# guard-layer: source`'
+  - 'The check FIRES (exit 1) on a crate that reads `env!("CARGO_PKG_VERSION")` but has'
+  - 'Control (PL-219): a crate that never reads the version and has no `build.rs` does'
+  - 'Allowlist at `.context/checks/version-derivation-allowlist` (git-tracked per'
+  - '`bash tests/version-derivation-check-fixtures.sh` passes and is hermetic — no'
+  - '`bash scripts/run-guard-layer.sh` lists the new check as a member and reports it'
+  - 'The shared-build-dependency-crate alternative is decided in `## Decisions` with'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-08-15 — Static check, not a shared build-dependency crate'
+    chose: 'Build the static check. Leave the three hand-copied `build.rs` files as they are.'
+    rationale: 'The Context of this task framed these as alternatives and leaned toward'
+    alternatives_rejected: ['A `termlink-build-version` build-dependency crate. Not wrong, just']
+  - decision: '2026-08-15 — A test-only read counts as a read'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 46 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 46
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2746-guard-a-crate-reporting-a-user-visible-v.md
+generated_by: context-agent-hybrid
