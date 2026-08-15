@@ -94,6 +94,11 @@ pub(crate) enum Command {
         #[arg(long)]
         cap: Option<String>,
 
+        /// Show only sessions registered by an older binary than this one
+        /// (a session with no recorded version counts as stale)
+        #[arg(long)]
+        stale_binary: bool,
+
         /// Only print the session count (useful for scripting)
         #[arg(long)]
         count: bool,

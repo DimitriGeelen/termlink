@@ -4,10 +4,10 @@ name: "Stale-binary session detector — termlink list --stale-binary"
 description: >
   Herdr rank 12, rescoped: now that T-2744 makes metadata.termlink_version record the real build version, a --stale-binary filter over it is finally meaningful
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-15T19:40:24Z
-last_update: 2026-08-15T19:40:24Z
+last_update: 2026-08-15T19:47:01Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -81,8 +81,38 @@ Design decisions worth keeping from the original scoping:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+> **LOAD-BEARING PROOF (2026-08-15).** Replacing the numeric comparison in
+> `is_stale_binary` with a string compare fails **5** tests. The decisive one is
+> `filter_stale_binary_retains_only_older_sessions`, which returns
+> `left: ["current", "unrecorded"]` against `right: ["old", "unrecorded"]` — the
+> string compare does not merely miss the stale session, it **inverts** the
+> answer, keeping the current one and dropping the stale one. That is the
+> real-world harm the numeric parse prevents, not a stylistic preference.
+> `version_parses_into_comparable_numbers` correctly stays green (the parser is
+> untouched), which is what makes the other five meaningful. Restoring returns
+> the crate to 1114/1114, the guard layer to 28/28, and the tree to zero diff.
+>
+> **MEASURED live.** Against the real runtime dir the command lists 37 sessions,
+> every one `registered by 0.9.0` against reference `0.11.1361` — the T-2744
+> defect visible in the field, which is exactly what this detector is for.
+> `--json` carries `reference_version: 0.11.1361` and `stale_binary: true`;
+> without the flag the envelope keys are still exactly `['ok','sessions']`.
+
+- [x] `termlink list --stale-binary` retains only sessions whose recorded `termlink_version` is older than the running binary's — a pure read, no new data collected and no state mutated
+- [x] A session with no recorded version counts as stale (T-2359's precedent: a peer too old to report its version *is* the staleness class); treating absent as current would pass exactly the oldest sessions
+- [x] Version comparison is a tested pure helper over numeric `major.minor.patch`, so `0.11.9` orders before `0.11.1346` — the case a string compare gets backwards
+- [x] An unparseable version is treated as stale rather than silently skipped, and that choice is stated in the helper (a version we cannot read is not a version we can vouch for)
+- [x] Text output names both the session's version and the reference version, so the operator can act without a second command
+- [x] JSON output carries the reference version at the envelope level and is a strict superset of the existing shape — no field removed or renamed
+- [x] Negative coverage: an all-current fleet reports nothing and says so affirmatively, and a session newer than the running binary is not reported (PL-219 — the filter must be able to not fire)
+- [x] The lineage caveat is stated where a reader hits it: patch is commits-since-tag, so comparison holds within one build lineage
+- [x] Load-bearing proof recorded: replacing the numeric comparison with a string compare fails a test
+
+Beyond the stated scope, the empty-result path distinguishes "no sessions exist"
+from "sessions exist and are all current". Saying *"every session was registered
+by X or newer"* on an empty fleet is vacuously true and reads as a clean bill of
+health for something that was never checked — the same misreporting shape this
+whole rank-12 arc exists to correct.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -147,6 +177,9 @@ Design decisions worth keeping from the original scoping:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+cargo test -p termlink --bins
+bash scripts/run-guard-layer.sh
 
 ## RCA
 
@@ -215,3 +248,7 @@ Design decisions worth keeping from the original scoping:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2745-stale-binary-session-detector--termlink-.md
 - **Context:** Initial task creation
+
+### 2026-08-15T19:47:01Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

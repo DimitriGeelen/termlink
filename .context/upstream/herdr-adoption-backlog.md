@@ -41,6 +41,18 @@ anything in this section.**
 > and filed separately per one-bug-one-task.
 > Remaining: **12, 13, 20–23**; **18 and 19 are `owner: human`**.
 >
+> **Rank 12's premise was wrong and it is now split.** Scoping it found that
+> `metadata.termlink_version` — the field the item calls "data we already have" —
+> recorded `termlink-session`'s Cargo.toml constant `0.9.0` on every build ever
+> made, because that crate lacked the `build.rs` git derivation `termlink-cli`
+> and `termlink-mcp` both carry. A detector over it would have compared a
+> constant and answered "all stale" or "none stale" forever while looking
+> healthy. **T-2744** fixed the field (measured: a probe session now records
+> `0.11.1359`, matching `termlink --version` exactly); **T-2745** carries the
+> detector with the corrected premise; **T-2746** covers the class — nothing
+> detects the next crate that surfaces a version without the derivation.
+> Read T-2745's Context before picking rank 12 up.
+>
 > **11 and 17 closed as one task, as this banner predicted.** 17 asks for a test
 > of the survival property and 11 fixes the platform on which that property
 > silently did not hold — a guard cannot be added for a property that is false,

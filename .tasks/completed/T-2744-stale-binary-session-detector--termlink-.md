@@ -4,20 +4,20 @@ name: "Session metadata records a frozen termlink_version, not the build version
 description: >
   Session metadata records a frozen termlink_version, not the build version
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-session/src/registration.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-15T19:30:28Z
-last_update: 2026-08-15T19:40:04Z
-date_finished: null
+last_update: 2026-08-15T19:43:02Z
+date_finished: 2026-08-15T19:43:02Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -256,3 +256,6 @@ mitigated but not prevented is still open (G-019).
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2744-stale-binary-session-detector--termlink-.md
 - **Context:** Initial task creation
+
+### 2026-08-15T19:43:02Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
