@@ -3185,3 +3185,9 @@ learnings:
   task: T-2750
   date: 2026-08-15
   context: Added via context agent
+- id: PL-348
+  learning: "A guard that measures per-entity SIZE is structurally blind to entity-COUNT growth. TermLink had two topic-growth canaries (T-2252 at 5000 records, T-2562 at 50000) and neither could see 771 topics holding 13705 records total — 18 each, tripping nothing. The same split applies to rows-per-table vs table-count, files-per-dir vs dir-count, records-per-queue vs queue-count. When adding a size guard, ask explicitly whether the population being sized is itself bounded."
+  source: P-001
+  task: T-2755
+  date: 2026-08-15
+  context: Added via context agent
