@@ -3161,3 +3161,9 @@ learnings:
   task: T-2723
   date: 2026-08-15
   context: Added via context agent
+- id: PL-344
+  learning: "When the same low-level question is answered independently on several surfaces (detect / restore / render of the same escape sequences), a correct answer on one surface does not propagate: T-2731 handled all three alt-screen DECSET variants on the restore path and wrote down why, while the detect path (T-2738) and the mirror render path (T-2739) each handled one. Nothing links them, so each omission had to be found by hand. When fixing a protocol-level omission, grep the whole tree for other sites that answer the same question BEFORE closing — the knowledge is often already in the tree, just not where it is needed."
+  source: P-001
+  task: T-2739
+  date: 2026-08-15
+  context: Added via context agent
