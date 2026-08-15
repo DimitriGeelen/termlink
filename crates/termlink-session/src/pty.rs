@@ -487,15 +487,86 @@ impl PtySession {
     }
 }
 
+/// Outcome of attempting to reap a child process (T-2737).
+///
+/// Deliberately three-valued rather than a bool: "reaped", "somebody else
+/// already reaped it", and "the budget ran out and a zombie survives" are
+/// three different facts, and only the third is worth warning about.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum ReapOutcome {
+    /// `waitpid` returned the child — no zombie remains.
+    Reaped,
+    /// `waitpid` reported no such child: already reaped elsewhere (e.g. by
+    /// `PtySession::wait`), or never ours to begin with.
+    NoChild,
+    /// The budget elapsed with the child still unreaped — a zombie survives.
+    TimedOut { waited_ms: u64 },
+}
+
+/// How long `drop` will wait for a SIGKILLed child to become reapable.
+///
+/// SIGKILL is not instantaneous: the kernel must schedule the target, tear its
+/// address space down, and re-parent/notify before the child is in a state
+/// `waitpid` can collect. That is normally sub-millisecond, but it is never
+/// zero — which is exactly why the pre-T-2737 single `WNOHANG` call reaped
+/// nothing. 100ms is far above the observed cost of a normal teardown while
+/// still bounding `drop`, which may run on a runtime worker thread.
+const REAP_BUDGET: std::time::Duration = std::time::Duration::from_millis(100);
+
+/// Reap `pid`, retrying `WNOHANG` until the child is collectable or `budget`
+/// elapses (T-2737).
+///
+/// `WNOHANG` asks "is the child reapable *right now*", so a single call issued
+/// immediately after `SIGKILL` reliably answers "no" and collects nothing. The
+/// retry is what makes the reap actually happen. Poll interval starts fine and
+/// backs off, so the common case (child already gone) costs one syscall and the
+/// slow case does not spin.
+pub(crate) fn reap_child_bounded(
+    pid: libc::pid_t,
+    budget: std::time::Duration,
+) -> ReapOutcome {
+    let start = std::time::Instant::now();
+    let mut interval = std::time::Duration::from_micros(200);
+    loop {
+        let mut status: libc::c_int = 0;
+        let ret = unsafe { libc::waitpid(pid, &mut status, libc::WNOHANG) };
+        if ret > 0 {
+            return ReapOutcome::Reaped;
+        }
+        if ret < 0 {
+            // ECHILD (already reaped / not ours) or EINVAL — either way there
+            // is nothing here for us to collect, so do not burn the budget.
+            return ReapOutcome::NoChild;
+        }
+        // ret == 0: alive but not yet reapable. Keep trying until the budget.
+        let elapsed = start.elapsed();
+        if elapsed >= budget {
+            return ReapOutcome::TimedOut {
+                waited_ms: elapsed.as_millis() as u64,
+            };
+        }
+        std::thread::sleep(interval.min(budget - elapsed));
+        interval = (interval * 2).min(std::time::Duration::from_millis(5));
+    }
+}
+
 impl Drop for PtySession {
     fn drop(&mut self) {
         let pid = self.child_pid as libc::pid_t;
+        // Kill child to ensure PTY device is released promptly.
         unsafe {
-            // Kill child to ensure PTY device is released promptly
             libc::kill(pid, libc::SIGKILL);
-            // Reap to avoid zombie processes
-            let mut status: libc::c_int = 0;
-            libc::waitpid(pid, &mut status, libc::WNOHANG);
+        }
+        // Then actually reap it. A single WNOHANG here would return before the
+        // kernel had finished killing the child, leaving a zombie per session
+        // for the life of a long-running host (T-2737).
+        if let ReapOutcome::TimedOut { waited_ms } = reap_child_bounded(pid, REAP_BUDGET) {
+            // Directive #2 — a leaked zombie is a failure, not a no-op.
+            tracing::warn!(
+                child_pid = pid,
+                waited_ms,
+                "PTY child not reapable within budget — zombie survives until this process exits"
+            );
         }
     }
 }
@@ -505,6 +576,90 @@ mod tests {
     use super::*;
 
     use crate::test_util::PTY_LOCK;
+
+    /// Spawn a real child that lives for `secs` and return its pid.
+    ///
+    /// `std::process::Child::drop` does not wait, so nothing reaps this behind
+    /// the tests' back — the raw `waitpid` calls below are the only reaper.
+    fn spawn_sleeper(secs: &str) -> (std::process::Child, libc::pid_t) {
+        let child = std::process::Command::new("sleep")
+            .arg(secs)
+            .spawn()
+            .expect("sleep is available");
+        let pid = child.id() as libc::pid_t;
+        (child, pid)
+    }
+
+    fn wnohang_once(pid: libc::pid_t) -> libc::c_int {
+        let mut status: libc::c_int = 0;
+        unsafe { libc::waitpid(pid, &mut status, libc::WNOHANG) }
+    }
+
+    /// T-2737 (load-bearing, deterministic): the reap must actually WAIT.
+    ///
+    /// The child is alive for ~50ms and is never signalled, so at call time it
+    /// is definitively not reapable. A single `WNOHANG` — the pre-T-2737 shape
+    /// — returns 0 and collects nothing; only the retry loop reaps it. This
+    /// test does not depend on kill-delivery timing, so reverting
+    /// `reap_child_bounded` to one `WNOHANG` fails it every run, not sometimes.
+    #[test]
+    fn bounded_reap_waits_for_a_child_that_exits_later() {
+        let (_child, pid) = spawn_sleeper("0.05");
+
+        assert_eq!(
+            wnohang_once(pid),
+            0,
+            "precondition: a live child is not reapable, so WNOHANG yields 0"
+        );
+
+        let outcome = reap_child_bounded(pid, std::time::Duration::from_secs(2));
+        assert_eq!(
+            outcome,
+            ReapOutcome::Reaped,
+            "a 2s budget must outlast a 50ms sleeper"
+        );
+    }
+
+    /// T-2737: the case `drop` actually hits — reap a child killed a moment ago.
+    #[test]
+    fn bounded_reap_collects_a_killed_child() {
+        let (_child, pid) = spawn_sleeper("30");
+        unsafe { libc::kill(pid, libc::SIGKILL) };
+
+        assert_eq!(
+            reap_child_bounded(pid, std::time::Duration::from_secs(2)),
+            ReapOutcome::Reaped
+        );
+        assert!(
+            wnohang_once(pid) < 0,
+            "after a successful reap the child is gone: waitpid must report ECHILD"
+        );
+    }
+
+    /// T-2737: the timeout arm is reachable, so it is not dead code.
+    #[test]
+    fn bounded_reap_times_out_against_a_live_child() {
+        let (mut child, pid) = spawn_sleeper("30");
+
+        match reap_child_bounded(pid, std::time::Duration::ZERO) {
+            ReapOutcome::TimedOut { .. } => {}
+            other => panic!("a live child with no budget must time out, got {other:?}"),
+        }
+
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+
+    /// T-2737: a pid that is not our child is `NoChild`, never a timeout —
+    /// otherwise `drop` would burn its whole budget on an already-reaped child.
+    #[test]
+    fn bounded_reap_reports_no_child_for_a_foreign_pid() {
+        // pid 1 is never a child of the test process. No signal is sent.
+        assert_eq!(
+            reap_child_bounded(1, std::time::Duration::from_secs(2)),
+            ReapOutcome::NoChild
+        );
+    }
 
     /// T-2727: a freshly spawned PTY must report a usable window size.
     ///
