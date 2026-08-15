@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2739: mirror_grid renders alt-screen output into the primary buffer — DECSET handler matches 1049 only
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-15T14:18:33Z
+# ============================================================================
+
+task_id: T-2739
+task_name: "mirror_grid renders alt-screen output into the primary buffer — DECSET handler matches 1049 only"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-15T14:08:16Z
+completed: 2026-08-15T14:16:31Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  mirror_grid renders alt-screen output into the primary buffer — DECSET handler matches 1049 only
+
+# Key outcomes
+outcomes:
+  - 'The DECSET handler treats `47`, `1047` and `1049` as alternate-screen switches for both `h` and `l`'
+  - 'Entering via `?47h` leaves the primary buffer intact — content drawn afterwards does not appear in it'
+  - 'Entering via `?1047h` leaves the primary buffer intact'
+  - 'Leaving via the matching variant restores the primary buffer verbatim (cells and cursor)'
+  - 'None of the three variants increments `unhandled_csi` any more — they are handled, not merely tolerated'
+  - 'A negative test proves `?1048h` is still NOT treated as an alt-screen switch'
+  - 'The known simplification — all three exit codes leave the alt screen, where a real terminal pairs them — is documented in the code and pinned by a test, so it is a stated choice rather than an accident'
+  - 'Load-bearing proof recorded: reverting the match arm to `1049` alone fails the named tests, restoring returns the tree to green with no residue'
+  - '`cargo test -p termlink --bins commands::mirror_grid` green'
+  - '`scripts/run-guard-layer.sh` clean'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 8
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2739-mirrorgrid-renders-alt-screen-output-int.md
+generated_by: context-agent-hybrid

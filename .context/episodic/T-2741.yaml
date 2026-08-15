@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2741: Preflight remediation strings tell operators to cargo build when we publish binaries and a Homebrew formula
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-15T14:36:04Z
+# ============================================================================
+
+task_id: T-2741
+task_name: "Preflight remediation strings tell operators to cargo build when we publish binaries and a Homebrew formula"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-15T14:30:30Z
+completed: 2026-08-15T14:34:34Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Preflight remediation strings tell operators to cargo build when we publish binaries and a Homebrew formula
+
+# Key outcomes
+outcomes:
+  - 'The "termlink not on PATH" remediation leads with the published artifacts (Homebrew tap + GitHub Releases) and keeps the from-source build as the alternative'
+  - 'The "version unparseable" remediation does the same'
+  - 'The "binary older than VERSION" remediation still leads with `cargo build`, because a git-derived VERSION is generally unreleased — and says why, so the asymmetry with the other two reads as deliberate'
+  - 'The Homebrew command matches README exactly (`brew tap DimitriGeelen/termlink` then `brew install termlink`) — no invented formula name'
+  - 'No remediation string recommends an install path that cannot satisfy the condition that triggered it'
+  - '`bash -n scripts/substrate-preflight.sh` parses and the preflight fixture suite still passes'
+  - '`bash scripts/run-guard-layer.sh` clean'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2741-preflight-remediation-strings-tell-opera.md
+generated_by: context-agent-hybrid

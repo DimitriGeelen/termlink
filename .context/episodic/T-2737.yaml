@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2737: PtySession::drop leaves a zombie — WNOHANG cannot reap a child killed microseconds earlier
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-15T13:59:18Z
+# ============================================================================
+
+task_id: T-2737
+task_name: "PtySession::drop leaves a zombie — WNOHANG cannot reap a child killed microseconds earlier"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-15T13:51:42Z
+completed: 2026-08-15T13:57:50Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  PtySession::drop leaves a zombie — WNOHANG cannot reap a child killed microseconds earlier
+
+# Key outcomes
+outcomes:
+  - '`reap_child_bounded(pid, budget)` exists in `pty.rs` and retries `WNOHANG` until the child is reaped or the budget elapses'
+  - 'It returns a `ReapOutcome` that distinguishes `Reaped` / `NoChild` / `TimedOut { waited_ms }` — the three outcomes are not collapsed into a bool'
+  - '`PtySession::drop` calls it in place of the single `WNOHANG`, with a named budget constant carrying its rationale'
+  - '`TimedOut` is not silent: it emits a `tracing::warn!` naming the pid and the elapsed budget (Directive #2 — a leaked zombie is a failure, not a no-op)'
+  - 'A test spawns a real child, kills it, and proves `reap_child_bounded` reaps it — a following `waitpid` reports `ECHILD`'
+  - 'A test proves the pre-fix shape is wrong: a single immediate `WNOHANG` after `SIGKILL` returns 0 (child not reaped) where the bounded reap succeeds on the same child'
+  - 'A test covers the `TimedOut` arm (zero budget against a live child) so the arm is not dead code'
+  - 'A test covers the `NoChild` arm (a pid that is not our child)'
+  - 'Load-bearing proof recorded: temp-reverting the reap to the single-`WNOHANG` shape fails `bounded_reap_waits_for_a_child_that_exits_later` and `bounded_reap_collects_a_killed_child`; restoring returns the tree to green with no residue in `git diff`'
+  - '`cargo test -p termlink-session` green and `scripts/run-guard-layer.sh` clean'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2737-ptysessiondrop-leaves-a-zombie--wnohang-.md
+generated_by: context-agent-hybrid
