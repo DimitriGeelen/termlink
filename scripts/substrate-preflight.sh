@@ -545,7 +545,7 @@ check_binary_freshness() {
     if ! command -v termlink >/dev/null 2>&1; then
         emit_check "binary" "medium" "warn" \
             "termlink not on PATH — catalog flags won't resolve" \
-            "cargo build --release && install -m 755 target/release/termlink ~/.cargo/bin/"
+            "brew tap DimitriGeelen/termlink && brew install termlink (macOS), or download a release binary from GitHub Releases; from source: cargo build --release && install -m 755 target/release/termlink ~/.cargo/bin/"
         return
     fi
     local binary_version
@@ -553,7 +553,7 @@ check_binary_freshness() {
     if [ -z "$binary_version" ]; then
         emit_check "binary" "medium" "warn" \
             "termlink --version returned no parseable version" \
-            "Reinstall: cargo build --release && install -m 755 target/release/termlink ~/.cargo/bin/"
+            "Reinstall: brew tap DimitriGeelen/termlink && brew install termlink (macOS), or download a release binary from GitHub Releases; from source: cargo build --release && install -m 755 target/release/termlink ~/.cargo/bin/"
         return
     fi
 
@@ -566,7 +566,7 @@ check_binary_freshness() {
         else
             emit_check "binary" "medium" "warn" \
                 "termlink $binary_version older than project VERSION $repo_version — catalog features may surface as 'unknown flag' / 'unrecognized subcommand'" \
-                "cargo build --release && install -m 755 target/release/termlink ~/.cargo/bin/"
+                "cargo build --release && install -m 755 target/release/termlink ~/.cargo/bin/ (build from source, NOT brew/releases: VERSION is git-derived, so unless $repo_version is a published tag no release artifact carries it and installing one would leave this check firing)"
         fi
     else
         emit_check "binary" "medium" "pass" \
