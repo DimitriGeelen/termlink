@@ -1,0 +1,91 @@
+---
+id: U-009
+title: "CTL-010 reports the Tier-0 bypass log 'empty' while it holds 15 authorizations, and cannot fail once the file exists"
+created: 2026-08-15T06:55:00Z
+source_project: 010-termlink
+source_task: T-2724
+status: pending
+severity: high
+component: "agents/audit/audit.sh (CTL-010) + agents/context/check-tier0.sh + agents/git/lib/bypass.sh"
+context: |
+  A full `fw audit` prints, as a PASS:
+
+      [PASS] CTL-010: Bypass log exists but empty (no bypasses detected)
+
+  The file it is describing, `.context/bypass-log.yaml`, is 6786 bytes and
+  contains 15 Tier-0 authorization records — force pushes and `pkill -9` among
+  them. The line is not a summary that lost detail; it is false about the
+  highest-privilege audit trail the framework keeps.
+evidence: |
+  Two writers share `.context/bypass-log.yaml` with incompatible schemas:
+
+    agents/git/lib/bypass.sh:103           -> writes `commit: $commit`
+                                              (the --no-verify path)
+    agents/context/check-tier0.sh:265,371  -> writes timestamp / tier / risk /
+                                              command_preview / command_hash /
+                                              authorized_by / mechanism
+                                              (the Tier-0 approval path)
+
+  CTL-010 counts one of them:
+
+      bypass_count=$(grep -c "commit:" "$BYPASS_LOG")
+
+  Measured on this repo:
+
+      grep -c "commit:"        -> 0
+      grep -c '^- timestamp:'  -> 15
+      keys present             -> authorized_by, command_hash, command_preview,
+                                  mechanism, risk, tier      (no `commit`)
+
+  So every Tier-0 entry is invisible to the check that reads its file.
+
+  SECOND, INDEPENDENT DEFECT — the check cannot fail. Both arms of the count
+  test are `pass`:
+
+      if [ "$bypass_count" -gt 0 ]; then
+          pass "CTL-010: Bypass log has $bypass_count entries ..."
+      else
+          pass "CTL-010: Bypass log exists but empty ..."
+      fi
+
+  Once the file exists, no content produces anything but PASS. The only path
+  that can warn is the `else` branch where the file is absent entirely. A
+  detective control whose verdict is independent of the data it reads is
+  decorative, and it reads as coverage that is not there.
+
+  SCOPE, stated fairly: CTL-010's header says "--no-verify commits appear in
+  bypass-log", so counting `commit:` matches its narrower intent. The finding is
+  not that it was meant to count Tier-0 entries. It is that (a) the message it
+  prints makes a claim about the whole file that is false, and (b) it has no
+  failing outcome. Either alone would be minor; together they turn the Tier-0
+  trail into a surface that reports clean by construction.
+suggestion: |
+  1. Fix the message before anything else — it is the part that actively
+     misleads. Count entries generically (`- timestamp:`, or parse the YAML) and
+     report what is actually in the file. If the check wants to stay scoped to
+     --no-verify, then say so in the text: "N --no-verify entries (M other
+     entries present)" rather than "empty (no bypasses detected)".
+
+  2. Give the check a failing outcome, or retire it. If a growing Tier-0 log is
+     expected and not itself alarming, then the useful signal is a rate or a
+     recency window — e.g. warn on Tier-0 approvals in the last N days, mirroring
+     the enforcement section's existing 7-day gate-bypass window. A check that
+     only ever passes should not occupy a CTL slot.
+
+  3. Consider whether one file should carry two schemas at all. `.context/
+     bypass-log.yaml` (Tier-0 approvals + --no-verify) and `.context/working/
+     .gate-bypass-log.yaml` (Tier-2 gate overrides) already split by tier; the
+     remaining collision is inside the first file. Separate files, or a
+     discriminator field every writer sets, would make any future counter
+     correct by construction rather than by remembering.
+related_learning: |
+  Same shape as U-003, U-006, and the local T-2680 / T-2709 findings, and this
+  is the most consequential instance: a guard whose verdict rests on an
+  assumption about its input that no longer holds, reporting PASS.
+
+  The distinguishing feature here is that the check reads a file it does not
+  understand and describes it anyway. A guard that summarises a file should
+  either parse its schema or describe only the subset it matched — never
+  generalise a partial match into a statement about the whole ("empty", "no
+  bypasses detected"). That phrasing is what converts a scoping limitation into
+  a false assurance about Tier-0.
