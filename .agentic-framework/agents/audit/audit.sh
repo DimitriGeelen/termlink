@@ -446,6 +446,33 @@ info() {
     FINDINGS+=("INFO|$1|")
 }
 
+# T-2714: resolve a git hook path correctly in BOTH a normal checkout and a
+# linked worktree. In a worktree `.git` is a FILE, not a directory, so the
+# literal "$PROJECT_ROOT/.git/hooks/<name>" can NEVER exist and every hook
+# check reported a false negative — including C-002, which claimed a live
+# safety gate was missing while it was installed and enforcing.
+# `git rev-parse --git-path` resolves both layouts and also honours
+# core.hooksPath, so the checks verify rather than skip.
+#
+# MUST live at top level, NOT inside a `should_run_section` block: the hook
+# checks are spread across the `enforcement`, `oe-research`, and `oe-daily`
+# sections, and `--section oe-daily` alone would otherwise call an undefined
+# function and silently resolve to the empty string — a false WARN with a
+# blank Evidence line. (Found exactly that way; a full run masked it because
+# `enforcement` happens to define it first.)
+_resolve_hook_path() { # $1 = hook name → absolute path (may not exist)
+    local _p
+    _p=$(git -C "$PROJECT_ROOT" rev-parse --git-path "hooks/$1" 2>/dev/null) || _p=""
+    if [ -z "$_p" ]; then
+        printf '%s\n' "$PROJECT_ROOT/.git/hooks/$1"
+        return
+    fi
+    case "$_p" in
+        /*) printf '%s\n' "$_p" ;;
+        *)  printf '%s\n' "$PROJECT_ROOT/$_p" ;;
+    esac
+}
+
 # --- New Project Grace Period (T-301) ---
 # Detect new projects: <5 commits and no handover → suppress known day-1 noise
 IS_NEW_PROJECT=false
@@ -2388,26 +2415,6 @@ if [ -f "$GATE_BYPASS_LOG" ]; then
 else
     pass "Gate-bypass log: clean (no bypasses recorded)"
 fi
-
-# T-2714: resolve a git hook path correctly in BOTH a normal checkout and a
-# linked worktree. In a worktree `.git` is a FILE, not a directory, so the
-# literal "$PROJECT_ROOT/.git/hooks/<name>" can NEVER exist and every hook
-# check reported a false negative — including C-002, which claims a live
-# safety gate is missing while it is installed and enforcing.
-# `git rev-parse --git-path` resolves both layouts and also honours
-# core.hooksPath, so the checks now verify rather than skip.
-_resolve_hook_path() { # $1 = hook name → absolute path (may not exist)
-    local _p
-    _p=$(git -C "$PROJECT_ROOT" rev-parse --git-path "hooks/$1" 2>/dev/null) || _p=""
-    if [ -z "$_p" ]; then
-        printf '%s\n' "$PROJECT_ROOT/.git/hooks/$1"
-        return
-    fi
-    case "$_p" in
-        /*) printf '%s\n' "$_p" ;;
-        *)  printf '%s\n' "$PROJECT_ROOT/$_p" ;;
-    esac
-}
 
 # Check for commit-msg hook (validates task references)
 _commit_msg_hook=$(_resolve_hook_path commit-msg)

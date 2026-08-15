@@ -1,12 +1,18 @@
-# Audit Results - 2026-08-15-0741
-timestamp: 2026-08-15T05:41:06Z
-sections: "oe-hourly"
+# Audit Results - 2026-08-15-0743
+timestamp: 2026-08-15T05:43:19Z
+sections: "oe-research"
 summary:
-  pass: 2
+  pass: 5
   warn: 0
   fail: 0
 findings:
   - level: PASS
-    check: "CTL-008: Task reference traceability 100% (0/20 without T-XXX)"
-  - level: INFO
-    check: "CTL-020 skipped — linked worktree (cron audits are host-level, produced from the main checkout)"
+    check: "C-001: All 12 active inceptions have research artifacts"
+  - level: PASS
+    check: "C-002: commit-msg hook has research artifact check"
+  - level: PASS
+    check: "C-002: No research warnings logged (clean or first run)"
+  - level: PASS
+    check: "C-003: Research checkpoint logic present in checkpoint.sh"
+  - level: PASS
+    check: "C-006: All active inceptions have a real Recommendation block"
