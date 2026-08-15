@@ -34,7 +34,7 @@ before anyone notices (PL-021 / G-058 class).
 
 | # | Check | Severity | Why |
 |---|-------|----------|-----|
-| 1 | `TERMLINK_RUNTIME_DIR` NOT on /tmp | HIGH | PL-021: hub regenerates secret + TLS cert every reboot. Two volatile mechanisms detected: tmpfs mount AND systemd-tmpfiles D-rule wipe (the rule that looks innocent in `mount` output but still nukes /tmp on boot — T-1294). |
+| 1 | resolved `runtime_dir` NOT on a volatile filesystem | HIGH | PL-021: hub regenerates secret + TLS cert every reboot. **T-2729:** the directory is resolved by the binary's own four-step order (`discovery.rs:10-26` — `TERMLINK_RUNTIME_DIR`, `XDG_RUNTIME_DIR/termlink`, `TMPDIR/termlink-$UID`, `/tmp/termlink-$UID`), and volatility is decided by the actual mount type, not the path spelling. Two mechanisms detected: a memory-backed filesystem (tmpfs/ramfs, **wherever mounted** — `/run/user/<uid>` is the common one, and it dies at *logout*, not merely reboot) AND systemd-tmpfiles D-rule wipe (the rule that looks innocent in `mount` output but still nukes /tmp on boot — T-1294). A PASS names the path and filesystem so you can tell a verified PASS from an unexamined one. |
 | 2 | `~/.termlink/hubs.toml` present + has `[hubs.*]` sections | MEDIUM | Without it, every heal path (T-1054/T-1055/T-1291) fails; fleet verbs (fleet doctor, fleet verify, fleet history) all return "no profiles". |
 | 3 | `~/.termlink/be-reachable.state` PID alive | MEDIUM | If pid is dead, pickup loops, agent contact, and DM receipts all look healthy at registration time but the listener is gone. Catches the "I forgot to `/be-reachable` again after reboot" footgun. |
 | 4 | `termlink --version` >= project root `VERSION` | MEDIUM | T-2181: catches stale-CLIENT footgun where catalog promises flags like `--only-stuck` (T-2076) or subcommands like `fleet governor-status` (T-2062) that an older binary refuses with `unknown flag`. WARN-only — substrate still works for primitives the binary has. Skipped silently outside the project tree (no `VERSION` file). Remediation: `cargo build --release && install -m 755 target/release/termlink ~/.cargo/bin/`. |
@@ -115,7 +115,15 @@ contextual pointers depending on which check tripped:
 **Check 1 (runtime_dir) failed:** PL-021 territory. Point at:
 - `docs/operations/termlink-hub-runtime-migration.md` — systemd-launched hub fix
 - CLAUDE.md §"Hub Auth Rotation Protocol" → "Special case — volatile runtime_dir" — watchdog-launched hub fix
-- Diagnostic: `mount | grep ' /tmp '` + `cat /usr/lib/tmpfiles.d/tmp.conf`
+- Diagnostic: the message names the resolved path and its filesystem — start
+  there, not with a fixed command. To confirm by hand:
+  `mount | grep -E "on (/tmp|/run/user/[0-9]+) "` (tmpfs?) and, only if the path
+  is under `/tmp` or `/var/tmp`, `cat /usr/lib/tmpfiles.d/tmp.conf
+  /etc/tmpfiles.d/*.conf` (D-rule wipe?).
+- **Do not reach for the `/tmp`-only diagnostic first.** Since T-2729 the most
+  common firing case is `/run/user/<uid>` — a tmpfs systemd destroys at the
+  user's last logout — against which grepping `/tmp` prints nothing and reads
+  as "no problem found", arguing the check was wrong when it was right.
 
 **Check 2 (hubs.toml) failed:** No declared profiles. Point at:
 - `termlink remote profile add <name> <addr>` to declare a hub
