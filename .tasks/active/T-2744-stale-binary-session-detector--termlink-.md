@@ -1,8 +1,8 @@
 ---
 id: T-2744
-name: "Stale-binary session detector — termlink sessions --stale-binary"
+name: "Session metadata records a frozen termlink_version, not the build version"
 description: >
-  Stale-binary session detector — termlink sessions --stale-binary
+  Session metadata records a frozen termlink_version, not the build version
 
 status: started-work
 workflow_type: build
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-15T19:30:28Z
-last_update: 2026-08-15T19:30:28Z
+last_update: 2026-08-15T19:33:11Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,32 +34,35 @@ date_finished: null
 
 ## Context
 
-Herdr adoption backlog rank 12 (worker 4, R1 subset). The proportionate part of
-herdr's `update --handoff` insight: a session daemon needs *a* story for its
-binary being replaced while it holds live processes. The full fd-passing handoff
-is weeks of work and is explicitly not proposed. But `metadata.termlink_version`
-is already written at registration (`registration.rs:220`, `:286`) and nothing
-ever reads it back, so the detection half is a pure read over data already on
-disk — T-2359's version-floor pattern applied one tier down, at the session
-rather than the hub.
+Found while scoping herdr adoption backlog rank 12 (worker 4, R1 subset), which
+proposes `termlink sessions --stale-binary` on the stated grounds that
+`metadata.termlink_version` "is already written (`registration.rs:220`, `:286`),
+so it is a read over data we already have".
 
-Worker 4 verified the absence: every `handoff|re-exec|live.migrat` hit in the
-tree is `claim-transfer`, an unrelated concept.
+**That premise is false, and the field is inert.** `registration.rs:286` records
+`env!("CARGO_PKG_VERSION")`, which resolves against `termlink-session`'s own
+`Cargo.toml` — pinned at `0.9.0` and never moved. The git-derived version this
+project actually versions by comes from a `build.rs` that emits
+`cargo:rustc-env=CARGO_PKG_VERSION`, and that override applies only to the crate
+being built. `termlink-cli` has such a build.rs. `termlink-mcp` has one.
+`termlink-session` — the crate that writes the field into session metadata —
+does not.
 
-Two design decisions worth stating up front, both following existing precedent
-rather than inventing:
+Measured on this host: every live session reports
+`"termlink_version":"0.9.0"` while `termlink --version` reports `0.11.720`.
+The field has recorded the same constant for every build ever made.
 
-- **Unknown version counts as stale.** T-2359 already decided this for hubs
-  ("a hub too old to report its version is the staleness class itself"). The
-  alternative — treating absent as fine — passes precisely the oldest sessions,
-  which is the population the check exists to find.
-- **Reference is the running binary.** Comparing against my own version needs no
-  configuration and answers the question actually being asked: "did anything
-  here register before the binary I am now running?" The lineage caveat from
-  `fleet-version-floors.conf` still applies — patch is commits-since-tag, so the
-  comparison means something only within one build lineage. That is the normal
-  case for sessions on a single host, but it is an assumption, so it gets said
-  out loud rather than left for someone to discover.
+This is PL-344 in its plainest form: a correct answer reached on two surfaces and
+never propagated to the third, and the third is the one that persists the value
+other tools are invited to trust. It is also why rank 12 must not be built first.
+A detector over this field would compare `0.9.0` against the running version and
+return either "every session is stale" or "none are", forever, with no way to
+tell from the output that it was reading a constant — a guard whose verdict rests
+on an assumption about its input that does not hold (PL-343), shipped green.
+
+Scope here is the defect only: make the recorded version the build version. The
+detector is refiled as a follow-up so it can rest on data that carries
+information.
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
@@ -67,13 +70,12 @@ rather than inventing:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `termlink list --stale-binary` retains only sessions registered by a binary older than the one running the command, and is a pure read over `metadata.termlink_version` — no new data is collected
-- [ ] A session with **no** recorded `termlink_version` counts as stale, following T-2359's precedent that a peer too old to report its version *is* the staleness class — the alternative silently passes exactly the oldest sessions
-- [ ] The version comparison is a tested pure helper comparing `major.minor.patch` numerically, not lexically, so `0.11.9` sorts before `0.11.1346` (string compare gets this backwards, which is the whole trap)
-- [ ] The comparison's lineage assumption is stated where a reader will hit it: patch is commits-since-tag, so it is only meaningful within one build lineage — the same caveat `.context/cron/fleet-version-floors.conf` carries for hubs
-- [ ] Both output modes name the version that made a session stale, so the operator can act without a second command; JSON carries the session's version and the reference version
-- [ ] Negative coverage: a fleet where every session is current returns nothing and says so, and a newer-than-self session is not reported (PL-219 — the filter must be able to *not* fire)
-- [ ] Load-bearing proof recorded: reverting the numeric comparison to a string compare makes a test fail
+- [ ] `termlink-session` derives its version from git the way `termlink-cli` and `termlink-mcp` already do, so `metadata.termlink_version` records the build that registered the session
+- [ ] A live `termlink list --json` shows a newly-registered session carrying the same version `termlink --version` reports — measured, not inferred from the code
+- [ ] The build.rs re-run triggers match the CLI's, so the version does not freeze after the first build (the T-1057 bug this project already paid for once)
+- [ ] A test pins that the recorded version is not the stale `0.9.0` crate constant, so the defect cannot silently return
+- [ ] Load-bearing proof recorded: removing the git derivation makes that test fail
+- [ ] The follow-up detector task is filed with the corrected premise, so rank 12 is not picked up again on the false one
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
