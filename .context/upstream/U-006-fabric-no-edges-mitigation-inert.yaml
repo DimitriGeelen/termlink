@@ -71,6 +71,27 @@ evidence: |
 
   So the accurate statement is: a parser improvement closes about a third of the
   gap, and the rest is not expressible in the current model.
+
+  THE DECISIVE POINT, found last and worth more than everything above.
+  The warn condition is an ABSOLUTE count, not a ratio (audit.sh:1541):
+
+      if [ "$fabric_unenriched" -gt 10 ]; then warn ...
+
+  Clearing this warning requires 183 of the 193 edgeless cards to gain edges —
+  on a graph where 71 cards' only real dependency is a compiled binary the model
+  cannot name. It is not reachable by a parser fix, by enrichment, or by any
+  amount of honest work. It is unclearable by construction.
+
+  And because the threshold is absolute rather than proportional, it gets
+  strictly worse as a project grows: every newly registered leaf card pushes the
+  number further from 10, so the healthier the registry's coverage becomes, the
+  louder the warning gets. A project with 3000 well-registered components can
+  never satisfy it. This is the actual defect — the parser gaps are real but
+  incidental, and fixing them changes the printed number from 193 to ~176 while
+  the verdict stays WARN.
+
+  This also explains the 11-recurrences-in-14-days trend the audit reports about
+  its own finding: not a backlog nobody got to, but a threshold nobody can meet.
 suggestion: |
   0. FIRST, and unambiguously worth doing: close the two parser gaps named in
      the evidence. Add $HERE to the recognised directory-variable set, and match
@@ -78,6 +99,11 @@ suggestion: |
      after `source`/`.`. This is a small change to detect_bash_sources() with no
      model implications — it finds edges that genuinely exist and are already
      expressible. It does NOT clear the warning on its own; see below.
+
+  1. Make the threshold proportional and/or scoped, so it can be satisfied. An
+     absolute `> 10` cannot survive registry growth (see evidence). Whatever
+     replaces it should be expressible as a target a project can actually reach,
+     and should exclude the card classes whose edges cannot exist.
 
   Then two candidate directions for the residual, deliberately not chosen here —
   that trade belongs to whoever owns the fabric model:
