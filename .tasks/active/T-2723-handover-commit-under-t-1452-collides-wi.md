@@ -85,6 +85,30 @@ date_finished: null
        `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` added to ## Verification.
 -->
 
+## Recommendation
+
+**Recommendation:** GO — file U-008 to `framework:pickup`.
+
+**Rationale:** The finding is not specific to this project. Any consumer of the
+framework that follows the Session End Protocol hits the same collision at every
+session end, and the same 50%-plus share of its safety-bypass log will be its own
+handover step. That makes the count untrustworthy everywhere, not just here — and
+the audit's mitigation ("investigate the callers") sends the reader to inspect 24
+entries of which 13 are the framework's own prescribed flow. The fix proposed in
+direction 1 is small and lives entirely in `fw handover --commit`, which already
+knows both the task it commits under and the focus it would displace.
+
+The reason to file rather than keep it local is that this repo cannot fix it: the
+handover agent and the focus gate are both vendored, so a local patch is erased at
+the next re-vendor (as T-2721 documents for the audit-hook patch).
+
+**Evidence:**
+- `.context/working/.gate-bypass-log.yaml` — 26 entries in the 7-day window; grouped by task: T-1452 ×13, T-1166 ×4, T-2567 ×3, T-1291 ×3, T-2672 ×1, plus 2 inception filings on a different flag
+- 24 of 26 are `flag: FW_SWITCH_FOCUS=1`, `caller: check-active-task focus-drift`
+- Verified NOT machine-generated: no framework script sets the variable; `bin/fw:6639` only names it in an error string — an earlier reading of this same data got that wrong, and the correction is recorded in U-008
+- Demonstrated avoidable: this session hit the gate twice and cleared it both times with `fw context focus <task>` instead of the bypass, so the sanctioned path works and the issue is imposed friction, not an impossible gate
+- `PL-265` already records the adjacent collision (the gate blocking `fw handover` on a just-completed focus task), which is evidence the session-end path is systematically under-tested against its own gates
+
 ## Verification
 
 # Shell commands that MUST pass before work-completed. One per line.
