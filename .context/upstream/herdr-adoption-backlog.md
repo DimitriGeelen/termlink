@@ -34,12 +34,25 @@ Issue *titles* and doc *quotes* are cited as factual evidence that a class exist
 is reference, not derivative use. **No attribution or NOTICE handling is triggered by
 anything in this section.**
 
-> **Status as of 2026-08-15.** Ranks **1–11 and 14–17 are CLOSED.** Closed this
+> **Status as of 2026-08-15.** Ranks **1–17 are CLOSED.** Closed this
 > session: 9 (T-2737), 16 (T-2738), 10 (T-2740), 14 (T-2741), 15 (T-2742),
-> 17 **and** 11 together (T-2743) — plus **T-2739**, a third alt-screen surface
+> 17 **and** 11 together (T-2743), 12 (T-2745, after T-2744 fixed its premise),
+> 13 (T-2747) — plus **T-2739**, a third alt-screen surface
 > (`mirror_grid.rs`) that this backlog did not list, found by grepping after 16
 > and filed separately per one-bug-one-task.
-> Remaining: **12, 13, 20–23**; **18 and 19 are `owner: human`**.
+> Remaining: **20–23**; **18 and 19 are `owner: human`**.
+>
+> **Rank 13's numbers were all wrong, including this document's.** The item cites
+> "23 asserted pairs against 261 MCP tools ≈ 8.8%" and carries worker 3's
+> unreconciled 94-vs-68 helper count. Measured: **260 tools, 24 asserted (9.2%)**,
+> and **79** distinct `fn *_mcp` names — so none of 83 / 68 / 94 was right. The
+> helper counts disagree because the unit is ill-defined: `fn to_json_mcp` alone
+> occurs 26 times as a small helper redefined inside separate functions. **T-2747**
+> therefore counts tools, not helpers, and enumerates all 236 uncovered ones in a
+> git-tracked allowlist so a newly-added tool fires immediately. The
+> name-mapping-heuristic caveat this document raises (`ping` diverging) **does not
+> arise**: the census asks whether a tool is named by any assertion, never what its
+> CLI counterpart is called. Working the 236 down is **T-2748**.
 >
 > **Rank 12's premise was wrong and it is now split.** Scoping it found that
 > `metadata.termlink_version` — the field the item calls "data we already have" —
