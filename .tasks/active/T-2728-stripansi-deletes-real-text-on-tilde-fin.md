@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-15T08:06:36Z
-last_update: 2026-08-15T08:12:27Z
+last_update: 2026-08-15T08:18:58Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -98,12 +98,28 @@ load-bearing.
 
 ---
 
-## STATUS: implemented once, reverted at the budget gate — re-apply, then fix ONE test
+## STATUS: fix IS COMMITTED (2ec87688c). ONE test is red. Change one line and this is done.
 
-Both defects were **reproduced and fixed** in a prior attempt; the change was
-reverted only because the budget gate reached critical with one pre-existing
-test red, and committing a red tree would trip the T-2686 release gate. The
-implementation below is known-good and took ~15 minutes. Re-apply it verbatim.
+**Do NOT re-apply the change below — it is already in the tree.** An earlier
+draft of this section said "reverted"; that was wrong. The revert was attempted
+and the budget gate blocked `git checkout` (only commit/push/handover are
+permitted at critical), so the work was committed instead, deliberately and
+with the red test named in the commit message.
+
+**The only outstanding work is the one-line test correction in "THE ONE THING
+THAT BIT ME" below.** Everything else is done and verified.
+
+State at commit `2ec87688c`:
+
+- both defects fixed and their regression tests passing
+- the two implementations consolidated into one
+- `strip_ansi_bare_escape_consumed` RED — a pre-existing test whose expectation
+  was wrong (see below)
+- measured: 1078 + 174 + 438 passing, exactly 1 failing
+
+The "change, in four parts" section below is retained as a description of what
+landed, so the diff can be reviewed against its intent — not as instructions to
+repeat.
 
 **Confirmed failing output before the fix** (this is the reproduction, keep it):
 
