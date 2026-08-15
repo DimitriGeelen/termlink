@@ -284,13 +284,43 @@ TermLink requires POSIX PTY support (`openpty`, `fork`, `tcgetattr`). Windows is
 
 ## Installation
 
-### Homebrew (recommended for macOS/Linux)
+Three supported paths, in the order most users should prefer them. They are the same three
+listed in [Quick Start](#quick-start).
+
+### One-liner install (recommended — no toolchain required)
+
+Downloads the prebuilt binary for your platform from GitHub Releases and verifies its
+SHA-256 against the release's `checksums.txt` before installing. Works on Linux and macOS,
+x86_64 and aarch64; on Linux it picks the static musl build automatically when glibc is
+absent (Alpine, minimal LXC images).
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/DimitriGeelen/termlink/main/install.sh | sh
+termlink --version
+```
+
+Installs to `/usr/local/bin/termlink`, elevating with `sudo` only if that directory is not
+already writable. To install without `sudo`, choose a prefix you own:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/DimitriGeelen/termlink/main/install.sh \
+  | sh -s -- --prefix=$HOME/.local
+```
+
+The script warns if the resulting `bin/` directory is not on your `PATH`. Other options:
+`--version=vX.Y.Z` to pin a release, `--dry-run` to see what it would do. Run
+`sh install.sh --help` for the full list.
+
+### Homebrew (macOS)
 
 ```bash
 brew tap DimitriGeelen/termlink
 brew install termlink
 termlink --version
 ```
+
+Available for Linux too, but the one-liner above is lighter — it needs no tap and no
+package manager.
 
 ### From source (for development/debugging)
 
@@ -311,7 +341,10 @@ termlink --version
 termlink info
 ```
 
-The binary installs to `~/.cargo/bin/termlink`. The runtime directory is auto-created at `$TERMLINK_RUNTIME_DIR`, `$XDG_RUNTIME_DIR/termlink`, or `$TMPDIR/termlink-$UID`.
+This path installs to `~/.cargo/bin/termlink`; the one-liner installs to `/usr/local/bin`
+(or `$PREFIX/bin`), and Homebrew to the brew prefix. Whichever you use, the runtime
+directory is auto-created at `$TERMLINK_RUNTIME_DIR`, `$XDG_RUNTIME_DIR/termlink`, or
+`$TMPDIR/termlink-$UID`.
 
 ## Security Model
 

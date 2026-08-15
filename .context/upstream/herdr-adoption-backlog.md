@@ -40,9 +40,17 @@ anything in this section.**
 > 13 (T-2747) — plus **T-2739**, a third alt-screen surface
 > (`mirror_grid.rs`) that this backlog did not list, found by grepping after 16
 > and filed separately per one-bug-one-task.
-> Remaining: **21 only** (~1 d, READ-only, self-ranked last by its own worker);
-> **18 and 19 are `owner: human`**. Rank **23 closed by recording** (T-2750 → PL-347):
-> zero-cost by design — the principle is written down, no code, no dependency.
+> **Every agent-ownable item is now closed.** Only **18 and 19** remain, both
+> `owner: human`. Rank **23 closed by recording** (T-2750 → PL-347): zero-cost by design —
+> the principle is written down, no code, no dependency.
+>
+> **Rank 21 is closed as DECLINED (2026-08-15).** `hubs.toml` is parsed by three
+> independent implementations (Rust toml crate, a hand-rolled MCP substring parser, ~11
+> shell greppers) feeding ~24 Rust call sites and ~15 MCP paths; a `hubs.d/` merge would
+> have to be written three times or the CLI and MCP planes would disagree about which hubs
+> exist. Searching docs/tasks/context for operator pain it would fix returns zero hits —
+> the recorded hubs.toml pain is address drift, which splitting does not touch. The
+> triplication itself is the real finding and is filed as **T-2753**.
 >
 > **Rank 20 is closed as ALREADY-IMPLEMENTED (T-2751) — its premise was false.** The item
 > proposed building a `curl | sh` installer; `install.sh` has existed since T-1134 with
@@ -351,6 +359,34 @@ edit shell rc). Optional; item 14 delivers most of the benefit for an hour.
 bundled-with-local-override in this repo (`.context/checks/<name>-allowlist`, tracked, env/
 flag override wins). Applying it to `hubs.toml` is ergonomics for an operator who already
 got through onboarding — it does not serve the onboarding question that motivated the slice.
+
+> **CLOSED 2026-08-15 (T-2752 investigation) as DECLINED — measured cost, and no problem
+> to solve.** Two facts decided it.
+>
+> **The cost is not one loader.** `hubs.toml` is parsed by **three independent
+> implementations**: the Rust `toml`-crate loader in `crates/termlink-cli/src/config.rs`
+> (strict and lenient variants), a **separately hand-rolled substring parser** in
+> `crates/termlink-mcp/src/tools.rs` (`resolve_hub_profile` / `list_all_hub_profiles` —
+> string `find` over `[hubs.NAME]`, not the toml crate, and with no dedicated unit tests for
+> section parsing), and roughly **eleven shell greppers** (`substrate-preflight.sh`,
+> `lib/hubs-toml-walk.sh`, `chat-arc-broadcast.sh`, …). Those feed ~24 Rust call sites and
+> ~15 MCP tool paths. A `hubs.d/` merge would have to be implemented three times or the
+> planes silently disagree about **which hubs exist** — the CLI seeing one fleet and the MCP
+> surface another. On top of that, the write path (`remote profile add`/`remove`) does a
+> whole-file `toml::to_string_pretty` rewrite that already destroys comments and ordering,
+> so fragments would need a "which file owns this profile?" rule that does not exist.
+>
+> **There is no recorded operator pain it would fix.** Searching `docs/`, `.tasks/` and
+> `.context/` for merge conflicts, hand-editing complaints, or multi-host sync friction tied
+> to `hubs.toml` returns **zero** hits — proven absence, not "none found yet". The hubs.toml
+> pain that IS recorded (T-1027, T-1064, T-1198) is **address drift** — a stale `address`
+> value — which splitting the file does nothing about.
+>
+> Adding a fourth thing to keep synchronised, in the plane whose parsers are already
+> triplicated, to solve a problem with no evidence of existing, is the opposite of
+> stabilising. Declined. **The finding worth keeping is the triplication itself** — filed
+> as **T-2753**, since three parsers of one config file with no cross-check is the same
+> shape as the three artifact lists T-2751 just closed.
 
 **22. VS-16 / wide-char width — rank 22, and the honest move may be to decline.**
 `mirror_grid.rs:187` drops combining/zero-width marks ("*silently drop for v1*") and
