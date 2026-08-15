@@ -822,3 +822,31 @@ decisions:
     date: 2026-08-15
     task: T-2749
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-097
+    decision: "Do not build a `curl | sh` installer. Close rank 20 by correcting its premise,"
+    scope: project
+    date: 2026-08-15
+    task: T-2751
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-098
+    decision: "Check `install.sh` ↔ `release.yml` in **both** directions with distinct"
+    scope: project
+    date: 2026-08-15
+    task: T-2751
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-099
+    decision: "Ship without an allowlist, and treat a zero-length artifact set from either"
+    scope: project
+    date: 2026-08-15
+    task: T-2751
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-100
+    decision: "Prove the check fires against the real tree, not only against fixtures."
+    scope: project
+    date: 2026-08-15
+    task: T-2751
+    rationale: "Auto-captured from task file on completion"
