@@ -426,11 +426,26 @@ check_runtime_dir_volatility() {
 # ---- Check 2: hubs.toml presence ---------------------------------------
 
 check_hubs_toml() {
-    local f="${HOME}/.termlink/hubs.toml"
+    local f="${TERMLINK_PREFLIGHT_HUBS_TOML:-${HOME}/.termlink/hubs.toml}"
     if [ ! -f "$f" ]; then
+        # T-2742: a missing hubs.toml is NOT a fault on a purely-local install.
+        # config.rs treats the absent file as an empty config, and the local hub
+        # is reached at runtime_dir()/hub.sock with no profile at all — so an
+        # operator who only ever talks to their own hub is correctly configured
+        # and was nonetheless warned on every run. Warning on a healthy state
+        # is the PL-219 class: it trains the operator to stop reading the check.
+        #
+        # The distinction that matters is whether there is any hub to talk to.
+        local sock
+        sock="$(resolve_runtime_dir)/hub.sock"
+        if [ -S "$sock" ]; then
+            emit_check "hubs.toml" "medium" "pass" \
+                "$f absent, but a local hub is serving at $sock — local-only install, no profile needed (fleet verbs return empty by design)"
+            return
+        fi
         emit_check "hubs.toml" "medium" "warn" \
-            "$f missing — every fleet verb will return empty" \
-            "Run 'termlink fleet profile add <name> --address <ip:port>' to declare a hub"
+            "$f missing and no local hub socket at $sock — there is no hub to talk to" \
+            "Start a local hub ('termlink hub start'), or declare a remote one: termlink fleet profile add <name> --address <ip:port>"
         return
     fi
     if ! grep -qE '^\[hubs\.' "$f" 2>/dev/null; then
