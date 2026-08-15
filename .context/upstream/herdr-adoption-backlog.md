@@ -40,7 +40,20 @@ anything in this section.**
 > 13 (T-2747) — plus **T-2739**, a third alt-screen surface
 > (`mirror_grid.rs`) that this backlog did not list, found by grepping after 16
 > and filed separately per one-bug-one-task.
-> Remaining: **20–23**; **18 and 19 are `owner: human`**.
+> Remaining: **20, 21, 23**; **18 and 19 are `owner: human`**.
+>
+> **Rank 22 is closed as PINNED-AND-DECLINED, not fixed (T-2749).** Worker 1's own
+> recommendation was to pin current behaviour and then decide, so that is what happened:
+> four characterization tests now assert what `put_char` does today — combining marks and
+> VS-16 are dropped, `➡️` occupies one cell where terminals draw two, and a CJK char
+> correctly takes two with a continuation cell. **Rendering behaviour is unchanged.** The
+> `unicode-width` 0.2 bump was DECLINED: a workspace-wide API-breaking dependency change to
+> correct a one-column drift in a convenience view whose byte stream is untouched does not
+> pay for itself, and taking it inside a characterization task is precisely the "upgrade by
+> momentum" that item warned against. The tests make any future change deliberate — proven
+> load-bearing: rendering zero-width chars instead of dropping them fails exactly the three
+> zero-width tests and leaves the CJK control passing. See T-2749 `## Decisions` for the
+> condition that would reverse it.
 >
 > **Rank 13's numbers were all wrong, including this document's.** The item cites
 > "23 asserted pairs against 261 MCP tools ≈ 8.8%" and carries worker 3's

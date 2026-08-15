@@ -866,6 +866,84 @@ mod tests {
         assert!(g.cursor_visible);
     }
 
+    // ── Width characterization tests (T-2749, herdr rank 22) ────────────────────
+    //
+    // These four pin what `put_char` DOES TODAY, not what is correct. Two of them
+    // (`combining_mark_is_dropped`, `emoji_presentation_sequence_occupies_one_cell`)
+    // pin behaviour that is arguably WRONG on a real terminal — that is deliberate.
+    //
+    // `put_char` drops every zero-width char (mirror_grid.rs:186-189, "silently drop
+    // for v1") and measures width with `unicode-width = "0.1"`, which predates
+    // emoji-presentation width. So `➡️` (U+27A1 + VS-16) measures 1 and occupies one
+    // cell, while essentially every terminal draws it two columns wide — the mirror
+    // and the real screen disagree by one column from that point on the line.
+    //
+    // A failure here means the BEHAVIOUR CHANGED, which is not the same as something
+    // breaking. If the change was intended (a unicode-width major bump, or composing
+    // combining marks instead of dropping them), update these tests in the same
+    // commit — that is the point of pinning it. See this task's `## Decisions` for
+    // why the dependency bump was not taken here.
+    //
+    // Display-only in every case: the mirrored byte stream is untouched.
+
+    #[test]
+    fn combining_mark_is_dropped_not_composed() {
+        let mut g = Grid::new(4, 1);
+        // "e" followed by U+0301 COMBINING ACUTE ACCENT.
+        feed(&mut g, "e\u{0301}".as_bytes());
+        assert_eq!(g.cells[0].ch, 'e', "base character lands normally");
+        assert_eq!(
+            g.cells[1].ch, ' ',
+            "the combining mark is dropped outright — it is neither composed onto the \
+             base char nor placed in the next cell"
+        );
+    }
+
+    #[test]
+    fn vs16_variation_selector_is_dropped() {
+        let mut g = Grid::new(4, 1);
+        // U+FE0F VARIATION SELECTOR-16 alone: zero width, so it is dropped.
+        feed(&mut g, "\u{FE0F}".as_bytes());
+        assert_eq!(
+            g.cells[0].ch, ' ',
+            "VS-16 is zero-width and dropped, so it never reaches the grid"
+        );
+    }
+
+    #[test]
+    fn emoji_presentation_sequence_occupies_one_cell() {
+        let mut g = Grid::new(4, 1);
+        // "➡️" = U+27A1 BLACK RIGHTWARDS ARROW + U+FE0F VS-16.
+        feed(&mut g, "\u{27A1}\u{FE0F}".as_bytes());
+        assert_eq!(g.cells[0].ch, '\u{27A1}');
+        assert_eq!(
+            g.cells[0].width, 1,
+            "unicode-width 0.1 measures the arrow as 1 and the VS-16 is dropped, so the \
+             mirror reserves ONE cell — terminals draw this two columns wide. Pinned as \
+             current behaviour, not endorsed."
+        );
+        assert_eq!(
+            g.cells[1].ch, ' ',
+            "no continuation cell is marked, because the grid believes the char is narrow"
+        );
+    }
+
+    #[test]
+    fn genuinely_wide_char_occupies_two_cells_with_continuation() {
+        let mut g = Grid::new(4, 1);
+        // U+4E2D is unambiguously wide in unicode-width 0.1 — the control case that
+        // shows the width machinery works, isolating the emoji case above as a
+        // width-DATA problem rather than a width-HANDLING one.
+        feed(&mut g, "\u{4E2D}".as_bytes());
+        assert_eq!(g.cells[0].ch, '\u{4E2D}');
+        assert_eq!(g.cells[0].width, 2, "CJK char measures two columns");
+        assert_eq!(
+            g.cells[1].ch, '\0',
+            "the continuation cell is marked so diff render skips it"
+        );
+        assert_eq!(g.cells[1].width, 0, "continuation cell carries zero width");
+    }
+
     #[test]
     fn decstbm_plus_lf_scrolls_region() {
         let mut g = Grid::new(2, 4);

@@ -1,12 +1,12 @@
 ---
-id: T-2723
-name: "Handover commit under T-1452 collides with the focus gate, generating most safety bypasses"
+id: T-2749
+name: "Pin mirror-grid wide-char/VS-16 width behaviour with a characterization test, then decide (herdr rank 22)"
 description: >
-  Handover commit under T-1452 collides with the focus gate, generating most safety bypasses
+  mirror_grid.rs drops combining marks and unicode-width 0.1 measures emoji-presentation as 1 while terminals draw 2; pin current behaviour and record an explicit decision rather than upgrading by momentum
 
-status: work-completed
+status: started-work
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
@@ -15,9 +15,9 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-15T06:19:38Z
-last_update: 2026-08-15T20:50:36Z
-date_finished: 2026-08-15T06:23:54Z
+created: 2026-08-15T20:55:37Z
+last_update: 2026-08-15T20:55:37Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -30,7 +30,7 @@ date_finished: 2026-08-15T06:23:54Z
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2723: Handover commit under T-1452 collides with the focus gate, generating most safety bypasses
+# T-2749: Pin mirror-grid wide-char/VS-16 width behaviour with a characterization test, then decide (herdr rank 22)
 
 ## Context
 
@@ -40,21 +40,38 @@ date_finished: 2026-08-15T06:23:54Z
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] The bypass log is analysed by task, not just counted: **13 of the 24** focus-drift bypasses in the 7-day window are task `T-1452`, the session-handover task — the single largest generator by a wide margin (next is 4)
-- [x] The mechanism is stated precisely: at session end, focus is necessarily on the *working* task, while the mandatory handover commit references `T-1452`, so the focus-drift gate fires on a step the framework itself prescribes
-- [x] It is demonstrated that the bypass is avoidable — `fw context focus T-1452` → commit → refocus works and was used twice in this session instead of `FW_SWITCH_FOCUS=1` — so the finding is about imposed friction, not an impossible gate
-- [x] The distinction is drawn from the earlier wrong reading: no framework script *sets* `FW_SWITCH_FOCUS`, which was verified and remains true; the framework generates these bypasses by prescribing a flow its gate blocks, not by typing the bypass itself
-- [x] Filed as an upstream record under `.context/upstream/` — the collision is in vendored handover/gate tooling, not in this repo
+- [x] CHARACTERIZATION tests pin the CURRENT behaviour of `MirrorGrid::put_char` for the
+      four cases that matter, each asserting what the code does today, not what is right:
+      (a) a combining mark is DROPPED entirely (`mirror_grid.rs:186-189`), so the base
+      character is not composed with it; (b) VS-16 (U+FE0F) is likewise dropped;
+      (c) `➡️` (U+27A1 + VS-16) therefore occupies ONE cell, while terminals draw two;
+      (d) a genuinely wide char (CJK) occupies two cells and marks its continuation cell
+      — four tests added; all four pass against unmodified `put_char`, confirming the
+      characterization is accurate rather than assumed.
+- [x] Each test carries a comment stating it is a characterization test — it pins present
+      behaviour so that a future change is DELIBERATE and visible in the diff, and a test
+      failing here means behaviour changed, not necessarily that something broke
+      — stated in a block header over all four, naming which two pin arguably-WRONG
+      behaviour so a later reader does not mistake the pin for an endorsement.
+- [x] The tests fail if the behaviour changes: proven by temporarily altering `put_char`
+      (e.g. rendering zero-width chars instead of dropping them) and observing the
+      specific characterization test fail, then restoring to a zero-diff tree
+      — replaced the zero-width drop with `w = 1`: exactly the three zero-width tests
+      FAILED (combining / vs16 / emoji) and the CJK control still passed — precise
+      discrimination, not a blanket failure. `put_char` restored; diff is test lines only.
+- [x] `cargo test -p termlink --bins` passes
+      — 30 passed / 0 failed in the `mirror_grid` filter after restore.
+- [x] A DECISION is recorded in `## Decisions` on whether to take the `unicode-width`
+      major bump, with rationale — worker 1's explicit warning is "do not let this become
+      a dependency upgrade by momentum", so the decision must be made and written down
+      rather than left implicit by shipping a test and moving on
+      — DECLINED, with the cost/benefit stated (workspace-wide API-breaking bump vs a
+      one-column drift in a convenience view whose byte stream is untouched), three
+      rejected alternatives, and the condition that would reverse it.
+- [x] The herdr backlog banner records rank 22's outcome, including that this task
+      deliberately does NOT change rendering behaviour
 
 ### Human
-
-- [ ] [RUBBER-STAMP] Decide whether U-008 is filed to the shared `framework:pickup` topic
-  **Steps:**
-  1. Read `.context/upstream/U-008-handover-commit-collides-with-focus-gate.yaml`
-  2. If you want it filed, post it to `framework:pickup`; if not, leave this unchecked and the record stays local
-  **Expected:** Either a post on `framework:pickup` referencing U-008, or a deliberate decision not to file
-  **If not:** The record stays in `.context/upstream/` and loses nothing — filing is what makes it visible to peer projects, which is why it is your call and not the agent's
-
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
@@ -84,30 +101,6 @@ date_finished: 2026-08-15T06:23:54Z
        Conversion: this AC should be moved to ### Agent and
        `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` added to ## Verification.
 -->
-
-## Recommendation
-
-**Recommendation:** GO — file U-008 to `framework:pickup`.
-
-**Rationale:** The finding is not specific to this project. Any consumer of the
-framework that follows the Session End Protocol hits the same collision at every
-session end, and the same 50%-plus share of its safety-bypass log will be its own
-handover step. That makes the count untrustworthy everywhere, not just here — and
-the audit's mitigation ("investigate the callers") sends the reader to inspect 24
-entries of which 13 are the framework's own prescribed flow. The fix proposed in
-direction 1 is small and lives entirely in `fw handover --commit`, which already
-knows both the task it commits under and the focus it would displace.
-
-The reason to file rather than keep it local is that this repo cannot fix it: the
-handover agent and the focus gate are both vendored, so a local patch is erased at
-the next re-vendor (as T-2721 documents for the audit-hook patch).
-
-**Evidence:**
-- `.context/working/.gate-bypass-log.yaml` — 26 entries in the 7-day window; grouped by task: T-1452 ×13, T-1166 ×4, T-2567 ×3, T-1291 ×3, T-2672 ×1, plus 2 inception filings on a different flag
-- 24 of 26 are `flag: FW_SWITCH_FOCUS=1`, `caller: check-active-task focus-drift`
-- Verified NOT machine-generated: no framework script sets the variable; `bin/fw:6639` only names it in an error string — an earlier reading of this same data got that wrong, and the correction is recorded in U-008
-- Demonstrated avoidable: this session hit the gate twice and cleared it both times with `fw context focus <task>` instead of the bypass, so the sanctioned path works and the issue is imposed friction, not an impossible gate
-- `PL-265` already records the adjacent collision (the gate blocking `fw handover` on a just-completed focus task), which is evidence the session-end path is systematically under-tested against its own gates
 
 ## Verification
 
@@ -141,6 +134,8 @@ the next re-vendor (as T-2721 documents for the audit-hook patch).
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+cargo test -p termlink --bins mirror_grid
 
 ## RCA
 
@@ -184,14 +179,35 @@ the next re-vendor (as T-2721 documents for the audit-hook patch).
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-08-15 — Do not take the `unicode-width` major bump; pin and stop
+
+- **Chose:** Keep `unicode-width = "0.1"` (locked at 0.1.14) and keep dropping zero-width
+  characters. Ship the characterization tests, change no rendering behaviour, and record
+  the known defect rather than fix it now.
+- **Why:** The defect is real but strictly cosmetic and strictly local. `➡️` reserves one
+  cell where a terminal draws two, so the mirror and the real screen disagree by one column
+  from that point on that line. **The mirrored byte stream is untouched** — this is a
+  rendering artifact in a convenience view, not corruption of anything TermLink transports
+  or persists. Weigh that against a major-version bump of a workspace-wide dependency whose
+  0.2 line changed its API: the blast radius reaches every crate that measures text, to
+  correct a one-column drift in a mirror pane. That trade does not pay for itself right now,
+  and it is exactly the "dependency upgrade by momentum" worker 1 warned against — the
+  upgrade is attractive because it is *available*, not because the cost of the bug demands it.
+- **Rejected:**
+  - *Bump `unicode-width` to 0.2 now.* Not wrong in principle, and probably right eventually;
+    wrong to do incidentally inside a task whose stated purpose was to characterize behaviour.
+    An API-breaking bump deserves its own task, its own blast-radius check, and its own test
+    pass — not a drive-by inside a display-fidelity ticket.
+  - *Compose combining marks instead of dropping them.* A larger change than it looks: the
+    grid is one `char` per cell, so composing means either a per-cell string or a normalization
+    pass, both of which change the `Cell` representation that diff-render depends on.
+  - *Do nothing at all.* Rejected because the behaviour was undocumented and unpinned: any
+    future edit could have changed it silently in either direction, and nobody would have
+    known which was intended.
+- **What would change this:** a user-visible complaint about mirror alignment, or an
+  independent reason to bump `unicode-width` (another consumer needing 0.2). At that point
+  the tests here become the specification of what changes — they name the current answers,
+  so a diff updating them shows exactly what moved.
 
 ## Decision
 
@@ -205,10 +221,7 @@ the next re-vendor (as T-2721 documents for the audit-hook patch).
 
 ## Updates
 
-### 2026-08-15T06:19:38Z — task-created [task-create-agent]
+### 2026-08-15T20:55:37Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2723-handover-commit-under-t-1452-collides-wi.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2749-pin-mirror-grid-wide-charvs-16-width-beh.md
 - **Context:** Initial task creation
-
-### 2026-08-15T06:23:54Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed
