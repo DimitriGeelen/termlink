@@ -21,6 +21,12 @@ SCRIPT="${SCRIPT:-$HERE/agent-send.sh}"
 HEARTBEAT="${HEARTBEAT:-$HERE/listener-heartbeat.sh}"
 TERMLINK="${TERMLINK_BIN:-termlink}"
 
+# T-2754 — reap the minted topic. Both mint sites (the two `ltopic=` assignments)
+# use the SAME name, so one reap covers both.
+# shellcheck source=/dev/null
+. "$HERE/lib/reap-topic.sh"
+trap 'rc=$?; reap_topic "${ltopic:-}"; exit $rc' EXIT INT TERM
+
 PASS=0; FAIL=0; SKIP=0
 pass() { echo "  PASS: $*"; PASS=$((PASS + 1)); }
 fail() { echo "  FAIL: $*"; FAIL=$((FAIL + 1)); }

@@ -1,12 +1,12 @@
 ---
-id: T-2723
-name: "Handover commit under T-1452 collides with the focus gate, generating most safety bypasses"
+id: T-2754
+name: "cron+test provers reap the topics they mint (topic-count leak)"
 description: >
-  Handover commit under T-1452 collides with the focus gate, generating most safety bypasses
+  cron+test provers reap the topics they mint (topic-count leak)
 
-status: work-completed
+status: started-work
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
@@ -15,9 +15,9 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-15T06:19:38Z
-last_update: 2026-08-15T21:49:29Z
-date_finished: 2026-08-15T06:23:54Z
+created: 2026-08-15T22:07:21Z
+last_update: 2026-08-15T22:07:21Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -30,31 +30,61 @@ date_finished: 2026-08-15T06:23:54Z
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2723: Handover commit under T-1452 collides with the focus gate, generating most safety bypasses
+# T-2754: cron+test provers reap the topics they mint (topic-count leak)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+The local hub holds **771 topics carrying 13,705 records total** — the signature
+of *topic-count* growth rather than record growth. 403 are `Forever`. 398 carry an
+embedded unix timestamp and accumulate steadily every month since 2026-04-27; the
+newest was minted yesterday.
+
+Two prior tasks addressed the record dimension and stopped there. T-2424 swept 851
+debris topics **once, by hand**. T-2426 then closed re-accumulation by auto-picking
+`Days(7)` at creation — but only for five named namespaces (`t-*`, `T-*`, `xhub-*`,
+`stress-*`, `scratch:*`, `smoke:*`), and only for *retention*. Deleting the topic
+registry entry was never in scope.
+
+Today's leakers match none of those five patterns, and one of them runs on a
+**daily cron**: `.context/cron/fleet-doorbell-mail-canary.crontab` →
+`check-fleet-doorbell-mail-health.sh` → `agent-conversation-selftest.sh:76`, which
+mints `agent-conv-selftest-$$-<ts>-$RANDOM` per run with no `trap`, no cleanup, no
+delete. The script's own JSON output calls the field `ephemeral_topic` — a promise
+the code does not keep. A daily guard permanently polluting the substrate it
+monitors, which is the T-2709 shape (a guard generating unclearable debris).
+
+`channel delete` has existed since **T-2421** — registry entry, records, cursors,
+claims, on-disk log and cv_index, `--yes`-gated. The capability shipped; these
+consumers never migrated. `test-agent-conversation-status.sh:118` still carries the
+comment *"No cleanup: termlink has no `channel delete` verb"*, which was true when
+written and is now false. Same "hardened in one place, siblings not migrated"
+divergence as T-2672/T-2673.
+
+Both growth canaries are structurally blind to this axis: T-2252 (topic-growth)
+gates on per-topic record count over four name patterns; T-2562 (forever-archival)
+fires at 50,000 records on a `Forever` topic. 771 topics averaging 18 records each
+trips neither. Detection is deliberately **out of scope here** — this task fixes the
+producers; the blindness is filed separately so each lands as one deliverable.
+
+Scope boundary: cron-driven and test-suite provers reap. `demo-*.sh` and `bench-*.sh`
+are deliberately excluded — a human runs those interactively and may want to inspect
+the topic afterward.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] The bypass log is analysed by task, not just counted: **13 of the 24** focus-drift bypasses in the 7-day window are task `T-1452`, the session-handover task — the single largest generator by a wide margin (next is 4)
-- [x] The mechanism is stated precisely: at session end, focus is necessarily on the *working* task, while the mandatory handover commit references `T-1452`, so the focus-drift gate fires on a step the framework itself prescribes
-- [x] It is demonstrated that the bypass is avoidable — `fw context focus T-1452` → commit → refocus works and was used twice in this session instead of `FW_SWITCH_FOCUS=1` — so the finding is about imposed friction, not an impossible gate
-- [x] The distinction is drawn from the earlier wrong reading: no framework script *sets* `FW_SWITCH_FOCUS`, which was verified and remains true; the framework generates these bypasses by prescribing a flow its gate blocks, not by typing the bypass itself
-- [x] Filed as an upstream record under `.context/upstream/` — the collision is in vendored handover/gate tooling, not in this repo
+- [x] A shared reap helper exists (`scripts/lib/reap-topic.sh`) exposing `reap_topic <name> [hub-args...]`, sourced by the consumers rather than duplicated per script. It is **best-effort by contract**: a failed or unavailable delete emits one stderr warning and returns 0, so reaping can never turn a passing prover into a failing one.
+- [x] The helper degrades safely on a binary predating T-2421 — probes `channel delete --help` once and skips with a named warning rather than erroring (mirrors `sweep-test-debris.sh:53`).
+- [x] `TERMLINK_KEEP_TEST_TOPICS=1` opts out of reaping across every migrated script, so an operator debugging a failed run can retain the topic for inspection.
+- [x] `scripts/agent-conversation-selftest.sh` (the daily-cron leaker) reaps its `ephemeral_topic` via `trap` on EXIT, so the topic is removed on every exit path — pass, assertion-fail, setup-fail, and interrupt — not only the success path.
+- [x] The remaining in-scope provers reap every topic they mint: `test-agent-conversation-status.sh`, `test-agent-conversation-list.sh` (both topics), `test-agent-respond.sh`, `test-agent-send.sh`, `test-agent-send-transport.sh` (both sites), `test-journal-mirror.sh`, `substrate-smoke.sh`.
+- [x] The stale `test-agent-conversation-status.sh:118` comment asserting `channel delete` does not exist is replaced with the actual reap call.
+- [x] Reaping preserves the prover's own exit code — the `trap` must not overwrite a non-zero verdict with the delete's status.
+- [x] Load-bearing proof: running `agent-conversation-selftest.sh` leaves the hub's topic count unchanged, and the same run with `TERMLINK_KEEP_TEST_TOPICS=1` increases it by exactly 1 (the opt-out is what makes the reap observable).
+- [x] A fixture suite `tests/reap-topic-fixtures.sh` covers the helper's contract without a live hub: best-effort-on-failure, missing-verb skip, opt-out honoured, exit-code preservation.
 
 ### Human
-
-- [ ] [RUBBER-STAMP] Decide whether U-008 is filed to the shared `framework:pickup` topic
-  **Steps:**
-  1. Read `.context/upstream/U-008-handover-commit-collides-with-focus-gate.yaml`
-  2. If you want it filed, post it to `framework:pickup`; if not, leave this unchecked and the record stays local
-  **Expected:** Either a post on `framework:pickup` referencing U-008, or a deliberate decision not to file
-  **If not:** The record stays in `.context/upstream/` and loses nothing — filing is what makes it visible to peer projects, which is why it is your call and not the agent's
-
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
@@ -85,35 +115,27 @@ date_finished: 2026-08-15T06:23:54Z
        `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` added to ## Verification.
 -->
 
-## Recommendation
-
-**Recommendation:** GO — file U-008 to `framework:pickup`.
-
-**Rationale:** The finding is not specific to this project. Any consumer of the
-framework that follows the Session End Protocol hits the same collision at every
-session end, and the same 50%-plus share of its safety-bypass log will be its own
-handover step. That makes the count untrustworthy everywhere, not just here — and
-the audit's mitigation ("investigate the callers") sends the reader to inspect 24
-entries of which 13 are the framework's own prescribed flow. The fix proposed in
-direction 1 is small and lives entirely in `fw handover --commit`, which already
-knows both the task it commits under and the focus it would displace.
-
-The reason to file rather than keep it local is that this repo cannot fix it: the
-handover agent and the focus gate are both vendored, so a local patch is erased at
-the next re-vendor (as T-2721 documents for the audit-hook patch).
-
-**Evidence:**
-- `.context/working/.gate-bypass-log.yaml` — 26 entries in the 7-day window; grouped by task: T-1452 ×13, T-1166 ×4, T-2567 ×3, T-1291 ×3, T-2672 ×1, plus 2 inception filings on a different flag
-- 24 of 26 are `flag: FW_SWITCH_FOCUS=1`, `caller: check-active-task focus-drift`
-- Verified NOT machine-generated: no framework script sets the variable; `bin/fw:6639` only names it in an error string — an earlier reading of this same data got that wrong, and the correction is recorded in U-008
-- Demonstrated avoidable: this session hit the gate twice and cleared it both times with `fw context focus <task>` instead of the bypass, so the sanctioned path works and the issue is imposed friction, not an impossible gate
-- `PL-265` already records the adjacent collision (the gate blocking `fw handover` on a just-completed focus task), which is evidence the session-end path is systematically under-tested against its own gates
-
 ## Verification
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
+# The helper exists and is executable-readable.
+test -f scripts/lib/reap-topic.sh
+# Fixture suite passes (hermetic — no live hub).
+bash tests/reap-topic-fixtures.sh
+# Every in-scope prover sources the shared helper rather than duplicating the delete.
+bash -c 'for f in agent-conversation-selftest test-agent-conversation-status test-agent-conversation-list test-agent-respond test-agent-send test-agent-send-transport test-journal-mirror substrate-smoke; do grep -q "reap-topic.sh" "scripts/$f.sh" || { echo "MISSING reap helper: $f"; exit 1; }; done'
+# Every in-scope prover actually invokes the reap (sourcing alone is not reaping).
+bash -c 'for f in agent-conversation-selftest test-agent-conversation-status test-agent-conversation-list test-agent-respond test-agent-send test-agent-send-transport test-journal-mirror substrate-smoke; do grep -q "reap_topic" "scripts/$f.sh" || { echo "MISSING reap call: $f"; exit 1; }; done'
+# The stale "no channel delete verb" claim is gone from the tree.
+bash -c 'test -z "$(grep -rn "no .channel delete. verb" scripts/ 2>/dev/null)"'
+# The cron-driven leaker reaps on EXIT, not just on the success path.
+grep -q "trap .*reap" scripts/agent-conversation-selftest.sh
+# Opt-out is wired in the helper.
+grep -q "TERMLINK_KEEP_TEST_TOPICS" scripts/lib/reap-topic.sh
+# The guard layer stays green.
+bash scripts/run-guard-layer.sh
 #
 # Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
 # *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
@@ -205,10 +227,7 @@ the next re-vendor (as T-2721 documents for the audit-hook patch).
 
 ## Updates
 
-### 2026-08-15T06:19:38Z — task-created [task-create-agent]
+### 2026-08-15T22:07:21Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2723-handover-commit-under-t-1452-collides-wi.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2754-crontest-provers-reap-the-topics-they-mi.md
 - **Context:** Initial task creation
-
-### 2026-08-15T06:23:54Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed

@@ -28,6 +28,15 @@ set -euo pipefail
 TERMLINK="${TERMLINK_BIN:-termlink}"
 STATUS_VERB="${STATUS_VERB:-scripts/agent-conversation-status.sh}"
 
+# T-2754 — reap the ephemeral topic. This script runs on a DAILY cron
+# (fleet-doorbell-mail-canary → check-fleet-doorbell-mail-health.sh → here), and
+# before this it leaked one permanent topic per run onto the hub it monitors.
+# The JSON field has always been called `ephemeral_topic`; now it actually is.
+_selftest_self="${BASH_SOURCE[0]}"
+_selftest_libdir="$(cd "$(dirname "$_selftest_self")" && pwd)/lib"
+# shellcheck source=/dev/null
+. "$_selftest_libdir/reap-topic.sh"
+
 # T-1845 / PL-189 — termlink channel info|subscribe|post|create has no
 # client-side TCP read timeout. A frozen hub will wedge any call here
 # indefinitely. Bound every termlink RPC; falls open if timeout(1) is
@@ -133,6 +142,13 @@ if ! $TIMEOUT_CMD "$TERMLINK" channel create "${hub_args[@]}" "$topic" --retenti
     emit_result
     exit 3
 fi
+
+# T-2754 — armed only AFTER a successful create, so a setup-fail (topic never
+# existed) cannot produce a misleading "failed to delete ... leaked" warning.
+# From here every exit path reaps: pass, assertion-fail, and interrupt alike.
+# `rc=$?` + explicit `exit $rc` preserves this script's verdict — the trap body's
+# last command would otherwise decide the exit status.
+trap 'rc=$?; reap_topic "$topic" "${hub_args[@]}"; exit $rc' EXIT INT TERM
 
 # --- Step 2: post synthetic turn ---
 vlog "step 2: post turn (cid=$cid)"

@@ -14,6 +14,13 @@ set -u
 TERMLINK="${TERMLINK_BIN:-termlink}"
 SCRIPT="${SCRIPT:-scripts/agent-conversation-list.sh}"
 
+# T-2754 — shared topic reaper (best-effort; never changes this script's verdict).
+# This prover mints TWO topics; both are reaped by the single EXIT trap below.
+_t2754_libdir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib"
+# shellcheck source=/dev/null
+. "$_t2754_libdir/reap-topic.sh"
+trap 'rc=$?; reap_topic "${empty_topic:-}"; reap_topic "${test_topic:-}"; exit $rc' EXIT INT TERM
+
 PASS=0
 FAIL=0
 SKIP=0

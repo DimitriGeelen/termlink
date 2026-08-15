@@ -24,7 +24,11 @@ command -v jq >/dev/null 2>&1            || { echo "SKIP: jq not available"; exi
 topic="agent-respond-test-$$"
 nosess="no-such-session-$$"
 tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"' EXIT
+# T-2754 — extend (not replace) the existing tmp-dir trap so the minted topic is
+# reaped too. A second `trap ... EXIT` would silently drop the rm -rf.
+# shellcheck source=/dev/null
+. "$HERE/lib/reap-topic.sh"
+trap 'rc=$?; rm -rf "$tmp"; reap_topic "${topic:-}"; exit $rc' EXIT INT TERM
 fail=0
 
 # --- Path A: respond posts the receipt -> send sees DELIVERED, exit 0 ---
