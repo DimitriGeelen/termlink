@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-15T10:45:58Z
-last_update: 2026-08-15T10:45:58Z
+last_update: 2026-08-15T10:47:54Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -67,26 +67,26 @@ This needs the ceiling direction: advance forward past continuation bytes.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] A boundary helper in `scrollback.rs` advances a start offset FORWARD past
+- [x] A boundary helper in `scrollback.rs` advances a start offset FORWARD past
       UTF-8 continuation bytes (`0b10xxxxxx`), so a front cut never begins
       mid-character
-- [ ] The helper is bounded — it advances at most 3 bytes and then yields the
+- [x] The helper is bounded — it advances at most 3 bytes and then yields the
       original offset unchanged, so non-UTF-8 / binary terminal output is never
       trimmed arbitrarily
-- [ ] All three cut sites use it: `last_n_bytes`, the `append` overflow drain,
+- [x] All three cut sites use it: `last_n_bytes`, the `append` overflow drain,
       and the `append` oversized-write tail-keep
-- [ ] `last_n_lines` is left alone, with a comment stating why (`\n` is ASCII,
+- [x] `last_n_lines` is left alone, with a comment stating why (`\n` is ASCII,
       so its cut is already a boundary) — so the next reader does not "fix" it
-- [ ] Test: a buffer of multi-byte characters read via `last_n_bytes` at an
+- [x] Test: a buffer of multi-byte characters read via `last_n_bytes` at an
       offset that splits one returns valid UTF-8 with no U+FFFD
-- [ ] Test: ring overflow that splits a multi-byte character leaves the buffer
+- [x] Test: ring overflow that splits a multi-byte character leaves the buffer
       starting on a boundary
-- [ ] Test: an oversized single write that splits a character keeps a boundary
+- [x] Test: an oversized single write that splits a character keeps a boundary
       start
-- [ ] Test: binary (non-UTF-8) content is not over-trimmed by the bounded scan
-- [ ] Each test is demonstrated load-bearing — reverting the fix makes it fail
-- [ ] `cargo test -p termlink-session` passes
-- [ ] `bash scripts/run-guard-layer.sh` stays clean
+- [x] Test: binary (non-UTF-8) content is not over-trimmed by the bounded scan
+- [x] Each test is demonstrated load-bearing — reverting the fix makes it fail
+- [x] `cargo test -p termlink-session` passes
+- [x] `bash scripts/run-guard-layer.sh` stays clean
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -176,6 +176,38 @@ bash scripts/run-guard-layer.sh
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** Terminal output read back through `--bytes` (and any read after the
+scrollback ring had wrapped) could contain a U+FFFD replacement glyph where a
+real multi-byte character had been. No error, no warning — the operator simply
+read one wrong character in output they were using to decide what happened.
+
+**Root cause:** `ScrollbackBuffer` is a byte ring by deliberate design (it
+stores raw terminal output including ANSI sequences, which is not text). Three
+of its cuts — `last_n_bytes`'s `len - n`, `append`'s overflow `drain(..)`, and
+`append`'s oversized-write tail-keep — used arbitrary byte offsets, so a
+character straddling one was halved. `handler.rs` then applied
+`from_utf8_lossy`, which is precisely the call that converts a truncation
+mistake into a plausible-looking wrong character instead of an error.
+
+**Why structurally allowed:** the byte/character boundary distinction was
+already understood in this codebase — `commands/pty.rs::char_boundary_floor`
+exists and does exactly this job. It just lives in a different crate, takes
+`&str`, and moves in the opposite direction, so it was not reusable and nobody
+carried the idea across. Two contributing factors kept it invisible: the
+*default* read path (`last_n_lines`) cuts on `\n` and is safe by construction,
+so ordinary use never showed the bug; and `from_utf8_lossy` is a silent
+downgrade — the one API choice that guarantees a truncation defect surfaces as
+content rather than as a failure. Directive #2 is "no silent failures", and a
+lossy decode is a silent failure by construction.
+
+**Prevention:** five unit tests, each pinned to one cut site and each
+demonstrated to fail when that site's guard is removed. They sweep every
+offset and every ring capacity rather than sampling one, because the defect is
+offset-specific — a single-offset test would have passed against the broken
+code for most choices of offset. The bounded-scan test pins the *limit* as
+well as the behaviour, since an unbounded scan would fix UTF-8 output by
+corrupting binary output.
 
 ## Evolution
 
