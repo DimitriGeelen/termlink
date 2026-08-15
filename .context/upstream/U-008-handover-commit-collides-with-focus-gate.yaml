@@ -1,0 +1,91 @@
+---
+id: U-008
+title: "The mandatory handover commit collides with the focus-drift gate, so the framework is the largest generator of its own safety-bypass warning"
+created: 2026-08-15T06:40:00Z
+source_project: 010-termlink
+source_task: T-2723
+status: pending
+severity: medium
+component: "agents/handover/ + agents/context/check-active-task.sh (focus-drift gate)"
+context: |
+  The audit warns:
+
+      Gate-bypass log: 26 safety bypasses in last 7 days
+      Evidence: 433 total entries; safety-bypass-as-pattern signal
+      Mitigation: Review .context/working/.gate-bypass-log.yaml
+
+  Counted, that reads as agents habitually overriding a safety gate. Grouped by
+  task, it reads differently:
+
+      13  T-1452     <- the session-handover task
+       4  T-1166
+       3  T-2567
+       3  T-1291
+       1  T-2672
+       2  (inception filings, a different flag)
+
+  24 of the 26 are the focus-drift gate via FW_SWITCH_FOCUS=1, and **more than
+  half of those are one task: the handover.**
+evidence: |
+  The collision is structural, not behavioural.
+
+  The Session End Protocol requires generating and committing a handover. That
+  commit references T-1452. But at session end, focus is — correctly, and by the
+  framework's own rules — still on whatever task the session was working. So the
+  focus-drift gate (T-1730) fires on a step the framework itself mandates:
+
+      Current focus: T-2721
+      Action target: T-1452
+      BLOCKED
+
+  The gate's own block message then offers three escapes, and two of the three
+  are Tier-2 bypasses that get logged as safety bypasses:
+
+      1. fw context focus T-1452                  (free, not logged as a bypass)
+      2. --switch-focus on an fw command          (logged Tier 2)
+      3. FW_SWITCH_FOCUS=1 prefix                 (logged Tier 2)
+
+  Option 1 is listed first and works. It is also the only one that takes two
+  extra commands and a refocus afterwards, so the convenient paths are the ones
+  that increment the counter. Every session end presents this choice at least
+  once, which is why one task dominates the log.
+
+  Verified and NOT the finding: no framework script sets FW_SWITCH_FOCUS itself.
+  bin/fw:6639 only names it in an error string. An earlier reading of this same
+  data claimed the bypasses "are the framework's own handover flow" in the sense
+  of being machine-generated; that was wrong and is corrected here. Every one of
+  the 24 was typed by an agent. The framework's contribution is upstream of
+  that: it prescribes a flow its own gate blocks, then documents the bypass as
+  the way through.
+suggestion: |
+  The gate is correct and should not be weakened — focus drift is a real signal,
+  and this repo has 11 non-handover bypasses in the same window that are worth
+  looking at. The problem is that the handover step is indistinguishable from
+  them in the log and in the count.
+
+  Candidate directions, not chosen here:
+
+  1. Make the handover flow refocus around its own commit, so the prescribed
+     path never needs a bypass: focus -> T-1452, commit, restore prior focus.
+     `fw handover --commit` already knows it is committing under T-1452 and
+     already knows the prior focus, so it can do this without asking the agent.
+     This removes ~54% of the bypasses by making the sanctioned path free.
+
+  2. Failing that, classify handover-task bypasses separately in the log and
+     exclude them from the "safety-bypass-as-pattern" count, so the warning
+     tracks the 11 that represent genuine drift rather than the 13 that
+     represent the framework's own wrap-up.
+
+  Direction 1 is preferable: option 2 makes the number honest but leaves the
+  friction, and a framework that routes its own mandatory step through a
+  Tier-2 override is teaching every agent that the override is routine. That
+  is the more expensive outcome — a bypass mechanism stays effective only
+  while it feels exceptional.
+related_learning: |
+  PL-265 (010-termlink) already records the adjacent shape: check-active-task
+  blocks `fw handover` when the focus task has just been completed. Same gate,
+  same wrap-up step, same collision — which suggests the session-end path is
+  systematically under-tested against the gates it has to pass through.
+
+  Related: U-003 and U-006 from the same audit pass. All three share a shape —
+  a check whose printed remedy cannot cleanly resolve the condition it reports.
