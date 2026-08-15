@@ -464,10 +464,76 @@ check_hub_binary_freshness() {
         # Don't false-positive a stale-binary classification.
         return
     fi
+    # ---- T-2726: primary test is a VERSION comparison, not a field probe. ----
+    # The `rate_buckets_evicted_total` probe below is a fixed point in a moving
+    # history: it was the newest field the hub served when T-2184 was written,
+    # so it distinguished "restarted" from "not restarted" AT THAT MOMENT. It
+    # cannot age well. Every hub at or past T-2139 passes it forever — measured
+    # on this host, a hub 581 commits behind the tree scored PASS "fresh
+    # binary". That is a guard whose verdict rested on an assumption about its
+    # input that no longer holds. The durable question is the one Check 4 asks
+    # of the CLI: is the version the hub ACTUALLY SERVES behind the project?
+    local hub_pid repo_version hub_exe link hub_version
+    hub_pid=$(printf '%s' "$probe_output" | sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p')
+    repo_version=""
+    if [ -r "VERSION" ]; then
+        repo_version=$(head -n1 "VERSION" 2>/dev/null | tr -d '[:space:]')
+    fi
+
+    # Resolve the running hub's own executable. Linux-only (procfs); on a host
+    # without /proc this stays empty and we fall through to the bounded
+    # fallback below rather than guessing — Directive #4, same graceful
+    # degradation Check 6 applies on non-systemd hosts.
+    hub_exe=""
+    if [ -n "$hub_pid" ] && [ -d "/proc/$hub_pid" ]; then
+        link=$(readlink "/proc/$hub_pid/exe" 2>/dev/null || true)
+        case "$link" in
+            *" (deleted)")
+                # The exact failure T-2184 was written for, now detected
+                # directly instead of inferred from a sentinel field.
+                emit_check "hub-binary" "medium" "warn" \
+                    "running hub's executable was REPLACED on disk (/proc/$hub_pid/exe → '(deleted)') — the live process still serves the old in-memory binary" \
+                    "Restart the hub THROUGH its systemd unit (G-070 — a detached restart produces the ghost-process class); verify runtime_dir persists secret/cert per Check 1 first."
+                return
+                ;;
+            "") ;;
+            *) hub_exe="$link" ;;
+        esac
+    fi
+
+    hub_version=""
+    if [ -n "$hub_exe" ] && [ -x "$hub_exe" ]; then
+        hub_version=$("$hub_exe" --version 2>/dev/null | awk '{print $NF}' || true)
+    fi
+
+    if [ -n "$hub_version" ] && [ -n "$repo_version" ]; then
+        if version_lt "$hub_version" "$repo_version"; then
+            if crates_unchanged_since_binary "$hub_version" "$repo_version"; then
+                # T-2226 suppression, inherited rather than reinvented: VERSION
+                # is git-derived and moves on doc-only commits too.
+                emit_check "hub-binary" "medium" "pass" \
+                    "running hub serves $hub_version < VERSION $repo_version but no crates/ change since — version drift only, restart not required (T-2226)"
+            else
+                emit_check "hub-binary" "medium" "warn" \
+                    "running hub serves $hub_version, older than project VERSION $repo_version — hub-side features land only after a restart onto the new binary" \
+                    "Rebuild and install first if the on-disk binary is also stale (Check 4), then restart the hub THROUGH its systemd unit (G-070)."
+            fi
+        else
+            emit_check "hub-binary" "medium" "pass" \
+                "running hub serves $hub_version >= project VERSION $repo_version"
+        fi
+        return
+    fi
+
+    # ---- Fallback: the hub's version could not be resolved here (no procfs,
+    # or /proc unreadable for a hub owned by another user). The T-2139 field
+    # probe can still rule OUT the pre-T-2139 case, but it CANNOT establish
+    # freshness — so it must not claim to. Saying "fresh binary" on this
+    # evidence is the defect T-2726 closed; the wording below is deliberate.
     # L-387 capture-first SIGPIPE safety: capture full body, then grep.
     if echo "$probe_output" | grep -q '"rate_buckets_evicted_total"'; then
         emit_check "hub-binary" "medium" "pass" \
-            "local hub serves T-2139 rate_buckets_evicted_total field — fresh binary"
+            "local hub serves T-2139 rate_buckets_evicted_total (pre-T-2139 ruled out) — hub version not resolvable on this host, so freshness vs VERSION is UNVERIFIED"
     else
         emit_check "hub-binary" "medium" "warn" \
             "local hub omits rate_buckets_evicted_total (pre-T-2139) — likely (deleted)-on-disk binary still in memory" \

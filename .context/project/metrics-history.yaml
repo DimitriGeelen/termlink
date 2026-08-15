@@ -232,16 +232,6 @@ entries:
   traceability_pct: 100
   episodic_quality_pct: 5
   open_gaps: 23
-- timestamp: '2026-08-08T07:45:05Z'
-  pass: 8
-  warn: 2
-  fail: 0
-  active_tasks: 136
-  completed_tasks: 2160
-  velocity: 1
-  traceability_pct: 100
-  episodic_quality_pct: 5
-  open_gaps: 23
 - timestamp: '2026-08-08T07:52:57Z'
   pass: 34
   warn: 3
@@ -6789,6 +6779,26 @@ entries:
   active_tasks: 223
   completed_tasks: 2264
   velocity: 82
+  traceability_pct: 100
+  episodic_quality_pct: 5
+  open_gaps: 23
+- timestamp: '2026-08-15T07:36:48Z'
+  pass: 18
+  warn: 3
+  fail: 0
+  active_tasks: 223
+  completed_tasks: 2264
+  velocity: 84
+  traceability_pct: 100
+  episodic_quality_pct: 5
+  open_gaps: 23
+- timestamp: '2026-08-15T07:46:49Z'
+  pass: 18
+  warn: 3
+  fail: 0
+  active_tasks: 223
+  completed_tasks: 2264
+  velocity: 84
   traceability_pct: 100
   episodic_quality_pct: 5
   open_gaps: 23
