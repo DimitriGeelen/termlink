@@ -5,7 +5,14 @@ created: 2026-08-14T21:00:00Z
 source_project: 010-termlink
 source_task: T-2718
 status: pending
-severity: medium
+severity: high
+severity_history: |
+  Filed medium 2026-08-14 as "a warning that is hard to action". Raised to high
+  2026-08-15 when the threshold was read: `-gt 10` absolute means the check
+  cannot be satisfied by any project past ~10 leaf components, and gets louder
+  the more completely a registry is populated. A check that can never pass
+  trains its readers to discount the audit, which is the failure mode the audit
+  exists to prevent.
 component: agents/fabric/
 context: |
   Found during a full `fw audit` remediation pass.
