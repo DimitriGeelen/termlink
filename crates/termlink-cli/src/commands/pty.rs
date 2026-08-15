@@ -447,6 +447,84 @@ pub(crate) async fn cmd_resize(target: &str, cols: u16, rows: u16, json: bool, t
     }
 }
 
+/// Bytes that return the operator's terminal to a sane mode set on detach.
+///
+/// T-2732 (herdr backlog item 4). `tcsetattr` restores `termios` — the kernel
+/// line discipline. It cannot touch terminal **private modes**, which live in
+/// the emulator and get switched on by bytes the child wrote straight through
+/// to the operator's screen. Detach from a child sitting in `vim`, `less` or
+/// `htop` and, before this existed, the operator was handed back a shell still
+/// on the alternate screen, still emitting escape garbage on every mouse move,
+/// still wrapping every paste in `\e[200~`.
+///
+/// The tree could already *detect* alt screen (`PtySession::scan_alternate_screen`)
+/// and had no way to leave it: a grep for these sequences found no emission
+/// site in product code at all, only tests feeding the detector.
+///
+/// Every sequence here is a **disable**, and the set is emitted
+/// unconditionally. Disabling a mode that was never enabled is a no-op in
+/// terminals that implement it and ignored by those that do not; the
+/// alternative — tracking which modes the child turned on — would have to be
+/// perfect to be safe, and the scan only ever watched one of them. tmux,
+/// screen and vim all emit their restore set unconditionally for the same
+/// reason.
+///
+/// Deliberately NOT included: the kitty keyboard protocol pop (`CSI <u`). It
+/// pops a stack this code never pushed to, so on a terminal where the
+/// operator's outer application pushed an entry, emitting it would discard
+/// *their* state — a restore that breaks something is worse than the leak it
+/// closes. If TermLink ever pushes a kitty entry, the matching pop belongs
+/// next to that push, not here.
+const TERMINAL_PRIVATE_MODE_RESTORE: &[u8] = b"\
+\x1b[?1006l\
+\x1b[?1005l\
+\x1b[?1015l\
+\x1b[?1003l\
+\x1b[?1002l\
+\x1b[?1001l\
+\x1b[?1000l\
+\x1b[?2004l\
+\x1b[?1004l\
+\x1b[?25h\
+\x1b[0m\
+\x1b[?1049l\
+\x1b[?1047l\
+\x1b[?47l";
+
+/// Emit [`TERMINAL_PRIVATE_MODE_RESTORE`] to the operator's terminal.
+///
+/// Best-effort by design: the only party who could act on a write error here
+/// is the terminal we just failed to write to. Propagating it would replace
+/// the attach loop's own result — the thing the operator actually asked about
+/// — with a report about the cleanup of a screen that is already gone.
+fn restore_terminal_private_modes() {
+    use std::io::Write;
+    let stdout = std::io::stdout();
+    let mut out = stdout.lock();
+    let _ = out.write_all(TERMINAL_PRIVATE_MODE_RESTORE);
+    let _ = out.flush();
+}
+
+/// Full terminal restore for a detaching attach loop: private modes first,
+/// then `termios`.
+///
+/// Both orderings work, but they are not equally safe to leave to a caller.
+/// This is one function rather than two calls at each site specifically so the
+/// order cannot drift apart between the two detach paths — T-2728 is the
+/// freshest evidence in this repo that a duplicated terminal primitive
+/// diverges, and it cost two identical defects living in two copies of
+/// `strip_ansi_codes` for as long as both existed.
+///
+/// # Safety
+///
+/// `orig` must be a `termios` previously read from `stdin_fd`.
+unsafe fn restore_terminal(stdin_fd: libc::c_int, orig: &libc::termios) {
+    restore_terminal_private_modes();
+    unsafe {
+        libc::tcsetattr(stdin_fd, libc::TCSANOW, orig);
+    }
+}
+
 pub(crate) async fn cmd_attach(target: &str, poll_ms: u64) -> Result<()> {
     let reg = manager::find_session(target)
         .context(format!("Session '{}' not found", target))?;
@@ -481,11 +559,13 @@ pub(crate) async fn cmd_attach(target: &str, poll_ms: u64) -> Result<()> {
         }
     }
 
-    // Restore terminal on exit
+    // Restore terminal on exit — on the error return as much as the clean one.
+    // `attach_loop` yields its Result rather than `?`-ing out, so a detach
+    // caused by a failed loop still leaves the terminal usable (T-2732).
     let result = attach_loop(reg.socket_path(), poll_ms).await;
 
     unsafe {
-        libc::tcsetattr(stdin_fd, libc::TCSANOW, &orig_termios);
+        restore_terminal(stdin_fd, &orig_termios);
     }
 
     eprintln!();
@@ -642,9 +722,10 @@ pub(crate) async fn cmd_stream(target: &str) -> Result<()> {
 
     let result = stream_loop(stream).await;
 
-    // Restore terminal
+    // Restore terminal — private modes then termios, same as the control-plane
+    // attach above, through the one shared helper so they cannot drift (T-2732).
     unsafe {
-        libc::tcsetattr(stdin_fd, libc::TCSANOW, &orig_termios);
+        restore_terminal(stdin_fd, &orig_termios);
     }
 
     eprintln!();
@@ -695,11 +776,25 @@ pub(crate) async fn cmd_mirror(target: &str, scrollback_lines: u64, raw: bool) -
         if raw { " [raw]" } else { "" }
     );
 
-    if raw {
+    // T-2732: `--raw` is byte passthrough — the child's output reaches the
+    // operator's terminal unparsed, so it can switch on alt screen, mouse
+    // reporting or bracketed paste exactly as an attach can. Mirror never
+    // enters raw mode, so there is no `termios` to hand back; only the
+    // emulator-side modes need clearing. The grid loop does not pass bytes
+    // through, but it does paint SGR attributes, which the same set resets.
+    //
+    // Binding the result rather than returning it directly is what puts the
+    // error exit through the restore too: a mirror that ends on a data-plane
+    // error leaves the terminal no worse than one stopped with Ctrl+C.
+    let result = if raw {
         mirror_loop_raw(stream).await
     } else {
         mirror_loop_grid(stream).await
-    }
+    };
+
+    restore_terminal_private_modes();
+
+    result
 }
 
 /// Legacy byte-passthrough mirror loop (pre-T-1199).
@@ -1007,6 +1102,89 @@ pub(crate) fn char_boundary_floor(s: &str, idx: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // === T-2732 LOAD-BEARING: detach must not leave the terminal in a child's mode ===
+    //
+    // `termios` is not the terminal's whole state. A child that enabled alt screen,
+    // mouse reporting or bracketed paste leaves those switched on in the *emulator*,
+    // where `tcsetattr` cannot reach — so before T-2732 a detach from `vim` handed
+    // the operator back a shell on the alternate screen emitting escape garbage on
+    // every mouse move. The tree could already detect alt screen and had no way to
+    // leave it.
+    //
+    // These pin the byte content, so an edit that silently drops a mode fails here
+    // rather than in someone's terminal. Deleting any sequence from
+    // TERMINAL_PRIVATE_MODE_RESTORE makes the first test fail.
+
+    #[test]
+    fn private_mode_restore_disables_every_mode_a_child_can_leak() {
+        let s = std::str::from_utf8(TERMINAL_PRIVATE_MODE_RESTORE)
+            .expect("restore sequence must be valid UTF-8");
+
+        // Alternate screen — all three variants. `?1049` is the modern one, but
+        // `?1047` and `?47` are what older curses apps actually emit, and a
+        // terminal left on the alt screen by `?47h` is not returned by `?1049l`.
+        // T-2731's sibling finding: handling only the variant you expected is
+        // indistinguishable from handling none of them, from the operator's seat.
+        for seq in ["\x1b[?1049l", "\x1b[?1047l", "\x1b[?47l"] {
+            assert!(s.contains(seq), "alt-screen exit {seq:?} missing from restore set");
+        }
+
+        // Mouse reporting: the click/drag/motion modes and the three encodings.
+        // Leaving any one on means every pointer move types escape bytes into
+        // the operator's next command line.
+        for seq in [
+            "\x1b[?1000l",
+            "\x1b[?1001l",
+            "\x1b[?1002l",
+            "\x1b[?1003l",
+            "\x1b[?1005l",
+            "\x1b[?1006l",
+            "\x1b[?1015l",
+        ] {
+            assert!(s.contains(seq), "mouse mode {seq:?} missing from restore set");
+        }
+
+        // Bracketed paste, focus reporting, cursor visibility. A child that hid
+        // the cursor (`?25l`) and died leaves the operator typing blind.
+        for seq in ["\x1b[?2004l", "\x1b[?1004l", "\x1b[?25h"] {
+            assert!(s.contains(seq), "{seq:?} missing from restore set");
+        }
+
+        // SGR reset: not a private mode, same leak. A child killed mid-colour
+        // leaves the prompt painted in whatever it was using.
+        assert!(s.contains("\x1b[0m"), "SGR reset missing from restore set");
+    }
+
+    #[test]
+    fn private_mode_restore_is_all_disables_never_an_enable() {
+        // The whole set is unconditional, which is only safe because every
+        // sequence turns something OFF. One stray `h`-terminated private-mode
+        // sequence here would switch a mode ON in the terminal of every
+        // operator who detaches — a restore that causes the fault it prevents.
+        // `?25h` (show cursor) is the sole intentional enable.
+        let s = std::str::from_utf8(TERMINAL_PRIVATE_MODE_RESTORE).expect("valid UTF-8");
+        for part in s.split('\x1b').filter(|p| p.starts_with("[?")) {
+            assert!(
+                part.ends_with('l') || part == "[?25h",
+                "private-mode sequence ESC{part:?} is not a disable"
+            );
+        }
+    }
+
+    #[test]
+    fn private_mode_restore_leaves_alt_screen_last() {
+        // Ordering matters for what the operator sees: disabling mouse/paste
+        // while still on the alt screen keeps that churn off the restored
+        // scrollback, and the alt-screen exit is what redraws their shell. If a
+        // future edit appends a sequence after the alt-screen exits, it lands
+        // on the *restored* screen instead.
+        let s = std::str::from_utf8(TERMINAL_PRIVATE_MODE_RESTORE).expect("valid UTF-8");
+        let last_alt = s.rfind("\x1b[?47l").expect("?47l present");
+        let first_mouse = s.find("\x1b[?1006l").expect("?1006l present");
+        assert!(first_mouse < last_alt, "mouse disables must precede the alt-screen exit");
+        assert!(s.ends_with("\x1b[?47l"), "alt-screen exit must be the final sequence");
+    }
 
     // === T-2697 LOAD-BEARING: `inject` must not report success for a no-op ===
     //
