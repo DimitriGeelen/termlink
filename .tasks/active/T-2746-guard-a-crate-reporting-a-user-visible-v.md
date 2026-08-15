@@ -4,10 +4,10 @@ name: "Guard: a crate reporting a user-visible version must carry the git deriva
 description: >
   G-019 prevention for T-2744: nothing detects a crate whose user-visible version comes from Cargo.toml because it lacks the build.rs derivation its siblings carry
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-15T19:41:53Z
-last_update: 2026-08-15T19:41:53Z
+last_update: 2026-08-15T20:20:16Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -70,8 +70,40 @@ duplication is worse than deleting the duplication.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `scripts/check-version-derivation.sh` exists, carries the `# guard-layer: source`
+      marker, and exits 0 on the current tree
+      — `clean — every version-reading crate derives its version (4 scanned, 0 acknowledged)`.
+      The 4 are exactly cli / mcp / hub / session, the only crates that read the version.
+- [x] The check FIRES (exit 1) on a crate that reads `env!("CARGO_PKG_VERSION")` but has
+      no `build.rs` emitting `cargo:rustc-env=CARGO_PKG_VERSION` — proven by temporarily
+      neutering `crates/termlink-session/build.rs` and restoring to a zero-diff tree
+      — both firing shapes proven separately, each naming a distinct reason:
+      emit removed → `has a build.rs but it never emits cargo:rustc-env=CARGO_PKG_VERSION`;
+      file removed → `reads the version but has no build.rs` (the actual T-1458/T-2744
+      shape). Fired on exactly 1 crate both times; `git diff --stat` empty after restore.
+- [x] Control (PL-219): a crate that never reads the version and has no `build.rs` does
+      NOT fire, so the check is not the tautology "every crate must have a build.rs"
+      — real tree: `termlink-bus`, `termlink-protocol`, `termlink-test-utils` all have no
+      build.rs and are not examined. Fixture 2 asserts it directly.
+- [x] Allowlist at `.context/checks/version-derivation-allowlist` (git-tracked per
+      T-2681) is honoured: listed crates are counted and reported but do not fire;
+      removing a line re-fires that crate
+      — fixtures 6/7/8 cover all three directions, including `acknowledged_count` in JSON.
+- [x] `bash tests/version-derivation-check-fixtures.sh` passes and is hermetic — no
+      cargo build, no live binary, fixture crate trees only (covers fire / clean /
+      allowlisted / control)
+      — 16 assertions, 0 failed. Load-bearing beyond the happy path: disabling the
+      comment-stripping filter fails fixture 5 (`prose mentioning the macro does not
+      count as a read`) and two knock-on assertions — so the control assertions can fail.
+- [x] `bash scripts/run-guard-layer.sh` lists the new check as a member and reports it
+      PASS, with the roll-up still green
+      — `PASS static-check check-version-derivation.sh`,
+      `PASS fixture-suite version-derivation-check-fixtures.sh`,
+      roll-up `PASS — 30/30 members clean` (was 28/28).
+- [x] The shared-build-dependency-crate alternative is decided in `## Decisions` with
+      the evidence, not left as an open question in Context
+      — decided against, because both observed instances were a missing file rather than
+      a diverged copy, so deduplication would have prevented neither.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -137,6 +169,11 @@ duplication is worse than deleting the duplication.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+bash scripts/check-version-derivation.sh
+bash tests/version-derivation-check-fixtures.sh
+out=$(bash scripts/run-guard-layer.sh 2>&1); echo "$out" | grep -q "check-version-derivation"
+bash scripts/run-guard-layer.sh
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -179,14 +216,37 @@ duplication is worse than deleting the duplication.
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-08-15 — Static check, not a shared build-dependency crate
+
+- **Chose:** Build the static check. Leave the three hand-copied `build.rs` files as they are.
+- **Why:** The Context of this task framed these as alternatives and leaned toward
+  deduplication ("a guard that enforces a duplication is worse than deleting the
+  duplication"). Scoping showed that framing is wrong on the evidence. Both observed
+  instances were a **missing file**, not a **diverged copy**:
+  T-1458 (`termlink-hub`) and T-2744 (`termlink-session`) each had no `build.rs` at all.
+  A shared build-dependency crate deduplicates the derivation but does nothing about a
+  crate that never calls it — it would have prevented **neither** instance. The
+  duplication is real and is a smell, but it is not the defect vector, so removing it
+  would not have closed the gap this task exists to close.
+- **Rejected:** A `termlink-build-version` build-dependency crate. Not wrong, just
+  orthogonal — it lowers the cost of adding the derivation without making its absence
+  detectable. Worth doing on its own merits later; doing it *instead* of the check would
+  have left the class open while looking like it had been addressed, which is the
+  failure mode PL-345 describes.
+- **Note:** the two are complements, not rivals. If the shared crate is built later, this
+  check keeps working unchanged — it tests for the emitted `cargo:rustc-env` line, not
+  for how the build script is written.
+
+### 2026-08-15 — A test-only read counts as a read
+
+- **Chose:** Flag a crate whose only `env!("CARGO_PKG_VERSION")` use is inside a test.
+- **Why:** PL-148 names precisely this as the tautology trap — `assert_eq!(reported,
+  env!("CARGO_PKG_VERSION"))` passes whether the constant is right or wrong, because both
+  sides are the same compile-time value. A crate whose only use is that assertion is a
+  crate whose version cannot be verified from inside itself, which is the condition worth
+  surfacing, not a false positive to suppress.
+- **Rejected:** Excluding `#[cfg(test)]` regions. It would need real Rust parsing to do
+  correctly, and it would suppress exactly the case most worth reporting.
 
 ## Decision
 
@@ -204,3 +264,7 @@ duplication is worse than deleting the duplication.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2746-guard-a-crate-reporting-a-user-visible-v.md
 - **Context:** Initial task creation
+
+### 2026-08-15T20:20:16Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

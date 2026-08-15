@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2745: Stale-binary session detector — termlink list --stale-binary
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-15T20:00:28Z
+# ============================================================================
+
+task_id: T-2745
+task_name: "Stale-binary session detector — termlink list --stale-binary"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-15T19:40:24Z
+completed: 2026-08-15T19:57:56Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Herdr rank 12, rescoped: now that T-2744 makes metadata.termlink_version record the real build version, a --stale-binary filter over it is finally meaningful
+
+# Key outcomes
+outcomes:
+  - '`termlink list --stale-binary` retains only sessions whose recorded `termlink_version` is older than the running binary''s — a pure read, no new data collected and no state mutated'
+  - 'A session with no recorded version counts as stale (T-2359''s precedent: a peer too old to report its version *is* the staleness class); treating absent as current would pass exactly the oldest sessions'
+  - 'Version comparison is a tested pure helper over numeric `major.minor.patch`, so `0.11.9` orders before `0.11.1346` — the case a string compare gets backwards'
+  - 'An unparseable version is treated as stale rather than silently skipped, and that choice is stated in the helper (a version we cannot read is not a version we can vouch for)'
+  - 'Text output names both the session''s version and the reference version, so the operator can act without a second command'
+  - 'JSON output carries the reference version at the envelope level and is a strict superset of the existing shape — no field removed or renamed'
+  - 'Negative coverage: an all-current fleet reports nothing and says so affirmatively, and a session newer than the running binary is not reported (PL-219 — the filter must be able to not fire)'
+  - 'The lineage caveat is stated where a reader hits it: patch is commits-since-tag, so comparison holds within one build lineage'
+  - 'Load-bearing proof recorded: replacing the numeric comparison with a string compare fails a test'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 17 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 17
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2745-stale-binary-session-detector--termlink-.md
+generated_by: context-agent-hybrid

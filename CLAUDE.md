@@ -975,6 +975,63 @@ declared-reserved, 0 unacknowledged. Ad-hoc:
 `--json`; `--def-file` / `--root` / `--allowlist` for fixtures). Fixtures:
 `bash tests/error-code-emission-fixtures.sh` (18 assertions).
 
+### Version-derivation static check (T-2746, G-019 prevention for the T-1458 / T-2744 class)
+
+The seventh source-level static check. A crate that reads `env!("CARGO_PKG_VERSION")`
+gets its own `Cargo.toml` version unless a `build.rs` overrides it with the git-derived
+one. When that override is missing the crate does not fail — it reports a **plausible
+wrong version, indefinitely**, which is the Directive #2 shape (a wrong answer, not an
+error).
+
+**Why it exists: this happened twice, three months apart, in two different crates.**
+T-1458 (2026-05-03) found `termlink-hub` returning `"0.9.0"` from `hub.version` for every
+fleet hub regardless of binary freshness. T-2744 (2026-08-15) found `termlink-session`
+stamping `"0.9.0"` into every session's metadata while the binary reporting it was at
+`0.11.720` — for the entire life of the field.
+
+The first instance produced **PL-148**, which is accurate, specific, and even names the
+detection lever ("if a fleet-wide version histogram shows uniform '0.9.0', or matches the
+workspace Cargo.toml literal exactly, suspect a missing build.rs"). It did not prevent the
+second. A learning that precise failing to prevent a recurrence is the argument for a
+structural check rather than more documentation.
+
+**PL-148 also names why the obvious test cannot catch it:**
+`assert_eq!(reported_version, env!("CARGO_PKG_VERSION"))` passes whether `env!` resolves to
+`0.9.0` or `0.11.1359`, because both sides are the same compile-time constant. The bug is
+invisible from inside the crate that has it — which is what makes it a job for a check
+reading the build configuration from outside, not for a unit test.
+
+`scripts/check-version-derivation.sh` decides two things independently per crate:
+**(1) does it READ the version** (any non-comment `env!`/`option_env!("CARGO_PKG_VERSION")`
+in its sources, `build.rs` excluded — a build script reading its own Cargo.toml value is the
+mechanism, not a surface); **(2) does it DERIVE the version** (a `build.rs` containing a
+non-comment `cargo:rustc-env=CARGO_PKG_VERSION`). Reads-but-does-not-derive fires. A crate
+that does neither is never examined — the check does **not** say "every crate must have a
+build.rs", and `termlink-bus` / `termlink-protocol` / `termlink-test-utils` are live proof
+it discriminates.
+
+**Scope — it detects a MISSING derivation, not a WRONG one.** It reads whether the emit line
+is present; it does not evaluate what the build script computes. The T-2744 regression test
+(`recorded_version_is_the_build_version_not_the_cargo_toml_constant`) covers that other half
+from inside the crate, comparing against a separately-exported copy of the Cargo.toml value
+rather than a literal — which is how it escapes the PL-148 tautology. The two are
+complements; neither alone is sufficient.
+
+A **test-only** read is deliberately treated as a read: that is precisely the tautological
+assertion PL-148 warns about, so a crate whose only use is that one is a crate whose version
+cannot be verified from inside itself. Allowlist:
+`.context/checks/version-derivation-allowlist` (git-tracked per T-2681), `<crate>  # <reason>`;
+entries are counted and reported but do not fire, and the reason must say why the Cargo.toml
+version is the *right* answer for that crate. Currently empty on purpose — every crate here
+that reads the version also derives it.
+
+Current tree: 4 crates scanned (cli / mcp / hub / session), 0 firing, 0 allowlisted. Exit
+0 clean / 1 firing / 2 tooling; `--json`, `--quiet`, `--root`, `--allowlist`. Ad-hoc:
+`bash scripts/check-version-derivation.sh`. Fixtures:
+`bash tests/version-derivation-check-fixtures.sh` (16 assertions). **Load-bearing:** removing
+the emit from `crates/termlink-session/build.rs` fires it with `never emits …`; deleting the
+file fires it with `has no build.rs` — the two failure shapes report distinct reasons.
+
 ### Running the guard layer — `scripts/run-guard-layer.sh` (T-2684)
 
 **One command runs every source-level guard.** Before T-2684 there was none, and

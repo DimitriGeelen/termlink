@@ -1,5 +1,5 @@
-# Audit Results - 2026-08-15-2109
-timestamp: 2026-08-15T19:09:51Z
+# Audit Results - 2026-08-15-2218
+timestamp: 2026-08-15T20:18:59Z
 sections: "structure"
 summary:
   pass: 17
@@ -34,9 +34,9 @@ findings:
   - level: PASS
     check: "No GO-scope-not-propagated inception(s) (sibling to L-417)"
   - level: PASS
-    check: "Fabric: 359 registered card(s)"
+    check: "Fabric: 360 registered card(s)"
   - level: WARN
-    check: "Fabric: 196/347 cards have no edges"
+    check: "Fabric: 197/348 cards have no edges"
     mitigation: "Run: fw fabric enrich"
   - level: WARN
     check: "Fabric drift: 1 source file(s) have no fabric card"
