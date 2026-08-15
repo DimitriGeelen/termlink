@@ -34,15 +34,25 @@ Issue *titles* and doc *quotes* are cited as factual evidence that a class exist
 is reference, not derivative use. **No attribution or NOTICE handling is triggered by
 anything in this section.**
 
-> **Status as of 2026-08-15.** Ranks **1–10, 14 and 16 are CLOSED.** Closed this
-> session: 9 (T-2737), 16 (T-2738), 10 (T-2740), 14 (T-2741) — plus **T-2739**,
-> a third alt-screen surface (`mirror_grid.rs`) that this backlog did not list,
-> found by grepping after 16 and filed separately per one-bug-one-task.
-> Remaining: **11, 12, 13, 15, 17, 20–23**; **18 and 19 are `owner: human`**.
-> Next in rank order is **11** (`setsid` fallback drops `nohup` off Linux),
-> which carries an UNREPRODUCED hazard — worth reading before starting, since
-> item 17 ("survives SSH disconnect has no test") is the guard that would have
-> caught it and may be the better first move.
+> **Status as of 2026-08-15.** Ranks **1–11 and 14–17 are CLOSED.** Closed this
+> session: 9 (T-2737), 16 (T-2738), 10 (T-2740), 14 (T-2741), 15 (T-2742),
+> 17 **and** 11 together (T-2743) — plus **T-2739**, a third alt-screen surface
+> (`mirror_grid.rs`) that this backlog did not list, found by grepping after 16
+> and filed separately per one-bug-one-task.
+> Remaining: **12, 13, 20–23**; **18 and 19 are `owner: human`**.
+>
+> **11 and 17 closed as one task, as this banner predicted.** 17 asks for a test
+> of the survival property and 11 fixes the platform on which that property
+> silently did not hold — a guard cannot be added for a property that is false,
+> so they are one deliverable. The fix does not add the missing `nohup` the item
+> describes; it removes the `setsid(1)` binary dependency entirely in favour of
+> the `setsid(2)` syscall in `pre_exec`, which is POSIX and needs no fallback.
+> That also moots worker 4's dispute with the platform-lock allowlist by
+> deleting the three sites rather than re-arguing the recorded judgment — though
+> worker 4 was right on the merits, and why is now PL-345.
+> The UNREPRODUCED SIGHUP hazard was never load-bearing for the fix and remains
+> untested as such; what is now tested is the property that makes SIGHUP
+> irrelevant.
 
 | # | Item | Evidence class | Effort | Directive |
 |---|---|---|---|---|

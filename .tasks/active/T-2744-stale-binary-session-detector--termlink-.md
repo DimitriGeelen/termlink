@@ -1,8 +1,8 @@
 ---
-id: T-2743
-name: "Prove a backgrounded session survives its launcher disconnecting (SIGHUP)"
+id: T-2744
+name: "Stale-binary session detector — termlink sessions --stale-binary"
 description: >
-  Prove a backgrounded session survives its launcher disconnecting (SIGHUP)
+  Stale-binary session detector — termlink sessions --stale-binary
 
 status: started-work
 workflow_type: build
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-15T19:14:52Z
-last_update: 2026-08-15T19:14:52Z
+created: 2026-08-15T19:30:28Z
+last_update: 2026-08-15T19:30:28Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,42 +30,36 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2743: Prove a backgrounded session survives its launcher disconnecting (SIGHUP)
+# T-2744: Stale-binary session detector — termlink sessions --stale-binary
 
 ## Context
 
-Herdr adoption backlog rank 17 (worker 4, §6.5), which necessarily settles rank
-11 (worker 4, R2) with it. The two cannot be separated: rank 17 asks for a test
-of the "survives SSH disconnect" property, and a guard for a property that does
-not currently hold cannot be added without making it hold.
+Herdr adoption backlog rank 12 (worker 4, R1 subset). The proportionate part of
+herdr's `update --handoff` insight: a session daemon needs *a* story for its
+binary being replaced while it holds live processes. The full fd-passing handoff
+is weeks of work and is explicitly not proposed. But `metadata.termlink_version`
+is already written at registration (`registration.rs:220`, `:286`) and nothing
+ever reads it back, so the detection half is a pure read over data already on
+disk — T-2359's version-floor pattern applied one tier down, at the session
+rather than the hub.
 
-The `background` backend exists to produce a process that outlives the shell
-that launched it. Today all three spawn sites — `execution.rs:541`,
-`dispatch.rs:992`, `tools.rs:13799` — run `setsid sh -c <cmd>` and, on spawn
-error, fall back to a bare `sh -c` with no `setsid` and no `nohup`. `setsid(1)`
-is util-linux; macOS does not ship it, so on macOS the fallback always fires and
-the child stays in the launcher's session. It starts, so the call site reports
-success — and then dies on SIGHUP when the SSH connection drops.
+Worker 4 verified the absence: every `handoff|re-exec|live.migrat` hit in the
+tree is `claim-transfer`, an unrelated concept.
 
-`.context/checks/platform-lock-allowlist:23-32` acknowledges this as "degraded
-but functional". Worker 4 disputes that, and is right: the allowlist's own rule
-demands the reason state how the non-Linux path *behaves*, and "functional for
-spawning" is not "functional for surviving disconnect" — which is the entire
-feature. That entry describes the mechanism and omits the consequence, so it
-reads as an accepted trade-off when it is a silent failure of the thing being
-acknowledged.
+Two design decisions worth stating up front, both following existing precedent
+rather than inventing:
 
-Worker 4 flagged the hazard as UNREPRODUCED — it did not test whether SIGHUP
-actually reaches the child. This task does not need that test to proceed,
-because it does not rest on the hazard: the fix replaces the `setsid(1)` binary
-with the POSIX `setsid(2)` syscall in `pre_exec`, which is present on both
-platforms, needs no fallback, and makes the disagreement moot by deleting the
-sites rather than re-arguing the judgment recorded in the allowlist.
-
-Property under test, stated so it is checkable without an SSH session or a
-macOS host: **a backgrounded child must lead its own session**
-(`getsid(child) == child`, and `!= getsid(launcher)`). That is precisely what
-detaches it from the launcher's SIGHUP, and it is observable in-process.
+- **Unknown version counts as stale.** T-2359 already decided this for hubs
+  ("a hub too old to report its version is the staleness class itself"). The
+  alternative — treating absent as fine — passes precisely the oldest sessions,
+  which is the population the check exists to find.
+- **Reference is the running binary.** Comparing against my own version needs no
+  configuration and answers the question actually being asked: "did anything
+  here register before the binary I am now running?" The lineage caveat from
+  `fleet-version-floors.conf` still applies — patch is commits-since-tag, so the
+  comparison means something only within one build lineage. That is the normal
+  case for sessions on a single host, but it is an assumption, so it gets said
+  out loud rather than left for someone to discover.
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
@@ -73,24 +67,13 @@ detaches it from the launcher's SIGHUP, and it is observable in-process.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-> **LOAD-BEARING PROOF (2026-08-15).** Deleting the `pre_exec` block from
-> `spawn_detached` — which is exactly the child the macOS fallback produced —
-> fails `a_backgrounded_child_leads_its_own_session` with
-> `left: 900848, right: 919185`: the child's session id came back as the
-> launcher's rather than its own pid. The control
-> `a_plain_child_stays_in_the_launchers_session` stayed green throughout, as it
-> must, since it asserts the reverted behaviour. Restoring returns the module to
-> 14/14 and the tree to zero diff (`TEMP-REVERT` count 0). The proof is the
-> point of the task: it shows a Linux host can now catch the macOS-only defect.
-
-- [x] The detachment property is asserted by a test: a backgrounded child leads its own session (`getsid(pid) == pid`) and does not share the launcher's session
-- [x] A control test proves the assertion can distinguish — a child spawned without the syscall shares the launcher's session, which is exactly what the macOS fallback produced (PL-219: an assertion that cannot fail is not a guard)
-- [x] All three spawn sites (`execution.rs`, `dispatch.rs`, `tools.rs`) go through the syscall path — verified by grep, not by fixing the one I happened to read first (PL-344)
-- [x] No `Command::new("setsid")` remains in the product crates, and no bare-`sh -c` fallback remains at those sites
-- [x] A `setsid(2)` failure surfaces as a spawn error rather than a silently non-detached child — the feature fails loud or works, never quietly half-works
-- [x] The three `cmd:setsid` platform-lock allowlist entries are removed because the sites are gone, and `check-platform-lock.sh` is clean with no new acknowledgement added in their place (8 sites scanned → 5, all acknowledged)
-- [x] The stale README §Backends claim about macOS `setsid` daemonization is corrected to match the new behaviour
-- [x] Load-bearing proof recorded: reverting the syscall to the old spawn shape makes the detachment test fail
+- [ ] `termlink list --stale-binary` retains only sessions registered by a binary older than the one running the command, and is a pure read over `metadata.termlink_version` — no new data is collected
+- [ ] A session with **no** recorded `termlink_version` counts as stale, following T-2359's precedent that a peer too old to report its version *is* the staleness class — the alternative silently passes exactly the oldest sessions
+- [ ] The version comparison is a tested pure helper comparing `major.minor.patch` numerically, not lexically, so `0.11.9` sorts before `0.11.1346` (string compare gets this backwards, which is the whole trap)
+- [ ] The comparison's lineage assumption is stated where a reader will hit it: patch is commits-since-tag, so it is only meaningful within one build lineage — the same caveat `.context/cron/fleet-version-floors.conf` carries for hubs
+- [ ] Both output modes name the version that made a session stale, so the operator can act without a second command; JSON carries the session's version and the reference version
+- [ ] Negative coverage: a fleet where every session is current returns nothing and says so, and a newer-than-self session is not reported (PL-219 — the filter must be able to *not* fire)
+- [ ] Load-bearing proof recorded: reverting the numeric comparison to a string compare makes a test fail
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -157,44 +140,9 @@ detaches it from the launcher's SIGHUP, and it is observable in-process.
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
 cargo test -p termlink --bins
-cargo test -p termlink-mcp --lib
-bash scripts/check-platform-lock.sh
-bash tests/platform-lock-check-fixtures.sh
+bash scripts/run-guard-layer.sh
 
 ## RCA
-
-**Symptom:** on macOS, a session started with the `background` backend did not
-survive the launching terminal closing or the SSH connection dropping — the one
-property that backend exists to provide. Nothing reported an error; the spawn
-returned success.
-
-**Root cause:** the code obtained detachment by exec'ing the `setsid(1)` binary,
-which is util-linux and absent on macOS. The spawn therefore errored and an
-`.or_else` fallback ran a bare `sh -c` instead, producing a child in the
-launcher's session — reachable by the SIGHUP sent on hangup. The mechanism was
-platform-specific while the guarantee was advertised as universal.
-
-**Why structurally allowed:** two separate blindnesses, and the second is the
-one worth keeping. (i) The survival property had no test — it was argued from
-the mechanism, so when the mechanism stopped applying nothing noticed; that is
-herdr backlog item 17, and it names itself as the guard that would have caught
-item 11. (ii) The platform-lock check *did* flag all three sites, and they were
-acknowledged in the allowlist as "degraded but functional". That reason
-described the mechanism ("process starts, no session leader") and omitted the
-consequence, so the acknowledgement read as an accepted trade-off rather than
-the silent feature loss it was. An allowlist entry whose stated reason is
-incomplete is worse than no entry: it converts an open question into a closed
-one and stops anybody looking. The file's own rule already demanded the reason
-state how the non-Linux path *behaves* — the rule was right and the entry did
-not meet it.
-
-**Prevention:** the property is now tested rather than argued —
-`a_backgrounded_child_leads_its_own_session` asserts `getsid(child) == child`,
-with `a_plain_child_stays_in_the_launchers_session` as the control that proves
-the assertion can fail. Both run on Linux, so the macOS-only defect is now
-catchable on the CI that exists. Beyond the test, the fix removes the platform
-dependency entirely: `setsid(2)` is POSIX, so there is no fallback left to
-degrade into and no acknowledgement left to get wrong.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -257,7 +205,7 @@ degrade into and no acknowledgement left to get wrong.
 
 ## Updates
 
-### 2026-08-15T19:14:52Z — task-created [task-create-agent]
+### 2026-08-15T19:30:28Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2743-prove-a-backgrounded-session-survives-it.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2744-stale-binary-session-detector--termlink-.md
 - **Context:** Initial task creation

@@ -3167,3 +3167,9 @@ learnings:
   task: T-2739
   date: 2026-08-15
   context: Added via context agent
+- id: PL-345
+  learning: "An allowlist entry whose stated reason is incomplete is worse than no entry: it converts an open question into a closed one, so nobody looks again. T-2743's three setsid entries said 'process starts, no session leader' — accurate about the mechanism, silent about the consequence (the child dies on SIGHUP, which is the whole feature). The check fired correctly; the acknowledgement is where the truth was lost. When writing or reviewing an allowlist reason, state the OBSERVABLE BEHAVIOUR the user gets, not the mechanism that differs."
+  source: P-001
+  task: T-2743
+  date: 2026-08-15
+  context: Added via context agent
