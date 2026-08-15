@@ -3149,3 +3149,9 @@ learnings:
   task: T-2712
   date: 2026-08-14
   context: Added via context agent
+- id: PL-342
+  learning: "A restore path is only complete with respect to a named layer: termios restores kernel line discipline and cannot touch terminal private modes (alt screen, mouse, bracketed paste), which live in the emulator. When a detector for a state exists but no emitter, ask what the detector was built to answer — TermLink could see a child enter alt screen and had no way to leave it (T-2732)."
+  source: P-001
+  task: T-2732
+  date: 2026-08-15
+  context: Added via context agent
