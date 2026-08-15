@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2720: Fleet version floors not bumped when T-2533 shipped — canary green on known-bad binaries
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-15T06:14:54Z
+# ============================================================================
+
+task_id: T-2720
+task_name: "Fleet version floors not bumped when T-2533 shipped — canary green on known-bad binaries"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-15T05:13:21Z
+completed: 2026-08-15T06:14:48Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  check-fleet-binary-freshness.sh reports healthy while every reachable hub serves a binary 151-192 commits below the T-2533 silent-data-loss fix, because fleet-version-floors.conf was last bumped 2026-07-27 and T-2533 shipped a hub-side rail on 2026-08-08 without bumping it
+
+# Key outcomes
+outcomes:
+  - '`fleet-version-floors.conf` floors for our-lineage hubs are raised to >= 0.11.871 (the T-2533 fix), with a comment citing the task, the commit, and why that specific version'
+  - '`ring20-dashboard` stays exempt — no upgrade foothold (T-2467); this task does not change exemptions'
+  - '`bash scripts/check-fleet-binary-freshness.sh` now FIRES (exit 1) and names each lagging hub with its served version — verified by running it'
+  - 'The task records the structural finding: a version floor is a hand-maintained assertion, so a canary gated on it reports freshness only as recently as the last manual bump *(§Prevention)*'
+  - 'A durable prevention is proposed for the gap: something that couples "a hub-side rail shipped" to "the floor moved", since the convention alone has now failed once with a data-loss fix *(§Prevention, with the rejected alternative and why)*'
+  - 'Filed as an upstream record under `.context/upstream/` — it belongs in vendored task-lifecycle tooling, not this repo *(U-007, severity high)*'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 61 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 61
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2720-fleet-version-floors-not-bumped-when-t-2.md
+generated_by: context-agent-hybrid

@@ -4,10 +4,10 @@ name: "Fleet version floors not bumped when T-2533 shipped — canary green on k
 description: >
   check-fleet-binary-freshness.sh reports healthy while every reachable hub serves a binary 151-192 commits below the T-2533 silent-data-loss fix, because fleet-version-floors.conf was last bumped 2026-07-27 and T-2533 shipped a hub-side rail on 2026-08-08 without bumping it
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-15T05:13:21Z
-last_update: 2026-08-15T05:17:10Z
-date_finished: null
+last_update: 2026-08-15T06:14:48Z
+date_finished: 2026-08-15T06:14:48Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -269,3 +269,6 @@ backfill is a one-off review, not something to automate.
 
 ### 2026-08-15T05:14:29Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-08-15T06:14:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
