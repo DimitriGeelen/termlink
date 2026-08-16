@@ -126,10 +126,26 @@ channel.relations {"topic": "...", "target": 6}                   -> -32001 Miss
 channel.info      {"topic": "..."}                                -> -32001 Missing 'target' in params
 ```
 
-`channel.info` has no `target` parameter at all, so the hub cannot legitimately be
-asking for one — the params are not arriving. Auth and scope are fine (an `observe`
-call produced a correct, well-formed scope-mismatch refusal naming `execute`, so the
-transport and token path work).
+**Sharpened after further testing — it is worse than "params dropped".** A fourth
+call settles it:
+
+```
+termlink.ping     (NO params exist for this method)  -> -32001 Missing 'target' in params
+```
+
+Four methods, including one that takes no parameters at all, return the byte-identical
+error. Passing `params` as a JSON *string* instead of an object changes nothing. So the
+failure is not parameter serialization — **every `remote_call` fails the same way
+regardless of method or params.**
+
+The one thing that DOES vary is instructive: at `observe` scope the hub returned a
+correct, method-SPECIFIC refusal (`'channel.read' requires 'execute' scope ... This is
+a SCOPE mismatch, not a bad secret`). So the method name reaches the auth/scope layer
+intact, and transport + token + TOFU all work. Dispatch after that point fails
+uniformly. That narrows it to the dispatch step rather than the wire or the auth path.
+
+The tool describes itself as "the universal cross-host escape hatch — any hub RPC
+method can be invoked remotely through this one tool". On this surface, none can.
 
 **Not yet attributed.** The MCP server here runs an older binary than the tree
 (T-2707: 0.11.720 vs VERSION 0.11.1440), so this may already be fixed in current
