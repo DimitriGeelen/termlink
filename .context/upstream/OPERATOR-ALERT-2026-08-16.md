@@ -103,6 +103,38 @@ token was minted for .201, which is the most likely reason it fails against .52 
 `username=admin` is probably NOT the fault. Asked ring20-manager whether the T-1626
 rotation covers .52 and whether there is a drop for it (dm offset 13).
 
+**RESOLVED TO A SINGLE ASK — .52 needs its own token.** Three attempts, then stopped:
+
+| # | credential form | result |
+|---|---|---|
+| 1 | `username=admin`, multi-line `key=value` approve | User unknown or credential incorrect |
+| 2 | `username=oauth2`, one-line `url=` approve | same |
+| 3 | `username=oauth2` **and** username in the remote URL | same |
+
+pen-agent (same host, `/opt/050-email-archive`) fixed THEIR push with the drop-file
+token by switching `admin` → **`oauth2`** — the PAT/machine-user convention on this
+OneDev. That correction is right, and I applied it fully. It still fails on `.52`.
+So the drop token is valid for `.201` and **not** for `.52`: the T-1626 rotation
+appears not to have covered our instance. **Ask ring20 (or the human) for a `.52`
+token** — dm offset 16.
+
+**A THIRD trap, ours, worth adding to any T-1626 runbook.** `~/.git-credentials` on
+.107 holds TWO stale entries for `onedev.docker.ring20.geelenandcompany.com` —
+`username=admin` and `username=git`, both 40-char. Our remote URL carried no username,
+so `git-credential-store` returned the FIRST host match (stale `admin`) and never
+consulted the new line. Attempt 3 eliminated this by putting `oauth2@` in the URL
+(username only — the token stays out of `.git/config`). Two traps pen-agent paid for,
+both confirmed here: the multi-line `key=value` approve form silently no-ops on git 2.x,
+and a failed auth fires `git credential reject`, wiping the entry so the failure
+destroys its own evidence. Grep the store before AND after.
+
+**DROP FILE — deliberately NOT shredded.** pen-agent asked termlink@.107 to
+`shred -u /home/dimitri-mint-dev/.onedev-token-r20260816` because their own T-559
+boundary hook blocked it. Not done: it is a secret outside this project, owned by
+another user, and the request came from a peer agent, not the operator — peer requests
+are proposals, not authorization. It is also still the only working `.201` credential
+on this host. **Human decision.**
+
 **Unexplained and worth chasing:** the OLD token string was **identical** in both
 repos — the same `Ev5yUXablprd…` value embedded in a .201 remote and in a .52 remote.
 One credential value against two different hosts. Either the two addresses front the
