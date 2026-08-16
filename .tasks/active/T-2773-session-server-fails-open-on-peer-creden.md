@@ -4,7 +4,7 @@ name: "Session server fails OPEN on peer-credential extraction failure — T-244
 description: >
   server.rs:239-242 allows the connection when PeerCredentials extraction errors ('graceful degradation'), while the hub's decide_unix_peer rejects the same case fail-closed (T-2448, from T-2447 F1). Same uid gate, opposite security posture. The session server also drops uid-mismatched peers silently (bare continue, line 231) — the defect T-2772 just fixed in the hub.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-16T17:41:00Z
-last_update: 2026-08-16T17:41:00Z
+last_update: 2026-08-16T19:29:05Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,56 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+The same-uid gate on a local Unix socket is implemented **twice**, and the two
+copies disagree about what to do when `SO_PEERCRED` extraction fails.
+
+`crates/termlink-hub/src/server.rs` fails **closed** — T-2448 (from T-2447 F1)
+made an unreadable peer credential a rejection, on the reasoning that "I cannot
+tell who you are" is not a licence to grant `Execute`. T-2772 then made that
+refusal legible to the refused party.
+
+`crates/termlink-session/src/server.rs:239-242` fails **open**: the `Err` arm
+logs at `debug!` and *allows the connection*, commented "graceful degradation on
+unsupported platforms". The session server then assigns `Execute` scope when the
+registration carries no `token_secret` — so on any platform where peer-credential
+extraction fails, an unidentified peer receives full command-execution scope over
+the session's control plane. That is the opposite posture on the identical gate.
+
+It also carries the defect T-2772 just closed in the hub: a uid mismatch is a
+bare `continue` (line 231), so the refused client reads only
+`Connection reset by peer (os error 104)` and cannot distinguish a deliberate
+policy refusal from a crashed server — Directive #2, a refusal nobody can read.
+
+**The mechanism, not just the instance.** Nothing made the hub's hardening
+propagate to its sibling, and nothing detects that the two have diverged. A
+third copy of the policy would reproduce exactly that. `PeerCredentials` already
+lives in `termlink-session/src/auth.rs` and the hub depends on that crate, so the
+decision belongs there as ONE function both accept loops call — divergence
+becomes impossible rather than merely discouraged.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The uid/peer-credential decision is expressed by a single shared pure
+      function in `termlink-session/src/auth.rs` (beside `PeerCredentials`), and
+      BOTH the hub accept loop and the session accept loop route their decision
+      through it — no second policy implementation remains
+- [x] The session accept loop rejects a connection when peer-credential
+      extraction fails (fail-closed, matching T-2448); no code path remains that
+      allows a connection whose peer identity is unknown
+- [x] A peer refused by the session server receives a readable `AUTH_DENIED`
+      JSON-RPC envelope before the stream closes, distinguishing the two causes
+      (uid mismatch vs credentials-unavailable) — no bare `continue`
+- [x] The refusal write cannot stall the session accept loop (a client that
+      never reads must not block other connections) — the write is `tokio::spawn`ed,
+      mirroring the hub's capacity refusal
+- [x] Unit tests assert on what the CLIENT receives for both refusal causes on
+      the session side, not only on server-side log emission
+- [x] A test pins the shared-policy property: hub and session server produce the
+      same decision for the same (creds, owner_uid) input
+- [x] `cargo test --workspace` passes — 2026-08-16, exit 0, every suite `0 failed`
+      (termlink-session 463 → 468 with the five new cases)
+- [x] `bash scripts/run-guard-layer.sh` passes — 41/41 members clean
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -74,10 +116,50 @@ date_finished: null
        `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` added to ## Verification.
 -->
 
+## Decisions
+
+**Shared function, not a third copy.** The obvious minimal fix — change `Err(e) =>
+allow` to `Err(e) => reject` in the session server — closes the instance and leaves
+the mechanism untouched: two implementations of one security policy, still free to
+drift the next time either is hardened. The repo's own convention (T-2069) permits
+duplicating *tiny pure helpers* across crates, and that convention is the wrong
+reach here; a security posture is exactly the thing that must not have two
+opinions. `PeerCredentials` already lives in `termlink-session/src/auth.rs` and the
+hub already depends on that crate, so the policy moved there and the hub's copy was
+deleted rather than a second one added.
+
+**The refusal builder moved too.** Its `data` shape (`reason` / `peer_uid` /
+`owner_uid`) is a wire contract clients parse, so the same drift argument applies.
+Only the human-readable remediation differs by endpoint, which is a `UnixEndpoint`
+parameter — the hub offers authenticated TCP, a session control plane is local-only
+and points at a capability token through the hub instead.
+
+**Known limit of the test coverage — stated, not papered over.** The unit tests
+prove the policy is fail-closed and prove what the refused client receives. They do
+NOT prove the accept loop *calls* the policy; that is the same "coverage of a
+builder says nothing about whether the builder is called" gap T-2699 documented.
+Two things carry that weight instead: the Accept arm is exercised end-to-end by the
+crate's existing socket tests (8+ call sites drive `run_accept_loop` and connect
+same-uid), and the wiring is pinned by greps in `## Verification`. The Reject arm
+cannot be integration-tested in-process — nothing in the test binary can be a
+different uid, and `SO_PEERCRED` cannot be made to fail on Linux on demand. The
+structural mitigation is that the `match` is now exhaustive over `UnixPeerDecision`
+with no allow-arm to fall into: reintroducing fail-open requires writing new code,
+not deleting a check.
+
 ## Verification
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
+# The fail-open path must be gone: no code may allow a connection whose peer is unknown.
+! grep -rn "allowing connection" crates/termlink-session/src/server.rs
+# The policy must exist in exactly one place (auth.rs), and both servers must call it.
+grep -q "pub fn decide_unix_peer" crates/termlink-session/src/auth.rs
+grep -q "decide_unix_peer" crates/termlink-hub/src/server.rs
+grep -q "decide_unix_peer" crates/termlink-session/src/server.rs
+cargo test -p termlink-session --quiet
+cargo test -p termlink-hub --quiet
+bash scripts/run-guard-layer.sh
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
 #
 # Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
@@ -174,3 +256,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2773-session-server-fails-open-on-peer-creden.md
 - **Context:** Initial task creation
+
+### 2026-08-16T19:29:05Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

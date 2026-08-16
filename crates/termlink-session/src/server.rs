@@ -200,6 +200,24 @@ fn hex_to_bytes(hex: &str) -> Option<[u8; 32]> {
     Some(bytes)
 }
 
+/// T-2773: Write a single `AUTH_DENIED` envelope to a just-accepted Unix stream
+/// and close, instead of dropping it silently.
+///
+/// Generic over the writer so the refusal can be asserted against an in-memory
+/// buffer — the point of the fix is what the CLIENT receives, so that is what the
+/// test needs to be able to read.
+async fn write_uid_refusal<S>(stream: &mut S, peer_uid: Option<u32>, owner_uid: u32)
+where
+    S: tokio::io::AsyncWrite + Unpin,
+{
+    let envelope = auth::build_uid_refusal(peer_uid, owner_uid, auth::UnixEndpoint::Session);
+    if let Ok(mut line) = serde_json::to_vec(&RpcResponse::Error(envelope)) {
+        line.push(b'\n');
+        let _ = stream.write_all(&line).await;
+        let _ = stream.shutdown().await;
+    }
+}
+
 /// Run the session accept loop, spawning a task for each connection.
 ///
 /// This is the main entry point for a session's control plane server.
@@ -216,33 +234,45 @@ pub async fn run_accept_loop(
 
     loop {
         match listener.accept().await {
-            Ok((stream, _addr)) => {
-                // Extract peer credentials and check UID
-                match PeerCredentials::from_tokio_stream(&stream) {
-                    Ok(creds) => {
-                        if !creds.is_same_user(owner_uid) {
-                            tracing::warn!(
-                                peer_uid = creds.uid,
-                                peer_pid = ?creds.pid,
-                                owner_uid = owner_uid,
-                                "Rejected connection from different UID"
-                            );
-                            // Drop the stream — connection closed
-                            continue;
-                        }
+            Ok((mut stream, _addr)) => {
+                // T-2773: route the same-uid gate through the ONE shared policy
+                // (`auth::decide_unix_peer`), the same call the hub accept loop
+                // makes. This arm used to be a private copy that failed OPEN on a
+                // credential-extraction error while the hub failed closed — and
+                // since a session with no `token_secret` grants `Execute` below,
+                // that copy handed full command-execution scope to a peer it
+                // could not identify.
+                match auth::decide_unix_peer(PeerCredentials::from_tokio_stream(&stream), owner_uid)
+                {
+                    auth::UnixPeerDecision::Accept { peer_pid } => {
                         tracing::trace!(
-                            peer_uid = creds.uid,
-                            peer_pid = ?creds.pid,
+                            peer_pid = ?peer_pid,
                             "Accepted authenticated connection"
                         );
                     }
-                    Err(e) => {
-                        // If credential extraction fails, allow the connection
-                        // (graceful degradation on unsupported platforms)
-                        tracing::debug!(
-                            error = %e,
-                            "Could not extract peer credentials, allowing connection"
-                        );
+                    auth::UnixPeerDecision::Reject { uid_mismatch } => {
+                        match uid_mismatch {
+                            Some(peer_uid) => tracing::warn!(
+                                peer_uid = peer_uid,
+                                owner_uid = owner_uid,
+                                "Session: rejected Unix connection from different UID"
+                            ),
+                            None => tracing::warn!(
+                                owner_uid = owner_uid,
+                                "Session: rejected Unix connection — could not extract \
+                                 peer credentials (fail-closed)"
+                            ),
+                        }
+                        // T-2773: tell the REFUSED PARTY why. A bare `continue`
+                        // closed the stream with nothing written, so the client
+                        // saw only `Connection reset by peer (os error 104)` and
+                        // could not tell a policy refusal from a crashed session.
+                        // Spawned so a client that never reads cannot stall the
+                        // accept loop.
+                        tokio::spawn(async move {
+                            write_uid_refusal(&mut stream, uid_mismatch, owner_uid).await;
+                        });
+                        continue;
                     }
                 }
 
@@ -281,6 +311,127 @@ mod tests {
     use tokio::net::UnixListener;
 
     static TEST_COUNTER: AtomicU32 = AtomicU32::new(0);
+
+    // ---- T-2773: the uid gate on the session control plane ------------------
+    //
+    // This accept loop used to fail OPEN: a peer whose credentials could not be
+    // read was ALLOWED, and — because a session with no `token_secret` is granted
+    // `Execute` a few lines further down — that unidentified peer received full
+    // command-execution scope. The hub had refused the same case since T-2448.
+    // Two copies of one security policy, opposite verdicts.
+    //
+    // The tests below therefore pin two separate things: that the verdict is
+    // fail-closed, and that the refused party can actually READ the refusal
+    // (the T-2772 defect, which this server still carried as a bare `continue`).
+
+    fn session_refusal_json(peer_uid: Option<u32>, owner_uid: u32) -> serde_json::Value {
+        serde_json::to_value(RpcResponse::Error(auth::build_uid_refusal(
+            peer_uid,
+            owner_uid,
+            auth::UnixEndpoint::Session,
+        )))
+        .unwrap()
+    }
+
+    #[test]
+    fn session_uid_gate_fails_closed_when_credentials_cannot_be_read() {
+        // The regression that matters: `Err` must reject, not allow. Generic over
+        // the error type so this is provable without SO_PEERCRED ever failing.
+        assert_eq!(
+            auth::decide_unix_peer::<()>(Err(()), 1000),
+            auth::UnixPeerDecision::Reject {
+                uid_mismatch: None
+            },
+            "an unidentifiable peer must be refused, never granted Execute"
+        );
+    }
+
+    #[test]
+    fn session_uid_gate_matches_the_hub_for_every_input() {
+        // The mechanism behind this defect was divergence between two copies of
+        // the gate. There is now one function, and this pins the property that
+        // makes divergence impossible: the session server reaches its verdict by
+        // calling the same `auth::decide_unix_peer` the hub calls, so identical
+        // inputs cannot produce different outcomes.
+        let owner = 1000;
+        let same = PeerCredentials { uid: owner, gid: 0, pid: Some(42) };
+        let other = PeerCredentials { uid: 1001, gid: 0, pid: Some(43) };
+
+        assert_eq!(
+            auth::decide_unix_peer::<()>(Ok(same), owner),
+            auth::UnixPeerDecision::Accept { peer_pid: Some(42) }
+        );
+        assert_eq!(
+            auth::decide_unix_peer::<()>(Ok(other), owner),
+            auth::UnixPeerDecision::Reject { uid_mismatch: Some(1001) }
+        );
+        assert_eq!(
+            auth::decide_unix_peer::<()>(Err(()), owner),
+            auth::UnixPeerDecision::Reject { uid_mismatch: None }
+        );
+    }
+
+    #[test]
+    fn session_refusal_names_the_cause_and_a_way_through() {
+        let v = session_refusal_json(Some(1001), 0);
+        let msg = v["error"]["message"].as_str().unwrap();
+
+        assert!(msg.contains("1001"), "names the peer uid: {msg}");
+        assert!(msg.contains("uid 0"), "names the owner uid: {msg}");
+        // A session control plane is local-only, so the remediation is NOT the
+        // hub's "connect over TCP" — it is to go through the hub with a token.
+        assert!(
+            msg.contains("capability token"),
+            "carries session-appropriate remediation: {msg}"
+        );
+        assert_eq!(v["error"]["code"], control::error_code::AUTH_DENIED);
+        assert_eq!(v["error"]["data"]["reason"], "uid_mismatch");
+        assert_eq!(v["error"]["data"]["endpoint"], "session");
+    }
+
+    #[test]
+    fn session_refusal_distinguishes_unreadable_credentials_from_wrong_user() {
+        let v = session_refusal_json(None, 0);
+        let msg = v["error"]["message"].as_str().unwrap();
+
+        assert!(
+            msg.contains("could not read peer credentials"),
+            "names the real cause: {msg}"
+        );
+        assert!(
+            msg.contains("fail-closed"),
+            "says the refusal was deliberate, not a fault: {msg}"
+        );
+        assert_eq!(v["error"]["data"]["reason"], "peer_credentials_unavailable");
+        assert!(v["error"]["data"]["peer_uid"].is_null());
+
+        let mismatch = session_refusal_json(Some(1001), 0);
+        assert_ne!(
+            msg,
+            mismatch["error"]["message"].as_str().unwrap(),
+            "the two branches must not collapse to one message"
+        );
+    }
+
+    #[tokio::test]
+    async fn session_refusal_is_one_newline_terminated_line_the_client_can_frame() {
+        // What the CLIENT receives is the whole point of the fix — asserting on
+        // server-side logs would pass just as happily with a silent drop.
+        let mut buf: Vec<u8> = Vec::new();
+        write_uid_refusal(&mut buf, None, 0).await;
+
+        assert!(!buf.is_empty(), "a refused peer must not get zero bytes");
+        assert!(buf.ends_with(b"\n"), "newline-terminated");
+        assert_eq!(buf.iter().filter(|b| **b == b'\n').count(), 1, "exactly one");
+
+        let parsed: serde_json::Value =
+            serde_json::from_slice(&buf[..buf.len() - 1]).expect("parses as JSON");
+        assert_eq!(parsed["error"]["code"], control::error_code::AUTH_DENIED);
+        assert_eq!(
+            parsed["error"]["data"]["reason"],
+            "peer_credentials_unavailable"
+        );
+    }
 
     fn test_socket_path() -> PathBuf {
         let n = TEST_COUNTER.fetch_add(1, Ordering::Relaxed);

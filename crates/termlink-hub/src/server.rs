@@ -12,6 +12,11 @@ use termlink_protocol::control;
 use termlink_protocol::jsonrpc::{ErrorResponse, Request, Response, RpcResponse};
 use termlink_session::auth::{self, PermissionScope};
 use termlink_session::auth::PeerCredentials;
+// T-2773: the same-uid gate is defined ONCE, beside `PeerCredentials`, and shared
+// with the session control-plane accept loop. It used to be a hub-local copy that
+// the session server's copy silently diverged from (fail-closed here, fail-OPEN
+// there).
+use termlink_session::auth::{decide_unix_peer, UnixPeerDecision};
 use termlink_session::discovery;
 
 use crate::pidfile;
@@ -595,48 +600,12 @@ where
 /// T-2772: Build the `AUTH_DENIED` refusal envelope for a Unix peer rejected by
 /// the same-uid gate.
 ///
-/// `peer_uid` is `Some` for a uid mismatch and `None` when credential extraction
-/// itself failed (the T-2448 fail-closed branch) — the two carry DIFFERENT cause
-/// text, because "you are the wrong user" and "I could not tell who you are" call
-/// for different operator actions.
-///
-/// Split out from the writer so the envelope's CONTENT is unit-testable without a
-/// socket. That matters here: the defect this closes was never a missing policy,
-/// it was a policy whose outcome the refused party could not read, so the test
-/// worth having asserts on what the client receives.
+/// T-2773 moved the body to `termlink_session::auth::build_uid_refusal` so the
+/// hub and the session control plane emit the same wire contract; this wrapper
+/// just pins the endpoint. See that function for why the two causes read
+/// differently.
 pub(crate) fn build_uid_refusal(peer_uid: Option<u32>, owner_uid: u32) -> ErrorResponse {
-    match peer_uid {
-        Some(peer_uid) => ErrorResponse::with_data(
-            serde_json::Value::Null,
-            control::error_code::AUTH_DENIED,
-            &format!(
-                "Connection refused: peer uid {peer_uid} does not match hub owner uid \
-                 {owner_uid}. This hub accepts local Unix connections only from its own \
-                 uid. Either run the client as uid {owner_uid}, or start a separate hub \
-                 under uid {peer_uid}."
-            ),
-            serde_json::json!({
-                "reason": "uid_mismatch",
-                "peer_uid": peer_uid,
-                "owner_uid": owner_uid,
-            }),
-        ),
-        None => ErrorResponse::with_data(
-            serde_json::Value::Null,
-            control::error_code::AUTH_DENIED,
-            &format!(
-                "Connection refused: could not read peer credentials, so the hub cannot \
-                 confirm you share its uid ({owner_uid}) — refusing fail-closed (T-2448). \
-                 This usually means the platform does not support peer-credential \
-                 extraction. Connect over TCP with a hub token instead."
-            ),
-            serde_json::json!({
-                "reason": "peer_credentials_unavailable",
-                "peer_uid": serde_json::Value::Null,
-                "owner_uid": owner_uid,
-            }),
-        ),
-    }
+    auth::build_uid_refusal(peer_uid, owner_uid, auth::UnixEndpoint::Hub)
 }
 
 /// T-2772: Write a single `AUTH_DENIED` envelope to a just-accepted Unix stream
@@ -751,36 +720,11 @@ fn handle_hub_auth_token(
     }
 }
 
-/// Fail-closed decision for an accepted Unix-socket peer (T-2448, T-2447 F1).
-///
-/// A security default must never fail *open*: both a UID mismatch and a
-/// credential-extraction failure reject the connection. Only a same-UID peer
-/// is granted `Execute`.
-#[derive(Debug, PartialEq, Eq)]
-pub(crate) enum UnixPeerDecision {
-    /// Same-UID peer: grant full `Execute` scope. Carries the peer pid (if any)
-    /// for the audit log / legacy-method warn.
-    Accept { peer_pid: Option<u32> },
-    /// Reject the connection. `Some(uid)` = different-UID case (log the peer
-    /// uid); `None` = credential extraction failed (fail-closed).
-    Reject { uid_mismatch: Option<u32> },
-}
-
-/// Pure fail-closed policy for a Unix peer. Generic over the error type so it is
-/// unit-testable without SO_PEERCRED ever actually failing — tests pass a
-/// synthetic `Ok(creds)` / `Err(())`.
-pub(crate) fn decide_unix_peer<E>(
-    creds: Result<PeerCredentials, E>,
-    owner_uid: u32,
-) -> UnixPeerDecision {
-    match creds {
-        Ok(c) if c.is_same_user(owner_uid) => UnixPeerDecision::Accept { peer_pid: c.pid },
-        Ok(c) => UnixPeerDecision::Reject {
-            uid_mismatch: Some(c.uid),
-        },
-        Err(_) => UnixPeerDecision::Reject { uid_mismatch: None },
-    }
-}
+// T-2448 (T-2447 F1) defined the fail-closed Unix-peer policy here. T-2773 moved
+// it to `termlink_session::auth::decide_unix_peer` — see the import at the top of
+// this file — because the session control-plane accept loop had its own copy that
+// had drifted to failing OPEN. The policy is now one function; this comment marks
+// where the hub's copy used to be so nobody reintroduces a second one.
 
 /// Accept loop: spawns a task per connection.
 ///

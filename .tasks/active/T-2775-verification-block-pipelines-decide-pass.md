@@ -1,12 +1,12 @@
 ---
-id: T-2723
-name: "Handover commit under T-1452 collides with the focus gate, generating most safety bypasses"
+id: T-2775
+name: "Verification-block pipelines decide pass/fail by SIGPIPE, not by the check (L-613/PL-161 class)"
 description: >
-  Handover commit under T-1452 collides with the focus gate, generating most safety bypasses
+  update-task.sh runs each Verification line as 'if ( eval $cmd )' under 'set -euo pipefail', so 'cmd | grep -q PAT' exits 141 when grep matches early and SIGPIPEs the producer — the gate FAILS precisely when the check SUCCEEDS. Measured here: 61 active tasks carry 262 such lines (58% of all active verification commands). Reproduced under the exact gate construct. Cross-project confirmed by AEF L-613 and 050-email-archive PL-161.
 
-status: work-completed
+status: captured
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
@@ -15,9 +15,9 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-15T06:19:38Z
-last_update: 2026-08-16T19:04:20Z
-date_finished: 2026-08-15T06:23:54Z
+created: 2026-08-16T19:50:37Z
+last_update: 2026-08-16T19:50:37Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -30,7 +30,7 @@ date_finished: 2026-08-15T06:23:54Z
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2723: Handover commit under T-1452 collides with the focus gate, generating most safety bypasses
+# T-2775: Verification-block pipelines decide pass/fail by SIGPIPE, not by the check (L-613/PL-161 class)
 
 ## Context
 
@@ -40,21 +40,10 @@ date_finished: 2026-08-15T06:23:54Z
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] The bypass log is analysed by task, not just counted: **13 of the 24** focus-drift bypasses in the 7-day window are task `T-1452`, the session-handover task — the single largest generator by a wide margin (next is 4)
-- [x] The mechanism is stated precisely: at session end, focus is necessarily on the *working* task, while the mandatory handover commit references `T-1452`, so the focus-drift gate fires on a step the framework itself prescribes
-- [x] It is demonstrated that the bypass is avoidable — `fw context focus T-1452` → commit → refocus works and was used twice in this session instead of `FW_SWITCH_FOCUS=1` — so the finding is about imposed friction, not an impossible gate
-- [x] The distinction is drawn from the earlier wrong reading: no framework script *sets* `FW_SWITCH_FOCUS`, which was verified and remains true; the framework generates these bypasses by prescribing a flow its gate blocks, not by typing the bypass itself
-- [x] Filed as an upstream record under `.context/upstream/` — the collision is in vendored handover/gate tooling, not in this repo
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
-
-- [ ] [RUBBER-STAMP] Decide whether U-008 is filed to the shared `framework:pickup` topic
-  **Steps:**
-  1. Read `.context/upstream/U-008-handover-commit-collides-with-focus-gate.yaml`
-  2. If you want it filed, post it to `framework:pickup`; if not, leave this unchecked and the record stays local
-  **Expected:** Either a post on `framework:pickup` referencing U-008, or a deliberate decision not to file
-  **If not:** The record stays in `.context/upstream/` and loses nothing — filing is what makes it visible to peer projects, which is why it is your call and not the agent's
-
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
@@ -84,30 +73,6 @@ date_finished: 2026-08-15T06:23:54Z
        Conversion: this AC should be moved to ### Agent and
        `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` added to ## Verification.
 -->
-
-## Recommendation
-
-**Recommendation:** GO — file U-008 to `framework:pickup`.
-
-**Rationale:** The finding is not specific to this project. Any consumer of the
-framework that follows the Session End Protocol hits the same collision at every
-session end, and the same 50%-plus share of its safety-bypass log will be its own
-handover step. That makes the count untrustworthy everywhere, not just here — and
-the audit's mitigation ("investigate the callers") sends the reader to inspect 24
-entries of which 13 are the framework's own prescribed flow. The fix proposed in
-direction 1 is small and lives entirely in `fw handover --commit`, which already
-knows both the task it commits under and the focus it would displace.
-
-The reason to file rather than keep it local is that this repo cannot fix it: the
-handover agent and the focus gate are both vendored, so a local patch is erased at
-the next re-vendor (as T-2721 documents for the audit-hook patch).
-
-**Evidence:**
-- `.context/working/.gate-bypass-log.yaml` — 26 entries in the 7-day window; grouped by task: T-1452 ×13, T-1166 ×4, T-2567 ×3, T-1291 ×3, T-2672 ×1, plus 2 inception filings on a different flag
-- 24 of 26 are `flag: FW_SWITCH_FOCUS=1`, `caller: check-active-task focus-drift`
-- Verified NOT machine-generated: no framework script sets the variable; `bin/fw:6639` only names it in an error string — an earlier reading of this same data got that wrong, and the correction is recorded in U-008
-- Demonstrated avoidable: this session hit the gate twice and cleared it both times with `fw context focus <task>` instead of the bypass, so the sanctioned path works and the issue is imposed friction, not an impossible gate
-- `PL-265` already records the adjacent collision (the gate blocking `fw handover` on a just-completed focus task), which is evidence the session-end path is systematically under-tested against its own gates
 
 ## Verification
 
@@ -205,10 +170,7 @@ the next re-vendor (as T-2721 documents for the audit-hook patch).
 
 ## Updates
 
-### 2026-08-15T06:19:38Z — task-created [task-create-agent]
+### 2026-08-16T19:50:37Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2723-handover-commit-under-t-1452-collides-wi.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2775-verification-block-pipelines-decide-pass.md
 - **Context:** Initial task creation
-
-### 2026-08-15T06:23:54Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed

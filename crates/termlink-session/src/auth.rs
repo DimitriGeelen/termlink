@@ -121,6 +121,150 @@ impl PeerCredentials {
     }
 }
 
+/// The outcome of applying the same-uid policy to a connecting Unix peer.
+///
+/// Lives beside `PeerCredentials` rather than in either server because BOTH the
+/// hub accept loop and the session accept loop must reach the same verdict — see
+/// [`decide_unix_peer`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnixPeerDecision {
+    /// Same-uid peer. Carries the peer pid (if the platform reported one) for
+    /// the audit log and the legacy-method warning.
+    Accept { peer_pid: Option<u32> },
+    /// Refuse the connection. `Some(uid)` is a uid mismatch (log which uid);
+    /// `None` means credential extraction itself failed, refused fail-closed.
+    Reject { uid_mismatch: Option<u32> },
+}
+
+/// Decide whether a connecting Unix peer may be served, fail-closed.
+///
+/// **This is the single implementation of the same-uid gate.** It is called by
+/// the hub accept loop (`termlink-hub`) and the session control-plane accept
+/// loop (`crate::server`). It deliberately lives next to [`PeerCredentials`],
+/// which both crates already depend on, so that the policy cannot be hardened in
+/// one server and silently left stale in the other.
+///
+/// That is not hypothetical. T-2448 made the hub refuse a peer whose credentials
+/// could not be read; the session server kept a separate copy of the gate that
+/// *allowed* the same peer as "graceful degradation on unsupported platforms",
+/// and — because the session server grants `Execute` when the registration has
+/// no `token_secret` — handed full command-execution scope to a peer it could
+/// not identify. Two copies of one security policy is the defect; one function
+/// is the fix (T-2773).
+///
+/// Generic over the error type so the failure branch is unit-testable without
+/// `SO_PEERCRED` ever actually having to fail: tests pass a synthetic `Err(())`.
+///
+/// Fail-closed is the whole point. "I could not determine who you are" is not a
+/// reason to grant access; it is the strongest available reason to refuse.
+pub fn decide_unix_peer<E>(
+    creds: Result<PeerCredentials, E>,
+    owner_uid: u32,
+) -> UnixPeerDecision {
+    match creds {
+        Ok(c) if c.is_same_user(owner_uid) => UnixPeerDecision::Accept { peer_pid: c.pid },
+        Ok(c) => UnixPeerDecision::Reject {
+            uid_mismatch: Some(c.uid),
+        },
+        Err(_) => UnixPeerDecision::Reject { uid_mismatch: None },
+    }
+}
+
+/// Which local Unix endpoint refused a peer.
+///
+/// The *policy* is identical for both ([`decide_unix_peer`]); only the noun and
+/// the remediation advice differ, so this selects the wording rather than
+/// justifying a second copy of the refusal builder.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnixEndpoint {
+    /// The hub's control socket.
+    Hub,
+    /// A session's control-plane socket.
+    Session,
+}
+
+impl UnixEndpoint {
+    fn noun(self) -> &'static str {
+        match self {
+            UnixEndpoint::Hub => "hub",
+            UnixEndpoint::Session => "session",
+        }
+    }
+
+    /// What the refused party should do instead. The hub offers an authenticated
+    /// TCP route; a session control plane is local-only, so its advice is to use
+    /// a capability token via the hub rather than to retry the socket.
+    fn remedy(self) -> &'static str {
+        match self {
+            UnixEndpoint::Hub => {
+                "Either run the client as that uid, or start a separate hub under your own uid. \
+                 To reach this hub across uids, connect over TCP with a hub token."
+            }
+            UnixEndpoint::Session => {
+                "A session control plane serves only its own uid. Reach this session through \
+                 the hub with a capability token (`termlink token create`) instead of \
+                 connecting to its socket directly."
+            }
+        }
+    }
+}
+
+/// Build the `AUTH_DENIED` refusal envelope for a Unix peer rejected by the
+/// same-uid gate (T-2772; generalized to both endpoints by T-2773).
+///
+/// `peer_uid` is `Some` for a uid mismatch and `None` when credential extraction
+/// itself failed (the fail-closed branch) — the two carry DIFFERENT cause text,
+/// because "you are the wrong user" and "I could not tell who you are" call for
+/// different operator actions.
+///
+/// Split out from the writer so the envelope's CONTENT is unit-testable without a
+/// socket. That matters here: the defect this closes was never a missing policy,
+/// it was a policy whose outcome the refused party could not read — so the test
+/// worth having asserts on what the client receives.
+pub fn build_uid_refusal(
+    peer_uid: Option<u32>,
+    owner_uid: u32,
+    endpoint: UnixEndpoint,
+) -> termlink_protocol::jsonrpc::ErrorResponse {
+    use termlink_protocol::jsonrpc::ErrorResponse;
+
+    let noun = endpoint.noun();
+    let remedy = endpoint.remedy();
+    match peer_uid {
+        Some(peer_uid) => ErrorResponse::with_data(
+            serde_json::Value::Null,
+            control::error_code::AUTH_DENIED,
+            &format!(
+                "Connection refused: peer uid {peer_uid} does not match {noun} owner uid \
+                 {owner_uid}. This {noun} accepts local Unix connections only from its own \
+                 uid. {remedy}"
+            ),
+            serde_json::json!({
+                "reason": "uid_mismatch",
+                "peer_uid": peer_uid,
+                "owner_uid": owner_uid,
+                "endpoint": noun,
+            }),
+        ),
+        None => ErrorResponse::with_data(
+            serde_json::Value::Null,
+            control::error_code::AUTH_DENIED,
+            &format!(
+                "Connection refused: could not read peer credentials, so the {noun} cannot \
+                 confirm you share its uid ({owner_uid}) — refusing fail-closed (T-2448). \
+                 This usually means the platform does not support peer-credential \
+                 extraction. {remedy}"
+            ),
+            serde_json::json!({
+                "reason": "peer_credentials_unavailable",
+                "peer_uid": serde_json::Value::Null,
+                "owner_uid": owner_uid,
+                "endpoint": noun,
+            }),
+        ),
+    }
+}
+
 /// Permission scope tiers for RPC method authorization.
 ///
 /// Scopes are hierarchical: a higher scope implicitly grants all lower scopes.
