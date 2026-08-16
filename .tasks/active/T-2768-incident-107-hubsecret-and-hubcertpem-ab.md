@@ -1,12 +1,12 @@
 ---
-id: T-2696
-name: "comms-selftest and substrate-smoke are executed by nothing"
+id: T-2768
+name: "INCIDENT .107: hub.secret and hub.cert.pem absent from /var/lib/termlink while the hub runs"
 description: >
-  Two of the four charter-verb affirmative provers are referenced only in comments and docs. Wiring them to cron needs a prerequisites-absent (exit 2) contract first, or they fire on a quiet host rather than on breakage (T-2694 F2/G3).
+  Measured in T-2766. fleet doctor fails the local profile with 'Secret file not found: /var/lib/termlink/hub.secret'; ls shows neither hub.secret nor hub.cert.pem, though the hub (PID 3093442) is up and serving TLS on 9100 and therefore holds both in memory. CRITICAL: restarting regenerates BOTH, which is PL-021's both-rotate case and forces a fleet-wide re-pin — so the usual G-070 'restart through the unit' remediation is wrong here until the secret is recovered or a rotation is deliberately accepted. Root cause not established; T-559 blocked inspecting ~/.termlink for a cached copy. Owner human: recovering or rotating fleet auth is an operator decision.
 
-status: started-work
+status: captured
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-14T08:01:43Z
-last_update: 2026-08-16T14:54:58Z
+created: 2026-08-16T15:02:21Z
+last_update: 2026-08-16T15:02:21Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,7 +30,7 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2696: comms-selftest and substrate-smoke are executed by nothing
+# T-2768: INCIDENT .107: hub.secret and hub.cert.pem absent from /var/lib/termlink while the hub runs
 
 ## Context
 
@@ -170,14 +170,7 @@ date_finished: null
 
 ## Updates
 
-### 2026-08-14T08:01:43Z — task-created [task-create-agent]
+### 2026-08-16T15:02:21Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2696-comms-selftest-and-substrate-smoke-are-e.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2768-incident-107-hubsecret-and-hubcertpem-ab.md
 - **Context:** Initial task creation
-
-### 2026-08-14T08:01:56Z — status-update [task-update-agent]
-- **Change:** horizon: now → next
-
-### 2026-08-16T14:54:58Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
-- **Change:** horizon: next → now (auto-sync)

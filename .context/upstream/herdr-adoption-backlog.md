@@ -307,6 +307,21 @@ path for hubs already holding a live `hub.secret` under the old default. Incepti
 human go/no-go before code. Items 3 and 7 are the detect-layer fixes that make this safe to
 sequence behind; **item 18 is also the prerequisite for auto-start (see (c)).**
 
+> **Negative evidence, 2026-08-16 (T-2766).** An incident on `.107` that looked like this
+> item was measured and is **NOT** evidence for it. `termlink hub status` reported "not
+> running" while `termlink-hub.service` was active — but the unit, the running hub process
+> and the interactive shell **all** resolve `TERMLINK_RUNTIME_DIR=/var/lib/termlink`, and
+> preflight confirms it is disk-backed btrfs. No divergence. The real causes were a detached
+> ghost hub started manually by a second session (G-070, caught by preflight Check 6) and a
+> missing `hub.secret`/`hub.cert.pem` in an otherwise-correct runtime_dir.
+>
+> Recorded because the incident is *superficially* a perfect advertisement for rank 18, and
+> attaching it here would have put false support under a human-owned decision. The item's
+> case rests on `discovery.rs:10-26` having three volatile candidates out of four — which is
+> still true, and still argued on its own merits. **This host was already migrated to the
+> persistent path, so it is exactly the configuration rank 18 would make the default; that it
+> still broke is evidence the default is not the only failure mode, not that it is fine.**
+
 **19. Shared envelope types — rank 19, HUMAN-OWNED, revisits a standing decision.**
 The duplication is **not in the operation** — `termlink-mcp/Cargo.toml:10–27` has no
 `termlink-cli` dependency and both crates already sit over `termlink-protocol`/`-session`/

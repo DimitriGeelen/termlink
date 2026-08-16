@@ -1,13 +1,13 @@
 ---
-id: T-2696
-name: "comms-selftest and substrate-smoke are executed by nothing"
+id: T-2766
+name: "Measured evidence for herdr rank 18: runtime_dir default divergence on this host"
 description: >
-  Two of the four charter-verb affirmative provers are referenced only in comments and docs. Wiring them to cron needs a prerequisites-absent (exit 2) contract first, or they fire on a quiet host rather than on breakage (T-2694 F2/G3).
+  While checking messages, termlink hub status reported 'not running' on a host where systemd shows termlink-hub.service active and accepting TLS connections. That is the rank-18 class live: the four-step runtime_dir resolution in discovery.rs means a shell and the systemd unit can resolve DIFFERENT directories, so the CLI gives a confident wrong answer about the hub it is standing next to. Rank 18 is owner: agenthuman and this task does NOT decide it — it measures and records the evidence so the human go/no-go has data.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -15,9 +15,9 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-14T08:01:43Z
-last_update: 2026-08-16T14:54:58Z
-date_finished: null
+created: 2026-08-16T14:56:29Z
+last_update: 2026-08-16T15:01:09Z
+date_finished: 2026-08-16T15:01:09Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -30,18 +30,93 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2696: comms-selftest and substrate-smoke are executed by nothing
+# T-2766: Measured evidence for herdr rank 18: runtime_dir default divergence on this host
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Filed to gather evidence for herdr backlog **rank 18** (default `runtime_dir`,
+`owner: human`). The trigger was `termlink hub status` reporting **"Hub: not
+running"** on a host where `systemctl` showed `termlink-hub.service` **active** and
+accepting TLS connections.
+
+### Result on rank 18: NEGATIVE — the hypothesis was wrong
+
+The hypothesis was a resolution divergence: shell and unit landing on different
+`runtime_dir`s. Measured, they do not.
+
+| source | `TERMLINK_RUNTIME_DIR` |
+|---|---|
+| systemd unit (`systemctl show -p Environment`) | `/var/lib/termlink` |
+| running hub process (`/proc/3093442/environ`) | `/var/lib/termlink` |
+| this interactive shell (`env`) | `/var/lib/termlink` |
+
+All three agree, and `substrate-preflight.sh` confirms
+`runtime_dir=/var/lib/termlink on btrfs (disk-backed, not wiped by tmpfiles)`.
+This host is correctly configured on the persistent path via the T-935 unit
+migration, so it contributes **no** evidence that the four-step default in
+`discovery.rs:10-26` is what bit here. Rank 18's argument stands on its own
+merits; it gains nothing from this incident, and saying otherwise would be
+manufacturing support for a human-owned decision. Recorded per AC 6.
+
+### What was actually wrong — two findings, neither about defaults
+
+**F1 — detached ghost hub (G-070 class), split-brain on one runtime_dir.**
+Two hubs were running against `/var/lib/termlink`:
+
+- PID `3093442` — the supervised unit, `termlink hub start --tcp 0.0.0.0:9100 --json`, up 2h33m
+- PID `3869961` — `termlink hub start` (no `--tcp`), started 16:52:36, holding `hub.pid` **and** `hub.sock`
+
+The ghost's parent is **another Claude session's shell** on this host (a different
+`shell-snapshot` id from mine), which ran `termlink hub start` manually. Effect: unix-socket
+clients reach the ghost while TCP clients reach the supervised hub — the same topic name
+resolves to two different instances (the G-060 per-hub-state property, but *within one
+host*, which no one expects).
+
+My first hypothesis was that my own `cargo test --workspace` had spawned it, since my shell
+exports `TERMLINK_RUNTIME_DIR` and cargo inherits it. **Checked and disproved** by
+`/proc/<pid>/environ` (no `CARGO_*`) and the parent's cmdline. Recorded because the
+plausible-and-wrong version would have blamed the test suite for another session's action.
+
+*Preflight Check 6 (T-2358) detected this correctly*, unprompted, naming both PIDs and the
+remediation. A guard fed a real, unplanned instance of its own condition and firing is the
+evidence standard PL-328 asks for — worth more than any number of green runs.
+
+**F2 — `hub.secret` and `hub.cert.pem` are ABSENT from the runtime_dir while the hub runs.**
+`ls -la /var/lib/termlink/` shows `hub.pid`, `hub.sock`, `bus/`, `sessions/`,
+`route-cache.json`, `rpc-audit.jsonl` — and **neither** `hub.secret` **nor** `hub.cert.pem`.
+`fleet doctor` fails the local profile with
+`Secret file not found: /var/lib/termlink/hub.secret`, which is why local reads
+(`agent-chat-arc-recent.sh`) reported `workstation-107-public` and `local-test` as network
+failures while the two remote hubs answered fine.
+
+**The load-bearing consequence, stated because it is easy to get wrong:** the running hub
+holds both in memory. **Restarting it regenerates both**, which is PL-021's "BOTH rotate"
+case and forces a fleet-wide re-pin. So the ordinary G-070 remediation ("restart through the
+unit") is *exactly wrong here* until the secret is recovered or a planned rotation is
+accepted. Deliberately NOT actioned: stopping the ghost belongs to the session that started
+it, and restarting the supervised hub is a fleet-affecting decision for the operator.
+
+Root cause of the absence is NOT established — I could not inspect `/root/.termlink/` for a
+cached copy because the T-559 project-boundary hook blocks it, and I did not route around it.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The divergence is MEASURED, not asserted: record the runtime_dir the running
+      systemd unit uses, the runtime_dir an interactive shell resolves, and whether
+      each is volatile — with the commands and their actual output
+- [x] The resolution path is traced to `discovery.rs` so the evidence names the
+      mechanism, not just the symptom
+- [x] The observable operator-facing consequence is stated exactly (what the CLI
+      reports vs what is true), since that is what makes it a Directive #2 issue
+      (a confident wrong answer, not an error)
+- [x] Evidence is written into `.context/upstream/herdr-adoption-backlog.md` under
+      rank 18 so it reaches the human decision, not only this task file
+- [x] The task does NOT change the default, add a migration, or decide the go/no-go —
+      rank 18 is `owner: human` and this is evidence only
+- [x] If the divergence turns out to be operator misconfiguration rather than a
+      default-resolution property, that negative result is recorded just as plainly
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -75,6 +150,15 @@ date_finished: null
 -->
 
 ## Verification
+
+# The negative result reached the human decision, not just this task file.
+grep -q "Negative evidence, 2026-08-16 (T-2766)" .context/upstream/herdr-adoption-backlog.md
+# The rank-18 entry still states the item is human-owned and undecided.
+grep -q "18. Default .runtime_dir. — rank 18, HUMAN-OWNED" .context/upstream/herdr-adoption-backlog.md
+# Preflight still detects the ghost condition (the guard that caught this).
+grep -q "detached ghost serving outside supervision" scripts/substrate-preflight.sh
+# This task changed no product code — evidence only, per AC 5.
+test -z "$(git diff --name-only HEAD -- crates/)"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -170,14 +254,10 @@ date_finished: null
 
 ## Updates
 
-### 2026-08-14T08:01:43Z — task-created [task-create-agent]
+### 2026-08-16T14:56:29Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2696-comms-selftest-and-substrate-smoke-are-e.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2766-measured-evidence-for-herdr-rank-18-runt.md
 - **Context:** Initial task creation
 
-### 2026-08-14T08:01:56Z — status-update [task-update-agent]
-- **Change:** horizon: now → next
-
-### 2026-08-16T14:54:58Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
-- **Change:** horizon: next → now (auto-sync)
+### 2026-08-16T15:01:09Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

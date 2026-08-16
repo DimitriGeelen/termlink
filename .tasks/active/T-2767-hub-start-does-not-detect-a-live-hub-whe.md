@@ -1,10 +1,10 @@
 ---
-id: T-2696
-name: "comms-selftest and substrate-smoke are executed by nothing"
+id: T-2767
+name: "hub start does not detect a LIVE hub when the pidfile is stale — allows a second hub to steal hub.sock"
 description: >
-  Two of the four charter-verb affirmative provers are referenced only in comments and docs. Wiring them to cron needs a prerequisites-absent (exit 2) contract first, or they fire on a quiet host rather than on breakage (T-2694 F2/G3).
+  Measured in T-2766: PID 3869961 started a second hub against /var/lib/termlink at 16:52 while supervised PID 3093442 was already serving, and took over hub.pid and hub.sock. The already-running guard keys on the PIDFILE, so when the pidfile is missing or names a dead pid the check passes even though a hub is demonstrably bound to hub.sock and serving. Result is a split-brain: unix-socket clients reach one instance, TCP clients another, with the same topic names resolving differently on ONE host. Fix direction: probe the socket for liveness (or bind-exclusively) rather than trusting the pidfile alone, and refuse loudly per Directive 2.
 
-status: started-work
+status: captured
 workflow_type: build
 owner: agent
 horizon: now
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-14T08:01:43Z
-last_update: 2026-08-16T14:54:58Z
+created: 2026-08-16T15:01:33Z
+last_update: 2026-08-16T15:01:33Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,7 +30,7 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2696: comms-selftest and substrate-smoke are executed by nothing
+# T-2767: hub start does not detect a LIVE hub when the pidfile is stale — allows a second hub to steal hub.sock
 
 ## Context
 
@@ -170,14 +170,7 @@ date_finished: null
 
 ## Updates
 
-### 2026-08-14T08:01:43Z — task-created [task-create-agent]
+### 2026-08-16T15:01:33Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2696-comms-selftest-and-substrate-smoke-are-e.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2767-hub-start-does-not-detect-a-live-hub-whe.md
 - **Context:** Initial task creation
-
-### 2026-08-14T08:01:56Z — status-update [task-update-agent]
-- **Change:** horizon: now → next
-
-### 2026-08-16T14:54:58Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
-- **Change:** horizon: next → now (auto-sync)
