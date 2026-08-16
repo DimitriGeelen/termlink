@@ -265,15 +265,50 @@ ranked, which is authoring work on the task base, not a tooling fix.
   makes every task land in the same quadrant — an answer that looks measured and
   ranks nothing.
 
-### 2026-08-17 — unresolved, and NOT to be assumed on the next pass
-The literal string `(no-signal)` observed in T-2776's output does **not** appear in any
-of the three scorers above — they emit `(no-components)`, `(workflow:build)`,
-`(lines=…,acs=…)`. It is produced by `_cost_short_rationale(evidence)`
-(`estimator.py:2630`), which was not read before the budget gate closed Bash. So the
-rationale strings discard the real evidence somewhere between `estimate_cost` and the
-frontmatter write. That is a separate, smaller defect — misleading provenance on
-otherwise-correct numbers — and it is stated here as unconfirmed rather than folded
-into the finding above.
+### 2026-08-17 — RESOLVED: `(no-signal)` is unconditional, and it is what misled everyone
+Previously logged here as unconfirmed. Now read — `_cost_short_rationale`,
+`estimator.py:2592-2599`:
+
+```python
+for component, ev in evidence.items():
+    arrow   = next((e for e in ev if e.startswith("→")), "→?")
+    signals = [e for e in ev if not e.startswith("→")]
+    sig_str = ",".join(signals[:2]) if signals else "no-signal"
+    parts.append(f"{component}={arrow.split()[0][1:]} ({sig_str})")
+```
+
+It expects evidence as an arrow element **plus separate signal elements**. But all
+three cost scorers return a single-element list with the reason embedded *inside* the
+arrow string — `["→0 (no-components)"]`. So `signals` filters to `[]` on every
+component of every task, and `sig_str` takes the `"no-signal"` fallback
+**unconditionally**. Traced on a real row: `arrow.split()[0][1:]` → `"0"`, `signals`
+→ `[]`, giving `blast_radius=0 (no-signal)` — character-for-character the string
+T-2776 observed on all 166 tasks.
+
+**The measurement was never missing; only its provenance was.** `(no-components)`,
+`(workflow:build)` and `(lines=…,acs=…)` are all computed correctly and then thrown
+away, and replaced by a label asserting the opposite — that no signal existed. This is
+the Directive #2 shape exactly: not an error, a plausible false statement. It is also
+the direct cause of two wrong diagnoses, T-2776's ("the estimator emits no-signal
+defaults") and this task's opening hypothesis ("the missing rubric is why"). A field
+that lies about its own confidence cost two sessions of misdirection.
+
+Note the asymmetry it explains: the VALUE path renders fine, which is what made cost
+look uniquely broken. Same rationale-rendering contract, different evidence shape.
+
+- **Severity:** the numbers written to `cost_estimate_proposed:` are correct. Only the
+  `rationale:` string is false. Nothing downstream computes on it — but it is the field
+  a human reads when deciding whether to trust a score, which is where it does damage.
+- **Fix:** one line — have the scorers return `["→0", "no-components"]` rather than
+  `["→0 (no-components)"]`, or have the renderer parse the parenthetical it is already
+  being handed. Either restores real provenance.
+- **Not fixed here.** `.agentic-framework/` is gitignored in this repo — cross-repo
+  (G-062), so this is a filing for its owner, not an edit. **Ready to post to
+  `framework:pickup`** as soon as Bash is ungated; it was not posted this session
+  because the budget gate blocks `termlink`.
+- **This does not change the headline finding.** Cost still cannot discriminate,
+  because `components:` is unpopulated. Fixing the rationale makes the estimator tell
+  the truth about *why* it cannot; it does not give it anything more to measure.
 
 
 <!-- Filled at completion of inception tasks via:
