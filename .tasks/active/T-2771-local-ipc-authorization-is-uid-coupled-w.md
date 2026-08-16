@@ -1,8 +1,8 @@
 ---
-id: T-2769
-name: "Purpose review 8 — claim ownership is unauthenticated, and identity is host-scoped not agent-scoped"
+id: T-2771
+name: "Local IPC authorization is uid-coupled while remote is identity-based — fragmentation is the default outcome"
 description: >
-  Charter verb 3 'claim work' rests on exactly-one-owner (PL-262), but the hub enforces it by comparing two CALLER-SUPPLIED strings. Identity is also host-scoped while three of four charter verbs are agent-scoped.
+  A unix domain socket carries filesystem permissions, so local hub access is decided by whichever uid started the hub and its umask, never by TermLink's own auth. Remote TCP uses HMAC and is user-agnostic. Net inversion: a remote host on another machine can authenticate in while a local agent on the same box cannot — and an agent that cannot reach the hub silently starts its own, which is why .107 currently runs three. Origin: AEF agent (/opt/999-Agentic-Engineering-Framework), 2026-08-16.
 
 status: started-work
 workflow_type: inception
@@ -11,8 +11,8 @@ horizon: now
 tags: []
 components: []
 related_tasks: []
-created: 2026-08-16T16:38:41Z
-last_update: 2026-08-16T16:40:19Z
+created: 2026-08-16T16:42:47Z
+last_update: 2026-08-16T16:42:47Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -24,7 +24,7 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
                                   # independent of build cost. Higher when answer affects many tasks or unblocks a strategic decision. Required.
 ---
 
-# T-2769: Purpose review 8 — claim ownership is unauthenticated, and identity is host-scoped not agent-scoped
+# T-2771: Local IPC authorization is uid-coupled while remote is identity-based — fragmentation is the default outcome
 
 ## Problem Statement
 
@@ -36,47 +36,51 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 ## Open Questions
 
-- **IW-1: Bind `claimer` to the authenticated sender identity, or give claims their own signature?**
+- **IW-1: `SO_PEERCRED` (option 2) or loopback TCP + HMAC (option 3)?**
   confidence: 2
   disposition:
-  rationale: `channel.post` already proves the cheaper option works — it rejects a
-  `sender_id` that does not match the fingerprint derived from `sender_pubkey_hex`
-  (channel.rs:777-787). Reusing that check in the claim path is the smallest change.
-  The alternative (sign the claim itself) is stronger but duplicates a mechanism that
-  already exists one function away.
+  rationale: Option 2 keeps the unix-socket fast path and makes local authorization use
+  the hub's own model. Option 3 is the only one that yields literally ONE auth path, which
+  is the stronger Directive #4 story, but it gives up the local fast path and opens a port
+  on every host. Lean 2; the decision hinges on IW-2.
 
-- **IW-2: What breaks in the field, and what is the migration?**
-  confidence: 1
-  disposition:
-  rationale: THE decisive question. Today `claimer` is a free string — the CLI resolves
-  it from `$TERMLINK_AGENT_ID` or `be-reachable.state` (T-1857), so real callers pass
-  human-readable ids like `ring20-concierge`, NOT identity fingerprints. Binding
-  `claimer` to the authenticated identity would reject **every current caller** on a
-  fleet with ~1000-commit-stale hosts. This is the T-2700 shape exactly: a correct
-  protection that begins refusing live peers. Needs a compatibility path (accept-and-warn
-  before enforce?) and probably a human decision on the cutover.
-
-- **IW-3: Does the documented orchestrator pattern survive an authenticated `claimer`?**
-  confidence: 1
-  disposition:
-  rationale: `docs/operations/substrate-orchestrator-recipe.md` has one agent claim and
-  then `claim-transfer` to a different worker. `claim-transfer` requires `by == claimed_by`,
-  so the orchestrator's own identity must match — fine. But `to_owner` is then a
-  *different* agent's id, and that worker later renews/releases with its own `claimer`.
-  If claimer must equal the authenticated sender, `to_owner` has to be that worker's
-  identity fingerprint rather than a free label, which changes the recipe's ergonomics
-  and every caller that passes a friendly name. Must be answered before F1 is built, or
-  the fix silently breaks the substrate's flagship pattern.
-
-- **IW-4: Is F1 even reachable by an untrusted party, and does that change its severity?**
+- **IW-2: Does `SO_PEERCRED` create a NEW portability gap while closing a uid gap?**
   confidence: 2
   disposition:
-  rationale: Claim RPCs require the fleet HMAC secret, so this is not an anonymous
-  internet-facing hole — the realistic threat is a buggy or confused co-tenant agent,
-  not an attacker. That lowers urgency but does NOT dissolve the finding: F2 shows
-  co-located agents already share one identity, so "confused co-tenant" is the *normal*
-  configuration here, not a corner case. Severity should be argued explicitly rather
-  than assumed high because the word "unauthenticated" appears.
+  rationale: `SO_PEERCRED` is Linux. macOS needs `LOCAL_PEERCRED`/`getpeereid`, and README
+  asserts macOS first-class across five rows. T-2693's platform-lock check would flag a
+  bare Linux-only call, and correctly. So option 2 is not "smallest change" unless the
+  macOS path is written at the same time — otherwise we trade a uid gap for exactly the
+  lock-in Directive #4 forbids, which is the trade T-2690 already caught once.
+
+- **IW-3: What does authorization by uid actually GRANT?**
+  confidence: 1
+  disposition:
+  rationale: Unasked so far, and it decides the shape. If any local uid may do anything,
+  `SO_PEERCRED` only restores parity with the current intent (whoever can reach the socket
+  is trusted) and is a small change. If local peers should map to distinct identities with
+  distinct rights, this merges with T-2769 (claim ownership unauthenticated) and the two
+  should be designed together rather than twice. Answer this before writing code.
+
+- **IW-4: Is option 1 acceptable as an interim, and how do we stop it becoming "the fix"?**
+  confidence: 2
+  disposition:
+  rationale: `UMask=0002` + a shared group unblocks this host today and is genuinely
+  useful. The risk is documentation drift: it is deployment config, so every host that
+  does not apply it still fragments silently, and a runbook line reading "fixed" would be
+  false for a fresh install. If adopted, it must be recorded as a MITIGATION with the gap
+  left open — the T-2483 allowlist pattern (a ledger of an open question) rather than a
+  closure.
+
+- **IW-5: How would we ever detect recurrence?**
+  confidence: 1
+  disposition:
+  rationale: Preflight Check 6 caught the ghost on THIS host because it compares the
+  pidfile PID to the unit MainPID. It would not notice a hub owned by another uid under a
+  different `runtime_dir` (e.g. `/tmp/termlink-1000`) — that hub is invisible to a check
+  looking at one path. Any fix should come with detection for "more than one live hub on
+  this host, across runtime_dirs", or the class stays silent the next time it appears in a
+  new shape.
 
 <!-- T-2190 (T-2186 Slice 4): every IW-N question must be disposed before
      --status work-completed. Disposition gate (agents/task-create/update-task.sh
@@ -156,7 +160,7 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 **Recommendation:** GO
 
-**Rationale:** Eighth critical pass; prior axes were breadth (T-2468), non-goal guards (T-2678), guard execution (T-2683), Usability+Portability (T-2690), positive claims vs provers (T-2694), refusal taxonomy (T-2698), architecture invariants (T-2702). None examined AUTHORIZATION of the substrate primitives. Two findings. F1: channel.claim/release/renew/claim-transfer read claimer via param_str(params,'claimer') with no signature, pubkey or fingerprint anywhere in the claim path, so CLAIM_NOT_OWNED (-32017) compares two caller-supplied strings and stops only honest mistakes. The same file proves the standard exists: channel.post line 777 rejects a sender_id that does not match the fingerprint derived from sender_pubkey_hex, with in-code rationale naming the exact attack ('own key but claim any sender_id'). So the hub authenticates messages but not work ownership, and PL-262's disjointness property rests on client honesty. F2: measured live today, two agents on .107 (/opt/termlink and /opt/050-email-archive) share identity fingerprint d1993c2c3ec44c94, so their DMs land in one topic and receipts cross-mark; identity is host-scoped while discover/exchange/claim are agent-scoped. GO on F1 only: it mirrors an existing in-file check, is bounded and testable. F2 changes wire identity semantics for every peer and would re-key existing dm topics on a fleet with ~1000-commit-stale hosts, so it is human-sovereign.
+**Rationale:** MEASURED on .107: systemd unit runs User=root with StateDirectoryMode=0700, hub.sock lands root:root 0755, and three hubs are live (root's, dimitri-mint-dev's under /tmp/termlink, systemd's). Nobody misconfigured anything — fragmentation is the DEFAULT outcome once two agent runtimes run as different users, now the normal case with Claude Code and Codex side by side. Silent fragmentation is a Directive #2 violation by design rather than by bug, and it defeats charter verb 1 (discover) and verb 2 (exchange durable messages) locally while both still work across hosts. Self-demonstrating evidence: this session could not DM the AEF agent to co-write this task, because they are absent from agent-presence and .107's hub is unreachable from here — two agents on one machine unable to use the agent-to-agent comms tool to discuss the bug in agent-to-agent comms. Three candidate fixes: (1) UMask=0002 + shared termlink group + StateDirectoryMode=0770 — smallest and unblocks today, but it is DEPLOYMENT CONFIG, not a TermLink fix; every host that does not apply it still fragments, so it must not be recorded as the fix. (2) authorize local clients via SO_PEERCRED inside the hub so local and remote share one model — structurally right and my recommendation, with a Directive #4 caveat: SO_PEERCRED is Linux, macOS needs LOCAL_PEERCRED/getpeereid, and README claims macOS first-class, so it needs T-2693 platform-lock treatment or it trades a uid gap for a portability gap. (3) drop the unix socket for loopback TCP + the same HMAC — genuinely one auth path but gives up the local fast path and opens a port. Sequence behind T-2770, which contains the damage by making hub start refuse on EACCES instead of starting a rival hub.
 
 ## Decisions
 
