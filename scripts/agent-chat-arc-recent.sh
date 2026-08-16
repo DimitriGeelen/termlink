@@ -174,6 +174,86 @@ declare -a failed_hubs_pairs=()
 declare -a fallback_hubs=()
 total_posts=0
 SCAN_LIMIT="${SCAN_LIMIT:-500}"
+# T-2758: cap on the forward-drain rounds per hub (see the drain loop below).
+# Bounds worst-case work at MAX_DRAIN_ROUNDS × SCAN_LIMIT envelopes per hub.
+MAX_DRAIN_ROUNDS="${MAX_DRAIN_ROUNDS:-20}"
+
+# T-2758: hubs whose tail offset could only be guessed from `count` on a topic
+# that looks retention-trimmed — the scan window may not have reached the live
+# tail. Surfaced rather than silently reported as an empty window.
+declare -a degraded_hubs=()
+
+# ── T-2758: derive the seek-to-tail cursor from an OFFSET, never from `count` ──
+#
+# `channel info.count` is the RETAINED-message count. On a retention-trimmed
+# topic it is capped at the retention limit while live offsets keep rising, so
+# `cursor = count - N` lands thousands of offsets BELOW the retained range: the
+# scan reads the OLDEST retained envelopes, and the `--since` render filter
+# (which is documented as pure render-side — it does not move the cursor) then
+# discards every one. The verb reports "0 posts" on a topic that is actively in
+# use, which is a silent under-report, not an error (Directive #2).
+#
+# Measured on agent-chat-arc: count=2003, retention=messages/2000, true tail
+# 11973. cursor 1503 saw nothing newer than 2026-08-01 while the topic had a
+# post that same morning; an offset-derived cursor of 11473 saw it.
+#
+# Same class as T-2390 (agent-listeners.sh, fixed there via the cv_index fast
+# path — which does NOT transfer here: agent-chat-arc is a conversation topic,
+# not per-key current state, so it carries no cv_key to index by) and PL-293
+# ("when you fix one count-anchored read, grep for ALL callers").
+#
+# Offset signals, in order of authority:
+#   1. `.latest_offset`        — authoritative, served by T-2533+ hubs
+#   2. max `.receipts[].up_to` — a real offset, and a lower bound on the tail.
+#      Used ONLY when it exceeds `count - 1`, a condition that itself proves the
+#      topic has been trimmed. Present in this hub's payload today.
+#   3. `count - 1`             — correct on an untrimmed topic; the legacy path.
+#
+# Echoes "<tail_offset> <source>" so the caller can report provenance instead of
+# silently claiming a window it did not actually cover.
+derive_tail_offset() {
+    local info_json="$1" count="$2"
+    local latest receipts_max count_tail
+
+    case "$count" in ''|*[!0-9]*) count=0 ;; esac
+
+    latest="$(printf '%s' "$info_json" | jq -r '(.latest_offset // empty)' 2>/dev/null || true)"
+    case "$latest" in ''|*[!0-9]*) latest='' ;; esac
+    if [ -n "$latest" ]; then
+        printf '%s %s\n' "$latest" "latest_offset"
+        return 0
+    fi
+
+    count_tail=0
+    [ "$count" -gt 0 ] && count_tail=$((count - 1))
+
+    receipts_max="$(printf '%s' "$info_json" \
+        | jq -r '[.receipts[]?.up_to // empty] | map(select(type == "number")) | max // empty' \
+          2>/dev/null || true)"
+    case "$receipts_max" in ''|*[!0-9]*) receipts_max='' ;; esac
+    if [ -n "$receipts_max" ] && [ "$receipts_max" -gt "$count_tail" ]; then
+        printf '%s %s\n' "$receipts_max" "receipt"
+        return 0
+    fi
+
+    printf '%s %s\n' "$count_tail" "count"
+}
+
+# T-2758: true when `count` was the only tail signal AND the topic looks
+# retention-trimmed (bounded retention, count at the cap). That combination
+# means the scan window may not reach the live tail and the result must not be
+# presented as a confident empty window.
+tail_is_degraded() {
+    local info_json="$1" count="$2" source="$3"
+    local kind value
+    [ "$source" = "count" ] || return 1
+    kind="$(printf '%s' "$info_json" | jq -r '(.retention.kind // "")' 2>/dev/null || true)"
+    [ -n "$kind" ] && [ "$kind" != "forever" ] || return 1
+    value="$(printf '%s' "$info_json" | jq -r '(.retention.value // empty)' 2>/dev/null || true)"
+    case "$value" in ''|*[!0-9]*) return 1 ;; esac
+    case "$count" in ''|*[!0-9]*) return 1 ;; esac
+    [ "$count" -ge "$value" ]
+}
 
 now_ms="$(date +%s%3N)"
 window_ms=$((SINCE_HOURS * 3600 * 1000))
@@ -189,7 +269,9 @@ for i in "${!hub_names[@]}"; do
     name="${hub_names[$i]}"
     addr="${hub_addrs[$i]}"
 
-    # Seek-to-tail (PL-188): channel info → count → cursor max(0, count-N).
+    # Seek-to-tail (PL-188, corrected in T-2758): channel info → TAIL OFFSET →
+    # cursor max(0, tail - N). Deriving the cursor from `count` is only valid
+    # while the topic is untrimmed; see derive_tail_offset above.
     err_file="$(mktemp)"
     if info_raw="$($TIMEOUT_CMD "$TERMLINK" channel info --hub "$addr" "$TOPIC" --json 2>"$err_file")"; then
         info_rc=0
@@ -216,9 +298,19 @@ for i in "${!hub_names[@]}"; do
         hubs_scanned=$((hubs_scanned + 1))
 
         chat_count="$(printf '%s' "$info_raw" | jq -r '(.count // .posts // 0)' 2>/dev/null || echo 0)"
+
+        # T-2758: seek from the TAIL OFFSET, not from the retained count.
+        tail_info="$(derive_tail_offset "$info_raw" "$chat_count")"
+        tail_offset="${tail_info%% *}"
+        tail_source="${tail_info##* }"
+
         cursor=0
-        if [ "$chat_count" -gt "$SCAN_LIMIT" ]; then
-            cursor=$((chat_count - SCAN_LIMIT))
+        if [ "$tail_offset" -gt "$SCAN_LIMIT" ]; then
+            cursor=$((tail_offset - SCAN_LIMIT))
+        fi
+
+        if tail_is_degraded "$info_raw" "$chat_count" "$tail_source"; then
+            degraded_hubs+=("$name")
         fi
     fi
 
@@ -228,13 +320,51 @@ for i in "${!hub_names[@]}"; do
 
     err_file="$(mktemp)"
     : > "$err_file"
-    if chat_raw="$($TIMEOUT_CMD "$TERMLINK" channel subscribe --hub "$addr" "$TOPIC" \
-                    --cursor "$cursor" --since "$since_ms" --limit "$SCAN_LIMIT" --json 2>"$err_file")"; then
-        sub_rc=0
-    else
-        sub_rc=$?
-        chat_raw=""
-    fi
+
+    # T-2758: bounded forward drain, not a single read.
+    #
+    # The tail offset may be a LOWER BOUND (the receipt-derived case), so one
+    # read of SCAN_LIMIT envelopes can stop short of the live tail — which is
+    # exactly how the 21 newest envelopes on agent-chat-arc stayed invisible
+    # even after the cursor was corrected. Keep advancing while a batch comes
+    # back FULL; a short batch means the topic is exhausted. On a hub serving
+    # an authoritative `latest_offset` the first read already spans the tail,
+    # so the loop exits after one round and costs nothing.
+    #
+    # `--since` is deliberately NOT passed to subscribe here: it is documented
+    # as a pure render-side filter that does not move the cursor, so it would
+    # shrink batches and destroy "batch was full" as an end-of-topic signal.
+    # The ts window is applied in the jq pass below, where it always was.
+    chat_raw=""
+    sub_rc=0
+    drain_cursor="$cursor"
+    drain_round=0
+    while [ "$drain_round" -lt "$MAX_DRAIN_ROUNDS" ]; do
+        # rc is captured on its own line: inside an `if ! cmd; then` branch `$?`
+        # is the status of the negation, not of cmd, and a trailing
+        # `[ ... ] && sub_rc=$?` would capture the test's status instead. Both
+        # mistakes silently turn a failed hub into a "successful" empty read.
+        batch="$($TIMEOUT_CMD "$TERMLINK" channel subscribe --hub "$addr" "$TOPIC" \
+                    --cursor "$drain_cursor" --limit "$SCAN_LIMIT" --json 2>"$err_file")"
+        batch_rc=$?
+        if [ "$batch_rc" -ne 0 ]; then
+            # Only the FIRST read decides hub reachability; a later round that
+            # fails just ends the drain with what we already have.
+            if [ "$drain_round" -eq 0 ]; then
+                sub_rc="$batch_rc"
+            fi
+            break
+        fi
+        [ -z "$batch" ] && break
+        batch_n="$(printf '%s\n' "$batch" | grep -c '^{' || true)"
+        [ "$batch_n" -eq 0 ] && break
+        chat_raw="${chat_raw}${batch}"$'\n'
+        [ "$batch_n" -lt "$SCAN_LIMIT" ] && break
+        last_off="$(printf '%s' "$batch" | jq -s -r 'map(.offset // empty) | max // empty' 2>/dev/null || true)"
+        case "$last_off" in ''|*[!0-9]*) break ;; esac
+        drain_cursor=$((last_off + 1))
+        drain_round=$((drain_round + 1))
+    done
     if [ "$sub_rc" -ne 0 ]; then
         # Subscribe genuinely failed. If we were on the fallback path this
         # means `channel info` failed AND subscribe also failed → mark
@@ -400,6 +530,15 @@ else
     fallback_hubs_json="$(printf '%s\n' "${fallback_hubs[@]}" | jq -R . | jq -s -c .)"
 fi
 
+# T-2758: hubs where the tail offset could only be guessed from `count` on a
+# topic that looks retention-trimmed. The scan window may not reach the live
+# tail, so this read cannot honestly claim an empty window.
+if [ "${#degraded_hubs[@]}" -eq 0 ]; then
+    degraded_hubs_json="[]"
+else
+    degraded_hubs_json="$(printf '%s\n' "${degraded_hubs[@]}" | jq -R . | jq -s -c .)"
+fi
+
 if [ "$FORMAT" = json ]; then
     jq -n -c \
         --argjson window "$SINCE_HOURS" \
@@ -409,6 +548,7 @@ if [ "$FORMAT" = json ]; then
         --argjson failed "$hubs_failed" \
         --argjson failed_hubs "$failed_hubs_json" \
         --argjson fallback_hubs "$fallback_hubs_json" \
+        --argjson degraded_hubs "$degraded_hubs_json" \
         --argjson speakers "$unique_speakers" \
         --argjson hb_posts "$heartbeat_posts" \
         --argjson hb_speakers "$heartbeat_speakers" \
@@ -424,6 +564,10 @@ if [ "$FORMAT" = json ]; then
                 hubs_failed: $failed,
                 failed_hubs: $failed_hubs,
                 fallback_hubs: $fallback_hubs,
+                # T-2758: hubs whose tail offset was guessed from `count` on a
+                # topic that looks retention-trimmed — the scan may have missed
+                # the live tail entirely (the defect this task fixed).
+                tail_unknown_hubs: $degraded_hubs,
                 unique_speakers: $speakers,
                 # T-2731: one field a caller can gate on. `ok` is about whether
                 # the COMMAND ran; this is about whether the ANSWER is complete.
@@ -433,7 +577,9 @@ if [ "$FORMAT" = json ]; then
                 # encoded nowhere in the envelope, so every caller re-derives
                 # it or forgets. total_posts:0 on a degraded read does NOT mean
                 # the fleet is quiet; it means this read cannot tell you.
-                read_complete: (($failed == 0) and (($fallback_hubs | length) == 0)),
+                read_complete: (($failed == 0)
+                                and (($fallback_hubs | length) == 0)
+                                and (($degraded_hubs | length) == 0)),
                 degraded_reasons: (
                     (if $failed > 0
                      then ["\($failed) hub(s) unreachable: " +
@@ -443,6 +589,11 @@ if [ "$FORMAT" = json ]; then
                     (if ($fallback_hubs | length) > 0
                      then ["\($fallback_hubs | length) hub(s) served a partial head-read (seek-to-tail unavailable): " +
                            ($fallback_hubs | join(", "))]
+                     else [] end)
+                    +
+                    (if ($degraded_hubs | length) > 0
+                     then ["\($degraded_hubs | length) hub(s) reported no tail offset on a retention-trimmed topic, so the scan window may not reach the live tail (upgrade the hub to a T-2533+ build, which serves latest_offset): " +
+                           ($degraded_hubs | join(", "))]
                      else [] end)
                 )
             } + (if $excluded == 1 then {
@@ -488,6 +639,17 @@ else
         done
         echo "  fallback: ${fb_summary} (seek-to-tail unavailable — data may be partial)"
     fi
+    if [ "${#degraded_hubs[@]}" -gt 0 ]; then
+        dg_summary=""
+        for dg_name in "${degraded_hubs[@]}"; do
+            if [ -n "$dg_summary" ]; then
+                dg_summary="${dg_summary}, ${dg_name}"
+            else
+                dg_summary="${dg_name}"
+            fi
+        done
+        echo "  tail-unknown: ${dg_summary} (no latest_offset on a retention-trimmed topic — scan may not reach the live tail; upgrade to a T-2533+ hub)"
+    fi
     if [ "$total_posts" = "0" ]; then
         # T-2731: on a DEGRADED read, "no posts matched filters" is a claim
         # about the fleet that the data does not support — some hubs were not
@@ -495,7 +657,10 @@ else
         # empty) and refuse to imply what is not (that there is nothing there).
         # On a complete read the original line is unchanged: a warning that
         # fires unconditionally is the alert fatigue PL-219 warns about.
-        if [ "$hubs_failed" -gt 0 ] || [ "${#fallback_hubs[@]}" -gt 0 ]; then
+        # T-2758 adds the third degradation: a hub that reported no tail offset
+        # on a retention-trimmed topic. That is precisely the case that produced
+        # a confident "0 posts" on a topic with a post from the same morning.
+        if [ "$hubs_failed" -gt 0 ] || [ "${#fallback_hubs[@]}" -gt 0 ] || [ "${#degraded_hubs[@]}" -gt 0 ]; then
             echo "  (no posts in the data retrieved — but this read was DEGRADED,"
             echo "   so absence is NOT established. Silence here is indistinguishable"
             echo "   from traffic on the hubs that did not answer completely.)"

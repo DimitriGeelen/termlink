@@ -225,9 +225,31 @@ for i in "${!profile_names[@]}"; do
         fi
 
         if [ "$chat_skip" -ne 1 ] && [ "$verdict" = "ok" ]; then
+            # T-2758: seek from the TAIL OFFSET, not from the retained `count`.
+            # `count` is capped by retention while live offsets keep rising, so
+            # `cursor = count - SCAN_LIMIT` lands below the retained range on a
+            # trimmed topic and this windowed count silently reads 0 on a busy
+            # hub. Measured on agent-chat-arc: count=2003 vs true tail 11973.
+            # Canonical implementation + rationale: derive_tail_offset() in
+            # scripts/agent-chat-arc-recent.sh.
+            chat_tail="$(printf '%s' "$info_raw" | jq -r '(.latest_offset // empty)' 2>/dev/null || true)"
+            case "$chat_tail" in ''|*[!0-9]*) chat_tail='' ;; esac
+            if [ -z "$chat_tail" ]; then
+                chat_count_tail=0
+                [ "$chat_count" -gt 0 ] && chat_count_tail=$((chat_count - 1))
+                chat_receipt="$(printf '%s' "$info_raw" \
+                    | jq -r '[.receipts[]?.up_to // empty] | map(select(type == "number")) | max // empty' \
+                      2>/dev/null || true)"
+                case "$chat_receipt" in ''|*[!0-9]*) chat_receipt='' ;; esac
+                if [ -n "$chat_receipt" ] && [ "$chat_receipt" -gt "$chat_count_tail" ]; then
+                    chat_tail="$chat_receipt"
+                else
+                    chat_tail="$chat_count_tail"
+                fi
+            fi
             cursor=0
-            if [ "$chat_count" -gt "$SCAN_LIMIT" ]; then
-                cursor=$((chat_count - SCAN_LIMIT))
+            if [ "$chat_tail" -gt "$SCAN_LIMIT" ]; then
+                cursor=$((chat_tail - SCAN_LIMIT))
             fi
             : > "$chat_err"
             chat_raw="$($TIMEOUT_CMD "$TERMLINK" channel subscribe --hub "$addr" agent-chat-arc \

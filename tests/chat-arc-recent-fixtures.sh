@@ -159,6 +159,90 @@ else
   printf '  output: %s\n' "$human_ok"
 fi
 
+# ---- T-2758: retention-trimmed topic — count is NOT an offset ----------------
+# Reproduces the measured production defect. agent-chat-arc had count=2003 under
+# `messages/2000` retention while live offsets ran to 11973, so the legacy
+# `cursor = count - SCAN_LIMIT` seek landed at 1503 — ~8500 offsets BELOW the
+# retained range. The scan read the OLDEST retained envelopes, the ts window
+# discarded every one, and the verb reported "0 posts" on a topic that had a
+# post that same morning: a silent under-report, not an error (Directive #2).
+#
+# The mock records every cursor it is asked for, so the assertions pin BOTH
+# halves: that recent posts surface at all, and that the cursor was derived
+# from an OFFSET. The cursor assertion is what makes this load-bearing — it
+# fails against the pre-fix arithmetic (which asks for 1503) even if some
+# future change made recent posts appear for an unrelated reason.
+TRIM_WORK="$(mktemp -d -t chat-arc-trim.XXXXXX)"
+trap 'rm -rf "$WORK" "$TRIM_WORK"' EXIT
+CURSOR_LOG="$TRIM_WORK/cursors"
+: > "$CURSOR_LOG"
+
+TRIM_MOCK="$TRIM_WORK/termlink"
+cat > "$TRIM_MOCK" <<'TRIMEOF'
+#!/usr/bin/env bash
+args="$*"
+now_ms="$(date +%s)000"
+old_ms=$(( $(date +%s) - 30*24*3600 ))000
+case "$args" in
+  *"channel info"*"agent-chat-arc"*)
+    # count is capped by retention; the true tail is far beyond it. The only
+    # offset-shaped signal in this payload is the receipt frontier.
+    printf '%s\n' '{"count":2003,"retention":{"kind":"messages","value":2000},"receipts":[{"sender_id":"fp-x","up_to":11952}]}'
+    ;;
+  *"channel subscribe"*"agent-chat-arc"*)
+    cursor=0; limit=100
+    prev=""
+    for a in $args; do
+      case "$prev" in --cursor) cursor="$a" ;; --limit) limit="$a" ;; esac
+      prev="$a"
+    done
+    echo "$cursor" >> "$TL_CURSOR_LOG"
+    # Retained range is 9974..11973. Everything below 11953 is 30 days old;
+    # 11953..11973 are the recent envelopes the operator is looking for.
+    emitted=0
+    off="$cursor"
+    [ "$off" -lt 9974 ] && off=9974
+    while [ "$off" -le 11973 ] && [ "$emitted" -lt "$limit" ]; do
+      if [ "$off" -ge 11953 ]; then ts="$now_ms"; tag="recent"; else ts="$old_ms"; tag="ancient"; fi
+      printf '{"offset":%s,"ts":%s,"msg_type":"chat","sender_id":"fp-x","metadata":{"agent_id":"agent-trim"},"payload":"%s-%s"}\n' \
+        "$off" "$ts" "$tag" "$off"
+      off=$((off + 1)); emitted=$((emitted + 1))
+    done
+    ;;
+  *)
+    : ;;
+esac
+TRIMEOF
+chmod +x "$TRIM_MOCK"
+
+trim_out="$(TERMLINK_BIN="$TRIM_MOCK" TL_CURSOR_LOG="$CURSOR_LOG" \
+  bash "$SCRIPT" --hub "$HUB" --json --since 24 2>/dev/null)"
+
+recent_n="$(printf '%s' "$trim_out" | jq -r '.posts // [] | map(select(.payload_preview | startswith("recent"))) | length' 2>/dev/null || echo 0)"
+if [ "${recent_n:-0}" -gt 0 ]; then
+  pass "trimmed topic → recent posts surface ($recent_n) where the count-derived seek saw none"
+else
+  bad "trimmed topic → NO recent posts (the T-2758 silent under-report is back)"
+  printf '  summary: %s\n' "$(printf '%s' "$trim_out" | jq -c '.summary' 2>/dev/null)"
+fi
+
+first_cursor="$(head -n 1 "$CURSOR_LOG" 2>/dev/null || echo "")"
+if [ -n "$first_cursor" ] && [ "$first_cursor" -ge 11000 ] 2>/dev/null; then
+  pass "trimmed topic → first cursor $first_cursor is offset-derived (pre-fix arithmetic asks for 1503)"
+else
+  bad "trimmed topic → first cursor '$first_cursor' is not offset-derived (expected >= 11000)"
+fi
+
+# The drain must actually reach the tail: a single 500-envelope read starting at
+# 11452 stops at 11951 and still misses every recent envelope. Two cursors means
+# the loop continued past a full batch.
+cursor_rounds="$(wc -l < "$CURSOR_LOG" | tr -d ' ')"
+if [ "${cursor_rounds:-0}" -ge 2 ]; then
+  pass "trimmed topic → drain continued past a full batch ($cursor_rounds reads) to reach the live tail"
+else
+  bad "trimmed topic → only $cursor_rounds read(s); a lower-bound tail needs the forward drain"
+fi
+
 echo
 if [ "$fail" -eq 0 ]; then
   echo "chat-arc-recent-fixtures: ALL PASS"; exit 0
