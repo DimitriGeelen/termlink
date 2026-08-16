@@ -885,3 +885,45 @@ decisions:
     date: 2026-08-16
     task: T-2757
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-106
+    decision: "a new `scripts/check-task-template-idioms.sh` that reads template prose."
+    scope: project
+    date: 2026-08-16
+    task: T-2777
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-107
+    decision: "a line carrying `UNSAFE` / `DO NOT` / `WRONG` / `NEVER` / `BAD` reads as"
+    scope: project
+    date: 2026-08-16
+    task: T-2777
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-108
+    decision: "unwrap backticks and read the content, rather than treating them as"
+    scope: project
+    date: 2026-08-16
+    task: T-2777
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-109
+    decision: "treat `sh -c \"<script>\"` as ISOLATED from the outer `pipefail` unless the"
+    scope: project
+    date: 2026-08-16
+    task: T-2777
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-110
+    decision: "fix the quoting false positive in `check-verification-pipefail.sh` here"
+    scope: project
+    date: 2026-08-16
+    task: T-2777
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-111
+    decision: "do NOT synthesise a ranking. I ran the cost estimator directly over the"
+    scope: project
+    date: 2026-08-16
+    task: T-2776
+    rationale: "Auto-captured from task file on completion"
