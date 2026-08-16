@@ -4,10 +4,10 @@ name: "Task template teaches the SIGPIPE-unsafe verification idiom the guard exi
 description: >
   The default task template's L-387/T-2090 hints prescribe 'out=$(cmd); echo "$out" | grep -q PAT', which T-2775 measured as size-dependent-unsafe (rc=141 above the pipe buffer). Every new task inherits it, and check-verification-pipefail.sh does not scan .tasks/templates/, so the guard cannot see its own upstream source.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-16T20:32:35Z
-last_update: 2026-08-16T20:32:35Z
-date_finished: null
+last_update: 2026-08-16T20:48:02Z
+date_finished: 2026-08-16T20:48:02Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -60,13 +60,13 @@ new instances the whole time.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `.tasks/templates/default.md` no longer prescribes a pipeline-decided idiom; both the L-387 and T-2090 hint blocks teach the herestring (`grep -q PAT <<< "$out"`) and state why capture alone is insufficient
-- [ ] The other templates (`inception.md`, `path-c-deep-dive.md`) are checked for the same idiom and fixed if present
-- [ ] A guard pins the template against regression. NOTE: pointing the existing check at `.tasks/templates/` reports `tasks_with_verification: 0` — the idiom lives in `#` comment lines, which the check correctly skips as non-executable. Scanning templates as if they were tasks would therefore be a guard that can never fire; the control must inspect the template's *prescriptive text* instead
-- [ ] The check still reports the real tree clean after the template fix (no new unacknowledged firing)
-- [ ] A fixture asserts the guard is load-bearing: a template that prescribes the unsafe idiom fails it, the fixed template passes
-- [ ] `bash tests/verification-pipefail-fixtures.sh` passes with the new assertions
-- [ ] `bash scripts/run-guard-layer.sh` passes
+- [x] `.tasks/templates/default.md` no longer prescribes a pipeline-decided idiom; both the L-387 and T-2090 hint blocks teach the herestring (`grep -q PAT <<< "$out"`) and state why capture alone is insufficient
+- [x] The other templates (`inception.md`, `path-c-deep-dive.md`) are checked for the same idiom and fixed if present
+- [x] A guard pins the template against regression. NOTE: pointing the existing check at `.tasks/templates/` reports `tasks_with_verification: 0` — the idiom lives in `#` comment lines, which the check correctly skips as non-executable. Scanning templates as if they were tasks would therefore be a guard that can never fire; the control must inspect the template's *prescriptive text* instead
+- [x] The check still reports the real tree clean after the template fix (no new unacknowledged firing)
+- [x] A fixture asserts the guard is load-bearing: a template that prescribes the unsafe idiom fails it, the fixed template passes
+- [x] `bash tests/verification-pipefail-fixtures.sh` passes with the new assertions
+- [x] `bash scripts/run-guard-layer.sh` passes
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -273,3 +273,6 @@ out=$(bash scripts/run-guard-layer.sh 2>&1 || true); grep -q "guard layer: PASS"
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2777-task-template-teaches-the-sigpipe-unsafe.md
 - **Context:** Initial task creation
+
+### 2026-08-16T20:48:02Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
