@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-16T12:19:55Z
-last_update: 2026-08-16T12:20:59Z
+last_update: 2026-08-16T12:25:58Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -82,8 +82,55 @@ report, not an improvised restart.
 - [x] NO PL-021 rotation: the TLS fingerprint and HMAC secret are identical before and after the restart, evidenced by captured values — not assumed from the runtime_dir being disk-backed
 - [x] `substrate-preflight.sh` Checks 4 and 5 (binary / hub-binary staleness) both return to PASS
 - [x] Remote-session availability is probed for `.121` and `.122` so the "no foothold" claim is measured, not inherited from documentation
-- [ ] Each unreachable hub has a named, specific blocker and the concrete action that would unblock it
+- [x] Each unreachable hub has a named, specific blocker and the concrete action that would unblock it
 - [ ] The fleet-binary canary floors are reviewed against the post-restart state so the canary reflects reality
+- [ ] `.122` deployed and restarted onto the current binary (STOPPED at the budget gate — see below)
+
+## Per-hub status and blockers
+
+| hub | version | status | blocker / next action |
+|---|---|---|---|
+| workstation-107-public + local-test (.107) | **0.11.1411** | **DONE** | none — restarted, no auth rotation, preflight 6/0/0 |
+| ring20-management (.122) | 0.11.679 | **READY, NOT DONE** | musl binary now built; run the deploy command below |
+| ring20-dashboard (.121) | 0.11.588 | **BLOCKED** | no foothold by either route: SSH `Permission denied (publickey)` AND zero registered sessions. Needs either an SSH key installed on that host or a termlink session registered from it. Until then it cannot be upgraded remotely — this is what the CLAUDE.md floor exemption is really recording. |
+| laptop-141 (.141) | unknown | **BLOCKED** | host down — `No route to host (os error 113)`. Nothing to deploy to; bring the host up first. |
+
+## Where this stopped, and why
+
+The budget gate blocked at ~286k tokens (95% of context) with the `.122` deploy
+not yet started. That was a deliberate stop, not an interruption: the deploy is a
+multi-step stage → probe → swap → restart → verify sequence against a LIVE hub
+carrying three ring20 sessions, and beginning it without the headroom to verify
+the result would risk leaving a half-staged binary on someone else's running hub.
+Not starting is recoverable; a half-finished swap is not.
+
+**Everything `.122` needs is already in place.** The musl-static binary finished
+building (exit 0) at
+`target/x86_64-unknown-linux-musl/release/termlink` — this is the PL-100-safe
+artifact; do NOT push `target/release/termlink`, which is glibc-dynamic and will
+fail on the target.
+
+Resume with (from the worktree root):
+
+```
+bash scripts/fleet-deploy-binary.sh ring20-management --probe --swap-restart
+```
+
+`--probe` runs `<staged>--version` on the remote and aborts with exit 5 before any
+swap if the binary cannot execute there — that is the guard against the PL-100 /
+T-1422 failure mode, so do not drop it. The script auto-detects the remote session;
+`tl-kufvjxsf` (`host=122,project=proxmox-ring20-management`) is the one used for the
+read-only precondition probes.
+
+**After the swap, verify the two things that matter:**
+1. `termlink fleet doctor` shows `.122` at `0.11.1411`
+2. `.122` did NOT rotate — its `hub.secret` / `hub.cert.pem` are on disk-backed
+   `/var/lib/termlink` and `/tmp` is not tmpfs, so persist-if-present should hold;
+   confirm rather than assume, because T-1294 recorded this exact host with a
+   volatile `/tmp` and a rotation there breaks every client's pinning.
+
+Note `.122` is watchdog-launched, NOT systemd — there is no `termlink-hub.service`
+on it, so `systemctl restart` is not the mechanism there; `--swap-restart` is.
 
 **Local hub — DONE, no rotation.** Captured either side of `systemctl restart termlink-hub`:
 
