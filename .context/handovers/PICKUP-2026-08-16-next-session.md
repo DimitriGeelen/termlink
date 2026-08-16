@@ -2,27 +2,48 @@
 
 Read this before `LATEST.md`. It is shorter and it says what to do.
 
-> ## BUILD ORDER — four specified tasks, nothing left to analyse first
+> ## BUILD ORDER — UPDATED 2026-08-16 evening. Items 1 and 2 are DONE.
 >
-> This session ended analysis-rich and build-poor: everything below is specified down to
-> the code change, and none of it is built, because the budget gate blocks source edits
-> past the ceiling. **Do not open another review axis before these are built.** A fifth
-> unbuilt spec is worth less than one shipped fix.
+> The earlier version of this block said the session was "analysis-rich and build-poor".
+> That is no longer true. A later session on the same day built items 1 and 2, plus one
+> task that did not exist when the list was written.
 >
-> 1. **T-2770** — EACCES hole in `socket_has_listener`. Smallest, and it corrects code
->    shipped 2026-08-16. Exact `io::ErrorKind` branches are named in the task. Containment
->    for the whole fragmentation class. **Start here.**
-> 2. **T-2771 IW-3** — "what does authorization by uid actually GRANT?" Answer this BEFORE
->    writing any local-auth code: if local peers need distinct identities with distinct
->    rights, T-2771 and T-2769 are one design problem and must not be solved twice.
-> 3. **T-2769** — bind `claimer` to the authenticated sender. Blocked on its own IW-2
->    (every current caller passes a friendly name, not a fingerprint — enforcing would
->    reject the live fleet) and IW-3 (breaks the orchestrator recipe's ergonomics). Needs
->    a compatibility path before code.
-> 4. **T-2696** — wire the two unexecuted charter-verb provers. Independent of the above.
+> **SHIPPED (all committed, all with `cargo test --workspace` green):**
 >
-> Ordering rationale: 1 is bounded and reduces live risk today; 2 may collapse 3 into a
-> single design; 4 is parallelisable by anyone.
+> - **T-2772** `5f862c048` — the hub now tells a uid-refused Unix peer WHY, instead of
+>   dropping the stream and leaving a bare `ECONNRESET`. Found because a peer agent
+>   misdiagnosed that reset three times in a row. Live-proven.
+> - **T-2770** `ef8fea422` — **item 1, done.** `socket_has_listener` no longer reads
+>   `EACCES` as "no listener". Proven load-bearing BOTH ways: reverted, a rival hub
+>   starts and hijacks the socket (owner flips `root:root` → `dimitri-mint-dev`) before
+>   crashing; restored, it refuses and explains.
+> - **T-2771 IW-2 / IW-3** — **item 2, done, and the answer changes the plan.** IW-2 is
+>   DISSOLVED: `SO_PEERCRED` was never a portability risk, because
+>   `PeerCredentials::from_raw_fd` already branches Linux / macOS / Unsupported and the
+>   hub already calls it. IW-3 is ANSWERED: a same-uid peer is granted
+>   `PermissionScope::Execute` unconditionally — uid is a BOUNDARY, not an identity. So
+>   **T-2771 and T-2769 do NOT merge**; design them separately.
+>
+> **REMAINING, in order:**
+>
+> 1. **T-2773** *(new)* — `termlink-session`'s accept loop fails **OPEN** when peer-credential
+>    extraction errors (`server.rs:239-242`), where the hub fails **closed** (T-2448). Same
+>    gate, opposite posture; the hardening was never migrated to the sibling. It also has
+>    the identical silent-drop T-2772 just fixed. **Start here** — bounded, agent-ownable,
+>    and the fix shape is already written in `hub/src/server.rs`.
+> 2. **T-2696** — wire the two unexecuted charter-verb provers. Independent of everything.
+> 3. **T-2774** *(new)* — `channel_subscribe_no_hang_under_concurrent_walks_t2258` bounds its
+>    walk phase at a wall-clock 10s and fails intermittently under the parallel harness
+>    (observed failing a P-011 gate, passing on retry and in two full workspace runs). A
+>    verification gate that fails randomly trains agents to reach for `--skip-verification`.
+> 4. **T-2769** — still blocked on its own IW-2: enforcing an authenticated `claimer` would
+>    reject every live caller, which is a human cutover decision. **New evidence against
+>    rushing it** — T-2771 IW-6: any co-uid peer already holds `Execute`, so it can simply
+>    force-release another agent's claim. On a shared-uid host an authenticated `claimer`
+>    is defeated anyway. Fix the uid model first, or accept that this only helps cross-host.
+>
+> **Do not open another review axis before these are built.** That instruction stands and
+> was honoured: everything above came from building, or from reading code while building.
 
 Branch: `worktree-charter-review-2026-0814`, worktree
 `/opt/termlink/.claude/worktrees/charter-review-2026-0814`.
