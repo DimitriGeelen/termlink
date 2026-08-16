@@ -467,6 +467,65 @@ pub(crate) fn inject_status_is_injected(result: &serde_json::Value) -> bool {
     result["status"].as_str() == Some("injected")
 }
 
+/// T-2644: throttle policy for the interactive attach loop's inject-failure hint.
+///
+/// The attach loop forwards every keystroke as its own `command.inject`. Warning
+/// unconditionally would print once per keypress — and the operator holding a key
+/// down against a dead session is precisely when it would fire hardest, scribbling
+/// over the PTY render at exactly the wrong moment. Warning only ONCE per process
+/// has the opposite failure: a persistent condition (no PTY) says nothing after the
+/// first line, and the operator who looked away never learns.
+///
+/// So: announce the START of a failure streak, then re-announce periodically while
+/// it persists. `consecutive` is the count INCLUDING the current failure, and is
+/// reset to 0 by any delivered inject — so a flaky link that recovers re-announces
+/// on its next streak rather than staying silent for the life of the attach.
+///
+/// Pure so the throttle is unit-testable rather than only observable by holding a
+/// key down against a dead session in a terminal (which is how it would otherwise
+/// have to be verified, and therefore would not be).
+pub(crate) fn should_warn_inject_failure(consecutive: u32) -> bool {
+    consecutive == 1 || (consecutive > 0 && consecutive % 25 == 0)
+}
+
+/// T-2644: classify one attach-loop inject attempt — `None` when the keystrokes
+/// actually landed, `Some(reason)` with an operator-facing cause when they did not.
+///
+/// Two distinct failure modes reach here, and only one of them is otherwise visible:
+///
+///   * **transport error** — the socket is gone / the session exited. The loop's
+///     sibling output-poll branch also notices this within one poll interval and
+///     prints "Connection lost.", so this case was already *eventually* surfaced;
+///     what was lost is the keystrokes typed inside that window.
+///   * **`status: "resolved"`** — the RPC SUCCEEDS. There is no PTY, so the keys
+///     were resolved and written nowhere (T-2697). `query.output` keeps succeeding,
+///     so the poll branch stays perfectly happy and NOTHING ever surfaces it. The
+///     operator types into a live-looking session forever. This is the case that
+///     was genuinely undetectable, and it is why reusing `inject_status_is_injected`
+///     here matters more than the transport check.
+///
+/// Fails CLOSED, inheriting `inject_status_is_injected`: an envelope whose status we
+/// cannot classify counts as not-delivered rather than optimistically as delivered.
+pub(crate) fn attach_inject_failure_reason(
+    outcome: &Result<serde_json::Value, String>,
+) -> Option<String> {
+    match outcome {
+        Err(e) => Some(e.clone()),
+        Ok(result) => {
+            if inject_status_is_injected(result) {
+                None
+            } else {
+                Some(
+                    result["note"]
+                        .as_str()
+                        .unwrap_or("no PTY — keys were resolved but written nowhere")
+                        .to_string(),
+                )
+            }
+        }
+    }
+}
+
 pub(crate) async fn cmd_inject(target: &str, text: &str, enter: bool, key: Option<&str>, json: bool, timeout_secs: u64) -> Result<()> {
     let reg = match manager::find_session(target) {
         Ok(r) => r,
@@ -794,6 +853,10 @@ async fn attach_loop(
     let mut stdin_buf = [0u8; 256];
     let poll_interval = tokio::time::Duration::from_millis(poll_ms);
 
+    // T-2644: consecutive failed injects, reset by any delivered one. Drives the
+    // throttled hint so a held-down key against a dead session cannot spam the render.
+    let mut inject_failures: u32 = 0;
+
     loop {
         tokio::select! {
             // Read stdin and inject into session
@@ -813,8 +876,36 @@ async fn attach_loop(
                 let keys = vec![serde_json::json!({ "type": "text", "value": text })];
                 let params = serde_json::json!({ "keys": keys });
 
-                // Fire-and-forget — don't block on response
-                let _ = client::rpc_call(socket, "command.inject", params).await;
+                // T-2644: this was `let _ = client::rpc_call(...)` — fire-and-forget.
+                // A failed inject discarded the operator's keystrokes with zero
+                // feedback: they kept typing into what looked like a live session.
+                // Directive #2 (no silent failures), and the sibling branches in this
+                // very loop already got it right — the output-poll branch prints
+                // "Connection lost." and the data-plane loop prints "Data plane write
+                // error". Only this branch stayed silent.
+                let outcome = match client::rpc_call(socket, "command.inject", params).await {
+                    Ok(resp) => client::unwrap_result(resp),
+                    Err(e) => Err(format!("{e}")),
+                };
+                match attach_inject_failure_reason(&outcome) {
+                    None => inject_failures = 0,
+                    Some(reason) => {
+                        inject_failures = inject_failures.saturating_add(1);
+                        if should_warn_inject_failure(inject_failures) {
+                            // Raw mode gives no implicit carriage return, so a bare
+                            // "\n" would stair-step the message across the PTY render.
+                            // Lead AND trail with "\r\n" to start and finish at column
+                            // 0 — the sibling handlers lead with "\r\n" and can skip
+                            // the trailer only because they `break` immediately after.
+                            // This one continues the loop, so it must land the cursor
+                            // back itself.
+                            eprint!(
+                                "\r\n[termlink] input not delivered ({reason}) \
+                                 — press Ctrl+] to detach.\r\n"
+                            );
+                        }
+                    }
+                }
             }
 
             // Poll for new output
@@ -1295,6 +1386,97 @@ pub(crate) fn char_boundary_floor(s: &str, idx: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // === T-2644: a failed inject in the attach loop must not vanish silently ===
+    //
+    // The defect: the interactive attach loop forwarded keystrokes with
+    // `let _ = client::rpc_call(socket, "command.inject", params).await;` — a
+    // fire-and-forget whose error was discarded. The operator kept typing into a
+    // session that was taking nothing, with zero indication.
+    //
+    // These tests are load-bearing for BOTH halves of the fix. Delete the status
+    // check and `no_pty_resolved_is_a_failure_even_though_the_rpc_succeeded` fails;
+    // make the hint unconditional and `does_not_warn_on_every_keystroke` fails.
+
+    #[test]
+    fn warns_on_the_first_failure_of_a_streak() {
+        assert!(should_warn_inject_failure(1));
+    }
+
+    #[test]
+    fn does_not_warn_on_every_keystroke() {
+        // The whole point of the throttle: an operator holding a key down against a
+        // dead session must not get one line per keypress scribbled over the render.
+        for n in 2..25 {
+            assert!(
+                !should_warn_inject_failure(n),
+                "consecutive={n} should be suppressed"
+            );
+        }
+    }
+
+    #[test]
+    fn re_announces_while_the_failure_persists() {
+        // ...but it must not go silent forever either: a persistent no-PTY condition
+        // that spoke only once leaves an operator who looked away none the wiser.
+        assert!(should_warn_inject_failure(25));
+        assert!(should_warn_inject_failure(50));
+        assert!(should_warn_inject_failure(100));
+    }
+
+    #[test]
+    fn zero_never_warns() {
+        // 0 is the reset/"nothing has failed" state, and `% 25 == 0` would otherwise
+        // make it warn — a hint fired on the success path.
+        assert!(!should_warn_inject_failure(0));
+    }
+
+    #[test]
+    fn delivered_inject_is_not_a_failure() {
+        let ok = Ok(serde_json::json!({ "status": "injected", "bytes_len": 3 }));
+        assert_eq!(attach_inject_failure_reason(&ok), None);
+    }
+
+    #[test]
+    fn no_pty_resolved_is_a_failure_even_though_the_rpc_succeeded() {
+        // The case nothing else in the loop can see: the RPC SUCCEEDS, `query.output`
+        // keeps succeeding, so the sibling poll branch never fires "Connection lost."
+        // — yet the keystrokes were written nowhere (T-2697).
+        let resolved = Ok(serde_json::json!({
+            "status": "resolved",
+            "note": "No PTY session — keys were resolved but never written to a terminal."
+        }));
+        let reason = attach_inject_failure_reason(&resolved).expect("must be a failure");
+        assert!(reason.contains("No PTY"), "reason should name the cause: {reason}");
+    }
+
+    #[test]
+    fn transport_error_is_a_failure_and_carries_its_message() {
+        let err: Result<serde_json::Value, String> =
+            Err("connection refused".to_string());
+        assert_eq!(
+            attach_inject_failure_reason(&err),
+            Some("connection refused".to_string())
+        );
+    }
+
+    #[test]
+    fn unclassifiable_envelope_fails_closed() {
+        // Inherited from `inject_status_is_injected`: an envelope we cannot classify
+        // must count as not-delivered, never optimistically as delivered.
+        let missing_status = Ok(serde_json::json!({ "bytes_len": 3 }));
+        assert!(attach_inject_failure_reason(&missing_status).is_some());
+
+        let unknown_status = Ok(serde_json::json!({ "status": "sometthing-new" }));
+        assert!(attach_inject_failure_reason(&unknown_status).is_some());
+    }
+
+    #[test]
+    fn failure_without_a_note_still_yields_an_actionable_reason() {
+        let bare = Ok(serde_json::json!({ "status": "resolved" }));
+        let reason = attach_inject_failure_reason(&bare).expect("must be a failure");
+        assert!(!reason.is_empty(), "an empty reason renders as an empty hint");
+    }
 
     // === T-2736: an interact timeout must name a cause, not just a deadline ===
     //
