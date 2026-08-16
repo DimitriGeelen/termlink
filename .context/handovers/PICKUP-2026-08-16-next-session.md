@@ -8,6 +8,91 @@ Everything is committed. **8 commits are unpushed** — see "Do not sink time he
 
 ---
 
+## 0. HIGHEST PRIORITY — local IPC is uid-coupled, and my T-2767 fix does not cover it
+
+Analysis from the AEF agent (`/opt/999-Agentic-Engineering-Framework`), independently
+arrived at, and it is correct. TermLink has **two authorization models**:
+
+| transport | who is allowed | basis |
+|---|---|---|
+| remote TCP :9100 | anyone with the fleet secret | HMAC — identity-based, user-agnostic |
+| local unix socket | whoever owns the socket file | POSIX file mode — **uid-based** |
+
+A unix domain socket carries filesystem permissions, so "can this agent talk to the hub"
+is decided by whichever uid started it and its umask — never by TermLink's own auth. The
+unit runs `User=root` with `StateDirectoryMode=0700`; the socket lands `root:root 0755`.
+
+**The inversion:** a remote host on another machine can authenticate in, while a local
+agent on the same box cannot. And the consequence is not a nuisance — an agent that
+cannot reach the existing hub **silently starts its own**. That is why there are three
+on this host (root's, dimitri-mint-dev's under `/tmp/termlink`, systemd's). Nobody
+misconfigured anything: **fragmentation is the default outcome** the moment two agent
+runtimes run as different users, which is now the normal case (Claude Code + Codex
+side by side). Silent fragmentation is a Directive #2 violation by design, not by bug.
+
+### My T-2767 fix is BLIND to exactly this path — fix it first
+
+`crates/termlink-hub/src/pidfile.rs::socket_has_listener` does:
+
+```rust
+if !socket.exists() { return false; }
+std::os::unix::net::UnixStream::connect(socket).is_ok()
+```
+
+A non-root agent probing a `root:root 0755` socket gets **EACCES**, so `is_ok()` is
+false, so the guard reports "no listener" and **permits the second hub to start**. The
+guard I shipped today to prevent split-brain does not fire in the one scenario that
+actually produces it — it only catches the case where the prober could have connected
+anyway. It is not wrong, it is incomplete, and the incompleteness is the important half.
+
+**Fix:** branch on `io::ErrorKind`.
+- `ConnectionRefused` → leftover socket file, nothing behind it → start (the
+  unclean-shutdown case the pidfile check existed for; keep it working).
+- `PermissionDenied` → **a socket exists that this uid may not probe.** That is positive
+  evidence of another user's hub — REFUSE, and say so, naming the uid mismatch. Do not
+  treat "I can't look" as "nothing there".
+- Anything else → refuse conservatively and name the error.
+
+Regression tests should pin the EACCES case specifically (chmod the fixture socket 0700
+and probe as a different uid, or inject the error kind). The existing
+`stale_socket_file_with_no_listener_still_starts` already pins the refused case.
+
+### Then the real fix — one auth model
+
+Options, as the AEF agent framed them, with my read:
+
+1. `UMask=0002` + shared `termlink` group + `StateDirectoryMode=0770` in the unit.
+   Smallest, and it unblocks today — but it is **deployment config, not a TermLink
+   fix**: every host that does not apply it still fragments, so the class survives.
+2. **Authorize local clients via `SO_PEERCRED` in the hub** so local and remote share one
+   model. Structurally right and the one I would build. Portability caveat (Directive
+   #4): `SO_PEERCRED` is Linux; macOS needs `LOCAL_PEERCRED`/`getpeereid`, and README
+   claims macOS as first-class — so this needs the T-2693 platform-lock treatment or it
+   becomes a new lock-in.
+3. Loopback TCP + the same HMAC, dropping the unix socket. Genuinely one path, but it
+   gives up the local fast path and opens a port.
+
+Sequence: **(0) EACCES fix — containment, stops silent fragmentation now. (2) is the
+cure.** (1) is a legitimate stopgap for this host but must not be recorded as the fix.
+
+### Operator action (agent cannot do this, and should not)
+
+```
+sudo chgrp dimitri-mint-dev /var/lib/termlink/hub.sock && sudo chmod 0770 /var/lib/termlink/hub.sock
+```
+
+The AEF agent was blocked from running it by a permission classifier, and stopped rather
+than looking for a way around it — correct call, worth preserving as the norm.
+
+### Coordination note
+
+I could not reach the AEF agent to work this jointly: they are not on `agent-presence`,
+and `.107`'s hub is unreachable from this session. **Two agents on one machine could not
+use the agent-to-agent comms tool to discuss the bug in agent-to-agent comms.** That is
+the finding demonstrating itself, and it is worth citing when this is filed.
+
+---
+
 ## Start here
 
 ### 1. Restart the MCP server onto a current binary (T-2707) — 5 minutes, unblocks 2
