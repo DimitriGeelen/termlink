@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2773: Session server fails OPEN on peer-credential extraction failure — T-2448 hub hardening never migrated to the sibling
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-16T19:55:42Z
+# ============================================================================
+
+task_id: T-2773
+task_name: "Session server fails OPEN on peer-credential extraction failure — T-2448 hub hardening never migrated to the sibling"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-16T17:41:00Z
+completed: 2026-08-16T19:52:21Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  server.rs:239-242 allows the connection when PeerCredentials extraction errors ('graceful degradation'), while the hub's decide_unix_peer rejects the same case fail-closed (T-2448, from T-2447 F1). Same uid gate, opposite security posture. The session server also drops uid-mismatched peers silently (bare continue, line 231) — the defect T-2772 just fixed in the hub.
+
+# Key outcomes
+outcomes:
+  - 'The uid/peer-credential decision is expressed by a single shared pure'
+  - 'The session accept loop rejects a connection when peer-credential'
+  - 'A peer refused by the session server receives a readable `AUTH_DENIED`'
+  - 'The refusal write cannot stall the session accept loop (a client that'
+  - 'Unit tests assert on what the CLIENT receives for both refusal causes on'
+  - 'A test pins the shared-policy property: hub and session server produce the'
+  - '`cargo test --workspace` passes — 2026-08-16, exit 0, every suite `0 failed`'
+  - '`bash scripts/run-guard-layer.sh` passes — 41/41 members clean'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 131 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 131
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2773-session-server-fails-open-on-peer-creden.md
+generated_by: context-agent-hybrid

@@ -1132,6 +1132,76 @@ T-1134 with checksum verification, multi-arch detection, a no-sudo fallback and 
 warning. Rank 20 is closed as ALREADY-IMPLEMENTED. The gap was never the installer; it was
 that nothing guarded it.
 
+### Verification-pipefail static check (T-2775, PL-080 / L-613 / PL-161 class)
+
+The tenth source-level static check, and the first pointed at the **guard layer itself**
+rather than at product code.
+
+`update-task.sh` runs every `## Verification` line as `if ( eval "$cmd" ); then` under
+`set -euo pipefail` (`:14`, `:1066`). pipefail survives into the condition, so a
+pipeline's status is decided by its worst stage — including a producer that was SIGPIPEd
+because the consumer exited early. `cargo test 2>&1 | grep -q "test result: ok"` therefore
+returns **141**: `grep -q` exits the instant it matches and closes the pipe. **The gate
+fails precisely when the check succeeds**, and the earlier the match, the more reliably.
+
+**Why a check and not another learning.** PL-080 recorded this on **2026-04-25** with the
+explicit instruction *"Avoid bare `| grep -q` in verification commands."* Measured
+2026-08-16, four months later: **1490 such lines across 802 tasks**, 262 of them in 61
+active tasks — 58% of all active verification commands. A learning that specific, failing
+that comprehensively, is the T-2746 argument one layer up: documentation is not a control.
+The compounding harm is that a gate which fails spuriously teaches its operator to reach
+for `--force`, which skips the **entire** verification block — so a flaky guard does not
+merely annoy, it trains people out of the control.
+
+**Which idioms are safe — measured, not assumed**, under the gate's own construct:
+
+| idiom | rc | |
+|---|---|---|
+| `seq 1 3000000 \| grep -q '^1$'` | 141 | UNSAFE |
+| `seq 1 3000000 \| head -1` | 141 | UNSAFE |
+| `test -n "$(seq 1 3000000 \| grep -m1 '^1$')"` | 0 | safe (PL-080) |
+| `out=$(echo hi); printf '%s' "$out" \| grep -q hi` | 0 | safe *while small* |
+| `out=$(seq 1 3000000); printf '%s' "$out" \| grep -q '^1$'` | **141** | **UNSAFE** |
+| `out=$(seq 1 3000000); grep -q '^1$' <<< "$out"` | 0 | safe (any size) |
+
+Note the fifth row. The remediation published by AEF (`L-613`) and 050-email-archive
+(`PL-161`) — capture, then `printf '%s' "$out" | parser` — is safe only while the captured
+value fits the pipe buffer. It improves on the raw pipeline but is **size-dependent**, and
+a fix that works until output grows is how this class recurs. Prefer the two idioms that
+hold at any size: the pipeline inside `$(...)`, or a herestring (which spawns no producer
+at all). This correction has been sent back to both projects on `framework:pickup`.
+
+`scripts/check-verification-pipefail.sh` scans each task's `## Verification` block and
+flags lines whose exit status is decided by a top-level pipeline feeding an early-exiting
+or parsing consumer (`grep -q` / `head` / `python3` / `jq`). Pipelines wholly inside
+`$(...)` or backticks are cleared — the substitution's status is discarded and the outer
+command decides. A `printf`/`echo` producer fires under its **own** reason
+(`bounded-producer-pipeline`) so the operator is steered to a herestring rather than to
+the size-dependent fix. Comment and blank lines are skipped, and a risky shape quoted in
+`## Context` prose is not a verification command.
+
+**Acknowledgement ledger.** The 158 pre-existing lines (55 active tasks) are enumerated in
+`.context/checks/verification-pipefail-allowlist` (git-tracked, T-2681) as
+`<task-file>::<sha1-12 of the normalized command>`. They are **counted and reported** but
+do not fire; a NEW risky line is in neither set and fires immediately. Rewording an
+acknowledged command changes its hash and re-fires it, so an acknowledgement cannot
+silently outlive the command it was granted for. This is a ledger of an open question, not
+an exemption: **retrofitting the 158 is a human decision**, matching the precedent both
+peer projects set.
+
+**Scope limit, stated on every output path including the clean one:** the check reads the
+*shape* of a command. It does not run it and cannot confirm a given producer would be
+SIGPIPEd at today's output size. A clean result means no line carries a pipeline-decided
+shape — not that every verification block is semantically correct (T-2680).
+
+Exit 0 clean / 1 unacknowledged / 2 tooling (fail-closed). `--json`, `--quiet`,
+`--tasks-dir` (repeatable), `--allowlist`, `--include-completed`. Ad-hoc:
+`bash scripts/check-verification-pipefail.sh`. Fixtures:
+`bash tests/verification-pipefail-fixtures.sh` (26 assertions, including four that run the
+idioms for real so the detection rule rests on measurement, and a PL-219 control that the
+real tree scans clean). **Load-bearing:** deleting one allowlist line re-fires exactly that
+task; restoring it returns the tree to clean.
+
 ### Running the guard layer — `scripts/run-guard-layer.sh` (T-2684)
 
 **One command runs every source-level guard.** Before T-2684 there was none, and

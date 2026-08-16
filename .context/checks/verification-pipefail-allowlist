@@ -1,0 +1,190 @@
+# Verification-pipefail acknowledgement ledger (T-2775)
+#
+# Each line is `<task-file>::<sha1-12 of the normalized command>  # <reason>`.
+# Entries are COUNTED AND REPORTED as risky by check-verification-pipefail.sh but do
+# not fire. A NEW risky verification line is in neither set and fires immediately.
+# Rewording an acknowledged command changes its hash and re-fires it, so an
+# acknowledgement cannot silently outlive the command it was granted for.
+#
+# THIS IS A LEDGER OF AN OPEN QUESTION, NOT A PERMANENT EXEMPTION.
+#
+# These 158 lines across 55 task(s) predate the check. Every one of them
+# can report 141 — a FAILED gate — at the moment its check SUCCEEDS, because `grep -q`
+# (or `head`, or a parser) exits early and SIGPIPEs the producer under the
+# `set -euo pipefail` that update-task.sh:14 sets. They are acknowledged here so the
+# check starts clean and guards the future, NOT because they are correct.
+#
+# Retrofitting them is a human decision (the precedent both peer projects set: AEF
+# L-613 and 050-email-archive PL-161 both classed the retrofit as human-authority).
+# The mechanical rewrite, safe at any output size:
+#
+#     BEFORE:  cargo test 2>&1 | grep -q "test result: ok"
+#     AFTER:   out=$(cargo test 2>&1 || true); grep -q "test result: ok" <<< "$out"
+#
+# Do NOT use `printf '%s' "$out" | grep -q PAT` — measured rc=141 once $out exceeds the
+# pipe buffer (T-2775). That is the shape AEF/email-archive are propagating; it is an
+# improvement on the raw pipeline but still size-dependent.
+#
+# On resolution: delete the lines that get rewritten. The file trends toward empty.
+#
+# Census at creation (448 verification commands across 109 tasks):
+#   pipeline-sigpipe: 158
+
+T-1296-migrate-ring20-dashboard-hub-runtimedir-.md::decab7c0d552  # T-1296-migrate-ring20-dashboard-hub-runtimedir-.md:76 predates T-2775; retrofit is a human decision
+T-1420-agent-chat-arc-deploy-091591-to-laptop-1.md::d48a690280bc  # T-1420-agent-chat-arc-deploy-091591-to-laptop-1.md:191 predates T-2775; retrofit is a human decision
+T-1420-agent-chat-arc-deploy-091591-to-laptop-1.md::31a0445ef1bc  # T-1420-agent-chat-arc-deploy-091591-to-laptop-1.md:192 predates T-2775; retrofit is a human decision
+T-1426-deprecation-print-on-legacy-primitives-i.md::4f6e9277c901  # T-1426-deprecation-print-on-legacy-primitives-i.md:51 predates T-2775; retrofit is a human decision
+T-1426-deprecation-print-on-legacy-primitives-i.md::c76196c2a0b7  # T-1426-deprecation-print-on-legacy-primitives-i.md:52 predates T-2775; retrofit is a human decision
+T-1426-deprecation-print-on-legacy-primitives-i.md::5b8aa644469d  # T-1426-deprecation-print-on-legacy-primitives-i.md:53 predates T-2775; retrofit is a human decision
+T-1426-deprecation-print-on-legacy-primitives-i.md::ed7ab7417024  # T-1426-deprecation-print-on-legacy-primitives-i.md:54 predates T-2775; retrofit is a human decision
+T-1426-deprecation-print-on-legacy-primitives-i.md::2fab5821c795  # T-1426-deprecation-print-on-legacy-primitives-i.md:55 predates T-2775; retrofit is a human decision
+T-1426-deprecation-print-on-legacy-primitives-i.md::109543f8d604  # T-1426-deprecation-print-on-legacy-primitives-i.md:56 predates T-2775; retrofit is a human decision
+T-1426-deprecation-print-on-legacy-primitives-i.md::ef22189652f4  # T-1426-deprecation-print-on-legacy-primitives-i.md:57 predates T-2775; retrofit is a human decision
+T-1426-deprecation-print-on-legacy-primitives-i.md::5af2a8c8e626  # T-1426-deprecation-print-on-legacy-primitives-i.md:58 predates T-2775; retrofit is a human decision
+T-1427-termlink-whoami--identity-binding-on-cha.md::ae7373006ba5  # T-1427-termlink-whoami--identity-binding-on-cha.md:69 predates T-2775; retrofit is a human decision
+T-1429-termlink-agent-contact-name--high-level-.md::75f3ab8b933b  # T-1429-termlink-agent-contact-name--high-level-.md:98 predates T-2775; retrofit is a human decision
+T-1429-termlink-agent-contact-name--high-level-.md::1a52f77b6f47  # T-1429-termlink-agent-contact-name--high-level-.md:99 predates T-2775; retrofit is a human decision
+T-1429-termlink-agent-contact-name--high-level-.md::0cc876af28cc  # T-1429-termlink-agent-contact-name--high-level-.md:100 predates T-2775; retrofit is a human decision
+T-1429-termlink-agent-contact-name--high-level-.md::364a5d342c4b  # T-1429-termlink-agent-contact-name--high-level-.md:101 predates T-2775; retrofit is a human decision
+T-1429-termlink-agent-contact-name--high-level-.md::922d73db9547  # T-1429-termlink-agent-contact-name--high-level-.md:102 predates T-2775; retrofit is a human decision
+T-1432-fw-fleet-doctor---legacy-usage--telemetr.md::425fc7229a53  # T-1432-fw-fleet-doctor---legacy-usage--telemetr.md:53 predates T-2775; retrofit is a human decision
+T-1432-fw-fleet-doctor---legacy-usage--telemetr.md::a0ad23bb9d6f  # T-1432-fw-fleet-doctor---legacy-usage--telemetr.md:54 predates T-2775; retrofit is a human decision
+T-1432-fw-fleet-doctor---legacy-usage--telemetr.md::d1ca2d0cda16  # T-1432-fw-fleet-doctor---legacy-usage--telemetr.md:55 predates T-2775; retrofit is a human decision
+T-1432-fw-fleet-doctor---legacy-usage--telemetr.md::533e33a587b4  # T-1432-fw-fleet-doctor---legacy-usage--telemetr.md:56 predates T-2775; retrofit is a human decision
+T-1432-fw-fleet-doctor---legacy-usage--telemetr.md::a566cba6d7af  # T-1432-fw-fleet-doctor---legacy-usage--telemetr.md:57 predates T-2775; retrofit is a human decision
+T-1432-fw-fleet-doctor---legacy-usage--telemetr.md::599965aaeca5  # T-1432-fw-fleet-doctor---legacy-usage--telemetr.md:58 predates T-2775; retrofit is a human decision
+T-1435-identify--migrate-4919-weekly-inboxstatu.md::948b841eba77  # T-1435-identify--migrate-4919-weekly-inboxstatu.md:89 predates T-2775; retrofit is a human decision
+T-1435-identify--migrate-4919-weekly-inboxstatu.md::7b238cf9e8e8  # T-1435-identify--migrate-4919-weekly-inboxstatu.md:91 predates T-2775; retrofit is a human decision
+T-1451-revisitat-frontmatter-field--template-up.md::09e43f4e9f3c  # T-1451-revisitat-frontmatter-field--template-up.md:58 predates T-2775; retrofit is a human decision
+T-1452-revisit-due-scansh-cron--handover-banner.md::7a595a17f4a6  # T-1452-revisit-due-scansh-cron--handover-banner.md:65 predates T-2775; retrofit is a human decision
+T-1482-agent-presence--fleet-wide-peer-activity.md::bc57c4774243  # T-1482-agent-presence--fleet-wide-peer-activity.md:70 predates T-2775; retrofit is a human decision
+T-1482-agent-presence--fleet-wide-peer-activity.md::7eec2df1ba37  # T-1482-agent-presence--fleet-wide-peer-activity.md:72 predates T-2775; retrofit is a human decision
+T-1482-agent-presence--fleet-wide-peer-activity.md::053dba61e9f2  # T-1482-agent-presence--fleet-wide-peer-activity.md:73 predates T-2775; retrofit is a human decision
+T-1483-agent-who---target-name--local-resolved-.md::bc57c4774243  # T-1483-agent-who---target-name--local-resolved-.md:68 predates T-2775; retrofit is a human decision
+T-1483-agent-who---target-name--local-resolved-.md::d1593021abfb  # T-1483-agent-who---target-name--local-resolved-.md:69 predates T-2775; retrofit is a human decision
+T-1484-agent-presence---filter-project-name--pr.md::bc57c4774243  # T-1484-agent-presence---filter-project-name--pr.md:56 predates T-2775; retrofit is a human decision
+T-1484-agent-presence---filter-project-name--pr.md::c540ba665a66  # T-1484-agent-presence---filter-project-name--pr.md:58 predates T-2775; retrofit is a human decision
+T-1484-agent-presence---filter-project-name--pr.md::893d2b23e40b  # T-1484-agent-presence---filter-project-name--pr.md:59 predates T-2775; retrofit is a human decision
+T-1484-agent-presence---filter-project-name--pr.md::9e9cb5b4bca8  # T-1484-agent-presence---filter-project-name--pr.md:60 predates T-2775; retrofit is a human decision
+T-1485-agent-contact---ack-required--synchronou.md::bc57c4774243  # T-1485-agent-contact---ack-required--synchronou.md:62 predates T-2775; retrofit is a human decision
+T-1485-agent-contact---ack-required--synchronou.md::c093a14baf71  # T-1485-agent-contact---ack-required--synchronou.md:64 predates T-2775; retrofit is a human decision
+T-1485-agent-contact---ack-required--synchronou.md::d6b34729f753  # T-1485-agent-contact---ack-required--synchronou.md:65 predates T-2775; retrofit is a human decision
+T-1486-agent-presence---watch--live-operator-da.md::bc57c4774243  # T-1486-agent-presence---watch--live-operator-da.md:55 predates T-2775; retrofit is a human decision
+T-1486-agent-presence---watch--live-operator-da.md::fa74a33c95b6  # T-1486-agent-presence---watch--live-operator-da.md:57 predates T-2775; retrofit is a human decision
+T-1487-agent-ping-target--operator-facing-prese.md::bc57c4774243  # T-1487-agent-ping-target--operator-facing-prese.md:61 predates T-2775; retrofit is a human decision
+T-1487-agent-ping-target--operator-facing-prese.md::1c5ebc948133  # T-1487-agent-ping-target--operator-facing-prese.md:62 predates T-2775; retrofit is a human decision
+T-1487-agent-ping-target--operator-facing-prese.md::bb86928ab4b9  # T-1487-agent-ping-target--operator-facing-prese.md:65 predates T-2775; retrofit is a human decision
+T-1488-agent-who---thread-t-xxx--thread-scoped-.md::bc57c4774243  # T-1488-agent-who---thread-t-xxx--thread-scoped-.md:58 predates T-2775; retrofit is a human decision
+T-1488-agent-who---thread-t-xxx--thread-scoped-.md::c0e019dbeb9c  # T-1488-agent-who---thread-t-xxx--thread-scoped-.md:60 predates T-2775; retrofit is a human decision
+T-1488-agent-who---thread-t-xxx--thread-scoped-.md::fa161af96abb  # T-1488-agent-who---thread-t-xxx--thread-scoped-.md:61 predates T-2775; retrofit is a human decision
+T-1488-agent-who---thread-t-xxx--thread-scoped-.md::4e72ab43e7a5  # T-1488-agent-who---thread-t-xxx--thread-scoped-.md:62 predates T-2775; retrofit is a human decision
+T-1489-agent-presence---top-n--limit-to-n-busie.md::bc57c4774243  # T-1489-agent-presence---top-n--limit-to-n-busie.md:51 predates T-2775; retrofit is a human decision
+T-1489-agent-presence---top-n--limit-to-n-busie.md::7e3c033ab58f  # T-1489-agent-presence---top-n--limit-to-n-busie.md:52 predates T-2775; retrofit is a human decision
+T-1489-agent-presence---top-n--limit-to-n-busie.md::9c8c5ac2afc4  # T-1489-agent-presence---top-n--limit-to-n-busie.md:53 predates T-2775; retrofit is a human decision
+T-1489-agent-presence---top-n--limit-to-n-busie.md::b66dd8ac4ce8  # T-1489-agent-presence---top-n--limit-to-n-busie.md:54 predates T-2775; retrofit is a human decision
+T-1490-agent-presence---thread-t-xxx--fleet-wid.md::bc57c4774243  # T-1490-agent-presence---thread-t-xxx--fleet-wid.md:57 predates T-2775; retrofit is a human decision
+T-1490-agent-presence---thread-t-xxx--fleet-wid.md::620dcb065aa6  # T-1490-agent-presence---thread-t-xxx--fleet-wid.md:59 predates T-2775; retrofit is a human decision
+T-1490-agent-presence---thread-t-xxx--fleet-wid.md::ec523a33c723  # T-1490-agent-presence---thread-t-xxx--fleet-wid.md:60 predates T-2775; retrofit is a human decision
+T-1490-agent-presence---thread-t-xxx--fleet-wid.md::6bee7b52e0cf  # T-1490-agent-presence---thread-t-xxx--fleet-wid.md:61 predates T-2775; retrofit is a human decision
+T-1491-agent-presence---by-project--fleet-activ.md::bc57c4774243  # T-1491-agent-presence---by-project--fleet-activ.md:60 predates T-2775; retrofit is a human decision
+T-1491-agent-presence---by-project--fleet-activ.md::66258eac8a0f  # T-1491-agent-presence---by-project--fleet-activ.md:62 predates T-2775; retrofit is a human decision
+T-1491-agent-presence---by-project--fleet-activ.md::ea4230142fb7  # T-1491-agent-presence---by-project--fleet-activ.md:63 predates T-2775; retrofit is a human decision
+T-1491-agent-presence---by-project--fleet-activ.md::aa82ecfe9141  # T-1491-agent-presence---by-project--fleet-activ.md:64 predates T-2775; retrofit is a human decision
+T-1492-agent-recent-peer--show-last-n-posts-fro.md::bc57c4774243  # T-1492-agent-recent-peer--show-last-n-posts-fro.md:64 predates T-2775; retrofit is a human decision
+T-1492-agent-recent-peer--show-last-n-posts-fro.md::00ccf9ceced2  # T-1492-agent-recent-peer--show-last-n-posts-fro.md:66 predates T-2775; retrofit is a human decision
+T-1492-agent-recent-peer--show-last-n-posts-fro.md::4486de11586e  # T-1492-agent-recent-peer--show-last-n-posts-fro.md:67 predates T-2775; retrofit is a human decision
+T-1492-agent-recent-peer--show-last-n-posts-fro.md::79a74dfa6e05  # T-1492-agent-recent-peer--show-last-n-posts-fro.md:68 predates T-2775; retrofit is a human decision
+T-1493-agent-on-thread-t-xxx--chronological-log.md::bc57c4774243  # T-1493-agent-on-thread-t-xxx--chronological-log.md:79 predates T-2775; retrofit is a human decision
+T-1493-agent-on-thread-t-xxx--chronological-log.md::0107e21d8d8a  # T-1493-agent-on-thread-t-xxx--chronological-log.md:81 predates T-2775; retrofit is a human decision
+T-1493-agent-on-thread-t-xxx--chronological-log.md::1618ddcf43c2  # T-1493-agent-on-thread-t-xxx--chronological-log.md:82 predates T-2775; retrofit is a human decision
+T-1493-agent-on-thread-t-xxx--chronological-log.md::2383c1b36cf3  # T-1493-agent-on-thread-t-xxx--chronological-log.md:83 predates T-2775; retrofit is a human decision
+T-1494-agent-on-thread---watch--live-thread-fol.md::bc57c4774243  # T-1494-agent-on-thread---watch--live-thread-fol.md:73 predates T-2775; retrofit is a human decision
+T-1494-agent-on-thread---watch--live-thread-fol.md::83d4efcbb458  # T-1494-agent-on-thread---watch--live-thread-fol.md:74 predates T-2775; retrofit is a human decision
+T-1494-agent-on-thread---watch--live-thread-fol.md::0c1cc601c41d  # T-1494-agent-on-thread---watch--live-thread-fol.md:75 predates T-2775; retrofit is a human decision
+T-1494-agent-on-thread---watch--live-thread-fol.md::b4671e20264e  # T-1494-agent-on-thread---watch--live-thread-fol.md:77 predates T-2775; retrofit is a human decision
+T-1495-agent-overview--single-shot-fleet-digest.md::bc57c4774243  # T-1495-agent-overview--single-shot-fleet-digest.md:77 predates T-2775; retrofit is a human decision
+T-1495-agent-overview--single-shot-fleet-digest.md::b26644873617  # T-1495-agent-overview--single-shot-fleet-digest.md:78 predates T-2775; retrofit is a human decision
+T-1495-agent-overview--single-shot-fleet-digest.md::fdabd0bbccc7  # T-1495-agent-overview--single-shot-fleet-digest.md:79 predates T-2775; retrofit is a human decision
+T-1495-agent-overview--single-shot-fleet-digest.md::89d6e025c2c9  # T-1495-agent-overview--single-shot-fleet-digest.md:80 predates T-2775; retrofit is a human decision
+T-1496-agent-overview---watch--live-fleet-dashb.md::bc57c4774243  # T-1496-agent-overview---watch--live-fleet-dashb.md:71 predates T-2775; retrofit is a human decision
+T-1496-agent-overview---watch--live-fleet-dashb.md::9ca1db572f78  # T-1496-agent-overview---watch--live-fleet-dashb.md:72 predates T-2775; retrofit is a human decision
+T-1496-agent-overview---watch--live-fleet-dashb.md::82cb485d336e  # T-1496-agent-overview---watch--live-fleet-dashb.md:73 predates T-2775; retrofit is a human decision
+T-1496-agent-overview---watch--live-fleet-dashb.md::55fe00c20acd  # T-1496-agent-overview---watch--live-fleet-dashb.md:75 predates T-2775; retrofit is a human decision
+T-1498-agent-recent---watch--live-single-peer-s.md::bc57c4774243  # T-1498-agent-recent---watch--live-single-peer-s.md:57 predates T-2775; retrofit is a human decision
+T-1498-agent-recent---watch--live-single-peer-s.md::274e4270e704  # T-1498-agent-recent---watch--live-single-peer-s.md:58 predates T-2775; retrofit is a human decision
+T-1498-agent-recent---watch--live-single-peer-s.md::7ab580eb7bd2  # T-1498-agent-recent---watch--live-single-peer-s.md:59 predates T-2775; retrofit is a human decision
+T-1498-agent-recent---watch--live-single-peer-s.md::83431631d898  # T-1498-agent-recent---watch--live-single-peer-s.md:61 predates T-2775; retrofit is a human decision
+T-1499-agent-recent--on-thread---msg-type--sign.md::bc57c4774243  # T-1499-agent-recent--on-thread---msg-type--sign.md:64 predates T-2775; retrofit is a human decision
+T-1499-agent-recent--on-thread---msg-type--sign.md::52f6f5e4d19d  # T-1499-agent-recent--on-thread---msg-type--sign.md:66 predates T-2775; retrofit is a human decision
+T-1499-agent-recent--on-thread---msg-type--sign.md::d1401c80ef82  # T-1499-agent-recent--on-thread---msg-type--sign.md:67 predates T-2775; retrofit is a human decision
+T-1500-agent-timeline--fleet-wide-chronological.md::bc57c4774243  # T-1500-agent-timeline--fleet-wide-chronological.md:52 predates T-2775; retrofit is a human decision
+T-1500-agent-timeline--fleet-wide-chronological.md::0e58b85bbbc0  # T-1500-agent-timeline--fleet-wide-chronological.md:54 predates T-2775; retrofit is a human decision
+T-1500-agent-timeline--fleet-wide-chronological.md::3e83498108f3  # T-1500-agent-timeline--fleet-wide-chronological.md:55 predates T-2775; retrofit is a human decision
+T-1500-agent-timeline--fleet-wide-chronological.md::2742e6558383  # T-1500-agent-timeline--fleet-wide-chronological.md:56 predates T-2775; retrofit is a human decision
+T-1501-agent-recent--on-thread--timeline---grep.md::bc57c4774243  # T-1501-agent-recent--on-thread--timeline---grep.md:55 predates T-2775; retrofit is a human decision
+T-1501-agent-recent--on-thread--timeline---grep.md::36af95aa2a55  # T-1501-agent-recent--on-thread--timeline---grep.md:57 predates T-2775; retrofit is a human decision
+T-1501-agent-recent--on-thread--timeline---grep.md::26df842d62f9  # T-1501-agent-recent--on-thread--timeline---grep.md:58 predates T-2775; retrofit is a human decision
+T-1501-agent-recent--on-thread--timeline---grep.md::ca14af88da7d  # T-1501-agent-recent--on-thread--timeline---grep.md:59 predates T-2775; retrofit is a human decision
+T-1502-extractrecentposts-content-extraction-re.md::bc57c4774243  # T-1502-extractrecentposts-content-extraction-re.md:77 predates T-2775; retrofit is a human decision
+T-1502-extractrecentposts-content-extraction-re.md::66e81eeee4af  # T-1502-extractrecentposts-content-extraction-re.md:79 predates T-2775; retrofit is a human decision
+T-1502-extractrecentposts-content-extraction-re.md::85a81a11641b  # T-1502-extractrecentposts-content-extraction-re.md:80 predates T-2775; retrofit is a human decision
+T-1506-agent-recent--timeline--on-thread-expose.md::bc57c4774243  # T-1506-agent-recent--timeline--on-thread-expose.md:64 predates T-2775; retrofit is a human decision
+T-1506-agent-recent--timeline--on-thread-expose.md::156be7dadc5e  # T-1506-agent-recent--timeline--on-thread-expose.md:66 predates T-2775; retrofit is a human decision
+T-1506-agent-recent--timeline--on-thread-expose.md::7aebfd6d6438  # T-1506-agent-recent--timeline--on-thread-expose.md:67 predates T-2775; retrofit is a human decision
+T-1529-agent-forward-offset---to-topic--re-publ.md::8c2be6bbdf8c  # T-1529-agent-forward-offset---to-topic--re-publ.md:45 predates T-2775; retrofit is a human decision
+T-1529-agent-forward-offset---to-topic--re-publ.md::12e5e742014f  # T-1529-agent-forward-offset---to-topic--re-publ.md:46 predates T-2775; retrofit is a human decision
+T-1530-agent-edit-offset-text--edit-a-chat-arc-.md::8c2be6bbdf8c  # T-1530-agent-edit-offset-text--edit-a-chat-arc-.md:44 predates T-2775; retrofit is a human decision
+T-1530-agent-edit-offset-text--edit-a-chat-arc-.md::fa4f827e6a1d  # T-1530-agent-edit-offset-text--edit-a-chat-arc-.md:45 predates T-2775; retrofit is a human decision
+T-1531-agent-redact-offset--retract-a-chat-arc-.md::8c2be6bbdf8c  # T-1531-agent-redact-offset--retract-a-chat-arc-.md:44 predates T-2775; retrofit is a human decision
+T-1531-agent-redact-offset--retract-a-chat-arc-.md::031b74e5f1db  # T-1531-agent-redact-offset--retract-a-chat-arc-.md:45 predates T-2775; retrofit is a human decision
+T-1532-agent-describe-text--set-chat-arc-topic-.md::8c2be6bbdf8c  # T-1532-agent-describe-text--set-chat-arc-topic-.md:45 predates T-2775; retrofit is a human decision
+T-1532-agent-describe-text--set-chat-arc-topic-.md::151c5013357c  # T-1532-agent-describe-text--set-chat-arc-topic-.md:46 predates T-2775; retrofit is a human decision
+T-1533-agent-threads--list-all-thread-roots-on-.md::8c2be6bbdf8c  # T-1533-agent-threads--list-all-thread-roots-on-.md:44 predates T-2775; retrofit is a human decision
+T-1533-agent-threads--list-all-thread-roots-on-.md::8ffe54adcad7  # T-1533-agent-threads--list-all-thread-roots-on-.md:45 predates T-2775; retrofit is a human decision
+T-1534-agent-redactions--list-all-retracted-pos.md::8c2be6bbdf8c  # T-1534-agent-redactions--list-all-retracted-pos.md:44 predates T-2775; retrofit is a human decision
+T-1534-agent-redactions--list-all-retracted-pos.md::0d043733de87  # T-1534-agent-redactions--list-all-retracted-pos.md:45 predates T-2775; retrofit is a human decision
+T-1535-agent-pin-history--pinunpin-event-log-on.md::8c2be6bbdf8c  # T-1535-agent-pin-history--pinunpin-event-log-on.md:44 predates T-2775; retrofit is a human decision
+T-1535-agent-pin-history--pinunpin-event-log-on.md::489c865e646a  # T-1535-agent-pin-history--pinunpin-event-log-on.md:45 predates T-2775; retrofit is a human decision
+T-1536-agent-edits-of-offset--edit-history-of-a.md::8c2be6bbdf8c  # T-1536-agent-edits-of-offset--edit-history-of-a.md:44 predates T-2775; retrofit is a human decision
+T-1536-agent-edits-of-offset--edit-history-of-a.md::aa41d7aaf78d  # T-1536-agent-edits-of-offset--edit-history-of-a.md:45 predates T-2775; retrofit is a human decision
+T-1537-agent-relations-offset--all-relations-of.md::8c2be6bbdf8c  # T-1537-agent-relations-offset--all-relations-of.md:44 predates T-2775; retrofit is a human decision
+T-1537-agent-relations-offset--all-relations-of.md::dea3c3dc18e5  # T-1537-agent-relations-offset--all-relations-of.md:45 predates T-2775; retrofit is a human decision
+T-1557-agent-typers---watch--live-typing-presen.md::8c2be6bbdf8c  # T-1557-agent-typers---watch--live-typing-presen.md:59 predates T-2775; retrofit is a human decision
+T-1557-agent-typers---watch--live-typing-presen.md::7866739fd5d3  # T-1557-agent-typers---watch--live-typing-presen.md:60 predates T-2775; retrofit is a human decision
+T-1557-agent-typers---watch--live-typing-presen.md::bcf6ea2695db  # T-1557-agent-typers---watch--live-typing-presen.md:61 predates T-2775; retrofit is a human decision
+T-1558-agent-inbox---watch--live-cross-topic-un.md::8c2be6bbdf8c  # T-1558-agent-inbox---watch--live-cross-topic-un.md:59 predates T-2775; retrofit is a human decision
+T-1558-agent-inbox---watch--live-cross-topic-un.md::e14c497af254  # T-1558-agent-inbox---watch--live-cross-topic-un.md:60 predates T-2775; retrofit is a human decision
+T-1558-agent-inbox---watch--live-cross-topic-un.md::85810c75acf2  # T-1558-agent-inbox---watch--live-cross-topic-un.md:61 predates T-2775; retrofit is a human decision
+T-1558-agent-inbox---watch--live-cross-topic-un.md::b4736de997b2  # T-1558-agent-inbox---watch--live-cross-topic-un.md:63 predates T-2775; retrofit is a human decision
+T-1559-agent-dmsunread---watch--complete-the-pe.md::8c2be6bbdf8c  # T-1559-agent-dmsunread---watch--complete-the-pe.md:64 predates T-2775; retrofit is a human decision
+T-1559-agent-dmsunread---watch--complete-the-pe.md::0b2a13658b6c  # T-1559-agent-dmsunread---watch--complete-the-pe.md:65 predates T-2775; retrofit is a human decision
+T-1559-agent-dmsunread---watch--complete-the-pe.md::8752f396a703  # T-1559-agent-dmsunread---watch--complete-the-pe.md:66 predates T-2775; retrofit is a human decision
+T-1559-agent-dmsunread---watch--complete-the-pe.md::02cd23b8eccd  # T-1559-agent-dmsunread---watch--complete-the-pe.md:69 predates T-2775; retrofit is a human decision
+T-1570-termlinkagentpoll-family--mcp-tools-for-.md::78340b1fb310  # T-1570-termlinkagentpoll-family--mcp-tools-for-.md:67 predates T-2775; retrofit is a human decision
+T-1643-propose-fw-vendor-manifest-hardening-to-.md::0796c2964cc5  # T-1643-propose-fw-vendor-manifest-hardening-to-.md:43 predates T-2775; retrofit is a human decision
+T-1643-propose-fw-vendor-manifest-hardening-to-.md::8ff9dec3e166  # T-1643-propose-fw-vendor-manifest-hardening-to-.md:45 predates T-2775; retrofit is a human decision
+T-1673-tag-v0100-release--land-rotation-protoco.md::d20ea2181266  # T-1673-tag-v0100-release--land-rotation-protoco.md:72 predates T-2775; retrofit is a human decision
+T-1673-tag-v0100-release--land-rotation-protoco.md::5f1d9dccc60c  # T-1673-tag-v0100-release--land-rotation-protoco.md:73 predates T-2775; retrofit is a human decision
+T-1691-cut-v0110-release-tag--bundle-t-1676t-16.md::2caad4499058  # T-1691-cut-v0110-release-tag--bundle-t-1676t-16.md:62 predates T-2775; retrofit is a human decision
+T-1691-cut-v0110-release-tag--bundle-t-1676t-16.md::c3b8563e9389  # T-1691-cut-v0110-release-tag--bundle-t-1676t-16.md:63 predates T-2775; retrofit is a human decision
+T-1795-fix-agent-on-thread-returns-empty--fetch.md::2cc24436c7ac  # T-1795-fix-agent-on-thread-returns-empty--fetch.md:45 predates T-2775; retrofit is a human decision
+T-1885-fw-independent-review-v01--local-only-or.md::24a0d135ce47  # T-1885-fw-independent-review-v01--local-only-or.md:75 predates T-2775; retrofit is a human decision
+T-2564-listener-heartbeat-warn-loudly-when-pres.md::bc760a53a38f  # T-2564-listener-heartbeat-warn-loudly-when-pres.md:108 predates T-2775; retrofit is a human decision
+T-2564-listener-heartbeat-warn-loudly-when-pres.md::efb69fb082c7  # T-2564-listener-heartbeat-warn-loudly-when-pres.md:109 predates T-2775; retrofit is a human decision
+T-2564-listener-heartbeat-warn-loudly-when-pres.md::97b7398b3b29  # T-2564-listener-heartbeat-warn-loudly-when-pres.md:112 predates T-2775; retrofit is a human decision
+T-2684-single-entry-point-for-the-source-level-.md::f1ce520d1f69  # T-2684-single-entry-point-for-the-source-level-.md:121 predates T-2775; retrofit is a human decision
+T-2684-single-entry-point-for-the-source-level-.md::110318088754  # T-2684-single-entry-point-for-the-source-level-.md:122 predates T-2775; retrofit is a human decision
+T-2684-single-entry-point-for-the-source-level-.md::08aef02d1b95  # T-2684-single-entry-point-for-the-source-level-.md:123 predates T-2775; retrofit is a human decision
+T-2685-canary-crontabs-merge-tooling-errors-int.md::eccdd9c1d963  # T-2685-canary-crontabs-merge-tooling-errors-int.md:131 predates T-2775; retrofit is a human decision
+T-2693-nothing-detects-a-new-platform-locked-pr.md::c29bfd694204  # T-2693-nothing-detects-a-new-platform-locked-pr.md:120 predates T-2775; retrofit is a human decision
+T-2695-session-selftest-proves-exec-only-the-ch.md::af28205fe063  # T-2695-session-selftest-proves-exec-only-the-ch.md:124 predates T-2775; retrofit is a human decision
+T-2711-revisit-due-scansh-exits-0-when-it-canno.md::b820f6b7051d  # T-2711-revisit-due-scansh-exits-0-when-it-canno.md:158 predates T-2775; retrofit is a human decision
+T-2711-revisit-due-scansh-exits-0-when-it-canno.md::e98b43d1a2c4  # T-2711-revisit-due-scansh-exits-0-when-it-canno.md:160 predates T-2775; retrofit is a human decision
+T-2758-recent-chat-goes-blind-on-retention-trim.md::a1e6dde7db77  # T-2758-recent-chat-goes-blind-on-retention-trim.md:101 predates T-2775; retrofit is a human decision
+T-2758-recent-chat-goes-blind-on-retention-trim.md::960182755a9d  # T-2758-recent-chat-goes-blind-on-retention-trim.md:102 predates T-2775; retrofit is a human decision
+T-2758-recent-chat-goes-blind-on-retention-trim.md::fcee7f80916f  # T-2758-recent-chat-goes-blind-on-retention-trim.md:103 predates T-2775; retrofit is a human decision
+T-2758-recent-chat-goes-blind-on-retention-trim.md::7671a391b3aa  # T-2758-recent-chat-goes-blind-on-retention-trim.md:104 predates T-2775; retrofit is a human decision
+T-2758-recent-chat-goes-blind-on-retention-trim.md::f78f4bbdc281  # T-2758-recent-chat-goes-blind-on-retention-trim.md:105 predates T-2775; retrofit is a human decision
+T-2758-recent-chat-goes-blind-on-retention-trim.md::6984f420185a  # T-2758-recent-chat-goes-blind-on-retention-trim.md:106 predates T-2775; retrofit is a human decision
+T-2758-recent-chat-goes-blind-on-retention-trim.md::f5398b64a43b  # T-2758-recent-chat-goes-blind-on-retention-trim.md:107 predates T-2775; retrofit is a human decision
+T-2758-recent-chat-goes-blind-on-retention-trim.md::46de26cecd49  # T-2758-recent-chat-goes-blind-on-retention-trim.md:117 predates T-2775; retrofit is a human decision

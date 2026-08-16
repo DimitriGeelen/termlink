@@ -4,7 +4,7 @@ name: "Verification-block pipelines decide pass/fail by SIGPIPE, not by the chec
 description: >
   update-task.sh runs each Verification line as 'if ( eval $cmd )' under 'set -euo pipefail', so 'cmd | grep -q PAT' exits 141 when grep matches early and SIGPIPEs the producer — the gate FAILS precisely when the check SUCCEEDS. Measured here: 61 active tasks carry 262 such lines (58% of all active verification commands). Reproduced under the exact gate construct. Cross-project confirmed by AEF L-613 and 050-email-archive PL-161.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-16T19:50:37Z
-last_update: 2026-08-16T19:50:37Z
+last_update: 2026-08-16T19:56:11Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -39,9 +39,34 @@ date_finished: null
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `scripts/check-verification-pipefail.sh` exists, carries the
+      `# guard-layer: source` marker, and flags `## Verification` lines whose
+      exit status is decided by a pipeline under `pipefail` rather than by the
+      check itself
+- [x] The detector clears the genuinely-safe idioms (pipeline inside `$(...)`
+      and backticks per PL-080; herestring) and fires on an arbitrary external
+      producer — **and the measurement corrected the premise**: L-613's
+      `printf '%s' "$out" | grep -q` is size-dependent (rc=141 above the pipe
+      buffer), so it fires under its own `bounded-producer-pipeline` reason
+      rather than being treated as the fix
+- [x] A fixture suite `tests/verification-pipefail-fixtures.sh` covers both
+      firing shapes, the safe idioms, the allowlist, and a control proving the
+      check does not fire on the real tree — 26 assertions, 4 of which RUN the
+      idioms under the gate's own construct so the rule rests on measurement
+- [x] The already-exposed lines are enumerated in a git-tracked allowlist
+      (`.context/checks/verification-pipefail-allowlist`, T-2681 convention) so
+      they are counted and reported but do not fire, while a NEW occurrence
+      fires immediately — 158 lines across 55 active tasks, keyed by a hash of
+      the normalized command so a reword re-fires
+- [x] Every output path (including the clean one) states the measured census and
+      the scope limit, so a green can never be read as "all verification blocks
+      are sound" (T-2680)
+- [x] Exit codes follow the guard-layer contract: 0 clean, 1 firing, 2 tooling;
+      `--json` emits `{ok, firing[], acknowledged[], census, scope}`
+- [x] `bash scripts/run-guard-layer.sh` passes with the new member included —
+      43/43 (was 41/41; check + fixture suite both auto-discovered)
+- [x] The check is load-bearing: removing the `T-1296` allowlist line re-fires
+      exactly that task's line and nothing else; restoring it returns rc=0
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -74,10 +99,40 @@ date_finished: null
        `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` added to ## Verification.
 -->
 
+## Decisions
+
+**A check, not another learning.** PL-080 (2026-04-25) already named this class and said
+"avoid bare `| grep -q`". Four months later there were 1490 instances. The evidence that
+documentation is not a control here is the four months, not an argument — so the
+deliverable is a guard-layer member rather than a louder learning.
+
+**The measurement changed the fix.** The remediation both peer projects published
+(`out=$(cmd); printf '%s' "$out" | grep -q PAT`) was going to be adopted verbatim until it
+was actually run: it returns 141 once the captured value exceeds the pipe buffer, because
+capturing bounds the DATA but does not remove the PRODUCER. The two idioms that hold at
+any size are the pipeline inside `$(...)` and a herestring. The correction was posted back
+to `framework:pickup` (offset 1) since both projects are mid-retrofit on the weaker form.
+
+**Ledger, not retrofit.** The 158 existing lines are acknowledged rather than rewritten.
+Both peer projects classed the retrofit as human-authority, and this is 55 task files
+this task does not own, several `owner: human`. The failure direction is a false FAIL, not
+a false PASS, so leaving them ledgered is conservative — the risk they carry is that a
+spurious failure pushes someone toward `--force`, which is precisely why the retrofit
+should be a deliberate decision rather than a side effect of adding the check.
+
+**Verification lines here use the safe idiom on purpose** — the check would otherwise fire
+on its own task, and a guard that cannot pass its own rule is not a rule.
+
 ## Verification
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
+# NOTE: these deliberately avoid `cmd | grep -q` — see ## Decisions.
+bash scripts/check-verification-pipefail.sh
+bash tests/verification-pipefail-fixtures.sh
+test -f .context/checks/verification-pipefail-allowlist
+grep -q "guard-layer: source" scripts/check-verification-pipefail.sh
+out=$(bash scripts/run-guard-layer.sh 2>&1 || true); grep -q "guard layer: PASS" <<< "$out"
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
 #
 # Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
@@ -174,3 +229,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2775-verification-block-pipelines-decide-pass.md
 - **Context:** Initial task creation
+
+### 2026-08-16T19:56:11Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
