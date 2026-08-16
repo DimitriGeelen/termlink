@@ -90,11 +90,61 @@ pub fn acquire(pidfile: &Path) -> Result<(), AcquireError> {
 /// the socket FILE is left over from an unclean shutdown with nothing behind
 /// it — the stale case, which must still start (that is what the pidfile-only
 /// check was written for, and breaking it would trade one failure for another).
-fn socket_has_listener(socket: &Path) -> bool {
+///
+/// Every OTHER error is `Unknown`, not "stale" — see [`probe_socket`].
+#[derive(Debug)]
+pub(crate) enum SocketProbe {
+    /// Connect succeeded: a hub is accepting right now.
+    Listening,
+    /// The socket file is absent, or connect was REFUSED — nothing behind it.
+    Stale,
+    /// The probe could not reach a verdict (T-2770). Carries the OS error so the
+    /// refusal can name what stopped it.
+    Unknown(io::Error),
+}
+
+/// Probe `socket` for a live listener, distinguishing "nothing there" from
+/// "could not tell".
+///
+/// **T-2770.** T-2767 shipped this as `UnixStream::connect(socket).is_ok()`,
+/// which collapses every error into "no listener". `ECONNREFUSED` and `EACCES`
+/// then mean the same thing to the caller, and they are opposites: refused means
+/// nothing is listening; permission-denied means a listener may well exist and we
+/// simply cannot reach it.
+///
+/// That blind spot sat on the exact path the guard exists to cover. Local hub
+/// access is gated first by the socket's file mode and then by a same-uid
+/// `SO_PEERCRED` check (T-2772); both produce `EACCES` for a peer of a different
+/// uid. So a live hub owned by another user read as "stale", the guard waved the
+/// start through, and the second hub took the socket — manufacturing the split
+/// brain. Measured on .107, 2026-08-16: three hubs on one host, guard silent.
+///
+/// Fails CLOSED on anything it cannot classify, matching the posture T-2448 chose
+/// for the uid gate. A guard that cannot see must not report "all clear".
+pub(crate) fn probe_socket(socket: &Path) -> SocketProbe {
     if !socket.exists() {
-        return false;
+        return SocketProbe::Stale;
     }
-    std::os::unix::net::UnixStream::connect(socket).is_ok()
+    classify_connect(std::os::unix::net::UnixStream::connect(socket).map(|_| ()))
+}
+
+/// Pure classification of a connect outcome, split out so the policy is
+/// unit-testable without having to PRODUCE an `EACCES` at test time.
+///
+/// That split is not cosmetic here: this suite runs as root on some hosts, and
+/// root bypasses file permissions, so `chmod 0000` cannot generate the very error
+/// this function exists to classify. Testing through the real socket would
+/// therefore silently cover only the cases that were never broken. Same reasoning
+/// and same shape as `decide_unix_peer` in the hub's accept loop, which is generic
+/// over its error type "so it is unit-testable without SO_PEERCRED ever actually
+/// failing".
+pub(crate) fn classify_connect(result: Result<(), io::Error>) -> SocketProbe {
+    match result {
+        Ok(()) => SocketProbe::Listening,
+        // The one error that genuinely proves absence.
+        Err(e) if e.kind() == io::ErrorKind::ConnectionRefused => SocketProbe::Stale,
+        Err(e) => SocketProbe::Unknown(e),
+    }
 }
 
 /// Acquire the pidfile, refusing if a hub is LIVE on `socket` even when the
@@ -109,10 +159,15 @@ pub fn acquire_with_socket(pidfile: &Path, socket: &Path) -> Result<(), AcquireE
         return Err(AcquireError::AlreadyRunning(pid));
     }
     // Pidfile says nobody is home. Believe the socket, not the file.
-    if socket_has_listener(socket) {
-        return Err(AcquireError::SocketAlive(socket.to_path_buf()));
+    match probe_socket(socket) {
+        SocketProbe::Listening => Err(AcquireError::SocketAlive(socket.to_path_buf())),
+        SocketProbe::Stale => acquire(pidfile),
+        // T-2770: could not tell. Refuse — "I cannot check" is not "all clear".
+        SocketProbe::Unknown(e) => Err(AcquireError::SocketUnprobeable(
+            socket.to_path_buf(),
+            e.to_string(),
+        )),
     }
-    acquire(pidfile)
 }
 
 /// Error returned when acquiring a pidfile fails.
@@ -123,6 +178,12 @@ pub enum AcquireError {
     /// A hub is accepting on the socket even though the pidfile did not say so
     /// (T-2767) — a lost or stale pidfile in front of a live hub.
     SocketAlive(PathBuf),
+    /// The socket exists but could not be probed (T-2770) — typically `EACCES`
+    /// from a hub owned by another uid. Distinct from [`Self::SocketAlive`] on
+    /// purpose: "another hub is running" and "I could not check whether another
+    /// hub is running" call for different operator actions, and collapsing them
+    /// is what let the blind case read as safe.
+    SocketUnprobeable(PathBuf, String),
     /// I/O error writing the pidfile.
     Io(io::Error),
 }
@@ -145,6 +206,23 @@ impl std::fmt::Display for AcquireError {
                      take over the socket and split the substrate in two. \
                      Check 'systemctl status termlink-hub' first: if it is unit-supervised, \
                      leave it alone; otherwise stop it with 'termlink hub stop'.",
+                    sock.display()
+                )
+            }
+            Self::SocketUnprobeable(sock, err) => {
+                // Name the uncertainty rather than resolving it in either
+                // direction. The operator can see who owns the socket; this
+                // process provably cannot.
+                write!(
+                    f,
+                    "A socket exists at {} but this process could not probe it ({err}), \
+                     so whether a hub is already serving there is UNKNOWN. Refusing to \
+                     start rather than risk taking over a live socket and splitting the \
+                     substrate in two. This is usually a hub owned by a different user: \
+                     check with 'ls -l {}' and 'systemctl status termlink-hub'. If it is \
+                     another user's hub, talk to that hub instead of starting one here, \
+                     or start yours under a different TERMLINK_RUNTIME_DIR.",
+                    sock.display(),
                     sock.display()
                 )
             }
@@ -372,6 +450,96 @@ mod tests {
 
         let _ = std::fs::remove_file(&sock);
         let _ = std::fs::remove_file(&pidfile);
+    }
+
+    // ── T-2770: "could not look" must never read as "nothing there" ─────────
+    //
+    // T-2767 decided with `connect(..).is_ok()`, so EACCES and ECONNREFUSED were
+    // the same answer. They are opposites, and the one it got wrong is the one
+    // that matters: a live hub owned by another uid returns EACCES, so the guard
+    // waved the start through on precisely the split-brain path it exists to stop.
+    //
+    // These drive `classify_connect` directly rather than a real socket, because
+    // this suite runs as root on some hosts and root bypasses file permissions —
+    // `chmod 0000` there produces no EACCES at all, so a socket-based test would
+    // pass while covering nothing.
+
+    #[test]
+    fn socket_probe_connection_refused_is_stale() {
+        // The unclean-shutdown case T-2767 was written to keep working.
+        let refused = Err(io::Error::from(io::ErrorKind::ConnectionRefused));
+        assert!(
+            matches!(classify_connect(refused), SocketProbe::Stale),
+            "a refused connect proves nothing is listening"
+        );
+    }
+
+    #[test]
+    fn socket_probe_permission_denied_is_unknown_not_stale() {
+        // The load-bearing case. Pre-T-2770 this classified as "no listener".
+        let denied = Err(io::Error::from(io::ErrorKind::PermissionDenied));
+        assert!(
+            matches!(classify_connect(denied), SocketProbe::Unknown(_)),
+            "EACCES means a listener may exist and we cannot see it — never 'stale'"
+        );
+    }
+
+    #[test]
+    fn socket_probe_unexpected_error_kind_is_unknown() {
+        // Fail-closed by DEFAULT: only ConnectionRefused is an allow. A future
+        // error kind cannot silently re-open the hole by not being enumerated.
+        for kind in [
+            io::ErrorKind::TimedOut,
+            io::ErrorKind::NotFound,
+            io::ErrorKind::Other,
+        ] {
+            assert!(
+                matches!(classify_connect(Err(io::Error::from(kind))), SocketProbe::Unknown(_)),
+                "{kind:?} must fail closed"
+            );
+        }
+    }
+
+    #[test]
+    fn socket_probe_ok_is_listening() {
+        assert!(matches!(classify_connect(Ok(())), SocketProbe::Listening));
+    }
+
+    #[test]
+    fn unprobeable_socket_refuses_startup_with_its_own_message() {
+        // The two refusals must stay distinguishable: "another hub is running"
+        // and "I could not check whether another hub is running" call for
+        // different operator actions, and collapsing them is the original defect
+        // one level up.
+        let alive = AcquireError::SocketAlive(PathBuf::from("/run/x/hub.sock")).to_string();
+        let unknown = AcquireError::SocketUnprobeable(
+            PathBuf::from("/run/x/hub.sock"),
+            "Permission denied (os error 13)".to_string(),
+        )
+        .to_string();
+
+        assert_ne!(alive, unknown, "the two refusals must not read identically");
+
+        assert!(
+            unknown.contains("UNKNOWN"),
+            "states that the verdict is unknown, not that a hub is running: {unknown}"
+        );
+        assert!(
+            unknown.contains("Permission denied"),
+            "names what stopped the probe: {unknown}"
+        );
+        assert!(
+            unknown.contains("different user"),
+            "names the likely cause so the operator can check it: {unknown}"
+        );
+        assert!(
+            unknown.contains("TERMLINK_RUNTIME_DIR"),
+            "offers a way to proceed without taking over the socket: {unknown}"
+        );
+        assert!(
+            alive.contains("already accepting"),
+            "the live-hub message still asserts a live hub: {alive}"
+        );
     }
 
     /// An absent socket path is not a listener.
