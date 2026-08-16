@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-16T07:04:13Z
-last_update: 2026-08-16T07:04:13Z
+last_update: 2026-08-16T10:07:18Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -410,10 +410,30 @@ session and were green (`cargo test --workspace` exit 0, all suites `0 failed`;
 guard layer `PASS 36/36`, run twice). The gate leg was still executing when the
 session hit its budget horizon.
 
-**To close:** re-run `fw task update T-2757 --status work-completed`. It is
-expected to pass; nothing is known to be outstanding. Do NOT reach for
-`--force` or `--skip-verification` — the gate has not failed, it simply had not
-finished.
+**CORRECTION (same session, after the gate finished):** the gate did NOT pass.
+It reached leg 20 and reported `FAIL: cargo test --workspace (exit 101)`, so
+T-2757 stays `started-work`. The sentence that stood here — "it is expected to
+pass; nothing is known to be outstanding" — was written while the leg was still
+running and was wrong.
+
+This is worth reading carefully, because the SAME command exited 0 earlier in
+this same session with every suite reporting `0 failed`. Two runs of one
+command disagreeing means one of the two results is not trustworthy, and the
+green one is not automatically the honest one. Do not close this task on the
+strength of the earlier green.
+
+Candidate causes, none verified — do not assume:
+  - a build-directory race: a `cargo test` and the guard layer's own cargo work
+    were in flight concurrently at points during this session
+  - a genuinely flaky test surfacing under different scheduling
+  - a real failure that the earlier run somehow did not reach
+
+**To close:** first reproduce `cargo test --workspace` on a quiet tree with no
+other cargo process running, and get the ACTUAL failing test name — the P-011
+gate truncates failure output to 5 lines, which was only compile chatter here.
+Fix or explain what it names, THEN re-run the gate. Do NOT reach for `--force`
+or `--skip-verification`: a gate that failed is exactly the signal those flags
+would destroy.
 
 **Note on a flaky background run:** an earlier invocation of the same command
 reported exit 0 with an EMPTY output file while leaving the task at
