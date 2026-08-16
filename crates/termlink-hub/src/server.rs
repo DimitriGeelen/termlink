@@ -592,6 +592,74 @@ where
     }
 }
 
+/// T-2772: Build the `AUTH_DENIED` refusal envelope for a Unix peer rejected by
+/// the same-uid gate.
+///
+/// `peer_uid` is `Some` for a uid mismatch and `None` when credential extraction
+/// itself failed (the T-2448 fail-closed branch) — the two carry DIFFERENT cause
+/// text, because "you are the wrong user" and "I could not tell who you are" call
+/// for different operator actions.
+///
+/// Split out from the writer so the envelope's CONTENT is unit-testable without a
+/// socket. That matters here: the defect this closes was never a missing policy,
+/// it was a policy whose outcome the refused party could not read, so the test
+/// worth having asserts on what the client receives.
+pub(crate) fn build_uid_refusal(peer_uid: Option<u32>, owner_uid: u32) -> ErrorResponse {
+    match peer_uid {
+        Some(peer_uid) => ErrorResponse::with_data(
+            serde_json::Value::Null,
+            control::error_code::AUTH_DENIED,
+            &format!(
+                "Connection refused: peer uid {peer_uid} does not match hub owner uid \
+                 {owner_uid}. This hub accepts local Unix connections only from its own \
+                 uid. Either run the client as uid {owner_uid}, or start a separate hub \
+                 under uid {peer_uid}."
+            ),
+            serde_json::json!({
+                "reason": "uid_mismatch",
+                "peer_uid": peer_uid,
+                "owner_uid": owner_uid,
+            }),
+        ),
+        None => ErrorResponse::with_data(
+            serde_json::Value::Null,
+            control::error_code::AUTH_DENIED,
+            &format!(
+                "Connection refused: could not read peer credentials, so the hub cannot \
+                 confirm you share its uid ({owner_uid}) — refusing fail-closed (T-2448). \
+                 This usually means the platform does not support peer-credential \
+                 extraction. Connect over TCP with a hub token instead."
+            ),
+            serde_json::json!({
+                "reason": "peer_credentials_unavailable",
+                "peer_uid": serde_json::Value::Null,
+                "owner_uid": owner_uid,
+            }),
+        ),
+    }
+}
+
+/// T-2772: Write a single `AUTH_DENIED` envelope to a just-accepted Unix stream
+/// and close, instead of dropping it silently.
+///
+/// Before this, the uid gate did `tracing::warn!` + bare `continue`: the warning
+/// went to the HUB's log and the client got an unexplained
+/// `Connection reset by peer (os error 104)`. Server-side observability is not
+/// client-side observability — the refusal was loud only where the person
+/// diagnosing it could not see. Mirrors [`write_capacity_refusal`] ~10 lines
+/// above, which already had this shape.
+async fn write_uid_refusal<S>(stream: &mut S, peer_uid: Option<u32>, owner_uid: u32)
+where
+    S: AsyncWrite + Unpin,
+{
+    let envelope = build_uid_refusal(peer_uid, owner_uid);
+    if let Ok(mut line) = serde_json::to_vec(&RpcResponse::Error(envelope)) {
+        line.push(b'\n');
+        let _ = stream.write_all(&line).await;
+        let _ = stream.shutdown().await;
+    }
+}
+
 /// Convert a hex string to a 32-byte array (for token_secret decoding).
 fn hex_to_bytes(hex: &str) -> Option<[u8; 32]> {
     if hex.len() != 64 {
@@ -769,6 +837,17 @@ pub async fn run_accept_loop(
                                          peer credentials (fail-closed)"
                                     ),
                                 }
+                                // T-2772: tell the REFUSED PARTY why, not just our own
+                                // log. A bare `continue` here closed the stream with
+                                // nothing written, so the client saw only
+                                // `Connection reset by peer (os error 104)` and could
+                                // not distinguish a policy refusal from a crashed hub.
+                                // Spawned like the capacity refusal below so a client
+                                // that never reads cannot stall the accept loop.
+                                tokio::spawn(async move {
+                                    write_uid_refusal(&mut stream, uid_mismatch, owner_uid)
+                                        .await;
+                                });
                                 continue;
                             }
                         };
@@ -1941,6 +2020,93 @@ mod tests {
             decide_unix_peer(creds, 1000),
             UnixPeerDecision::Reject { uid_mismatch: None }
         );
+    }
+
+    // ── T-2772: the refusal must be READABLE BY THE REFUSED PARTY ────────────
+    //
+    // decide_unix_peer_* above prove the policy REJECTS. They say nothing about
+    // what the rejected client is told, and for ~the life of the uid gate the
+    // answer was "nothing" — a bare `continue` closed the stream, so the client
+    // saw only `Connection reset by peer (os error 104)`. Measured cost on .107
+    // (2026-08-16): a peer agent misdiagnosed that reset three times, concluding
+    // the fault was "inside the hub's channel RPC handling" — code the refused
+    // connection never reaches. These assert on envelope CONTENT so a revert to
+    // a silent drop fails the suite.
+
+    fn uid_refusal_json(peer_uid: Option<u32>, owner_uid: u32) -> serde_json::Value {
+        serde_json::to_value(RpcResponse::Error(build_uid_refusal(peer_uid, owner_uid))).unwrap()
+    }
+
+    #[test]
+    fn uid_refusal_names_both_uids_and_a_remediation() {
+        let v = uid_refusal_json(Some(1001), 0);
+        let msg = v["error"]["message"].as_str().unwrap();
+
+        // Both sides of the mismatch — without the owner uid the reader cannot
+        // tell WHICH uid to become, which is the one thing they need.
+        assert!(msg.contains("1001"), "names the peer uid: {msg}");
+        assert!(msg.contains("uid 0"), "names the hub owner uid: {msg}");
+
+        // Actionable, per Directive #3 — a refusal that does not say what to do
+        // instead is only marginally better than silence.
+        assert!(
+            msg.contains("run the client as uid 0") || msg.contains("start a separate hub"),
+            "carries remediation: {msg}"
+        );
+
+        assert_eq!(v["error"]["code"], control::error_code::AUTH_DENIED);
+        assert_eq!(v["error"]["data"]["reason"], "uid_mismatch");
+        assert_eq!(v["error"]["data"]["peer_uid"], 1001);
+        assert_eq!(v["error"]["data"]["owner_uid"], 0);
+    }
+
+    #[test]
+    fn uid_refusal_cred_failure_has_its_own_distinct_cause() {
+        let v = uid_refusal_json(None, 0);
+        let msg = v["error"]["message"].as_str().unwrap();
+
+        // "I cannot tell who you are" is a different operator problem from
+        // "you are the wrong user", so it must not reuse the mismatch text.
+        assert!(
+            msg.contains("could not read peer credentials"),
+            "names the real cause: {msg}"
+        );
+        assert!(
+            msg.contains("fail-closed"),
+            "says the refusal was deliberate, not a fault: {msg}"
+        );
+        assert!(msg.contains("TCP"), "offers a way through: {msg}");
+
+        assert_eq!(v["error"]["data"]["reason"], "peer_credentials_unavailable");
+        assert!(
+            v["error"]["data"]["peer_uid"].is_null(),
+            "no peer uid is known in this branch"
+        );
+
+        let mismatch = uid_refusal_json(Some(1001), 0);
+        assert_ne!(
+            msg,
+            mismatch["error"]["message"].as_str().unwrap(),
+            "the two branches must not collapse to one message"
+        );
+    }
+
+    #[tokio::test]
+    async fn uid_refusal_writes_one_newline_terminated_line_then_closes() {
+        // The wire contract the client's `lines.next_line().await` depends on:
+        // exactly one line, newline-terminated. A refusal the client cannot
+        // frame is still a silent failure.
+        let mut buf: Vec<u8> = Vec::new();
+        write_uid_refusal(&mut buf, Some(1001), 0).await;
+
+        assert!(buf.ends_with(b"\n"), "newline-terminated");
+        assert_eq!(buf.iter().filter(|b| **b == b'\n').count(), 1, "exactly one");
+
+        let parsed: serde_json::Value =
+            serde_json::from_slice(&buf[..buf.len() - 1]).expect("parses as JSON");
+        assert_eq!(parsed["error"]["code"], control::error_code::AUTH_DENIED);
+        // id is null — no request was ever parsed, so there is none to echo.
+        assert!(parsed["id"].is_null(), "id is null pre-request");
     }
 
     /// T-2267 regression guard. The full known `channel.*` surface (plus

@@ -12,7 +12,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-08-16T16:42:47Z
-last_update: 2026-08-16T16:42:47Z
+last_update: 2026-08-16T16:44:12Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -45,22 +45,44 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
   on every host. Lean 2; the decision hinges on IW-2.
 
 - **IW-2: Does `SO_PEERCRED` create a NEW portability gap while closing a uid gap?**
-  confidence: 2
-  disposition:
-  rationale: `SO_PEERCRED` is Linux. macOS needs `LOCAL_PEERCRED`/`getpeereid`, and README
-  asserts macOS first-class across five rows. T-2693's platform-lock check would flag a
-  bare Linux-only call, and correctly. So option 2 is not "smallest change" unless the
-  macOS path is written at the same time — otherwise we trade a uid gap for exactly the
-  lock-in Directive #4 forbids, which is the trade T-2690 already caught once.
+  confidence: 3
+  disposition: dissolved
+  rationale: DISSOLVED by reading the code (T-2772 session, 2026-08-16). The premise was
+  wrong: option 2 is not a future change, it is ALREADY SHIPPED and has been all along.
+  `PeerCredentials::from_raw_fd` (termlink-session/src/auth.rs:28-47) already branches
+  `#[cfg(target_os = "linux")]` → `SO_PEERCRED`, `#[cfg(target_os = "macos")]` →
+  `LOCAL_PEERCRED`, and returns `io::ErrorKind::Unsupported` elsewhere; the hub calls it
+  via `decide_unix_peer` (hub/src/server.rs:704). So there is no portability gap to open —
+  the cross-platform abstraction predates the question. The `Unsupported` arm is
+  Directive #4-correct on a third platform too: it becomes `Reject{uid_mismatch: None}`,
+  which fails closed rather than silently trusting. Note this INVERTS the original framing:
+  the AEF report described local access as decided purely by filesystem permissions, and
+  that is only the FIRST of two gates.
 
 - **IW-3: What does authorization by uid actually GRANT?**
+  confidence: 3
+  disposition: answered
+  rationale: ANSWERED from code (hub/src/server.rs, accept loop): a same-uid Unix peer is
+  granted `Some(PermissionScope::Execute)` — the highest scope, unconditionally, with the
+  in-code comment "Unix same-UID connections get full access (no auth needed)". So the
+  current model is binary and coarse: same uid ⇒ everything, different uid ⇒ nothing. That
+  answers the shape question posed here — uid is a BOUNDARY, not an identity, and it maps
+  no local peer to a distinct principal. Consequence for the T-2769 merge question: the two
+  do NOT merge. T-2769 needs per-agent identity for claim ownership, which uid cannot
+  supply, because every agent running as the same user is one principal here (F2 measured
+  exactly that: two projects on .107 sharing fingerprint d1993c2c3ec44c94). Design them
+  separately.
+
+- **IW-6: Should the same-uid grant be `Execute` (everything) at all?** *(new, T-2772)*
   confidence: 1
   disposition:
-  rationale: Unasked so far, and it decides the shape. If any local uid may do anything,
-  `SO_PEERCRED` only restores parity with the current intent (whoever can reach the socket
-  is trusted) and is a small change. If local peers should map to distinct identities with
-  distinct rights, this merges with T-2769 (claim ownership unauthenticated) and the two
-  should be designed together rather than twice. Answer this before writing code.
+  rationale: Falls out of IW-3's answer and was not visible before it. Any process running
+  as the hub's uid gets full `Execute` — including force-release of another agent's claims
+  and topic deletion (`CHANNEL_DELETE`, Execute per T-2421). On a host where several agent
+  runtimes deliberately share one uid, that is every agent holding operator-tier authority
+  over every other. Whether that is intended or merely inherited from the single-user
+  origin is a human question; it also bounds how much T-2769 can achieve, since an
+  authenticated `claimer` is defeated by any co-uid peer that can simply force-release.
 
 - **IW-4: Is option 1 acceptable as an interim, and how do we stop it becoming "the fix"?**
   confidence: 2
