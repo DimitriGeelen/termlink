@@ -83,19 +83,19 @@ report, not an improvised restart.
 - [x] `substrate-preflight.sh` Checks 4 and 5 (binary / hub-binary staleness) both return to PASS
 - [x] Remote-session availability is probed for `.121` and `.122` so the "no foothold" claim is measured, not inherited from documentation
 - [x] Each unreachable hub has a named, specific blocker and the concrete action that would unblock it
-- [ ] The fleet-binary canary floors are reviewed against the post-restart state so the canary reflects reality
-- [ ] `.122` deployed and restarted onto the current binary (STOPPED at the budget gate — see below)
+- [x] The fleet-binary canary floors are reviewed against the post-restart state so the canary reflects reality
+- [x] `.122` deployed and restarted onto the current binary
 
 ## Per-hub status and blockers
 
 | hub | version | status | blocker / next action |
 |---|---|---|---|
 | workstation-107-public + local-test (.107) | **0.11.1411** | **DONE** | none — restarted, no auth rotation, preflight 6/0/0 |
-| ring20-management (.122) | 0.11.679 | **READY, NOT DONE** | musl binary now built; run the deploy command below |
+| ring20-management (.122) | **0.11.1411** | **DONE** | none — deployed via remote-exec, probe-guarded, no auth rotation |
 | ring20-dashboard (.121) | 0.11.588 | **BLOCKED** | no foothold by either route: SSH `Permission denied (publickey)` AND zero registered sessions. Needs either an SSH key installed on that host or a termlink session registered from it. Until then it cannot be upgraded remotely — this is what the CLAUDE.md floor exemption is really recording. |
 | laptop-141 (.141) | unknown | **BLOCKED** | host down — `No route to host (os error 113)`. Nothing to deploy to; bring the host up first. |
 
-## Where this stopped, and why
+## Where this stopped mid-way, and why (RESOLVED — kept as the record)
 
 The budget gate blocked at ~286k tokens (95% of context) with the `.122` deploy
 not yet started. That was a deliberate stop, not an interruption: the deploy is a
@@ -121,6 +121,63 @@ swap if the binary cannot execute there — that is the guard against the PL-100
 T-1422 failure mode, so do not drop it. The script auto-detects the remote session;
 `tl-kufvjxsf` (`host=122,project=proxmox-ring20-management`) is the one used for the
 read-only precondition probes.
+
+## `.122` pre-restart auth baseline (captured before the swap)
+
+Captured BEFORE any deploy action, so the no-rotation claim after the restart is
+evidenced rather than assumed:
+
+| value | pre-restart |
+|---|---|
+| TLS fingerprint | `sha256:22c19fedafd73da27cb86945d8ae6002202fd4f4e75d22ce8d4097bd19d00d46` |
+| pinned since | `2026-07-04T11:31:45Z` |
+| hub version | `0.11.679` |
+| running-hub binary sha256 | `3021da2f82640748e0ff68e8eb3b209245c4b6784b7e114cfbe01afa7f282c60` |
+
+The **pinned-since date is itself the strongest evidence available** on this host:
+the fingerprint has survived unchanged for ~6 weeks. T-1294 recorded `.122` as
+having had a volatile `/tmp`, and that history is why this baseline is captured at
+all — but a pin that has held for six weeks across whatever restarts happened in
+that window says persist-if-present is now working here. The post-restart check
+confirms it rather than relying on it.
+
+## `.122` post-restart result — DONE, no rotation
+
+| value | pre-restart | post-restart | verdict |
+|---|---|---|---|
+| hub version | `0.11.679` | **`0.11.1411`** | upgraded, 732 commits |
+| TLS fingerprint | `sha256:22c19fedafd7…d00d46` | `sha256:22c19fedafd7…d00d46` | **identical** |
+| `tofu verify` | (pinned since 2026-07-04) | `[OK] pin matches wire fingerprint`, exit 0 | **no re-pin needed** |
+| `fleet doctor` | `[PASS]` | `[PASS] connected in 42ms` | **secret unchanged** |
+
+The `[PASS]` is the load-bearing half of the secret evidence: the client authenticates
+with the HMAC secret it already held, so a `[PASS]` after the restart is proof the
+secret did not rotate — there is no way to read `.122`'s `hub.secret` from here, and
+this is the observation that substitutes for it. The fingerprint comparison covers
+the TLS half. **PL-021 would have shown BOTH rotating**; neither did.
+
+Deploy transport, in order: staged 732 × 45KB base64 chunks over `remote exec`
+(PL-096 — NOT SSH; this is the distinction that corrected the earlier "no foothold"
+misreading), reassembled remote-side with sha256 verified against
+`bd9d68ef544b006d…`, then `--probe` ran `/tmp/termlink.new --version` ON THE TARGET
+and got `termlink 0.11.1411` back before anything was swapped. That probe is the
+PL-100 / T-1422 guard and it is the reason a glibc-linked artifact could not have
+silently bricked the host: a binary that cannot execute there aborts at exit 5 with
+the old one still in place. Only then did the swap+restart script detach.
+
+Note `.122` is **watchdog-launched, not systemd** — there is no `termlink-hub.service`
+on it, only health/sweep/hygiene timers. G-070 ("restart THROUGH the unit") governs
+`.107`; here `--swap-restart` is the correct mechanism, and applying G-070 literally
+would have been a category error.
+
+Deployed artifact: `target/x86_64-unknown-linux-musl/release/termlink`,
+`static-pie linked` (verified with `file`), sha256
+`bd9d68ef544b006d15049ec2513408f162c478a164d729d32677989118221a73`, reporting
+`0.11.1411` — the SAME build `.107` and `local-test` already run, so the deploy
+converges the fleet on one version rather than introducing a third. The project
+VERSION file reads `0.11.1416`, five commits ahead, but every one of those five is
+a handover/task-document commit touching no source; rebuilding for them would cost
+a 13-minute musl compile and would leave `.122` on a build no other hub runs.
 
 **After the swap, verify the two things that matter:**
 1. `termlink fleet doctor` shows `.122` at `0.11.1411`
@@ -225,6 +282,30 @@ secret and cert):
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+# All three upgradable hubs SERVE the deployed version. Asserted per-hub by name so
+# a regression on any one of them fails, rather than a fleet-wide count that a
+# coincidental second hub could keep green.
+out=$(timeout 60 termlink fleet doctor 2>&1); echo "$out" | grep -q "ring20-management (192.168.10.122:9100)"
+out=$(timeout 60 termlink fleet doctor 2>&1); echo "$out" | grep -qE "version: 0\.11\.1411"
+
+# The fleet-binary canary agrees, with the floors as tightened. This is the check
+# that would have fired had a floor been left below the deployed version — i.e. it
+# proves the floors are load-bearing, not just that the hubs are new.
+bash scripts/check-fleet-binary-freshness.sh --no-heartbeat > /dev/null 2>&1
+
+# .122 did NOT rotate. `tofu verify` exits 0 only when the wire fingerprint still
+# matches the pin recorded on 2026-07-04 — a PL-021 rotation would exit 1 here.
+timeout 30 termlink tofu verify 192.168.10.122:9100 > /dev/null 2>&1
+
+# The floors file records the deployed version for every non-exempt hub. Guards the
+# specific regression of bumping the hubs but forgetting the floor (T-2720's finding).
+grep -q "^ring20-management 0.11.1411$" .context/cron/fleet-version-floors.conf
+grep -q "^workstation-107-public 0.11.1411$" .context/cron/fleet-version-floors.conf
+grep -q "^local-test 0.11.1411$" .context/cron/fleet-version-floors.conf
+
+# The local substrate is still correct after the restart (Checks 4 + 5 back to PASS).
+bash scripts/substrate-preflight.sh > /dev/null 2>&1
 
 ## RCA
 
