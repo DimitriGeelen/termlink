@@ -4,20 +4,20 @@ name: "parity_version and parity_info are non-hermetic — fail on git HEAD move
 description: >
   parity_version/parity_info compare git-derived commit+version across MCP and CLI. The MCP test crate is compiled at cargo-test start; find_termlink_bin_fresh rebuilds the CLI at test runtime minutes later. Any commit landing in between guarantees divergence, failing the gate for a build-environment artifact rather than a product defect. Observed: MCP f28e9b857/0.11.1403 vs CLI 5859c89ad/0.11.1405, blocking T-2757 closure.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-mcp/tests/parity.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-16T11:52:06Z
-last_update: 2026-08-16T11:55:56Z
-date_finished: null
+last_update: 2026-08-16T12:10:42Z
+date_finished: 2026-08-16T12:10:42Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -293,3 +293,6 @@ unconditional strip.
 
 ### 2026-08-16T11:52:48Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-08-16T12:10:42Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

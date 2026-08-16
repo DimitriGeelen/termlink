@@ -1,8 +1,8 @@
 ---
-id: T-2758
-name: "recent-chat goes blind on retention-trimmed topics — count used as offset in seek-to-tail"
+id: T-2762
+name: "Fleet hub restart onto current binary (operator-authorized)"
 description: >
-  agent-chat-arc-recent.sh derives its seek-to-tail cursor as chat_count - SCAN_LIMIT, treating channel info's count as an offset. On a retention-trimmed topic count is capped at the retention limit while live offsets keep rising, so the scan lands thousands of offsets below the retained range and the time filter discards every envelope — /recent-chat and /pulse report 0 posts on a topic that is actively in use. Third recurrence of PL-293.
+  Operator authorized a fleet-wide hub restart to clear the T-2359 staleness warnings. Recon: only the local hub (.107, 0.11.720) has a usable foothold. .121 (0.11.588) refuses SSH publickey; .122 (0.11.679) answers SSH with a forced-command token broker and no shell; .141 is unreachable (no route). Scope is therefore: build+install current binary locally, restart the local hub THROUGH systemd per G-070, verify no PL-021 auth rotation, and report per-hub blockers for the three unreachable hubs.
 
 status: started-work
 workflow_type: build
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-16T09:29:42Z
-last_update: 2026-08-16T09:51:36Z
+created: 2026-08-16T12:19:55Z
+last_update: 2026-08-16T12:20:59Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,37 +30,90 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2758: recent-chat goes blind on retention-trimmed topics — count used as offset in seek-to-tail
+# T-2762: Fleet hub restart onto current binary (operator-authorized)
 
 ## Context
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
+## Context
+
+Operator authorized a fleet-wide hub restart onto the current binary, to clear the
+T-2359 binary-staleness condition. Preflight reported the local binary and hub at
+`0.11.720` against project VERSION `0.11.1411`.
+
+**Fleet recon (2026-08-16).** `fleet doctor`: 5 profiles, 4 reachable.
+
+| hub | addr | version | foothold |
+|---|---|---|---|
+| workstation-107-public / local-test | .107 / 127.0.0.1 | 0.11.720 | LOCAL — systemd unit, full control |
+| ring20-management | .122 | 0.11.679 | SSH answers but yields a forced-command token broker, no shell |
+| ring20-dashboard | .121 | 0.11.588 | SSH `Permission denied (publickey)` — matches CLAUDE.md "exempt for lack of an upgrade foothold" |
+| laptop-141 | .141 | unknown | DOWN — `No route to host` |
+
+SSH is therefore not a fleet deployment path. The supported path is
+`scripts/fleet-deploy-binary.sh` (T-1420/PL-096), which streams the binary over
+`termlink remote exec` rather than SSH and so does not need a shell — but it does
+need a **registered remote session** on the target hub.
+
+**PL-100 constraint.** The deploy script defaults to the musl-static target
+precisely because `target/release/termlink` is dynamically linked against the
+build host's glibc and fails on older targets. Any push must be the musl build,
+and must be `--probe`d before swapping.
+
+**PL-021 constraint.** A hub restart rotates the HMAC secret and TLS cert if its
+`runtime_dir` is volatile. Local preflight reports
+`/var/lib/termlink on btrfs (disk-backed)`, so the local restart should be
+non-rotating — a claim to VERIFY after the fact, not assume.
+
+**Cross-project boundary.** `.121` and `.122` are ring20 hosts carrying LIVE
+ring20 agents (`ring20-concierge`, `ring20-dashboard-agent`). Restarting another
+project's hub is not implied by "restart the fleet" and is not attempted without
+that project's operator; the deliverable for those hubs is a precise blocker
+report, not an improvised restart.
+
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] The seek-to-tail cursor is derived from an OFFSET, not from `count`:
-      prefer the hub's authoritative `latest_offset` (T-2533+); else fall back
-      to the largest `receipts[].up_to` in the same `channel info` payload when
-      that exceeds `count - 1` (proving the topic has been trimmed); else keep
-      the existing `count`-derived value, which is correct on untrimmed topics
-- [x] The derivation is a pure, unit-tested helper — not inline arithmetic —
-      covering: authoritative `latest_offset` present, trimmed topic with only
-      receipts available, untrimmed topic (behaviour unchanged), and a topic
-      with neither signal (no crash, no fabricated offset)
-- [x] Regression fixture reproduces the measured defect: a topic whose `count`
-      (2003) is far below its true max offset (11973) must yield a cursor
-      inside the retained range, and the pre-fix arithmetic must fail it
-- [x] `recent-dm.sh` is checked for the same `count`-as-offset arithmetic and
-      fixed too if present — the T-2757 lesson (PL-293) is that the count-anchored
-      helper always has more than one caller
-- [x] The fix cannot silently UNDER-report: when no offset signal is available
-      the scan must not claim an empty window it did not actually cover
-- [x] Live proof on the hub that produced the numbers: `/recent-chat` surfaces
-      the 2026-08-16 post it currently reports as "0 posts"
-- [x] `bash tests/chat-arc-recent-fixtures.sh` passes (existing suite, extended
-      with the regression fixture), and `bash scripts/run-guard-layer.sh` passes
+- [x] Current binary is built and installed locally; `termlink --version` reports the project VERSION
+- [x] The local hub is restarted THROUGH its systemd unit (G-070), never as a detached process
+- [x] Post-restart, the hub serves the new version (`fleet doctor` on the local profile)
+- [x] NO PL-021 rotation: the TLS fingerprint and HMAC secret are identical before and after the restart, evidenced by captured values — not assumed from the runtime_dir being disk-backed
+- [x] `substrate-preflight.sh` Checks 4 and 5 (binary / hub-binary staleness) both return to PASS
+- [x] Remote-session availability is probed for `.121` and `.122` so the "no foothold" claim is measured, not inherited from documentation
+- [ ] Each unreachable hub has a named, specific blocker and the concrete action that would unblock it
+- [ ] The fleet-binary canary floors are reviewed against the post-restart state so the canary reflects reality
+
+**Local hub — DONE, no rotation.** Captured either side of `systemctl restart termlink-hub`:
+
+| | before | after |
+|---|---|---|
+| TLS fingerprint | `sha256:d1bd50f5cb03c4fd…` | `sha256:d1bd50f5cb03c4fd…` |
+| `hub.secret` sha256 | `bce6f5f64fcc167ab7a0d12e` | `bce6f5f64fcc167ab7a0d12e` |
+
+Identical, so persist-if-present held and **no client needs to re-pin**. Unit
+`active`, `MainPID=3093442`, `NRestarts=0` (a clean start, not a crash-loop —
+the G-070 signature). `substrate-preflight.sh` went from 4 pass / 2 warn to
+**6 pass / 0 warn / 0 fail — substrate-ready**; `fleet doctor` shows both local
+profiles at `0.11.1411`.
+
+**The SSH-based "no foothold" reading was wrong for `.122`, and measuring corrected it.**
+SSH to `.122` yields a forced-command token broker with no shell, which looks like
+no foothold — but the supported deploy path is `fleet-deploy-binary.sh` over
+`termlink remote exec`, which needs a registered session, not a shell. `.122` has
+**three** (`tl-fj5gsdvb`, `tl-ucwfhj2o`, `tl-kufvjxsf`), so it is reachable.
+`.121` has **zero** sessions AND refuses SSH, so it genuinely has no foothold by
+either route — the CLAUDE.md exemption is accurate for `.121` only.
+
+**`.122` restart preconditions verified before touching it** (T-1294 recorded this
+exact host as having had a volatile `/tmp`, which would make a restart rotate both
+secret and cert):
+- `TERMLINK_RUNTIME_DIR=/var/lib/termlink`, directory present
+- contains `hub.secret`, `hub.cert.pem`, `hub.key.pem` — persist-if-present has files to preserve
+- `mount | grep " /tmp "` → not tmpfs
+- no `termlink-hub.service`; only health/sweep/hygiene timers ⇒ watchdog-launched,
+  so the restart path is the deploy script's `--swap-restart`, NOT `systemctl`
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -94,51 +147,6 @@ date_finished: null
 -->
 
 ## Verification
-
-# The four tail-signal branches plus the measured production defect. Asserted
-# by NAME, so adding a fixture later does not break verification while a
-# deleted or renamed one still does.
-out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "ALL PASS"
-out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "recent posts surface"
-out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "is offset-derived"
-out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "drain continued past a full batch"
-out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "latest_offset wins over count and receipts"
-out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "untrimmed topic keeps the count path"
-out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "no offset signal on a trimmed topic"
-
-# The fixtures must be LOAD-BEARING: against the pre-fix script they must FAIL.
-# A regression fixture that passes both ways proves nothing. `! grep` rather
-# than a non-zero exit check, because the suite exits 1 for any failure.
-# Pinned to the last commit BEFORE the fix (12b1d3a69), not HEAD~N — a relative
-# ref drifts with every later commit and would silently start comparing the
-# fixtures against a post-fix script, which is the failure mode this check is
-# supposed to rule out.
-git show 12b1d3a69:scripts/agent-chat-arc-recent.sh > /tmp/.t2758-prefix.sh
-out=$(CHAT_ARC_SCRIPT=/tmp/.t2758-prefix.sh bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "FAILURES"
-
-# The cursor must be derived through the helper, not inline arithmetic — the
-# T-2699 shape (a helper that exists but nothing calls).
-grep -q "derive_tail_offset(" scripts/agent-chat-arc-recent.sh
-grep -q 'tail_info="\$(derive_tail_offset' scripts/agent-chat-arc-recent.sh
-
-# The sibling caller must be migrated too (PL-293 / the T-2758 learning).
-grep -q "T-2758" scripts/fleet-adoption-snapshot.sh
-grep -q "latest_offset" scripts/fleet-adoption-snapshot.sh
-
-# --since must NOT be passed to subscribe: it is a render-side filter and would
-# destroy "batch was full" as the end-of-topic signal for the drain.
-grep -q 'drain_cursor" --limit' scripts/agent-chat-arc-recent.sh
-! grep -q 'drain_cursor" --since' scripts/agent-chat-arc-recent.sh
-
-# An incomplete read must not certify itself complete.
-grep -q "tail_unknown_hubs" scripts/agent-chat-arc-recent.sh
-grep -q "degraded_hubs | length) == 0" scripts/agent-chat-arc-recent.sh
-
-# Both scripts parse.
-bash -n scripts/agent-chat-arc-recent.sh
-bash -n scripts/fleet-adoption-snapshot.sh
-
-bash scripts/run-guard-layer.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -234,10 +242,10 @@ bash scripts/run-guard-layer.sh
 
 ## Updates
 
-### 2026-08-16T09:29:42Z — task-created [task-create-agent]
+### 2026-08-16T12:19:55Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2758-recent-chat-goes-blind-on-retention-trim.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2762-fleet-hub-restart-onto-current-binary-op.md
 - **Context:** Initial task creation
 
-### 2026-08-16T09:32:21Z — status-update [task-update-agent]
+### 2026-08-16T12:20:59Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work

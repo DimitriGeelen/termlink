@@ -4,20 +4,20 @@ name: "test-agent-respond.sh writes into the production woken-but-silent canary 
 description: >
   test-agent-respond.sh invokes the real agent-send.sh without exporting TERMLINK_WOKEN_SILENT_LOG, so its by-design give-up path appends to the real .woken-but-silent-canary.log. Sibling test-agent-send.sh got that redirect in T-2402 Stage 5; this one was not migrated. Because empty-log = healthy is a one-bit channel, test residue leaves the canary permanently FIRING and therefore deaf to genuine events (T-2685 harm). Observed: entry cid=cidB-962839 topic=agent-respond-test-962839 dated 2026-08-15T22:19:24Z.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/test-agent-respond.sh, scripts/test-agent-send-auto-discover.sh, scripts/test-agent-send-orchestration.sh, scripts/test-agent-send-transport.sh, scripts/test-sidecar-auto-confirm.sh, tests/agent-send-grace-window.sh, tests/agent-send-idle-gate.sh, tests/relay-b1-doorbell-rail.sh, tests/relay-b2-send-hops.sh, tests/wake-confirm-reply-match.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-16T11:59:02Z
-last_update: 2026-08-16T12:00:26Z
-date_finished: null
+last_update: 2026-08-16T12:08:41Z
+date_finished: 2026-08-16T12:08:41Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -289,3 +289,6 @@ directions plus a PL-219 control that the real tree scans clean.
 
 ### 2026-08-16T12:00:26Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-08-16T12:08:41Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
