@@ -4,20 +4,20 @@ name: "hub start does not detect a LIVE hub when the pidfile is stale — allows
 description: >
   Measured in T-2766: PID 3869961 started a second hub against /var/lib/termlink at 16:52 while supervised PID 3093442 was already serving, and took over hub.pid and hub.sock. The already-running guard keys on the PIDFILE, so when the pidfile is missing or names a dead pid the check passes even though a hub is demonstrably bound to hub.sock and serving. Result is a split-brain: unix-socket clients reach one instance, TCP clients another, with the same topic names resolving differently on ONE host. Fix direction: probe the socket for liveness (or bind-exclusively) rather than trusting the pidfile alone, and refuse loudly per Directive 2.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-hub/src/pidfile.rs, crates/termlink-hub/src/server.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-16T15:01:33Z
-last_update: 2026-08-16T15:03:53Z
-date_finished: null
+last_update: 2026-08-16T15:22:49Z
+date_finished: 2026-08-16T15:22:49Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -96,12 +96,11 @@ stays with preflight Check 6 (T-2358), which caught the live incident.
       pinned as a contrast assertion inside `live_socket_with_no_pidfile_refuses`:
       the retained pidfile-only `acquire` is asserted to (wrongly) succeed on the
       same input, so the test cannot pass for the wrong reason
-- [ ] `cargo test --workspace` green
-      NOT YET CONFIRMED for this change. The green run recorded earlier in the
-      session predates the pidfile edit; the post-change run was still executing
-      when the budget gate closed. `cargo test -p termlink-hub` (21 pass), the
-      federation tripwire (3 pass) and the guard layer (41/41) ARE confirmed
-      post-change. Re-run before closing — the P-011 gate runs it anyway.
+- [x] `cargo test --workspace` green — CONFIRMED post-change: 3593 passed, 0 failed
+      across 24 targets, exit 0. (An earlier green run in the same session predated
+      the pidfile edit and was deliberately not counted; this is the post-change run.)
+      Also confirmed post-change: `cargo test -p termlink-hub` 21 pass, federation
+      tripwire 3 pass, guard layer 41/41.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -247,3 +246,6 @@ bash scripts/run-guard-layer.sh
 
 ### 2026-08-16T15:03:53Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-08-16T15:22:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
