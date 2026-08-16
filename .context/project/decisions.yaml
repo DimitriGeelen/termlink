@@ -941,3 +941,10 @@ decisions:
     date: 2026-08-16
     task: T-2644
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-114
+    decision: "report this rather than regenerate cost data on the current inputs."
+    scope: project
+    date: 2026-08-16
+    task: T-2778
+    rationale: "Auto-captured from task file on completion"

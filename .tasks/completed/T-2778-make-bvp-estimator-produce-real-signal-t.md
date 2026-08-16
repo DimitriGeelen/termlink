@@ -4,10 +4,10 @@ name: "Make BVP estimator produce real signal, then rank and work top HV items"
 description: >
   Operator asked for the BVP estimator to be run regularly. T-2776 measured that value scoring works but cost scoring emits no-signal defaults for every task, so no quadrant can be computed. Find why cost is no-signal, fix what is fixable in-repo, run the estimator across the actionable backlog, and work the top-ranked HV/LC and HV/HC items.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-16T22:18:22Z
-last_update: 2026-08-16T23:25:37Z
-date_finished: null
+last_update: 2026-08-16T23:29:33Z
+date_finished: 2026-08-16T23:29:33Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -166,7 +166,25 @@ task reports it rather than patching it.
 
 out=$(bash scripts/run-guard-layer.sh 2>&1 || true); grep -q "guard layer: PASS" <<< "$out"
 # No no-signal cost defaults were committed (the T-2776 failure mode).
-! grep -rqF 'rubric_sha: missing' .tasks/active/
+#
+# REPLACED (2026-08-17). This line was `! grep -rqF 'rubric_sha: missing' .tasks/active/`
+# and it was NEVER SATISFIABLE — it would have failed on a pristine tree. It was
+# written blind in an earlier session and not run until now, which is the unexecuted-gate
+# pattern this task's own notes warn about. It failed for two independent reasons:
+#   (1) SELF-REFERENTIAL — this task's Context quotes `rubric_sha: missing` twice while
+#       explaining the defect, and the old assertion matched its own explanation (PL-360,
+#       recorded after the same trap hit T-2644's gate an hour earlier).
+#   (2) SEMANTICALLY WRONG — three tasks (T-2022/2024/2026) carry `rubric_sha: missing`
+#       inside `bvp_scores_proposed:` blocks dated 2026-06-08, ~2 months before this
+#       session. Those are VALUE proposals; `rubric_sha` is a provenance stamp on any
+#       proposal, not a marker of the cost failure mode. The assertion conflated the two.
+# The promise this task actually makes is "this session wrote no cost values and did not
+# bulk-write proposals", which the three lines below state directly and testably.
+#
+# The pre-existing proposal set is unchanged at exactly 3 — pins "no bulk write happened"
+# (a bulk write would have made this 125+). Update the 3 only when deliberately changing
+# that set.
+test "$(grep -l '^bvp_scores_proposed:' .tasks/active/*.md 2>/dev/null | wc -l)" -eq 3
 # No cost values of ANY kind were written to task frontmatter — this is the
 # AC-4 option-(b) promise ("cost explicitly left unscored") made mechanical.
 test -z "$(grep -l '^cost_estimate_proposed:' .tasks/active/*.md 2>/dev/null)"
@@ -454,3 +472,6 @@ Sent as an addendum to the `framework:pickup` bug report (offset 5).
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2778-make-bvp-estimator-produce-real-signal-t.md
 - **Context:** Initial task creation
+
+### 2026-08-16T23:29:33Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
