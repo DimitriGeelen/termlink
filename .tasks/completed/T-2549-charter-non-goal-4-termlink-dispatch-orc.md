@@ -4,16 +4,16 @@ name: "Charter non-goal #4: termlink dispatch orchestration-in-substrate subtrac
 description: >
   Off-charter subtract candidate from T-2468: termlink dispatch (dispatch.rs 1138 LOC + MCP termlink_dispatch/_status) self-describes as multi-worker orchestration 'replacing dispatch scripts' — non-goal #4 (substrate stays mechanism not policy). Distinct from orchestrator.route (T-2540). Composes charter-legal primitives, so counter-case is 'convenience wrapper'.
 
-status: work-completed
+status: started-work
 workflow_type: inception
 owner: human
-horizon: null
+horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-08-08T19:37:48Z
-last_update: 2026-08-16T14:10:53Z
-date_finished: 2026-08-16T14:10:53Z
+last_update: 2026-08-08T19:39:15Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -122,15 +122,15 @@ regardless — only the `dispatch` composition verb is in question.
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [x] Problem statement validated
+- [ ] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [x] Assumptions tested
+- [ ] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [x] Recommendation written with rationale
+- [ ] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [x] [REVIEW] Review exploration findings and approve go/no-go decision
+- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -206,66 +206,9 @@ of the subtract set.
 
 ## Decision
 
-**Decision**: GO
-
-**Rationale**: Recommendation: GO (subtract), gated on IW-1 — but with LOWER confidence than
-T-2540/T-2548; the wrapper counter-case (IW-2) is genuine and the human may
-reasonably keep it.
-
-Rationale: Verified in code (2026-08-08): dispatch.rs (1138 LOC) + MCP
-`termlink_dispatch`/`_status` are LIVE and self-describe as "multi-worker
-orchestration... replacing manual dispatch scripts" — a workflow/orchestration
-engine in the substrate, which non-goal #4 names verbatim as a non-goal. This is
-a distinct second instance from `orchestrator.route` (T-2540). Strict charter
-reading → subtract. HOWEVER, unlike orchestrator.route (bespoke adaptive routing
-policy) and the analytics family (bespoke metrics), dispatch only composes
-charter-legal primitives (spawn/tag/collect), so it is the most defensible of the
-three off-charter surfaces to KEEP as usability sugar. Recommendation is GO-to-
-subtract to hold the line, but flagged as the human's most-legitimately-debatable
-of the subtract set.
-
-Evidence:
-- LIVE: `termlink_dispatch` / `termlink_dispatch_status` have no deprecation
-  marker in their MCP descriptions.
-- Self-described orchestration: dispatch.rs:1-5 docstring.
-- Near-zero first-party callers (at most 1 eval script).
-- Distinct from T-2540 (orchestrator.route) and T-2548 (analytics family).
-- Counter-case: composes only charter-legal session primitives → wrapper read.
-
-**Date**: 2026-08-16T14:10:53Z
+<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
-
-### 2026-08-16T14:10:53Z — inception-decision [inception-workflow]
-- **Action:** Recorded inception decision
-- **Decision:** GO
-- **Rationale:** Recommendation: GO (subtract), gated on IW-1 — but with LOWER confidence than
-T-2540/T-2548; the wrapper counter-case (IW-2) is genuine and the human may
-reasonably keep it.
-
-Rationale: Verified in code (2026-08-08): dispatch.rs (1138 LOC) + MCP
-`termlink_dispatch`/`_status` are LIVE and self-describe as "multi-worker
-orchestration... replacing manual dispatch scripts" — a workflow/orchestration
-engine in the substrate, which non-goal #4 names verbatim as a non-goal. This is
-a distinct second instance from `orchestrator.route` (T-2540). Strict charter
-reading → subtract. HOWEVER, unlike orchestrator.route (bespoke adaptive routing
-policy) and the analytics family (bespoke metrics), dispatch only composes
-charter-legal primitives (spawn/tag/collect), so it is the most defensible of the
-three off-charter surfaces to KEEP as usability sugar. Recommendation is GO-to-
-subtract to hold the line, but flagged as the human's most-legitimately-debatable
-of the subtract set.
-
-Evidence:
-- LIVE: `termlink_dispatch` / `termlink_dispatch_status` have no deprecation
-  marker in their MCP descriptions.
-- Self-described orchestration: dispatch.rs:1-5 docstring.
-- Near-zero first-party callers (at most 1 eval script).
-- Distinct from T-2540 (orchestrator.route) and T-2548 (analytics family).
-- Counter-case: composes only charter-legal session primitives → wrapper read.
-
-### 2026-08-16T14:10:53Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed
-- **Reason:** Inception decision: GO

@@ -4,16 +4,16 @@ name: "TermLink purpose review #4 — the two Constitutional Directives no revie
 description: >
   Inception: TermLink purpose review #4 — the two Constitutional Directives no review has examined (Usability, Portability)
 
-status: work-completed
+status: started-work
 workflow_type: inception
 owner: human
-horizon: null
+horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-08-14T07:25:00Z
-last_update: 2026-08-16T14:11:52Z
-date_finished: 2026-08-16T14:11:52Z
+last_update: 2026-08-14T07:26:42Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -115,15 +115,15 @@ Research artifact: `docs/reports/T-2690-usability-portability-review.md` (C-001)
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [x] Problem statement validated
+- [ ] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [x] Assumptions tested
+- [ ] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [x] Recommendation written with rationale
+- [ ] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [x] [REVIEW] Review exploration findings and approve go/no-go decision
+- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -180,17 +180,7 @@ Fourth critical pass. The series has now examined product-vs-charter (T-2468), c
 
 ## Decision
 
-**Decision**: GO
-
-**Rationale**: Recommendation: GO
-
-Rationale:
-
-Fourth critical pass. The series has now examined product-vs-charter (T-2468), charter-vs-guards (T-2678), and guard-execution (T-2683) — all of which live under Directives #1 Antifragility and #2 Reliability. Directives #3 Usability and #4 Portability have never been reviewed at all, which is itself the finding about the review series. Two confirmed live findings on that axis: (F1) macOS is a first-class documented platform — README carries a formal Platform Support table asserting Yes for core binary, PTY operations, Terminal.app spawn, tmux spawn and TCP hub, and names Homebrew the recommended macOS install — yet EVERY CI runner is ubuntu-latest except the build matrix itself, so macOS binaries are cross-built, published to GitHub Releases and Homebrew, and never have a single test executed against them; this is the G-069 shipped-not-verified class on a fresh axis, and my own T-2686 test job inherited the same blind spot. (F2) identity auto-resolution is /proc-dependent on BOTH the CLI (metadata.rs walk_ancestor_pids) and MCP (tools.rs whoami_helpers, a documented duplicate) surfaces; read_ppid_from_proc uses .ok()? so on macOS the ancestor chain silently collapses to just self, whoami always falls through to ambiguous-here-are-all-candidates, and nothing tells the user auto-resolution is structurally impossible on their platform — Directive #4 crossed with #2 no-silent-failures and #3 actionable-errors. GO on the in-authority subset: name the platform limitation at both surfaces, make macOS verification visible in CI without gating a release on an unverified suite, and make the portability convention load-bearing via a check the T-2684 runner already executes.
-
-Evidence:
-
-**Date**: 2026-08-16T14:11:52Z
+<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
 
 ## Updates
 
@@ -199,18 +189,3 @@ Evidence:
 
 ### 2026-08-14T07:25:15Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
-
-### 2026-08-16T14:11:52Z — inception-decision [inception-workflow]
-- **Action:** Recorded inception decision
-- **Decision:** GO
-- **Rationale:** Recommendation: GO
-
-Rationale:
-
-Fourth critical pass. The series has now examined product-vs-charter (T-2468), charter-vs-guards (T-2678), and guard-execution (T-2683) — all of which live under Directives #1 Antifragility and #2 Reliability. Directives #3 Usability and #4 Portability have never been reviewed at all, which is itself the finding about the review series. Two confirmed live findings on that axis: (F1) macOS is a first-class documented platform — README carries a formal Platform Support table asserting Yes for core binary, PTY operations, Terminal.app spawn, tmux spawn and TCP hub, and names Homebrew the recommended macOS install — yet EVERY CI runner is ubuntu-latest except the build matrix itself, so macOS binaries are cross-built, published to GitHub Releases and Homebrew, and never have a single test executed against them; this is the G-069 shipped-not-verified class on a fresh axis, and my own T-2686 test job inherited the same blind spot. (F2) identity auto-resolution is /proc-dependent on BOTH the CLI (metadata.rs walk_ancestor_pids) and MCP (tools.rs whoami_helpers, a documented duplicate) surfaces; read_ppid_from_proc uses .ok()? so on macOS the ancestor chain silently collapses to just self, whoami always falls through to ambiguous-here-are-all-candidates, and nothing tells the user auto-resolution is structurally impossible on their platform — Directive #4 crossed with #2 no-silent-failures and #3 actionable-errors. GO on the in-authority subset: name the platform limitation at both surfaces, make macOS verification visible in CI without gating a release on an unverified suite, and make the portability convention load-bearing via a check the T-2684 runner already executes.
-
-Evidence:
-
-### 2026-08-16T14:11:52Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed
-- **Reason:** Inception decision: GO

@@ -4,16 +4,16 @@ name: "TermLink purpose review #3 — is the guard layer itself executed by anyt
 description: >
   Inception: TermLink purpose review #3 — is the guard layer itself executed by anything?
 
-status: work-completed
+status: started-work
 workflow_type: inception
 owner: human
-horizon: null
+horizon: now
 tags: []
 components: []
 related_tasks: []
 created: 2026-08-14T05:52:27Z
-last_update: 2026-08-16T14:11:23Z
-date_finished: 2026-08-16T14:11:23Z
+last_update: 2026-08-14T06:32:46Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -115,15 +115,15 @@ Research artifact: `docs/reports/T-2683-guard-execution-review.md` (C-001).
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [x] Problem statement validated
+- [ ] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [x] Assumptions tested
+- [ ] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [x] Recommendation written with rationale
+- [ ] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [x] [REVIEW] Review exploration findings and approve go/no-go decision
+- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -180,17 +180,7 @@ Third critical pass on TermLink's purpose and goals. The first two (T-2468 produ
 
 ## Decision
 
-**Decision**: GO
-
-**Rationale**: Recommendation: GO
-
-Rationale:
-
-Third critical pass on TermLink's purpose and goals. The first two (T-2468 product-vs-charter, T-2678 guard-coverage) both concluded 'add more guards'; this pass asks whether the guards that exist are load-bearing at all. Three findings, all confirmed live on this tree: (F1) the source-level guard layer -- 4 static checks, 10 fixture suites, 2055 workspace tests -- is executed by NOTHING automatic: .github/workflows/release.yml runs cargo build and never cargo test, doc-lint.yml runs 2 of 28 check scripts, .onedev-buildspec.yml only mirrors, and the pre-push audit runs the 'structure' section only; grep confirms the four static checks are referenced by nothing but their own scripts, their own fixtures, and episodic memory. The guard layer has the exact disease the charter-drift canary docstring names as its reason to exist -- correction only when a human periodically asks for a hand review. (F2) 19 of 19 canary cron job lines append with '>> <findings>.log 2>&1', merging exit-2 tooling errors into the exit-1 findings log; a live instance exists right now -- .release-mirror-canary.log contains 'error: origin HEAD empty', which per CLAUDE.md directs an operator to rotate a GitHub token for what is actually an unrunnable check, and which permanently destroys the 'empty log = healthy' signal for that canary. (F3) the charter names four verbs but 32 live tools (fleet 12, diagnostics 12, hub 8) are pure observability tracing to no named verb, so they sit in a blind spot that neither T-2548's subtract decision nor the charter-drift canary can see. GO is recommended because F1 and F2 are mechanical, in-authority, and testable without any new product decision; F3's charter-wording half is human-sovereign and is proposed for deferral, not build.
-
-Evidence:
-
-**Date**: 2026-08-16T14:11:23Z
+<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
 
 ## Updates
 
@@ -199,18 +189,3 @@ Evidence:
 
 ### 2026-08-14T05:52:41Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
-
-### 2026-08-16T14:11:23Z — inception-decision [inception-workflow]
-- **Action:** Recorded inception decision
-- **Decision:** GO
-- **Rationale:** Recommendation: GO
-
-Rationale:
-
-Third critical pass on TermLink's purpose and goals. The first two (T-2468 product-vs-charter, T-2678 guard-coverage) both concluded 'add more guards'; this pass asks whether the guards that exist are load-bearing at all. Three findings, all confirmed live on this tree: (F1) the source-level guard layer -- 4 static checks, 10 fixture suites, 2055 workspace tests -- is executed by NOTHING automatic: .github/workflows/release.yml runs cargo build and never cargo test, doc-lint.yml runs 2 of 28 check scripts, .onedev-buildspec.yml only mirrors, and the pre-push audit runs the 'structure' section only; grep confirms the four static checks are referenced by nothing but their own scripts, their own fixtures, and episodic memory. The guard layer has the exact disease the charter-drift canary docstring names as its reason to exist -- correction only when a human periodically asks for a hand review. (F2) 19 of 19 canary cron job lines append with '>> <findings>.log 2>&1', merging exit-2 tooling errors into the exit-1 findings log; a live instance exists right now -- .release-mirror-canary.log contains 'error: origin HEAD empty', which per CLAUDE.md directs an operator to rotate a GitHub token for what is actually an unrunnable check, and which permanently destroys the 'empty log = healthy' signal for that canary. (F3) the charter names four verbs but 32 live tools (fleet 12, diagnostics 12, hub 8) are pure observability tracing to no named verb, so they sit in a blind spot that neither T-2548's subtract decision nor the charter-drift canary can see. GO is recommended because F1 and F2 are mechanical, in-authority, and testable without any new product decision; F3's charter-wording half is human-sovereign and is proposed for deferral, not build.
-
-Evidence:
-
-### 2026-08-16T14:11:23Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed
-- **Reason:** Inception decision: GO

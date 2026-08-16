@@ -4,16 +4,16 @@ name: "Charter non-goal #4: conversation-analytics MCP tool family subtract-vs-k
 description: >
   Off-charter subtract candidate from T-2468 purpose review: ~30-40 LIVE conversation-analytics MCP tools that fail all four charter verbs; zero first-party callers; sibling of T-2471/T-2478 pruned social-analytics set.
 
-status: work-completed
+status: started-work
 workflow_type: inception
 owner: human
-horizon: null
+horizon: now
 tags: []
-components: [scripts/check-charter-drift-freshness.sh, tests/charter-drift-check-fixtures.sh]
+components: []
 related_tasks: []
 created: 2026-08-08T19:34:48Z
-last_update: 2026-08-16T14:11:11Z
-date_finished: 2026-08-16T14:11:11Z
+last_update: 2026-08-08T19:37:13Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -138,15 +138,15 @@ must be KEPT.
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [x] Problem statement validated
+- [ ] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [x] Assumptions tested
+- [ ] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [x] Recommendation written with rationale
+- [ ] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [x] [REVIEW] Review exploration findings and approve go/no-go decision
+- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -224,72 +224,9 @@ cross-project external-consumer check (IW-1) the T-559 boundary blocks here.
 
 ## Decision
 
-**Decision**: GO
-
-**Rationale**: Recommendation: GO (subtract), gated on IW-1 external-consumer check.
-
-Rationale: Verified in code (2026-08-08, crates/termlink-mcp/src/tools.rs):
-a family of conversation-analytics MCP tools is LIVE (`is_deprecated()` returns
-false — confirmed for agent_thread_health, agent_busiest_threads,
-agent_response_latency, agent_stats, and ~30 more per the T-2468 off-charter
-re-sweep) and has ZERO first-party callers (grep of scripts/, .claude/commands/,
-crates/termlink-cli returned empty). These analyze message data
-(leaderboards/scores/latency & volume distributions) — product analytics on top
-of the substrate, tracing to none of the four charter verbs, i.e. a direct
-non-goal #4 ("substrate stays mechanism, not policy") violation. They are the
-surviving sibling of the social-analytics set T-2471/T-2478 already pruned. GO to
-subtract restores the charter and removes advertised-but-uncalled surface. Human
-owns the subtract-vs-grandfather product decision; the removal must be gated on a
-cross-project external-consumer check (IW-1) the T-559 boundary blocks here.
-
-Evidence:
-- LIVE (not deprecated): agent_thread_health, agent_busiest_threads,
-  agent_response_latency, agent_stats confirmed no deprecation marker in desc.
-- Zero first-party callers: `grep -rl <tools> scripts/ .claude/commands/
-  crates/termlink-cli/src` → empty.
-- Charter trace: FAILS all four verbs (analytics, not discover/exchange/claim/
-  control). Precedent: T-2471 delete + T-2478 deprecate on the sibling set.
-- KEEP-list (message retrieval, NOT analytics): agent_search_thread,
-  agent_thread_path, agent_recent_window — trace to "exchange durable messages".
-- Full family enumeration + live/deprecated split is GO-build scope.
-
-**Date**: 2026-08-16T14:11:11Z
+<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
-
-### 2026-08-16T14:11:11Z — inception-decision [inception-workflow]
-- **Action:** Recorded inception decision
-- **Decision:** GO
-- **Rationale:** Recommendation: GO (subtract), gated on IW-1 external-consumer check.
-
-Rationale: Verified in code (2026-08-08, crates/termlink-mcp/src/tools.rs):
-a family of conversation-analytics MCP tools is LIVE (`is_deprecated()` returns
-false — confirmed for agent_thread_health, agent_busiest_threads,
-agent_response_latency, agent_stats, and ~30 more per the T-2468 off-charter
-re-sweep) and has ZERO first-party callers (grep of scripts/, .claude/commands/,
-crates/termlink-cli returned empty). These analyze message data
-(leaderboards/scores/latency & volume distributions) — product analytics on top
-of the substrate, tracing to none of the four charter verbs, i.e. a direct
-non-goal #4 ("substrate stays mechanism, not policy") violation. They are the
-surviving sibling of the social-analytics set T-2471/T-2478 already pruned. GO to
-subtract restores the charter and removes advertised-but-uncalled surface. Human
-owns the subtract-vs-grandfather product decision; the removal must be gated on a
-cross-project external-consumer check (IW-1) the T-559 boundary blocks here.
-
-Evidence:
-- LIVE (not deprecated): agent_thread_health, agent_busiest_threads,
-  agent_response_latency, agent_stats confirmed no deprecation marker in desc.
-- Zero first-party callers: `grep -rl <tools> scripts/ .claude/commands/
-  crates/termlink-cli/src` → empty.
-- Charter trace: FAILS all four verbs (analytics, not discover/exchange/claim/
-  control). Precedent: T-2471 delete + T-2478 deprecate on the sibling set.
-- KEEP-list (message retrieval, NOT analytics): agent_search_thread,
-  agent_thread_path, agent_recent_window — trace to "exchange durable messages".
-- Full family enumeration + live/deprecated split is GO-build scope.
-
-### 2026-08-16T14:11:11Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed
-- **Reason:** Inception decision: GO
