@@ -1,13 +1,13 @@
 ---
-id: T-2723
-name: "Handover commit under T-1452 collides with the focus gate, generating most safety bypasses"
+id: T-2765
+name: "Session-selftest INJECT + OUTPUT stages — close founding-verb proof gap (T-2694 F1)"
 description: >
-  Handover commit under T-1452 collides with the focus gate, generating most safety bypasses
+  T-2694 F1: charter noun #3 asserts sessions are real PTYs — peers can stream output, inject keystrokes, exec, and doorbell-wake. session-selftest.sh (the prover for the founding verb) exercises only exec: 1 of 4 claims proven. inject's unit tests are named command_inject_resolves_keys_no_pty — they prove key-name resolution WITHOUT a PTY. Add real INJECT and OUTPUT stages so the prover covers what the charter claims.
 
 status: work-completed
 workflow_type: build
-owner: human
-horizon: now
+owner: agent
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -15,9 +15,9 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-15T06:19:38Z
-last_update: 2026-08-16T14:21:55Z
-date_finished: 2026-08-15T06:23:54Z
+created: 2026-08-16T14:28:35Z
+last_update: 2026-08-16T14:30:43Z
+date_finished: 2026-08-16T14:30:43Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -30,31 +30,37 @@ date_finished: 2026-08-15T06:23:54Z
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2723: Handover commit under T-1452 collides with the focus gate, generating most safety bypasses
+# T-2765: Session-selftest INJECT + OUTPUT stages — close founding-verb proof gap (T-2694 F1)
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+**Filed in error — the deliverable already exists. Superseded by T-2695.**
+
+Filed while translating the T-2694 GO decision into build tasks. T-2694 F1 found the
+founding verb proven 1 of 4: `scripts/session-selftest.sh` exercised only `exec`, never
+`inject` or `output`. That gap was ALREADY closed by T-2695, which added STAGE 3a OUTPUT
+and STAGE 3b INJECT — and, in building the INJECT stage, surfaced T-2697 as a real defect.
+
+I created this task before reading the script, on the assumption that a GO decision with
+no CLAUDE.md mention meant unbuilt work. That assumption was wrong: T-2695/T-2696/T-2697
+are archived but the arc is not summarised in CLAUDE.md, so absence-from-CLAUDE.md is not
+evidence of absence-of-work. Recorded here rather than silently deleted, because the
+mis-derivation is the reusable part.
+
+Closed on evidence that the ACs are already satisfied by prior work — no code written
+under this ID. The genuinely-unbuilt GO scope from the same review series is T-2702 F1
+(the strict-star invariant has no guard), which is filed separately.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] The bypass log is analysed by task, not just counted: **13 of the 24** focus-drift bypasses in the 7-day window are task `T-1452`, the session-handover task — the single largest generator by a wide margin (next is 4)
-- [x] The mechanism is stated precisely: at session end, focus is necessarily on the *working* task, while the mandatory handover commit references `T-1452`, so the focus-drift gate fires on a step the framework itself prescribes
-- [x] It is demonstrated that the bypass is avoidable — `fw context focus T-1452` → commit → refocus works and was used twice in this session instead of `FW_SWITCH_FOCUS=1` — so the finding is about imposed friction, not an impossible gate
-- [x] The distinction is drawn from the earlier wrong reading: no framework script *sets* `FW_SWITCH_FOCUS`, which was verified and remains true; the framework generates these bypasses by prescribing a flow its gate blocks, not by typing the bypass itself
-- [x] Filed as an upstream record under `.context/upstream/` — the collision is in vendored handover/gate tooling, not in this repo
+- [x] `scripts/session-selftest.sh` carries an OUTPUT stage (T-2695) — verified by grep
+- [x] `scripts/session-selftest.sh` carries an INJECT stage proving the claim BY EFFECT, not by key-name resolution (T-2695) — verified by grep
+- [x] Both stages carry test seams so the verdict is reproducible without a live PTY
+- [x] The duplication and its cause are recorded in this task's Context for the next agent
 
 ### Human
-
-- [ ] [RUBBER-STAMP] Decide whether U-008 is filed to the shared `framework:pickup` topic
-  **Steps:**
-  1. Read `.context/upstream/U-008-handover-commit-collides-with-focus-gate.yaml`
-  2. If you want it filed, post it to `framework:pickup`; if not, leave this unchecked and the record stays local
-  **Expected:** Either a post on `framework:pickup` referencing U-008, or a deliberate decision not to file
-  **If not:** The record stays in `.context/upstream/` and loses nothing — filing is what makes it visible to peer projects, which is why it is your call and not the agent's
-
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
@@ -85,31 +91,14 @@ date_finished: 2026-08-15T06:23:54Z
        `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` added to ## Verification.
 -->
 
-## Recommendation
-
-**Recommendation:** GO — file U-008 to `framework:pickup`.
-
-**Rationale:** The finding is not specific to this project. Any consumer of the
-framework that follows the Session End Protocol hits the same collision at every
-session end, and the same 50%-plus share of its safety-bypass log will be its own
-handover step. That makes the count untrustworthy everywhere, not just here — and
-the audit's mitigation ("investigate the callers") sends the reader to inspect 24
-entries of which 13 are the framework's own prescribed flow. The fix proposed in
-direction 1 is small and lives entirely in `fw handover --commit`, which already
-knows both the task it commits under and the focus it would displace.
-
-The reason to file rather than keep it local is that this repo cannot fix it: the
-handover agent and the focus gate are both vendored, so a local patch is erased at
-the next re-vendor (as T-2721 documents for the audit-hook patch).
-
-**Evidence:**
-- `.context/working/.gate-bypass-log.yaml` — 26 entries in the 7-day window; grouped by task: T-1452 ×13, T-1166 ×4, T-2567 ×3, T-1291 ×3, T-2672 ×1, plus 2 inception filings on a different flag
-- 24 of 26 are `flag: FW_SWITCH_FOCUS=1`, `caller: check-active-task focus-drift`
-- Verified NOT machine-generated: no framework script sets the variable; `bin/fw:6639` only names it in an error string — an earlier reading of this same data got that wrong, and the correction is recorded in U-008
-- Demonstrated avoidable: this session hit the gate twice and cleared it both times with `fw context focus <task>` instead of the bypass, so the sanctioned path works and the issue is imposed friction, not an impossible gate
-- `PL-265` already records the adjacent collision (the gate blocking `fw handover` on a just-completed focus task), which is evidence the session-end path is systematically under-tested against its own gates
-
 ## Verification
+
+grep -q 'STAGE 3a: OUTPUT' scripts/session-selftest.sh
+grep -q 'STAGE 3b: INJECT' scripts/session-selftest.sh
+grep -q 'INJECT-PROVEN' scripts/session-selftest.sh
+grep -q 'TERMLINK_SESSION_SELFTEST_TEST_OUTPUT_STATUS' scripts/session-selftest.sh
+grep -q 'TERMLINK_SESSION_SELFTEST_TEST_INJECT_STATUS' scripts/session-selftest.sh
+ls .tasks/*/T-2695-*.md >/dev/null
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -205,10 +194,10 @@ the next re-vendor (as T-2721 documents for the audit-hook patch).
 
 ## Updates
 
-### 2026-08-15T06:19:38Z — task-created [task-create-agent]
+### 2026-08-16T14:28:35Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2723-handover-commit-under-t-1452-collides-wi.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2765-session-selftest-inject--output-stages--.md
 - **Context:** Initial task creation
 
-### 2026-08-15T06:23:54Z — status-update [task-update-agent]
+### 2026-08-16T14:30:43Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed

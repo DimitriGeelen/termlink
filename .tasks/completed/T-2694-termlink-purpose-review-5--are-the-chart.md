@@ -4,16 +4,16 @@ name: "TermLink purpose review #5 — are the charter's POSITIVE claims true and
 description: >
   Inception: TermLink purpose review #5 — are the charter's POSITIVE claims true and proven?
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-08-14T07:59:44Z
-last_update: 2026-08-14T08:01:26Z
-date_finished: null
+last_update: 2026-08-16T14:11:43Z
+date_finished: 2026-08-16T14:11:43Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -123,15 +123,15 @@ Research artifact: `docs/reports/T-2694-positive-claims-review.md` (C-001).
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -188,7 +188,17 @@ Fifth critical pass. Reviews 1-3 measured Directives #1/#2, review 4 measured #3
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale:
+
+Fifth critical pass. Reviews 1-3 measured Directives #1/#2, review 4 measured #3/#4. What no pass has examined is the charter's POSITIVE claims — its 'load-bearing nouns' section. T-2678 built a claim-vs-guard matrix for the five NON-GOALS; nobody has built one for the four assertions of what TermLink IS. Doing so produced two findings and one explicit non-finding. (F1) Noun #3 asserts 'sessions are real PTYs: peers can stream output, inject keystrokes, exec, and doorbell-wake them, not just exchange text' — four capability claims. scripts/session-selftest.sh, the prover for the FOUNDING verb, exercises only 'termlink exec'; grep confirms zero use of inject or output. inject's unit tests are explicitly named command_inject_resolves_keys_no_pty — they prove key-name resolution WITHOUT a PTY, not that a keystroke reaches a live PTY and takes effect; the remaining inject callers are demo and benchmark scripts. The prover's own header even quotes the acknowledged gap ('agent-conversation-selftest.sh says: What it does NOT validate: PTY inject') and then does not close it. So the founding noun is proven 1 of 4. (F2) Two of the four charter-verb provers are never executed by anything: comms-selftest.sh (verbs 1+2) and substrate-smoke.sh (verb 3) are referenced only in comments, docs, handovers and task files — no cron, no CI, no check invokes either; only session-selftest is wired, via T-2557's canary. (NOT-A-FINDING, recorded for calibration) Noun #1's 'append-log' claim is TRUE and honestly documented: channel edit and redact post NEW envelopes carrying metadata.replaces / metadata.redacts, the hub keeps the original, the verb is named Retract rather than delete, and the audit tool even previews the retained payload. GO on the in-authority subset: close the founding verb's proof gap with real INJECT and OUTPUT stages, which are verifiable on this host (tmux present, session-selftest currently passes here).
+
+Evidence:
+
+**Date**: 2026-08-16T14:11:43Z
 
 ## Updates
 
@@ -197,3 +207,18 @@ Fifth critical pass. Reviews 1-3 measured Directives #1/#2, review 4 measured #3
 
 ### 2026-08-14T07:59:58Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-08-16T14:11:43Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale:
+
+Fifth critical pass. Reviews 1-3 measured Directives #1/#2, review 4 measured #3/#4. What no pass has examined is the charter's POSITIVE claims — its 'load-bearing nouns' section. T-2678 built a claim-vs-guard matrix for the five NON-GOALS; nobody has built one for the four assertions of what TermLink IS. Doing so produced two findings and one explicit non-finding. (F1) Noun #3 asserts 'sessions are real PTYs: peers can stream output, inject keystrokes, exec, and doorbell-wake them, not just exchange text' — four capability claims. scripts/session-selftest.sh, the prover for the FOUNDING verb, exercises only 'termlink exec'; grep confirms zero use of inject or output. inject's unit tests are explicitly named command_inject_resolves_keys_no_pty — they prove key-name resolution WITHOUT a PTY, not that a keystroke reaches a live PTY and takes effect; the remaining inject callers are demo and benchmark scripts. The prover's own header even quotes the acknowledged gap ('agent-conversation-selftest.sh says: What it does NOT validate: PTY inject') and then does not close it. So the founding noun is proven 1 of 4. (F2) Two of the four charter-verb provers are never executed by anything: comms-selftest.sh (verbs 1+2) and substrate-smoke.sh (verb 3) are referenced only in comments, docs, handovers and task files — no cron, no CI, no check invokes either; only session-selftest is wired, via T-2557's canary. (NOT-A-FINDING, recorded for calibration) Noun #1's 'append-log' claim is TRUE and honestly documented: channel edit and redact post NEW envelopes carrying metadata.replaces / metadata.redacts, the hub keeps the original, the verb is named Retract rather than delete, and the audit tool even previews the retained payload. GO on the in-authority subset: close the founding verb's proof gap with real INJECT and OUTPUT stages, which are verifiable on this host (tmux present, session-selftest currently passes here).
+
+Evidence:
+
+### 2026-08-16T14:11:43Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

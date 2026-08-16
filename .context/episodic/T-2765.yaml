@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2765: Session-selftest INJECT + OUTPUT stages — close founding-verb proof gap (T-2694 F1)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-16T14:30:49Z
+# ============================================================================
+
+task_id: T-2765
+task_name: "Session-selftest INJECT + OUTPUT stages — close founding-verb proof gap (T-2694 F1)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-16T14:28:35Z
+completed: 2026-08-16T14:30:43Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-2694 F1: charter noun #3 asserts sessions are real PTYs — peers can stream output, inject keystrokes, exec, and doorbell-wake. session-selftest.sh (the prover for the founding verb) exercises only exec: 1 of 4 claims proven. inject's unit tests are named command_inject_resolves_keys_no_pty — they prove key-name resolution WITHOUT a PTY. Add real INJECT and OUTPUT stages so the prover covers what the charter claims.
+
+# Key outcomes
+outcomes:
+  - '`scripts/session-selftest.sh` carries an OUTPUT stage (T-2695) — verified by grep'
+  - '`scripts/session-selftest.sh` carries an INJECT stage proving the claim BY EFFECT, not by key-name resolution (T-2695) — verified by grep'
+  - 'Both stages carry test seams so the verdict is reproducible without a live PTY'
+  - 'The duplication and its cause are recorded in this task''s Context for the next agent'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 2 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 2
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2765-session-selftest-inject--output-stages--.md
+generated_by: context-agent-hybrid

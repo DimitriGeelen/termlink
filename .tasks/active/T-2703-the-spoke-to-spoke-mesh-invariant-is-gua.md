@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T11:27:41Z
-last_update: 2026-08-14T11:48:59Z
+last_update: 2026-08-16T14:31:18Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,7 +34,41 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Closes T-2702 finding F1. Delivered as `scripts/check-strict-star.sh` +
+`.context/checks/strict-star-allowlist`, a guard-layer static check (so it runs in
+CI on every push via the `guard-layer` job, T-2686).
+
+**Two things that looked like this guard and are not.** T-2569's tripwire scans only
+`crates/termlink-hub/src` and forbids the HUB from building a hub-speaking client —
+hub-to-hub FEDERATION, charter non-goal #1, a different edge. T-2571 proved the
+invariant holds by construction on the peer-contact path (`resolve_home_hub` excludes
+a peer's `metadata.observed_addr`, pinned by `resolve_home_hub_precedence`) — a real
+load-bearing test, not second-guessed here, but a BEHAVIOURAL test of ONE function:
+it cannot fail when someone adds a NEW dial site elsewhere. That "elsewhere" is the
+exposure F1 named.
+
+**Two honest deviations from the ACs as filed, both deliberate:**
+
+1. *The ACs arrived pre-checked.* All four `[x]` boxes were already ticked when I
+   picked the task up, with no artifact behind them — `grep` for
+   `EXPECTED_OUTBOUND_SITES` finds only T-2569's hub tripwire, and no spoke-side
+   guard existed. The deliverable did not exist until this task did it. Recorded
+   because a pre-checked AC is a false-completion signal, the exact class this
+   review series keeps finding.
+
+2. *Different mechanism than the AC suggested.* AC 2 proposed the T-2569
+   `EXPECTED_OUTBOUND_SITES` count-pin idiom. I used a per-site acknowledgement
+   ledger instead: a count pin is satisfiable by deleting one site and adding
+   another, and it records no reason. The ledger names each site's TARGET, so it
+   doubles as the topology documentation (T-2693 rule) and cannot be silently
+   rebalanced. Intent of all four ACs is met; the mechanism is stronger, not
+   equivalent — stated rather than quietly substituted.
+
+**Scope, stated because a green must not over-read (T-2680):** the check detects
+raw dial SITES and whether each is acknowledged. It does NOT resolve what any
+runtime address points at — a shell script cannot. It converts *unexamined* into
+*acknowledged* (the T-2747 ratchet): today's 32 sites are frozen and visible, and a
+NEW dial site is in neither the test-context set nor the ledger, so it fires.
 
 ## Acceptance Criteria
 
@@ -82,6 +116,19 @@ date_finished: null
 -->
 
 ## Verification
+
+# The real tree scans clean (every dial site test-context or acknowledged).
+bash scripts/check-strict-star.sh
+# LOAD-BEARING: a NEW unacknowledged dial site must FIRE (rc 1). This is the
+# property T-2571's behavioural test structurally cannot have. Inverted test:
+# passes only if the check exits non-zero on the fixture.
+bash tests/strict-star-check-fixtures.sh
+# The check is a guard-layer member, so CI runs it on every push (T-2686).
+bash scripts/run-guard-layer.sh --list | grep -q check-strict-star.sh
+# The ledger is git-tracked, not unversioned local state (T-2681).
+git ls-files --error-unmatch .context/checks/strict-star-allowlist
+# Every acknowledged entry carries a cited reason (T-2693 rule: "safe" is not a reason).
+test -z "$(grep -vE '^[[:space:]]*(#|$)' .context/checks/strict-star-allowlist | grep -v '#')"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.

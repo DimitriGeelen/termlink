@@ -1,0 +1,55 @@
+# strict-star-allowlist (T-2703) — acknowledged dial sites
+#
+# Guards: "Strict star; spokes never connect to one another."
+#         (docs/architecture/parallel-execution-substrate.md § 10)
+#
+# One entry per line:  <relpath>::<enclosing-fn>  # <what the target is>
+#
+# The reason must NAME THE TARGET — a hub address, a local session socket on
+# this host, or the process's own listener — and say why it is not a peer
+# spoke. "Safe" is not a reason: this ledger IS the topology documentation,
+# kept next to the signature so it stays in sync with the code (T-2693 rule).
+#
+# Removing a line re-fires that site. A NEW dial site is in neither this
+# ledger nor the test-context set, so it fires on the next run — which is the
+# property T-2571's behavioural test structurally cannot have.
+#
+# Signatures are fn-name-based so they survive line moves; a fn RENAME
+# re-fires the site, which is the intended re-review on meaningful change
+# (same trade-off as T-2527 / T-2531 / T-2666 / T-2672).
+
+# --- the shared transport primitive ------------------------------------------
+# These are THE generic client T-2702 F1 named: TransportAddr is caller-supplied
+# and unconstrained, so the primitive can dial any unix path or host:port. That
+# is not itself a mesh — a primitive that CAN dial anything is not a spoke
+# dialling a spoke. The invariant is enforced at the CALLERS: cross-host peer
+# contact resolves to the peer's declared HOME HUB via agent.rs::resolve_home_hub,
+# which deliberately excludes the peer's metadata.observed_addr (host + ephemeral
+# process port, T-2297) from routing — pinned by resolve_home_hub_precedence
+# (T-2571). Keeping these acknowledged rather than exempted is deliberate: they
+# are the mechanism a violation would be built on, so they should stay visible.
+crates/termlink-session/src/client.rs::connect_addr        # caller-supplied TransportAddr: a local session control-plane socket, or a TCP hub. Constrained by callers (resolve_home_hub), not here.
+crates/termlink-session/src/client.rs::connect_addr_raw    # same primitive, TLS-less variant used for the unix control plane.
+crates/termlink-session/src/client.rs::connect_tls_stream  # TLS upgrade of an already-dialled hub TCP stream; target is the hub address passed in.
+crates/termlink-session/src/transport.rs::connect          # TransportAddr dispatch (unix path / TCP host:port) — the same primitive one layer down.
+
+# --- hub-directed, by construction -------------------------------------------
+crates/termlink-session/src/tofu.rs::probe_cert            # TLS leaf-cert probe of a HUB address for TOFU pinning; reads the cert and drops the connection. The star's centre, never a peer.
+crates/termlink-session/src/ws_consumer.rs::stream_ws_events # event stream from the HUB (wss:// for TCP hubs, raw ws over the local hub unix socket). Hub-directed by construction.
+crates/termlink-cli/src/commands/dispatch.rs::<toplevel>   # liveness probe of the LOCAL hub socket ($runtime_dir/hub.sock) to decide whether a hub is already running.
+
+# --- local session sockets on this host --------------------------------------
+# T-2702 explicitly cleared this class: the CLI reaching a LOCAL session socket
+# is an operator tool talking to a session on the same host, not the
+# agent-to-agent mesh the invariant forbids.
+crates/termlink-cli/src/commands/pty.rs::attach_loop                     # local session's data-plane socket for PTY attach.
+crates/termlink-cli/src/commands/mirror_grid_composer.rs::feed           # local session's data-plane socket for the mirror grid.
+crates/termlink-session/src/transport.rs::check                          # std connect_timeout used to test whether a port is bound; no protocol exchange.
+
+# --- diagnostic reachability probes ------------------------------------------
+# `net-test` is a layered operator diagnostic (L1 TCP / L2 TLS / L3 RPC) run
+# against a target the operator names. It establishes no session and exchanges
+# no session protocol at L1 — it measures whether the address answers. A
+# reachability probe is not a channel.
+crates/termlink-cli/src/commands/remote.rs::classify_fleet_error  # net-test L1 TCP reachability probe. NOTE: fn attribution is the nearest preceding fn declaration; the dial is in the net-test command body.
+crates/termlink-mcp/src/tools.rs::termlink_net_test               # net-test L1 TCP reachability probe (MCP surface of the same diagnostic).

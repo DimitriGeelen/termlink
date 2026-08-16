@@ -4,16 +4,16 @@ name: "TermLink purpose review #6 — is the refusal taxonomy real, or partly fi
 description: >
   Inception: TermLink purpose review #6 — is the refusal taxonomy real, or partly fiction?
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-08-14T08:23:32Z
-last_update: 2026-08-14T08:25:02Z
-date_finished: null
+last_update: 2026-08-16T14:12:32Z
+date_finished: 2026-08-16T14:12:32Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -112,15 +112,15 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -177,7 +177,17 @@ Sixth critical pass. Prior axes: breadth (T-2468), non-goal guards (T-2678), gua
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale:
+
+Sixth critical pass. Prior axes: breadth (T-2468), non-goal guards (T-2678), guard execution (T-2683), Usability+Portability (T-2690), positive claims vs provers (T-2694). This pass audits the ERROR TAXONOMY — the set of refusals TermLink documents itself as able to issue — against what the code can actually emit. Method: enumerate every constant in control.rs error_code, then grep every product crate for an emission site. Result: 23 codes defined, THREE never emitted anywhere. (1) SESSION_BUSY -32002, documented in the T-005 protocol design as 'Target cannot accept commands (already executing)' — never emitted, so whatever concurrency condition it names is either impossible or silently permitted. (2) MESSAGE_EXPIRED -32004, documented as 'TTL exceeded before delivery' — never emitted, so message TTL is not enforced or is enforced silently. (3) PROTOCOL_VERSION_TOO_OLD -32011 is the sharpest: control.rs ships a builder check_protocol_version() that constructs the structured error with {declared, required, method}, and a unit test check_protocol_version_rejects_when_declared_is_older asserting it — but grep finds ZERO callers outside control.rs. Version negotiation is defined, tested, documented, and invoked by nothing. That is the T-2683 pattern (a guard nothing executes) reproduced at the code level rather than the script level, and it means a client implementing from the docs would assume a protection the hub never applies. Also checked and NOT a finding, recorded for calibration: the backpressure mechanisms are genuinely tested (governor.rs carries 20 unit tests; offline_queue asserts QueueFull{cap:3}), so an 'antifragility is unproven' thesis is not supported by evidence and was dropped rather than forced. GO on the in-authority subset: make the dead-refusal class structurally visible and stop the documented contract overstating what is enforced. Wiring version negotiation into the request path is explicitly NOT in scope — it changes wire behaviour and could begin rejecting live fleet peers, which is a human decision.
+
+Evidence:
+
+**Date**: 2026-08-16T14:12:31Z
 
 ## Updates
 
@@ -186,3 +196,18 @@ Sixth critical pass. Prior axes: breadth (T-2468), non-goal guards (T-2678), gua
 
 ### 2026-08-14T08:23:46Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-08-16T14:12:31Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale:
+
+Sixth critical pass. Prior axes: breadth (T-2468), non-goal guards (T-2678), guard execution (T-2683), Usability+Portability (T-2690), positive claims vs provers (T-2694). This pass audits the ERROR TAXONOMY — the set of refusals TermLink documents itself as able to issue — against what the code can actually emit. Method: enumerate every constant in control.rs error_code, then grep every product crate for an emission site. Result: 23 codes defined, THREE never emitted anywhere. (1) SESSION_BUSY -32002, documented in the T-005 protocol design as 'Target cannot accept commands (already executing)' — never emitted, so whatever concurrency condition it names is either impossible or silently permitted. (2) MESSAGE_EXPIRED -32004, documented as 'TTL exceeded before delivery' — never emitted, so message TTL is not enforced or is enforced silently. (3) PROTOCOL_VERSION_TOO_OLD -32011 is the sharpest: control.rs ships a builder check_protocol_version() that constructs the structured error with {declared, required, method}, and a unit test check_protocol_version_rejects_when_declared_is_older asserting it — but grep finds ZERO callers outside control.rs. Version negotiation is defined, tested, documented, and invoked by nothing. That is the T-2683 pattern (a guard nothing executes) reproduced at the code level rather than the script level, and it means a client implementing from the docs would assume a protection the hub never applies. Also checked and NOT a finding, recorded for calibration: the backpressure mechanisms are genuinely tested (governor.rs carries 20 unit tests; offline_queue asserts QueueFull{cap:3}), so an 'antifragility is unproven' thesis is not supported by evidence and was dropped rather than forced. GO on the in-authority subset: make the dead-refusal class structurally visible and stop the documented contract overstating what is enforced. Wiring version negotiation into the request path is explicitly NOT in scope — it changes wire behaviour and could begin rejecting live fleet peers, which is a human decision.
+
+Evidence:
+
+### 2026-08-16T14:12:32Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

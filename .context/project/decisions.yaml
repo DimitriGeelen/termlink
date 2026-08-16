@@ -871,3 +871,17 @@ decisions:
     date: 2026-08-15
     task: T-2752
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-104
+    decision: "compute unread from `max(cursor, receipt up_to)`."
+    scope: project
+    date: 2026-08-16
+    task: T-2757
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-105
+    decision: "when `latest` came from the `count - 1` fallback AND the receipt"
+    scope: project
+    date: 2026-08-16
+    task: T-2757
+    rationale: "Auto-captured from task file on completion"
