@@ -3221,3 +3221,27 @@ learnings:
   task: T-2758
   date: 2026-08-16
   context: Added via context agent
+- id: PL-354
+  learning: "A test that drives a real script whose failure path writes to a canary log MUST redirect that log (e.g. TERMLINK_WOKEN_SILENT_LOG). 'Empty log = healthy' is a one-bit channel, so test residue does not merely add noise — it saturates the signal, leaving the canary permanently FIRING and therefore DEAF to a genuine event until someone truncates it by hand. Detected by scripts/check-canary-log-isolation.sh."
+  source: P-001
+  task: T-2761
+  date: 2026-08-16
+  context: Added via context agent
+- id: PL-355
+  learning: "A test asserting equality between two build-time-derived values (CARGO_PKG_VERSION, git commit) across SEPARATELY-COMPILED crates is non-hermetic: the crates are compiled at different moments from mutable git state, so any commit landing between the two builds guarantees a failure that names a field neither side got wrong. Rebuilding one side (find_termlink_bin_fresh) makes it WORSE, not better. Fix by DETECTING the skew (compare commits) and narrowing the diff to the derived fields only when they disagree — never by stripping them unconditionally, which would blind the T-1458/T-2744 wrong-version class."
+  source: P-001
+  task: T-2760
+  date: 2026-08-16
+  context: Added via context agent
+- id: PL-356
+  learning: "A guard read from the wrong checkout does not fail loudly — it inverts. canary-status.sh resolved .context/working/ relative to the current tree, so from a git worktree it read an empty gitignored copy that host cron never writes, and reported 0 firing while 1 canary was genuinely firing in the main checkout. 'Empty log = healthy' is a one-bit channel: pointing it at the wrong file produces a confident clean bill, not an error. Check path resolution in any guard whose signal is the ABSENCE of content, and make it name the directory it read."
+  source: P-001
+  task: T-2764
+  date: 2026-08-16
+  context: Added via context agent
+- id: PL-357
+  learning: "Cron runs the MAIN checkout, so guard-layer work done on a long-lived worktree branch is shipped-but-not-live until merged. Measured 2026-08-16: branch 225 commits ahead of main; main still carried the pre-T-2709 monotonic stuck-claims predicate, so that canary fired daily on permanent debris (11 topics, every one active=0) while the fixed version on the branch reported 0 stuck. The repo has staleness canaries for hub BINARIES (T-2359) and for wakers on old code (T-2405) but none for the canary SCRIPTS themselves — the layer that detects darkness had nobody watching whether it was live."
+  source: P-001
+  task: T-2764
+  date: 2026-08-16
+  context: Added via context agent
