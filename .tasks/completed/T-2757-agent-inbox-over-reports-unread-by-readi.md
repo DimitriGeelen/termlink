@@ -4,20 +4,20 @@ name: "agent inbox over-reports unread by reading a cursor nothing advances"
 description: >
   termlink agent inbox reports 388 unread on agent-chat-arc and 131 on a DM thread where the receipt frontier says 14 and 1. It reads cursors.json, which only subscribe --resume advances, while every conversation-arc tool (check-arc, reply, agent ack, channel ack) advances the receipt frontier instead. Nothing reconciles the two, so the number never clears no matter how diligently an agent reads and acks.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-mcp/src/tools.rs, scripts/substrate-worker-pickup.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-16T07:04:13Z
-last_update: 2026-08-16T10:24:18Z
-date_finished: null
+last_update: 2026-08-16T13:12:40Z
+date_finished: 2026-08-16T13:12:40Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -475,3 +475,6 @@ reported exit 0 with an EMPTY output file while leaving the task at
 `started-work`. That is a harness/backgrounding artifact, not a gate failure —
 the re-run reached 19/21 PASS. Worth knowing if a future session sees the same
 silent no-op.
+
+### 2026-08-16T13:12:40Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
