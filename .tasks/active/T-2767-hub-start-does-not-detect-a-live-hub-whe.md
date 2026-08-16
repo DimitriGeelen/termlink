@@ -4,7 +4,7 @@ name: "hub start does not detect a LIVE hub when the pidfile is stale — allows
 description: >
   Measured in T-2766: PID 3869961 started a second hub against /var/lib/termlink at 16:52 while supervised PID 3093442 was already serving, and took over hub.pid and hub.sock. The already-running guard keys on the PIDFILE, so when the pidfile is missing or names a dead pid the check passes even though a hub is demonstrably bound to hub.sock and serving. Result is a split-brain: unix-socket clients reach one instance, TCP clients another, with the same topic names resolving differently on ONE host. Fix direction: probe the socket for liveness (or bind-exclusively) rather than trusting the pidfile alone, and refuse loudly per Directive 2.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-16T15:01:33Z
-last_update: 2026-08-16T15:01:33Z
+last_update: 2026-08-16T15:03:53Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,74 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Found live on `.107` during T-2766. Two hubs were serving one `runtime_dir`: the
+systemd-supervised PID 3093442 and PID 3869961, started manually by another session
+at 16:52, which took over both `hub.pid` and `hub.sock`.
+
+**The predicate, stated exactly.** `pidfile::acquire()` decided entirely from
+`check(pidfile)`, which reads the pidfile and asks whether that PID is alive:
+
+- no pidfile → `NotRunning` → **write it and start**
+- pidfile naming a dead PID → `Stale` → clean it and start
+- pidfile naming a live PID → `Running` → refuse
+
+So the guard trusts an *assertion about* liveness rather than *evidence of* it. When
+the pidfile is the thing that goes missing — which is exactly what happened — the
+hub that is demonstrably bound to `hub.sock` and accepting is invisible, and a second
+instance starts cleanly.
+
+**Why it matters more than a duplicate process.** The two instances split the
+substrate: unix-socket clients reach one, TCP clients the other, and the same topic
+name resolves to different state on a single host. That is the G-060 per-hub-state
+property showing up where nobody expects it, and it is silent — both hubs are healthy
+by every check that looks at one of them.
+
+**Fix.** `acquire_with_socket(pidfile, socket)` keeps the pidfile fast-path (a live
+PID is still reported *as a PID*, which is more actionable) and, when the pidfile
+claims nobody is home, probes the socket. A successful `UnixStream::connect` proves a
+listener; `ECONNREFUSED` means a leftover socket file with nothing behind it, which
+must still start — that unclean-shutdown recovery is what the pidfile-only check was
+written for, and breaking it would trade one failure for another.
+
+**Deliberately not TCP-probed.** The check tests the unix socket only. Adding a
+non-loopback `TcpStream::connect` in `termlink-hub/src` would trip T-2569's federation
+tripwire, correctly — that guard exists to stop the hub acquiring outbound hub-speaking
+behaviour, and a "liveness probe" is precisely the shape a federation feature would
+first appear in. `UnixStream` is local by construction and cannot reach another host.
+Tripwire re-run and green.
+
+**Residual:** a hub serving ONLY `--tcp` with no unix socket is not detected by this.
+That case is out of reach without the outbound TCP dial the tripwire forbids, so it
+stays with preflight Check 6 (T-2358), which caught the live incident.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] The current already-running check in `hub start` is located and its predicate
+      stated exactly — established as pidfile-derived, which is why it passed at
+      16:52 while PID 3093442 was demonstrably bound to `hub.sock` and serving
+- [x] `hub start` refuses when a hub is LIVE on the target `runtime_dir` even if
+      the pidfile is missing, empty, or names a dead PID — liveness decided by
+      probing `hub.sock`, not by trusting the pidfile
+- [x] The refusal is LOUD and actionable per Directive #2: it names the socket it
+      found alive and what to do (`hub stop`, or `systemctl status termlink-hub`
+      if the live hub is unit-supervised), never a bare non-zero exit
+- [x] A stale pidfile with NO live socket still starts normally — the fix must not
+      break recovery after an unclean shutdown, which is the case the pidfile-only
+      check was presumably written for
+- [x] Regression test pins BOTH directions: live-socket-and-stale-pidfile refuses,
+      dead-socket-and-stale-pidfile starts
+- [x] The test fails against the pre-fix code path (load-bearing, not merely green) —
+      pinned as a contrast assertion inside `live_socket_with_no_pidfile_refuses`:
+      the retained pidfile-only `acquire` is asserted to (wrongly) succeed on the
+      same input, so the test cannot pass for the wrong reason
+- [ ] `cargo test --workspace` green
+      NOT YET CONFIRMED for this change. The green run recorded earlier in the
+      session predates the pidfile edit; the post-change run was still executing
+      when the budget gate closed. `cargo test -p termlink-hub` (21 pass), the
+      federation tripwire (3 pass) and the guard layer (41/41) ARE confirmed
+      post-change. Re-run before closing — the P-011 gate runs it anyway.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -75,6 +135,16 @@ date_finished: null
 -->
 
 ## Verification
+
+cargo test -p termlink-hub pidfile
+# The federation tripwire must stay green — the fix adds a connect inside the hub crate.
+cargo test -p termlink-hub --test no_federation_tripwire
+cargo test --workspace
+# Both start paths use the evidence-checking variant, not the pidfile-only one.
+test 2 -eq $(grep -c 'acquire_with_socket' crates/termlink-hub/src/server.rs)
+# The refusal names the socket and both remediations (Directive #2).
+grep -q 'systemctl status termlink-hub' crates/termlink-hub/src/pidfile.rs
+bash scripts/run-guard-layer.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -174,3 +244,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2767-hub-start-does-not-detect-a-live-hub-whe.md
 - **Context:** Initial task creation
+
+### 2026-08-16T15:03:53Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

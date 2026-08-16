@@ -251,8 +251,10 @@ pub async fn run_with_tcp(
 
     let pidfile_path = pidfile::hub_pidfile_path();
 
-    // Acquire pidfile (prevents double-start, cleans stale)
-    pidfile::acquire(&pidfile_path).map_err(|e| {
+    // Acquire pidfile (prevents double-start, cleans stale).
+    // T-2767: probe the socket too — a lost pidfile in front of a live hub
+    // otherwise reads as "not running" and we would start a second instance.
+    pidfile::acquire_with_socket(&pidfile_path, socket_path).map_err(|e| {
         std::io::Error::new(std::io::ErrorKind::AddrInUse, e.to_string())
     })?;
 
@@ -426,8 +428,10 @@ pub async fn run_with_tcp(
 pub async fn run_blocking(socket_path: &Path, tcp_addr: Option<&str>) -> std::io::Result<()> {
     let pidfile_path = pidfile::hub_pidfile_path();
 
-    // Acquire pidfile (prevents double-start, cleans stale)
-    pidfile::acquire(&pidfile_path).map_err(|e| {
+    // Acquire pidfile (prevents double-start, cleans stale).
+    // T-2767: probe the socket too — a lost pidfile in front of a live hub
+    // otherwise reads as "not running" and we would start a second instance.
+    pidfile::acquire_with_socket(&pidfile_path, socket_path).map_err(|e| {
         std::io::Error::new(std::io::ErrorKind::AddrInUse, e.to_string())
     })?;
 
