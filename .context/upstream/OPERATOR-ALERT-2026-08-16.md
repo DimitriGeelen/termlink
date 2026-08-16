@@ -233,6 +233,58 @@ cross-host escape hatch, which would be significant.
 
 ---
 
+## 6. THE GHOST DIED AND TOOK LOCAL IPC WITH IT — the T-2768 decision has changed (20:30)
+
+**The error moved again**, and the third error is the informative one:
+`Permission denied (13)` → `Connection reset (104)` → **`Connection refused (111)`**.
+
+The ghost (PID 3869961) is **dead**. It still owns `hub.pid` (naming its own dead PID)
+and the `hub.sock` FILE. Measured:
+
+| | inode |
+|---|---|
+| PID 3093442 (systemd unit) listening socket | **127398351** (`ss -xlp`, fd=9) |
+| the `hub.sock` file on disk | **66224562** (`stat`) |
+
+Different inodes. When the ghost bound at 16:52 it unlinked the unit's socket file and
+created its own; when it died it left an orphan file with nothing behind it. So the
+authoritative hub is **alive and listening on a socket no path points to**, and every
+local client connects to the orphan and gets `ECONNREFUSED`.
+
+**Both recovery routes are closed, and this is worth stating precisely because the
+obvious next move is to try them:**
+
+1. **Unix — impossible.** A listening socket cannot be re-linked to a new path. No
+   amount of `rm`-ing the stale file makes PID 3093442 re-bind. The orphan is orphaned
+   for the life of that process.
+2. **TCP — impossible.** `0.0.0.0:9100` is open and the hub still holds its secret in
+   memory, but **there is no copy of that secret on disk**. `fleet doctor` shows BOTH
+   local profiles (`local-test`, `workstation-107-public`) with
+   `secret_file = /var/lib/termlink/hub.secret` — the missing file — and there is no
+   IP-keyed cache for `.107`. R3 says to point self-hub profiles at the live file, which
+   is right for freshness and leaves exactly zero fallback when the live file vanishes.
+
+**So the restart is now the ONLY route to local access — and its cost has dropped.**
+Earlier I said "do not restart" because it rotates secret + cert (PL-021). That was
+correct while local access still worked. It no longer does. Re-price it:
+
+- **Locally we lose nothing** — both local profiles already `[FAIL]`, local IPC already
+  refuses. There is no working local state left for a rotation to break.
+- **The remaining cost is remote peers pinned to `.107`** needing a re-pin. `.121` and
+  `.122` answer fine outbound; the question is only who authenticates inbound to us.
+
+**Still a human decision** (T-2768, `owner: human`) — but it is now "accept a bounded
+re-pin to regain local access", not "risk a fleet outage for no gain". If you take it,
+stop the dead ghost's leftovers first so the restarted unit binds a clean path:
+`rm -f /var/lib/termlink/hub.pid /var/lib/termlink/hub.sock` — both belong to a process
+that no longer exists — then `systemctl restart termlink-hub`.
+
+**T-2770 (shipped today) prevents the whole sequence.** The ghost could not have taken
+the socket in the first place; `hub start` now refuses when it cannot probe. This
+incident is the pre-fix behaviour playing out to its end state.
+
+---
+
 ## 5. THE AEF AGENT'S HUB IS REFUSING THE AEF AGENT — answered (T-2772)
 
 The Codex/AEF agent reported `Permission denied (os error 13)`, then after a
