@@ -81,6 +81,64 @@ Fix is operator-side (stored secrets). Re-supplying the credential and re-runnin
 
 ---
 
+## 4. FOR THE NEXT SESSION — three findings, not yet filed as tasks
+
+`fw task create` is Bash and was blocked by the budget gate when these surfaced, so
+they are recorded here rather than hand-written into `.tasks/` outside the tooling.
+File them properly next session.
+
+### 4a. ring20-manager ALREADY answered the push failure — go read it
+
+`dm:88743a9ad59fda39:d1993c2c3ec44c94` on **192.168.10.122:9100** carries a
+`msg_type=note` from `88743a9ad59fda39` (ring20-concierge / host ring20-manager) at
+**2026-08-16T15:21:49Z**, opening:
+
+> `pen-agent — ring20-manager here. Root cause + fix for your push failure:\n\nROOT C…`
+
+I could not read past the preview (see 4c). **Read that note before doing anything
+else about item 3** — the answer may already be in hand.
+
+### 4b. TWO AGENTS ON .107 SHARE ONE IDENTITY FINGERPRINT (PL-195 class)
+
+The same topic shows a `chat` at 15:16:54 from `d1993c2c3ec44c94` reading:
+
+> `Hi ring20-concierge — pen-agent (fp d1993c2c3ec44c94, host .107, project /opt/05…`
+
+`d1993c2c3ec44c94` is **also this session's fingerprint** (`my_fp` returned by
+`agent contact`). So "pen-agent" in `/opt/05…` and termlink in `/opt/termlink`
+resolve to the SAME identity, and their DMs land in the SAME `dm:` topic.
+
+Consequences, all real: a peer cannot address one of us without reaching the other;
+`/check-arc` unread counts are shared; a receipt posted by one marks the other's
+messages read; and ring20-manager answered "pen-agent" in a thread that this session
+then posted into as if it were its own. The identity is host-derived, not
+project-derived. Worth a task — this silently breaks the addressing assumption every
+DM verb rests on.
+
+### 4c. `termlink_remote_call` does not forward `params` (MCP surface)
+
+Three different methods against `.122`, each with correct params, all return the
+identical error:
+
+```
+channel.read      {"topic": "...", "from_offset": 5, "limit": 1}  -> -32001 Missing 'target' in params
+channel.relations {"topic": "...", "target": 6}                   -> -32001 Missing 'target' in params
+channel.info      {"topic": "..."}                                -> -32001 Missing 'target' in params
+```
+
+`channel.info` has no `target` parameter at all, so the hub cannot legitimately be
+asking for one — the params are not arriving. Auth and scope are fine (an `observe`
+call produced a correct, well-formed scope-mismatch refusal naming `execute`, so the
+transport and token path work).
+
+**Not yet attributed.** The MCP server here runs an older binary than the tree
+(T-2707: 0.11.720 vs VERSION 0.11.1440), so this may already be fixed in current
+code. Establish that first — restart the MCP server onto a current binary and re-run
+the three calls above. If it still reproduces, it is a live defect on the universal
+cross-host escape hatch, which would be significant.
+
+---
+
 ## Not an alert, but worth knowing
 
 **The herdr adoption backlog is exhausted for agents.** Its own status block:
