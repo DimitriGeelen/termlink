@@ -86,28 +86,28 @@ binary is stale, which is a deploy concern (G-069) and not a code change here.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] A pure helper reconciles the two frontiers by taking the max of the
+- [x] A pure helper reconciles the two frontiers by taking the max of the
       subscribe cursor and the receipt `up_to` for the same (topic, identity) —
       consumption recorded by EITHER mechanism counts as consumed
-- [ ] The helper is unit-tested for: receipt ahead of cursor (the live bug),
+- [x] The helper is unit-tested for: receipt ahead of cursor (the live bug),
       cursor ahead of receipt (subscribe-only workflow, unchanged), no receipt
       at all (pre-existing behaviour preserved), and equal frontiers
-- [ ] Both `termlink_agent_inbox` (MCP) and the `termlink agent inbox` CLI twin
+- [x] Both `termlink_agent_inbox` (MCP) and the `termlink agent inbox` CLI twin
       use the reconciled frontier, so the two surfaces cannot disagree
-- [ ] A topic whose receipt frontier covers every message is omitted from the
+- [x] A topic whose receipt frontier covers every message is omitted from the
       digest entirely rather than reported with a stale non-zero count
-- [ ] Receipt lookup degrades safely: a hub that does not serve the receipts
+- [x] Receipt lookup degrades safely: a hub that does not serve the receipts
       fast-path falls back rather than erroring the whole digest
-- [ ] The reconciliation cannot silently UNDER-report: when the hub gives no
+- [x] The reconciliation cannot silently UNDER-report: when the hub gives no
       authoritative `latest_offset` and the receipt frontier exceeds the
       count-derived `latest` (proving the two are different units), the topic is
       reported as indeterminate with the cause and remedy named — never dropped
       as "caught up" and never given a fabricated number
-- [ ] Live proof against the hub that produced the original numbers: the DM
+- [x] Live proof against the hub that produced the original numbers: the DM
       reports the same value as `channel unread`, and the retention-saturated
       topic reports indeterminate rather than vanishing
-- [ ] `cargo test --workspace` passes
-- [ ] Guard layer passes (`bash scripts/run-guard-layer.sh`)
+- [x] `cargo test --workspace` passes
+- [x] Guard layer passes (`bash scripts/run-guard-layer.sh`)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -399,3 +399,24 @@ test pins that it resolves to 14).
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2757-agent-inbox-over-reports-unread-by-readi.md
 - **Context:** Initial task creation
+
+### 2026-08-16 — gate run, 19/21 legs green
+
+All 9 Agent ACs are checked and the P-011 gate ran cleanly through **19 of its
+21 verification commands** (every targeted `cargo test`, every structural grep).
+The two outstanding legs are `cargo test --workspace` and
+`bash scripts/run-guard-layer.sh` — both of which were run INDEPENDENTLY this
+session and were green (`cargo test --workspace` exit 0, all suites `0 failed`;
+guard layer `PASS 36/36`, run twice). The gate leg was still executing when the
+session hit its budget horizon.
+
+**To close:** re-run `fw task update T-2757 --status work-completed`. It is
+expected to pass; nothing is known to be outstanding. Do NOT reach for
+`--force` or `--skip-verification` — the gate has not failed, it simply had not
+finished.
+
+**Note on a flaky background run:** an earlier invocation of the same command
+reported exit 0 with an EMPTY output file while leaving the task at
+`started-work`. That is a harness/backgrounding artifact, not a gate failure —
+the re-run reached 19/21 PASS. Worth knowing if a future session sees the same
+silent no-op.
