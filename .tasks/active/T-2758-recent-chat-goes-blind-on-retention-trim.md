@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-16T09:29:42Z
-last_update: 2026-08-16T09:46:42Z
+last_update: 2026-08-16T09:50:52Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -109,7 +109,11 @@ out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "no of
 # The fixtures must be LOAD-BEARING: against the pre-fix script they must FAIL.
 # A regression fixture that passes both ways proves nothing. `! grep` rather
 # than a non-zero exit check, because the suite exits 1 for any failure.
-git show HEAD~2:scripts/agent-chat-arc-recent.sh > /tmp/.t2758-prefix.sh 2>/dev/null || git show HEAD~1:scripts/agent-chat-arc-recent.sh > /tmp/.t2758-prefix.sh
+# Pinned to the last commit BEFORE the fix (12b1d3a69), not HEAD~N — a relative
+# ref drifts with every later commit and would silently start comparing the
+# fixtures against a post-fix script, which is the failure mode this check is
+# supposed to rule out.
+git show 12b1d3a69:scripts/agent-chat-arc-recent.sh > /tmp/.t2758-prefix.sh
 out=$(CHAT_ARC_SCRIPT=/tmp/.t2758-prefix.sh bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "FAILURES"
 
 # The cursor must be derived through the helper, not inline arithmetic — the
