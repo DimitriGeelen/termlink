@@ -72,7 +72,7 @@ task reports it rather than patching it.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The two causes above are separated with evidence: state whether `blast_radius=0` is a MISSING-RUBRIC problem, a MISSING-INPUT-DATA problem, or both — quoting the relevant `score_blast_radius` branch
+- [x] The two causes above are separated with evidence: state whether `blast_radius=0` is a MISSING-RUBRIC problem, a MISSING-INPUT-DATA problem, or both — quoting the relevant `score_blast_radius` branch — **DONE: missing input data (`components: []`), not the rubric; see Decisions. The estimator computes correctly and needs no fix.**
 - [ ] Value estimation is run across the actionable backlog and produces **differentiated** scores (assert: more than one distinct `bvp_raw` value across the scored set — a single repeated value means it is defaulting, not measuring)
 - [ ] `fw bvp --include-proposed` returns a populated ranking, and the top HV entries are recorded in `## Decisions`
 - [ ] Cost is either (a) made to produce real signal, with the same differentiation assertion applied, or (b) explicitly left unscored with the reason — **no no-signal defaults are committed to task frontmatter under any circumstances**
@@ -225,7 +225,56 @@ out=$(.agentic-framework/bin/fw bvp --include-proposed 2>&1 || true); grep -q "T
      - **Rejected:** [alternatives and why not]
 -->
 
-## Decision
+### 2026-08-17 — the cause is MISSING INPUT DATA, and "no-signal" was the wrong diagnosis
+Established by reading `estimator.py:2480-2544` (read-only; Bash was gated). This
+**corrects the hypothesis written in this task's own Context**, which suspected the
+missing `policy/bvp-scoring-rubric.md`. That file is a red herring for the values —
+it only affects the `rubric_sha` provenance stamp, not a single computed number.
+
+The three cost scorers all compute honestly:
+
+| scorer | line | what it actually returns |
+|---|---|---|
+| `score_blast_radius` | 2507-2516 | counts non-empty `components:` → ladder 0/1/3/5/7/9; `→0 (no-components)` when the list is empty |
+| `score_tier` | 2526-2532 | tag-table lookup, else `COST_WORKFLOW_TIER[workflow_type]` → `→2 (workflow:build)` |
+| `score_effort` | 2538-2544 | `body_lines // 50 + ac_count`, clamped to [1, 8] |
+
+So the `(blast_radius=0, tier=2, effort=8)` triple shared by 96 of 166 tasks is
+**arithmetically correct for a typical task here**, not a default:
+
+1. `components:` is empty on essentially every task — the task template itself ships
+   `components: []` and nothing fills it in;
+2. most tasks are `workflow_type: build`, which maps to tier 2;
+3. any task with ≥8 ACs or ≥400 body lines clamps effort to the ceiling of 8, and
+   most substantial tasks clear that bar.
+
+**This is a discrimination failure, not a defaulting failure**, and the distinction
+decides the remedy. The estimator is not broken and does not need fixing. Cost simply
+carries almost no information here, because the only component with real range —
+blast_radius, 0 through 9 — is dead on arrival while `components:` goes unpopulated.
+Installing a rubric would change nothing; the T-2776 instinct to revert the writes was
+right, but the reason recorded there ("no-signal defaults") was wrong.
+
+Consequence for the operator's ask: a cost-based quadrant cannot be made meaningful by
+running the estimator more often. It needs `components:` populated on the tasks being
+ranked, which is authoring work on the task base, not a tooling fix.
+
+- **Chose:** report this rather than regenerate cost data on the current inputs.
+- **Rejected:** running `cost-all` regularly as asked. It would emit arithmetically
+  correct numbers that discriminate almost nothing, and a near-constant cost column
+  makes every task land in the same quadrant — an answer that looks measured and
+  ranks nothing.
+
+### 2026-08-17 — unresolved, and NOT to be assumed on the next pass
+The literal string `(no-signal)` observed in T-2776's output does **not** appear in any
+of the three scorers above — they emit `(no-components)`, `(workflow:build)`,
+`(lines=…,acs=…)`. It is produced by `_cost_short_rationale(evidence)`
+(`estimator.py:2630`), which was not read before the budget gate closed Bash. So the
+rationale strings discard the real evidence somewhere between `estimate_cost` and the
+frontmatter write. That is a separate, smaller defect — misleading provenance on
+otherwise-correct numbers — and it is stated here as unconfirmed rather than folded
+into the finding above.
+
 
 <!-- Filled at completion of inception tasks via:
      fw inception decide T-XXX go|no-go|defer --rationale "..."
