@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-16T09:29:42Z
-last_update: 2026-08-16T09:32:21Z
+last_update: 2026-08-16T09:46:42Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -40,26 +40,26 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] The seek-to-tail cursor is derived from an OFFSET, not from `count`:
+- [x] The seek-to-tail cursor is derived from an OFFSET, not from `count`:
       prefer the hub's authoritative `latest_offset` (T-2533+); else fall back
       to the largest `receipts[].up_to` in the same `channel info` payload when
       that exceeds `count - 1` (proving the topic has been trimmed); else keep
       the existing `count`-derived value, which is correct on untrimmed topics
-- [ ] The derivation is a pure, unit-tested helper — not inline arithmetic —
+- [x] The derivation is a pure, unit-tested helper — not inline arithmetic —
       covering: authoritative `latest_offset` present, trimmed topic with only
       receipts available, untrimmed topic (behaviour unchanged), and a topic
       with neither signal (no crash, no fabricated offset)
-- [ ] Regression fixture reproduces the measured defect: a topic whose `count`
+- [x] Regression fixture reproduces the measured defect: a topic whose `count`
       (2003) is far below its true max offset (11973) must yield a cursor
       inside the retained range, and the pre-fix arithmetic must fail it
-- [ ] `recent-dm.sh` is checked for the same `count`-as-offset arithmetic and
+- [x] `recent-dm.sh` is checked for the same `count`-as-offset arithmetic and
       fixed too if present — the T-2757 lesson (PL-293) is that the count-anchored
       helper always has more than one caller
-- [ ] The fix cannot silently UNDER-report: when no offset signal is available
+- [x] The fix cannot silently UNDER-report: when no offset signal is available
       the scan must not claim an empty window it did not actually cover
-- [ ] Live proof on the hub that produced the numbers: `/recent-chat` surfaces
+- [x] Live proof on the hub that produced the numbers: `/recent-chat` surfaces
       the 2026-08-16 post it currently reports as "0 posts"
-- [ ] `bash tests/chat-arc-recent-fixtures.sh` passes (existing suite, extended
+- [x] `bash tests/chat-arc-recent-fixtures.sh` passes (existing suite, extended
       with the regression fixture), and `bash scripts/run-guard-layer.sh` passes
 
 ### Human
@@ -94,6 +94,47 @@ date_finished: null
 -->
 
 ## Verification
+
+# The four tail-signal branches plus the measured production defect. Asserted
+# by NAME, so adding a fixture later does not break verification while a
+# deleted or renamed one still does.
+out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "ALL PASS"
+out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "recent posts surface"
+out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "is offset-derived"
+out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "drain continued past a full batch"
+out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "latest_offset wins over count and receipts"
+out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "untrimmed topic keeps the count path"
+out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "no offset signal on a trimmed topic"
+
+# The fixtures must be LOAD-BEARING: against the pre-fix script they must FAIL.
+# A regression fixture that passes both ways proves nothing. `! grep` rather
+# than a non-zero exit check, because the suite exits 1 for any failure.
+git show HEAD~2:scripts/agent-chat-arc-recent.sh > /tmp/.t2758-prefix.sh 2>/dev/null || git show HEAD~1:scripts/agent-chat-arc-recent.sh > /tmp/.t2758-prefix.sh
+out=$(CHAT_ARC_SCRIPT=/tmp/.t2758-prefix.sh bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "FAILURES"
+
+# The cursor must be derived through the helper, not inline arithmetic — the
+# T-2699 shape (a helper that exists but nothing calls).
+grep -q "derive_tail_offset(" scripts/agent-chat-arc-recent.sh
+grep -q 'tail_info="\$(derive_tail_offset' scripts/agent-chat-arc-recent.sh
+
+# The sibling caller must be migrated too (PL-293 / the T-2758 learning).
+grep -q "T-2758" scripts/fleet-adoption-snapshot.sh
+grep -q "latest_offset" scripts/fleet-adoption-snapshot.sh
+
+# --since must NOT be passed to subscribe: it is a render-side filter and would
+# destroy "batch was full" as the end-of-topic signal for the drain.
+grep -q 'drain_cursor" --limit' scripts/agent-chat-arc-recent.sh
+! grep -q 'drain_cursor" --since' scripts/agent-chat-arc-recent.sh
+
+# An incomplete read must not certify itself complete.
+grep -q "tail_unknown_hubs" scripts/agent-chat-arc-recent.sh
+grep -q "degraded_hubs | length) == 0" scripts/agent-chat-arc-recent.sh
+
+# Both scripts parse.
+bash -n scripts/agent-chat-arc-recent.sh
+bash -n scripts/fleet-adoption-snapshot.sh
+
+bash scripts/run-guard-layer.sh
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.

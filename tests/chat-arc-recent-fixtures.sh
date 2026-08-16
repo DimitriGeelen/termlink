@@ -243,6 +243,69 @@ else
   bad "trimmed topic → only $cursor_rounds read(s); a lower-bound tail needs the forward drain"
 fi
 
+# ---- T-2758: the other three tail-signal shapes -------------------------------
+# The trimmed case above exercises the receipt-derived path. derive_tail_offset
+# has three more branches that must be pinned, because each one silently
+# produces a plausible cursor rather than an error when it goes wrong:
+#   authoritative  — a T-2533+ hub serves latest_offset; it must WIN over both
+#                    count and receipts (here count/receipts would say 1503/…)
+#   untrimmed      — no latest_offset, no receipt beyond count-1: the legacy
+#                    count path, which is correct while the topic is untrimmed
+#   neither        — no offset signal at all on a topic that LOOKS trimmed:
+#                    must not fabricate a tail, and must refuse to certify the
+#                    read complete (this is the Directive #2 half of the fix)
+tail_case() {
+  # $1 = case name, $2 = channel info JSON
+  local name="$1" info="$2" log="$TRIM_WORK/cursors-$1"
+  : > "$log"
+  cat > "$TRIM_WORK/termlink-$name" <<CASEEOF
+#!/usr/bin/env bash
+args="\$*"
+now_ms="\$(date +%s)000"
+case "\$args" in
+  *"channel info"*"agent-chat-arc"*) printf '%s\n' '$info' ;;
+  *"channel subscribe"*"agent-chat-arc"*)
+    cursor=0; prev=""
+    for a in \$args; do
+      case "\$prev" in --cursor) cursor="\$a" ;; esac
+      prev="\$a"
+    done
+    echo "\$cursor" >> "$log"
+    printf '{"offset":%s,"ts":%s,"msg_type":"chat","sender_id":"fp-x","metadata":{"agent_id":"agent-t"},"payload":"x"}\n' "\$cursor" "\$now_ms"
+    ;;
+  *) : ;;
+esac
+CASEEOF
+  chmod +x "$TRIM_WORK/termlink-$name"
+  TERMLINK_BIN="$TRIM_WORK/termlink-$name" bash "$SCRIPT" --hub "$HUB" --json --since 24 2>/dev/null
+  TAIL_CASE_CURSOR="$(head -n 1 "$log" 2>/dev/null || echo "")"
+}
+
+# authoritative latest_offset must win over count AND receipts
+tail_case authoritative '{"count":2003,"retention":{"kind":"messages","value":2000},"receipts":[{"sender_id":"fp-x","up_to":11952}],"latest_offset":13000}' >/dev/null
+if [ "$TAIL_CASE_CURSOR" = "12500" ]; then
+  pass "tail signal: latest_offset wins over count and receipts (cursor 12500)"
+else
+  bad "tail signal: expected cursor 12500 from latest_offset, got '$TAIL_CASE_CURSOR'"
+fi
+
+# untrimmed topic: no latest_offset, receipts do not exceed count-1 → count path
+tail_case untrimmed '{"count":900,"retention":{"kind":"messages","value":2000},"receipts":[{"sender_id":"fp-x","up_to":100}]}' >/dev/null
+if [ "$TAIL_CASE_CURSOR" = "399" ]; then
+  pass "tail signal: untrimmed topic keeps the count path (cursor 399 = 900-1-500)"
+else
+  bad "tail signal: expected cursor 399 on an untrimmed topic, got '$TAIL_CASE_CURSOR'"
+fi
+
+# no offset signal at all on a topic that looks trimmed → must not certify
+neither_out="$(tail_case neither '{"count":2000,"retention":{"kind":"messages","value":2000}}')"
+if printf '%s' "$neither_out" | jq -e '.summary.read_complete == false and (.summary.tail_unknown_hubs | length) > 0' >/dev/null 2>&1; then
+  pass "tail signal: no offset signal on a trimmed topic → read_complete:false, hub named"
+else
+  bad "tail signal: no offset signal must clear read_complete and name the hub"
+  printf '  summary: %s\n' "$(printf '%s' "$neither_out" | jq -c '.summary' 2>/dev/null)"
+fi
+
 echo
 if [ "$fail" -eq 0 ]; then
   echo "chat-arc-recent-fixtures: ALL PASS"; exit 0
