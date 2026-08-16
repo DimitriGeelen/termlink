@@ -346,3 +346,58 @@ looks like a perfect argument for changing the default `runtime_dir` — it is n
 The systemd unit, the running hub process and the interactive shell all resolve the
 same `/var/lib/termlink`, on disk-backed btrfs. Recorded in the backlog under rank 18
 so the human decision is not given false support.
+
+---
+
+## §7 — RESOLVED 2026-08-16 20:37, and a correction to §6
+
+**The restart was taken.** `termlink-hub.service` MainPID=**1558435**, `ActiveState=active`,
+`NRestarts=0`. `hub.secret`, `hub.key.pem`, `hub.cert.pem` all regenerated at 20:37.
+Local IPC works again for root: `termlink hub status` → running. **T-2768 is closed by
+the human's action**, not by an agent.
+
+**The predicted PL-021 rotation happened and has been absorbed.** `.107` presented a new
+TLS fingerprint (`d1bd50f5…` → `cacc73ea…`), which `fleet doctor` correctly refused as a
+TOFU violation. Cleared with `termlink tofu clear 192.168.10.107:9100` — legitimate by
+direct evidence, since `.107` IS this host and its cert file is visibly the one the
+restart wrote at 20:37, so MITM is excluded rather than assumed. Fleet is now 4/5 PASS
+(`laptop-141` is "No route to host" — that host is down, unrelated to this incident).
+
+### CORRECTION: the inode evidence in §6 does not prove what it was said to prove
+
+§6 argued the socket was orphaned because `ss -xlp` reported inode `127398351` while
+`stat` reported `66224562` on the path. **Those two numbers are drawn from different
+namespaces and can never be equal.** `ss` prints the socket's inode in `sockfs`; `stat`
+prints the path file's inode in the real filesystem. The mismatch was therefore not
+evidence of anything, and the same "mismatch" is present right now on a hub that is
+provably healthy (`ss`→`150863630`, `stat`→`66986950`, and it serves requests fine).
+
+The §6 *conclusion* — that local IPC was broken and a restart was the only route — was
+independently correct on other grounds (`Connection refused` on connect is dispositive).
+But the inode table should not be reused as a diagnostic; the correct test for "is this
+socket live" is simply to connect to it.
+
+### Still open after the restart
+
+1. **The AEF agent is still blocked, and no permission change will fix it.** Three gates
+   stack for `dimitri-mint-dev`: `/var/lib/termlink` is `0700 root:root` (cannot even
+   traverse — this is why `hub status` answers the *wrong* "not running" for that user);
+   `hub.sock` is `srwxr-xr-x`, no write bit, so `connect()` gives `EACCES(13)`; and
+   T-2448's same-uid `SO_PEERCRED` gate refuses cross-uid peers regardless. **Gate 3 is
+   decisive and deliberate** — this hub accepts local Unix connections only from its own
+   uid. The supported cross-uid route is TCP: `hub.tcp` = `0.0.0.0:9100`, and
+   `127.0.0.1:9100` already PASSes. The agent needs a hub token, not a chmod.
+
+2. **The two fixes shipped for exactly this incident are NOT live on it.** Running hub is
+   **0.11.1411** (`904caeaee`); T-2772's loud uid refusal is **0.11.1465**
+   (`v0.11.2-1465-g5f862c048`). So a cross-uid peer refused by this hub *right now* still
+   gets the bare `ECONNRESET` the task was written to eliminate, and T-2770's split-brain
+   guard is likewise absent. This is a textbook **G-069 shipped≠live** instance, on the
+   very host that motivated the work — and the fleet-binary canary's floor for this host
+   should be raised to 0.11.1465 once the binary is reinstalled, or it will not name it.
+
+3. **A ghost survives the restart.** PID **1510694** (started 20:35:51) is still listening
+   on `/var/lib/termlink/hub.sock`; PID 1558435 (20:37) bound over the same path, unlinking
+   it. Two live listeners, one path — precisely the split-brain T-2770 refuses to start
+   into. Harmless while the newer one owns the path, but it should be reaped:
+   `kill 1510694` after confirming `cat /var/lib/termlink/hub.pid` still reads 1558435.
