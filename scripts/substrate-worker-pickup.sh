@@ -273,9 +273,22 @@ trap 'cleanup; exit 130' INT TERM
 # ---- Helpers -------------------------------------------------------------
 
 # Returns one dm:* topic with unread > 0, or empty.
+#
+# T-2757: `unread` is now `number | null`. `null` means INDETERMINATE — the hub
+# reports no authoritative `latest_offset` and the receipt frontier proves the
+# count-derived fallback is not an offset, so no honest count exists (the row
+# also carries `indeterminate: true`).
+#
+# Such topics are SKIPPED here, deliberately. `(.unread // 0)` makes that
+# explicit: bare `.unread > 0` already skips them (jq: `null > 0` is false) but
+# only by accident of comparison semantics, and a reader cannot tell whether
+# that was intended. Skipping is the safe choice for an unattended loop — a
+# worker that picked up an unknown-count topic could find nothing new and spin.
+# The cost is that genuinely-unread DMs on such a topic are not picked up; the
+# remedy is upgrading the hub to a T-2533+ build so it reports `latest_offset`.
 next_unread_dm() {
     "$TERMLINK" agent inbox --json "${HUB_ARGS[@]}" 2>/dev/null \
-        | jq -r '.[]? | select(.unread > 0 and (.topic | startswith("dm:"))) | .topic' \
+        | jq -r '.[]? | select((.unread // 0) > 0 and (.topic | startswith("dm:"))) | .topic' \
         | head -n1
 }
 

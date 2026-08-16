@@ -8704,12 +8704,26 @@ pub(crate) async fn cmd_channel_ack_status(
 }
 
 /// T-1358: per-topic unread row.
+///
+/// T-2757 added `receipt_up_to` + `frontier`. The reconciliation is reported,
+/// not hidden: `cursor` and `receipt_up_to` are both kept so a reader can see
+/// WHICH mechanism recorded the consumption, and `frontier` is the value the
+/// `unread` count was actually computed from.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct UnreadRow {
     pub topic: String,
     pub cursor: u64,
+    /// T-2757: this identity's receipt frontier on the topic (`metadata.up_to`
+    /// of its latest `msg_type=receipt`), or `None` when the topic has no
+    /// receipt from us / the hub does not serve `channel.receipts`.
+    pub receipt_up_to: Option<u64>,
+    /// T-2757: `max(cursor, receipt_up_to)` — the frontier `unread` is from.
+    pub frontier: u64,
     pub latest: u64,
-    pub unread: u64,
+    /// T-2757: `None` = INDETERMINATE. The hub did not report `latest_offset`,
+    /// and the receipt frontier proves the `count - 1` fallback is not an
+    /// offset (see `UnreadVerdict`). Emitting a number here would be a guess.
+    pub unread: Option<u64>,
 }
 
 impl UnreadRow {
@@ -8717,9 +8731,101 @@ impl UnreadRow {
         json!({
             "topic": self.topic,
             "cursor": self.cursor,
+            "receipt_up_to": self.receipt_up_to,
+            "frontier": self.frontier,
             "latest": self.latest,
             "unread": self.unread,
+            "indeterminate": self.unread.is_none(),
         })
+    }
+}
+
+/// T-2757: what can honestly be said about one topic's unread count.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum UnreadVerdict {
+    /// Frontier is at or past latest — nothing awaiting attention. Row dropped.
+    CaughtUp,
+    /// `latest - frontier`.
+    Unread(u64),
+    /// The count-derived `latest` is provably not an offset, so no comparison
+    /// against an offset frontier is meaningful.
+    Indeterminate,
+}
+
+/// T-2757: decide the unread verdict for one topic.
+///
+/// The subtlety this exists for, found by running the fix against a live hub:
+/// `latest` has two possible provenances and they are NOT in the same space.
+///
+/// - `latest_offset` from the hub (T-2533) is a true offset.
+/// - `count - 1`, the fallback for a pre-T-2533 hub, is a POSITION in a
+///   retention-bounded window. Once a topic has been trimmed, it is far below
+///   the true latest offset (measured: `agent-chat-arc` count 2000 → 1999,
+///   true latest offset 11966).
+///
+/// A receipt `up_to` is always a true offset. So comparing a receipt frontier
+/// against a `count - 1` latest compares two different units — PL-293's
+/// count-vs-offset decoupling, reached from the frontier side.
+///
+/// The saving grace is that the mismatch is DETECTABLE: a receipt cannot
+/// acknowledge an offset that does not exist yet, so `receipt_up_to > latest`
+/// is proof that `latest` is not the true latest offset. When that holds on the
+/// fallback path we return `Indeterminate` rather than a number.
+///
+/// This matters because the naive version silently UNDER-reports: with
+/// frontier 11952 against a fallback latest of 1999 the row looks caught-up and
+/// disappears, hiding 14 genuinely unread messages. Trading a loud over-count
+/// for a silent under-count would make this worse, not better — Directive #2.
+///
+/// Pure — no I/O.
+pub(crate) fn unread_verdict(
+    latest: u64,
+    latest_is_authoritative: bool,
+    frontier: u64,
+    receipt_up_to: Option<u64>,
+) -> UnreadVerdict {
+    if !latest_is_authoritative
+        && let Some(up_to) = receipt_up_to
+        && up_to > latest
+    {
+        return UnreadVerdict::Indeterminate;
+    }
+    if frontier >= latest {
+        return UnreadVerdict::CaughtUp;
+    }
+    UnreadVerdict::Unread(latest - frontier)
+}
+
+/// T-2757: reconcile the two independently-maintained consumption frontiers
+/// for one (topic, identity).
+///
+/// TermLink records "I have consumed up to offset X on topic T" in two places
+/// that nothing joins:
+///
+/// - the **subscribe cursor** (`~/.termlink/cursors.json`), advanced only by
+///   `subscribe --resume` (T-1318);
+/// - the **receipt frontier** (`msg_type=receipt`, `metadata.up_to`), advanced
+///   by `channel ack` / `agent ack` and every conversation-arc tool that sits
+///   on them (`/check-arc`, `/reply`).
+///
+/// An agent working the conversation arc advances only the second, so the first
+/// stays frozen wherever the last `subscribe --resume` left it — and the digest
+/// built on it reports unread that NO amount of diligent reading can clear.
+/// Measured on the origin host: receipt frontier 174, cursor 44, on the same
+/// DM topic at the same moment; `agent-chat-arc` read 388 unread against a
+/// receipt-derived 14. That unclearable-count shape is PL-340 / T-2709 — a
+/// number that only ever grows is how a reader learns to stop reading it.
+///
+/// `max` is the correct join: both values are claims by the SAME identity that
+/// it consumed up to that offset, so consumption recorded by EITHER counts.
+/// It is also safe in one direction only — it can lower a reported unread
+/// count but never raise one, so this cannot manufacture a false alarm.
+///
+/// Pure — no I/O.
+pub(crate) fn reconcile_consumption_frontier(cursor: u64, receipt_up_to: Option<u64>) -> u64 {
+    match receipt_up_to {
+        Some(up_to) => cursor.max(up_to),
+        None => cursor,
     }
 }
 
@@ -8750,9 +8856,11 @@ pub(crate) fn compute_unread_rows(
     cursors: &[(String, u64)],
     topic_counts: &std::collections::HashMap<String, u64>,
     topic_latest: &std::collections::HashMap<String, u64>,
+    topic_receipts: &std::collections::HashMap<String, u64>,
 ) -> Vec<UnreadRow> {
     let mut rows: Vec<UnreadRow> = Vec::new();
     for (topic, cursor) in cursors {
+        let authoritative = topic_latest.contains_key(topic);
         let latest = match topic_latest.get(topic) {
             Some(l) => *l,
             None => {
@@ -8768,19 +8876,55 @@ pub(crate) fn compute_unread_rows(
                 count - 1
             }
         };
-        if *cursor >= latest {
-            continue;
-        }
-        let unread = latest - cursor;
+        // T-2757: the cursor alone is not this identity's consumption frontier.
+        // An empty `topic_receipts` reproduces the pre-T-2757 behaviour exactly.
+        let receipt_up_to = topic_receipts.get(topic).copied();
+        let frontier = reconcile_consumption_frontier(*cursor, receipt_up_to);
+        let unread = match unread_verdict(latest, authoritative, frontier, receipt_up_to) {
+            UnreadVerdict::CaughtUp => continue,
+            UnreadVerdict::Unread(n) => Some(n),
+            UnreadVerdict::Indeterminate => None,
+        };
         rows.push(UnreadRow {
             topic: topic.clone(),
             cursor: *cursor,
+            receipt_up_to,
+            frontier,
             latest,
             unread,
         });
     }
+    // Descending unread; `None` (indeterminate) sorts LAST rather than being
+    // hidden — an unknown must stay visible, it is not a zero.
     rows.sort_by(|a, b| b.unread.cmp(&a.unread).then_with(|| a.topic.cmp(&b.topic)));
     rows
+}
+
+/// T-2757: this identity's receipt frontier on one topic, or `None`.
+///
+/// `None` is returned for every non-answer — hub does not serve
+/// `channel.receipts` (-32601), RPC/transport failure, or simply no receipt from
+/// this sender yet. All three mean the same thing to the caller: "no receipt
+/// evidence available", which leaves the cursor as the sole frontier and
+/// reproduces the pre-T-2757 count. Deliberately does NOT fall back to walking
+/// the whole topic: the digest runs this once per tracked topic, and a
+/// full-topic walk per topic would turn a cheap read into an O(topics x
+/// envelopes) sweep on exactly the saturated topics that made this bug visible.
+async fn fetch_receipt_frontier(sock: &TransportAddr, topic: &str, fp: &str) -> Option<u64> {
+    let resp = rpc_call_authed(sock, method::CHANNEL_RECEIPTS, json!({ "topic": topic }))
+        .await
+        .ok()?;
+    let result = match resp {
+        termlink_protocol::jsonrpc::RpcResponse::Success(r) => r.result,
+        // -32601 = pre-receipts hub; any other error is equally "no evidence".
+        termlink_protocol::jsonrpc::RpcResponse::Error(_) => return None,
+    };
+    result["receipts"]
+        .as_array()?
+        .iter()
+        .filter(|e| e.get("sender_id").and_then(|v| v.as_str()) == Some(fp))
+        .filter_map(|e| e.get("up_to").and_then(|v| v.as_u64()))
+        .max()
 }
 
 /// T-1358: render the cross-topic unread inbox.
@@ -8830,7 +8974,20 @@ pub(crate) async fn cmd_channel_inbox(
             }
         }
     }
-    let rows = compute_unread_rows(&cursors, &counts, &latest);
+    // T-2757: join in this identity's receipt frontier per topic. Without it the
+    // digest reports unread that no amount of reading can clear (see
+    // `reconcile_consumption_frontier`). Best-effort by design: a hub that does
+    // not serve `channel.receipts` (-32601), or any per-topic failure, leaves the
+    // topic absent from the map, which reproduces the pre-T-2757 number rather
+    // than failing the whole digest.
+    let mut receipt_frontiers: std::collections::HashMap<String, u64> =
+        std::collections::HashMap::new();
+    for (topic, _) in &cursors {
+        if let Some(up_to) = fetch_receipt_frontier(&sock, topic, &fp).await {
+            receipt_frontiers.insert(topic.clone(), up_to);
+        }
+    }
+    let rows = compute_unread_rows(&cursors, &counts, &latest, &receipt_frontiers);
 
     if json_output {
         let arr: Vec<Value> = rows.iter().map(UnreadRow::to_json).collect();
@@ -8843,13 +9000,31 @@ pub(crate) async fn cmd_channel_inbox(
     }
     println!("{} topic(s) with unread content:", rows.len());
     for r in &rows {
-        println!(
-            "  {topic} — {unread} unread (latest={latest}, cursor={cursor})",
-            topic = r.topic,
-            unread = r.unread,
-            latest = r.latest,
-            cursor = r.cursor,
-        );
+        // Show which frontier won when the two disagree — a large gap means the
+        // subscribe cursor is stale, not that mail is piling up.
+        let via = match r.receipt_up_to {
+            Some(up_to) if up_to > r.cursor => format!(", cursor={c} superseded by receipt={up_to}", c = r.cursor),
+            Some(up_to) => format!(", cursor={c}, receipt={up_to}", c = r.cursor),
+            None => format!(", cursor={c}, no receipt", c = r.cursor),
+        };
+        match r.unread {
+            Some(n) => println!(
+                "  {topic} — {n} unread (latest={latest}{via})",
+                topic = r.topic,
+                latest = r.latest,
+            ),
+            // Never print a number we cannot stand behind. Naming the cause
+            // makes this actionable: the remedy is upgrading the hub, and the
+            // operator cannot infer that from a bare "unknown".
+            None => println!(
+                "  {topic} — unread UNKNOWN (hub does not report latest_offset; \
+                 receipt={receipt} exceeds count-derived latest={latest}, so the \
+                 two are not comparable — upgrade the hub to a T-2533+ build)",
+                topic = r.topic,
+                receipt = r.receipt_up_to.map(|v| v.to_string()).unwrap_or_else(|| "-".into()),
+                latest = r.latest,
+            ),
+        }
     }
     Ok(())
 }
@@ -16321,10 +16496,22 @@ mod tests {
         items.iter().map(|(k, v)| (k.to_string(), *v)).collect()
     }
 
+    /// T-2757: no receipt evidence — the pre-T-2757 input. Every T-1358/T-2533
+    /// case below keeps passing this, so those tests still pin the original
+    /// cursor-only behaviour and a regression in it cannot hide behind the new
+    /// reconciliation.
+    fn no_receipts() -> std::collections::HashMap<String, u64> {
+        std::collections::HashMap::new()
+    }
+
+    fn receipts_map(items: &[(&str, u64)]) -> std::collections::HashMap<String, u64> {
+        items.iter().map(|(k, v)| (k.to_string(), *v)).collect()
+    }
+
     #[test]
     fn compute_unread_rows_empty_cursors() {
         let counts = counts_map(&[("foo", 5)]);
-        assert!(compute_unread_rows(&[], &counts, &latest_map(&[])).is_empty());
+        assert!(compute_unread_rows(&[], &counts, &latest_map(&[]), &no_receipts()).is_empty());
     }
 
     #[test]
@@ -16332,7 +16519,7 @@ mod tests {
         // count=5 → latest=4. cursor=4 → caught up.
         let cursors = vec![("foo".to_string(), 4)];
         let counts = counts_map(&[("foo", 5)]);
-        assert!(compute_unread_rows(&cursors, &counts, &latest_map(&[])).is_empty());
+        assert!(compute_unread_rows(&cursors, &counts, &latest_map(&[]), &no_receipts()).is_empty());
     }
 
     #[test]
@@ -16340,9 +16527,9 @@ mod tests {
         // count=10 → latest=9. cursor=5 → unread = 9-5 = 4.
         let cursors = vec![("foo".to_string(), 5)];
         let counts = counts_map(&[("foo", 10)]);
-        let rows = compute_unread_rows(&cursors, &counts, &latest_map(&[]));
+        let rows = compute_unread_rows(&cursors, &counts, &latest_map(&[]), &no_receipts());
         assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].unread, 4);
+        assert_eq!(rows[0].unread, Some(4));
         assert_eq!(rows[0].latest, 9);
         assert_eq!(rows[0].cursor, 5);
     }
@@ -16351,7 +16538,7 @@ mod tests {
     fn compute_unread_rows_topic_missing_dropped() {
         let cursors = vec![("foo".to_string(), 1), ("bar".to_string(), 0)];
         let counts = counts_map(&[("foo", 5)]);
-        let rows = compute_unread_rows(&cursors, &counts, &latest_map(&[]));
+        let rows = compute_unread_rows(&cursors, &counts, &latest_map(&[]), &no_receipts());
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].topic, "foo");
     }
@@ -16360,7 +16547,7 @@ mod tests {
     fn compute_unread_rows_zero_count_dropped() {
         let cursors = vec![("foo".to_string(), 0)];
         let counts = counts_map(&[("foo", 0)]);
-        assert!(compute_unread_rows(&cursors, &counts, &latest_map(&[])).is_empty());
+        assert!(compute_unread_rows(&cursors, &counts, &latest_map(&[]), &no_receipts()).is_empty());
     }
 
     #[test]
@@ -16368,7 +16555,7 @@ mod tests {
         // cursor=10, count=5 → latest=4, cursor >= latest. drop.
         let cursors = vec![("foo".to_string(), 10)];
         let counts = counts_map(&[("foo", 5)]);
-        assert!(compute_unread_rows(&cursors, &counts, &latest_map(&[])).is_empty());
+        assert!(compute_unread_rows(&cursors, &counts, &latest_map(&[]), &no_receipts()).is_empty());
     }
 
     #[test]
@@ -16379,7 +16566,7 @@ mod tests {
             ("c".to_string(), 0), // unread=1
         ];
         let counts = counts_map(&[("a", 5), ("b", 10), ("c", 2)]);
-        let rows = compute_unread_rows(&cursors, &counts, &latest_map(&[]));
+        let rows = compute_unread_rows(&cursors, &counts, &latest_map(&[]), &no_receipts());
         assert_eq!(rows.len(), 3);
         assert_eq!(rows[0].topic, "b");
         assert_eq!(rows[1].topic, "a");
@@ -16394,7 +16581,7 @@ mod tests {
             ("apple".to_string(), 0),
         ];
         let counts = counts_map(&[("zebra", 5), ("apple", 5)]);
-        let rows = compute_unread_rows(&cursors, &counts, &latest_map(&[]));
+        let rows = compute_unread_rows(&cursors, &counts, &latest_map(&[]), &no_receipts());
         assert_eq!(rows[0].topic, "apple");
         assert_eq!(rows[1].topic, "zebra");
     }
@@ -16410,10 +16597,10 @@ mod tests {
         let cursors = vec![("agent-chat-arc".to_string(), 4990)];
         let counts = counts_map(&[("agent-chat-arc", 1000)]); // COUNT(*) after sweep
         let latest = latest_map(&[("agent-chat-arc", 4999)]); // next_offset - 1
-        let rows = compute_unread_rows(&cursors, &counts, &latest);
+        let rows = compute_unread_rows(&cursors, &counts, &latest, &no_receipts());
         assert_eq!(rows.len(), 1, "swept topic must report unread, not drop it");
         assert_eq!(rows[0].latest, 4999);
-        assert_eq!(rows[0].unread, 9);
+        assert_eq!(rows[0].unread, Some(9));
         assert_eq!(rows[0].cursor, 4990);
     }
 
@@ -16426,10 +16613,157 @@ mod tests {
         let cursors = vec![("agent-chat-arc".to_string(), 4990)];
         let counts = counts_map(&[("agent-chat-arc", 1000)]);
         // Empty latest map = pre-T-2533 hub → count-1 path → latest=999 → drop.
-        let rows = compute_unread_rows(&cursors, &counts, &latest_map(&[]));
+        let rows = compute_unread_rows(&cursors, &counts, &latest_map(&[]), &no_receipts());
         assert!(
             rows.is_empty(),
             "count-1 fallback under-reports on swept topics (the T-2533 bug)"
+        );
+    }
+
+    // ---- T-2757: frontier reconciliation ----------------------------------
+
+    #[test]
+    fn reconcile_frontier_receipt_ahead_of_cursor_wins() {
+        // The live bug: acked via receipts, cursor frozen where the last
+        // `subscribe --resume` left it.
+        assert_eq!(reconcile_consumption_frontier(44, Some(174)), 174);
+    }
+
+    #[test]
+    fn reconcile_frontier_cursor_ahead_of_receipt_wins() {
+        // Subscribe-driven workflow with an older ack — the cursor is the real
+        // frontier and must not be dragged backwards by a stale receipt.
+        assert_eq!(reconcile_consumption_frontier(900, Some(100)), 900);
+    }
+
+    #[test]
+    fn reconcile_frontier_no_receipt_is_cursor() {
+        // Pre-T-2757 behaviour preserved exactly when there is no evidence.
+        assert_eq!(reconcile_consumption_frontier(77, None), 77);
+    }
+
+    #[test]
+    fn reconcile_frontier_equal_is_idempotent() {
+        assert_eq!(reconcile_consumption_frontier(5, Some(5)), 5);
+    }
+
+    // Regression for the measured production defect. Origin host, one moment:
+    // cursor=44, receipt up_to=174, true latest=175. Pre-T-2757 the digest
+    // reported 131 unread; the receipt frontier says 1.
+    #[test]
+    fn compute_unread_rows_receipt_frontier_collapses_the_overreport() {
+        let topic = "dm:9219671e28054458:d1993c2c3ec44c94";
+        let cursors = vec![(topic.to_string(), 44)];
+        let counts = counts_map(&[(topic, 176)]);
+        let latest = latest_map(&[(topic, 175)]);
+
+        // Without receipts: the 131 over-report, reproduced.
+        let stale = compute_unread_rows(&cursors, &counts, &latest, &no_receipts());
+        assert_eq!(stale.len(), 1);
+        assert_eq!(
+            stale[0].unread, Some(131),
+            "pre-T-2757 shape must still be reproducible, else this test proves nothing"
+        );
+
+        // With the receipt frontier joined in: 1.
+        let fixed = compute_unread_rows(&cursors, &counts, &latest, &receipts_map(&[(topic, 174)]));
+        assert_eq!(fixed.len(), 1);
+        assert_eq!(fixed[0].unread, Some(1));
+        // Reconciliation is reported, not hidden — both inputs stay visible.
+        assert_eq!(fixed[0].cursor, 44);
+        assert_eq!(fixed[0].receipt_up_to, Some(174));
+        assert_eq!(fixed[0].frontier, 174);
+    }
+
+    // The defect the live run caught, and the reason `unread` is an Option.
+    //
+    // Origin host: `agent-chat-arc` is retention `messages:2000` so count-1
+    // gives latest=1999, while the receipt frontier is a true offset at 11952
+    // (true latest offset 11966, 14 genuinely unread). Naively comparing them
+    // makes the topic look caught-up and DROPS it — swapping a loud 27x
+    // over-report for a silent under-report, which is strictly worse.
+    #[test]
+    fn compute_unread_rows_stale_hub_receipt_beyond_count_is_indeterminate_not_dropped() {
+        let cursors = vec![("agent-chat-arc".to_string(), 1611)];
+        let counts = counts_map(&[("agent-chat-arc", 2000)]);
+        let rows = compute_unread_rows(
+            &cursors,
+            &counts,
+            &latest_map(&[]), // pre-T-2533 hub: no authoritative latest_offset
+            &receipts_map(&[("agent-chat-arc", 11952)]),
+        );
+        assert_eq!(
+            rows.len(),
+            1,
+            "topic must NOT vanish — a receipt past count-1 proves the units differ"
+        );
+        assert_eq!(rows[0].unread, None, "no honest number is available here");
+        assert_eq!(rows[0].receipt_up_to, Some(11952));
+    }
+
+    // Same inputs, but the hub DOES report latest_offset: now the comparison is
+    // between two offsets and a real answer exists.
+    #[test]
+    fn compute_unread_rows_authoritative_latest_resolves_the_same_case() {
+        let cursors = vec![("agent-chat-arc".to_string(), 1611)];
+        let counts = counts_map(&[("agent-chat-arc", 2000)]);
+        let rows = compute_unread_rows(
+            &cursors,
+            &counts,
+            &latest_map(&[("agent-chat-arc", 11966)]),
+            &receipts_map(&[("agent-chat-arc", 11952)]),
+        );
+        assert_eq!(rows.len(), 1);
+        assert_eq!(
+            rows[0].unread,
+            Some(14),
+            "matches what `channel unread` reports for the same identity"
+        );
+    }
+
+    #[test]
+    fn unread_verdict_indeterminate_only_on_the_fallback_path() {
+        // Authoritative latest: a receipt beyond it is not evidence of unit
+        // mismatch, so the ordinary caught-up rule applies.
+        assert_eq!(
+            unread_verdict(100, true, 150, Some(150)),
+            UnreadVerdict::CaughtUp
+        );
+        // Fallback latest with a receipt beyond it: provably incomparable.
+        assert_eq!(
+            unread_verdict(100, false, 150, Some(150)),
+            UnreadVerdict::Indeterminate
+        );
+        // Fallback latest, receipt within range: no proof of mismatch, so the
+        // pre-T-2757 behaviour stands.
+        assert_eq!(unread_verdict(100, false, 40, Some(40)), UnreadVerdict::Unread(60));
+        // Fallback latest, no receipt at all: cursor-only, unchanged.
+        assert_eq!(unread_verdict(100, false, 40, None), UnreadVerdict::Unread(60));
+    }
+
+    // A topic fully acked by receipt must leave the digest entirely rather than
+    // linger with a stale non-zero count that nothing the operator does clears.
+    #[test]
+    fn compute_unread_rows_fully_acked_topic_is_dropped() {
+        let cursors = vec![("t".to_string(), 10)];
+        let counts = counts_map(&[("t", 500)]);
+        let latest = latest_map(&[("t", 499)]);
+        assert!(
+            compute_unread_rows(&cursors, &counts, &latest, &receipts_map(&[("t", 499)])).is_empty(),
+            "receipt frontier at latest means nothing is awaiting attention"
+        );
+    }
+
+    // A receipt on an UNTRACKED topic must not conjure a row: the digest is
+    // scoped to topics with cursors, and receipts only ever refine that set.
+    #[test]
+    fn compute_unread_rows_receipt_for_untracked_topic_adds_nothing() {
+        let cursors: Vec<(String, u64)> = vec![];
+        let counts = counts_map(&[("other", 500)]);
+        let latest = latest_map(&[("other", 499)]);
+        assert!(
+            compute_unread_rows(&cursors, &counts, &latest, &receipts_map(&[("other", 3)]))
+                .is_empty()
         );
     }
 

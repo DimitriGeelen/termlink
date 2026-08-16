@@ -2942,8 +2942,77 @@ fn cursor_list_for_fingerprint_mcp(fingerprint: &str) -> Result<Vec<(String, u64
 struct UnreadRowMcp {
     topic: String,
     cursor: u64,
+    /// T-2757: this identity's receipt frontier, or `None` when no receipt
+    /// evidence is available. Reported alongside `cursor` so the reconciliation
+    /// is auditable rather than a silent swap.
+    receipt_up_to: Option<u64>,
+    /// T-2757: `max(cursor, receipt_up_to)` — what `unread` was computed from.
+    frontier: u64,
     latest: u64,
-    unread: u64,
+    /// T-2757: `None` = INDETERMINATE — see `unread_verdict_mcp`.
+    unread: Option<u64>,
+}
+
+/// T-2757: MCP mirror of the CLI's `UnreadVerdict`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum UnreadVerdictMcp {
+    CaughtUp,
+    Unread(u64),
+    Indeterminate,
+}
+
+/// T-2757: MCP mirror of the CLI's `unread_verdict`.
+///
+/// `latest` has two provenances that are NOT the same unit: the hub's
+/// `latest_offset` (a true offset, T-2533) and the `count - 1` fallback for a
+/// pre-T-2533 hub (a position inside a retention-bounded window, far below the
+/// true offset once trimmed). A receipt `up_to` is always a true offset, so on
+/// the fallback path the two are incomparable — PL-293 reached from the
+/// frontier side.
+///
+/// It is detectable: a receipt cannot acknowledge an offset that does not exist,
+/// so `receipt_up_to > latest` proves `latest` is not the latest offset. Without
+/// this guard the row looks caught-up and is DROPPED, silently hiding real
+/// unread (measured: frontier 11952 vs fallback latest 1999, 14 truly unread) —
+/// trading a loud over-count for a silent under-count.
+fn unread_verdict_mcp(
+    latest: u64,
+    latest_is_authoritative: bool,
+    frontier: u64,
+    receipt_up_to: Option<u64>,
+) -> UnreadVerdictMcp {
+    if !latest_is_authoritative
+        && let Some(up_to) = receipt_up_to
+        && up_to > latest
+    {
+        return UnreadVerdictMcp::Indeterminate;
+    }
+    if frontier >= latest {
+        return UnreadVerdictMcp::CaughtUp;
+    }
+    UnreadVerdictMcp::Unread(latest - frontier)
+}
+
+/// T-2757: MCP mirror of the CLI's `reconcile_consumption_frontier`
+/// (`termlink-cli/src/commands/channel.rs`). Duplicated rather than shared per
+/// the T-2069 convention for tiny pure helpers.
+///
+/// TermLink records "I consumed up to offset X on topic T" in two stores that
+/// nothing joins: the subscribe cursor (`cursors.json`, advanced only by
+/// `subscribe --resume`) and the receipt frontier (`msg_type=receipt`,
+/// advanced by `channel ack` / `agent ack` and the conversation-arc tools built
+/// on them). An agent that reads its mail the normal way advances only the
+/// latter, so a digest keyed on the former reports unread that no amount of
+/// reading can clear — the PL-340 / T-2709 unclearable-count shape.
+///
+/// `max` is the correct join (both are consumption claims by the same identity)
+/// and is safe in one direction only: it can lower a reported count, never
+/// raise one, so it cannot manufacture a false alarm.
+fn reconcile_consumption_frontier_mcp(cursor: u64, receipt_up_to: Option<u64>) -> u64 {
+    match receipt_up_to {
+        Some(up_to) => cursor.max(up_to),
+        None => cursor,
+    }
 }
 
 /// T-1729: pure helper — given a list of `(topic, cursor)` and a
@@ -3483,9 +3552,11 @@ fn compute_unread_rows_mcp(
     cursors: &[(String, u64)],
     topic_counts: &std::collections::HashMap<String, u64>,
     topic_latest: &std::collections::HashMap<String, u64>,
+    topic_receipts: &std::collections::HashMap<String, u64>,
 ) -> Vec<UnreadRowMcp> {
     let mut rows: Vec<UnreadRowMcp> = Vec::new();
     for (topic, cursor) in cursors {
+        let authoritative = topic_latest.contains_key(topic);
         let latest = match topic_latest.get(topic) {
             Some(l) => *l,
             None => {
@@ -3499,13 +3570,19 @@ fn compute_unread_rows_mcp(
                 count - 1
             }
         };
-        if *cursor >= latest {
-            continue;
-        }
-        let unread = latest - cursor;
+        // T-2757: an empty `topic_receipts` reproduces pre-T-2757 behaviour.
+        let receipt_up_to = topic_receipts.get(topic).copied();
+        let frontier = reconcile_consumption_frontier_mcp(*cursor, receipt_up_to);
+        let unread = match unread_verdict_mcp(latest, authoritative, frontier, receipt_up_to) {
+            UnreadVerdictMcp::CaughtUp => continue,
+            UnreadVerdictMcp::Unread(n) => Some(n),
+            UnreadVerdictMcp::Indeterminate => None,
+        };
         rows.push(UnreadRowMcp {
             topic: topic.clone(),
             cursor: *cursor,
+            receipt_up_to,
+            frontier,
             latest,
             unread,
         });
@@ -19249,7 +19326,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_inbox",
-        description = "Cross-topic unread digest for the local identity. Walks the local cursor store (`${TERMLINK_IDENTITY_DIR:-~/.termlink}/cursors.json`, recorded by `subscribe --resume` on prior sessions) and joins with hub-side topic counts. Returns `{ok, my_id, unread_topics:[{topic, cursor, latest, unread}, ...]}` sorted by descending unread (topic asc tiebreak). Answers 'what needs my attention?' across every subscribed topic. When the cursor store is empty (never ran `subscribe --resume`) returns `unread_topics:[]` with `ok:true`."
+        description = "Cross-topic unread digest for the local identity. Enumerates topics from the local cursor store (`${TERMLINK_IDENTITY_DIR:-~/.termlink}/cursors.json`, recorded by `subscribe --resume`), then computes unread against the RECONCILED consumption frontier `max(cursor, receipt up_to)` (T-2757) — because `subscribe --resume` and `channel/agent ack` advance two different stores, and an agent reading its mail normally advances only the receipts. Returns `{ok, my_id, unread_topics:[{topic, cursor, receipt_up_to, frontier, latest, unread}, ...]}` sorted by descending unread (topic asc tiebreak); `cursor` and `receipt_up_to` are both reported so the reconciliation is auditable. Receipt lookup is best-effort per topic: unavailable receipts fall back to the cursor alone. Scope: topics are still enumerated from the cursor store, so a topic never subscribed with `--resume` does not appear at all — this is not a whole-hub view. Empty cursor store returns `unread_topics:[]` with `ok:true`."
     )]
     async fn termlink_agent_inbox(
         &self,
@@ -19316,14 +19393,49 @@ impl TermLinkTools {
             }
         }
 
-        let rows = compute_unread_rows_mcp(&cursors, &counts, &latest);
+        // T-2757: join this identity's receipt frontier per tracked topic. The
+        // cursor alone is not the consumption frontier — see
+        // `reconcile_consumption_frontier_mcp`. Best-effort per topic: any
+        // failure (hub without `channel.receipts`, transport error, no receipt
+        // yet) simply leaves the topic out of the map, which reproduces the
+        // pre-T-2757 number rather than failing the whole digest.
+        let mut receipt_frontiers: std::collections::HashMap<String, u64> =
+            std::collections::HashMap::new();
+        for (topic, _) in &cursors {
+            let receipts_resp = termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_RECEIPTS,
+                serde_json::json!({ "topic": topic }),
+            )
+            .await;
+            if let Ok(resp) = receipts_resp
+                && let Ok(r) = termlink_session::client::unwrap_result(resp)
+                && let Some(entries) = r["receipts"].as_array()
+            {
+                for entry in entries {
+                    if entry.get("sender_id").and_then(|v| v.as_str()) == Some(my_id.as_str())
+                        && let Some(up_to) = entry.get("up_to").and_then(|v| v.as_u64())
+                    {
+                        receipt_frontiers.insert(topic.clone(), up_to);
+                        break;
+                    }
+                }
+            }
+        }
+
+        let rows = compute_unread_rows_mcp(&cursors, &counts, &latest, &receipt_frontiers);
         let rows_json: Vec<serde_json::Value> = rows
             .iter()
             .map(|r| serde_json::json!({
                 "topic": r.topic,
                 "cursor": r.cursor,
+                "receipt_up_to": r.receipt_up_to,
+                "frontier": r.frontier,
                 "latest": r.latest,
                 "unread": r.unread,
+                // T-2757: an explicit flag, so a consumer cannot read a null
+                // `unread` as a zero.
+                "indeterminate": r.unread.is_none(),
             }))
             .collect();
 
@@ -31683,7 +31795,7 @@ YW\tJ
     fn agent_inbox_compute_unread_rows_empty_cursors() {
         let cursors: Vec<(String, u64)> = vec![];
         let counts = std::collections::HashMap::new();
-        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new());
+        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new(), &std::collections::HashMap::new());
         assert!(rows.is_empty());
     }
 
@@ -31692,7 +31804,7 @@ YW\tJ
         let cursors = vec![("alpha".to_string(), 9)];
         let mut counts = std::collections::HashMap::new();
         counts.insert("alpha".to_string(), 10); // latest=9, cursor==latest → drop
-        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new());
+        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new(), &std::collections::HashMap::new());
         assert!(rows.is_empty(), "caller at latest should yield no rows");
     }
 
@@ -31701,12 +31813,12 @@ YW\tJ
         let cursors = vec![("alpha".to_string(), 3)];
         let mut counts = std::collections::HashMap::new();
         counts.insert("alpha".to_string(), 10); // latest=9, cursor=3, unread=6
-        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new());
+        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new(), &std::collections::HashMap::new());
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].topic, "alpha");
         assert_eq!(rows[0].cursor, 3);
         assert_eq!(rows[0].latest, 9);
-        assert_eq!(rows[0].unread, 6);
+        assert_eq!(rows[0].unread, Some(6));
     }
 
     #[test]
@@ -31720,7 +31832,7 @@ YW\tJ
         counts.insert("alpha".to_string(), 5);
         counts.insert("bravo".to_string(), 10);
         counts.insert("charlie".to_string(), 5);
-        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new());
+        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new(), &std::collections::HashMap::new());
         assert_eq!(rows.len(), 3);
         // bravo (9 unread) first, then alpha (alpha<charlie) then charlie
         assert_eq!(rows[0].topic, "bravo");
@@ -31736,7 +31848,7 @@ YW\tJ
         ];
         let mut counts = std::collections::HashMap::new();
         counts.insert("alpha".to_string(), 3);
-        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new());
+        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new(), &std::collections::HashMap::new());
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].topic, "alpha");
     }
@@ -31746,7 +31858,7 @@ YW\tJ
         let cursors = vec![("alpha".to_string(), 0)];
         let mut counts = std::collections::HashMap::new();
         counts.insert("alpha".to_string(), 0); // count==0 → drop
-        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new());
+        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new(), &std::collections::HashMap::new());
         assert!(rows.is_empty());
     }
 
@@ -31755,6 +31867,139 @@ YW\tJ
     // reader at cursor 4990 has 9 unread. The buggy count-1 path computes
     // latest=999 and DROPS the row → `termlink_agent_inbox` silently reports 0
     // unread while 9 messages sit unseen. With latest_offset the row is correct.
+    // ---- T-2757: frontier reconciliation (MCP mirror of the CLI cases) -----
+
+    #[test]
+    fn mcp_reconcile_frontier_receipt_ahead_of_cursor_wins() {
+        assert_eq!(reconcile_consumption_frontier_mcp(44, Some(174)), 174);
+    }
+
+    #[test]
+    fn mcp_reconcile_frontier_cursor_ahead_of_receipt_wins() {
+        assert_eq!(reconcile_consumption_frontier_mcp(900, Some(100)), 900);
+    }
+
+    #[test]
+    fn mcp_reconcile_frontier_no_receipt_is_cursor() {
+        assert_eq!(reconcile_consumption_frontier_mcp(77, None), 77);
+    }
+
+    // Regression for the measured production defect: cursor=44, receipt=174,
+    // latest=175 on one DM topic. Pre-T-2757 the digest said 131; truth is 1.
+    #[test]
+    fn mcp_agent_inbox_receipt_frontier_collapses_the_overreport() {
+        let topic = "dm:9219671e28054458:d1993c2c3ec44c94";
+        let cursors = vec![(topic.to_string(), 44u64)];
+        let mut counts = std::collections::HashMap::new();
+        counts.insert(topic.to_string(), 176u64);
+        let mut latest = std::collections::HashMap::new();
+        latest.insert(topic.to_string(), 175u64);
+
+        let stale = compute_unread_rows_mcp(
+            &cursors,
+            &counts,
+            &latest,
+            &std::collections::HashMap::new(),
+        );
+        assert_eq!(stale.len(), 1);
+        assert_eq!(
+            stale[0].unread, Some(131),
+            "pre-T-2757 shape must stay reproducible, else this test proves nothing"
+        );
+
+        let mut receipts = std::collections::HashMap::new();
+        receipts.insert(topic.to_string(), 174u64);
+        let fixed = compute_unread_rows_mcp(&cursors, &counts, &latest, &receipts);
+        assert_eq!(fixed.len(), 1);
+        assert_eq!(fixed[0].unread, Some(1));
+        assert_eq!(fixed[0].cursor, 44);
+        assert_eq!(fixed[0].receipt_up_to, Some(174));
+        assert_eq!(fixed[0].frontier, 174);
+    }
+
+    // Mirror of the CLI case the live run caught: on a pre-T-2533 hub the
+    // count-derived latest (1999) is not an offset, while the receipt frontier
+    // (11952) is. Dropping the row would silently hide 14 real unread messages.
+    #[test]
+    fn mcp_agent_inbox_stale_hub_receipt_beyond_count_is_indeterminate() {
+        let cursors = vec![("agent-chat-arc".to_string(), 1611u64)];
+        let mut counts = std::collections::HashMap::new();
+        counts.insert("agent-chat-arc".to_string(), 2000u64);
+        let mut receipts = std::collections::HashMap::new();
+        receipts.insert("agent-chat-arc".to_string(), 11952u64);
+
+        let rows = compute_unread_rows_mcp(
+            &cursors,
+            &counts,
+            &std::collections::HashMap::new(),
+            &receipts,
+        );
+        assert_eq!(rows.len(), 1, "topic must not vanish");
+        assert_eq!(rows[0].unread, None);
+
+        // With an authoritative latest_offset the same inputs resolve cleanly.
+        let mut latest = std::collections::HashMap::new();
+        latest.insert("agent-chat-arc".to_string(), 11966u64);
+        let resolved = compute_unread_rows_mcp(&cursors, &counts, &latest, &receipts);
+        assert_eq!(resolved[0].unread, Some(14));
+    }
+
+    #[test]
+    fn mcp_unread_verdict_matches_cli_semantics() {
+        assert_eq!(
+            unread_verdict_mcp(100, true, 150, Some(150)),
+            UnreadVerdictMcp::CaughtUp
+        );
+        assert_eq!(
+            unread_verdict_mcp(100, false, 150, Some(150)),
+            UnreadVerdictMcp::Indeterminate
+        );
+        assert_eq!(
+            unread_verdict_mcp(100, false, 40, Some(40)),
+            UnreadVerdictMcp::Unread(60)
+        );
+        assert_eq!(
+            unread_verdict_mcp(100, false, 40, None),
+            UnreadVerdictMcp::Unread(60)
+        );
+    }
+
+    // Fully acked by receipt → the topic leaves the digest entirely.
+    #[test]
+    fn mcp_agent_inbox_fully_acked_topic_is_dropped() {
+        let cursors = vec![("t".to_string(), 10u64)];
+        let mut counts = std::collections::HashMap::new();
+        counts.insert("t".to_string(), 500u64);
+        let mut latest = std::collections::HashMap::new();
+        latest.insert("t".to_string(), 499u64);
+        let mut receipts = std::collections::HashMap::new();
+        receipts.insert("t".to_string(), 499u64);
+        assert!(compute_unread_rows_mcp(&cursors, &counts, &latest, &receipts).is_empty());
+    }
+
+    // CLI/MCP parity: the two helpers must agree on the same inputs, or the
+    // surfaces diverge again in the opposite direction from the original bug.
+    #[test]
+    fn mcp_reconcile_frontier_matches_cli_semantics() {
+        for (cursor, receipt) in [
+            (44u64, Some(174u64)),
+            (900, Some(100)),
+            (77, None),
+            (5, Some(5)),
+            (0, Some(0)),
+        ] {
+            let expected = match receipt {
+                Some(r) => cursor.max(r),
+                None => cursor,
+            };
+            assert_eq!(
+                reconcile_consumption_frontier_mcp(cursor, receipt),
+                expected,
+                "cursor={cursor} receipt={receipt:?}"
+            );
+        }
+    }
+
     #[test]
     fn agent_inbox_compute_unread_rows_swept_topic_uses_latest_offset() {
         let cursors = vec![("agent-chat-arc".to_string(), 4990)];
@@ -31762,15 +32007,15 @@ YW\tJ
         counts.insert("agent-chat-arc".to_string(), 1000); // COUNT(*) after sweep
         let mut latest = std::collections::HashMap::new();
         latest.insert("agent-chat-arc".to_string(), 4999u64); // next_offset - 1
-        let rows = compute_unread_rows_mcp(&cursors, &counts, &latest);
+        let rows = compute_unread_rows_mcp(&cursors, &counts, &latest, &std::collections::HashMap::new());
         assert_eq!(rows.len(), 1, "swept topic must report unread, not drop it");
         assert_eq!(rows[0].latest, 4999);
-        assert_eq!(rows[0].unread, 9);
+        assert_eq!(rows[0].unread, Some(9));
         assert_eq!(rows[0].cursor, 4990);
 
         // Pre-T-2533 fallback (empty latest map) → count-1 → latest=999 → drop.
         let rows_fallback =
-            compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new());
+            compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new(), &std::collections::HashMap::new());
         assert!(
             rows_fallback.is_empty(),
             "count-1 fallback under-reports on swept topics (the T-2533 bug)"

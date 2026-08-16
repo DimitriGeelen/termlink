@@ -3191,3 +3191,21 @@ learnings:
   task: T-2755
   date: 2026-08-15
   context: Added via context agent
+- id: PL-349
+  learning: "Before widening an allowlist on a deny-first tool, read the deny guard — the obvious fix may be structurally impossible. T-2756 was created to widen sweep-test-debris.sh's debris allowlist so it could see ~630 leaked topics; deny_topic denies agent-conv-* and deny is evaluated before allow, so no allow pattern could ever reach them. The real defect was different and independent: the tool reported candidates=1 against a hub full of debris with no signal it structurally could not see the rest. Record the rejected plan in Decisions — the obvious-looking fix will be proposed again by the next reader."
+  source: P-001
+  task: T-2756
+  date: 2026-08-15
+  context: Added via context agent
+- id: PL-350
+  learning: "When two stores can answer the same question, something must JOIN them or they will disagree silently — and documenting the split is not a join. agent inbox computed unread from cursors.json (advanced only by subscribe --resume) while every conversation-arc tool advanced the receipt frontier instead; measured 388 vs 14 and 131 vs 1 for the same identity on the same hub at the same moment. The divergence had been documented in the CLI help as a design note ('Distinct from channel unread which is receipt-based'), which described the mechanism accurately, said nothing about the consequence, and so made a 27x contradiction read as intended. No test caught it because each side was correct against its own store — the defect lived only in the relationship, which nothing owned. Two verbs answering 'have I read this?' differently is not a difference in scope, it is a contradiction. Aggravating factor: the wrong number could only rise, never clear (PL-340/T-2709), so the reader stops believing it and the wrongness stops being reported."
+  source: P-001
+  task: T-2757
+  date: 2026-08-16
+  context: Added via context agent
+- id: PL-351
+  learning: "A unit test written by the same author, in the same sitting, as the code under test tends to encode the code's assumption rather than the requirement — so it passes on a wrong implementation. T-2757's first version reconciled an unread frontier correctly but then compared it against a latest derived from count-1 on a retention-saturated topic; the row looked caught-up and was DROPPED, hiding 14 real unread messages. Every unit test passed: they asserted the reconciliation, which was right, and inherited the units assumption, which was wrong. What caught it was running the built binary against the live hub that produced the original bug report and noticing a topic had disappeared from the output. Two consequences for practice: (1) for any fix to a reported number, re-run the ORIGINAL reproduction end-to-end before closing, not just the tests; (2) a regression test should pin BOTH the corrected value and the pre-fix value, so a degenerate implementation that returns zero or drops the row cannot satisfy it."
+  source: P-001
+  task: T-2757
+  date: 2026-08-16
+  context: Added via context agent

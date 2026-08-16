@@ -2995,12 +2995,23 @@ pub(crate) enum ChannelAction {
         #[arg(long)]
         json: bool,
     },
-    /// Cross-topic inbox: "what did I miss?" view (T-1358). Walks the local
-    /// per-(topic, identity) cursor store written by `subscribe --resume`
-    /// (T-1318), queries `channel.list` for each topic's current count,
-    /// and renders rows for topics where `count - 1 > cursor`. Read-only;
-    /// does not touch cursors. Distinct from `channel unread <topic>` which
-    /// is single-topic + receipt-based.
+    /// Cross-topic inbox: "what did I miss?" view (T-1358). Enumerates topics
+    /// from the per-(topic, identity) cursor store written by `subscribe
+    /// --resume` (T-1318) and queries `channel.list` for each topic's latest
+    /// offset.
+    ///
+    /// Unread is computed against the RECONCILED consumption frontier
+    /// `max(cursor, receipt up_to)` (T-2757), NOT the cursor alone: the
+    /// subscribe cursor and the receipt frontier are two separate stores, and
+    /// an agent reading its mail through `channel ack` / `agent ack` (or the
+    /// conversation-arc tools built on them) advances only the receipts. Keying
+    /// on the cursor alone reported unread that no amount of reading could
+    /// clear. Both values are shown so you can see which one is stale.
+    ///
+    /// Read-only; does not touch cursors. Still cursor-SCOPED — a topic never
+    /// subscribed with `--resume` does not appear here at all, so this is not a
+    /// whole-hub view. Compare `channel unread <topic>`, which is single-topic
+    /// and purely receipt-based.
     Inbox {
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]
