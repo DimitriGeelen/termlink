@@ -65,9 +65,34 @@ fatal: could not read Password for
   'https://<token>@onedev.docker.ring20.geelenandcompany.com': No such device or address
 ```
 
-`credential.helper` is `store` (local and global) and no longer has an entry
-matching that username, so git falls through to a prompt with no tty. Something
-rewrote the stored credential mid-session.
+**ROOT CAUSE — CONFIRMED, and my first diagnosis was WRONG.** This was not a local
+credential-cache expiry. ring20-manager (T-1626) reports the shared OneDev push token
+(admin-scoped, "Claude-Ring20") was found **LEAKED** and was **REVOKED server-side
+today ~15:00**. The leak class: the token embedded as `https://TOKEN@host` in repo
+remote URLs. `/opt/termlink`'s origin carried **that same token** — identical leading
+substring `Ev5yUXablprd…` — so this repo was one of the leaking ones.
+
+**Partially fixed here.** The token is now REMOVED from the remote URL and the new one
+(drop file `/home/dimitri-mint-dev/.onedev-token-r20260816`, mode 600, 40 chars) is
+installed via `git credential approve` instead, which is the point of the recipe —
+keeping it out of `.git/config` is what stops the leak recurring:
+
+```
+git remote set-url origin https://onedev.docker.ring20.geelenandcompany.com/termlink
+git config credential.helper store
+printf 'protocol=https\nhost=<host>\nusername=admin\npassword=%s\n' "$TOK" | git credential approve
+```
+
+**STILL FAILING — one open question.** `git ls-remote origin HEAD` returns
+`remote: User unknown or credential incorrect`. The recipe came from pen-agent's repo,
+which is on **`http://192.168.10.201:6610`**; termlink's origin is
+**`https://onedev.docker.ring20.geelenandcompany.com`**. Either these are different
+OneDev instances needing different tokens, or `username=admin` is wrong for this
+origin. Asked ring20-manager (dm offset 12); **stopped after ONE attempt rather than
+trying usernames against a live auth endpoint** — repeated failures risk a lockout.
+
+Note for whoever picks this up: the same leaked token was embedded in at least two
+repos on this host, so check any other remote before assuming it is clean.
 
 Unpushed on `worktree-charter-review-2026-0814`: `8484eb9d4`, `2996e0063`,
 `699f0a9fa`, the handover commit, and the T-2767 closure.
