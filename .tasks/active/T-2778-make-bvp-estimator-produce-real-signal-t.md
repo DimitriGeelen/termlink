@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-16T22:18:22Z
-last_update: 2026-08-16T23:01:21Z
+last_update: 2026-08-16T23:25:37Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -78,8 +78,8 @@ task reports it rather than patching it.
 - [x] Cost is either (a) made to produce real signal, with the same differentiation assertion applied, or (b) explicitly left unscored with the reason — **no no-signal defaults are committed to task frontmatter under any circumstances** — **DONE: option (b). Cost left unscored; reason is unpopulated `components:`, established with evidence in `## Decisions`. Zero cost values written to any task.**
 - [x] If cost stays unscored, the quadrant claim is not made: the ranking is reported as value-only and labelled as such, never as HV/LC vs HV/HC — **DONE: the ranking is labelled value-only in `## Decisions` and in the session report.**
 - [x] The estimator's frontmatter churn is assessed before any bulk write (T-2776 measured 2951 insertions across 165 files, including `description:` reflow and `date_finished: null` → empty); if it still reflows unrelated fields, that is reported and the bulk write is reconsidered — **DONE: it still reflows. Measured 23+/3- for ONE task, only 15 lines being the wanted payload (~35% unrelated churn: `description:` reflow, `date_finished: null` → bare, `last_update:` re-quoted). Bulk write REJECTED. Cross-references existing T-2222.**
-- [ ] At least one top-ranked HV item is worked to completion under its own task ID — **T-2644 selected; see `## Decisions` for selection rationale. Ticks only on T-2644 reaching work-completed.**
-- [ ] `bash scripts/run-guard-layer.sh` passes
+- [x] At least one top-ranked HV item is worked to completion under its own task ID — **DONE: T-2644 is `status: work-completed`, `owner: human` (partial-complete — its one Human AC is a raw-mode terminal-render check that is not agent-verifiable, so it correctly stays unchecked). Passed its own P-011 gate 11/11. Fix: the attach loop's fire-and-forget `command.inject` now classifies its outcome; two pure helpers, 8 tests, load-bearing proven by mutation.**
+- [x] `bash scripts/run-guard-layer.sh` passes — **DONE: 45/45 members clean.**
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -398,6 +398,46 @@ the former."
 
 Filed to `framework:pickup` at **offset 5** (2026-08-17), not patched: `estimator.py`
 lives under gitignored `.agentic-framework/` — cross-repo, human governance (G-062).
+
+### 2026-08-17 — the cost axis is fed at COMPLETION time, so it is structurally blind to open work
+
+Found by accident while closing T-2644: the completion flow printed
+`Components: 1 resolved from git history` and wrote
+`components: [crates/termlink-cli/src/commands/pty.rs]` into the frontmatter. So
+`components:` is not primarily an authoring field — it is **auto-populated by
+`--status work-completed`, from the git history of the work that was just done.**
+
+That is measurable, and the split is stark:
+
+| set | populated `components:` | total | share |
+|---|---|---|---|
+| `.tasks/active/` | 9 | 224 | **4.0%** |
+| `.tasks/completed/` | 816 | 2317 | **35.2%** |
+
+An 8.8× ratio, in the wrong direction.
+
+**This changes the diagnosis, and therefore the remedy.** The earlier reading was
+"`components:` is unpopulated, so the cost axis has no input" — true, but it frames
+the fix as an authoring burden (go and fill in components on 125 open tasks).
+The real shape is worse and cheaper to state: `blast_radius` is derived from a field
+that only reliably exists **after** the work is finished. The cost axis therefore has
+data for the tasks you no longer need to prioritise, and is blind on the tasks you do.
+Cost cannot rank open work **by construction**, not by neglect.
+
+It also explains the T-2776 measurement exactly — 141 of 166 tasks at
+`blast_radius=0` was never an estimator fault, and no amount of running it more
+often would have improved it.
+
+Consequences for the operator's "run the BVP estimator regularly" ask:
+- **Value** can be run regularly and is trustworthy today (47 distinct raw values).
+- **Cost** cannot, until the input is available before the work rather than after.
+  Options, none of which are this repo's to choose (G-062): predict blast radius from
+  the task text rather than read it from `components:`; populate `components:` at
+  task-creation as a declared intent; or drop the quadrant and rank on value alone.
+- Until then, any HV/LC vs HV/HC quadrant claim is unsupported. Stated here so a
+  future session does not re-derive it from scratch a third time.
+
+Sent as an addendum to the `framework:pickup` bug report (offset 5).
 
 
 <!-- Filled at completion of inception tasks via:

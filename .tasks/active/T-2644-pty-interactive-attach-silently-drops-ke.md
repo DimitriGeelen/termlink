@@ -4,20 +4,20 @@ name: "PTY interactive attach silently drops keystrokes when command.inject fail
 description: >
   In interactive PTY attach (pty.rs ~488), keystrokes are sent via a fire-and-forget 'let _ = client::rpc_call(socket, command.inject, ...)'. If the inject RPC fails (session exited, hub blip), the operator's input vanishes with zero feedback — they keep typing into a dead session. Delicate: the loop runs in raw-terminal mode, so any feedback must not corrupt the terminal render. Round-8 Usability sweep, silent-degradation class, verified in code.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/pty.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T15:02:25Z
-last_update: 2026-08-16T23:01:35Z
-date_finished: null
+last_update: 2026-08-16T23:22:49Z
+date_finished: 2026-08-16T23:22:49Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -324,6 +324,44 @@ class as T-2666/T-2667 (silent-exit fixed in `discover`, left un-migrated in
      without auto-creating; T-1832 added auto-create as fallback for
      legacy tasks lacking this section. -->
 
+## Recommendation
+
+**Recommendation:** GO
+
+**Rationale:** All 6 Agent ACs are met and all 11 verification commands pass. The
+one open item is the Human AC, and it is open for a real reason rather than as
+paperwork: whether a hint renders cleanly inside a raw-mode PTY cannot be asserted
+from a unit test, and this repo has no PTY harness (the four `interactive_integration`
+tests are `#[ignore]`d for exactly that reason). Everything that COULD be made
+mechanical was: the throttle policy and the failure classification are pure functions
+with 8 tests, and those tests were proven load-bearing by mutation rather than assumed
+— removing the status check fails 3 of them, making the hint unconditional fails 2.
+
+Two things a reviewer should weigh before accepting:
+
+1. **The fix is larger than the filed defect, deliberately.** The filing named the
+   discarded `Err`. Building it surfaced a second, worse failure mode the filing did
+   not describe — `status:"resolved"` (no PTY) returns RPC **success**, so the
+   sibling poll branch never notices and the operator types into a live-looking
+   session indefinitely. Fixing only the literal filed defect would have left the
+   worse half in place while looking complete. Full analysis in the RCA amendment.
+2. **A behavioural choice was made** (throttled hint, never auto-detach) with the
+   rejected alternatives recorded in `## Decisions`. If the reviewer disagrees with
+   the every-25th re-announce cadence, that is a one-line change in
+   `should_warn_inject_failure` with a test already pinning the shape.
+
+**Evidence:**
+- `crates/termlink-cli/src/commands/pty.rs` — `let _ = client::rpc_call(socket, "command.inject", params).await;` replaced by classify-then-report; two new pure helpers (`should_warn_inject_failure`, `attach_inject_failure_reason`).
+- `cargo test -p termlink`: **1137 + 3 + 174 passed, 0 failed**, including the 8 new tests.
+- Mutation proof: status check removed → 3 tests fail; throttle removed → 2 tests fail. Both mutations executed and reverted; tree restored green.
+- P-011: **11/11 verification commands PASS**.
+- `bash scripts/run-guard-layer.sh` → PASS (no new alloc-sink / drain-sink / silent-exit / busy-spin candidates).
+- Detach-key and output-poll branches verified untouched — the change is confined to the inject arm of the `select!`.
+
+**What a GO does NOT claim:** that the hint has been seen rendering in a real raw-mode
+terminal. That is precisely what the Human AC is for; it should not be checked on the
+strength of this recommendation.
+
 ## Updates
 
 ### 2026-08-12T15:02:25Z — task-created [task-create-agent]
@@ -333,3 +371,6 @@ class as T-2666/T-2667 (silent-exit fixed in `discover`, left un-migrated in
 
 ### 2026-08-16T23:01:35Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-08-16T23:22:49Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

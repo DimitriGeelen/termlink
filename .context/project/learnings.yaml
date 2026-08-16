@@ -3257,3 +3257,9 @@ learnings:
   task: T-2770
   date: 2026-08-16
   context: Added via context agent
+- id: PL-360
+  learning: "An assertion about code must read code: strip comment lines before grepping for a defect string. A fix that QUOTES the defect verbatim in its own explanatory comment will match a naive grep, so the gate fails on a tree that is correct. Observed twice — T-2776 (assertion matched the task's own prose) and T-2644 (`! grep -qF 'let _ = client::rpc_call(...)'` returned rc=1 against the fixed code because the fix documents what it replaced). Remedy: out=$(grep -v '^[[:space:]]*//' FILE); ! grep -qF 'DEFECT' <<< \"$out\" — and always run a negative control that reintroduces the defect, since a self-referential assertion looks identical to a working one until you make it fail."
+  source: P-011
+  task: T-2644
+  date: 2026-08-16
+  context: Added via context agent

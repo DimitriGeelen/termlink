@@ -927,3 +927,17 @@ decisions:
     date: 2026-08-16
     task: T-2776
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-112
+    decision: "announce the START of a failure streak, then re-announce every 25th"
+    scope: project
+    date: 2026-08-16
+    task: T-2644
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-113
+    decision: "`attach_inject_failure_reason` delegates the \"did it land?\" question to"
+    scope: project
+    date: 2026-08-16
+    task: T-2644
+    rationale: "Auto-captured from task file on completion"
