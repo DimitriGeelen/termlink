@@ -2,6 +2,28 @@
 
 Read this before `LATEST.md`. It is shorter and it says what to do.
 
+> ## BUILD ORDER — four specified tasks, nothing left to analyse first
+>
+> This session ended analysis-rich and build-poor: everything below is specified down to
+> the code change, and none of it is built, because the budget gate blocks source edits
+> past the ceiling. **Do not open another review axis before these are built.** A fifth
+> unbuilt spec is worth less than one shipped fix.
+>
+> 1. **T-2770** — EACCES hole in `socket_has_listener`. Smallest, and it corrects code
+>    shipped 2026-08-16. Exact `io::ErrorKind` branches are named in the task. Containment
+>    for the whole fragmentation class. **Start here.**
+> 2. **T-2771 IW-3** — "what does authorization by uid actually GRANT?" Answer this BEFORE
+>    writing any local-auth code: if local peers need distinct identities with distinct
+>    rights, T-2771 and T-2769 are one design problem and must not be solved twice.
+> 3. **T-2769** — bind `claimer` to the authenticated sender. Blocked on its own IW-2
+>    (every current caller passes a friendly name, not a fingerprint — enforcing would
+>    reject the live fleet) and IW-3 (breaks the orchestrator recipe's ergonomics). Needs
+>    a compatibility path before code.
+> 4. **T-2696** — wire the two unexecuted charter-verb provers. Independent of the above.
+>
+> Ordering rationale: 1 is bounded and reduces live risk today; 2 may collapse 3 into a
+> single design; 4 is parallelisable by anyone.
+
 Branch: `worktree-charter-review-2026-0814`, worktree
 `/opt/termlink/.claude/worktrees/charter-review-2026-0814`.
 Everything is committed. **8 commits are unpushed** — see "Do not sink time here" §2.
