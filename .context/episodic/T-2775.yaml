@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2775: Verification-block pipelines decide pass/fail by SIGPIPE, not by the check (L-613/PL-161 class)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-16T20:08:19Z
+# ============================================================================
+
+task_id: T-2775
+task_name: "Verification-block pipelines decide pass/fail by SIGPIPE, not by the check (L-613/PL-161 class)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-16T19:50:37Z
+completed: 2026-08-16T20:07:23Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  update-task.sh runs each Verification line as 'if ( eval $cmd )' under 'set -euo pipefail', so 'cmd | grep -q PAT' exits 141 when grep matches early and SIGPIPEs the producer — the gate FAILS precisely when the check SUCCEEDS. Measured here: 61 active tasks carry 262 such lines (58% of all active verification commands). Reproduced under the exact gate construct. Cross-project confirmed by AEF L-613 and 050-email-archive PL-161.
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-verification-pipefail.sh` exists, carries the'
+  - 'The detector clears the genuinely-safe idioms (pipeline inside `$(...)`'
+  - 'A fixture suite `tests/verification-pipefail-fixtures.sh` covers both'
+  - 'The already-exposed lines are enumerated in a git-tracked allowlist'
+  - 'Every output path (including the clean one) states the measured census and'
+  - 'Exit codes follow the guard-layer contract: 0 clean, 1 firing, 2 tooling;'
+  - '`bash scripts/run-guard-layer.sh` passes with the new member included —'
+  - 'The check is load-bearing: removing the `T-1296` allowlist line re-fires'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 16 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 16
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2775-verification-block-pipelines-decide-pass.md
+generated_by: context-agent-hybrid

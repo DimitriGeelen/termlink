@@ -4,10 +4,10 @@ name: "Verification-block pipelines decide pass/fail by SIGPIPE, not by the chec
 description: >
   update-task.sh runs each Verification line as 'if ( eval $cmd )' under 'set -euo pipefail', so 'cmd | grep -q PAT' exits 141 when grep matches early and SIGPIPEs the producer — the gate FAILS precisely when the check SUCCEEDS. Measured here: 61 active tasks carry 262 such lines (58% of all active verification commands). Reproduced under the exact gate construct. Cross-project confirmed by AEF L-613 and 050-email-archive PL-161.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-16T19:50:37Z
-last_update: 2026-08-16T19:56:11Z
-date_finished: null
+last_update: 2026-08-16T20:07:23Z
+date_finished: 2026-08-16T20:07:23Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,7 +34,23 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+`update-task.sh` runs every `## Verification` line as `if ( eval "$cmd" ); then` under
+`set -euo pipefail` (`:14`, `:1066`). pipefail survives into the condition, so a pipeline's
+status is decided by its worst stage — including a producer that was SIGPIPEd because the
+consumer exited early. `cargo test 2>&1 | grep -q "test result: ok"` therefore returns
+**141**: the gate fails precisely when the check succeeds, and the earlier the match, the
+more reliably it fails.
+
+Arrived as two independent peer filings — AEF `L-613` (T-3039/T-3045) and
+050-email-archive `PL-161` (T-1948) — on `channel:learnings`. Both were confirmed here
+against the real gate construct before any work started.
+
+The local finding is sharper than either report. **PL-080 recorded this class on
+2026-04-25**, with the explicit instruction "Avoid bare `| grep -q` in verification
+commands." Measured 2026-08-16: 1490 such lines across 802 tasks, 262 of them in 61 active
+tasks — 58% of all active verification commands. The learning was accurate, named the exact
+failure mode, and prevented nothing over four months. That is the evidence for a structural
+check rather than more documentation.
 
 ## Acceptance Criteria
 
@@ -98,6 +114,47 @@ date_finished: null
        Conversion: this AC should be moved to ### Agent and
        `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` added to ## Verification.
 -->
+
+## RCA
+
+**Symptom:** A `## Verification` line of the form `cmd | grep -q PAT` reports exit 141,
+failing the P-011 completion gate, even though the pattern was found. The failure is
+*inversely* correlated with the check being satisfied: the earlier `grep -q` matches, the
+more certainly the producer is still writing when the pipe closes.
+
+**Root cause:** `update-task.sh:14` sets `set -euo pipefail` and `:1066` evaluates each
+line as `if ( eval "$cmd" ); then`. pipefail survives into the condition, so the pipeline
+adopts the status of its worst stage. `grep -q` exits 0 on first match and closes the read
+end; the producer receives SIGPIPE and exits 141; pipefail surfaces the 141 rather than
+grep's 0. The check's own verdict is discarded in favour of a signal about process
+teardown.
+
+**Why structurally allowed:** two layers.
+
+*Detection.* Nothing read verification blocks as code. The guard layer had nine members,
+every one aimed at product source (`crates/**`, `scripts/**`, docs, release config); the
+gate that decides whether product source may be called done was itself unexamined. So the
+one place the framework asserts "this work is verified" was the one place with no guard.
+
+*Knowledge.* This was not an unknown. PL-080 recorded it on 2026-04-25 with a correct
+diagnosis and an explicit instruction. It was written into `learnings.yaml`, surfaced by
+`fw work-on` as related knowledge, and accumulated 1490 violations anyway. A learning is
+read at most once, by whoever happens to run the command that surfaces it; a check runs
+every time. Treating documentation as a control is what allowed a known defect to spread
+for four months.
+
+**Prevention:** `scripts/check-verification-pipefail.sh`, guard-layer member #10, fires on
+any verification line whose exit status is pipeline-decided, with the 158 pre-existing
+lines ledgered by command-hash so a reword re-fires and a new occurrence fires
+immediately. 26 fixtures, four of which execute the idioms under the gate's own construct
+so the detection rule rests on measurement rather than on belief about bash — which is how
+the measurement caught that the peer projects' prescribed remediation is itself
+size-dependent, a defect that would otherwise have been adopted here verbatim.
+
+**Not prevented, deliberately:** the 158 existing lines still misreport. Retrofit is a
+human decision (§ Decisions). Until then the residual risk is a false FAIL that pushes an
+operator toward `--force` — which skips the entire block, so the second-order harm exceeds
+the first-order one.
 
 ## Decisions
 
@@ -232,3 +289,6 @@ out=$(bash scripts/run-guard-layer.sh 2>&1 || true); grep -q "guard layer: PASS"
 
 ### 2026-08-16T19:56:11Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-08-16T20:07:23Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
