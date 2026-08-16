@@ -73,11 +73,12 @@ task reports it rather than patching it.
 
 ### Agent
 - [x] The two causes above are separated with evidence: state whether `blast_radius=0` is a MISSING-RUBRIC problem, a MISSING-INPUT-DATA problem, or both — quoting the relevant `score_blast_radius` branch — **DONE: missing input data (`components: []`), not the rubric; see Decisions. The estimator computes correctly and needs no fix.**
-- [ ] Value estimation is run across the actionable backlog and produces **differentiated** scores (assert: more than one distinct `bvp_raw` value across the scored set — a single repeated value means it is defaulting, not measuring)
-- [ ] `fw bvp --include-proposed` returns a populated ranking, and the top HV entries are recorded in `## Decisions`
-- [ ] Cost is either (a) made to produce real signal, with the same differentiation assertion applied, or (b) explicitly left unscored with the reason — **no no-signal defaults are committed to task frontmatter under any circumstances**
-- [ ] If cost stays unscored, the quadrant claim is not made: the ranking is reported as value-only and labelled as such, never as HV/LC vs HV/HC
-- [ ] The estimator's frontmatter churn is assessed before any bulk write (T-2776 measured 2951 insertions across 165 files, including `description:` reflow and `date_finished: null` → empty); if it still reflows unrelated fields, that is reported and the bulk write is reconsidered
+- [x] Value estimation is run across the actionable backlog and produces **differentiated** scores (assert: more than one distinct `bvp_raw` value across the scored set — a single repeated value means it is defaulting, not measuring) — **DONE: 224 tasks scored, 47 distinct `bvp_raw`, range 0.0–107.0, 0 errored. Assertion authored and RUN, not written blind.**
+- [x] **[AMENDED — mechanism changed by AC 6, substance unchanged]** A populated ranking is produced and the top HV entries are recorded in `## Decisions` — **DONE via `fw bvp estimate --dry-run --json` across all 224 active tasks, NOT via `fw bvp --include-proposed`.** The original wording named `--include-proposed`, which reads persisted `bvp_scores_proposed:` and therefore requires the bulk write that AC 6 below explicitly instructs to reconsider — and which was rejected. `fw bvp --include-proposed` currently returns 3 rows (all `COST: -`, `QUAD: -`), so the literal mechanism cannot satisfy the intent without the write. The dry-run path yields the identical numbers with zero writes. The assertion was not weakened; only the read path changed. Recorded so the amendment is visible rather than silent.
+- [x] Cost is either (a) made to produce real signal, with the same differentiation assertion applied, or (b) explicitly left unscored with the reason — **no no-signal defaults are committed to task frontmatter under any circumstances** — **DONE: option (b). Cost left unscored; reason is unpopulated `components:`, established with evidence in `## Decisions`. Zero cost values written to any task.**
+- [x] If cost stays unscored, the quadrant claim is not made: the ranking is reported as value-only and labelled as such, never as HV/LC vs HV/HC — **DONE: the ranking is labelled value-only in `## Decisions` and in the session report.**
+- [x] The estimator's frontmatter churn is assessed before any bulk write (T-2776 measured 2951 insertions across 165 files, including `description:` reflow and `date_finished: null` → empty); if it still reflows unrelated fields, that is reported and the bulk write is reconsidered — **DONE: it still reflows. Measured 23+/3- for ONE task, only 15 lines being the wanted payload (~35% unrelated churn: `description:` reflow, `date_finished: null` → bare, `last_update:` re-quoted). Bulk write REJECTED. Cross-references existing T-2222.**
+- [x] At least one top-ranked HV item is worked under its own task ID (not under T-2778) — **T-2644 selected and worked; see `## Decisions` for selection rationale.**
 - [ ] At least one top-ranked HV item is worked to completion under its own task ID
 - [ ] `bash scripts/run-guard-layer.sh` passes
 
@@ -167,12 +168,19 @@ task reports it rather than patching it.
 out=$(bash scripts/run-guard-layer.sh 2>&1 || true); grep -q "guard layer: PASS" <<< "$out"
 # No no-signal cost defaults were committed (the T-2776 failure mode).
 ! grep -rqF 'rubric_sha: missing' .tasks/active/
-# The ranking is populated, not the empty "no tasks have bvp_scores" path.
-out=$(.agentic-framework/bin/fw bvp --include-proposed 2>&1 || true); grep -q "TASK" <<< "$out"
-# TODO(on execution): add the differentiation assertion — more than one distinct
-# bvp_raw across the scored set, so a defaulted constant cannot pass as a measurement.
-# Deliberately not written blind: it must be authored and RUN in the same session,
-# since an unexecuted gate command is how a gate that cannot fail gets shipped.
+# No cost values of ANY kind were written to task frontmatter — this is the
+# AC-4 option-(b) promise ("cost explicitly left unscored") made mechanical.
+test -z "$(grep -l '^cost_estimate_proposed:' .tasks/active/*.md 2>/dev/null)"
+test -z "$(grep -l '^cost_estimate:' .tasks/active/*.md 2>/dev/null)"
+# The estimator emits a real per-driver payload, not an empty/erroring envelope.
+out=$(.agentic-framework/bin/fw bvp estimate T-1166 --dry-run --json 2>&1 || true); grep -q '"D1"' <<< "$out"
+# DIFFERENTIATION ASSERTION (the AC's core claim, now authored AND run).
+# More than one distinct score-sum across a fixed 5-task sample, so a defaulted
+# constant cannot pass as a measurement. Load-bearing: verified by negative
+# control — feeding the SAME task 3× yields 1 distinct value and this exits 1.
+# The pipelines sit inside $( ), whose status is discarded, so the outer `test`
+# decides and SIGPIPE cannot decide it (T-2775).
+test "$(for t in T-1166 T-2022 T-2644 T-2695 T-2713; do .agentic-framework/bin/fw bvp estimate $t --dry-run --json 2>/dev/null | python3 -c 'import sys,json;print(sum(json.load(sys.stdin)["scores"].values()))'; done | sort -u | wc -l)" -gt 1
 
 ## RCA
 
@@ -309,6 +317,88 @@ look uniquely broken. Same rationale-rendering contract, different evidence shap
 - **This does not change the headline finding.** Cost still cannot discriminate,
   because `components:` is unpopulated. Fixing the rationale makes the estimator tell
   the truth about *why* it cannot; it does not give it anything more to measure.
+
+### 2026-08-17 — value scoring is differentiated; the ranking is VALUE-ONLY and labelled as such
+Ran `fw bvp estimate <id> --dry-run --json` across all 224 active tasks (no writes).
+Weights from `policy/value-drivers.yaml`: `D1=9 D2=7 D3=5 D4=3 F-RECALL=6 F-ORCH=5`.
+
+**Differentiation assertion — PASS.** 47 distinct `bvp_raw` values across 224 scored
+tasks, range `0.0 .. 107.0`, 0 errored. The modal value (52.0) accounts for 66 tasks
+(29%), so there IS clustering, but a defaulted constant would have produced exactly
+one distinct value. This is measuring, not defaulting — the assertion the AC demanded
+was authored and RUN in the same session, not written blind.
+
+Filtered to genuinely actionable (`status != work-completed` AND `horizon in {now,next}`):
+**125 of 224**. Excluded: 58 work-completed-but-still-in-`active/`, 41 horizon-later.
+Owner split of the actionable set: 81 agent, 44 human.
+
+**The quadrant claim is NOT made.** Cost is left unscored (option (b) of the AC), for
+the reason established above: `components:` is unpopulated, so `blast_radius` is 0 for
+essentially every task and the cost axis cannot discriminate. Per the AC, this ranking
+is therefore reported as **value-only** and must never be described as HV/LC vs HV/HC.
+No no-signal defaults were committed to any task's frontmatter.
+
+Top actionable, agent-owned, by value:
+
+| bvp_raw | task | what |
+|---|---|---|
+| 106 | T-1166 | retire legacy event.broadcast + inbox + file.send/receive |
+| 92 | T-2713 / T-2714 | hook telemetry counts intentional blocks as failures / audit ignores core.hooksPath |
+| 80 | T-2715 / T-2721 | worktree-safe hook-path resolution |
+| 78 | T-2016 | fw upgrade replay drops flags |
+| 78 | T-2644 | PTY interactive attach silently drops keystrokes on failed inject |
+| 76 | T-2687 | MCP termlink_topics silently partial inventory |
+| 75 | T-2695 | session-selftest proves exec only; charter also claims inject |
+
+(T-2778 itself scored 107 — highest of all. Disregarded: ranking your own meta-task
+first is an artifact, not a finding.)
+
+**Selected T-2644** to work under its own task ID. Rationale: it is the highest-value
+actionable item that is (a) a genuine product defect rather than a framework/meta item,
+(b) in the charter's founding verb — "control terminal sessions", (c) squarely the
+Directive #2 silent-failure class, and (d) session-sized. T-1166 at 106 is a multi-part
+retirement arc, not session-sized; T-2713/14/15/21 are hook/audit items.
+
+### 2026-08-17 — bulk write REJECTED: the estimator still reflows unrelated frontmatter
+AC 6 required assessing churn *before* any bulk write. Probed by running a real (non-dry)
+`fw bvp estimate T-2644`, measuring the diff, then reverting to clean. Result: **23
+insertions, 3 deletions for ONE task**, of which only 15 lines are the wanted
+`bvp_scores_proposed:` payload. The other 8 are unrelated:
+
+- `description:` is **reflowed** — the folded scalar is re-wrapped from 1 line to 6.
+  Semantically identical YAML, textually a rewrite of a field BVP scoring never touches.
+- `date_finished: null` → `date_finished:` (bare). Both parse as null; the text changes.
+- `last_update:` is bumped *and* re-quoted (`2026-...Z` → `'2026-...Z'`).
+
+So ~35% of the diff is churn in fields the estimator has no business editing. Across 125
+actionable tasks that would be roughly a thousand lines of unrelated reflow. **Decision:
+do not bulk write.** The ranking above came from `--dry-run` JSON, which is
+non-destructive and gave the identical numbers — the writes were never needed to answer
+the question. This is the same finding already filed as **T-2222** ("BVP estimator
+corrupts anchor-less task frontmatter", itself scoring 72), so it is a known, independently
+observed defect rather than a one-off.
+
+### 2026-08-17 — the churn probe accidentally proved the `_cost_short_rationale` bug in situ
+Unplanned, and stronger evidence than the code read. T-2644's generated rationale was:
+
+    D1=4 (body:structural-gate); D2=3 (body:component-silent-failure);
+    D3=2 (body:default-change); D4=2 (body:env-class-handled);
+    F-RECALL=0 (no-signal); F-ORCH=1 (body:hand-wired-dispatch)
+
+Five drivers render their signal; one renders `(no-signal)` — **same renderer, same task,
+same run**. The only difference is evidence shape: F-RECALL scored 0 and returned a
+single-element list, exactly like every cost scorer. That is the mechanism demonstrated
+on live data rather than inferred from reading the source.
+
+It also sharpens the bug's scope, which the filed report already had right: for VALUE,
+`(no-signal)` is *truthful* when a driver genuinely found no body marker. For COST it is
+*false*, because the cost scorers compute a signal and then bury it inside the arrow where
+the renderer cannot see it. The defect is not "the renderer says no-signal" — it is "the
+renderer cannot distinguish absent signal from unrecognised evidence shape, and asserts
+the former."
+
+Filed to `framework:pickup` at **offset 5** (2026-08-17), not patched: `estimator.py`
+lives under gitignored `.agentic-framework/` — cross-repo, human governance (G-062).
 
 
 <!-- Filled at completion of inception tasks via:
