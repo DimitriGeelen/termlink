@@ -3209,3 +3209,15 @@ learnings:
   task: T-2757
   date: 2026-08-16
   context: Added via context agent
+- id: PL-352
+  learning: "A class-fix that does not transfer to every caller has not fixed the class. T-2390 correctly RCA'd count-as-offset seeking and fixed agent-listeners.sh via the cv_index fast path — a remedy that only works on cv-keyed topics. Its two siblings (agent-chat-arc-recent.sh, fleet-adoption-snapshot.sh) read a conversation topic with no cv_key, so the remedy could not transfer and they were simply left, still broken, for months. PL-293 already says to grep all callers; the missing step is that callers the blessed remedy cannot cover need their own fix, and the class stays open until they have one."
+  source: P-001
+  task: T-2758
+  date: 2026-08-16
+  context: Added via context agent
+- id: PL-353
+  learning: "A read that cannot reach the tail must not certify itself complete. The pre-fix /recent-chat set read_complete:true with empty degraded_reasons while its scan window sat ~8500 offsets below the live range — the strongest possible false assurance, emitted by the very field a caller is told to gate on. Deriving a tail from a LOWER BOUND (a receipt frontier) is legitimate, but it must then drain forward until a short batch proves the end was reached; otherwise the read stops just short of the tail and still looks authoritative."
+  source: P-001
+  task: T-2758
+  date: 2026-08-16
+  context: Added via context agent
