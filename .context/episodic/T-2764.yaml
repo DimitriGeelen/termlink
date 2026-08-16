@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2764: Triage the stuck-claims canary firing that the worktree false all-clear was hiding
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-16T13:39:02Z
+# ============================================================================
+
+task_id: T-2764
+task_name: "Triage the stuck-claims canary firing that the worktree false all-clear was hiding"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-16T13:35:12Z
+completed: 2026-08-16T13:38:55Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-2763 fixed canary-status to read the main checkout, which immediately surfaced stuck-claims-canary as FIRING. It had been invisible from the worktree. Triage what is actually stuck, decide whether it is real (a dead claim holder) or canary noise, and either clear it or record why it is expected. This is the first finding the T-2763 fix produced, so it also serves as evidence the fix earns its keep.
+
+# Key outcomes
+outcomes:
+  - 'The canary''s firing condition is reproduced on demand and the specific stuck topic(s), claim holder(s), lease age, and `active`/`expired` counts are recorded — named values, not "it fires"'
+  - 'Determined which arm of the T-2556 heuristic fired: the `newest_expired_at_ms` recency arm (T-2709''s self-clearing replacement for the old monotonic `expired_count > 0` latch) or `oldest_active_age_ms > 60_000` — **the old `expired_count > 0` latch, running from `main`**'
+  - 'A verdict is recorded and justified: REAL vs EXPECTED vs CANARY DEFECT — **CANARY DEFECT, already fixed on this branch by T-2709 but not live because cron runs `main`, which is 225 commits behind**'
+  - 'If REAL: N/A — not real. Every flagged topic has `active=0`; nothing is held, so nothing could be stuck.'
+  - 'If EXPECTED or CANARY DEFECT: no state was mutated, and the reason is written down in full above'
+  - 'The post-triage canary state is re-measured and reported: run from this branch it exits **0** (`772 topics, 0 stuck`); run from `main` it will keep firing until the branch is merged, and the record says exactly why that is the correct outcome rather than something to silence'
+  - 'No claim belonging to a LIVE peer is force-released — nothing was released at all'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 3
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2764-triage-the-stuck-claims-canary-firing-th.md
+generated_by: context-agent-hybrid

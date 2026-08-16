@@ -4,10 +4,10 @@ name: "Triage the stuck-claims canary firing that the worktree false all-clear w
 description: >
   T-2763 fixed canary-status to read the main checkout, which immediately surfaced stuck-claims-canary as FIRING. It had been invisible from the worktree. Triage what is actually stuck, decide whether it is real (a dead claim holder) or canary noise, and either clear it or record why it is expected. This is the first finding the T-2763 fix produced, so it also serves as evidence the fix earns its keep.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-16T13:35:12Z
-last_update: 2026-08-16T13:35:12Z
-date_finished: null
+last_update: 2026-08-16T13:38:55Z
+date_finished: 2026-08-16T13:38:55Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -316,3 +316,6 @@ recur), and this task delivers only the former.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2764-triage-the-stuck-claims-canary-firing-th.md
 - **Context:** Initial task creation
+
+### 2026-08-16T13:38:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
