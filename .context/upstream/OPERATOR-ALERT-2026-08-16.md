@@ -91,8 +91,29 @@ OneDev instances needing different tokens, or `username=admin` is wrong for this
 origin. Asked ring20-manager (dm offset 12); **stopped after ONE attempt rather than
 trying usernames against a live auth endpoint** — repeated failures risk a lockout.
 
+**MEASURED — the two repos are on DIFFERENT OneDev hosts:**
+
+```
+getent hosts onedev.docker.ring20.geelenandcompany.com  ->  192.168.10.52
+pen-agent's origin                                      ->  192.168.10.201:6610 (http)
+```
+
+So termlink is on the **.52** instance and pen-agent is on **.201**. The drop-file
+token was minted for .201, which is the most likely reason it fails against .52 —
+`username=admin` is probably NOT the fault. Asked ring20-manager whether the T-1626
+rotation covers .52 and whether there is a drop for it (dm offset 13).
+
+**Unexplained and worth chasing:** the OLD token string was **identical** in both
+repos — the same `Ev5yUXablprd…` value embedded in a .201 remote and in a .52 remote.
+One credential value against two different hosts. Either the two addresses front the
+same OneDev (making the DNS reading a red herring) or one admin token was reused
+across two instances. Either way it widens the T-1626 leak blast radius beyond the
+repos ring20 has already counted — flagged to them.
+
 Note for whoever picks this up: the same leaked token was embedded in at least two
-repos on this host, so check any other remote before assuming it is clean.
+repos on this host, so check any other remote before assuming it is clean. Holding at
+ONE failed auth attempt against .52 deliberately — no retries until the right
+credential is confirmed, to avoid an account lockout.
 
 Unpushed on `worktree-charter-review-2026-0814`: `8484eb9d4`, `2996e0063`,
 `699f0a9fa`, the handover commit, and the T-2767 closure.
