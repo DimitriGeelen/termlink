@@ -361,6 +361,40 @@ and it is exactly what the T-2359 fleet-binary canary exists to surface.
 
 ## Updates
 
+### 2026-08-16 — state at handover: work complete, NOT closed
+
+Committed and pushed as `ac38b06b4`. Deliberately left at `started-work`.
+
+The budget gate hit critical (~95%) immediately after the workspace suite
+returned, which blocks `cargo` — and the P-011 gate in `## Verification` is
+mostly cargo invocations. Closing would have required `--force` or
+`--skip-verification`, i.e. a gate bypass, which is not the agent's to take.
+The gate exists precisely for this moment.
+
+**Evidence already gathered (all green), so the next session can close quickly:**
+- `cargo test --workspace` → **exit 0**, every suite `0 failed` (parity 24/24
+  in 825s; MCP lib 923 passed, up from 921 pre-change).
+- `bash scripts/run-guard-layer.sh` → **PASS 36/36**, re-run after the doc and
+  script edits, not just the code.
+- `cargo test -p termlink reconcile_frontier` → 4 passed, confirmed by NAME.
+- Earlier dedicated `cargo test -p termlink-mcp` run → all new MCP tests passed.
+- Live hub (the one that produced the original numbers): DM reports `1`,
+  matching `channel unread` exactly; `agent-chat-arc` reports UNKNOWN naming
+  the stale pre-T-2533 hub instead of vanishing.
+- `fw audit` → exit 0.
+
+**To close:** re-run the `## Verification` block (it is self-contained), then
+`fw task update T-2757 --status work-completed`. The only unverified-in-this-
+session lines are the MCP `cargo test` ones, which were green in a dedicated
+run before the last two edits and are covered by the workspace run afterwards.
+
+**Not in scope, still open:** the local hub predates T-2533 and does not emit
+`latest_offset`, which is what forces the indeterminate path on
+`agent-chat-arc`. That is a stale-binary deploy concern (G-069) for the
+operator, not a code change — upgrading the hub turns that row into a real
+count (the `compute_unread_rows_authoritative_latest_resolves_the_same_case`
+test pins that it resolves to 14).
+
 ### 2026-08-16T07:04:13Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2757-agent-inbox-over-reports-unread-by-readi.md
