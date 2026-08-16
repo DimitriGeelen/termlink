@@ -1,11 +1,13 @@
 ---
-id: T-XXX
-name:
+id: T-2776
+name: "Work HV/LC + HV/HC BVP-ranked stabilisation items"
 description: >
+  Rank actionable tasks by BVP quadrant (hv-lc then hv-hc), pick the highest-value
+  items that stabilise termlink, and execute them under framework governance.
 
-status: captured
-workflow_type:
-owner:
+status: started-work
+workflow_type: build
+owner: agent
 horizon: now
 tags: []
 components: []
@@ -14,9 +16,9 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created:
-last_update:
-date_finished: null
+created: 2026-08-16T20:27:06Z
+last_update: '2026-08-16T20:31:06Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -29,18 +31,29 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-XXX: [Task Name]
+# T-2776: Work HV/LC + HV/HC BVP-ranked stabilisation items
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Triage task. The operator asked for work on HV/HC and HV/LC items that stabilise
+termlink. The repo already has BVP scoring infrastructure (`fw bvp --quadrant`,
+`bvp_scores`, `cost_estimate` — arc-006, semantics in
+`docs/reports/T-1915-bvp-inception.md`), so the ranking is measured rather than
+guessed.
+
+This task's deliverable is the **selection**, not the implementation: run the
+quadrant ranking, check inbound peer messages, and file a separate build task per
+selected item (task-sizing rule: one task = one deliverable). Execution happens
+under those task IDs.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] `fw bvp --quadrant hv-lc` and `--quadrant hv-hc` both run and their rankings are recorded in `## Decisions` below (top items, with BVP and cost)
+- [ ] Inbound `framework:pickup` is read and any message newer than the last-acked offset is either actioned or explicitly triaged in `## Decisions`
+- [ ] Each selected item has its own build task filed with real (non-placeholder) ACs
+- [ ] Selected items are executed to completion under their own task IDs, or explicitly deferred here with a reason
+- [ ] `bash scripts/run-guard-layer.sh` passes at the end of the session (no guard regressed)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -69,9 +82,8 @@ date_finished: null
          1. Run `bin/fw reviewer T-XXX`
          **Expected:** Verdict: PASS; no findings on `block-message-completeness`
          **If not:** Inspect hook block-message string and add missing mechanism
-       Conversion: this AC should be moved to ### Agent and this line added to
-       ## Verification (herestring, not a pipeline — see the L-387 hint below):
-         out=$(bin/fw reviewer T-XXX 2>&1 || true); grep -q "Overall:.*PASS" <<< "$out"
+       Conversion: this AC should be moved to ### Agent and
+       `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` added to ## Verification.
 -->
 
 ## Verification
@@ -85,38 +97,20 @@ date_finished: null
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
 #
-# Pipefail/SIGPIPE hint (L-387, corrected by T-2775): P-011 runs each command
-# under `set -eo pipefail`. NEVER write `cmd | grep -q PATTERN`: it exits 141
-# (SIGPIPE) when grep matches and closes stdin while the upstream is still
-# writing — verification then "fails" BECAUSE the check succeeded, and the
-# earlier the match, the more reliably it fails.
+# Pipefail/SIGPIPE hint (L-387): P-011 runs each command under `set -eo pipefail`.
+# `cmd | grep -q PATTERN` exits 141 (SIGPIPE) when grep matches and closes stdin
+# while the upstream is still writing — verification then "fails" even though
+# the pattern was present. Safe pattern: capture first, grep the capture:
+#     out=$(cmd 2>&1); echo "$out" | grep -q "PATTERN"
+# Or:
+#     cmd > /tmp/.out 2>&1 && grep -q "PATTERN" /tmp/.out
+# Origin: L-387, captured 4× (T-1716, T-1838, T-1862, T-1863) before this hint.
 #
-# USE ONE OF THESE — both measured rc=0 at 3M lines:
-#     out=$(cmd 2>&1 || true); grep -q "PATTERN" <<< "$out"   # herestring (preferred)
-#     test -n "$(cmd | grep -m1 PATTERN)"                     # pipeline inside $( )
-#
-# The herestring is preferred: a herestring spawns no producer process, so there
-# is nothing to SIGPIPE and it cannot regress as output grows. In the second form
-# the pipeline sits inside a command substitution, whose status is discarded — the
-# OUTER `test` decides.
-#
-# DO NOT capture-then-pipe. This template previously prescribed
-#     out=$(cmd 2>&1); echo "$out" | grep -q "PATTERN"     # UNSAFE above ~64KB
-# and it is size-dependent, not safe: `echo`/`printf` is a producer like any
-# other, so once $out exceeds the pipe buffer it is still writing when `grep -q`
-# exits and pipefail propagates 141. The capture bounds the DATA but does not
-# remove the PRODUCER. Anything wrapping `cargo test`, `fleet doctor --json`, or a
-# full log is already in that size range. (T-2775 measured this; 999-AEF L-613 and
-# 050-email-archive PL-161 published the capture-then-pipe form before the
-# correction — both have since adopted the herestring.)
-#
-# Corollary (T-2090): intermediate stages are just as fatal — `... | tail -3 |
-# grep -q PAT` re-introduces the same risk. With a herestring the question does
-# not arise; grep scans the whole captured string anyway.
-#
-# Origin: L-387, captured 4× (T-1716, T-1838, T-1862, T-1863) before the hint;
-# T-2775 then measured 1490 exposed lines across 802 tasks despite the hint, which
-# is why `scripts/check-verification-pipefail.sh` now enforces it structurally.
+# Single pipe only — no intermediate tail/awk/sed stages between capture and grep
+# (T-2090): `echo "$out" | tail -3 | grep -q PAT` re-introduces the SIGPIPE risk
+# the capture step closed off — the middle stage is what `grep -q` slams its
+# stdin on. `echo "$out"` is small and immediate; grep scans the whole captured
+# string anyway, so the tail-3 was cosmetic. Drop it: `echo "$out" | grep -q PAT`.
 #
 # Enforcement-baseline hint (L-398, T-1886): if you edited `.claude/settings.json`
 # (added/removed/reorganised hooks), add `bin/fw enforcement baseline` to your
@@ -188,5 +182,7 @@ date_finished: null
 
 ## Updates
 
-<!-- Auto-populated by git mining at task completion.
-     Manual entries optional during execution. -->
+### 2026-08-16T20:27:06Z — task-created [task-create-agent]
+- **Action:** Created task via task-create agent
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2776-work-hvlc--hvhc-bvp-ranked-stabilisation.md
+- **Context:** Initial task creation

@@ -1163,6 +1163,20 @@ merely annoy, it trains people out of the control.
 | `out=$(echo hi); printf '%s' "$out" \| grep -q hi` | 0 | safe *while small* |
 | `out=$(seq 1 3000000); printf '%s' "$out" \| grep -q '^1$'` | **141** | **UNSAFE** |
 | `out=$(seq 1 3000000); grep -q '^1$' <<< "$out"` | 0 | safe (any size) |
+| `bash -c "seq 1 3000000 \| grep -q '^1$'"` | 0 | safe — inner shell has no pipefail (T-2777) |
+| `sh -c "seq 1 3000000 \| grep -q '^1$'"` | 0 | safe — same reason (T-2777) |
+| `bash -c "set -o pipefail; seq ... \| grep -q '^1$'"` | 141 | UNSAFE — inner shell re-arms it |
+| `export SHELLOPTS; bash -c "seq ... \| grep -q '^1$'"` | 141 | UNSAFE — inherited via env |
+
+**The last four rows are a T-2777 correction, and they cost two wrong assumptions before a
+measurement settled them.** `pipefail` is a shell *option*, not an environment variable, so
+`sh -c` starts a fresh shell without it — the wrapper isolates the pipeline from the gate.
+The check first treated the quoted pipeline as literal text (right answer, wrong reason),
+was then "fixed" to unwrap and flag it as a real pipeline (confidently wrong), and only the
+five measured rows above settled it. Three lines in this tree (T-1673 ×2, T-1885) are that
+shape and had been ledgered as risky by T-2775; they never were, and their acknowledgements
+were removed rather than carried as debt that does not exist. This is why the fixture suite
+runs the idioms for real instead of asserting the detector's opinion of them.
 
 Note the fifth row. The remediation published by AEF (`L-613`) and 050-email-archive
 (`PL-161`) — capture, then `printf '%s' "$out" | parser` — is safe only while the captured
@@ -1201,6 +1215,53 @@ Exit 0 clean / 1 unacknowledged / 2 tooling (fail-closed). `--json`, `--quiet`,
 idioms for real so the detection rule rests on measurement, and a PL-219 control that the
 real tree scans clean). **Load-bearing:** deleting one allowlist line re-fires exactly that
 task; restoring it returns the tree to clean.
+
+### Task-template idiom check (T-2777, the source the sibling guard could not see)
+
+The eleventh source-level static check, and the immediate sequel to T-2775. That check
+scans `## Verification` blocks in real tasks and — correctly — skips `#` comment lines,
+because a comment is not an executable verification command. `.tasks/templates/default.md`
+carries its guidance **entirely** in comments and in the `<!-- -->` AC-authoring block, and
+it prescribed the unsafe idiom in two places:
+
+- the L-387 hint, recommending `out=$(cmd 2>&1); echo "$out" | grep -q "PATTERN"` — the
+  size-dependent form T-2775 had just measured as rc=141 above the pipe buffer and sent
+  back as a correction to two peer projects;
+- the `[REVIEWER]` conversion example, telling the author to add
+  `` `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` `` to their Verification block —
+  a bare pipeline, prescribed verbatim.
+
+Every task created from the template inherited that, which is the most plausible mechanism
+behind the 158 lines T-2775 had to ledger. Pointing the existing check at
+`.tasks/templates/` reports `tasks_with_verification: 0` — a guard that can never fire. So
+the guard built to catch the idiom was structurally unable to see the file teaching it: the
+T-2680 shape one layer up, where a tree scanning clean was true *and* the template kept
+seeding new instances.
+
+`scripts/check-task-template-idioms.sh` reads template **prose** rather than commands,
+flagging a pipe into an early-exiting or parsing consumer (`grep -q` / `head` / `python3` /
+`jq`). **Prescription vs citation:** a template should be able to show the bad form in order
+to warn against it, so a line carrying `UNSAFE` / `DO NOT` / `WRONG` / `NEVER` / `BAD`
+(case-insensitive) is read as a counter-example and cleared; unmarked, it reads as a
+recommendation and fires. The convention is self-documenting — label your counter-examples.
+It enforced this on its own author: the rewritten hint cited `cmd | grep -q PATTERN` as the
+failing shape without a marker, and the check fired until the line was labelled.
+
+**Backticks are the one place it deliberately diverges from its sibling.** In a shell
+command a backtick span is a substitution whose status is discarded, so
+`check-verification-pipefail.sh` strips it. In a *template* a backtick is markdown code
+formatting and the prescription lives inside it — the real `[REVIEWER]` line above is
+exactly that. Treating those as status-discarding made the check silently clear the precise
+defect it exists to catch, so this one unwraps the delimiters and reads the content. A
+prescribed real backtick substitution would false-fire; accepted, since the idiom the
+template teaches is `$( )`.
+
+Exit 0 clean / 1 a prescribed risky shape / 2 tooling. `--json`, `--quiet`,
+`--templates-dir` (repeatable), `--no-heartbeat`. Ad-hoc:
+`bash scripts/check-task-template-idioms.sh`. Fixtures:
+`bash tests/task-template-idioms-fixtures.sh` (21 assertions, including **B1/B2 which
+reproduce the exact two pre-T-2777 template lines and require the check to fire on them** —
+revert the template and this suite goes red). Current tree: 3 templates scanned, clean.
 
 ### Running the guard layer — `scripts/run-guard-layer.sh` (T-2684)
 

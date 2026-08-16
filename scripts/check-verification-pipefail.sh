@@ -133,13 +133,30 @@ BOUNDED_PRODUCER = re.compile(r"^\s*(?:printf|echo)\b")
 
 
 def strip_substitutions(cmd):
-    """Remove `$( ... )` spans (nesting-aware) and backtick spans.
+    """Remove `$( ... )` spans (nesting-aware), backtick spans, and quoted spans.
 
     A pipeline inside a command substitution cannot decide the line's exit status:
     the substitution's value is what the OUTER command consumes, and the outer
     command's status is what `if ( eval ... )` tests. This is exactly PL-080's
     recommended idiom (`test -n "$(cmd | grep PAT)"`), measured safe at any size,
     so it must not be flagged.
+
+    QUOTED SPANS (T-2777). A `|` inside a quoted argument is literal text, not a
+    shell pipeline, so it cannot decide anything either. Without this, an absence
+    assertion whose PATTERN happens to contain a pipe —
+
+        ! grep -Fq 'bin/fw reviewer T-XXX 2>&1 | grep -q' .tasks/templates/default.md
+
+    — read as a pipeline and fired, even though the command contains no pipeline at
+    all. Found when T-2777's own Verification block tripped this check. Quote
+    tracking is deliberately simple: no backslash-escape handling, since a verification
+    line needing an escaped quote inside a quoted pipe pattern is not a shape seen in
+    this tree.
+
+    `sh -c "cmd | grep -q PAT"` would also be hidden by this, because the pipeline is
+    inside quotes — but there the inner shell RUNS it and `sh -c` exits with its
+    status, so it is genuinely unsafe. That case is handled before stripping, by
+    `unwrap_shell_c()`; see its docstring for why it is not an acceptable blind spot.
     """
     out = []
     i, n = 0, len(cmd)
@@ -156,6 +173,16 @@ def strip_substitutions(cmd):
         if depth == 0 and cmd[i] == "`":
             j = cmd.find("`", i + 1)
             i = n if j == -1 else j + 1
+            continue
+        if depth == 0 and cmd[i] in ("'", '"'):
+            q = cmd[i]
+            j = cmd.find(q, i + 1)
+            if j == -1:
+                i = n
+            else:
+                # Keep a placeholder so adjacent tokens don't fuse into one word.
+                out.append(" ")
+                i = j + 1
             continue
         if depth == 0:
             out.append(cmd[i])
@@ -190,9 +217,52 @@ def signature(relpath, cmd):
     return f"{os.path.basename(relpath)}::{h}"
 
 
+SHELL_WRAPPER = re.compile(
+    r"""\b(?:ba|z|k|da)?sh\s+-c\s+(['"])(?P<script>.*)\1\s*$"""
+)
+
+
+def unwrap_shell_c(cmd):
+    """If the line is a `sh -c '<script>'` wrapper, return <script> ONLY when the
+    inner script re-enables pipefail; otherwise return a neutralised form.
+
+    MEASURED (T-2777), under the gate's own `if ( eval "$cmd" )` with
+    `set -euo pipefail`:
+
+        seq 1 3000000 | grep -q '^1$'                              141  UNSAFE
+        bash -c "seq 1 3000000 | grep -q '^1$'"                      0  safe
+        sh   -c "seq 1 3000000 | grep -q '^1$'"                      0  safe
+        bash -c "set -o pipefail; seq ... | grep -q '^1$'"         141  UNSAFE
+        export SHELLOPTS; bash -c "seq ... | grep -q '^1$'"        141  UNSAFE
+
+    `pipefail` is a shell option, not an environment variable, so `sh -c` starts a
+    FRESH shell without it and the pipeline's status is just the consumer's. The
+    wrapper is therefore an accidental mitigation, not a hiding place.
+
+    Two rounds of reasoning got this backwards before the measurement settled it:
+    first that quote-stripping would hide a real risk, then that `sh -c` propagates
+    the pipeline status. Both were plausible and both were wrong. It matters
+    concretely — three lines in this tree (T-1673 ×2, T-1885) are this shape and
+    were ledgered as risky by T-2775; they are not risky, and their acknowledgements
+    were removed rather than carried as debt that does not exist.
+
+    The two genuinely unsafe variants are still caught: an inner `pipefail` is
+    detected here, and an exported SHELLOPTS is out of scope for a static read of
+    the command (it is a property of the environment, not the line) — noted in the
+    check's scope disclaimer rather than silently ignored.
+    """
+    m = SHELL_WRAPPER.search(cmd.strip())
+    if not m:
+        return cmd
+    script = m.group("script")
+    if "pipefail" in script:
+        return script
+    return ""  # isolated from the outer pipefail: nothing here can decide the status
+
+
 def classify(cmd):
     """Return a reason string if this line's status is pipeline-decided, else None."""
-    bare = strip_substitutions(cmd)
+    bare = strip_substitutions(unwrap_shell_c(cmd))
     m = PIPE_TO_CONSUMER.search(bare)
     if not m:
         return None
@@ -259,7 +329,8 @@ for d in task_dirs:
 
 SCOPE = ("detects command SHAPES whose exit status is decided by a pipeline; it does "
          "not execute them and cannot confirm a given producer is SIGPIPEd at today's "
-         "output size")
+         "output size, and it reads the line only — an exported SHELLOPTS would re-arm "
+         "pipefail inside an `sh -c` wrapper this check reads as isolated (T-2777)")
 
 census = {
     "tasks_with_verification": scanned_tasks,

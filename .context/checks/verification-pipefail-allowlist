@@ -163,12 +163,9 @@ T-1559-agent-dmsunread---watch--complete-the-pe.md::02cd23b8eccd  # T-1559-agent
 T-1570-termlinkagentpoll-family--mcp-tools-for-.md::78340b1fb310  # T-1570-termlinkagentpoll-family--mcp-tools-for-.md:67 predates T-2775; retrofit is a human decision
 T-1643-propose-fw-vendor-manifest-hardening-to-.md::0796c2964cc5  # T-1643-propose-fw-vendor-manifest-hardening-to-.md:43 predates T-2775; retrofit is a human decision
 T-1643-propose-fw-vendor-manifest-hardening-to-.md::8ff9dec3e166  # T-1643-propose-fw-vendor-manifest-hardening-to-.md:45 predates T-2775; retrofit is a human decision
-T-1673-tag-v0100-release--land-rotation-protoco.md::d20ea2181266  # T-1673-tag-v0100-release--land-rotation-protoco.md:72 predates T-2775; retrofit is a human decision
-T-1673-tag-v0100-release--land-rotation-protoco.md::5f1d9dccc60c  # T-1673-tag-v0100-release--land-rotation-protoco.md:73 predates T-2775; retrofit is a human decision
 T-1691-cut-v0110-release-tag--bundle-t-1676t-16.md::2caad4499058  # T-1691-cut-v0110-release-tag--bundle-t-1676t-16.md:62 predates T-2775; retrofit is a human decision
 T-1691-cut-v0110-release-tag--bundle-t-1676t-16.md::c3b8563e9389  # T-1691-cut-v0110-release-tag--bundle-t-1676t-16.md:63 predates T-2775; retrofit is a human decision
 T-1795-fix-agent-on-thread-returns-empty--fetch.md::2cc24436c7ac  # T-1795-fix-agent-on-thread-returns-empty--fetch.md:45 predates T-2775; retrofit is a human decision
-T-1885-fw-independent-review-v01--local-only-or.md::24a0d135ce47  # T-1885-fw-independent-review-v01--local-only-or.md:75 predates T-2775; retrofit is a human decision
 T-2564-listener-heartbeat-warn-loudly-when-pres.md::bc760a53a38f  # T-2564-listener-heartbeat-warn-loudly-when-pres.md:108 predates T-2775; retrofit is a human decision
 T-2564-listener-heartbeat-warn-loudly-when-pres.md::efb69fb082c7  # T-2564-listener-heartbeat-warn-loudly-when-pres.md:109 predates T-2775; retrofit is a human decision
 T-2564-listener-heartbeat-warn-loudly-when-pres.md::97b7398b3b29  # T-2564-listener-heartbeat-warn-loudly-when-pres.md:112 predates T-2775; retrofit is a human decision
