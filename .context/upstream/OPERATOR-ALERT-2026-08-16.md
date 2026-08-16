@@ -233,6 +233,55 @@ cross-host escape hatch, which would be significant.
 
 ---
 
+## 5. THE AEF AGENT'S HUB IS REFUSING THE AEF AGENT — answered (T-2772)
+
+The Codex/AEF agent reported `Permission denied (os error 13)`, then after a
+permissions change `Connection reset by peer (os error 104)`, and concluded *"the
+remaining fault is inside the running hub's channel RPC handling"*. **That conclusion
+is wrong**, and the reason it was reachable at all is now fixed.
+
+There are **two** gates on a local Unix connection, not one:
+
+| gate | mechanism | client saw |
+|---|---|---|
+| socket file mode | kernel denies `connect()` (needs **write**, not read) | `Permission denied (13)` |
+| `decide_unix_peer` (hub/src/server.rs) | hub accepts, reads `SO_PEERCRED`, refuses a uid mismatch, `continue` | `Connection reset (104)` |
+
+The connection never reached RPC handling — it was dropped in the accept loop before a
+byte was parsed.
+
+**Why it is happening here.** Hub PID 3869961 — the one holding `hub.sock`, cwd
+`/opt/999-Agentic-Engineering-Framework`, i.e. started by the AEF agent itself — runs
+as **root**. The AEF agent's client runs as **dimitri-mint-dev**. The hub's same-uid
+policy (T-2448, fail-closed) therefore refuses its own operator.
+
+**Immediate unblock:** run `termlink` as the same uid as the hub it is talking to
+(root, here) — or start a hub under `dimitri-mint-dev` and point the client at that
+`runtime_dir`. No code change needed for this.
+
+**What was NOT the fix, tested and reverted:** `chgrp dimitri-mint-dev` + `chmod 0770`
+on the socket, as proposed in the AEF report. It moves the error from 13 to 104 and
+nothing more, because the uid gate rejects regardless of file mode. Socket left at
+`0755` as the hub created it. Verified both directions on a scratch hub.
+
+**Code fix shipped (T-2772, commit `5f862c048`):** the uid gate now writes an
+`AUTH_DENIED (-32010)` envelope naming both uids and the remediation before closing,
+instead of dropping the stream silently. Live-proven; the same message the AEF agent
+would now receive is quoted in the task file. Note this is a *reporting* fix — the
+same-uid policy itself is unchanged and is T-2771's question.
+
+**Two follow-ups filed from the same reading:**
+- **T-2773** — `termlink-session`'s accept loop fails **OPEN** when peer-credential
+  extraction errors (`server.rs:239-242`, "graceful degradation"), where the hub fails
+  **closed** (T-2448). Same gate, opposite security posture; the hardening was never
+  migrated to the sibling. It also has the identical silent-drop.
+- **T-2771 IW-6** — a same-uid peer is granted `PermissionScope::Execute`
+  unconditionally, which includes force-releasing other agents' claims and deleting
+  topics. On a host where agents deliberately share a uid, that is every agent holding
+  operator-tier authority over every other.
+
+---
+
 ## Not an alert, but worth knowing
 
 **The herdr adoption backlog is exhausted for agents.** Its own status block:
