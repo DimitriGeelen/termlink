@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-16T07:04:13Z
-last_update: 2026-08-16T10:07:18Z
+last_update: 2026-08-16T10:09:32Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -434,6 +434,41 @@ gate truncates failure output to 5 lines, which was only compile chatter here.
 Fix or explain what it names, THEN re-run the gate. Do NOT reach for `--force`
 or `--skip-verification`: a gate that failed is exactly the signal those flags
 would destroy.
+
+### 2026-08-16 — gate failure ROOT-CAUSED: not a product defect
+
+A clean re-run isolated it. `cargo test --workspace` failed on exactly two
+tests, `parity_info` and `parity_version`, with this evidence:
+
+    MCP  built at commit f28e9b857 -> version 0.11.1403
+    CLI  built at commit 5859c89ad -> version 0.11.1405
+
+The two crates compiled at DIFFERENT git HEADs. `build.rs` derives the version
+from git (T-1458 / T-2744 / T-2746), so each crate stamps whatever HEAD existed
+when IT compiled. The parity tests compare the two surfaces and correctly report
+the mismatch. The cause was mine: I committed and pushed T-2758 while that build
+was in flight.
+
+This explains BOTH runs without either being untrustworthy — the earlier green
+run simply had no commit land during its build; the gate run had one. The note
+above saying "one of the two results is not trustworthy" was wrong: both were
+honest reports of different trees.
+
+**Consequence for closing T-2757:** the failure is unrelated to T-2757's change,
+which touches neither `info` nor `version`. Re-run the gate on a tree where
+nothing commits mid-build; it is expected to pass — but VERIFY rather than
+assume, and still do not use `--force`.
+
+**The real finding, worth its own task:** `parity_info` and `parity_version` are
+NON-HERMETIC. They depend on the repo's git HEAD holding still for an entire
+~10-minute build, which is false whenever anything commits during a run —
+including the framework's OWN auto-commits (handover, VERSION stamping). A test
+that fails because of an unrelated commit trains its reader to ignore it, which
+is the T-2686 lesson (a parity test failing undetected) pointed the other way.
+Candidate fixes: stamp both crates from a single build-time-resolved value, or
+strip `version`/`commit` from the parity comparison the way other volatile
+fields are already stripped. Not filed as a task this session — budget horizon
+reached; file it before closing T-2757.
 
 **Note on a flaky background run:** an earlier invocation of the same command
 reported exit 0 with an EMPTY output file while leaving the task at
