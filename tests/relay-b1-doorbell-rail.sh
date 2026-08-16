@@ -17,6 +17,15 @@
 # Exit 0 = both branches correct; 1 = a mismatch.
 set -euo pipefail
 
+# T-2761: this test drives the real agent-send.sh, whose T-2402 give-up path
+# appends to the operator's woken-but-silent canary log. Redirect it — "empty log
+# = healthy" is a one-bit channel, so test residue leaves the canary permanently
+# FIRING and therefore deaf to a genuine event. Deliberately no `trap` here: this
+# script has none, and adding one risks silently dropping a cleanup trap added
+# later (the T-2754 hazard). The file is a few bytes in the system temp dir.
+TERMLINK_WOKEN_SILENT_LOG="$(mktemp -t woken-silent-XXXXXX.log)"
+export TERMLINK_WOKEN_SILENT_LOG
+
 cd "$(dirname "$0")/.."
 
 fail() { echo "FAIL: $*" >&2; exit 1; }

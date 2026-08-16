@@ -31,6 +31,12 @@ pass() { echo "  PASS: $*"; PASS=$((PASS + 1)); }
 fail() { echo "  FAIL: $*"; FAIL=$((FAIL + 1)); }
 
 tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+
+# T-2761: this test drives the real agent-send.sh, whose T-2402 give-up path
+# appends to the operator's woken-but-silent canary log. Redirect it into our own
+# tmp dir — "empty log = healthy" is a one-bit channel, so test residue leaves the
+# canary permanently FIRING and therefore deaf to a genuine event.
+export TERMLINK_WOKEN_SILENT_LOG="$tmp/woken-silent-canary.log"
 export TERMLINK_PROBE_TIMEOUT=3      # bound the down-host probes
 
 run_tag="t2301-$$-$(date +%s)"

@@ -5,6 +5,14 @@
 # injecting. Five tests cover the success path + four error paths.
 set -u
 
+# T-2761: this test drives the real agent-send.sh, whose T-2402 give-up path
+# appends to the operator's woken-but-silent canary log. Redirect it — "empty log
+# = healthy" is a one-bit channel, so test residue leaves the canary permanently
+# FIRING and therefore deaf to a genuine event. Set at top level rather than in
+# the per-case fixture dirs below, so every case inherits it.
+TERMLINK_WOKEN_SILENT_LOG="$(mktemp -t woken-silent-XXXXXX.log)"
+export TERMLINK_WOKEN_SILENT_LOG
+
 TERMLINK="${TERMLINK_BIN:-termlink}"
 SCRIPT="${SCRIPT:-scripts/agent-send.sh}"
 HEARTBEAT="${HEARTBEAT:-scripts/listener-heartbeat.sh}"

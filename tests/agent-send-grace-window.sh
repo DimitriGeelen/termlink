@@ -16,6 +16,16 @@
 # This suite fails if anyone lowers the window back under the field-observed p100.
 
 set -u
+
+# T-2761: this test drives the real agent-send.sh, whose T-2402 give-up path
+# appends to the operator's woken-but-silent canary log. Redirect it — "empty log
+# = healthy" is a one-bit channel, so test residue leaves the canary permanently
+# FIRING and therefore deaf to a genuine event. Especially load-bearing here: this
+# test deliberately exercises the false-"silent peer" escalation it was written to
+# prevent. Deliberately no `trap`: this script has none, and adding one risks
+# silently dropping a cleanup trap added later (the T-2754 hazard).
+TERMLINK_WOKEN_SILENT_LOG="$(mktemp -t woken-silent-XXXXXX.log)"
+export TERMLINK_WOKEN_SILENT_LOG
 SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$SELF_DIR/.."
 AS="$ROOT/scripts/agent-send.sh"

@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-16T11:52:06Z
-last_update: 2026-08-16T11:52:48Z
+last_update: 2026-08-16T11:55:56Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -80,13 +80,27 @@ blind spot in the exact place two real defects have already landed.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] A shared helper detects build skew by comparing the two sides' `commit` values
-- [ ] When commits DIFFER, `version`/`commit` are excluded from the diff and the test emits a diagnostic naming the skew and both commits — the run does not fail on that field
-- [ ] When commits MATCH, `version` is compared strictly, so a genuine T-1458/T-2744-class version-derivation defect still fails the test
-- [ ] Every other field in both envelopes is compared strictly in both cases — skew narrows the comparison to the two git-derived fields only, never the whole envelope
-- [ ] `parity_version` and `parity_info` both use the helper (the defect is present in both)
-- [ ] Unit coverage proves both branches: skew-detected (version excluded) and no-skew (version compared)
-- [ ] `cargo test -p termlink-mcp --test parity parity_version parity_info` passes on the current tree
+- [x] A shared helper detects build skew by comparing the two sides' `commit` values
+- [x] When commits DIFFER, `version`/`commit` are excluded from the diff and the test emits a diagnostic naming the skew and both commits — the run does not fail on that field
+- [x] When commits MATCH, `version` is compared strictly, so a genuine T-1458/T-2744-class version-derivation defect still fails the test
+- [x] Every other field in both envelopes is compared strictly in both cases — skew narrows the comparison to the two git-derived fields only, never the whole envelope
+- [x] `parity_version` and `parity_info` both use the helper (the defect is present in both)
+- [x] Unit coverage proves both branches: skew-detected (version excluded) and no-skew (version compared)
+- [x] `cargo test -p termlink-mcp --test parity parity_version parity_info` passes on the current tree
+
+**Evidence, and one honest limit.** The two integration tests pass on the current
+tree (`2 passed; 0 failed`, 672s). That run went through the **strict** path — no
+`BUILD SKEW` line was emitted, because a commit landed *before* the CLI rebuild
+rather than between the two builds, so both sides saw the same HEAD. So the run
+confirms the fix did not break the coherent case; it is **not** a live
+demonstration of the skew branch.
+
+The skew branch is proven by unit tests, not by a live skew event:
+`build_skew_detected_when_commits_differ` feeds the exact observed pair
+(`f28e9b857`/`0.11.1403` vs `5859c89ad`/`0.11.1405`) and asserts both the verdict
+and the two excluded fields. `coherent_commits_still_fail_on_a_genuine_version_divergence`
+drives the real `diff_json` and asserts it still errors, which is what keeps the
+guard load-bearing.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
