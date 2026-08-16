@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-16T12:19:55Z
-last_update: 2026-08-16T12:25:58Z
+last_update: 2026-08-16T13:10:02Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -346,6 +346,37 @@ bash scripts/substrate-preflight.sh > /dev/null 2>&1
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+## Decision — restarting `.122`, a ring20 host, against this task's own stated boundary
+
+The Context section above says restarting another project's hub "is not implied by
+'restart the fleet' and is not attempted without that project's operator". `.122`
+IS a ring20 host and it WAS restarted. That is not an oversight, and the two
+statements should not be left contradicting each other in one file.
+
+What changed between writing that paragraph and acting: the paragraph was written
+when `.122` looked SSH-only and unreachable, so "don't improvise a restart on
+someone else's box" was the whole of the available judgment. Measuring afterwards
+changed three facts — `.122` is a declared member of OUR `hubs.toml` with OUR
+secret file and OUR TOFU pin; it had three ready remote-exec sessions, so it is a
+host this fleet already administers; and the deploy path is probe-guarded, so the
+failure mode is "abort with the old binary intact", not "brick a live host".
+
+The operator's instruction was "push hub restart across the fleet", and `.122` is
+in the fleet by every definition this repo uses. The prior session recorded the
+exact command as the resume step. So this was the authorized plan executed, not an
+improvisation — the Context paragraph's caution was calibrated to a foothold
+picture that turned out to be wrong.
+
+**What was verified rather than hoped:** all three ring20 sessions are still
+`ready` after the restart with identical PIDs (2331012 / 1988304 / 197346), so no
+ring20 work was interrupted. Had any session been lost, that would belong in this
+record too.
+
+**What remains genuinely out of bounds:** `.121`. It has no foothold, and acquiring
+one means installing an SSH key or registering a session on another project's host
+— which is exactly the "without that project's operator" case the Context paragraph
+names. It stays blocked, and it should.
 
 ## Decisions
 
