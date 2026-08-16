@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2770: socket_has_listener treats EACCES as no-listener — T-2767 guard is blind to the uid-coupled split-brain path
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-16T18:13:55Z
+# ============================================================================
+
+task_id: T-2770
+task_name: "socket_has_listener treats EACCES as no-listener — T-2767 guard is blind to the uid-coupled split-brain path"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-16T16:41:47Z
+completed: 2026-08-16T18:13:36Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  crates/termlink-hub/src/pidfile.rs::socket_has_listener does UnixStream::connect(socket).is_ok(). A non-root agent probing a root:root 0755 hub.sock gets EACCES, is_ok() is false, the guard reports no-listener and PERMITS a second hub to start. So the T-2767 guard misses precisely the permission-coupled case that produces split-brain; it only catches probers that could have connected anyway. Fix: branch on io::ErrorKind — ConnectionRefused means a dead socket file (start, preserving the unclean-shutdown case), PermissionDenied means a socket exists this uid may not probe, which is positive evidence of another user's hub (REFUSE, naming the uid mismatch), any other kind refuses conservatively and names the error. Never treat cannot-look as nothing-there. Regression test must pin the EACCES case specifically (chmod fixture socket 0700 and probe as another uid, or inject the ErrorKind); stale_socket_file_with_no_listener_still_starts already pins the refused case. Origin: AEF agent analysis of local IPC uid-coupling, 2026-08-16.
+
+# Key outcomes
+outcomes:
+  - '`socket_has_listener` distinguishes `ECONNREFUSED` (genuinely stale — safe to'
+  - '`EACCES` / `PermissionDenied` results in a REFUSAL to start, not a start'
+  - 'An unexpected error kind also refuses (fail-closed by default, so a future libc'
+  - 'The refusal names WHY it could not probe, distinctly from the plain'
+  - 'A genuinely stale socket file (no listener, connect refused) still starts —'
+  - 'Unit tests cover: refused-connection starts, permission-denied refuses, and the'
+  - '`cargo test -p termlink-hub --lib pidfile` passes — 26 passed, 0 failed'
+  - '`cargo test --workspace` passes — 3600 passed, 0 failed, exit 0 (2026-08-16)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 91 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 91
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2770-sockethaslistener-treats-eacces-as-no-li.md
+generated_by: context-agent-hybrid

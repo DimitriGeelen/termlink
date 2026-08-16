@@ -3245,3 +3245,15 @@ learnings:
   task: T-2764
   date: 2026-08-16
   context: Added via context agent
+- id: PL-358
+  learning: "A boolean read of a three-valued outcome is an implicit fail-open: connect().is_ok() collapsed 'listening' / 'nothing there' / 'cannot tell' into two values, mapping EACCES (cannot tell) onto 'nothing there'. The guard then only ever caught listeners it could have reached anyway — blind to exactly the population it existed to detect. When an outcome has a cannot-tell case, give it its own variant so the call site must handle it."
+  source: P-001
+  task: T-2770
+  date: 2026-08-16
+  context: Added via context agent
+- id: PL-359
+  learning: "A permission-denial test is vacuous when the suite runs as root — root bypasses file modes, so chmod 0000 produces no EACCES and the test passes while covering nothing. Split the policy into a pure classifier over io::ErrorKind and unit-test that, the way decide_unix_peer is generic over its error type so it is testable without SO_PEERCRED ever failing. Then prove the real path once, live, and record it."
+  source: P-001
+  task: T-2770
+  date: 2026-08-16
+  context: Added via context agent

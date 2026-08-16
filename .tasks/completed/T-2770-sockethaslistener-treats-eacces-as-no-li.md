@@ -4,20 +4,20 @@ name: "socket_has_listener treats EACCES as no-listener — T-2767 guard is blin
 description: >
   crates/termlink-hub/src/pidfile.rs::socket_has_listener does UnixStream::connect(socket).is_ok(). A non-root agent probing a root:root 0755 hub.sock gets EACCES, is_ok() is false, the guard reports no-listener and PERMITS a second hub to start. So the T-2767 guard misses precisely the permission-coupled case that produces split-brain; it only catches probers that could have connected anyway. Fix: branch on io::ErrorKind — ConnectionRefused means a dead socket file (start, preserving the unclean-shutdown case), PermissionDenied means a socket exists this uid may not probe, which is positive evidence of another user's hub (REFUSE, naming the uid mismatch), any other kind refuses conservatively and names the error. Never treat cannot-look as nothing-there. Regression test must pin the EACCES case specifically (chmod fixture socket 0700 and probe as another uid, or inject the ErrorKind); stale_socket_file_with_no_listener_still_starts already pins the refused case. Origin: AEF agent analysis of local IPC uid-coupling, 2026-08-16.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-hub/src/pidfile.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-16T16:41:47Z
-last_update: 2026-08-16T17:52:47Z
-date_finished: null
+last_update: 2026-08-16T18:13:36Z
+date_finished: 2026-08-16T18:13:36Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -294,3 +294,6 @@ real socket hijack.
 
 ### 2026-08-16T17:52:47Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-08-16T18:13:36Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
