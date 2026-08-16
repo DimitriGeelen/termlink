@@ -14,27 +14,32 @@
 # fragility argument decisive. Until this check, that invariant was guarded
 # by nothing.
 #
-# WHY THE TWO THINGS THAT LOOK LIKE GUARDS ARE NOT THIS GUARD
-# -----------------------------------------------------------
-# (1) T-2569's tripwire scans ONLY crates/termlink-hub/src and forbids the
-#     HUB from building a hub-speaking client — that is hub-to-hub
-#     FEDERATION (charter non-goal #1). A different edge entirely: it says
-#     nothing about one spoke dialling another.
+# WHERE THIS SITS AMONG THE THREE GUARDS OF THIS INVARIANT
+# ---------------------------------------------------------
+# This is the THIRD guard, and the smallest. Read the other two first:
+#
+# (1) crates/termlink-session/tests/no_spoke_mesh_tripwire.rs (T-2703) is the
+#     PRIMARY guard. It pins the per-module connect counts in termlink-session
+#     (client.rs 5, transport.rs 3, tofu.rs 1, ws_consumer.rs 1) and fires on
+#     any socket opened outside those four modules. Stronger than this script:
+#     it catches a count change within a known module, which a per-site
+#     ledger does not. termlink-session is therefore NOT scanned here.
 #
 # (2) T-2571 proved the invariant holds BY CONSTRUCTION on the peer-contact
 #     path — `agent.rs::resolve_home_hub` deliberately excludes a peer's
 #     `metadata.observed_addr` (host + ephemeral process port, T-2297) from
-#     routing, pinned by `resolve_home_hub_precedence`. That is a real,
-#     load-bearing test and it is not being second-guessed here. But it is a
-#     BEHAVIOURAL test of ONE function: it proves the existing routing path
-#     does not dial a peer process. It cannot fail when somebody adds a NEW
-#     dial site somewhere else.
+#     routing, pinned by `resolve_home_hub_precedence`. Real and load-bearing,
+#     but a BEHAVIOURAL test of ONE function: it cannot fail when somebody
+#     adds a NEW dial site somewhere else.
 #
-# That "somewhere else" is the live exposure T-2702 F1 named:
-# termlink-session ships a generic client (client.rs / transport.rs) that
-# connects to either a unix path or a TCP host:port with NOTHING
-# constraining the target, so a direct spoke-to-spoke channel could be
-# introduced in termlink-session or termlink-cli and no test would fail.
+# (3) THIS check covers the crates neither of those reaches — termlink-cli and
+#     termlink-mcp. T-2702 F1 named them: a direct spoke-to-spoke channel
+#     "could be introduced in termlink-session OR termlink-cli and no test
+#     would fail". (1) closed the first half; this closes the second.
+#
+# Not to be confused with T-2569's no_federation_tripwire.rs, which scans only
+# crates/termlink-hub/src and forbids the HUB from building a hub-speaking
+# client — hub-to-hub FEDERATION, charter non-goal #1. A different edge.
 #
 # WHAT THIS CHECK ACTUALLY DOES  (scope disclosure, T-2680)
 # ---------------------------------------------------------
@@ -58,6 +63,48 @@
 # THE TARGET (a hub address / a local session socket / the process's own
 # listener). "Safe" is not a reason — the acknowledgement IS the topology
 # documentation, kept next to the signature so it stays in sync.
+#
+# WHY THE MESH IS FORBIDDEN  (§ 3's decisive argument, kept here on purpose)
+# --------------------------------------------------------------------------
+# A future reader who wants to "just add a direct channel between two agents"
+# should be able to see the cost without hunting for the doc:
+#
+#   - N² fragility. A star has N links and one place to reason about. A mesh
+#     has up to N(N-1)/2, and every one of them is a new partition mode, a new
+#     auth pairing, and a new thing to observe. The failure surface grows
+#     quadratically while the operator's attention does not.
+#   - No central durable replay. The hub is the append log: a spoke that was
+#     down replays from an offset and catches up. A direct spoke-to-spoke
+#     message exists only in the sender's and receiver's memory — if the
+#     receiver was down, it is simply gone, and nothing can reconstruct it.
+#   - Silent partial-partition divergence. In a star, a partition is visible:
+#     the spoke cannot reach the hub and says so. In a mesh, A-B can be up
+#     while A-C is down, so two agents hold different views of the same
+#     conversation and NEITHER can detect the disagreement locally. That is a
+#     Directive #2 violation (no silent failures) by topology, not by bug.
+#
+# RESIDUAL — what this check would still MISS
+# -------------------------------------------
+# Stated because a guard that does not name its blind spots invites its green
+# to be over-read (T-2680):
+#
+#   1. A dial through an INDIRECTION this anchor cannot see: a helper in
+#      another crate, a `dyn` transport injected at runtime, a std-library or
+#      third-party client (reqwest, tungstenite's own connector) that opens
+#      its own socket. The anchor is the raw stream connect; a spoke-to-spoke
+#      channel built on a higher-level library that never names TcpStream
+#      would not appear.
+#   2. A dial whose TARGET changes meaning without the site changing: an
+#      already-acknowledged site whose caller starts passing a peer address
+#      instead of a hub address. The ledger pins the SITE, not the value that
+#      flows into it — this is exactly the half T-2571's behavioural test
+#      covers, which is why both guards are needed and neither is redundant.
+#   3. Accepting an INBOUND connection from another spoke. This check only
+#      looks at the dialling end.
+#   4. A dial added inside a `#[cfg(test)]` region and then promoted to
+#      production by deleting the attribute — the site would be re-classified
+#      on the next run, but nothing here notices the attribute's removal
+#      specifically.
 #
 # Exit codes: 0 = every dial site acknowledged, 1 = an unacknowledged dial
 # site, 2 = tooling error (fail-closed — an empty scan is NEVER clean).
@@ -98,9 +145,25 @@ while [ $# -gt 0 ]; do
 done
 
 if [ "${#ROOTS[@]}" -eq 0 ]; then
-    # The SPOKE crates. termlink-hub is deliberately absent: the hub is the
-    # star's centre, and its outbound-dial edge is T-2569's tripwire, not this.
-    ROOTS=(crates/termlink-session/src crates/termlink-cli/src crates/termlink-mcp/src)
+    # The spoke crates this check owns. Two crates are deliberately ABSENT:
+    #
+    #   termlink-hub     — the star's centre. Its outbound-dial edge is
+    #                      hub-to-hub federation, guarded by T-2569's
+    #                      no_federation_tripwire.rs. A different edge.
+    #   termlink-session — guarded MORE STRONGLY than this script could, by
+    #                      crates/termlink-session/tests/no_spoke_mesh_tripwire.rs
+    #                      (T-2703), which pins the per-module connect counts
+    #                      (client.rs 5, transport.rs 3, tofu.rs 1,
+    #                      ws_consumer.rs 1) AND fires on any socket opened
+    #                      outside those four modules. Scanning it here too
+    #                      would mean two ledgers for one crate — the
+    #                      divergence risk this repo keeps finding in
+    #                      duplicated sources of truth.
+    #
+    # What is left is the genuine gap that tripwire does not reach: the CLI
+    # and MCP surfaces, which T-2702 F1 named explicitly ("could be introduced
+    # in termlink-session OR termlink-cli").
+    ROOTS=(crates/termlink-cli/src crates/termlink-mcp/src)
 fi
 
 # Allowlist resolution, tracked-first (T-2681): an explicit flag/env always

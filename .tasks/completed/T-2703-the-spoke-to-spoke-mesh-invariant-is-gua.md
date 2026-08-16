@@ -4,20 +4,20 @@ name: "The spoke-to-spoke mesh invariant is guarded by nothing (T-2569 guards a 
 description: >
   The architecture doc's decisive invariant is 'spokes never connect to one another'. T-2569's tripwire scans only the hub crate and forbids hub-to-hub federation — a different edge. termlink-session ships a generic client that connects to any unix path or TCP host:port, so a spoke-to-spoke mesh could be added and no test would fail (T-2702 F1).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-session/tests/no_spoke_mesh_tripwire.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T11:27:41Z
-last_update: 2026-08-16T14:31:18Z
-date_finished: null
+last_update: 2026-08-16T14:53:57Z
+date_finished: 2026-08-16T14:53:57Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -47,22 +47,34 @@ load-bearing test, not second-guessed here, but a BEHAVIOURAL test of ONE functi
 it cannot fail when someone adds a NEW dial site elsewhere. That "elsewhere" is the
 exposure F1 named.
 
-**Two honest deviations from the ACs as filed, both deliberate:**
+**Correction — I nearly duplicated the primary deliverable.** A later session
+(this one) picked the task up, searched `crates/` for `EXPECTED_OUTBOUND_SITES`,
+`spoke_to_spoke` and `strict_star`, found only T-2569's hub tripwire, and
+concluded no spoke-side guard existed and the checked ACs were unbacked. **That
+was wrong.** `crates/termlink-session/tests/no_spoke_mesh_tripwire.rs` already
+existed (commit `cc17b6c81`, this same task): it uses none of those three
+identifiers, so the grep missed it. The ACs were checked because the work HAD
+been done. The error surfaced only because the pre-existing `## Verification`
+block ran `cargo test -p termlink-session --test no_spoke_mesh_tripwire` and it
+PASSED — the verification gate caught what the search did not.
 
-1. *The ACs arrived pre-checked.* All four `[x]` boxes were already ticked when I
-   picked the task up, with no artifact behind them — `grep` for
-   `EXPECTED_OUTBOUND_SITES` finds only T-2569's hub tripwire, and no spoke-side
-   guard existed. The deliverable did not exist until this task did it. Recorded
-   because a pre-checked AC is a false-completion signal, the exact class this
-   review series keeps finding.
+The reusable lesson: *absence of a grep hit is not absence of the artifact* — the
+same shape as the T-2703 tripwire's own recorded correction, where a premise came
+from a `grep` truncated at ten results. Two independent instances in one task.
 
-2. *Different mechanism than the AC suggested.* AC 2 proposed the T-2569
-   `EXPECTED_OUTBOUND_SITES` count-pin idiom. I used a per-site acknowledgement
-   ledger instead: a count pin is satisfiable by deleting one site and adding
-   another, and it records no reason. The ledger names each site's TARGET, so it
-   doubles as the topology documentation (T-2693 rule) and cannot be silently
-   rebalanced. Intent of all four ACs is met; the mechanism is stronger, not
-   equivalent — stated rather than quietly substituted.
+**What survived, and why it is not breadth-accretion.** The Rust tripwire is the
+PRIMARY guard and is stronger for `termlink-session`: it pins per-module connect
+counts (client.rs 5, transport.rs 3, tofu.rs 1, ws_consumer.rs 1) and fires on any
+socket outside those four modules — a count change within a known module would
+escape a per-site ledger. So `termlink-session` was REMOVED from the shell check's
+scope rather than double-guarded; two ledgers for one crate is the divergence risk
+this repo keeps finding in duplicated sources of truth.
+
+What remains is the half the Rust test does not reach: `termlink-cli` and
+`termlink-mcp`. T-2702 F1 named both — a mesh "could be introduced in
+termlink-session **or termlink-cli** and no test would fail". The tripwire closed
+the first; `scripts/check-strict-star.sh` closes the second, at 6 dial sites, each
+acknowledged with its target named.
 
 **Scope, stated because a green must not over-read (T-2680):** the check detects
 raw dial SITES and whether each is acknowledged. It does NOT resolve what any
@@ -124,7 +136,7 @@ bash scripts/check-strict-star.sh
 # passes only if the check exits non-zero on the fixture.
 bash tests/strict-star-check-fixtures.sh
 # The check is a guard-layer member, so CI runs it on every push (T-2686).
-bash scripts/run-guard-layer.sh --list | grep -q check-strict-star.sh
+bash scripts/run-guard-layer.sh --list | grep -c check-strict-star.sh
 # The ledger is git-tracked, not unversioned local state (T-2681).
 git ls-files --error-unmatch .context/checks/strict-star-allowlist
 # Every acknowledged entry carries a cited reason (T-2693 rule: "safe" is not a reason).
@@ -277,3 +289,6 @@ removing it returns to green. Comment mentions do not trip it.
 
 ### 2026-08-14T11:28:05Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-08-16T14:53:57Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
