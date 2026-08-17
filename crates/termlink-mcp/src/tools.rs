@@ -19,16 +19,26 @@ const RECENT_EXPIRY_WINDOW_MS: i64 = 15 * 60 * 1000;
 /// `unread_topics: []` and reasonably read it as "no mail". It meant "nothing tracked
 /// here was examined". Documented-but-not-surfaced is the T-2680 shape, and the
 /// remedy is the one used there — put it on every output path, the clean one included.
+/// T-2783 narrowed this. It used to say "only topics recorded by
+/// `subscribe --resume`", which is no longer true: `dm:` topics on the hub
+/// carrying this identity's fingerprint are now DISCOVERED and reported even
+/// when the cursor store has never tracked them. Leaving the old wording would
+/// have put a false claim in the one sentence written to prevent false claims.
+///
+/// This tool remains local-hub-only — it has no `hub` parameter at all, so the
+/// CLI's `--fleet` has no MCP analogue yet. That is stated rather than implied.
 const INBOX_SCOPE_NOTE: &str =
-    "one hub only (no --fleet), and only topics recorded by `subscribe --resume`. \
-     A peer's reply on another hub, or on a topic you have only posted to, is NOT counted here.";
+    "this hub only (no fleet walk — the CLI has `channel inbox --fleet`, this tool does not). \
+     Covers topics recorded by `subscribe --resume` PLUS `dm:` topics on this hub addressed \
+     to your fingerprint (T-2783 discovery; those rows carry `tracked: false`). A peer's reply \
+     on ANOTHER hub, or on a non-dm topic you have only posted to, is still NOT counted here.";
 
 /// The actionable half of the disclaimer: what to run when the real question is
 /// "did they reply?" rather than "what is unread among what I already track?".
 const INBOX_SCOPE_HINT: &str =
-    "empty does not mean no mail. To actually check for a reply: `/recent-dm <peer>` \
-     (walks every hub), or read the thread directly with \
-     `termlink channel subscribe <dm-topic> --hub <peer-hub> --cursor 0 --json`.";
+    "empty does not mean no mail — this hub is not the fleet. To actually check for a reply: \
+     `termlink channel inbox --fleet` or `/recent-dm <peer>` (both walk every hub), or read the \
+     thread directly with `termlink channel subscribe <dm-topic> --hub <peer-hub> --cursor 0 --json`.";
 
 /// Build the `termlink_agent_inbox` envelope. Extracted as a pure function purely so
 /// the scope fields are testable: asserting on the two constants alone would be a test
@@ -38,15 +48,55 @@ fn inbox_envelope_json(
     my_id: &str,
     unread_topics: Vec<serde_json::Value>,
     topics_scanned: usize,
+    discovered: usize,
 ) -> serde_json::Value {
     serde_json::json!({
         "ok": true,
         "my_id": my_id,
         "unread_topics": unread_topics,
         "topics_scanned": topics_scanned,
+        // T-2783: how many of the examined topics came from discovery rather than
+        // the cursor store. `topics_scanned: 0, discovered_topics: 3` is a
+        // materially different state from `topics_scanned: 3` and a caller must
+        // be able to tell them apart.
+        "discovered_topics": discovered,
         "scope": INBOX_SCOPE_NOTE,
         "hint": INBOX_SCOPE_HINT,
     })
+}
+
+/// T-2783: `dm:` topics on the hub addressed to this identity that the local
+/// cursor store has never tracked. Mirror of the CLI's
+/// `discover_untracked_dm_topics` (T-2069 convention: tiny pure helpers are
+/// duplicated rather than shared across crates).
+///
+/// This is the primary half of the T-2781 fix. The reply that went missing lived
+/// on a topic this identity had only ever POSTED to, and `subscribe --resume` is
+/// what writes a cursor row — so the cursor store, which is the enumeration
+/// source, excluded it. PL-350: two stores can answer "which topics concern me"
+/// and nothing joined them.
+fn discover_untracked_dm_topics_mcp(
+    hub_topics: &[String],
+    cursors: &[(String, u64)],
+    fingerprint: &str,
+) -> Vec<String> {
+    // A blank fingerprint would substring-match every dm topic on the hub,
+    // including other identities'. Refuse rather than over-report.
+    if fingerprint.is_empty() {
+        return Vec::new();
+    }
+    let tracked: std::collections::HashSet<&str> =
+        cursors.iter().map(|(t, _)| t.as_str()).collect();
+    let mut out: Vec<String> = hub_topics
+        .iter()
+        .filter(|t| t.starts_with("dm:"))
+        .filter(|t| t.contains(fingerprint))
+        .filter(|t| !tracked.contains(t.as_str()))
+        .cloned()
+        .collect();
+    out.sort();
+    out.dedup();
+    out
 }
 
 /// T-2709: wall-clock epoch-millis, matching the hub's `claimed_until` units.
@@ -19396,14 +19446,11 @@ impl TermLinkTools {
             Ok(c) => c,
             Err(e) => return json_err(format!("cursor store: {e}")),
         };
-        if cursors.is_empty() {
-            // T-2782: additive scope fields. `unread_topics: []` alone is the answer
-            // that cost two escalations sent over the top of a reply that was already
-            // waiting — it reads as "no mail" when it means "nothing tracked here was
-            // examined". Empty is the path that most needs the disclaimer.
-            return serde_json::to_string_pretty(&inbox_envelope_json(&my_id, vec![], 0))
-                .unwrap_or_else(json_err);
-        }
+        // T-2783: the pre-T-2783 code returned HERE on an empty cursor store,
+        // without contacting the hub at all. That early return WAS the bug in its
+        // purest form — with discovery, an empty cursor store is exactly the
+        // T-2781 state (every relevant dm topic untracked), not proof that there
+        // is nothing to examine. The hub is now always consulted.
 
         // channel.list — full catalog, extract (name, count) into HashMap.
         let list_resp = match termlink_session::client::rpc_call(
@@ -19422,9 +19469,11 @@ impl TermLinkTools {
         };
         let mut counts: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
         let mut latest: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+        let mut all_topics: Vec<String> = Vec::new();
         if let Some(arr) = list_result["topics"].as_array() {
             for entry in arr {
                 if let Some(name) = entry.get("name").and_then(|v| v.as_str()) {
+                    all_topics.push(name.to_string());
                     let count = entry.get("count").and_then(|v| v.as_u64()).unwrap_or(0);
                     counts.insert(name.to_string(), count);
                     // T-2533: authoritative latest offset when the hub emits it.
@@ -19435,15 +19484,25 @@ impl TermLinkTools {
             }
         }
 
+        // T-2783: the join that makes the digest complete. `all_topics` came from
+        // the SAME channel.list response already needed for counts — no extra RPC.
+        let discovered = discover_untracked_dm_topics_mcp(&all_topics, &cursors, &my_id);
+
         // T-2757: join this identity's receipt frontier per tracked topic. The
         // cursor alone is not the consumption frontier — see
         // `reconcile_consumption_frontier_mcp`. Best-effort per topic: any
         // failure (hub without `channel.receipts`, transport error, no receipt
         // yet) simply leaves the topic out of the map, which reproduces the
         // pre-T-2757 number rather than failing the whole digest.
+        //
+        // T-2783: now runs over tracked AND discovered topics. Skipping discovered
+        // ones would resurface every thread already acked through the conversation
+        // arc (which advances receipts, not cursors) as false unread — trading a
+        // false negative for a false positive. A digest that cannot be cleared is
+        // one its reader stops believing (PL-340).
         let mut receipt_frontiers: std::collections::HashMap<String, u64> =
             std::collections::HashMap::new();
-        for (topic, _) in &cursors {
+        for topic in cursors.iter().map(|(t, _)| t).chain(discovered.iter()) {
             let receipts_resp = termlink_session::client::rpc_call(
                 &hub_socket,
                 termlink_protocol::control::method::CHANNEL_RECEIPTS,
@@ -19465,27 +19524,57 @@ impl TermLinkTools {
             }
         }
 
-        let rows = compute_unread_rows_mcp(&cursors, &counts, &latest, &receipt_frontiers);
-        let rows_json: Vec<serde_json::Value> = rows
+        // T-2783: a discovered topic enters at cursor 0, which is exact rather
+        // than approximate — offset 0 of a `dm:` topic is the `topic_metadata`
+        // header written at creation, never content. So "consumed through offset
+        // 0" is precisely true of a topic never read: a metadata-only topic drops
+        // as caught-up, and one real message reports exactly 1 unread.
+        let discovered_cursors: Vec<(String, u64)> =
+            discovered.iter().map(|t| (t.clone(), 0u64)).collect();
+        let tracked_rows =
+            compute_unread_rows_mcp(&cursors, &counts, &latest, &receipt_frontiers);
+        let discovered_rows =
+            compute_unread_rows_mcp(&discovered_cursors, &counts, &latest, &receipt_frontiers);
+
+        let to_json = |r: &UnreadRowMcp, tracked: bool| serde_json::json!({
+            "topic": r.topic,
+            "cursor": r.cursor,
+            "receipt_up_to": r.receipt_up_to,
+            "frontier": r.frontier,
+            "latest": r.latest,
+            "unread": r.unread,
+            // T-2757: an explicit flag, so a consumer cannot read a null
+            // `unread` as a zero.
+            "indeterminate": r.unread.is_none(),
+            // T-2783: `false` = this row came from discovery, not the cursor
+            // store. "never resumed, so all of it is unread" and "resumed and
+            // behind" are different operational facts; rendering them identically
+            // would fix the blind spot at the tool level and re-create it per row.
+            "tracked": tracked,
+        });
+        let mut rows_json: Vec<serde_json::Value> = tracked_rows
             .iter()
-            .map(|r| serde_json::json!({
-                "topic": r.topic,
-                "cursor": r.cursor,
-                "receipt_up_to": r.receipt_up_to,
-                "frontier": r.frontier,
-                "latest": r.latest,
-                "unread": r.unread,
-                // T-2757: an explicit flag, so a consumer cannot read a null
-                // `unread` as a zero.
-                "indeterminate": r.unread.is_none(),
-            }))
+            .map(|r| to_json(r, true))
+            .chain(discovered_rows.iter().map(|r| to_json(r, false)))
             .collect();
+        // Highest unread first, ties on topic — deterministic across the merge.
+        rows_json.sort_by(|a, b| {
+            b["unread"]
+                .as_u64()
+                .cmp(&a["unread"].as_u64())
+                .then_with(|| a["topic"].as_str().cmp(&b["topic"].as_str()))
+        });
 
         // T-2782: same scope fields on the populated path. A caller must be able to
         // distinguish "0 unread of 9 tracked" from "0 tracked, nothing examined";
         // before this both rendered as an empty `unread_topics` and nothing else.
-        serde_json::to_string_pretty(&inbox_envelope_json(&my_id, rows_json, cursors.len()))
-            .unwrap_or_else(json_err)
+        serde_json::to_string_pretty(&inbox_envelope_json(
+            &my_id,
+            rows_json,
+            cursors.len(),
+            discovered.len(),
+        ))
+        .unwrap_or_else(json_err)
     }
 
     #[tool(
@@ -30299,12 +30388,13 @@ mod tests {
 
     #[test]
     fn empty_inbox_envelope_states_what_was_examined() {
-        let v = inbox_envelope_json("deadbeef", vec![], 0);
+        let v = inbox_envelope_json("deadbeef", vec![], 0, 0);
         assert_eq!(v["unread_topics"].as_array().unwrap().len(), 0);
         // The distinction that was impossible to make before: nothing unread, versus
         // nothing looked at.
         assert_eq!(v["topics_scanned"], 0);
-        assert!(v["scope"].as_str().unwrap().contains("one hub only"));
+        assert_eq!(v["discovered_topics"], 0);
+        assert!(v["scope"].as_str().unwrap().contains("this hub only"));
         assert!(v["hint"].as_str().unwrap().contains("empty does not mean no mail"));
     }
 
@@ -30313,8 +30403,9 @@ mod tests {
         // Parity matters: an operator who learns to trust the scope line on the empty
         // path must not find it silently absent once mail exists.
         let rows = vec![serde_json::json!({"topic": "dm:a:b", "unread": 3})];
-        let v = inbox_envelope_json("deadbeef", rows, 9);
+        let v = inbox_envelope_json("deadbeef", rows, 9, 2);
         assert_eq!(v["topics_scanned"], 9);
+        assert_eq!(v["discovered_topics"], 2);
         assert_eq!(v["scope"], INBOX_SCOPE_NOTE);
         assert_eq!(v["hint"], INBOX_SCOPE_HINT);
     }
@@ -30324,13 +30415,93 @@ mod tests {
         // Both causes are load-bearing. Naming only one leaves a reader believing the
         // other is covered — which is how the original miss happened.
         let s = INBOX_SCOPE_NOTE;
-        assert!(s.contains("--fleet"), "must name the single-hub blind spot");
-        assert!(s.contains("subscribe --resume"), "must name the cursor-store blind spot");
+        assert!(
+            s.contains("this hub only") && s.contains("ANOTHER hub"),
+            "must name the single-hub blind spot, which this tool still has"
+        );
+        assert!(
+            s.contains("subscribe --resume"),
+            "must name the residual cursor-store blind spot (non-dm topics)"
+        );
         // A disclaimer with no next step just moves the dead end.
         assert!(
             INBOX_SCOPE_HINT.contains("recent-dm") || INBOX_SCOPE_HINT.contains("channel subscribe"),
             "hint must name a command that actually answers 'did they reply?'"
         );
+    }
+
+    // === T-2783: the MCP tool discovers untracked dm topics ===
+    //
+    // This surface matters most: agents read their mail through MCP, so leaving it
+    // cursor-gated would have left the incident's actual cause in place while the
+    // CLI looked fixed.
+
+    /// The T-2781 regression fixture. Before T-2783 this topic was invisible to
+    /// the tool on every count, which is why two escalations went out over the
+    /// top of an answer already sitting in it.
+    #[test]
+    fn mcp_discovers_the_untracked_dm_topic_that_hid_the_reply() {
+        let fp = "d1993c2c3ec44c94";
+        let hub_topics = vec![
+            "dm:88743a9ad59fda39:d1993c2c3ec44c94".to_string(),
+            "dm:9219671e28054458:d1993c2c3ec44c94".to_string(),
+            "dm:aaaa:bbbb".to_string(),
+            "agent-chat-arc".to_string(),
+        ];
+        let cursors = vec![("dm:9219671e28054458:d1993c2c3ec44c94".to_string(), 40u64)];
+        assert_eq!(
+            discover_untracked_dm_topics_mcp(&hub_topics, &cursors, fp),
+            vec!["dm:88743a9ad59fda39:d1993c2c3ec44c94".to_string()]
+        );
+    }
+
+    /// Discovery must not become a firehose: broad topics are addressed to nobody
+    /// in particular, and a digest full of noise stops being read (T-2709).
+    #[test]
+    fn mcp_discovery_ignores_non_dm_and_other_identities() {
+        let found = discover_untracked_dm_topics_mcp(
+            &[
+                "agent-chat-arc".to_string(),
+                "work-queue".to_string(),
+                "dm:aaaa:bbbb".to_string(),
+            ],
+            &[],
+            "d1993c2c3ec44c94",
+        );
+        assert!(found.is_empty(), "unexpected discovery: {found:?}");
+    }
+
+    /// An identity we cannot name is one we cannot match — a blank fingerprint
+    /// would substring-match every dm topic on the hub, including other people's.
+    #[test]
+    fn mcp_discovery_refuses_an_empty_fingerprint() {
+        assert!(
+            discover_untracked_dm_topics_mcp(
+                &["dm:aaaa:bbbb".to_string(), "dm:cccc:dddd".to_string()],
+                &[],
+                ""
+            )
+            .is_empty()
+        );
+    }
+
+    /// CLI/MCP parity on the detector itself. The two are duplicated per the
+    /// T-2069 convention, and duplication without a shared test is how the two
+    /// halves of a "parity" pair quietly diverge (the T-2624/T-2687 shape).
+    #[test]
+    fn mcp_discovery_agrees_with_cli_on_the_same_input() {
+        // Same fixture as the CLI's `discovers_the_untracked_dm_topic_that_hid_the_reply`.
+        let hub_topics = vec![
+            "dm:88743a9ad59fda39:d1993c2c3ec44c94".to_string(),
+            "dm:9219671e28054458:d1993c2c3ec44c94".to_string(),
+            "dm:aaaa:bbbb".to_string(),
+            "agent-chat-arc".to_string(),
+        ];
+        let cursors = vec![("dm:9219671e28054458:d1993c2c3ec44c94".to_string(), 40u64)];
+        let mcp = discover_untracked_dm_topics_mcp(&hub_topics, &cursors, "d1993c2c3ec44c94");
+        // The CLI asserts this exact vector; if either side changes, one of the
+        // two tests goes red rather than the pair silently drifting.
+        assert_eq!(mcp, vec!["dm:88743a9ad59fda39:d1993c2c3ec44c94".to_string()]);
     }
 
     // === T-2691: procfs probe parity with the CLI (Directive #4 portability) ===

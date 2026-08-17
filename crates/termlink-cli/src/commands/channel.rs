@@ -9154,6 +9154,36 @@ pub(crate) fn inbox_scope_note(s: &InboxScope) -> String {
     note
 }
 
+/// T-2783: decide which `--fleet` profiles to actually read, given each one's
+/// probed TLS fingerprint.
+///
+/// Two profiles can name one hub (an alias, a second address for the same box),
+/// and reading it twice would double-count every topic on it. First occurrence
+/// of a fingerprint wins; the rest are skipped and NAMED.
+///
+/// **A profile whose probe FAILED (`None`) is always kept.** This is the
+/// deliberate half. Dropping it would silently shrink the scope on exactly the
+/// evidence we do not have — and a silently shrunk scope is this task's own bug
+/// class recurring inside its own fix. Keeping it means we attempt the read, and
+/// if that also fails the failure is reported through `hubs_failed` where the
+/// operator can see it.
+///
+/// Returns `(kept, skipped_as_duplicates)`. Pure — the probing is the caller's.
+pub(crate) fn dedup_hub_profiles_by_fingerprint(
+    probed: &[(String, Option<String>)],
+) -> (Vec<String>, Vec<String>) {
+    let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
+    let mut kept = Vec::new();
+    let mut skipped = Vec::new();
+    for (name, fp) in probed {
+        match fp.as_deref() {
+            Some(f) if !seen.insert(f) => skipped.push(name.clone()),
+            _ => kept.push(name.clone()),
+        }
+    }
+    (kept, skipped)
+}
+
 /// T-2783: one hub's contribution to the digest.
 struct HubInboxRead {
     rows: Vec<UnreadRow>,
@@ -9268,33 +9298,31 @@ pub(crate) async fn cmd_channel_inbox(
         let config = crate::config::load_hubs_config();
         let mut names: Vec<&String> = config.hubs.keys().collect();
         names.sort();
-        // Dedup by TLS fingerprint so two profiles pointing at one hub are read
-        // once (T-1889 sibling; same rule as `check-outbox --fleet`). A probe
-        // failure does NOT drop the profile — we still try to read it, and a
-        // genuine failure is reported below. Dropping on a failed probe would
-        // silently shrink the scope, which is this task's own bug class.
-        let mut seen_fp: std::collections::HashSet<String> = std::collections::HashSet::new();
-        for name in names {
-            let entry = &config.hubs[name];
-            let addr = entry.address.clone();
-            if let Ok((_der, hub_fp)) = termlink_session::tofu::probe_cert_with_timeout(
+        // Probe every profile's TLS fingerprint, then dedup so two profiles
+        // naming one hub are read once (T-1889 sibling; same rule as
+        // `check-outbox --fleet`). The decision is a pure helper so it is
+        // testable — see `dedup_hub_profiles_by_fingerprint`.
+        let mut probed: Vec<(String, Option<String>)> = Vec::new();
+        for name in &names {
+            let addr = config.hubs[*name].address.clone();
+            let fp_probe = termlink_session::tofu::probe_cert_with_timeout(
                 &addr,
                 std::time::Duration::from_secs(5),
             )
             .await
-                && !seen_fp.insert(hub_fp)
-            {
-                eprintln!("(skipping profile '{name}' — same hub as an already-read profile)");
-                continue;
-            }
-            match read_inbox_one_hub(
-                Some(&addr),
-                Some(name.clone()),
-                &fp,
-                &cursors,
-                json_output,
-            )
-            .await
+            .ok()
+            .map(|(_der, hub_fp)| hub_fp);
+            probed.push(((*name).clone(), fp_probe));
+        }
+        let (kept, skipped) = dedup_hub_profiles_by_fingerprint(&probed);
+        for name in &skipped {
+            eprintln!("(skipping profile '{name}' — same hub as an already-read profile)");
+        }
+
+        for name in kept {
+            let addr = config.hubs[&name].address.clone();
+            match read_inbox_one_hub(Some(&addr), Some(name.clone()), &fp, &cursors, json_output)
+                .await
             {
                 Ok(read) => {
                     scope.hubs_read.push(name.clone());
@@ -13163,6 +13191,38 @@ mod tests {
             &no_receipts(),
         );
         assert!(rows.is_empty(), "metadata-only topic must drop: {rows:?}");
+    }
+
+    /// Two profiles naming one hub must be read once, or every topic on it is
+    /// double-counted.
+    #[test]
+    fn fleet_dedups_profiles_that_resolve_to_the_same_hub() {
+        let (kept, skipped) = dedup_hub_profiles_by_fingerprint(&[
+            ("alpha".into(), Some("sha256:aaa".into())),
+            ("alpha-alias".into(), Some("sha256:aaa".into())),
+            ("beta".into(), Some("sha256:bbb".into())),
+        ]);
+        assert_eq!(kept, vec!["alpha".to_string(), "beta".to_string()]);
+        assert_eq!(skipped, vec!["alpha-alias".to_string()]);
+    }
+
+    /// The deliberate half: a profile we could not probe is KEPT, not dropped.
+    /// Dropping on absent evidence would silently shrink the scope — this task's
+    /// own bug class recurring inside its own fix. We attempt the read; if that
+    /// fails too, it surfaces through `hubs_failed` where it is visible.
+    #[test]
+    fn fleet_keeps_profiles_whose_fingerprint_probe_failed() {
+        let (kept, skipped) = dedup_hub_profiles_by_fingerprint(&[
+            ("alpha".into(), None),
+            ("beta".into(), None),
+            ("gamma".into(), Some("sha256:ccc".into())),
+        ]);
+        assert_eq!(
+            kept,
+            vec!["alpha".to_string(), "beta".to_string(), "gamma".to_string()],
+            "unprobeable profiles must not be silently dropped"
+        );
+        assert!(skipped.is_empty());
     }
 
     /// G-060: the same topic name on two hubs is two unrelated logs. An
