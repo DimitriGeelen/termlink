@@ -657,6 +657,29 @@ differs, but no job line is absent — comment churn, env tweaks, an extra
 operator-added job → non-firing WARNING, fires under `--strict`), or **OK**
 (byte-identical).
 
+**Why JOB_DRIFT is its own class (T-2787).** T-2682's `UNINSTALLED_JOBS` compares whole
+job lines, so ANY command change reads as "line absent" and is then reported as *"The
+scheduled work below exists in git but is NOT scheduled on this host."* On this host that
+claim was false for **21 of 23 flagged crontabs**: T-2685 replaced `2>&1` with the
+`2>> <log>.stderr` split, that change was never deployed (`grep -l "log.stderr"
+/etc/cron.d/termlink-*` → **0 of 24 installed**), and every one of those jobs was
+scheduled and running the whole time. The harm is inverted severity — an operator reading
+"21 canaries SHIPPED BUT DARK" re-installs 21 crontabs that are already firing — and,
+worse, **concealment**: the 2 genuinely-unscheduled job lines (fleet-doorbell-mail and
+substrate-preflight, each missing its meta-canary aliveness line — the exact pair T-2682
+found) sat buried in a list of 21 false ones. A guard that misreports *which* thing is
+broken costs more than one that stays quiet, because it sends the operator at the wrong
+target.
+
+`JOB_DRIFT` is a git job line whose **redirect-stripped** form matches an installed job
+line's but which differs textually: same schedule, same command, different output routing.
+It **fires on the same footing as UNINSTALLED_JOBS** regardless of `--strict` — an
+undeployed change is real, and T-2685's redirect is load-bearing — and prints both the git
+form and the installed form so the operator sees what actually differs. Only the claim
+changes, never the severity. `--json` carries `job_drift_count` + `job_drift[]`. One
+crontab can carry both classes at once (the real fleet-doorbell-mail does). Current tree:
+`{missing: 0, uninstalled_jobs: 2, job_drift: 21, drift: 0, ok: 3}`, exit 1.
+
 **Why UNINSTALLED_JOBS is its own class (T-2682).** T-2561 shipped with MISSING vs
 DRIFT only, so every content difference read as one quiet "DRIFT (warning)" line. On
 the origin host that hid two crontabs whose installed copies were missing their
@@ -679,7 +702,8 @@ uninstalled jobs / drift under `--strict`), 2 = tooling. `--json` for scripting
 `<crontab>|<installed_path>|<missing line>`); a host without `/etc/cron.d` (macOS/dev)
 is informational, never firing. Test hooks `CRON_DRIFT_SRC_DIR` +
 `CRON_DRIFT_INSTALLED_DIR` feed fixture dirs (PL-213); fixture suite
-`bash tests/cron-install-drift-fixtures.sh` (24 assertions). Operator action on
+`bash tests/cron-install-drift-fixtures.sh` (37 assertions — 13 added by T-2787, including
+a control that a genuinely-absent job line is NOT swallowed by the new class). Operator action on
 firing: install the named crontab with
 `sudo cp .context/cron/<name>.crontab <declared-path>`.
 

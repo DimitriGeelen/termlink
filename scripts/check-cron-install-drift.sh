@@ -114,8 +114,19 @@ job_lines() {
         | sed -E 's/[[:space:]]+/ /g; s/^ //'
 }
 
+# T-2787 — strip a job line's output redirection, leaving schedule + user + command.
+# Two lines that agree here are THE SAME SCHEDULED WORK routed differently; the job runs
+# either way. This is what separates "this work is not scheduled at all" (UNINSTALLED_JOBS)
+# from "this work IS scheduled, but the installed command differs" (JOB_DRIFT). Both fire —
+# the distinction is the CLAIM, not the severity. Reporting the second as the first sends
+# the operator to re-install crontabs that are already running.
+strip_redirects() {
+    sed -E 's/[[:space:]]*[0-9]?>>?.*$//'
+}
+
 missing=(); drifted=(); skipped=(); ok_count=0
 uninstalled=(); uninstalled_detail=()
+job_drift=(); job_drift_detail=()
 for f in "$SRC_DIR"/*.crontab; do
     [ -e "$f" ] || continue
     declared="$(grep -iE '^#[[:space:]]*Installed to:' "$f" | head -1 | sed -E 's/.*[Ii]nstalled to:[[:space:]]*//; s/[[:space:]].*//')"
@@ -133,17 +144,39 @@ for f in "$SRC_DIR"/*.crontab; do
         # else (comment churn, env tweaks, extra installed jobs) stays a warning.
         # Extra lines present only in the INSTALLED file are deliberately NOT a
         # firing condition — an operator adding a local job is their prerogative.
-        gitjobs="$(mktemp)"; instjobs="$(mktemp)"
+        gitjobs="$(mktemp)"; instjobs="$(mktemp)"; instbare="$(mktemp)"
         job_lines "$f"    > "$gitjobs"
         job_lines "$inst" > "$instjobs"
+        strip_redirects < "$instjobs" > "$instbare"
         absent="$(grep -Fxv -f "$instjobs" "$gitjobs" 2>/dev/null || true)"
-        rm -f "$gitjobs" "$instjobs"
-        if [ -n "$absent" ]; then
+
+        # T-2787 — split the "absent" set once more. A git job line whose
+        # redirect-stripped form IS present in the installed file is scheduled work
+        # that runs; only its output routing differs (the T-2685 stderr-split shape).
+        # Calling that "not scheduled on this host" is a false claim that sends the
+        # operator to re-install crontabs that are already firing.
+        this_missing=(); this_drift=()
+        while IFS= read -r l; do
+            [ -n "$l" ] || continue
+            bare="$(printf '%s\n' "$l" | strip_redirects)"
+            if [ -n "$bare" ] && grep -Fxq "$bare" "$instbare" 2>/dev/null; then
+                inst_line="$(grep -F -m1 "$bare" "$instjobs" 2>/dev/null || true)"
+                this_drift+=("$(basename "$f")|$declared|$l|$inst_line")
+            else
+                this_missing+=("$(basename "$f")|$declared|$l")
+            fi
+        done <<< "$absent"
+        rm -f "$gitjobs" "$instjobs" "$instbare"
+
+        if [ "${#this_missing[@]}" -gt 0 ]; then
             uninstalled+=("$(basename "$f") ↔ $declared")
-            while IFS= read -r l; do
-                [ -n "$l" ] && uninstalled_detail+=("$(basename "$f")|$declared|$l")
-            done <<< "$absent"
-        else
+            uninstalled_detail+=("${this_missing[@]}")
+        fi
+        if [ "${#this_drift[@]}" -gt 0 ]; then
+            job_drift+=("$(basename "$f") ↔ $declared")
+            job_drift_detail+=("${this_drift[@]}")
+        fi
+        if [ "${#this_missing[@]}" -eq 0 ] && [ "${#this_drift[@]}" -eq 0 ]; then
             drifted+=("$(basename "$f") ↔ $declared")
         fi
     else
@@ -152,19 +185,23 @@ for f in "$SRC_DIR"/*.crontab; do
 done
 
 miss_n=${#missing[@]}; drift_n=${#drifted[@]}; skip_n=${#skipped[@]}
-uninst_n=${#uninstalled[@]}
+uninst_n=${#uninstalled[@]}; jobdrift_n=${#job_drift[@]}
 
 if [ "$FORMAT" = json ]; then
     jarr() { local first=1; printf '['; for x in "$@"; do [ $first -eq 1 ] || printf ','; printf '%s' "$(printf '%s' "$x" | jq -R .)"; first=0; done; printf ']'; }
     # T-2682: uninstalled job lines fire unconditionally — they are the G-069
     # class, not a cosmetic difference, so --strict is irrelevant to them.
-    fire=$({ [ "$miss_n" -gt 0 ] || [ "$uninst_n" -gt 0 ]; } && echo true \
+    # T-2787: job-drift fires on the same footing. The installed command differing
+    # from git IS a deployment gap (T-2685's redirect is load-bearing); only the
+    # CLAIM differs from UNINSTALLED_JOBS, not the severity.
+    fire=$({ [ "$miss_n" -gt 0 ] || [ "$uninst_n" -gt 0 ] || [ "$jobdrift_n" -gt 0 ]; } && echo true \
         || { [ "$STRICT" -eq 1 ] && [ "$drift_n" -gt 0 ] && echo true || echo false; })
-    printf '{"ok":%s,"missing_count":%s,"uninstalled_jobs_count":%s,"drift_count":%s,"ok_count":%s,"skipped_count":%s,"strict":%s,"missing":%s,"uninstalled_jobs":%s,"drifted":%s}\n' \
+    printf '{"ok":%s,"missing_count":%s,"uninstalled_jobs_count":%s,"job_drift_count":%s,"drift_count":%s,"ok_count":%s,"skipped_count":%s,"strict":%s,"missing":%s,"uninstalled_jobs":%s,"job_drift":%s,"drifted":%s}\n' \
         "$([ "$fire" = true ] && echo false || echo true)" \
-        "$miss_n" "$uninst_n" "$drift_n" "$ok_count" "$skip_n" \
+        "$miss_n" "$uninst_n" "$jobdrift_n" "$drift_n" "$ok_count" "$skip_n" \
         "$([ "$STRICT" -eq 1 ] && echo true || echo false)" \
-        "$(jarr "${missing[@]}")" "$(jarr "${uninstalled_detail[@]}")" "$(jarr "${drifted[@]}")"
+        "$(jarr "${missing[@]}")" "$(jarr "${uninstalled_detail[@]}")" \
+        "$(jarr "${job_drift_detail[@]}")" "$(jarr "${drifted[@]}")"
     [ "$fire" = true ] && exit 1 || exit 0
 fi
 
@@ -186,6 +223,22 @@ if [ "$uninst_n" -gt 0 ]; then
     echo "  Remediation: re-install the affected crontab(s) with"
     echo "    sudo cp .context/cron/<name>.crontab <declared-path>   (root)"
     echo "  This fires regardless of --strict: a job that was never scheduled is not a cosmetic difference."
+fi
+if [ "$jobdrift_n" -gt 0 ]; then
+    fired=1
+    echo "check-cron-install-drift: $jobdrift_n installed crontab(s) run a DIFFERENT COMMAND than git declares — UNDEPLOYED CHANGE (T-2787):"
+    for j in "${job_drift[@]}"; do echo "  JOB_DRIFT: $j"; done
+    echo "  These jobs ARE scheduled and ARE running — the schedule matches, the command does not."
+    echo "  (Distinct from UNINSTALLED_JOBS above, which is work that is not scheduled at all.)"
+    for d in "${job_drift_detail[@]}"; do
+        echo "    ↳ ${d%%|*}:"
+        echo "        git:       $(printf '%s' "$d" | cut -d'|' -f3)"
+        echo "        installed: $(printf '%s' "$d" | cut -d'|' -f4)"
+    done
+    echo "  Remediation: re-install the affected crontab(s) with"
+    echo "    sudo cp .context/cron/<name>.crontab <declared-path>   (root)"
+    echo "  This fires regardless of --strict: a command that differs from git is an undeployed change,"
+    echo "  not a cosmetic one — the T-2685 stderr-split is exactly this shape and is load-bearing."
 fi
 if [ "$drift_n" -gt 0 ]; then
     [ "$STRICT" -eq 1 ] && fired=1
