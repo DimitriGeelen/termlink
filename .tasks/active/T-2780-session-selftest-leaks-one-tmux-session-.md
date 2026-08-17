@@ -1,23 +1,23 @@
 ---
-id: T-2779
-name: "session-selftest suite has no automated invocation path — guard layer cannot discover scripts/test-*.sh"
+id: T-2780
+name: "session-selftest leaks one tmux session per run — cleanup deregisters but never kills the PTY"
 description: >
-  session-selftest suite has no automated invocation path — guard layer cannot discover scripts/test-*.sh
+  session-selftest.sh CLEANUP sends 'signal TERM' + 'clean', which removes the termlink registration but leaves the backing tmux session alive. Measured: 7 orphaned tl-session-selftest-*-pty sessions after 7 live runs, 0 present in 'termlink list'. T-2695 AC 5 claims cleanup on every exit path; it is not satisfied. The T-2557 canary runs this prover daily, so the leak is unbounded.
 
-status: work-completed
+status: started-work
 workflow_type: build
 owner: agent
-horizon: null
+horizon: now
 tags: []
-components: [scripts/run-guard-layer.sh, scripts/test-session-selftest.sh, tests/guard-layer-runner-fixtures.sh]
+components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-17T06:06:37Z
-last_update: 2026-08-17T06:38:29Z
-date_finished: 2026-08-17T06:38:29Z
+created: 2026-08-17T06:44:21Z
+last_update: 2026-08-17T06:44:21Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -30,28 +30,24 @@ date_finished: 2026-08-17T06:38:29Z
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2779: session-selftest suite has no automated invocation path — guard layer cannot discover scripts/test-*.sh
+# T-2780: session-selftest leaks one tmux session per run — cleanup deregisters but never kills the PTY
 
 ## Context
 
-Found while closing T-2695: the guard layer could not see `scripts/test-session-selftest.sh`
-at all, so the suite T-2695 had just extended was about to lose its last invocation path.
-The stranded file turned out to be one of 57. Filed separately from T-2695 per "one bug =
-one task" — that task was about PTY stages; this is a guard-layer coverage defect.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] `scripts/test-*.sh` and non-`*fixtures*` `tests/*.sh` can JOIN the guard layer via the same `# guard-layer: source` header marker a static check uses — membership stays opt-in, because many of these suites need a live hub/network and would violate the layer's "safe to run anywhere" contract
-- [x] Un-marked suites are reported as **unclassified** rather than being invisible — this is the actual defect: the pre-existing note counted only `check-*.sh`, so 38 `scripts/test-*.sh` suites sat outside the accounting entirely while the runner reported `45/45 members clean`
-- [x] The unclassified wording no longer says "check script(s)", since the set is no longer only check scripts
-- [x] `scripts/test-session-selftest.sh` carries the marker and actually runs in the layer — it is hermetic (every case drives the PL-213 test seams; no live hub, no tmux)
-- [x] No existing member changes kind, name, or invocation; the pre-existing 45 still run and still pass
-- [x] `*fixtures*.sh` under `tests/` is not double-added by the new scan
-- [x] `bash tests/guard-layer-runner-fixtures.sh` still passes, extended with cases covering marker-opt-in and unclassified-visibility for the new locations
-- [x] Load-bearing, proven by mutation not assertion: removing the marker from `test-session-selftest.sh` drops it from members and moves it to unclassified; restoring returns it
-- [x] The runner's `--help`/header documents that suites join by marker from both locations, so the next author does not have to read the discovery loop to learn how to opt in
+- [x] The leak is **reproduced first** in isolation — spawn a PTY session the way the prover does, run the prover's exact cleanup, and show the tmux session survives — so the fix is aimed at a measured mechanism rather than a guessed one
+- [x] CLEANUP reaps the backing tmux session, not just the termlink registration: after a full live run, `tmux ls` shows no `tl-session-selftest-*` session
+- [x] The reap is scoped to this prover's own session name; it must never match or kill an unrelated `tl-*` session belonging to real work
+- [x] Cleanup stays best-effort and never fatal: a reap failure must not turn a PASSing prover into a FAIL (exit-code contract 0 proven / 1 broken / 2 tooling is unchanged)
+- [x] The non-PTY `sleep`-backed session's existing handling is unchanged — no regression to the stages the T-2557 canary already depends on
+- [ ] Reaping happens on **every** exit path, including when a PTY stage FAILS — that is what T-2695 AC 5 claimed and is the property that was actually missing — **structurally true (the reap sits in the cleanup block gated only on `spawn_status = PASS`, so no PTY-stage outcome can skip it) but NOT yet exercised on a forced-FAIL run; unticked deliberately, since that is exactly the assumption T-2695 got wrong**
+- [ ] Load-bearing, proven by mutation: removing the reap makes the leak assertion fail; restoring it passes — **written and staged (`mutate-2780.sh`) but blocked by the budget gate before it ran**
+- [ ] `bash scripts/session-selftest.sh --json` still returns `proven:true` with all seven stages (**verified — rc=0, 7/7 stages**), and `bash scripts/test-session-selftest.sh` still passes (**not re-run after this edit**; the change is inside the `TEST_MODE=0` branch so the suite cannot reach it, but that is reasoning, not a measurement)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -136,62 +132,33 @@ one task" — that task was about PTY stages; this is a guard-layer coverage def
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-bash -n scripts/run-guard-layer.sh
-bash tests/guard-layer-runner-fixtures.sh
-bash scripts/run-guard-layer.sh
-# The suite this task exists for must actually be a MEMBER, not merely present on disk.
-# Asserted against JSON `members[]`, NOT against `--list` text: --list prints the
-# unclassified names too, so a text grep would pass even if the suite had been dropped
-# to unclassified — i.e. it would still read green under the exact regression this
-# task exists to prevent.
-# Capture ONCE, assert many. The first draft re-invoked the layer five times at ~90s
-# each and the gate ran >25 minutes; same evidence, a fifth of the wall clock. (Two runs
-# are irreducible: the unclassified WORDING is a text-mode property with no JSON analogue.)
-# A non-zero exit here fails the line, so this doubles as "the layer is green".
-bash scripts/run-guard-layer.sh --json > .context/working/.t2779-guard.json 2>/dev/null
-test "$(jq -r '[.members[] | select(.name=="test-session-selftest.sh")] | length' .context/working/.t2779-guard.json)" -eq 1
-test "$(jq -r '.members[] | select(.name=="test-session-selftest.sh") | .kind' .context/working/.t2779-guard.json)" = "suite"
-test "$(jq -r '.members[] | select(.name=="test-session-selftest.sh") | .verdict' .context/working/.t2779-guard.json)" = "PASS"
-# The previously-invisible suites are now COUNTED. Pre-T-2779 the note said 20 and
-# omitted every scripts/test-*.sh; anything at/below 20 means the scan regressed.
-test "$(jq -r '.summary.unclassified // 0' .context/working/.t2779-guard.json)" -gt 20
-# Wording no longer claims the unclassified set is only check scripts.
-bash scripts/run-guard-layer.sh > .context/working/.t2779-guard.txt 2>&1
-test -z "$(grep -o 'check script(s) carry no' .context/working/.t2779-guard.txt)"
+## Evidence so far (2026-08-17)
+
+**Reproduced in isolation.** Spawn `--shell --backend tmux`, then run the prover's exact
+cleanup: `termlink signal <s> TERM` → **rc=0**, `termlink clean` → **rc=0**, and the tmux
+session is *still there*. `tmux kill-session` reaps it. So both cleanup verbs report
+SUCCESS while leaving the resource running — the Directive #2 shape, which is why nothing
+ever surfaced it.
+
+**Mechanism.** `signal` targets the session's registered *process*; the tmux session that
+process created outlives it, and `clean` reaps termlink's registry, not tmux. The orphan is
+invisible through every termlink surface — measured 7 orphans against `termlink list`
+showing **0**.
+
+**Two sessions, only one leaks.** First fix attempt reported "STILL LEAKING" and that was a
+false alarm in my own harness: the leftover was the *base* session, spawned `-- sleep 30`,
+which self-reaps on TTL. The permanent leak is the `-pty` session, spawned `--shell`, which
+runs an interactive shell forever. Re-measured with that discriminator: 0 `-pty` orphans
+immediately, 0 sessions after the TTL, prover still `proven:true`.
+
+**Reaped the 7 pre-existing orphans** (narrow `tl-session-selftest-` prefix; unrelated
+`tl-aef-*` / `tl-herdr-*` sessions untouched).
+
+**Not yet done:** the mutation proof and the forced-FAIL-path run — see the two unticked ACs.
+Do NOT close this task until both are run; the whole reason this defect exists is that
+T-2695 ticked the equivalent AC on reasoning rather than measurement.
 
 ## RCA
-
-**Symptom.** `scripts/test-session-selftest.sh` was referenced only by task Verification
-blocks — T-2563 (already archived to `completed/`) and T-2695. Not by CI, not by the guard
-layer. On T-2695's closure it would have reached **zero** automated invocation paths: 23
-assertions covering the charter's "control terminal sessions" verb, run only if a human
-happened to type the command.
-
-**Root cause.** `run-guard-layer.sh` discovery enumerated exactly two shapes —
-`scripts/check-*.sh` carrying a `# guard-layer: source` marker, and `tests/*fixtures*.sh`
-by naming convention. `scripts/test-*.sh` matched neither, and no marker could rescue it
-because the marker loop only ever iterated `check-*.sh`. This was not one stranded file:
-**38** suites live under `scripts/test-*.sh`, plus several non-`*fixtures*` files in
-`tests/`.
-
-**Why structurally allowed.** The runner reported `45/45 members clean` alongside a note
-that `20 check script(s) carry no marker`. That pairing reads as complete accounting — a
-member count plus an explicit remainder. But the remainder counted only `check-*.sh`, so
-57 suites were in neither number. They were not un-run-but-known; they were **invisible**,
-and invisible is what stops anyone asking. Same shape as T-2680, where the charter-drift
-canary reported `{checked:214, live_off_charter:0}` while only ever looking for six known
-families: in both cases the *number was true* and the *impression was false*. A guard's
-green is read as a claim about its whole surface, so a guard that cannot enumerate its
-surface cannot be believed about it.
-
-**Prevention.** Discovery now scans both new locations, so an un-marked suite is counted
-as unclassified rather than dropped — the count moved 20 → 77, which is the defect made
-visible. Membership stays marker-gated because most of these suites need a live hub and
-would make a run-anywhere layer flaky; the fix is *visibility*, not mass enrolment.
-`tests/guard-layer-runner-fixtures.sh` gains 10 cases pinning both halves (marked ⇒
-member; unmarked ⇒ unclassified, not silently dropped), and the un-marked half is the
-load-bearing one: stripping the marker from `test-session-selftest.sh` moves it 46/77 →
-45/78, proving the marker — not the filename — is what confers membership.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -233,35 +200,7 @@ load-bearing one: stripping the marker from `test-session-selftest.sh` moves it 
 
 ## Decisions
 
-### 2026-08-17 — visibility, not mass enrolment
-
-- **Chose:** Scan the two new locations, but keep membership gated on the existing
-  `# guard-layer: source` marker; un-marked suites become **unclassified** (counted and
-  named) rather than members.
-- **Why:** The guard layer's contract is "safe to run anywhere — no live hub, no network,
-  no host state". Most of the 38 `scripts/test-*.sh` suites drive real transports
-  (`test-agent-send.sh`, the relay suites, the doorbell suites); enrolling them wholesale
-  would make the layer flaky, and a flaky guard is worse than a missing one because it
-  trains its operator to stop reading it — the same dynamic recorded for the latched
-  stuck-claims canary (T-2709). The defect was never "these do not run"; some legitimately
-  cannot. It was that nothing said they existed.
-- **Rejected:** (a) auto-enrolling every `test-*.sh` — makes the layer flaky and would have
-  reported ERROR for hub-dependent suites on any machine without a hub, which is exactly
-  the false-alarm class this layer exists to avoid; (b) renaming the suite to
-  `tests/session-selftest-fixtures.sh` to satisfy the existing convention — that fixes one
-  file and leaves 56 invisible, treating the symptom while the enumeration gap survives;
-  (c) marking every hermetic suite in this task — real value, but unbounded scope for a
-  task filed on a specific defect, and each needs its hermeticity *verified* rather than
-  assumed. Only `test-session-selftest.sh` was marked, because this session actually ran
-  it under the seams and watched all 23 cases pass without a hub.
-
-### 2026-08-17 — the unclassified count is the deliverable
-
-- **Chose:** Treat the count moving 20 → 77 as the headline result, and assert `> 20` in
-  the gate rather than pinning an exact number.
-- **Why:** 57 suites went from invisible to counted; that is the fix. An exact pin would
-  fire on every legitimately-added suite and turn a real signal into churn, whereas `> 20`
-  fires only if the new scan regresses — which is the property worth defending.
+<!-- Record decisions ONLY when choosing between alternatives.
      Skip for tasks with no meaningful choices.
      Format:
      ### [date] — [topic]
@@ -282,10 +221,7 @@ load-bearing one: stripping the marker from `test-session-selftest.sh` moves it 
 
 ## Updates
 
-### 2026-08-17T06:06:37Z — task-created [task-create-agent]
+### 2026-08-17T06:44:21Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2779-session-selftest-suite-has-no-automated-.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2780-session-selftest-leaks-one-tmux-session-.md
 - **Context:** Initial task creation
-
-### 2026-08-17T06:38:29Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed

@@ -948,3 +948,31 @@ decisions:
     date: 2026-08-16
     task: T-2778
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-115
+    decision: "Add 9 assertions to `scripts/test-session-selftest.sh` covering the"
+    scope: project
+    date: 2026-08-17
+    task: T-2695
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-116
+    decision: "File it as its own task rather than fix it here."
+    scope: project
+    date: 2026-08-17
+    task: T-2695
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-117
+    decision: "Scan the two new locations, but keep membership gated on the existing"
+    scope: project
+    date: 2026-08-17
+    task: T-2779
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-118
+    decision: "Treat the count moving 20 → 77 as the headline result, and assert `> 20` in"
+    scope: project
+    date: 2026-08-17
+    task: T-2779
+    rationale: "Auto-captured from task file on completion"

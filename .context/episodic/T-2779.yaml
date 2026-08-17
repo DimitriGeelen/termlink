@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2779: session-selftest suite has no automated invocation path — guard layer cannot discover scripts/test-*.sh
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-17T06:44:02Z
+# ============================================================================
+
+task_id: T-2779
+task_name: "session-selftest suite has no automated invocation path — guard layer cannot discover scripts/test-*.sh"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-17T06:06:37Z
+completed: 2026-08-17T06:38:29Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  session-selftest suite has no automated invocation path — guard layer cannot discover scripts/test-*.sh
+
+# Key outcomes
+outcomes:
+  - '`scripts/test-*.sh` and non-`*fixtures*` `tests/*.sh` can JOIN the guard layer via the same `# guard-layer: source` header marker a static check uses — membership stays opt-in, because many of these suites need a live hub/network and would violate the layer''s "safe to run anywhere" contract'
+  - 'Un-marked suites are reported as **unclassified** rather than being invisible — this is the actual defect: the pre-existing note counted only `check-*.sh`, so 38 `scripts/test-*.sh` suites sat outside the accounting entirely while the runner reported `45/45 members clean`'
+  - 'The unclassified wording no longer says "check script(s)", since the set is no longer only check scripts'
+  - '`scripts/test-session-selftest.sh` carries the marker and actually runs in the layer — it is hermetic (every case drives the PL-213 test seams; no live hub, no tmux)'
+  - 'No existing member changes kind, name, or invocation; the pre-existing 45 still run and still pass'
+  - '`*fixtures*.sh` under `tests/` is not double-added by the new scan'
+  - '`bash tests/guard-layer-runner-fixtures.sh` still passes, extended with cases covering marker-opt-in and unclassified-visibility for the new locations'
+  - 'Load-bearing, proven by mutation not assertion: removing the marker from `test-session-selftest.sh` drops it from members and moves it to unclassified; restoring returns it'
+  - 'The runner''s `--help`/header documents that suites join by marker from both locations, so the next author does not have to read the discovery loop to learn how to opt in'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-08-17 — visibility, not mass enrolment'
+    chose: 'Scan the two new locations, but keep membership gated on the existing'
+    rationale: 'The guard layer''s contract is "safe to run anywhere — no live hub, no network,'
+    alternatives_rejected: ['(a) auto-enrolling every `test-*.sh` — makes the layer flaky and would have']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 31 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 31
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2779-session-selftest-suite-has-no-automated-.md
+generated_by: context-agent-hybrid

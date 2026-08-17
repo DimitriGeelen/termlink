@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2695: session-selftest proves exec only; the charter also claims inject and output
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-17T06:06:32Z
+# ============================================================================
+
+task_id: T-2695
+task_name: "session-selftest proves exec only; the charter also claims inject and output"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-14T08:01:34Z
+completed: 2026-08-17T06:06:15Z
+duration_days: 3
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  The charter says peers can stream output, inject keystrokes, exec, and doorbell-wake PTY sessions. session-selftest.sh exercises only 'termlink exec'. inject's unit tests are named command_inject_resolves_keys_no_pty — key resolution without a PTY. Add INJECT and OUTPUT stages proving the capabilities end-to-end (T-2694 F1/G1+G2).
+
+# Key outcomes
+outcomes:
+  - 'An **INJECT** stage proves `termlink inject` end-to-end: keystrokes written into a live PTY produce their **observable effect**, not merely an `ok` RPC response'
+  - 'The proof is by effect, not by return code — an `ok` proves the bytes were accepted, which is exactly what the existing `no_pty` unit tests already establish and is not what the charter claims'
+  - 'An **OUTPUT** stage proves `termlink output` streams back PTY content the session actually produced'
+  - '~~Both stages reuse the session the prover already spawns~~ — **corrected during build.** The existing session is spawned `-- sleep <TTL>` and has `pty: null`; `output` refuses it with `-32007 No PTY session` and `inject` cannot reach a terminal through it. Reuse is structurally impossible, so the PTY stages spawn their OWN `--shell` session. The `sleep`-backed session stays exactly as-is so the T-2557 canary''s existing stages carry zero regression risk.'
+  - 'The PTY session is cleaned up on every exit path, including when a PTY stage fails — a leaked tmux session per canary run would be worse than the gap being closed'
+  - 'Stages absorb the PTY timing race the way EXEC already does (bounded retry), so the prover does not become flaky and start firing its canary on timing'
+  - 'A failure in either stage names *which* stage broke, matching the existing `broken_stage` contract'
+  - 'JSON envelope extended additively — `stages.inject` / `stages.output` alongside the existing keys; no existing key renamed or removed'
+  - 'Test seams let the new stages be exercised without a live PTY (mirroring `TERMLINK_SESSION_SELFTEST_TEST_EXEC_JSON`), so the canary translation stays verifiable'
+  - 'Exit-code contract preserved: 0 proven / 1 broken (names the stage) / 2 tooling — a missing tmux must stay exit 2, never a false "broken"'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+  - decision: '2026-08-17 — the seams existed but nothing exercised them'
+    chose: 'Add 9 assertions to `scripts/test-session-selftest.sh` covering the'
+    rationale: 'The AC "test seams let the new stages be exercised without a live PTY,'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 4204 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4204
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2695-session-selftest-proves-exec-only-the-ch.md
+generated_by: context-agent-hybrid

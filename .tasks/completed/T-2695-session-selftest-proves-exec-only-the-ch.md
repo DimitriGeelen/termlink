@@ -4,20 +4,20 @@ name: "session-selftest proves exec only; the charter also claims inject and out
 description: >
   The charter says peers can stream output, inject keystrokes, exec, and doorbell-wake PTY sessions. session-selftest.sh exercises only 'termlink exec'. inject's unit tests are named command_inject_resolves_keys_no_pty — key resolution without a PTY. Add INJECT and OUTPUT stages proving the capabilities end-to-end (T-2694 F1/G1+G2).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/session-selftest.sh, scripts/test-session-selftest.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T08:01:34Z
-last_update: 2026-08-14T08:15:34Z
-date_finished: null
+last_update: 2026-08-17T06:06:15Z
+date_finished: 2026-08-17T06:06:15Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -44,7 +44,7 @@ date_finished: null
 - [x] The proof is by effect, not by return code — an `ok` proves the bytes were accepted, which is exactly what the existing `no_pty` unit tests already establish and is not what the charter claims
 - [x] An **OUTPUT** stage proves `termlink output` streams back PTY content the session actually produced
 - [x] ~~Both stages reuse the session the prover already spawns~~ — **corrected during build.** The existing session is spawned `-- sleep <TTL>` and has `pty: null`; `output` refuses it with `-32007 No PTY session` and `inject` cannot reach a terminal through it. Reuse is structurally impossible, so the PTY stages spawn their OWN `--shell` session. The `sleep`-backed session stays exactly as-is so the T-2557 canary's existing stages carry zero regression risk.
-- [x] The PTY session is cleaned up on every exit path, including when a PTY stage fails — a leaked tmux session per canary run would be worse than the gap being closed
+- [x] The PTY session is cleaned up on every exit path, including when a PTY stage fails — a leaked tmux session per canary run would be worse than the gap being closed — **CORRECTION (2026-08-17, post-closure): this AC was NOT satisfied when ticked.** `signal TERM` + `clean` remove the termlink registration but leave the backing tmux session running, and both return rc=0 while doing so. Measured after closure: 7 orphaned `tl-session-selftest-*-pty` sessions against `termlink list` showing 0. The AC even names the exact failure ("a leaked tmux session per canary run") — it was ticked on the cleanup code *existing*, not on the tmux session being gone, which is the same reasoning-instead-of-measuring error this task's own seam-coverage decision documents one section below. Fixed under **T-2780**.
 - [x] Stages absorb the PTY timing race the way EXEC already does (bounded retry), so the prover does not become flaky and start firing its canary on timing
 - [x] A failure in either stage names *which* stage broke, matching the existing `broken_stage` contract
 - [x] JSON envelope extended additively — `stages.inject` / `stages.output` alongside the existing keys; no existing key renamed or removed
@@ -238,3 +238,6 @@ out=$(bash scripts/test-session-selftest.sh 2>&1); grep -q 'ok   both failing at
 
 ### 2026-08-14T08:01:56Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-08-17T06:06:15Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
