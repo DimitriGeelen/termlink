@@ -170,6 +170,53 @@ else
     ok "raising GUARD_LAYER_OUTPUT_LINES shows the full output"
 fi
 
+# --- T-2779: suites outside the two original locations -------------------------
+# Before T-2779 a scripts/test-*.sh was neither a member NOR unclassified — it was
+# invisible, so the runner's "N/N clean" read as a statement about a surface it had
+# never enumerated. These pin both halves: marked ⇒ member, unmarked ⇒ VISIBLE.
+mk_suite() { # <name> <rc> — a scripts/test-*.sh carrying the marker
+    printf '#!/usr/bin/env bash\n# guard-layer: source\necho "%s suite"\nexit %s\n' \
+        "$1" "$2" > "$S/test-$1.sh"
+}
+mk_unmarked_suite() { # <name> — no marker; must be counted, not silently dropped
+    printf '#!/usr/bin/env bash\necho "%s suite"\nexit 0\n' "$1" > "$S/test-$1.sh"
+}
+
+reset
+mk_check alpha 0
+mk_suite delta 0
+assert_eq "a marked scripts/test-*.sh joins as a member" "2" "$(run_json | jq -r '.summary.total')"
+assert_eq "and is classified as a suite" "suite" \
+    "$(run_json | jq -r '.members[] | select(.name=="test-delta.sh") | .kind')"
+assert_rc "a passing marked suite keeps the layer green" 0 "$(run)"
+
+# A failing suite must fire the layer — otherwise membership is decorative.
+reset
+mk_check alpha 0
+mk_suite epsilon 1
+assert_rc "a failing marked suite fires the layer" 1 "$(run)"
+assert_eq "the failing suite is counted as fired" "1" "$(run_json | jq -r '.summary.fired')"
+
+# The load-bearing half: an UNMARKED suite must be visible in the accounting.
+reset
+mk_check alpha 0
+mk_unmarked_suite zeta
+assert_eq "an unmarked suite is NOT a member" "1" "$(run_json | jq -r '.summary.total')"
+assert_eq "but IS counted as unclassified" "1" "$(run_json | jq -r '.summary.unclassified')"
+
+# tests/*fixtures*.sh must not be double-counted by the new scan.
+reset
+mk_check alpha 0
+mk_fixture eta 0
+assert_eq "a tests/*fixtures*.sh is counted exactly once" "2" "$(run_json | jq -r '.summary.total')"
+assert_eq "and is not also listed as unclassified" "0" "$(run_json | jq -r '.summary.unclassified')"
+
+# A marked non-fixtures suite living under tests/ joins too.
+reset
+mk_check alpha 0
+printf '#!/usr/bin/env bash\n# guard-layer: source\necho theta\nexit 0\n' > "$T/theta-suite.sh"
+assert_eq "a marked non-fixtures tests/*.sh joins as a member" "2" "$(run_json | jq -r '.summary.total')"
+
 echo
 echo "guard-layer-runner fixtures: $pass passed, $fail failed"
 [ "$fail" -eq 0 ] || exit 1

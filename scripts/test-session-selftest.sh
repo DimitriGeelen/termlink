@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# guard-layer: source
 # test-session-selftest.sh (T-2485) -- host-independent unit tests for the
 # control-terminal-sessions prover. Drives every path via the PL-213 hooks
 # (TERMLINK_SESSION_SELFTEST_TEST_SPAWN_RC / _EXEC_JSON + the SESSION_SELFTEST_SENTINEL

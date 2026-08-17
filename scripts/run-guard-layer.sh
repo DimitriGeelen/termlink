@@ -90,6 +90,9 @@ run-guard-layer.sh — run TermLink's source-level guard layer in one command.
 Members:
   * every scripts/check-*.sh carrying a `# guard-layer: source` header marker
   * every tests/*fixtures*.sh (hermetic by convention)
+  * every scripts/test-*.sh and non-*fixtures* tests/*.sh carrying the SAME marker
+    (T-2779 — opt-in, because many of these need a live hub and would make a
+     run-anywhere layer flaky; un-marked ones are listed as unclassified, not hidden)
   * optionally `cargo test --workspace` (--tests)
 
 Usage: run-guard-layer.sh [OPTIONS]
@@ -158,6 +161,29 @@ if [ -d "$TESTS_DIR" ]; then
     done
 fi
 
+# Suite-style tests that sit outside the fixture naming convention opt in exactly the
+# way a static check does — by marker. Before T-2779 these were not merely un-run, they
+# were INVISIBLE: the unclassified note counted only check-*.sh, so 38 suites under
+# scripts/test-*.sh (plus the non-*fixtures* files in tests/) sat outside the accounting
+# entirely, and "45/45 members clean" read as a statement about the whole guard layer.
+# Marker-gated on purpose: many of these need a live hub / network and would make the
+# layer flaky, violating its "safe to run anywhere" contract. Un-marked ones are now
+# reported as unclassified — visible and countable, which is the actual fix.
+for f in "$SCRIPTS_DIR"/test-*.sh "$TESTS_DIR"/*.sh; do
+    [ -e "$f" ] || continue
+    # *fixtures*.sh under TESTS_DIR already joined above by convention — never double-add.
+    case "$(basename "$f")" in *fixtures*) continue ;; esac
+    marker="$(grep -m1 -E '^#[[:space:]]*guard-layer:[[:space:]]*source' "$f" 2>/dev/null || true)"
+    if [ -z "$marker" ]; then
+        unclassified+=("$(basename "$f")")
+        continue
+    fi
+    extra="$(printf '%s' "$marker" | sed -E 's/^#[[:space:]]*guard-layer:[[:space:]]*source[[:space:]]*//')"
+    m_name+=("$(basename "$f")")
+    m_kind+=("suite")
+    m_cmd+=("bash $f $extra")
+done
+
 if [ "$WITH_TESTS" -eq 1 ]; then
     m_name+=("cargo test --workspace")
     m_kind+=("unit-tests")
@@ -200,7 +226,7 @@ if [ "$LIST_ONLY" -eq 1 ]; then
         done
         if [ "${#unclassified[@]}" -gt 0 ]; then
             echo
-            echo "unclassified check scripts (${#unclassified[@]}) — no '# guard-layer:' marker:"
+            echo "unclassified checks + suites (${#unclassified[@]}) — no '# guard-layer:' marker:"
             for u in "${unclassified[@]}"; do echo "  $u"; done
         fi
     fi
@@ -280,8 +306,9 @@ else
     echo "  This is NOT a clean bill: those guards found nothing because they never looked."
 fi
 if [ "${#unclassified[@]}" -gt 0 ] && [ "$QUIET" -eq 0 ]; then
-    echo "  note: ${#unclassified[@]} check script(s) carry no '# guard-layer:' marker and were not run"
-    echo "        (most are runtime canaries and belong to cron; run --list to see them)"
+    echo "  note: ${#unclassified[@]} check/suite script(s) carry no '# guard-layer:' marker and were not run"
+    echo "        (runtime canaries belong to cron; live-hub suites cannot join a"
+    echo "         run-anywhere layer — run --list to see them)"
 fi
 [ "$WITH_TESTS" -eq 0 ] && [ "$QUIET" -eq 0 ] && \
     echo "  note: cargo test --workspace not run — pass --tests to include it"
