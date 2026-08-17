@@ -9173,8 +9173,62 @@ pub struct AgentRecentDecisionsParams {
 
 #[derive(Deserialize, JsonSchema)]
 pub struct AgentEnvelopeParams {
-    /// Offset on agent-chat-arc to deep-fetch.
+    /// Offset to deep-fetch. Meaningless without the hub + topic it belongs to (G-060).
     pub offset: u64,
+    /// T-2785: hub address (`host:port`) or profile name to read from. Omit for the
+    /// local hub. Per G-060 the same topic name on two hubs is UNRELATED state, so an
+    /// offset only denotes an envelope once paired with a hub.
+    pub hub: Option<String>,
+    /// T-2785: topic to read. Defaults to `agent-chat-arc` (the pre-T-2785 behaviour).
+    /// Pass a `dm:` topic to deep-fetch a direct-message thread.
+    pub topic: Option<String>,
+}
+
+/// T-2785: build the deep-fetch response, ALWAYS stamping the hub + topic the offset was
+/// read from. Per G-060 a topic is per-hub state, so an offset with no hub names nothing.
+/// The stamp is on the MISS path too — that is exactly when the caller most needs to know
+/// whether they simply asked the wrong hub.
+pub(crate) fn envelope_response_json(
+    env: Option<&serde_json::Value>,
+    hub_label: &str,
+    topic: &str,
+    target_offset: u64,
+) -> serde_json::Value {
+    use base64::Engine;
+    let Some(env) = env else {
+        return serde_json::json!({
+            "found": false,
+            "offset": target_offset,
+            "hub": hub_label,
+            "topic": topic,
+        });
+    };
+    let payload_b64 = env
+        .get("payload")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let payload_decoded = base64::engine::general_purpose::STANDARD
+        .decode(&payload_b64)
+        .ok()
+        .and_then(|b| String::from_utf8(b).ok())
+        .unwrap_or_default();
+    serde_json::json!({
+        "found": true,
+        "offset": env.get("offset").and_then(|v| v.as_u64()).unwrap_or(target_offset),
+        "hub": hub_label,
+        "topic": topic,
+        "sender_id": env.get("sender_id").and_then(|v| v.as_str()).unwrap_or(""),
+        "msg_type": env.get("msg_type").and_then(|v| v.as_str()).unwrap_or(""),
+        "payload_decoded": payload_decoded,
+        "payload_b64": payload_b64,
+        "metadata": env.get("metadata").cloned().unwrap_or(serde_json::Value::Null),
+        "ts_unix_ms": env
+            .get("ts_unix_ms")
+            .and_then(|v| v.as_i64())
+            .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
+            .unwrap_or(0),
+    })
 }
 
 #[derive(Deserialize, JsonSchema)]
@@ -25551,72 +25605,93 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_envelope",
-        description = "Single-offset deep-fetch on agent-chat-arc. Walks the topic, finds the envelope at exact `offset`, and returns the FULL hydrated record: `{offset, sender_id, msg_type, payload_decoded, payload_b64, metadata, ts_unix_ms}`. Replaces multi-tool single-line previews with one structured deep-fetch. Useful for forensics (\"what exactly was at offset X with all fields?\") and as a building block for higher-level UIs. Returns `{found: false}` if offset doesn't exist."
+        description = "Single-offset deep-fetch of one envelope. Returns the FULL hydrated record: `{found, offset, hub, topic, sender_id, msg_type, payload_decoded, payload_b64, metadata, ts_unix_ms}`. SCOPE (G-060): a topic is PER-HUB state — the same topic name on two hubs is unrelated state, so the same `offset` denotes DIFFERENT envelopes on different hubs. Pass `hub` (host:port or profile name) to read the hub a citation came from; omit it for the local hub. Pass `topic` to deep-fetch a `dm:` thread; it defaults to `agent-chat-arc`. The response ALWAYS names the `hub` and `topic` it read, including on `{found: false}` — a miss is when you most need to know whether you asked the wrong hub."
     )]
     async fn termlink_agent_envelope(
         &self,
         Parameters(p): Parameters<AgentEnvelopeParams>,
     ) -> String {
-        use base64::Engine;
-        let hub_socket = termlink_hub::server::hub_socket_path();
-        if !hub_socket.exists() {
-            return hub_down_err();
-        }
-        let topic = "agent-chat-arc";
+        let topic = p.topic.clone().unwrap_or_else(|| "agent-chat-arc".to_string());
+        let hub_label = p.hub.clone().unwrap_or_else(|| "local".to_string());
         let target_offset = p.offset;
-        let mut all: Vec<serde_json::Value> = Vec::new();
-        let mut cursor: u64 = 0;
         let page_limit: u64 = 1000;
-        loop {
-            let resp = match termlink_session::client::rpc_call(
-                &hub_socket,
-                termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
-                serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
-            )
-            .await
-            {
-                Ok(r) => r,
-                Err(e) => return json_err(format!("RPC call failed: {e}")),
+        let mut all: Vec<serde_json::Value> = Vec::new();
+
+        if let Some(hub) = p.hub.as_deref() {
+            // T-2785: remote read — the caller named the hub a citation came from.
+            let mut rpc_client = match connect_remote_hub_mcp(hub, None, None, "observe").await {
+                Ok(c) => c,
+                Err(e) => return e,
             };
-            let result = match termlink_session::client::unwrap_result(resp) {
-                Ok(r) => r,
-                Err(e) => return json_err(format!("Hub returned error: {e}")),
-            };
-            let msgs = result["messages"].as_array().cloned().unwrap_or_default();
-            let n = msgs.len();
-            all.extend(msgs);
-            cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
-            if (n as u64) < page_limit {
-                break;
+            let mut cursor: u64 = 0;
+            loop {
+                let req_id = serde_json::json!(format!("mcp-{}", std::process::id()));
+                let result = match rpc_client
+                    .call(
+                        termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                        req_id,
+                        serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+                    )
+                    .await
+                {
+                    Ok(termlink_protocol::jsonrpc::RpcResponse::Success(r)) => r.result,
+                    Ok(termlink_protocol::jsonrpc::RpcResponse::Error(e)) => {
+                        return json_err(format!(
+                            "Hub {hub} returned error reading topic '{topic}': {}",
+                            e.error.message
+                        ))
+                    }
+                    Err(e) => return json_err(format!("RPC transport error on {hub}: {e}")),
+                };
+                let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+                let n = msgs.len();
+                all.extend(msgs);
+                cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+                if (n as u64) < page_limit {
+                    break;
+                }
+            }
+        } else {
+            let hub_socket = termlink_hub::server::hub_socket_path();
+            if !hub_socket.exists() {
+                return hub_down_err();
+            }
+            let mut cursor: u64 = 0;
+            loop {
+                let resp = match termlink_session::client::rpc_call(
+                    &hub_socket,
+                    termlink_protocol::control::method::CHANNEL_SUBSCRIBE,
+                    serde_json::json!({"topic": topic, "cursor": cursor, "limit": page_limit}),
+                )
+                .await
+                {
+                    Ok(r) => r,
+                    Err(e) => return json_err(format!("RPC call failed: {e}")),
+                };
+                let result = match termlink_session::client::unwrap_result(resp) {
+                    Ok(r) => r,
+                    Err(e) => return json_err(format!("Hub returned error: {e}")),
+                };
+                let msgs = result["messages"].as_array().cloned().unwrap_or_default();
+                let n = msgs.len();
+                all.extend(msgs);
+                cursor = result["next_cursor"].as_u64().unwrap_or(cursor);
+                if (n as u64) < page_limit {
+                    break;
+                }
             }
         }
-        for env in &all {
-            let off = env.get("offset").and_then(|v| v.as_u64()).unwrap_or(0);
-            if off != target_offset { continue; }
-            let payload_b64 = env.get("payload").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let payload_decoded = base64::engine::general_purpose::STANDARD.decode(&payload_b64)
-                .ok().and_then(|b| String::from_utf8(b).ok()).unwrap_or_default();
-            let sender = env.get("sender_id").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let msg_type = env.get("msg_type").and_then(|v| v.as_str()).unwrap_or("").to_string();
-            let metadata = env.get("metadata").cloned().unwrap_or(serde_json::Value::Null);
-            let ts = env.get("ts_unix_ms").and_then(|v| v.as_i64())
-                .or_else(|| env.get("ts").and_then(|v| v.as_i64()))
-                .unwrap_or(0);
-            return serde_json::to_string_pretty(&serde_json::json!({
-                "found": true,
-                "offset": off,
-                "sender_id": sender,
-                "msg_type": msg_type,
-                "payload_decoded": payload_decoded,
-                "payload_b64": payload_b64,
-                "metadata": metadata,
-                "ts_unix_ms": ts,
-            })).unwrap_or_else(json_err);
-        }
-        serde_json::to_string_pretty(&serde_json::json!({
-            "found": false,
-            "offset": target_offset,
-        })).unwrap_or_else(json_err)
+
+        let hit = all
+            .iter()
+            .find(|e| e.get("offset").and_then(|v| v.as_u64()).unwrap_or(0) == target_offset);
+        serde_json::to_string_pretty(&envelope_response_json(
+            hit,
+            &hub_label,
+            &topic,
+            target_offset,
+        ))
+        .unwrap_or_else(json_err)
     }
 
     #[tool(
@@ -30435,6 +30510,81 @@ mod tests {
     // This surface matters most: agents read their mail through MCP, so leaving it
     // cursor-gated would have left the incident's actual cause in place while the
     // CLI looked fixed.
+
+    // ── T-2785: the deep-fetch verb must name the hub + topic it read ──
+    //
+    // G-060: a topic is per-hub state. Measured on this fleet, `agent-chat-arc`
+    // holds 8951 messages on .121 and 3577 on .122, so the SAME offset denotes
+    // different envelopes. Pre-T-2785 the response carried neither hub nor topic,
+    // so an agent resolving a peer's citation got a confident `found: true` from
+    // its own local log with nothing revealing the substitution.
+
+    fn env_fixture(offset: u64) -> serde_json::Value {
+        // "hello" base64 == aGVsbG8=
+        serde_json::json!({
+            "offset": offset,
+            "payload": "aGVsbG8=",
+            "sender_id": "d1993c2c3ec44c94",
+            "msg_type": "note",
+            "metadata": {"agent_id": "010-termlink"},
+            "ts_unix_ms": 1786977761162i64,
+        })
+    }
+
+    #[test]
+    fn envelope_hit_names_the_hub_and_topic_it_read() {
+        let e = env_fixture(3400);
+        let out = envelope_response_json(Some(&e), "192.168.10.121:9100", "agent-chat-arc", 3400);
+        assert_eq!(out["found"], true);
+        assert_eq!(out["hub"], "192.168.10.121:9100");
+        assert_eq!(out["topic"], "agent-chat-arc");
+        assert_eq!(out["offset"], 3400);
+        // Hydration still works — the scope stamp is additive, not a replacement.
+        assert_eq!(out["payload_decoded"], "hello");
+        assert_eq!(out["sender_id"], "d1993c2c3ec44c94");
+    }
+
+    /// The miss path is the one that matters most: "offset 3400 not found" is
+    /// actionable only if you know WHICH hub was asked. Pre-T-2785 it said only
+    /// `{found: false, offset}`, which reads as "that offset does not exist"
+    /// when the truth may be "you asked the wrong hub".
+    #[test]
+    fn envelope_miss_still_names_the_hub_and_topic() {
+        let out = envelope_response_json(None, "192.168.10.122:9100", "dm:aaaa:bbbb", 99);
+        assert_eq!(out["found"], false);
+        assert_eq!(out["offset"], 99);
+        assert_eq!(out["hub"], "192.168.10.122:9100");
+        assert_eq!(out["topic"], "dm:aaaa:bbbb");
+    }
+
+    /// A local read must be labelled too — "local" is a scope, not an absence of one.
+    #[test]
+    fn envelope_local_read_is_labelled_local_not_blank() {
+        let e = env_fixture(7);
+        let out = envelope_response_json(Some(&e), "local", "agent-chat-arc", 7);
+        assert_eq!(out["hub"], "local");
+        assert!(
+            out["hub"].as_str().is_some_and(|s| !s.is_empty()),
+            "hub must never be blank — an unlabelled offset is the defect T-2785 fixed"
+        );
+    }
+
+    /// Two hubs, same topic name, same offset, different content (G-060). The
+    /// responses must be distinguishable by the hub field alone.
+    #[test]
+    fn same_offset_on_two_hubs_is_distinguishable_by_the_hub_field() {
+        let a = env_fixture(3400);
+        let mut b = env_fixture(3400);
+        b["payload"] = serde_json::json!("d29ybGQ="); // "world"
+        let ra = envelope_response_json(Some(&a), "ring20-dashboard", "agent-chat-arc", 3400);
+        let rb = envelope_response_json(Some(&b), "ring20-management", "agent-chat-arc", 3400);
+        assert_eq!(ra["offset"], rb["offset"], "same offset — that is the premise");
+        assert_ne!(ra["payload_decoded"], rb["payload_decoded"]);
+        assert_ne!(
+            ra["hub"], rb["hub"],
+            "the hub field is what makes the two answers tellable apart"
+        );
+    }
 
     /// The T-2781 regression fixture. Before T-2783 this topic was invisible to
     /// the tool on every count, which is why two escalations went out over the
