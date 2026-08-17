@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2783: agent inbox --fleet: make the verb complete, not just honest
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-17T14:44:03Z
+# ============================================================================
+
+task_id: T-2783
+task_name: "agent inbox --fleet: make the verb complete, not just honest"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-17T10:56:18Z
+completed: 2026-08-17T14:06:12Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-2782 made agent inbox state its scope; it is still one-hub and cursor-store gated. This is the capability half: walk hubs.toml like check-outbox --fleet (per-hub timeout, TLS-fp dedup), and consider discovering dm:* topics that carry the local fingerprint regardless of whether the cursor store tracks them — the case that actually hid the ring20 reply. Deliberately separated from T-2782 so a truthfulness fix was not blocked on a capability change.
+
+# Key outcomes
+outcomes:
+  - '**Untracked `dm:*` topics carrying this identity''s fingerprint are discovered and'
+  - '**Untracked rows are visibly distinguished from tracked ones**, in both human and JSON'
+  - '**Receipt frontier is honoured for untracked topics too.** The T-2757 join'
+  - '**`--fleet` walks every profile in `~/.termlink/hubs.toml`**, bounded per hub'
+  - '**The T-2782 scope note is derived from actual scope, never asserted.** It currently'
+  - '**The machine contract is preserved.** `agent inbox --json` still emits a **bare array**'
+  - '**Mutation-proven load-bearing.** Removing the discovery join makes a named test go red;'
+  - '`cargo test --workspace` exits 0 with 0 failures, and `bash scripts/run-guard-layer.sh`'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 189 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 189
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2783-agent-inbox---fleet-make-the-verb-comple.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2784: Stale-arc WARN offers an agent only a falsification remedy (AEF audit.sh)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-17T14:44:45Z
+# ============================================================================
+
+task_id: T-2784
+task_name: "Stale-arc WARN offers an agent only a falsification remedy (AEF audit.sh)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-17T14:38:35Z
+completed: 2026-08-17T14:44:37Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Stale-arc WARN offers an agent only a falsification remedy (AEF audit.sh)
+
+# Key outcomes
+outcomes:
+  - 'Report artifact `docs/reports/T-2784-stale-arc-warn-unactionable.md` exists and'
+  - 'Claim 1 cited: `arc_close` refuses under `$CLAUDECODE=1` without `--i-am-human`'
+  - 'Claim 2 reproduced empirically: `fw task update T-2250 --last-update <ts>` exits'
+  - 'Claim 3 cited: the detector reads git-commit recency only, never `status`/`horizon`'
+  - 'Claim 4 measured: arc-002 task-status census (11 `work-completed` / 1 `captured`'
+  - 'Finding filed to the `framework:pickup` hub topic, carrying the four claims and a'
+  - 'The human-only action (closing arc-002) surfaced to the user as a single'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2784-stale-arc-warn-offers-an-agent-only-a-fa.md
+generated_by: context-agent-hybrid

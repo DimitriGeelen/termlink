@@ -4,20 +4,20 @@ name: "agent inbox --fleet: make the verb complete, not just honest"
 description: >
   T-2782 made agent inbox state its scope; it is still one-hub and cursor-store gated. This is the capability half: walk hubs.toml like check-outbox --fleet (per-hub timeout, TLS-fp dedup), and consider discovering dm:* topics that carry the local fingerprint regardless of whether the cursor store tracks them — the case that actually hid the ring20 reply. Deliberately separated from T-2782 so a truthfulness fix was not blocked on a capability change.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs, crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-17T10:56:18Z
-last_update: 2026-08-17T12:00:51Z
-date_finished: null
+last_update: 2026-08-17T14:06:12Z
+date_finished: 2026-08-17T14:06:12Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -359,3 +359,6 @@ out=$(bash scripts/run-guard-layer.sh 2>&1 || true); grep -qE "PASS — [0-9]+/[
 ### 2026-08-17T12:00:51Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+### 2026-08-17T14:06:12Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
