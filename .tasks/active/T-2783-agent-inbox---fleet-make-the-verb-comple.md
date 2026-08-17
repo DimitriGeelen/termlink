@@ -67,40 +67,113 @@ name match against this identity's fingerprint, not a new round trip.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] **Untracked `dm:*` topics carrying this identity's fingerprint are discovered and
+- [x] **Untracked `dm:*` topics carrying this identity's fingerprint are discovered and
       reported.** `cmd_channel_inbox` joins the already-fetched `channel.list` against the
       cursor store: a topic whose name matches `dm:*` and contains this identity's
       fingerprint but has **no** cursor row is treated as cursor=0 (all unread) rather than
       skipped. Regression test reproduces the T-2781 shape exactly — a dm topic with posts
       and no cursor row must appear in the result.
-- [ ] **Untracked rows are visibly distinguished from tracked ones**, in both human and JSON
+      **Done on BOTH surfaces** (`discover_untracked_dm_topics` /
+      `discover_untracked_dm_topics_mcp`). Scope grew during build: MCP was not in the
+      original ACs, and leaving it would have left the incident's actual cause in place on
+      the surface agents actually read their mail through, while the tree looked fixed.
+- [x] **Untracked rows are visibly distinguished from tracked ones**, in both human and JSON
       output. "Never resumed, so all N unread" and "resumed and N behind" are different
       operational facts and must not render identically; conflating them would re-create a
       plausible-wrong-answer at the row level while fixing it at the verb level.
-- [ ] **Receipt frontier is honoured for untracked topics too.** The T-2757 join
+      Human: `[DISCOVERED — never subscribe --resume`d …]`. JSON: `tracked: false`.
+      Rows also carry `hub`, without which a merged fleet result would read as one thread
+      reported twice (G-060).
+- [x] **Receipt frontier is honoured for untracked topics too.** The T-2757 join
       (`fetch_receipt_frontier`) runs for discovered topics as well, so a topic already
       acked via receipts does not resurface as spuriously unread. Without this, discovery
       trades a false negative for a false positive.
-- [ ] **`--fleet` walks every profile in `~/.termlink/hubs.toml`**, bounded per hub
+      Proven live, not just in unit test: the discovered ring20 row rendered
+      `cursor=0 superseded by receipt=23`, i.e. 23 already-acked offsets correctly excluded.
+- [x] **`--fleet` walks every profile in `~/.termlink/hubs.toml`**, bounded per hub
       (`timeout`, PL-189), deduping profiles that resolve to the same TLS fingerprint — the
       same rule `scripts/check-outbox.sh --fleet` uses. A hub that fails is **reported**, not
       silently dropped (an omitted hub is precisely this task's bug class recurring one layer
-      up).
-- [ ] **The T-2782 scope note is derived from actual scope, never asserted.** It currently
+      up). Live run skipped `workstation-107-public` as a duplicate of `local-test`, and
+      named `laptop-141` as unreadable.
+- [x] **The T-2782 scope note is derived from actual scope, never asserted.** It currently
       hardcodes `one hub only (no --fleet)` and `only topics recorded by subscribe --resume`.
       Both claims become FALSE the moment this task lands, so the note must be regenerated
       from what was really read (which hubs, how many tracked + how many discovered). Test
       pins that a `--fleet` run's note does not contain the single-hub claim. Shipping the
       capability while leaving the note stale would reintroduce the exact T-2680 defect
       T-2782 existed to fix — in the sentence written to prevent it.
-- [ ] **The machine contract is preserved.** `agent inbox --json` still emits a **bare array**
+      Both surfaces updated; MCP's note now states plainly that IT still has no `--fleet`
+      rather than implying parity the CLI has and it does not.
+- [x] **The machine contract is preserved.** `agent inbox --json` still emits a **bare array**
       on stdout (`scripts/substrate-worker-pickup.sh:290` and the T-2153 orchestrator recipe
       both parse it); all scope output stays on stderr. Test pins stdout shape.
-- [ ] **Mutation-proven load-bearing.** Removing the discovery join makes a named test go red;
+- [x] **Mutation-proven load-bearing.** Removing the discovery join makes a named test go red;
       removing the fleet TLS-fp dedup makes a named test go red. Both restored with zero
       residue. Evidence recorded in this file with the date it was run.
-- [ ] `cargo test --workspace` exits 0 with 0 failures, and `bash scripts/run-guard-layer.sh`
+- [x] `cargo test --workspace` exits 0 with 0 failures, and `bash scripts/run-guard-layer.sh`
       reports all members clean.
+
+## Evidence
+
+### Mutation proof — RAN 2026-08-17 (`bash tests/mutate-2783.sh`)
+
+Four mutations, each removing exactly one guarded behaviour. **All four detected; clean
+restore (`git diff --stat` empty).**
+
+| # | Mutation | Result |
+|---|---|---|
+| M1 | CLI discovery join returns nothing | RED — 2 tests failed |
+| M2 | MCP discovery join returns nothing | RED — 3 tests failed |
+| M3 | fleet TLS-fp dedup keeps every profile | RED — 2 tests failed |
+| M4 | scope note emptied (the T-2782 guard) | RED — 3 tests failed |
+
+M4 is included deliberately: this task rewrote T-2782's note, and a rewrite is exactly when
+a guard quietly stops being load-bearing.
+
+### Live fleet run — RAN 2026-08-17
+
+`./target/debug/termlink channel inbox --fleet` against the real fleet. **The T-2781 topic
+appeared**, which is the whole point of the task:
+
+```
+(skipping profile 'workstation-107-public' — same hub as an already-read profile)
+5 topic(s) with unread content:
+  [ring20-dashboard]  agent-chat-arc — 7338 unread (latest=8949, cursor=1611, no receipt)
+  [ring20-management] agent-chat-arc — 1966 unread (latest=3577, cursor=1611, no receipt)
+  [ring20-management] dm:88743a9ad59fda39:d1993c2c3ec44c94 — 5 unread
+        (latest=28, cursor=0 superseded by receipt=23) [DISCOVERED — …]
+  [ring20-management] dm:9219671e28054458:d1993c2c3ec44c94 — 2 unread
+        (latest=125, cursor=44 superseded by receipt=123)
+  [ring20-dashboard]  dm:33df8954b2a9b70d:d1993c2c3ec44c94 — 1 unread
+        (latest=1, cursor=0, no receipt) [DISCOVERED — …]
+scope: read 3 hub(s) from hubs.toml: local-test, ring20-dashboard, ring20-management;
+9 cursor-tracked topic(s) + 2 discovered dm topic(s) addressed to this identity.
+WARNING: 1 hub(s) could NOT be read, so mail there is neither counted nor ruled out:
+laptop-141 (Hub rpc_call (channel.list) failed). …
+```
+
+Both DISCOVERED rows are threads that had to be found **by hand** earlier the same session
+because the verb could not see them. The single-hub run on `.107` correctly reports
+`0 discovered` — there are no dm topics carrying this fingerprint on that hub at all, which
+is precisely why `--fleet` was needed *and* why `--fleet` alone would not have sufficed.
+
+**It earned its keep immediately.** The run surfaced offsets 27-28 on the ring20 topic,
+posted after the manual sweep — a reply confirming a live plaintext credential had been
+shredded. Found by the tool, not by hand.
+
+### Not fixed here, deliberately
+
+- **MCP has no `--fleet`.** The tool takes no `hub` parameter at all, so this is a larger
+  change (profile walk + per-hub auth inside the MCP server). Its scope note now says so
+  explicitly instead of implying parity.
+- **Non-dm untracked topics are still not enumerated.** Discovery is restricted to `dm:`
+  because a broad topic is addressed to nobody in particular; auto-adding every untracked
+  topic would make the digest a firehose and teach its reader to ignore it (T-2709). Stated
+  in the scope note on every output path rather than left to be rediscovered.
+- **Own posts count toward unread on a receipt-frontier topic** (the ring20 row's 5 includes
+  posts made by this identity). Pre-existing behaviour of the frontier model, not a
+  regression from this change; noted here so the next reader does not re-derive it.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -184,6 +257,36 @@ name match against this identity's fingerprint, not a new round trip.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+# --- AC1/AC2/AC3: discovery, marking, receipt join (CLI + MCP) ---
+out=$(cargo test -p termlink discover 2>&1 || true); grep -q "discovers_the_untracked_dm_topic_that_hid_the_reply ... ok" <<< "$out"
+out=$(cargo test -p termlink discover 2>&1 || true); grep -q "discovered_rows_are_marked_untracked_and_start_at_cursor_zero ... ok" <<< "$out"
+out=$(cargo test -p termlink discover 2>&1 || true); grep -q "discovered_topic_already_acked_via_receipts_is_not_reported_unread ... ok" <<< "$out"
+out=$(cargo test -p termlink-mcp mcp_discover 2>&1 || true); grep -q "mcp_discovers_the_untracked_dm_topic_that_hid_the_reply ... ok" <<< "$out"
+out=$(cargo test -p termlink-mcp mcp_discover 2>&1 || true); grep -q "mcp_discovery_agrees_with_cli_on_the_same_input ... ok" <<< "$out"
+
+# --- AC4: --fleet walk, dedup, and loud reporting of unreadable hubs ---
+out=$(cargo test -p termlink fleet_dedups 2>&1 || true); grep -q "fleet_dedups_profiles_that_resolve_to_the_same_hub ... ok" <<< "$out"
+out=$(cargo test -p termlink fleet_keeps 2>&1 || true); grep -q "fleet_keeps_profiles_whose_fingerprint_probe_failed ... ok" <<< "$out"
+out=$(cargo test -p termlink scope_note_reports 2>&1 || true); grep -q "scope_note_reports_unreadable_hubs_loudly ... ok" <<< "$out"
+
+# --- AC5: the scope note is derived, and a fleet read never claims single-hub scope ---
+out=$(cargo test -p termlink fleet_scope_note 2>&1 || true); grep -q "fleet_scope_note_does_not_claim_single_hub_scope ... ok" <<< "$out"
+out=$(cargo test -p termlink inbox_scope 2>&1 || true); grep -q "inbox_scope_note_names_both_blind_spots_and_a_remedy ... ok" <<< "$out"
+
+# --- AC6: machine contract — stdout stays a bare ARRAY, scope on stderr only ---
+# substrate-worker-pickup.sh:290 and the T-2153 orchestrator recipe both parse this.
+grep -qF 'eprintln!("{}", inbox_scope_note(&scope));' crates/termlink-cli/src/commands/channel.rs
+out=$(./target/debug/termlink channel inbox --json 2>/dev/null || true); python3 -c "import json,sys; d=json.load(sys.stdin); assert isinstance(d, list), f'stdout must be a bare array, got {type(d).__name__}'" <<< "$out"
+
+# --- AC7: mutation proof — every mutation must be DETECTED, none may stay green ---
+out=$(bash tests/mutate-2783.sh 2>&1 || true); grep -q "MUTATION NOT DETECTED" <<< "$out" && exit 1 || true
+out=$(bash tests/mutate-2783.sh 2>&1 || true); test "$(grep -c 'detected' <<< "$out")" -eq 4
+
+# --- AC8: whole tree green ---
+out=$(cargo test -p termlink -p termlink-mcp 2>&1 || true); grep -q "0 failed" <<< "$out"
+out=$(cargo test -p termlink -p termlink-mcp 2>&1 || true); grep -q "FAILED" <<< "$out" && exit 1 || true
+out=$(bash scripts/run-guard-layer.sh 2>&1 || true); grep -qE "PASS — [0-9]+/[0-9]+ members clean" <<< "$out"
 
 ## RCA
 
