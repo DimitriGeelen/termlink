@@ -548,7 +548,7 @@ async fn main() -> Result<()> {
                     commands::channel::cmd_channel_dm_list(unread, hub.as_deref(), json).await
                 }
             }
-            AgentAction::Inbox { hub, json, watch, watch_interval } => {
+            AgentAction::Inbox { hub, json, fleet, watch, watch_interval } => {
                 if watch && json {
                     anyhow::bail!(
                         "--watch and --json are incompatible: --watch streams \
@@ -568,13 +568,13 @@ async fn main() -> Result<()> {
                             "# agent inbox --watch | interval={}s | {}",
                             clamped, now_str
                         );
-                        if let Err(e) = commands::channel::cmd_channel_inbox(hub.as_deref(), false).await {
+                        if let Err(e) = commands::channel::cmd_channel_inbox(hub.as_deref(), false, fleet).await {
                             println!("# fetch error (will retry next tick): {e}");
                         }
                         tokio::time::sleep(std::time::Duration::from_secs(clamped)).await;
                     }
                 } else {
-                    commands::channel::cmd_channel_inbox(hub.as_deref(), json).await
+                    commands::channel::cmd_channel_inbox(hub.as_deref(), json, fleet).await
                 }
             }
             AgentAction::Identity { json, resolve } => {
@@ -1146,8 +1146,8 @@ async fn main() -> Result<()> {
                 )
                 .await
             }
-            ChannelAction::Inbox { hub, json } => {
-                commands::channel::cmd_channel_inbox(hub.as_deref(), json).await
+            ChannelAction::Inbox { hub, json, fleet } => {
+                commands::channel::cmd_channel_inbox(hub.as_deref(), json, fleet).await
             }
             ChannelAction::Snippet {
                 topic,

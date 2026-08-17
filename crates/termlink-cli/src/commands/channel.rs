@@ -8724,6 +8724,26 @@ pub(crate) struct UnreadRow {
     /// and the receipt frontier proves the `count - 1` fallback is not an
     /// offset (see `UnreadVerdict`). Emitting a number here would be a guess.
     pub unread: Option<u64>,
+    /// T-2783: `false` when this row came from DISCOVERY (a `dm:` topic on the
+    /// hub carrying this identity's fingerprint that the local cursor store has
+    /// never tracked) rather than from the cursor store.
+    ///
+    /// The two are different operational facts and must not render identically.
+    /// "resumed, and N behind" means the reading mechanism is working and you
+    /// are simply behind. "never resumed, so all N are unread" means the topic
+    /// was outside the verb's enumeration entirely — the T-2781 shape, where a
+    /// reply sat unread because nothing was looking at its topic. Collapsing
+    /// them would fix the blind spot at the verb level while re-creating it at
+    /// the row level.
+    pub tracked: bool,
+    /// T-2783: which hub this row was read from, under `--fleet`. `None` on a
+    /// single-hub read.
+    ///
+    /// Load-bearing, not decoration: topics are per-hub state with no
+    /// federation (G-060), so `dm:a:b` on two hubs are two unrelated logs. An
+    /// unlabelled merged row would invite exactly the wrong conclusion — that
+    /// one thread is being reported twice.
+    pub hub: Option<String>,
 }
 
 impl UnreadRow {
@@ -8736,6 +8756,10 @@ impl UnreadRow {
             "latest": self.latest,
             "unread": self.unread,
             "indeterminate": self.unread.is_none(),
+            // T-2783: additive. Existing consumers that ignore it see exactly
+            // the pre-T-2783 object.
+            "tracked": self.tracked,
+            "hub": self.hub,
         })
     }
 }
@@ -8892,10 +8916,111 @@ pub(crate) fn compute_unread_rows(
             frontier,
             latest,
             unread,
+            // Every row on this path came from the cursor store by definition.
+            // Discovery rows are produced by `compute_unread_rows_with_discovery`.
+            tracked: true,
+            // Stamped by the caller once it knows which hub it read.
+            hub: None,
         });
     }
     // Descending unread; `None` (indeterminate) sorts LAST rather than being
     // hidden — an unknown must stay visible, it is not a zero.
+    rows.sort_by(|a, b| b.unread.cmp(&a.unread).then_with(|| a.topic.cmp(&b.topic)));
+    rows
+}
+
+/// T-2783: `dm:` topics on the hub addressed to this identity that the local
+/// cursor store has never tracked.
+///
+/// **This is the primary fix, and the reason `--fleet` alone would not have
+/// been one.** The reply that went missing in T-2781 lived on
+/// `dm:88743a9ad59fda39:d1993c2c3ec44c94`, a topic this identity had only ever
+/// POSTED to. `subscribe --resume` is what writes a cursor row, so the topic
+/// was absent from `cursor_store::list_for_fingerprint`, and the cursor store
+/// is the ENUMERATION SOURCE for the whole digest. Walking more hubs does not
+/// help when the thing excluding the topic is not the hub.
+///
+/// This is PL-350 ("when two stores can answer the same question, something
+/// must JOIN them or the answer is silently partial"): the cursor store and the
+/// hub's own `channel.list` both know which topics concern this identity, and
+/// the digest consulted only the first. The join is free — `channel.list` is
+/// already fetched on the existing path and already carries every topic name.
+///
+/// A `dm:` topic carrying our fingerprint is addressed to us BY CONSTRUCTION
+/// (`agent contact` names the topic `dm:<a>:<b>` from the two fingerprints), so
+/// the match is a statement about addressing, not a guess about content. Note
+/// the fingerprint is per-HOST, not per-project: on a box where several
+/// projects share an identity this surfaces their threads too. That is correct
+/// — the mail IS addressed to this identity — and it is better surfaced than
+/// silently dropped, but it means a co-resident project must still self-filter.
+///
+/// Restricted to the `dm:` prefix on purpose. Broad topics (`agent-chat-arc`,
+/// work queues) are not addressed to anyone in particular; auto-adding every
+/// untracked topic would turn the digest into a firehose and teach its reader
+/// to ignore it — the failure mode of T-2709's latched claim canary.
+///
+/// Pure — no I/O.
+pub(crate) fn discover_untracked_dm_topics(
+    hub_topics: &[String],
+    cursors: &[(String, u64)],
+    fingerprint: &str,
+) -> Vec<String> {
+    // A blank fingerprint would substring-match every topic. Refuse rather than
+    // return a firehose: an identity we cannot name is one we cannot match.
+    if fingerprint.is_empty() {
+        return Vec::new();
+    }
+    let tracked: std::collections::HashSet<&str> =
+        cursors.iter().map(|(t, _)| t.as_str()).collect();
+    let mut out: Vec<String> = hub_topics
+        .iter()
+        .filter(|t| t.starts_with("dm:"))
+        .filter(|t| t.contains(fingerprint))
+        .filter(|t| !tracked.contains(t.as_str()))
+        .cloned()
+        .collect();
+    out.sort();
+    out.dedup();
+    out
+}
+
+/// T-2783: the tracked digest plus discovered `dm:` topics, in one row set.
+///
+/// A discovered topic enters with **cursor 0**, and that is exact rather than
+/// approximate: offset 0 of a `dm:` topic is the `topic_metadata` envelope that
+/// `agent contact` writes at creation, never content. So "consumed through
+/// offset 0" means "seen the header, none of the messages", which is precisely
+/// true of a topic we have never read. A metadata-only topic (latest == 0)
+/// therefore reports caught-up and is dropped, and a topic with one real
+/// message reports exactly 1 unread.
+///
+/// Receipt frontiers are honoured for discovered topics too (the caller fetches
+/// them for the combined set). Without that, discovery would trade a false
+/// negative for a false positive: every thread already acked through the
+/// conversation arc — which advances receipts, not cursors (T-2757) — would
+/// resurface as spuriously unread, and a digest that cannot be cleared is one
+/// its reader stops believing.
+///
+/// Pure — no I/O.
+pub(crate) fn compute_unread_rows_with_discovery(
+    cursors: &[(String, u64)],
+    discovered: &[String],
+    topic_counts: &std::collections::HashMap<String, u64>,
+    topic_latest: &std::collections::HashMap<String, u64>,
+    topic_receipts: &std::collections::HashMap<String, u64>,
+) -> Vec<UnreadRow> {
+    let mut rows = compute_unread_rows(cursors, topic_counts, topic_latest, topic_receipts);
+    let discovered_cursors: Vec<(String, u64)> =
+        discovered.iter().map(|t| (t.clone(), 0u64)).collect();
+    for mut row in compute_unread_rows(
+        &discovered_cursors,
+        topic_counts,
+        topic_latest,
+        topic_receipts,
+    ) {
+        row.tracked = false;
+        rows.push(row);
+    }
     rows.sort_by(|a, b| b.unread.cmp(&a.unread).then_with(|| a.topic.cmp(&b.topic)));
     rows
 }
@@ -8952,44 +9077,105 @@ async fn fetch_receipt_frontier(sock: &TransportAddr, topic: &str, fp: &str) -> 
 /// every output path, including — especially — the clean one.
 ///
 /// Pure and hub-free by construction so it is unit-testable (PL-213).
-pub(crate) fn inbox_scope_note(topics_scanned: usize, hub: Option<&str>) -> String {
-    let where_ = match hub {
-        Some(h) => format!("hub {h}"),
-        None => "the local hub".to_string(),
-    };
-    format!(
-        "scope: {topics_scanned} cursor-tracked topic(s) on {where_} — one hub only (no --fleet), \
-         and only topics recorded by `subscribe --resume`. A peer's reply on another hub, or on a \
-         topic you have only posted to, is NOT counted here. To actually check: \
-         `/recent-dm <peer>` (walks every hub) or \
-         `termlink channel subscribe <topic> --hub <peer-hub> --cursor 0`."
-    )
+///
+/// T-2783 made this DERIVED rather than asserted. The T-2782 original hardcoded
+/// two claims — `one hub only (no --fleet)` and `only topics recorded by
+/// subscribe --resume` — and both became FALSE the moment T-2783 landed. A
+/// stale scope note is strictly worse than none: it is a confident sentence,
+/// written specifically to prevent a false impression, creating one. So the
+/// note is now computed from what was actually read.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct InboxScope {
+    /// Hubs successfully read, in the order walked.
+    pub hubs_read: Vec<String>,
+    /// Hubs that failed, with the reason. NEVER silently dropped: an omitted
+    /// hub is this task's own bug class recurring one layer up.
+    pub hubs_failed: Vec<(String, String)>,
+    /// Topics enumerated from the local cursor store.
+    pub tracked: usize,
+    /// `dm:` topics found on a hub and addressed to this identity that the
+    /// cursor store had never tracked (T-2783 discovery).
+    pub discovered: usize,
+    /// True when `--fleet` walked every profile in `hubs.toml`.
+    pub fleet: bool,
 }
 
-pub(crate) async fn cmd_channel_inbox(
-    hub: Option<&str>,
-    json_output: bool,
-) -> Result<()> {
-    let identity = load_identity_or_create()
-        .context("Loading identity for unread scope")?;
-    let fp = identity.fingerprint().to_string();
-    let cursors = cursor_store::list_for_fingerprint(&fp)?;
-
-    if cursors.is_empty() {
-        // T-2782: an empty result must state what was looked at. A bare `[]` here
-        // reads as "no mail" when it means "nothing is tracked, so nothing was
-        // examined" — and an empty inbox is exactly when an operator stops looking,
-        // which makes this the costliest place in the verb for a silent scope.
-        if json_output {
-            println!("[]");
-            eprintln!("{}", inbox_scope_note(0, hub));
+pub(crate) fn inbox_scope_note(s: &InboxScope) -> String {
+    let where_ = if s.fleet {
+        // Must NOT claim single-hub scope — that is the drift this rewrite exists
+        // to prevent, and a test pins its absence.
+        if s.hubs_read.is_empty() {
+            "no hub reachable (every profile in hubs.toml failed)".to_string()
         } else {
-            println!("No cursors recorded yet — use `subscribe --resume` to start tracking topics.");
-            println!("{}", inbox_scope_note(0, hub));
+            format!(
+                "{n} hub(s) from hubs.toml: {list}",
+                n = s.hubs_read.len(),
+                list = s.hubs_read.join(", ")
+            )
         }
-        return Ok(());
+    } else {
+        let one = match s.hubs_read.first() {
+            Some(h) => format!("hub {h}"),
+            None => "the local hub".to_string(),
+        };
+        format!("{one} ONLY — pass --fleet to walk every profile in hubs.toml")
+    };
+
+    let mut note = format!(
+        "scope: read {where_}; {t} cursor-tracked topic(s) + {d} discovered dm topic(s) \
+         addressed to this identity.",
+        t = s.tracked,
+        d = s.discovered
+    );
+
+    // A hub we could not read is unread mail we cannot rule out. Say so loudly;
+    // a partial answer presented as a whole one is the defect being fixed.
+    if !s.hubs_failed.is_empty() {
+        note.push_str(&format!(
+            " WARNING: {n} hub(s) could NOT be read, so mail there is neither counted nor ruled out: {list}.",
+            n = s.hubs_failed.len(),
+            list = s
+                .hubs_failed
+                .iter()
+                .map(|(h, e)| format!("{h} ({e})"))
+                .collect::<Vec<_>>()
+                .join("; ")
+        ));
     }
 
+    // The residual blind spot, stated rather than left for the next incident to
+    // find. Discovery covers `dm:` topics only, so a NON-dm topic this identity
+    // has only ever posted to is still outside the enumeration.
+    note.push_str(
+        " Still not covered: a non-dm topic you have only posted to (never `subscribe --resume`d) \
+         is not enumerated. To check one directly: \
+         `termlink channel subscribe <topic> --hub <addr> --cursor 0`, or `/recent-dm <peer>`.",
+    );
+    note
+}
+
+/// T-2783: one hub's contribution to the digest.
+struct HubInboxRead {
+    rows: Vec<UnreadRow>,
+    /// Discovered-topic count for THIS hub. Summed across hubs under `--fleet`;
+    /// the tracked count is hub-independent (one local cursor store) so it is
+    /// not carried here.
+    discovered: usize,
+}
+
+/// T-2783: read one hub — `channel.list`, discovery join, receipt frontiers.
+///
+/// Extracted from `cmd_channel_inbox` so `--fleet` runs the SAME code per hub
+/// rather than a parallel implementation. PL-261: a fast path that mirrors a
+/// slow path is only correct where the two are provably identical, and the
+/// cheapest way to make them identical is to have only one.
+async fn read_inbox_one_hub(
+    hub: Option<&str>,
+    hub_label: Option<String>,
+    fp: &str,
+    cursors: &[(String, u64)],
+    json_output: bool,
+) -> Result<HubInboxRead> {
     let sock = hub_socket_or_json_exit(hub, json_output)?;
     let resp = rpc_call_authed(&sock, method::CHANNEL_LIST, json!({}))
         .await
@@ -8998,12 +9184,14 @@ pub(crate) async fn cmd_channel_inbox(
         .map_err(|e| anyhow!("Hub returned error for channel.list: {e}"))?;
     let mut counts: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
     let mut latest: std::collections::HashMap<String, u64> = std::collections::HashMap::new();
+    let mut all_topics: Vec<String> = Vec::new();
     if let Some(arr) = result["topics"].as_array() {
         for entry in arr {
             let name = match entry.get("name").and_then(|v| v.as_str()) {
                 Some(n) => n.to_string(),
                 None => continue,
             };
+            all_topics.push(name.clone());
             let count = entry.get("count").and_then(|v| v.as_u64()).unwrap_or(0);
             counts.insert(name.clone(), count);
             // T-2533: authoritative latest offset when the hub emits it.
@@ -9012,20 +9200,120 @@ pub(crate) async fn cmd_channel_inbox(
             }
         }
     }
+    // T-2783: the join that makes the digest complete. `all_topics` came from the
+    // SAME `channel.list` response already needed for counts — no extra RPC.
+    let discovered = discover_untracked_dm_topics(&all_topics, cursors, fp);
+
     // T-2757: join in this identity's receipt frontier per topic. Without it the
     // digest reports unread that no amount of reading can clear (see
     // `reconcile_consumption_frontier`). Best-effort by design: a hub that does
     // not serve `channel.receipts` (-32601), or any per-topic failure, leaves the
     // topic absent from the map, which reproduces the pre-T-2757 number rather
     // than failing the whole digest.
+    //
+    // T-2783: this now runs over tracked AND discovered topics. Skipping it for
+    // discovered ones would resurface every thread already acked via the
+    // conversation arc (which advances receipts, not cursors) as false unread.
     let mut receipt_frontiers: std::collections::HashMap<String, u64> =
         std::collections::HashMap::new();
-    for (topic, _) in &cursors {
-        if let Some(up_to) = fetch_receipt_frontier(&sock, topic, &fp).await {
+    for topic in cursors
+        .iter()
+        .map(|(t, _)| t)
+        .chain(discovered.iter())
+    {
+        if let Some(up_to) = fetch_receipt_frontier(&sock, topic, fp).await {
             receipt_frontiers.insert(topic.clone(), up_to);
         }
     }
-    let rows = compute_unread_rows(&cursors, &counts, &latest, &receipt_frontiers);
+    let mut rows = compute_unread_rows_with_discovery(
+        cursors,
+        &discovered,
+        &counts,
+        &latest,
+        &receipt_frontiers,
+    );
+    for r in &mut rows {
+        r.hub = hub_label.clone();
+    }
+    Ok(HubInboxRead {
+        rows,
+        discovered: discovered.len(),
+    })
+}
+
+pub(crate) async fn cmd_channel_inbox(
+    hub: Option<&str>,
+    json_output: bool,
+    fleet: bool,
+) -> Result<()> {
+    let identity = load_identity_or_create()
+        .context("Loading identity for unread scope")?;
+    let fp = identity.fingerprint().to_string();
+    let cursors = cursor_store::list_for_fingerprint(&fp)?;
+
+    // T-2783: the pre-T-2783 code returned HERE when the cursor store was empty,
+    // without contacting any hub. That early return was itself the bug in its
+    // purest form: with discovery, an empty cursor store no longer means there is
+    // nothing to examine — it is exactly the T-2781 state, where every relevant
+    // dm topic was untracked. So the hub is now always consulted.
+
+    let mut scope = InboxScope {
+        fleet,
+        tracked: cursors.len(),
+        ..Default::default()
+    };
+    let mut rows: Vec<UnreadRow> = Vec::new();
+
+    if fleet {
+        let config = crate::config::load_hubs_config();
+        let mut names: Vec<&String> = config.hubs.keys().collect();
+        names.sort();
+        // Dedup by TLS fingerprint so two profiles pointing at one hub are read
+        // once (T-1889 sibling; same rule as `check-outbox --fleet`). A probe
+        // failure does NOT drop the profile — we still try to read it, and a
+        // genuine failure is reported below. Dropping on a failed probe would
+        // silently shrink the scope, which is this task's own bug class.
+        let mut seen_fp: std::collections::HashSet<String> = std::collections::HashSet::new();
+        for name in names {
+            let entry = &config.hubs[name];
+            let addr = entry.address.clone();
+            if let Ok((_der, hub_fp)) = termlink_session::tofu::probe_cert_with_timeout(
+                &addr,
+                std::time::Duration::from_secs(5),
+            )
+            .await
+                && !seen_fp.insert(hub_fp)
+            {
+                eprintln!("(skipping profile '{name}' — same hub as an already-read profile)");
+                continue;
+            }
+            match read_inbox_one_hub(
+                Some(&addr),
+                Some(name.clone()),
+                &fp,
+                &cursors,
+                json_output,
+            )
+            .await
+            {
+                Ok(read) => {
+                    scope.hubs_read.push(name.clone());
+                    scope.discovered += read.discovered;
+                    rows.extend(read.rows);
+                }
+                Err(e) => scope.hubs_failed.push((name.clone(), e.to_string())),
+            }
+        }
+    } else {
+        let read = read_inbox_one_hub(hub, None, &fp, &cursors, json_output).await?;
+        scope
+            .hubs_read
+            .push(hub.map(|h| h.to_string()).unwrap_or_else(|| "local".into()));
+        scope.discovered = read.discovered;
+        rows = read.rows;
+    }
+
+    rows.sort_by(|a, b| b.unread.cmp(&a.unread).then_with(|| a.topic.cmp(&b.topic)));
 
     if json_output {
         let arr: Vec<Value> = rows.iter().map(UnreadRow::to_json).collect();
@@ -9034,15 +9322,19 @@ pub(crate) async fn cmd_channel_inbox(
         // ARRAY that scripts/substrate-worker-pickup.sh and the orchestrator recipe
         // (T-2153) both parse. Wrapping it in an envelope would be the tidier shape
         // and would break both, so the machine contract is left exactly as-is.
-        eprintln!("{}", inbox_scope_note(cursors.len(), hub));
+        eprintln!("{}", inbox_scope_note(&scope));
         return Ok(());
     }
     if rows.is_empty() {
         // T-2782: "No unread topics." is a flat claim about the world. What is
         // actually known is narrower, so say the narrower thing — affirmative and
         // scoped, per the T-2076 convention (`All topics healthy (0/N stuck)`).
-        println!("No unread across {} tracked topic(s).", cursors.len());
-        println!("{}", inbox_scope_note(cursors.len(), hub));
+        println!(
+            "No unread across {t} tracked + {d} discovered topic(s).",
+            t = scope.tracked,
+            d = scope.discovered
+        );
+        println!("{}", inbox_scope_note(&scope));
         return Ok(());
     }
     println!("{} topic(s) with unread content:", rows.len());
@@ -9054,9 +9346,22 @@ pub(crate) async fn cmd_channel_inbox(
             Some(up_to) => format!(", cursor={c}, receipt={up_to}", c = r.cursor),
             None => format!(", cursor={c}, no receipt", c = r.cursor),
         };
+        // T-2783: "never resumed, so all of it is unread" is a different fact
+        // from "resumed, and behind" — the first says the topic was outside the
+        // verb's reach until now. Rendering them identically would hide the very
+        // class this task exists to surface.
+        let origin = if r.tracked {
+            String::new()
+        } else {
+            " [DISCOVERED — never `subscribe --resume`d, so nothing here was ever counted before]".to_string()
+        };
+        let at = match &r.hub {
+            Some(h) => format!("[{h}] "),
+            None => String::new(),
+        };
         match r.unread {
             Some(n) => println!(
-                "  {topic} — {n} unread (latest={latest}{via})",
+                "  {at}{topic} — {n} unread (latest={latest}{via}){origin}",
                 topic = r.topic,
                 latest = r.latest,
             ),
@@ -9064,15 +9369,19 @@ pub(crate) async fn cmd_channel_inbox(
             // makes this actionable: the remedy is upgrading the hub, and the
             // operator cannot infer that from a bare "unknown".
             None => println!(
-                "  {topic} — unread UNKNOWN (hub does not report latest_offset; \
+                "  {at}{topic} — unread UNKNOWN (hub does not report latest_offset; \
                  receipt={receipt} exceeds count-derived latest={latest}, so the \
-                 two are not comparable — upgrade the hub to a T-2533+ build)",
+                 two are not comparable — upgrade the hub to a T-2533+ build){origin}",
                 topic = r.topic,
                 receipt = r.receipt_up_to.map(|v| v.to_string()).unwrap_or_else(|| "-".into()),
                 latest = r.latest,
             ),
         }
     }
+    // The scope belongs on the populated path too. A non-empty result is just as
+    // capable of being read as "this is all of it" — arguably more so, because a
+    // list of findings looks like a complete list of findings.
+    println!("{}", inbox_scope_note(&scope));
     Ok(())
 }
 
@@ -12666,30 +12975,216 @@ mod tests {
     use super::*;
 
     // T-2782: every `inbox` output path states its scope. Load-bearing — emptying
-    // `inbox_scope_note`, or dropping either blind spot from it, fails these.
+    // `inbox_scope_note`, or dropping a blind spot from it, fails these.
+    // T-2783 rewrote them for the DERIVED note (the T-2782 original asserted two
+    // claims that T-2783 made false).
+
+    fn scope_single(hub: &str, tracked: usize, discovered: usize) -> InboxScope {
+        InboxScope {
+            hubs_read: vec![hub.to_string()],
+            hubs_failed: Vec::new(),
+            tracked,
+            discovered,
+            fleet: false,
+        }
+    }
 
     #[test]
     fn inbox_scope_note_names_the_hub_it_actually_read() {
-        // "the local hub" vs a named one: a reader must never have to guess WHICH hub
-        // produced the result, because the answer is per-hub state (G-060).
-        let local = inbox_scope_note(9, None);
-        assert!(local.contains("the local hub"));
+        // A reader must never have to guess WHICH hub produced the result,
+        // because the answer is per-hub state (G-060).
+        let local = inbox_scope_note(&scope_single("local", 9, 2));
+        assert!(local.contains("hub local"));
         assert!(local.contains("9 cursor-tracked topic(s)"));
+        assert!(local.contains("2 discovered dm topic(s)"));
 
-        let remote = inbox_scope_note(0, Some("192.168.10.122:9100"));
+        let remote = inbox_scope_note(&scope_single("192.168.10.122:9100", 0, 0));
         assert!(remote.contains("hub 192.168.10.122:9100"));
         assert!(remote.contains("0 cursor-tracked topic(s)"));
     }
 
     #[test]
     fn inbox_scope_note_names_both_blind_spots_and_a_remedy() {
-        let s = inbox_scope_note(3, None);
+        let s = inbox_scope_note(&scope_single("local", 3, 0));
         assert!(s.contains("--fleet"), "must name the single-hub blind spot");
-        assert!(s.contains("subscribe --resume"), "must name the cursor-store blind spot");
+        assert!(
+            s.contains("subscribe --resume"),
+            "must name the residual cursor-store blind spot (non-dm topics)"
+        );
         assert!(
             s.contains("recent-dm") || s.contains("channel subscribe"),
             "a disclaimer with no next step just relocates the dead end"
         );
+    }
+
+    // ---- T-2783 ----
+
+    /// The drift this task's AC-5 exists for. T-2782's note hardcoded
+    /// "one hub only (no --fleet)". Shipping `--fleet` while leaving that
+    /// sentence in place would put a false claim in the ONE sentence written
+    /// specifically to prevent false claims.
+    #[test]
+    fn fleet_scope_note_does_not_claim_single_hub_scope() {
+        let s = inbox_scope_note(&InboxScope {
+            hubs_read: vec!["alpha".into(), "beta".into()],
+            hubs_failed: Vec::new(),
+            tracked: 4,
+            discovered: 1,
+            fleet: true,
+        });
+        assert!(
+            !s.contains("ONLY"),
+            "a fleet read must not describe itself as single-hub: {s}"
+        );
+        assert!(s.contains("2 hub(s)"), "must say how many hubs were read: {s}");
+        assert!(s.contains("alpha") && s.contains("beta"), "must name them: {s}");
+    }
+
+    /// A hub we could not read is unread mail we cannot rule out. Reporting a
+    /// clean digest over a partially-failed walk is precisely the plausible
+    /// wrong answer this whole arc is about (Directive #2).
+    #[test]
+    fn scope_note_reports_unreadable_hubs_loudly() {
+        let s = inbox_scope_note(&InboxScope {
+            hubs_read: vec!["alpha".into()],
+            hubs_failed: vec![("beta".into(), "timed out".into())],
+            tracked: 1,
+            discovered: 0,
+            fleet: true,
+        });
+        assert!(s.contains("WARNING"), "a partial walk must be loud: {s}");
+        assert!(s.contains("beta"), "must name the hub that failed: {s}");
+        assert!(s.contains("timed out"), "must give the reason: {s}");
+        assert!(
+            s.contains("neither counted nor ruled out"),
+            "must say what the failure means for the answer: {s}"
+        );
+    }
+
+    /// The T-2781 regression fixture, as a pure test: a `dm:` topic carrying our
+    /// fingerprint that the cursor store has NEVER tracked must be discovered.
+    /// Before T-2783 this topic was invisible on every hub, which is why two
+    /// escalations were sent over the top of an answer already sitting in it.
+    #[test]
+    fn discovers_the_untracked_dm_topic_that_hid_the_reply() {
+        let fp = "d1993c2c3ec44c94";
+        let hub_topics = vec![
+            "dm:88743a9ad59fda39:d1993c2c3ec44c94".to_string(), // the missed reply
+            "dm:9219671e28054458:d1993c2c3ec44c94".to_string(), // tracked already
+            "dm:aaaa:bbbb".to_string(),                         // someone else's DM
+            "agent-chat-arc".to_string(),                       // not a dm topic
+        ];
+        let cursors = vec![("dm:9219671e28054458:d1993c2c3ec44c94".to_string(), 40u64)];
+        let found = discover_untracked_dm_topics(&hub_topics, &cursors, fp);
+        assert_eq!(found, vec!["dm:88743a9ad59fda39:d1993c2c3ec44c94".to_string()]);
+    }
+
+    /// Discovery must not become a firehose. A broad topic is not addressed to
+    /// anyone in particular, and auto-adding every untracked one would teach the
+    /// operator to ignore the digest (the T-2709 latched-canary failure mode).
+    #[test]
+    fn discovery_ignores_non_dm_and_other_identities_topics() {
+        let found = discover_untracked_dm_topics(
+            &[
+                "agent-chat-arc".to_string(),
+                "work-queue".to_string(),
+                "dm:aaaa:bbbb".to_string(),
+            ],
+            &[],
+            "d1993c2c3ec44c94",
+        );
+        assert!(found.is_empty(), "unexpected discovery: {found:?}");
+    }
+
+    /// An identity we cannot name is one we cannot match: a blank fingerprint
+    /// would substring-match EVERY dm topic on the hub, including other
+    /// people's. Refuse rather than over-report.
+    #[test]
+    fn discovery_refuses_an_empty_fingerprint() {
+        let found = discover_untracked_dm_topics(
+            &["dm:aaaa:bbbb".to_string(), "dm:cccc:dddd".to_string()],
+            &[],
+            "",
+        );
+        assert!(found.is_empty(), "empty fp must match nothing, got {found:?}");
+    }
+
+    /// Discovered rows must be distinguishable from tracked ones, and a
+    /// discovered topic enters at cursor 0 — exact, not approximate, because
+    /// offset 0 of a dm topic is the `topic_metadata` header, never content.
+    #[test]
+    fn discovered_rows_are_marked_untracked_and_start_at_cursor_zero() {
+        let counts = counts_map(&[("tracked-t", 10), ("dm:peer:me", 5)]);
+        let latest = latest_map(&[("tracked-t", 9), ("dm:peer:me", 4)]);
+        let cursors = vec![("tracked-t".to_string(), 7u64)];
+        let rows = compute_unread_rows_with_discovery(
+            &cursors,
+            &["dm:peer:me".to_string()],
+            &counts,
+            &latest,
+            &no_receipts(),
+        );
+        let disc = rows.iter().find(|r| r.topic == "dm:peer:me").expect("discovered row");
+        assert!(!disc.tracked, "discovery row must be marked untracked");
+        assert_eq!(disc.cursor, 0);
+        assert_eq!(disc.unread, Some(4), "latest 4 - cursor 0");
+
+        let tr = rows.iter().find(|r| r.topic == "tracked-t").expect("tracked row");
+        assert!(tr.tracked, "cursor-store row must stay marked tracked");
+        assert_eq!(tr.unread, Some(2));
+    }
+
+    /// AC-3: without the receipt join on discovered topics, every thread already
+    /// acked through the conversation arc (which advances receipts, not cursors)
+    /// would resurface as unread — trading a false negative for a false positive.
+    /// A digest that cannot be cleared is one its reader stops believing (PL-340).
+    #[test]
+    fn discovered_topic_already_acked_via_receipts_is_not_reported_unread() {
+        let counts = counts_map(&[("dm:peer:me", 24)]);
+        let latest = latest_map(&[("dm:peer:me", 23)]);
+        let rows = compute_unread_rows_with_discovery(
+            &[],
+            &["dm:peer:me".to_string()],
+            &counts,
+            &latest,
+            &receipts_map(&[("dm:peer:me", 23)]),
+        );
+        assert!(rows.is_empty(), "fully-acked discovered topic must drop: {rows:?}");
+    }
+
+    /// A dm topic holding only its `topic_metadata` header has nothing to read.
+    #[test]
+    fn discovered_metadata_only_topic_is_not_reported_unread() {
+        let rows = compute_unread_rows_with_discovery(
+            &[],
+            &["dm:peer:me".to_string()],
+            &counts_map(&[("dm:peer:me", 1)]),
+            &latest_map(&[("dm:peer:me", 0)]),
+            &no_receipts(),
+        );
+        assert!(rows.is_empty(), "metadata-only topic must drop: {rows:?}");
+    }
+
+    /// G-060: the same topic name on two hubs is two unrelated logs. An
+    /// unlabelled merged row would read as one thread reported twice.
+    #[test]
+    fn unread_row_json_carries_hub_and_tracked() {
+        let row = UnreadRow {
+            topic: "dm:peer:me".into(),
+            cursor: 0,
+            receipt_up_to: None,
+            frontier: 0,
+            latest: 4,
+            unread: Some(4),
+            tracked: false,
+            hub: Some("beta".into()),
+        };
+        let j = row.to_json();
+        assert_eq!(j["tracked"], serde_json::json!(false));
+        assert_eq!(j["hub"], serde_json::json!("beta"));
+        // Pre-T-2783 fields must survive untouched — consumers parse these.
+        assert_eq!(j["topic"], serde_json::json!("dm:peer:me"));
+        assert_eq!(j["unread"], serde_json::json!(4));
     }
 
     // T-2653: the hub-error-code hint taxonomy must route backpressure/auth/other

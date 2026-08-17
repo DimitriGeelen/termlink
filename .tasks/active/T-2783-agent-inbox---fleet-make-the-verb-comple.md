@@ -4,10 +4,10 @@ name: "agent inbox --fleet: make the verb complete, not just honest"
 description: >
   T-2782 made agent inbox state its scope; it is still one-hub and cursor-store gated. This is the capability half: walk hubs.toml like check-outbox --fleet (per-hub timeout, TLS-fp dedup), and consider discovering dm:* topics that carry the local fingerprint regardless of whether the cursor store tracks them — the case that actually hid the ring20 reply. Deliberately separated from T-2782 so a truthfulness fix was not blocked on a capability change.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
-horizon: next
+horizon: now
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-17T10:56:18Z
-last_update: 2026-08-17T10:56:18Z
+last_update: 2026-08-17T12:00:51Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -34,14 +34,73 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+T-2782 made `agent inbox` **honest** — every output path now states its scope. It is still
+**incomplete**: one hub, and only topics the local cursor store tracks. This task closes the
+capability half.
+
+**Scoping correction made while writing these ACs.** The task was filed as "`--fleet`", with
+untracked-topic discovery as a secondary "consider". That ordering is backwards. The reply
+that actually went missing (T-2781, ring20-concierge on `.122`) lived on topic
+`dm:88743a9ad59fda39:d1993c2c3ec44c94`, which **was never in the cursor store** — it is a
+topic this identity had only ever *posted* to, and `subscribe --resume` is what writes a
+cursor row. `cursor_store::list_for_fingerprint(&fp)` returns nothing for it, so
+`cmd_channel_inbox` never examines it. **A `--fleet` walk would still have missed it**, on
+`.122` as surely as on `.107`, because the enumeration source — not the hub — is what
+excluded it. Discovery is therefore the primary fix and `--fleet` the secondary one.
+
+This is **PL-350** ("when two stores can answer the same question, something must JOIN them
+or the answer is silently partial"): the local cursor store and the hub's own `channel.list`
+both know which topics concern this identity, and `inbox` consults only the first. The join
+is cheap — `channel.list` is *already fetched* on the existing path (`channel.rs:8994`) and
+already carries `name` + `count` + `latest_offset` for every topic. The missing piece is a
+name match against this identity's fingerprint, not a new round trip.
+
+**Blind spot ordering, restated for the implementer:**
+
+1. **Cursor-store gated** (primary — this is the one that cost two redundant escalations).
+   A `dm:*` topic carrying our fingerprint is *by construction* addressed to us. If it has no
+   cursor row, the correct reading is "everything in it is unread", not "it does not exist".
+2. **One hub** (secondary). Topics are per-hub state with no federation (G-060), so a thread
+   on a peer's hub is invisible. `check-outbox --fleet` already solved this shape.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] **Untracked `dm:*` topics carrying this identity's fingerprint are discovered and
+      reported.** `cmd_channel_inbox` joins the already-fetched `channel.list` against the
+      cursor store: a topic whose name matches `dm:*` and contains this identity's
+      fingerprint but has **no** cursor row is treated as cursor=0 (all unread) rather than
+      skipped. Regression test reproduces the T-2781 shape exactly — a dm topic with posts
+      and no cursor row must appear in the result.
+- [ ] **Untracked rows are visibly distinguished from tracked ones**, in both human and JSON
+      output. "Never resumed, so all N unread" and "resumed and N behind" are different
+      operational facts and must not render identically; conflating them would re-create a
+      plausible-wrong-answer at the row level while fixing it at the verb level.
+- [ ] **Receipt frontier is honoured for untracked topics too.** The T-2757 join
+      (`fetch_receipt_frontier`) runs for discovered topics as well, so a topic already
+      acked via receipts does not resurface as spuriously unread. Without this, discovery
+      trades a false negative for a false positive.
+- [ ] **`--fleet` walks every profile in `~/.termlink/hubs.toml`**, bounded per hub
+      (`timeout`, PL-189), deduping profiles that resolve to the same TLS fingerprint — the
+      same rule `scripts/check-outbox.sh --fleet` uses. A hub that fails is **reported**, not
+      silently dropped (an omitted hub is precisely this task's bug class recurring one layer
+      up).
+- [ ] **The T-2782 scope note is derived from actual scope, never asserted.** It currently
+      hardcodes `one hub only (no --fleet)` and `only topics recorded by subscribe --resume`.
+      Both claims become FALSE the moment this task lands, so the note must be regenerated
+      from what was really read (which hubs, how many tracked + how many discovered). Test
+      pins that a `--fleet` run's note does not contain the single-hub claim. Shipping the
+      capability while leaving the note stale would reintroduce the exact T-2680 defect
+      T-2782 existed to fix — in the sentence written to prevent it.
+- [ ] **The machine contract is preserved.** `agent inbox --json` still emits a **bare array**
+      on stdout (`scripts/substrate-worker-pickup.sh:290` and the T-2153 orchestrator recipe
+      both parse it); all scope output stays on stderr. Test pins stdout shape.
+- [ ] **Mutation-proven load-bearing.** Removing the discovery join makes a named test go red;
+      removing the fleet TLS-fp dedup makes a named test go red. Both restored with zero
+      residue. Evidence recorded in this file with the date it was run.
+- [ ] `cargo test --workspace` exits 0 with 0 failures, and `bash scripts/run-guard-layer.sh`
+      reports all members clean.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -193,3 +252,7 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2783-agent-inbox---fleet-make-the-verb-comple.md
 - **Context:** Initial task creation
+
+### 2026-08-17T12:00:51Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

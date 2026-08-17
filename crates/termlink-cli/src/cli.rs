@@ -3008,18 +3008,29 @@ pub(crate) enum ChannelAction {
     /// on the cursor alone reported unread that no amount of reading could
     /// clear. Both values are shown so you can see which one is stale.
     ///
-    /// Read-only; does not touch cursors. Still cursor-SCOPED — a topic never
-    /// subscribed with `--resume` does not appear here at all, so this is not a
-    /// whole-hub view. Compare `channel unread <topic>`, which is single-topic
-    /// and purely receipt-based.
+    /// Read-only; does not touch cursors. T-2783: no longer purely cursor-scoped
+    /// — `dm:` topics on the hub carrying this identity's fingerprint are also
+    /// discovered and reported even when the cursor store has never tracked
+    /// them (rows are marked `tracked: false`). A NON-dm topic you have only
+    /// posted to is still not enumerated. Compare `channel unread <topic>`,
+    /// which is single-topic and purely receipt-based.
     Inbox {
         /// Target hub address (unix path or host:port). Default: local hub.
         #[arg(long)]
         hub: Option<String>,
 
-        /// Output as JSON `[{topic, unread, latest, cursor}]`
+        /// Output as JSON `[{topic, unread, latest, cursor, tracked, hub}]`
         #[arg(long)]
         json: bool,
+
+        /// T-2783: walk every profile in `~/.termlink/hubs.toml` instead of one
+        /// hub. Topics are per-hub state with no federation (G-060), so a DM
+        /// thread on a peer's hub is invisible to a single-hub read — it does
+        /// not exist there. Profiles resolving to the same TLS fingerprint are
+        /// read once; a hub that cannot be read is REPORTED, never silently
+        /// dropped. Mutually exclusive with `--hub`.
+        #[arg(long, conflicts_with = "hub")]
+        fleet: bool,
     },
     /// Full per-topic statistics dashboard (T-1368). Walks the topic and
     /// reports total envelopes, distinct senders, msg-type breakdown, top-5
@@ -6236,6 +6247,12 @@ pub(crate) enum AgentAction {
         /// Output result as JSON envelope.
         #[arg(long)]
         json: bool,
+
+        /// T-2783: walk every profile in `~/.termlink/hubs.toml` rather than a
+        /// single hub. See `channel inbox --fleet`. Mutually exclusive with
+        /// `--hub`.
+        #[arg(long, conflicts_with = "hub")]
+        fleet: bool,
 
         /// Live monitor mode: re-fetch and re-render every
         /// `--watch-interval` seconds. Incompatible with `--json`.
