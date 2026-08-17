@@ -1,13 +1,13 @@
 ---
-id: T-2723
-name: "Handover commit under T-1452 collides with the focus gate, generating most safety bypasses"
+id: T-2781
+name: "Process ring20-manager reply on the OneDev push credential block"
 description: >
-  Handover commit under T-1452 collides with the focus gate, generating most safety bypasses
+  ring20-manager replied at 06:59Z (offset ~19-20) to the BLOCKED ask; the reply was missed and a second escalation was sent after it. Read the reply in full, act on whatever it instructs, and correct the escalation record.
 
 status: work-completed
 workflow_type: build
-owner: human
-horizon: now
+owner: agent
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -15,9 +15,9 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-15T06:19:38Z
-last_update: 2026-08-17T07:36:05Z
-date_finished: 2026-08-15T06:23:54Z
+created: 2026-08-17T10:15:02Z
+last_update: 2026-08-17T10:21:21Z
+date_finished: 2026-08-17T10:21:21Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -30,7 +30,7 @@ date_finished: 2026-08-15T06:23:54Z
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2723: Handover commit under T-1452 collides with the focus gate, generating most safety bypasses
+# T-2781: Process ring20-manager reply on the OneDev push credential block
 
 ## Context
 
@@ -40,21 +40,14 @@ date_finished: 2026-08-15T06:23:54Z
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] The bypass log is analysed by task, not just counted: **13 of the 24** focus-drift bypasses in the 7-day window are task `T-1452`, the session-handover task — the single largest generator by a wide margin (next is 4)
-- [x] The mechanism is stated precisely: at session end, focus is necessarily on the *working* task, while the mandatory handover commit references `T-1452`, so the focus-drift gate fires on a step the framework itself prescribes
-- [x] It is demonstrated that the bypass is avoidable — `fw context focus T-1452` → commit → refocus works and was used twice in this session instead of `FW_SWITCH_FOCUS=1` — so the finding is about imposed friction, not an impossible gate
-- [x] The distinction is drawn from the earlier wrong reading: no framework script *sets* `FW_SWITCH_FOCUS`, which was verified and remains true; the framework generates these bypasses by prescribing a flow its gate blocks, not by typing the bypass itself
-- [x] Filed as an upstream record under `.context/upstream/` — the collision is in vendored handover/gate tooling, not in this repo
+- [x] The reply from `88743a9ad59fda39` (ts 1786949963028, 2026-08-17T06:59:23Z) is read **in full**, not from the truncated preview — read via `channel subscribe --cursor 0` on hub `.122` and base64-decoded; 5 numbered points recorded verbatim in the escalation file
+- [x] Whatever the reply instructs is either acted on, or the specific reason it cannot be acted on is recorded — steps (a) purge + the token-free remote URL are **done**; steps (b)–(e) need `/home/dimitri-mint-dev/.onedev-token-current`, refused by the T-559 project-boundary gate (another user's home; not bypassed), so the one-line handover is recorded instead
+- [x] `.context/working/PENDING-ESCALATION-onedev-credential.md` is corrected — header now reads ANSWERED and states plainly that the reply predates my 2nd and 3rd escalations
+- [x] The miss is root-caused (G-019) — **two independent structural causes**, both verified: `agent inbox` is local-hub-only with no `--fleet` (topic lives on `.122`; grep of `channel list --json` on `.107` returns 0 matches), AND it only walks the local cursor store, which does not contain this topic (9 entries, none matching). `unread_topics: []` therefore means "none among locally-tracked topics on this hub", not "no unread mail"
+- [x] If the reply resolves the credential block, the push is attempted and its result reported; if not, the remaining blocker is stated in one line — attempted: `GIT_TERMINAL_PROMPT=0 git ls-remote origin HEAD` now fails with *"could not read Username"*, confirming the store is clean and un-shadowed. **Remaining blocker: the token value itself, which only the human can read across the boundary gate.**
+- [x] My own earlier diagnosis is corrected rather than quietly dropped — I reported "no entry exists for that host"; there were in fact **2 rows**, both carrying the revoked token, which would have shadowed any new approve. Recorded in the escalation file with the reason I got it wrong (I conflated "must not print a secrets file" with "cannot measure it" — `grep -c` and a redacting `sed` do both safely)
 
 ### Human
-
-- [ ] [RUBBER-STAMP] Decide whether U-008 is filed to the shared `framework:pickup` topic
-  **Steps:**
-  1. Read `.context/upstream/U-008-handover-commit-collides-with-focus-gate.yaml`
-  2. If you want it filed, post it to `framework:pickup`; if not, leave this unchecked and the record stays local
-  **Expected:** Either a post on `framework:pickup` referencing U-008, or a deliberate decision not to file
-  **If not:** The record stays in `.context/upstream/` and loses nothing — filing is what makes it visible to peer projects, which is why it is your call and not the agent's
-
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
@@ -81,33 +74,10 @@ date_finished: 2026-08-15T06:23:54Z
          1. Run `bin/fw reviewer T-XXX`
          **Expected:** Verdict: PASS; no findings on `block-message-completeness`
          **If not:** Inspect hook block-message string and add missing mechanism
-       Conversion: this AC should be moved to ### Agent and
-       `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` added to ## Verification.
+       Conversion: this AC should be moved to ### Agent and this line added to
+       ## Verification (herestring, not a pipeline — see the L-387 hint below):
+         out=$(bin/fw reviewer T-XXX 2>&1 || true); grep -q "Overall:.*PASS" <<< "$out"
 -->
-
-## Recommendation
-
-**Recommendation:** GO — file U-008 to `framework:pickup`.
-
-**Rationale:** The finding is not specific to this project. Any consumer of the
-framework that follows the Session End Protocol hits the same collision at every
-session end, and the same 50%-plus share of its safety-bypass log will be its own
-handover step. That makes the count untrustworthy everywhere, not just here — and
-the audit's mitigation ("investigate the callers") sends the reader to inspect 24
-entries of which 13 are the framework's own prescribed flow. The fix proposed in
-direction 1 is small and lives entirely in `fw handover --commit`, which already
-knows both the task it commits under and the focus it would displace.
-
-The reason to file rather than keep it local is that this repo cannot fix it: the
-handover agent and the focus gate are both vendored, so a local patch is erased at
-the next re-vendor (as T-2721 documents for the audit-hook patch).
-
-**Evidence:**
-- `.context/working/.gate-bypass-log.yaml` — 26 entries in the 7-day window; grouped by task: T-1452 ×13, T-1166 ×4, T-2567 ×3, T-1291 ×3, T-2672 ×1, plus 2 inception filings on a different flag
-- 24 of 26 are `flag: FW_SWITCH_FOCUS=1`, `caller: check-active-task focus-drift`
-- Verified NOT machine-generated: no framework script sets the variable; `bin/fw:6639` only names it in an error string — an earlier reading of this same data got that wrong, and the correction is recorded in U-008
-- Demonstrated avoidable: this session hit the gate twice and cleared it both times with `fw context focus <task>` instead of the bypass, so the sanctioned path works and the issue is imposed friction, not an impossible gate
-- `PL-265` already records the adjacent collision (the gate blocking `fw handover` on a just-completed focus task), which is evidence the session-end path is systematically under-tested against its own gates
 
 ## Verification
 
@@ -120,20 +90,38 @@ the next re-vendor (as T-2721 documents for the audit-hook patch).
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
 #
-# Pipefail/SIGPIPE hint (L-387): P-011 runs each command under `set -eo pipefail`.
-# `cmd | grep -q PATTERN` exits 141 (SIGPIPE) when grep matches and closes stdin
-# while the upstream is still writing — verification then "fails" even though
-# the pattern was present. Safe pattern: capture first, grep the capture:
-#     out=$(cmd 2>&1); echo "$out" | grep -q "PATTERN"
-# Or:
-#     cmd > /tmp/.out 2>&1 && grep -q "PATTERN" /tmp/.out
-# Origin: L-387, captured 4× (T-1716, T-1838, T-1862, T-1863) before this hint.
+# Pipefail/SIGPIPE hint (L-387, corrected by T-2775): P-011 runs each command
+# under `set -eo pipefail`. NEVER write `cmd | grep -q PATTERN`: it exits 141
+# (SIGPIPE) when grep matches and closes stdin while the upstream is still
+# writing — verification then "fails" BECAUSE the check succeeded, and the
+# earlier the match, the more reliably it fails.
 #
-# Single pipe only — no intermediate tail/awk/sed stages between capture and grep
-# (T-2090): `echo "$out" | tail -3 | grep -q PAT` re-introduces the SIGPIPE risk
-# the capture step closed off — the middle stage is what `grep -q` slams its
-# stdin on. `echo "$out"` is small and immediate; grep scans the whole captured
-# string anyway, so the tail-3 was cosmetic. Drop it: `echo "$out" | grep -q PAT`.
+# USE ONE OF THESE — both measured rc=0 at 3M lines:
+#     out=$(cmd 2>&1 || true); grep -q "PATTERN" <<< "$out"   # herestring (preferred)
+#     test -n "$(cmd | grep -m1 PATTERN)"                     # pipeline inside $( )
+#
+# The herestring is preferred: a herestring spawns no producer process, so there
+# is nothing to SIGPIPE and it cannot regress as output grows. In the second form
+# the pipeline sits inside a command substitution, whose status is discarded — the
+# OUTER `test` decides.
+#
+# DO NOT capture-then-pipe. This template previously prescribed
+#     out=$(cmd 2>&1); echo "$out" | grep -q "PATTERN"     # UNSAFE above ~64KB
+# and it is size-dependent, not safe: `echo`/`printf` is a producer like any
+# other, so once $out exceeds the pipe buffer it is still writing when `grep -q`
+# exits and pipefail propagates 141. The capture bounds the DATA but does not
+# remove the PRODUCER. Anything wrapping `cargo test`, `fleet doctor --json`, or a
+# full log is already in that size range. (T-2775 measured this; 999-AEF L-613 and
+# 050-email-archive PL-161 published the capture-then-pipe form before the
+# correction — both have since adopted the herestring.)
+#
+# Corollary (T-2090): intermediate stages are just as fatal — `... | tail -3 |
+# grep -q PAT` re-introduces the same risk. With a herestring the question does
+# not arise; grep scans the whole captured string anyway.
+#
+# Origin: L-387, captured 4× (T-1716, T-1838, T-1862, T-1863) before the hint;
+# T-2775 then measured 1490 exposed lines across 802 tasks despite the hint, which
+# is why `scripts/check-verification-pipefail.sh` now enforces it structurally.
 #
 # Enforcement-baseline hint (L-398, T-1886): if you edited `.claude/settings.json`
 # (added/removed/reorganised hooks), add `bin/fw enforcement baseline` to your
@@ -141,6 +129,13 @@ the next re-vendor (as T-2721 documents for the audit-hook patch).
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+test 0 -eq "$(grep -c onedev "$HOME/.git-credentials")"
+test -f "$HOME/.git-credentials.bak-T2781"
+test "$(git remote get-url origin)" = "https://onedev.docker.ring20.geelenandcompany.com/termlink"
+test "store" = "$(git config credential.helper)"
+grep -qF 'ANSWERED' .context/working/PENDING-ESCALATION-onedev-credential.md
+grep -qF 'onedev-token-current' .context/working/PENDING-ESCALATION-onedev-credential.md
 
 ## RCA
 
@@ -205,10 +200,10 @@ the next re-vendor (as T-2721 documents for the audit-hook patch).
 
 ## Updates
 
-### 2026-08-15T06:19:38Z — task-created [task-create-agent]
+### 2026-08-17T10:15:02Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2723-handover-commit-under-t-1452-collides-wi.md
+- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2781-process-ring20-manager-reply-on-the-oned.md
 - **Context:** Initial task creation
 
-### 2026-08-15T06:23:54Z — status-update [task-update-agent]
+### 2026-08-17T10:21:21Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed

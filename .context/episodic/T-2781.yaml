@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2781: Process ring20-manager reply on the OneDev push credential block
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-17T10:21:27Z
+# ============================================================================
+
+task_id: T-2781
+task_name: "Process ring20-manager reply on the OneDev push credential block"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-17T10:15:02Z
+completed: 2026-08-17T10:21:21Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  ring20-manager replied at 06:59Z (offset ~19-20) to the BLOCKED ask; the reply was missed and a second escalation was sent after it. Read the reply in full, act on whatever it instructs, and correct the escalation record.
+
+# Key outcomes
+outcomes:
+  - 'The reply from `88743a9ad59fda39` (ts 1786949963028, 2026-08-17T06:59:23Z) is read **in full**, not from the truncated preview — read via `channel subscribe --cursor 0` on hub `.122` and base64-decoded; 5 numbered points recorded verbatim in the escalation file'
+  - 'Whatever the reply instructs is either acted on, or the specific reason it cannot be acted on is recorded — steps (a) purge + the token-free remote URL are **done**; steps (b)–(e) need `/home/dimitri-mint-dev/.onedev-token-current`, refused by the T-559 project-boundary gate (another user''s home; not bypassed), so the one-line handover is recorded instead'
+  - '`.context/working/PENDING-ESCALATION-onedev-credential.md` is corrected — header now reads ANSWERED and states plainly that the reply predates my 2nd and 3rd escalations'
+  - 'The miss is root-caused (G-019) — **two independent structural causes**, both verified: `agent inbox` is local-hub-only with no `--fleet` (topic lives on `.122`; grep of `channel list --json` on `.107` returns 0 matches), AND it only walks the local cursor store, which does not contain this topic (9 entries, none matching). `unread_topics: []` therefore means "none among locally-tracked topics on this hub", not "no unread mail"'
+  - 'If the reply resolves the credential block, the push is attempted and its result reported; if not, the remaining blocker is stated in one line — attempted: `GIT_TERMINAL_PROMPT=0 git ls-remote origin HEAD` now fails with *"could not read Username"*, confirming the store is clean and un-shadowed. **Remaining blocker: the token value itself, which only the human can read across the boundary gate.**'
+  - 'My own earlier diagnosis is corrected rather than quietly dropped — I reported "no entry exists for that host"; there were in fact **2 rows**, both carrying the revoked token, which would have shadowed any new approve. Recorded in the escalation file with the reason I got it wrong (I conflated "must not print a secrets file" with "cannot measure it" — `grep -c` and a redacting `sed` do both safely)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 6 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 6
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2781-process-ring20-manager-reply-on-the-oned.md
+generated_by: context-agent-hybrid
