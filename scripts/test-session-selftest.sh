@@ -110,6 +110,65 @@ else
     echo "  FAIL json broken envelope"; fails=$((fails+1))
 fi
 
+# --- T-2695: PTY-stage seams (OUTPUT / INJECT) ------------------------------
+# The seams existed from the moment the stages were written, but nothing exercised
+# them, so "the canary translation stays verifiable" was a claim about a mechanism
+# no test ran (PL-329 — a guard is only as load-bearing as its invocation path).
+# A typo'd env name, or a FAIL path that forgot to set broken_stage, would have
+# been invisible here while the live run kept passing on this host.
+#
+# runp <output_status> <inject_status> -> exit code. Empty string leaves the seam
+# unset, which is itself a case: absent seams must NOT block `proven`.
+runp() {
+    local envs=(SESSION_SELFTEST_SENTINEL="$FIX"
+                TERMLINK_SESSION_SELFTEST_TEST_SPAWN_RC=0
+                TERMLINK_SESSION_SELFTEST_TEST_EXEC_JSON="$GOOD_JSON"
+                TERMLINK_SESSION_SELFTEST_TEST_EXITCODE_JSON="$ECGOOD_JSON")
+    [ -n "$1" ] && envs+=(TERMLINK_SESSION_SELFTEST_TEST_OUTPUT_STATUS="$1")
+    [ -n "$2" ] && envs+=(TERMLINK_SESSION_SELFTEST_TEST_INJECT_STATUS="$2")
+    env "${envs[@]}" bash "$SCRIPT" --json >/dev/null 2>&1; echo $?
+}
+# jsonp <output_status> <inject_status> -> the JSON envelope
+jsonp() {
+    local envs=(SESSION_SELFTEST_SENTINEL="$FIX"
+                TERMLINK_SESSION_SELFTEST_TEST_SPAWN_RC=0
+                TERMLINK_SESSION_SELFTEST_TEST_EXEC_JSON="$GOOD_JSON"
+                TERMLINK_SESSION_SELFTEST_TEST_EXITCODE_JSON="$ECGOOD_JSON")
+    [ -n "$1" ] && envs+=(TERMLINK_SESSION_SELFTEST_TEST_OUTPUT_STATUS="$1")
+    [ -n "$2" ] && envs+=(TERMLINK_SESSION_SELFTEST_TEST_INJECT_STATUS="$2")
+    env "${envs[@]}" bash "$SCRIPT" --json 2>/dev/null
+}
+jchk() { # <label> <json> <jq-expr>
+    if printf '%s' "$2" | jq -e "$3" >/dev/null 2>&1; then echo "  ok   $1"
+    else echo "  FAIL $1"; fails=$((fails+1)); fi
+}
+
+# Back-compat: seams unset -> both stages "skipped", which must never block proven.
+# This is what keeps the pre-T-2695 SPAWN/EXEC cases above green unmodified.
+check "PTY seams unset -> proven -> 0" 0 "$(runp '' '')"
+jchk "seams unset leave output+inject skipped" "$(jsonp '' '')" \
+     '.proven==true and .stages.output=="skipped" and .stages.inject=="skipped"'
+
+# INJECT FAIL blocks proven and names itself — the charter claim this task exists for.
+check "INJECT seam FAIL -> broken -> 1" 1 "$(runp '' FAIL)"
+jchk "INJECT failure names the INJECT stage" "$(jsonp '' FAIL)" \
+     '.proven==false and .broken_stage=="INJECT" and .stages.inject=="FAIL"'
+
+# OUTPUT FAIL blocks proven and names itself.
+check "OUTPUT seam FAIL -> broken -> 1" 1 "$(runp FAIL '')"
+jchk "OUTPUT failure names the OUTPUT stage" "$(jsonp FAIL '')" \
+     '.proven==false and .broken_stage=="OUTPUT" and .stages.output=="FAIL"'
+
+# Both PASS -> proven, with both stages present in the envelope (additive contract).
+check "both PTY seams PASS -> proven -> 0" 0 "$(runp PASS PASS)"
+jchk "proven envelope carries output+inject PASS" "$(jsonp PASS PASS)" \
+     '.proven==true and .broken_stage==null and .stages.output=="PASS" and .stages.inject=="PASS"'
+
+# Diagnosis ordering: when BOTH fail, OUTPUT must win. Deliberate — inject's effect is
+# observed THROUGH output, so a broken output makes "INJECT is broken" a wrong answer.
+jchk "both failing attributes to OUTPUT, not INJECT" "$(jsonp FAIL FAIL)" \
+     '.broken_stage=="OUTPUT"'
+
 # 9. --help documents the charter verb.
 if bash "$SCRIPT" --help 2>&1 | grep -q "control terminal sessions"; then
     echo "  ok   --help documents the charter verb"

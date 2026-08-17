@@ -122,6 +122,12 @@ bash scripts/session-selftest.sh --json
 bash scripts/test-session-selftest.sh
 bash scripts/check-session-control-freshness.sh --quiet
 out=$(bash scripts/session-selftest.sh --json); echo "$out" | jq -e '.stages.inject == "PASS" and .stages.output == "PASS"'
+# The PTY seams must stay EXERCISED, not merely present (PL-329). Count-pin: 23 cases
+# = 14 pre-existing + 9 added here. Deleting any assertion re-fires this line.
+# Herestring, not a pipe: `| grep -q` exits 141 under the gate's pipefail (T-2775).
+out=$(bash scripts/test-session-selftest.sh 2>&1); test "$(grep -c '^  ok   ' <<< "$out")" -eq 23
+out=$(bash scripts/test-session-selftest.sh 2>&1); grep -q 'ok   INJECT failure names the INJECT stage' <<< "$out"
+out=$(bash scripts/test-session-selftest.sh 2>&1); grep -q 'ok   both failing attributes to OUTPUT, not INJECT' <<< "$out"
 
 ## RCA
 
@@ -174,7 +180,46 @@ out=$(bash scripts/session-selftest.sh --json); echo "$out" | jq -e '.stages.inj
      - **Rejected:** [alternatives and why not]
 -->
 
-## Decision
+### 2026-08-17 — the seams existed but nothing exercised them
+
+- **Chose:** Add 9 assertions to `scripts/test-session-selftest.sh` covering the
+  `TERMLINK_SESSION_SELFTEST_TEST_{OUTPUT,INJECT}_STATUS` seams before closing.
+- **Why:** The AC "test seams let the new stages be exercised without a live PTY,
+  so the canary translation stays verifiable" was ticked on the seams *existing*.
+  Measured at closure: `grep -c 'INJECT_STATUS\|OUTPUT_STATUS'` against the suite
+  returned **0**. The seams were written and never invoked, so a typo'd env name,
+  or a FAIL path that forgot to set `broken_stage`, would have been invisible while
+  the live run kept passing on this host. That is PL-329 exactly — *a guard is only
+  as load-bearing as its invocation path* — reproduced inside the task that added
+  the guard. Closing on the un-exercised version would have made the AC a claim
+  about a mechanism no test ran.
+- **Coverage added:** seams-unset ⇒ both stages `skipped` and `proven` NOT blocked
+  (the back-compat guarantee the script's own comment asserts); INJECT FAIL ⇒
+  `broken_stage:"INJECT"`; OUTPUT FAIL ⇒ `broken_stage:"OUTPUT"`; both PASS ⇒
+  `proven` with both keys present; and both-FAIL ⇒ attributed to **OUTPUT**, pinning
+  the deliberate diagnosis ordering (inject's effect is observed *through* output,
+  so blaming INJECT when output is broken is a wrong answer).
+- **Load-bearing, proven by mutation, not asserted:** removing the INJECT
+  `broken_stage` attribution fails 1 case; removing "inject FAIL blocks `proven`"
+  fails 2. Both reverted; suite green; `git diff` on the prover clean.
+- **Rejected:** closing on the live `proven:true` run alone. A live green on one
+  host is evidence the verb works *today*, not evidence the prover would report
+  correctly when it breaks — which is the entire purpose of a canary-backed prover.
+
+### 2026-08-17 — the suite itself has no automated invocation path (filed separately)
+
+- **Found:** `scripts/test-session-selftest.sh` is referenced *only* by task
+  Verification blocks — T-2563 (already in `completed/`) and this task. It is not in
+  CI and not in the guard layer, whose discovery covers `scripts/check-*.sh` carrying
+  a `# guard-layer: source` marker plus `tests/*fixtures*.sh` by naming convention.
+  This file matches neither, and adding a marker would not help because the loop
+  never iterates `scripts/test-*.sh`. On this task's closure the suite drops to
+  **zero** automated invocations.
+- **Chose:** File it as its own task rather than fix it here.
+- **Why:** It is a distinct defect with a distinct root cause, it predates this task
+  (T-2563's suite had the same gap), and it affects all 18 cases rather than the 9
+  added here — "one bug = one task" per the sizing rules. Widening T-2695 to cover
+  it would bury a guard-layer coverage defect inside a PTY-stage task.
 
 <!-- Filled at completion of inception tasks via:
      fw inception decide T-XXX go|no-go|defer --rationale "..."
