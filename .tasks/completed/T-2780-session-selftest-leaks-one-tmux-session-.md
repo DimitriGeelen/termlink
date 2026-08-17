@@ -4,20 +4,20 @@ name: "session-selftest leaks one tmux session per run — cleanup deregisters b
 description: >
   session-selftest.sh CLEANUP sends 'signal TERM' + 'clean', which removes the termlink registration but leaves the backing tmux session alive. Measured: 7 orphaned tl-session-selftest-*-pty sessions after 7 live runs, 0 present in 'termlink list'. T-2695 AC 5 claims cleanup on every exit path; it is not satisfied. The T-2557 canary runs this prover daily, so the leak is unbounded.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/session-selftest.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-17T06:44:21Z
-last_update: 2026-08-17T06:51:02Z
-date_finished: null
+last_update: 2026-08-17T07:44:11Z
+date_finished: 2026-08-17T07:44:11Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -45,9 +45,9 @@ date_finished: null
 - [x] The reap is scoped to this prover's own session name; it must never match or kill an unrelated `tl-*` session belonging to real work
 - [x] Cleanup stays best-effort and never fatal: a reap failure must not turn a PASSing prover into a FAIL (exit-code contract 0 proven / 1 broken / 2 tooling is unchanged)
 - [x] The non-PTY `sleep`-backed session's existing handling is unchanged — no regression to the stages the T-2557 canary already depends on
-- [ ] Reaping happens on **every** exit path, including when a PTY stage FAILS — that is what T-2695 AC 5 claimed and is the property that was actually missing — **structurally true (the reap sits in the cleanup block gated only on `spawn_status = PASS`, so no PTY-stage outcome can skip it) but NOT yet exercised on a forced-FAIL run; unticked deliberately, since that is exactly the assumption T-2695 got wrong**
-- [ ] Load-bearing, proven by mutation: removing the reap makes the leak assertion fail; restoring it passes — **written and staged (`mutate-2780.sh`) but blocked by the budget gate before it ran**
-- [ ] `bash scripts/session-selftest.sh --json` still returns `proven:true` with all seven stages (**verified — rc=0, 7/7 stages**), and `bash scripts/test-session-selftest.sh` still passes (**not re-run after this edit**; the change is inside the `TEST_MODE=0` branch so the suite cannot reach it, but that is reasoning, not a measurement)
+- [x] Reaping happens on **every** exit path, including when a PTY stage FAILS — that is what T-2695 AC 5 claimed and is the property that was actually missing — **MEASURED 2026-08-17, no longer inferred**: a pass-through shim on the `TERMLINK_BIN` seam forced the live-path OUTPUT stage to fail deterministically. Result `rc=1`, `broken_stage:"OUTPUT"`, `pty_spawn:"PASS"` (so a real tmux session genuinely existed), `cleanup:"done"` — and **0 PTY orphans afterwards**. The failure path reaps.
+- [x] Load-bearing, proven by mutation: removing the reap makes the leak assertion fail; restoring it passes — **RAN 2026-08-17**. With the reap replaced by a no-op: **1 PTY orphan, and the prover still exited 0**. That is the whole defect in one line — success reported over a leak (Directive #2). Restored: `git diff --stat` clean, 0 orphans.
+- [x] `bash scripts/session-selftest.sh --json` still returns `proven:true` with all seven stages (**verified — rc=0, 7/7 stages**), and `bash scripts/test-session-selftest.sh` still passes (**re-run 2026-08-17 — 23/23 PASS**; the earlier "the suite cannot reach it" was reasoning, and this task exists because reasoning was accepted in place of a measurement once already)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -132,6 +132,12 @@ date_finished: null
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+bash -n scripts/session-selftest.sh
+bash scripts/test-session-selftest.sh
+grep -qF 'tmux kill-session -t "tl-${PTY_SESSION}"' scripts/session-selftest.sh
+grep -qF 'command -v tmux' scripts/session-selftest.sh
+test -z "$(tmux ls 2>/dev/null | grep 'tl-session-selftest-')"
+
 ## Evidence so far (2026-08-17)
 
 **Reproduced in isolation.** Spawn `--shell --backend tmux`, then run the prover's exact
@@ -154,9 +160,27 @@ immediately, 0 sessions after the TTL, prover still `proven:true`.
 **Reaped the 7 pre-existing orphans** (narrow `tl-session-selftest-` prefix; unrelated
 `tl-aef-*` / `tl-herdr-*` sessions untouched).
 
-**Not yet done:** the mutation proof and the forced-FAIL-path run — see the two unticked ACs.
-Do NOT close this task until both are run; the whole reason this defect exists is that
-T-2695 ticked the equivalent AC on reasoning rather than measurement.
+**Mutation proof — RAN 2026-08-17.** Replaced the reap with a no-op and ran the live prover:
+**1 PTY orphan, and the prover still exited 0.** That single line is the entire defect —
+success reported over a leaked resource. Restoring the reap returns it to 0 orphans, and
+`git diff --stat scripts/session-selftest.sh` is clean, so the mutation left nothing behind.
+The reap is load-bearing by measurement, not by argument.
+
+**Forced-FAIL path — RAN 2026-08-17.** The remaining doubt was whether cleanup reaps when a
+PTY stage *fails*, since that is precisely the property T-2695 asserted without testing. In
+`TEST_MODE` the PTY session is never spawned, so the seams cannot reach this branch at all —
+the unit suite structurally cannot answer the question. Used the `TERMLINK_BIN` override with
+a pass-through shim that fails only `output`, forcing a deterministic live-path failure after
+a real PTY spawn. Result: `rc=1`, `broken_stage:"OUTPUT"`, `pty_spawn:"PASS"`, `cleanup:"done"`,
+**0 PTY orphans**. Note `inject:"skipped"` — the ordering rule (never blame INJECT when OUTPUT
+is broken) held under a real failure too.
+
+**Unit suite re-run:** `bash scripts/test-session-selftest.sh` → **23/23 PASS**.
+
+**One honest false alarm during closure:** a session was present right after the suite. It was
+the *base* session, 40s old against `TTL=30` — the transient class, and it self-reaped when
+polled. Checked rather than assumed, because the `-pty` vs base distinction is exactly what
+made the first fix attempt misread earlier.
 
 ## RCA
 
@@ -225,3 +249,6 @@ T-2695 ticked the equivalent AC on reasoning rather than measurement.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2780-session-selftest-leaks-one-tmux-session-.md
 - **Context:** Initial task creation
+
+### 2026-08-17T07:44:11Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
