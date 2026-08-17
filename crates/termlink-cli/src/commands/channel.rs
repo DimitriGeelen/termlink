@@ -8934,6 +8934,38 @@ async fn fetch_receipt_frontier(sock: &TransportAddr, topic: &str, fp: &str) -> 
 /// construction — not chat-arc-only — so it already covers the agent-facing
 /// need a `channel_inbox` wedge would serve. See `cmd_channel_dm` for the
 /// full skip criterion.
+/// T-2782: the one-line scope disclaimer every `inbox` output path carries.
+///
+/// The verb has two independent blind spots, and neither is visible in its result:
+///
+///   1. It reads ONE hub. There is no `--fleet` (its sibling `check-outbox` has one),
+///      and topics are per-hub state with no federation (G-060), so a DM thread living
+///      on a peer's hub is not merely unread here — it does not exist here.
+///   2. It enumerates only topics in the local cursor store, which `subscribe --resume`
+///      populates. A topic you have only ever POSTED to was never resumed, so it is not
+///      tracked and is never examined.
+///
+/// Both were already documented — in the clap doc comment and the MCP tool description.
+/// Neither appeared in any OUTPUT, so a caller who did not read the help got a result
+/// that looked complete. That is the T-2680 shape (a count that is true while the
+/// impression it creates is false), and the fix there was the same: put the scope on
+/// every output path, including — especially — the clean one.
+///
+/// Pure and hub-free by construction so it is unit-testable (PL-213).
+pub(crate) fn inbox_scope_note(topics_scanned: usize, hub: Option<&str>) -> String {
+    let where_ = match hub {
+        Some(h) => format!("hub {h}"),
+        None => "the local hub".to_string(),
+    };
+    format!(
+        "scope: {topics_scanned} cursor-tracked topic(s) on {where_} — one hub only (no --fleet), \
+         and only topics recorded by `subscribe --resume`. A peer's reply on another hub, or on a \
+         topic you have only posted to, is NOT counted here. To actually check: \
+         `/recent-dm <peer>` (walks every hub) or \
+         `termlink channel subscribe <topic> --hub <peer-hub> --cursor 0`."
+    )
+}
+
 pub(crate) async fn cmd_channel_inbox(
     hub: Option<&str>,
     json_output: bool,
@@ -8944,10 +8976,16 @@ pub(crate) async fn cmd_channel_inbox(
     let cursors = cursor_store::list_for_fingerprint(&fp)?;
 
     if cursors.is_empty() {
+        // T-2782: an empty result must state what was looked at. A bare `[]` here
+        // reads as "no mail" when it means "nothing is tracked, so nothing was
+        // examined" — and an empty inbox is exactly when an operator stops looking,
+        // which makes this the costliest place in the verb for a silent scope.
         if json_output {
             println!("[]");
+            eprintln!("{}", inbox_scope_note(0, hub));
         } else {
             println!("No cursors recorded yet — use `subscribe --resume` to start tracking topics.");
+            println!("{}", inbox_scope_note(0, hub));
         }
         return Ok(());
     }
@@ -8992,10 +9030,19 @@ pub(crate) async fn cmd_channel_inbox(
     if json_output {
         let arr: Vec<Value> = rows.iter().map(UnreadRow::to_json).collect();
         println!("{}", serde_json::to_string_pretty(&Value::Array(arr))?);
+        // Scope rides on stderr, never stdout: `agent inbox --json` emits a bare
+        // ARRAY that scripts/substrate-worker-pickup.sh and the orchestrator recipe
+        // (T-2153) both parse. Wrapping it in an envelope would be the tidier shape
+        // and would break both, so the machine contract is left exactly as-is.
+        eprintln!("{}", inbox_scope_note(cursors.len(), hub));
         return Ok(());
     }
     if rows.is_empty() {
-        println!("No unread topics.");
+        // T-2782: "No unread topics." is a flat claim about the world. What is
+        // actually known is narrower, so say the narrower thing — affirmative and
+        // scoped, per the T-2076 convention (`All topics healthy (0/N stuck)`).
+        println!("No unread across {} tracked topic(s).", cursors.len());
+        println!("{}", inbox_scope_note(cursors.len(), hub));
         return Ok(());
     }
     println!("{} topic(s) with unread content:", rows.len());
@@ -12617,6 +12664,33 @@ fn render_claims_summary_text_with_annotation(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // T-2782: every `inbox` output path states its scope. Load-bearing — emptying
+    // `inbox_scope_note`, or dropping either blind spot from it, fails these.
+
+    #[test]
+    fn inbox_scope_note_names_the_hub_it_actually_read() {
+        // "the local hub" vs a named one: a reader must never have to guess WHICH hub
+        // produced the result, because the answer is per-hub state (G-060).
+        let local = inbox_scope_note(9, None);
+        assert!(local.contains("the local hub"));
+        assert!(local.contains("9 cursor-tracked topic(s)"));
+
+        let remote = inbox_scope_note(0, Some("192.168.10.122:9100"));
+        assert!(remote.contains("hub 192.168.10.122:9100"));
+        assert!(remote.contains("0 cursor-tracked topic(s)"));
+    }
+
+    #[test]
+    fn inbox_scope_note_names_both_blind_spots_and_a_remedy() {
+        let s = inbox_scope_note(3, None);
+        assert!(s.contains("--fleet"), "must name the single-hub blind spot");
+        assert!(s.contains("subscribe --resume"), "must name the cursor-store blind spot");
+        assert!(
+            s.contains("recent-dm") || s.contains("channel subscribe"),
+            "a disclaimer with no next step just relocates the dead end"
+        );
+    }
 
     // T-2653: the hub-error-code hint taxonomy must route backpressure/auth/other
     // to distinct recovery commands (Directive #3). This is load-bearing: reverting

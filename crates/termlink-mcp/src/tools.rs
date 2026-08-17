@@ -7,6 +7,48 @@ use std::sync::Arc;
 /// sees the same `potentially_stuck` verdict (the T-2043 alignment rule).
 const RECENT_EXPIRY_WINDOW_MS: i64 = 15 * 60 * 1000;
 
+/// T-2782: scope carried on EVERY `termlink_agent_inbox` output path.
+///
+/// The verb has two independent blind spots and neither was visible in its result:
+/// it reads ONE hub (no `--fleet`; topics are per-hub state with no federation, G-060),
+/// and it enumerates only topics in the local cursor store that `subscribe --resume`
+/// populated — so a topic you have only POSTED to is never examined at all.
+///
+/// Both facts were already written down, in this tool's own `description`. That is not
+/// the same as being in the answer: a caller who did not read the description received
+/// `unread_topics: []` and reasonably read it as "no mail". It meant "nothing tracked
+/// here was examined". Documented-but-not-surfaced is the T-2680 shape, and the
+/// remedy is the one used there — put it on every output path, the clean one included.
+const INBOX_SCOPE_NOTE: &str =
+    "one hub only (no --fleet), and only topics recorded by `subscribe --resume`. \
+     A peer's reply on another hub, or on a topic you have only posted to, is NOT counted here.";
+
+/// The actionable half of the disclaimer: what to run when the real question is
+/// "did they reply?" rather than "what is unread among what I already track?".
+const INBOX_SCOPE_HINT: &str =
+    "empty does not mean no mail. To actually check for a reply: `/recent-dm <peer>` \
+     (walks every hub), or read the thread directly with \
+     `termlink channel subscribe <dm-topic> --hub <peer-hub> --cursor 0 --json`.";
+
+/// Build the `termlink_agent_inbox` envelope. Extracted as a pure function purely so
+/// the scope fields are testable: asserting on the two constants alone would be a test
+/// that cannot fail, since it would never observe whether the emitter actually includes
+/// them. Here, deleting a field from this function turns the regression test red.
+fn inbox_envelope_json(
+    my_id: &str,
+    unread_topics: Vec<serde_json::Value>,
+    topics_scanned: usize,
+) -> serde_json::Value {
+    serde_json::json!({
+        "ok": true,
+        "my_id": my_id,
+        "unread_topics": unread_topics,
+        "topics_scanned": topics_scanned,
+        "scope": INBOX_SCOPE_NOTE,
+        "hint": INBOX_SCOPE_HINT,
+    })
+}
+
 /// T-2709: wall-clock epoch-millis, matching the hub's `claimed_until` units.
 fn now_unix_ms_for_claims() -> i64 {
     std::time::SystemTime::now()
@@ -19355,12 +19397,12 @@ impl TermLinkTools {
             Err(e) => return json_err(format!("cursor store: {e}")),
         };
         if cursors.is_empty() {
-            return serde_json::to_string_pretty(&serde_json::json!({
-                "ok": true,
-                "my_id": my_id,
-                "unread_topics": [],
-            }))
-            .unwrap_or_else(json_err);
+            // T-2782: additive scope fields. `unread_topics: []` alone is the answer
+            // that cost two escalations sent over the top of a reply that was already
+            // waiting — it reads as "no mail" when it means "nothing tracked here was
+            // examined". Empty is the path that most needs the disclaimer.
+            return serde_json::to_string_pretty(&inbox_envelope_json(&my_id, vec![], 0))
+                .unwrap_or_else(json_err);
         }
 
         // channel.list — full catalog, extract (name, count) into HashMap.
@@ -19439,12 +19481,11 @@ impl TermLinkTools {
             }))
             .collect();
 
-        serde_json::to_string_pretty(&serde_json::json!({
-            "ok": true,
-            "my_id": my_id,
-            "unread_topics": rows_json,
-        }))
-        .unwrap_or_else(json_err)
+        // T-2782: same scope fields on the populated path. A caller must be able to
+        // distinguish "0 unread of 9 tracked" from "0 tracked, nothing examined";
+        // before this both rendered as an empty `unread_topics` and nothing else.
+        serde_json::to_string_pretty(&inbox_envelope_json(&my_id, rows_json, cursors.len()))
+            .unwrap_or_else(json_err)
     }
 
     #[tool(
@@ -30247,6 +30288,50 @@ impl TermLinkTools {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // === T-2782: an empty inbox must state its scope ===
+    //
+    // The defect being pinned is NOT "unread_topics is wrong" — that field was always
+    // correct. It is that a correct empty list was the ENTIRE answer, so it read as
+    // "no mail" when it meant "nothing tracked here was examined". A test asserting
+    // `unread_topics == []` would have passed every day this defect existed; these
+    // assert the thing that was missing.
+
+    #[test]
+    fn empty_inbox_envelope_states_what_was_examined() {
+        let v = inbox_envelope_json("deadbeef", vec![], 0);
+        assert_eq!(v["unread_topics"].as_array().unwrap().len(), 0);
+        // The distinction that was impossible to make before: nothing unread, versus
+        // nothing looked at.
+        assert_eq!(v["topics_scanned"], 0);
+        assert!(v["scope"].as_str().unwrap().contains("one hub only"));
+        assert!(v["hint"].as_str().unwrap().contains("empty does not mean no mail"));
+    }
+
+    #[test]
+    fn populated_inbox_envelope_carries_the_same_scope() {
+        // Parity matters: an operator who learns to trust the scope line on the empty
+        // path must not find it silently absent once mail exists.
+        let rows = vec![serde_json::json!({"topic": "dm:a:b", "unread": 3})];
+        let v = inbox_envelope_json("deadbeef", rows, 9);
+        assert_eq!(v["topics_scanned"], 9);
+        assert_eq!(v["scope"], INBOX_SCOPE_NOTE);
+        assert_eq!(v["hint"], INBOX_SCOPE_HINT);
+    }
+
+    #[test]
+    fn inbox_scope_names_both_blind_spots_and_a_remedy() {
+        // Both causes are load-bearing. Naming only one leaves a reader believing the
+        // other is covered — which is how the original miss happened.
+        let s = INBOX_SCOPE_NOTE;
+        assert!(s.contains("--fleet"), "must name the single-hub blind spot");
+        assert!(s.contains("subscribe --resume"), "must name the cursor-store blind spot");
+        // A disclaimer with no next step just moves the dead end.
+        assert!(
+            INBOX_SCOPE_HINT.contains("recent-dm") || INBOX_SCOPE_HINT.contains("channel subscribe"),
+            "hint must name a command that actually answers 'did they reply?'"
+        );
+    }
 
     // === T-2691: procfs probe parity with the CLI (Directive #4 portability) ===
 
