@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-17T06:06:37Z
-last_update: 2026-08-17T06:06:37Z
+last_update: 2026-08-17T06:24:29Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -144,14 +144,20 @@ bash scripts/run-guard-layer.sh
 # unclassified names too, so a text grep would pass even if the suite had been dropped
 # to unclassified — i.e. it would still read green under the exact regression this
 # task exists to prevent.
-out=$(bash scripts/run-guard-layer.sh --json 2>&1 || true); test "$(jq -r '[.members[] | select(.name=="test-session-selftest.sh")] | length' <<< "$out")" -eq 1
-out=$(bash scripts/run-guard-layer.sh --json 2>&1 || true); test "$(jq -r '.members[] | select(.name=="test-session-selftest.sh") | .kind' <<< "$out")" = "suite"
-out=$(bash scripts/run-guard-layer.sh 2>&1 || true); grep -q 'PASS .* test-session-selftest.sh' <<< "$out"
+# Capture ONCE, assert many. The first draft re-invoked the layer five times at ~90s
+# each and the gate ran >25 minutes; same evidence, a fifth of the wall clock. (Two runs
+# are irreducible: the unclassified WORDING is a text-mode property with no JSON analogue.)
+# A non-zero exit here fails the line, so this doubles as "the layer is green".
+bash scripts/run-guard-layer.sh --json > .context/working/.t2779-guard.json 2>/dev/null
+test "$(jq -r '[.members[] | select(.name=="test-session-selftest.sh")] | length' .context/working/.t2779-guard.json)" -eq 1
+test "$(jq -r '.members[] | select(.name=="test-session-selftest.sh") | .kind' .context/working/.t2779-guard.json)" = "suite"
+test "$(jq -r '.members[] | select(.name=="test-session-selftest.sh") | .verdict' .context/working/.t2779-guard.json)" = "PASS"
 # The previously-invisible suites are now COUNTED. Pre-T-2779 the note said 20 and
 # omitted every scripts/test-*.sh; anything at/below 20 means the scan regressed.
-out=$(bash scripts/run-guard-layer.sh --json 2>&1 || true); test "$(jq -r '.summary.unclassified // 0' <<< "$out")" -gt 20
+test "$(jq -r '.summary.unclassified // 0' .context/working/.t2779-guard.json)" -gt 20
 # Wording no longer claims the unclassified set is only check scripts.
-out=$(bash scripts/run-guard-layer.sh 2>&1 || true); test -z "$(grep -o 'check script(s) carry no' <<< "$out")"
+bash scripts/run-guard-layer.sh > .context/working/.t2779-guard.txt 2>&1
+test -z "$(grep -o 'check script(s) carry no' .context/working/.t2779-guard.txt)"
 
 ## RCA
 
