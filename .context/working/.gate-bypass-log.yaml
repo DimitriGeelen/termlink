@@ -2711,3 +2711,11 @@ A clean re-run isolated it to exactly two tests, par'
   caller: 'check-active-task focus-drift'
   target: 'T-2723'
   command: 'FW_SWITCH_FOCUS=1 fw git commit -m "T-2723: pickup note gains build order — T-2770 first, then T-2771 IW-3, T-2769, T-2696; stop adding review axes" 2>&1 | tail -4'
+- timestamp: '2026-08-17T06:56:42Z'
+  task: 'T-2780'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2723'
+  command: 'FW_SWITCH_FOCUS=1 git add -A && FW_SWITCH_FOCUS=1 git commit -q -m "T-2723: escalate OneDev credential block to ring20-concierge (@ring20-manager) — record pending thread
+
+78 commits unpushed. Conta'
