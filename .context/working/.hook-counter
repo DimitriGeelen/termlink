@@ -1,13 +1,13 @@
-budget-gate=19
+budget-gate=22
 ls=19
 
 budget-gate=26
-check-active-task=45
-loop-detect=51
+check-active-task=47
+loop-detect=53
 commit-cadence=16
-audit-task-tools=30
-checkpoint=51
-check-tier0=29
-check-project-boundary=43
+audit-task-tools=32
+checkpoint=53
+check-tier0=32
+check-project-boundary=46
 check-human-ac-tick=15
-error-watchdog=20
+error-watchdog=22
