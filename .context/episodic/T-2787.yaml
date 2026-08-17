@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2787: T-2685 stderr-split never deployed: 0/24 installed crontabs carry it, and the drift check calls them 'not scheduled
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-17T15:21:12Z
+# ============================================================================
+
+task_id: T-2787
+task_name: "T-2685 stderr-split never deployed: 0/24 installed crontabs carry it, and the drift check calls them 'not scheduled"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-17T15:11:14Z
+completed: 2026-08-17T15:18:52Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-2685 stderr-split never deployed: 0/24 installed crontabs carry it, and the drift check calls them 'not scheduled
+
+# Key outcomes
+outcomes:
+  - 'New `JOB_DRIFT` class: a git job line whose redirect-stripped form matches an'
+  - '`JOB_DRIFT` still FIRES (exit 1) — the deployment gap is real; only the claim changes'
+  - 'The `JOB_DRIFT` message does NOT assert "NOT scheduled on this host", and shows both'
+  - 'A genuinely-absent job line (no schedule match at all) still classifies as'
+  - '`--json` carries the new class (`job_drift_count` + `job_drift[]`)'
+  - '`bash tests/cron-install-drift-fixtures.sh` passes, with new assertions covering'
+  - 'Real-tree run recorded in Evidence: the 21 reclassify from UNINSTALLED_JOBS to'
+  - 'Finding A surfaced to the human as a single copy-pasteable install command (T-609),'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 7 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 7
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2787-t-2685-stderr-split-never-deployed-024-i.md
+generated_by: context-agent-hybrid

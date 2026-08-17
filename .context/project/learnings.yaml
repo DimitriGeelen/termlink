@@ -3263,3 +3263,9 @@ learnings:
   task: T-2644
   date: 2026-08-16
   context: Added via context agent
+- id: PL-361
+  learning: "A read verb over per-hub topic state must name the hub (and topic) in its own response. G-060 makes a bare offset a PLAUSIBLE WRONG ANSWER rather than an error: agent-chat-arc held 8951 messages on .121 and 3577 on .122, so the same offset denoted different envelopes and termlink_agent_envelope returned a confident found:true from whichever hub happened to be local. The miss path needs the stamp MOST - 'offset not found' is actionable only once you know which hub was asked, otherwise it reads as 'that offset does not exist' when the truth is 'you asked the wrong hub'. Same class as T-2782/T-2783 on agent inbox. When fixing one instance, measure the class first (262 MCP tools, 176 local-hub-only, only 8 with a hub param, 70 topic-read sites) and FILE the remainder rather than bulk-changing it."
+  source: P-001
+  task: T-2785
+  date: 2026-08-17
+  context: Added via context agent

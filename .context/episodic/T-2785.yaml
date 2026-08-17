@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2785: termlink_agent_envelope returns an offset with no hub — G-060 makes that a plausible wrong answer
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-17T15:10:44Z
+# ============================================================================
+
+task_id: T-2785
+task_name: "termlink_agent_envelope returns an offset with no hub — G-060 makes that a plausible wrong answer"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-17T14:47:31Z
+completed: 2026-08-17T15:09:26Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink_agent_envelope returns an offset with no hub — G-060 makes that a plausible wrong answer
+
+# Key outcomes
+outcomes:
+  - '`AgentEnvelopeParams` gains optional `hub` (address; `None` = local hub) and optional'
+  - 'The success response always carries `hub` and `topic` naming what was actually read,'
+  - 'The `found: false` response also carries `hub` and `topic` — a miss is exactly when'
+  - 'The tool description states the G-060 scope (offset is meaningless without a hub)'
+  - 'Tests lock all three: hub echoed on hit, hub echoed on miss, topic default preserved'
+  - 'Systemic-scope measurement recorded in Evidence: how many MCP tools resolve'
+  - '`cargo test -p termlink-mcp` passes with 0 failures'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 21 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 21
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2785-termlinkagentenvelope-returns-an-offset-.md
+generated_by: context-agent-hybrid
