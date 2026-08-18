@@ -2,18 +2,43 @@
 id: T-173
 name: "Wire Stop hook for conversation governance (G-005)"
 description: >
-  Claude Code Stop hook fires after every response with last_assistant_message. Wire it into framework to enforce N-exchange guard and close G-005 (pure conversation sessions bypass enforcement).
+  Claude Code Stop hook fires after every response with last_assistant_message. Wire
+  it into framework to enforce N-exchange guard and close G-005 (pure conversation
+  sessions bypass enforcement).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [framework, hooks, governance]
 components: []
 related_tasks: []
 created: 2026-03-18T21:39:06Z
-last_update: 2026-04-25T21:54:33Z
+last_update: '2026-08-18T18:58:55Z'
 date_finished: 2026-04-25T21:54:33Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:10Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:55Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 2
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=2 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-173: Wire Stop hook for conversation governance (G-005)

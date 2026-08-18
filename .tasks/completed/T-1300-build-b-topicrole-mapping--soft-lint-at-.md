@@ -2,18 +2,52 @@
 id: T-1300
 name: "Build B: Topic↔role mapping + soft-lint at emit (hub-side)"
 description: >
-  Per T-1297 GO: hub-side YAML mapping (~/var/lib/termlink/topic_roles.yaml or similar) + soft-lint at event emit. 10 prefix rules + 4 exempt categories cover 95% of current topic catalog. Warning-only (NEVER reject); emit a sentinel event (e.g. routing.lint.warning) to subscribed channels. Hot-reload on SIGHUP. Compares topic prefix against caller session's roles (and payload.relay_target/needs/from when present per Spike 1 design signal). Estimate: 1 dev-day. Reversible: lint can be globally disabled via config. Evidence: docs/reports/T-1297-termlink-agent-routing-discipline.md § Spike 3.
+  Per T-1297 GO: hub-side YAML mapping (~/var/lib/termlink/topic_roles.yaml or similar)
+  + soft-lint at event emit. 10 prefix rules + 4 exempt categories cover 95% of current
+  topic catalog. Warning-only (NEVER reject); emit a sentinel event (e.g. routing.lint.warning)
+  to subscribed channels. Hot-reload on SIGHUP. Compares topic prefix against caller
+  session's roles (and payload.relay_target/needs/from when present per Spike 1 design
+  signal). Estimate: 1 dev-day. Reversible: lint can be globally disabled via config.
+  Evidence: docs/reports/T-1297-termlink-agent-routing-discipline.md § Spike 3.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [termlink, routing, lint, T-1297-child, hub]
-components: [crates/termlink-cli/src/commands/events.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/lib.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/server.rs, crates/termlink-hub/src/topic_lint.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-session/src/inbox_channel.rs]
+components: [crates/termlink-cli/src/commands/events.rs, 
+      crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/lib.rs, 
+      crates/termlink-hub/src/router.rs, crates/termlink-hub/src/server.rs, 
+      crates/termlink-hub/src/topic_lint.rs, crates/termlink-mcp/src/tools.rs, 
+      crates/termlink-session/src/inbox_channel.rs]
 related_tasks: [T-1297]
 created: 2026-04-26T21:19:39Z
-last_update: 2026-04-29T07:44:27Z
+last_update: '2026-08-18T18:58:47Z'
 date_finished: 2026-04-29T07:43:08Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:53Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 2
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=2 (body:telemetry-or-audit-entry); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=2 (body:lightly-promoted); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 7
+      tier: 2
+      effort: 8
+    rationale: blast_radius=7 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1300: Build B: Topic↔role mapping + soft-lint at emit (hub-side)

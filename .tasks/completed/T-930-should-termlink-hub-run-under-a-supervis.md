@@ -2,18 +2,44 @@
 id: T-930
 name: "Should termlink hub run under a supervisor with TCP bound by default on .107?"
 description: >
-  Inception: Should termlink hub run under a supervisor with TCP bound by default on .107?
+  Inception: Should termlink hub run under a supervisor with TCP bound by default
+  on .107?
 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/metadata.rs, crates/termlink-cli/src/main.rs]
+components: [crates/termlink-cli/src/cli.rs, 
+      crates/termlink-cli/src/commands/metadata.rs, 
+      crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-04-11T21:43:54Z
-last_update: 2026-04-23T19:30:27Z
+last_update: '2026-08-18T18:59:23Z'
 date_finished: 2026-04-11T22:27:40Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:23Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 4
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=4 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-930: Should termlink hub run under a supervisor with TCP bound by default on .107?

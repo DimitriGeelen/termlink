@@ -7,13 +7,36 @@ description: >
 status: work-completed
 workflow_type: test
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-hub/src/router.rs]
 related_tasks: []
 created: 2026-04-13T08:26:24Z
-last_update: 2026-04-13T08:29:19Z
+last_update: '2026-08-18T18:58:42Z'
 date_finished: 2026-04-13T08:29:19Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:41Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 1
+      effort: 4
+    rationale: blast_radius=1 (no-signal); tier=1 (no-signal); effort=4 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1000: Add hub integration tests for inbox.status and inbox.list RPC

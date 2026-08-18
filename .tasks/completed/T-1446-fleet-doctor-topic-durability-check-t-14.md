@@ -2,18 +2,45 @@
 id: T-1446
 name: "fleet doctor: topic-durability check (T-1444 follow-up)"
 description: >
-  Add a fleet-doctor diagnostic that for each reachable hub remote-execs an audit of <runtime_dir>/bus/meta.db (presence + non-/tmp + recent mtime). Closes G-050.what_remains 'periodic sweep' ask. Out of scope for T-1444 (NO-GO inception). Probe-first pattern: if remote-exec available use it; else skip with hint. Similar in shape to --legacy-usage extension (T-1432).
+  Add a fleet-doctor diagnostic that for each reachable hub remote-execs an audit
+  of <runtime_dir>/bus/meta.db (presence + non-/tmp + recent mtime). Closes G-050.what_remains
+  'periodic sweep' ask. Out of scope for T-1444 (NO-GO inception). Probe-first pattern:
+  if remote-exec available use it; else skip with hint. Similar in shape to --legacy-usage
+  extension (T-1432).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: [T-1444, T-1432, T-1438]
 created: 2026-05-02T05:47:14Z
-last_update: 2026-05-02T06:02:58Z
+last_update: '2026-08-18T18:58:50Z'
 date_finished: 2026-05-02T06:02:58Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1446: fleet doctor: topic-durability check (T-1444 follow-up)

@@ -2,12 +2,17 @@
 id: T-2055
 name: "Add ±25% jitter to BusClient flush interval (T-2050 audit follow-up)"
 description: >
-  Add ±25% random jitter to the per-tick sleep in BusClient::connect_with_interval (crates/termlink-session/src/bus_client.rs:96-124) so fleet-wide hub bounces don't produce simultaneous flush pulses (thundering-herd against T-2048's RATE_LIMITED). Audit findings in docs/reports/T-2050-offline-queue-backoff-audit.md §'Why jitter is the one real gap'. ≤30 LOC including a unit test using a seeded RNG. rand crate already a workspace dep.
+  Add ±25% random jitter to the per-tick sleep in BusClient::connect_with_interval
+  (crates/termlink-session/src/bus_client.rs:96-124) so fleet-wide hub bounces don't
+  produce simultaneous flush pulses (thundering-herd against T-2048's RATE_LIMITED).
+  Audit findings in docs/reports/T-2050-offline-queue-backoff-audit.md §'Why jitter
+  is the one real gap'. ≤30 LOC including a unit test using a seeded RNG. rand crate
+  already a workspace dep.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [arc:arc-parallel-substrate, substrate-primitive, resilience]
 components: [crates/termlink-session/src/bus_client.rs]
 related_tasks: []
@@ -16,7 +21,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T16:13:59Z
-last_update: 2026-06-08T17:59:14Z
+last_update: '2026-08-18T18:59:01Z'
 date_finished: 2026-06-08T17:59:14Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +33,30 @@ date_finished: 2026-06-08T17:59:14Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:25Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=2 
+      (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:01Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2055: Add ±25% jitter to BusClient flush interval (T-2050 audit follow-up)

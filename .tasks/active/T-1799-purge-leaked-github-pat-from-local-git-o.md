@@ -1,8 +1,13 @@
 ---
 id: T-1799
-name: "Purge leaked GitHub PAT from local git object store (replace-refs + dangling blobs) + gitignore approvals"
+name: "Purge leaked GitHub PAT from local git object store (replace-refs + dangling
+  blobs) + gitignore approvals"
 description: >
-  T-1695 filter-repo cleaned reachable history but left 2745 refs/replace/* anchoring 2 dangling blobs that still contain the live github_pat_...7ehL token. Also .context/approvals/ is untracked-but-not-gitignored and one resolved-*.yaml carries the raw PAT. Purge object store, gitignore approvals, redact working file. PAT itself must be rotated by operator.
+  T-1695 filter-repo cleaned reachable history but left 2745 refs/replace/* anchoring
+  2 dangling blobs that still contain the live github_pat_...7ehL token. Also .context/approvals/
+  is untracked-but-not-gitignored and one resolved-*.yaml carries the raw PAT. Purge
+  object store, gitignore approvals, redact working file. PAT itself must be rotated
+  by operator.
 
 status: started-work
 workflow_type: build
@@ -12,8 +17,31 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-22T07:20:56Z
-last_update: 2026-05-22T07:20:56Z
-date_finished: null
+last_update: '2026-08-18T18:58:37Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:31Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1799: Purge leaked GitHub PAT from local git object store (replace-refs + dangling blobs) + gitignore approvals

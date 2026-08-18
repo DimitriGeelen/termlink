@@ -1,19 +1,44 @@
 ---
 id: T-1994
-name: "termlink_help name_filter offset param — pagination cursor (cycle 12 slice 2)"
+name: "termlink_help name_filter offset param — pagination cursor (cycle 12 slice
+  2)"
 description: >
   termlink_help name_filter offset param — pagination cursor (cycle 12 slice 2)
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-05T12:10:34Z
-last_update: 2026-06-05T12:10:34Z
+last_update: '2026-08-18T18:59:00Z'
 date_finished: 2026-06-05T12:40:42Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:22Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1994: termlink_help name_filter offset param — pagination cursor (cycle 12 slice 2)

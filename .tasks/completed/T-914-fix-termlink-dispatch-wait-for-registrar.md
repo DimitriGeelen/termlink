@@ -2,18 +2,50 @@
 id: T-914
 name: "Fix termlink dispatch wait-for-registrar hang on fast-failing user_cmd (G-002)"
 description: >
-  G-002 from concerns.yaml. crates/termlink-cli/src/commands/dispatch.rs:293 builds a sh-c template: 'termlink register ... &; TL_PID=$!; sleep 1; <user_cmd>; wait $TL_PID'. When user_cmd fast-fails (e.g., claude -p --dangerously-skip-permissions refuses root, exit 1 in <100ms), sh falls through to wait $TL_PID which blocks on the still-alive registrar. Dispatch sees 'ready' but times out only after --timeout seconds. Discovered 2026-04-11 during T-909 risk-eval: 3 workers appeared ready in termlink list but pstree showed no bash/claude grandchild — silent failure. Fix: capture user_cmd exit explicitly, kill registrar on non-zero, exit with user_cmd's rc. Regression test: 'termlink dispatch ... -- bash -c "exit 42"' must exit 42 within ~3s.
+  G-002 from concerns.yaml. crates/termlink-cli/src/commands/dispatch.rs:293 builds
+  a sh-c template: 'termlink register ... &; TL_PID=$!; sleep 1; <user_cmd>; wait
+  $TL_PID'. When user_cmd fast-fails (e.g., claude -p --dangerously-skip-permissions
+  refuses root, exit 1 in <100ms), sh falls through to wait $TL_PID which blocks on
+  the still-alive registrar. Dispatch sees 'ready' but times out only after --timeout
+  seconds. Discovered 2026-04-11 during T-909 risk-eval: 3 workers appeared ready
+  in termlink list but pstree showed no bash/claude grandchild — silent failure. Fix:
+  capture user_cmd exit explicitly, kill registrar on non-zero, exit with user_cmd's
+  rc. Regression test: 'termlink dispatch ... -- bash -c "exit 42"' must exit 42 within
+  ~3s.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [termlink, dispatch, bug, observability]
 components: [crates/termlink-cli/src/commands/dispatch.rs]
 related_tasks: []
 created: 2026-04-11T12:30:39Z
-last_update: 2026-04-23T19:17:52Z
+last_update: '2026-08-18T18:59:23Z'
 date_finished: 2026-04-12T20:35:30Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:13Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 1
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=0
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=1 (body:hand-wired-dispatch)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:23Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-914: Fix termlink dispatch wait-for-registrar hang on fast-failing user_cmd (G-002)

@@ -1,8 +1,14 @@
 ---
 id: T-2651
-name: "cmd_request emit + cursor-fetch RPCs ignore --timeout (naked rpc_call, no wall-clock bound)"
+name: "cmd_request emit + cursor-fetch RPCs ignore --timeout (naked rpc_call, no wall-clock
+  bound)"
 description: >
-  execution.rs cmd_request uses naked client::rpc_call for the initial event.subscribe cursor-fetch (line 182) and event.emit (line 197). Both call Client::call which reads via unbounded next_line() with no timeout. The user's --timeout only governs the subscribe wait loop, so a wedged target session hangs cmd_request forever despite --timeout. Hardened sibling rpc_call_addr_with_timeout (T-2354) exists but was not used here.
+  execution.rs cmd_request uses naked client::rpc_call for the initial event.subscribe
+  cursor-fetch (line 182) and event.emit (line 197). Both call Client::call which
+  reads via unbounded next_line() with no timeout. The user's --timeout only governs
+  the subscribe wait loop, so a wedged target session hangs cmd_request forever despite
+  --timeout. Hardened sibling rpc_call_addr_with_timeout (T-2354) exists but was not
+  used here.
 
 status: captured
 workflow_type: build
@@ -16,8 +22,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T19:14:20Z
-last_update: 2026-08-12T19:14:20Z
-date_finished: null
+last_update: '2026-08-18T18:58:39Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,6 +34,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:36Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:39Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2651: cmd_request emit + cursor-fetch RPCs ignore --timeout (naked rpc_call, no wall-clock bound)

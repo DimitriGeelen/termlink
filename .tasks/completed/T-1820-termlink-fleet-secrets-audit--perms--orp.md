@@ -1,19 +1,49 @@
 ---
 id: T-1820
-name: "termlink fleet secrets-audit — perms + orphan check on ~/.termlink/secrets (closes G-011 item 4)"
+name: "termlink fleet secrets-audit — perms + orphan check on ~/.termlink/secrets
+  (closes G-011 item 4)"
 description: >
-  termlink fleet secrets-audit — perms + orphan check on ~/.termlink/secrets (closes G-011 item 4)
+  termlink fleet secrets-audit — perms + orphan check on ~/.termlink/secrets (closes
+  G-011 item 4)
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/events.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/aggregator.rs, crates/termlink-hub/src/channel.rs, crates/termlink-protocol/src/events.rs]
+components: [crates/termlink-cli/src/cli.rs, 
+      crates/termlink-cli/src/commands/events.rs, 
+      crates/termlink-cli/src/commands/remote.rs, 
+      crates/termlink-cli/src/main.rs, crates/termlink-hub/src/aggregator.rs, 
+      crates/termlink-hub/src/channel.rs, crates/termlink-protocol/src/events.rs]
 related_tasks: []
 created: 2026-05-28T06:32:50Z
-last_update: 2026-05-28T06:43:09Z
+last_update: '2026-08-18T18:58:56Z'
 date_finished: 2026-05-28T06:43:09Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:56Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 7
+      tier: 2
+      effort: 8
+    rationale: blast_radius=7 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1820: termlink fleet secrets-audit — perms + orphan check on ~/.termlink/secrets (closes G-011 item 4)

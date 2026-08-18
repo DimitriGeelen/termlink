@@ -2,12 +2,25 @@
 id: T-2296
 name: "V6: direct transport-first + hub fallback + per-conversation journaling"
 description: >
-  ARC APEX (highest directive score). Dependency-gated on V1(identity auths socket)+V2(discovery resolves host:port)+V3(notify wakes recipient) — promote to 'now' the moment those land; 'later' is sequencing, NOT backlog. remote_call/remote_exec already direct P2P (TCP+TLS+HMAC, remote.rs:719); reachability spike GO (flat LAN 192.168.10.0/24, no NAT, 3/4 hubs directly reachable). Build: try-direct/fall-back-to-hub orchestration; 3-level confirm ladder (TCP-ack IGNORED as delivery / sidecar-journaled = delivered / read-receipt = consumed) — direct path confirms via sidecar journaled-receipt, hub receipts-frontier (T-2286) is FALLBACK-path only; durable messages move OFF the hub firehose into per-conversation journals (fixes 70.5%-heartbeat obfuscation, T-2250 Tier-0 pattern). ACs: 1:1 msg goes direct when peer reachable, falls back to hub when not; direct delivery confirmed via sidecar journaled-receipt (no hub frontier on direct path); durable msgs do NOT land in hub firehose; per-conversation journal is mineable; cross-host auth uniform (no T-2024 dependency for cross-host path).
+  ARC APEX (highest directive score). Dependency-gated on V1(identity auths socket)+V2(discovery
+  resolves host:port)+V3(notify wakes recipient) — promote to 'now' the moment those
+  land; 'later' is sequencing, NOT backlog. remote_call/remote_exec already direct
+  P2P (TCP+TLS+HMAC, remote.rs:719); reachability spike GO (flat LAN 192.168.10.0/24,
+  no NAT, 3/4 hubs directly reachable). Build: try-direct/fall-back-to-hub orchestration;
+  3-level confirm ladder (TCP-ack IGNORED as delivery / sidecar-journaled = delivered
+  / read-receipt = consumed) — direct path confirms via sidecar journaled-receipt,
+  hub receipts-frontier (T-2286) is FALLBACK-path only; durable messages move OFF
+  the hub firehose into per-conversation journals (fixes 70.5%-heartbeat obfuscation,
+  T-2250 Tier-0 pattern). ACs: 1:1 msg goes direct when peer reachable, falls back
+  to hub when not; direct delivery confirmed via sidecar journaled-receipt (no hub
+  frontier on direct path); durable msgs do NOT land in hub firehose; per-conversation
+  journal is mineable; cross-host auth uniform (no T-2024 dependency for cross-host
+  path).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [arc:reliable-comms, arc-apex]
 components: []
 related_tasks: [T-2291, T-2292, T-2293, T-2294, T-2295]
@@ -16,7 +29,7 @@ related_tasks: [T-2291, T-2292, T-2293, T-2294, T-2295]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-27T17:06:56Z
-last_update: 2026-07-02T07:38:23Z
+last_update: '2026-08-18T18:59:07Z'
 date_finished: 2026-07-02T07:38:23Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +41,30 @@ date_finished: 2026-07-02T07:38:23Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=2 
+      (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:07Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2296: V6: direct transport-first + hub fallback + per-conversation journaling

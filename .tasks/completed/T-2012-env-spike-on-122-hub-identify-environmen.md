@@ -1,19 +1,49 @@
 ---
 id: T-2012
-name: "env-spike on .122 hub: identify environmental cause of channel.subscribe wedge (T-1993 follow-up)"
+name: "env-spike on .122 hub: identify environmental cause of channel.subscribe wedge
+  (T-1993 follow-up)"
 description: >
-  Hub at .122 (ring20-management LXC) wedges 5/5 on sequential channel.subscribe walks of agent-presence (1503 envs); .107 hub processes 13441 envs in <1s, same CLI binary. T-1993 disproved version-axis. This spike isolates the environmental factor: PRAGMAs (busy_timeout, journal_mode), strace during wedge (read/futex/epoll), read-only repro (cron-paused), resource snapshot (memory.current, ulimit, iostat, vmstat). All observational; no hub restart. Exit criteria: identify the specific environmental factor + propose fix scope.
+  Hub at .122 (ring20-management LXC) wedges 5/5 on sequential channel.subscribe walks
+  of agent-presence (1503 envs); .107 hub processes 13441 envs in <1s, same CLI binary.
+  T-1993 disproved version-axis. This spike isolates the environmental factor: PRAGMAs
+  (busy_timeout, journal_mode), strace during wedge (read/futex/epoll), read-only
+  repro (cron-paused), resource snapshot (memory.current, ulimit, iostat, vmstat).
+  All observational; no hub restart. Exit criteria: identify the specific environmental
+  factor + propose fix scope.
 
 status: work-completed
 workflow_type: inception
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: [T-2013]
 created: 2026-06-05T23:13:14Z
-last_update: 2026-06-06T12:25:00Z
+last_update: '2026-08-18T18:59:00Z'
 date_finished: 2026-06-06
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:23Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2012: env-spike on .122 hub: identify environmental cause of channel.subscribe wedge (T-1993 follow-up)

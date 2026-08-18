@@ -15,10 +15,12 @@ tags: [arc:arc-parallel-substrate]
 components: []
 related_tasks: [T-2018]
 created: 2026-06-07T11:36:37Z
-last_update: 2026-06-08T11:20:55Z
+last_update: '2026-08-18T18:58:37Z'
 date_finished:
 revisit_at: 2026-09-08            # T-1451: DEFER pending measurement spike; revisit in 90d (gives Foundation primitives time to ship)
-revisit_evidence_needed: "Latency-spike numbers under concurrent-agent load (≥10 simultaneous clients), or a concrete UID-trust incident, or operator decision to retire the privileged sidecar."
+revisit_evidence_needed: "Latency-spike numbers under concurrent-agent load (≥10 simultaneous
+  clients), or a concrete UID-trust incident, or operator decision to retire the privileged
+  sidecar."
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
 target_blast_radius: 3            # int 0..9. Anticipated component count of the build work this inception would authorise on GO.
                                   # Substitutes for the absent components: list in the F8 cost formula (040). Required.
@@ -34,6 +36,28 @@ bvp_scores_proposed:
       D3: 2
       D4: 2
     rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal)
+    rubric_sha: missing
+  - ts: '2026-08-18T18:55:31Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 4
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=4 (no-signal); effort=8 
       (no-signal)
     rubric_sha: missing
 ---

@@ -1,13 +1,19 @@
 ---
 id: T-2183
-name: "PL-209 follow-up: surface evicted_total + identify noisy sender (rate-limit pressure)"
+name: "PL-209 follow-up: surface evicted_total + identify noisy sender (rate-limit
+  pressure)"
 description: >
-  Captured 2026-06-11 from PL-209. Fleet /governor shows 380K active rate buckets + 3140 rate_hits across 2 hubs; evicted_total reports n/a so we can't tell if buckets accumulate or rotate. Scope: (1) Surface evicted_total in hub.governor_status JSON-RPC + CLI render. (2) Identify the noisy sender (suspect: listener-heartbeat from a renumbered/respawning host). (3) Decide whether rate-bucket eviction policy needs tuning. Cross-ref: T-2048 (#10 BACKPRESSURE substrate primitive), T-2062 fleet governor-status.
+  Captured 2026-06-11 from PL-209. Fleet /governor shows 380K active rate buckets
+  + 3140 rate_hits across 2 hubs; evicted_total reports n/a so we can't tell if buckets
+  accumulate or rotate. Scope: (1) Surface evicted_total in hub.governor_status JSON-RPC
+  + CLI render. (2) Identify the noisy sender (suspect: listener-heartbeat from a
+  renumbered/respawning host). (3) Decide whether rate-bucket eviction policy needs
+  tuning. Cross-ref: T-2048 (#10 BACKPRESSURE substrate primitive), T-2062 fleet governor-status.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +22,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-11T20:49:17Z
-last_update: 2026-06-11T21:14:08Z
+last_update: '2026-08-18T18:59:04Z'
 date_finished: 2026-06-11T21:14:08Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +34,31 @@ date_finished: 2026-06-11T21:14:08Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:32Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 3
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=2 
+      (body:telemetry-or-audit-entry); D3=2 (body:default-change); D4=2 
+      (body:env-class-handled); F-RECALL=3 (body:fw-recall-or-memory-link); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:04Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2183: PL-209 follow-up: surface evicted_total + identify noisy sender (rate-limit pressure)

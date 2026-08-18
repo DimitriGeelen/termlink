@@ -2,18 +2,45 @@
 id: T-248
 name: "Fix bypass registry write race — atomic file operations"
 description: >
-  BypassRegistry load/modify/save is not atomic. Concurrent orchestrator.route calls can silently lose promotions. Fix with write-to-temp + atomic rename + file locking. See docs/reports/T-247-scenarios-adversarial.md Scenario 1, T-247-scenarios-code-review.md Scenario 3, T-247-scenarios-research.md Scenario 3.
+  BypassRegistry load/modify/save is not atomic. Concurrent orchestrator.route calls
+  can silently lose promotions. Fix with write-to-temp + atomic rename + file locking.
+  See docs/reports/T-247-scenarios-adversarial.md Scenario 1, T-247-scenarios-code-review.md
+  Scenario 3, T-247-scenarios-research.md Scenario 3.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [T-247, T-238, orchestration, bypass, bug]
 components: []
 related_tasks: [T-247, T-238, T-233]
 created: 2026-03-23T16:54:17Z
-last_update: 2026-03-23T17:02:23Z
+last_update: '2026-08-18T18:59:11Z'
 date_finished: 2026-03-23T17:02:23Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=1 (body:fix-without-learning); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=2 (body:lightly-promoted); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:11Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-248: Fix bypass registry write race — atomic file operations

@@ -2,18 +2,43 @@
 id: T-174
 name: "Wire SessionEnd hook for mandatory handover"
 description: >
-  Claude Code SessionEnd hook fires on session termination. Wire it to auto-trigger fw handover on every session exit. Known bugs: doesnt fire on /exit (#17885) or API 500 (#20197) — needs fallback.
+  Claude Code SessionEnd hook fires on session termination. Wire it to auto-trigger
+  fw handover on every session exit. Known bugs: doesnt fire on /exit (#17885) or
+  API 500 (#20197) — needs fallback.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [framework, hooks, handover]
 components: []
 related_tasks: []
 created: 2026-03-18T21:39:12Z
-last_update: 2026-04-25T21:54:34Z
+last_update: '2026-08-18T18:58:55Z'
 date_finished: 2026-04-25T21:54:34Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:11Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 1
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=1 (body:episodic-only); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:55Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 2
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=2 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-174: Wire SessionEnd hook for mandatory handover

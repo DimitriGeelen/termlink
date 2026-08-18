@@ -1,19 +1,46 @@
 ---
 id: T-1660
-name: "fleet verify — run tofu verify across all hubs.toml profiles, exit non-zero on drift"
+name: "fleet verify — run tofu verify across all hubs.toml profiles, exit non-zero
+  on drift"
 description: >
   fleet verify — run tofu verify across all hubs.toml profiles, exit non-zero on drift
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [auth, G-011, rotation-protocol, cli, tls, diagnostic, fleet]
-components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs]
+components: [crates/termlink-cli/src/cli.rs, 
+      crates/termlink-cli/src/commands/remote.rs, 
+      crates/termlink-cli/src/main.rs]
 related_tasks: [T-1659, T-1658, T-1657, T-1656]
 created: 2026-05-17T15:57:24Z
-last_update: 2026-05-17T16:13:00Z
+last_update: '2026-08-18T18:58:53Z'
 date_finished: 2026-05-17T16:13:00Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:07Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:53Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1660: fleet verify — run tofu verify across all hubs.toml profiles, exit non-zero on drift

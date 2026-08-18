@@ -2,7 +2,12 @@
 id: T-1427
 name: "termlink whoami + identity binding on channel post"
 description: >
-  Pick #4 from T-1425 RFC. Independent of inception outcome. ~50 lines: (a) new 'termlink whoami' subcommand returning canonical sender_id from identity.key + optional human label registered locally; (b) hub-side validation on channel.post that rejects metadata.from=<x> if it doesn't resolve through the connection's authenticated identity. Strict mode is option A in T-1425 Q4 — if Q4 lands on B/C, this task tightens or loosens accordingly. Backward compat: posts without metadata.from continue working unchanged.
+  Pick #4 from T-1425 RFC. Independent of inception outcome. ~50 lines: (a) new 'termlink
+  whoami' subcommand returning canonical sender_id from identity.key + optional human
+  label registered locally; (b) hub-side validation on channel.post that rejects metadata.from=<x>
+  if it doesn't resolve through the connection's authenticated identity. Strict mode
+  is option A in T-1425 Q4 — if Q4 lands on B/C, this task tightens or loosens accordingly.
+  Backward compat: posts without metadata.from continue working unchanged.
 
 status: started-work
 workflow_type: build
@@ -12,8 +17,32 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-30T21:18:04Z
-last_update: 2026-05-01T19:41:44Z
-date_finished: null
+last_update: '2026-08-18T18:58:36Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:27Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 1
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=1 (body:log-or-error-line); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:36Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1427: termlink whoami + identity binding on channel post

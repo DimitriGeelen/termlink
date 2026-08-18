@@ -1,15 +1,23 @@
 ---
 id: T-2385
-name: "agent contact reachability preflight + fail-fast + structured delivery result — verify LIVE + agent-backed + waker + hub-read-health, return per-link status not silent offset-N (comms loud-contract centerpiece, T-2380 C2/C4/E4)"
+name: "agent contact reachability preflight + fail-fast + structured delivery result
+  — verify LIVE + agent-backed + waker + hub-read-health, return per-link status not
+  silent offset-N (comms loud-contract centerpiece, T-2380 C2/C4/E4)"
 description: >
-  Before/around send, agent contact checks each delivery link and fails loud: (1) recipient is a LIVE agent not a bare --shell (F1), (2) recipient has a running push-waker or warn they wont be woken (E4), (3) for --ack-required probe target-hub read-health and fail fast instead of burning the timeout (E2). Return {delivered, recipient_live, waker_running, hub_targeted, hub_read_healthy, acked} + one-line diagnosis on any broken link. May slice.
+  Before/around send, agent contact checks each delivery link and fails loud: (1)
+  recipient is a LIVE agent not a bare --shell (F1), (2) recipient has a running push-waker
+  or warn they wont be woken (E4), (3) for --ack-required probe target-hub read-health
+  and fail fast instead of burning the timeout (E2). Return {delivered, recipient_live,
+  waker_running, hub_targeted, hub_read_healthy, acked} + one-line diagnosis on any
+  broken link. May slice.
 
 status: work-completed
 workflow_type: build
 owner: human
 horizon: now
 tags: []
-components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/main.rs]
+components: [crates/termlink-cli/src/cli.rs, 
+      crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 arc_id: comms-loudness              # arc-007 (T-2425 R2-GAP-C re-home)
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
@@ -17,7 +25,7 @@ arc_id: comms-loudness              # arc-007 (T-2425 R2-GAP-C re-home)
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-09T09:29:09Z
-last_update: 2026-07-09T12:05:24Z
+last_update: '2026-08-18T18:58:38Z'
 date_finished: 2026-07-09T11:59:10Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -29,6 +37,30 @@ date_finished: 2026-07-09T11:59:10Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:33Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=3 (body:portability-abstraction); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2385: agent contact reachability preflight + fail-fast + structured delivery result — verify LIVE + agent-backed + waker + hub-read-health, return per-link status not silent offset-N (comms loud-contract centerpiece, T-2380 C2/C4/E4)

@@ -2,18 +2,46 @@
 id: T-1963
 name: "termlink_help summary mode — aggregate registry stats"
 description: >
-  Add summary=true mode to termlink_help returning aggregate registry stats: total_tools, total_categories, total_deprecated, deprecated_by_category (non-zero only), largest_categories (top 5), smallest_categories (bottom 5). Drift-proof — all derived from help_categories() + is_deprecated(). Gives MCP-client consumers an O(1) cold-start snapshot of the API surface shape.
+  Add summary=true mode to termlink_help returning aggregate registry stats: total_tools,
+  total_categories, total_deprecated, deprecated_by_category (non-zero only), largest_categories
+  (top 5), smallest_categories (bottom 5). Drift-proof — all derived from help_categories()
+  + is_deprecated(). Gives MCP-client consumers an O(1) cold-start snapshot of the
+  API surface shape.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [mcp, help-registry]
 components: []
 related_tasks: []
 created: 2026-06-03T22:30:37Z
-last_update: 2026-06-03T22:36:54Z
+last_update: '2026-08-18T18:58:59Z'
 date_finished: 2026-06-03T22:39:21Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:21Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1963: termlink_help summary mode — aggregate registry stats

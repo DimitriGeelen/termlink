@@ -2,18 +2,47 @@
 id: T-1796
 name: "Paginate fetch_topic_msgs for deeper-than-1000 fleet history (T-1795 follow-up)"
 description: >
-  fetch_topic_msgs is clamped to the hub's 1000-envelope page cap (T-1795). Fleet-aggregation verbs (presence, overview, by-project) genuinely want more history on busy fleets but can only get the most-recent 1000 in one page. Add bounded multi-page pagination (model on walk_topic_full) so a caller can request the most-recent N>1000 envelopes via multiple round-trips.
+  fetch_topic_msgs is clamped to the hub's 1000-envelope page cap (T-1795). Fleet-aggregation
+  verbs (presence, overview, by-project) genuinely want more history on busy fleets
+  but can only get the most-recent 1000 in one page. Add bounded multi-page pagination
+  (model on walk_topic_full) so a caller can request the most-recent N>1000 envelopes
+  via multiple round-trips.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [chat-arc, fetch, T-1795]
-components: [crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/commands/channel.rs]
+components: [crates/termlink-cli/src/commands/agent.rs, 
+      crates/termlink-cli/src/commands/channel.rs]
 related_tasks: [T-1795]
 created: 2026-05-22T06:59:41Z
-last_update: 2026-05-27T20:49:14Z
+last_update: '2026-08-18T18:58:56Z'
 date_finished: 2026-05-27T20:49:14Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:13Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=3 (body:portability-abstraction); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:56Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1796: Paginate fetch_topic_msgs for deeper-than-1000 fleet history (T-1795 follow-up)

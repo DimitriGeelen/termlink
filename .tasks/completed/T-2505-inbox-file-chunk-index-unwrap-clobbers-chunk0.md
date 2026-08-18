@@ -1,15 +1,43 @@
 ---
 id: T-2505
-name: "Inbox file.chunk deposit unwrap_or(0) silently clobbers chunk 0 on malformed index"
-description: "A file.chunk spool event with a missing/non-integer index defaults to chunk-0000.json and fs::write silently overwrites the legitimate chunk 0 — data corruption in the durable offline-inbox path. Reject loud (warn + Ok(false)) like the sibling missing-transfer_id arm."
+name: "Inbox file.chunk deposit unwrap_or(0) silently clobbers chunk 0 on malformed
+  index"
+description: "A file.chunk spool event with a missing/non-integer index defaults to
+  chunk-0000.json and fs::write silently overwrites the legitimate chunk 0 — data
+  corruption in the durable offline-inbox path. Reject loud (warn + Ok(false)) like
+  the sibling missing-transfer_id arm."
 status: work-completed
 workflow_type: build
-horizon: null
+horizon:
 owner: agent
 created: 2026-08-03
-last_update: 2026-08-02T22:20:52Z
+last_update: '2026-08-18T18:59:12Z'
 tags: [reliability, silent-failure, data-corruption, inbox, no-silent-failures]
 components: [crates/termlink-hub/src/inbox.rs]
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:48Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 3
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=3 (body:test-or-audit-check); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:12Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 6
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 ## Context

@@ -2,18 +2,42 @@
 id: T-1046
 name: "Add CLI tests for tag and spawn error paths"
 description: >
-  Add CLI integration tests for tag/spawn commands on nonexistent sessions and invalid args.
+  Add CLI integration tests for tag/spawn commands on nonexistent sessions and invalid
+  args.
 
 status: work-completed
 workflow_type: test
 owner: human
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-cli/tests/cli_integration.rs]
 related_tasks: []
 created: 2026-04-13T22:33:55Z
-last_update: 2026-04-23T16:56:56Z
+last_update: '2026-08-18T18:58:42Z'
 date_finished: 2026-04-23T16:54:54Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:43Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=0
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 1
+      effort: 5
+    rationale: blast_radius=1 (no-signal); tier=1 (no-signal); effort=5 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1046: Add CLI tests for tag and spawn error paths

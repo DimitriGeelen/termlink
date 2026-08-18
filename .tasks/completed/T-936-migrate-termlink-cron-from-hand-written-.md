@@ -1,17 +1,41 @@
 ---
 id: T-936
 name: "Migrate termlink cron from hand-written crontab to registry-based installer"
-description: "Migrate termlink cron from hand-written crontab to registry-based installer — see body for context."
+description: "Migrate termlink cron from hand-written crontab to registry-based installer
+  — see body for context."
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: [cron, migration, registry, T-448]
 components: []
 related_tasks: [T-921]
 created: 2026-04-11T22:56:36Z
-last_update: 2026-04-22T10:20:57Z
+last_update: '2026-08-18T18:59:23Z'
 date_finished: 2026-04-12T13:13:47Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:23Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 ## Migration Inventory

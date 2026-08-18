@@ -1,8 +1,16 @@
 ---
 id: T-2586
-name: "DESIGN: find-idle fixed 60s LIVE window vs listeners 2x-interval dispatch-window contract"
+name: "DESIGN: find-idle fixed 60s LIVE window vs listeners 2x-interval dispatch-window
+  contract"
 description: >
-  DESIGN needs-human: two discovery surfaces use different LIVE-window definitions. find-idle uses fixed DEFAULT_LIVE_WINDOW_MS=60000 ignoring the agents advertised interval (channel.rs:2129); listeners uses the envelopes own interval LIVE age<=2x interval_secs default 30 (agent-listeners.sh line 90). An agent with interval 120 shows LIVE in peers to age 240s but drops from find-idle at age over 60s: between 60s and 240s peers says LIVE and find-idle says none, dispatch stalls. Needs human call: honor advertised interval_secs in find_idle or document find-idle uses a fixed dispatch window independent of cadence. From T-2468 verb-1 hunt.
+  DESIGN needs-human: two discovery surfaces use different LIVE-window definitions.
+  find-idle uses fixed DEFAULT_LIVE_WINDOW_MS=60000 ignoring the agents advertised
+  interval (channel.rs:2129); listeners uses the envelopes own interval LIVE age<=2x
+  interval_secs default 30 (agent-listeners.sh line 90). An agent with interval 120
+  shows LIVE in peers to age 240s but drops from find-idle at age over 60s: between
+  60s and 240s peers says LIVE and find-idle says none, dispatch stalls. Needs human
+  call: honor advertised interval_secs in find_idle or document find-idle uses a fixed
+  dispatch window independent of cadence. From T-2468 verb-1 hunt.
 
 status: captured
 workflow_type: build
@@ -16,8 +24,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-09T22:00:16Z
-last_update: 2026-08-09T22:00:16Z
-date_finished: null
+last_update: '2026-08-18T18:58:38Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,6 +36,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:35Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2586: DESIGN: find-idle fixed 60s LIVE window vs listeners 2x-interval dispatch-window contract

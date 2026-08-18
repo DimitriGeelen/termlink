@@ -2,18 +2,43 @@
 id: T-282
 name: "termlink dispatch command — atomic spawn+tag+collect"
 description: >
-  New CLI command: termlink dispatch --count N --timeout T -- <cmd>. Atomic spawn+tag+collect wrapper. Structural guarantee replacing 40-line manual orchestration scripts. ~350 LOC new dispatch.rs.
+  New CLI command: termlink dispatch --count N --timeout T -- <cmd>. Atomic spawn+tag+collect
+  wrapper. Structural guarantee replacing 40-line manual orchestration scripts. ~350
+  LOC new dispatch.rs.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [dispatch, cli, T-280]
 components: []
 related_tasks: [T-280, T-281, T-257]
 created: 2026-03-25T15:08:54Z
-last_update: 2026-04-15T15:27:19Z
+last_update: '2026-08-18T18:59:17Z'
 date_finished: 2026-03-25T15:24:47Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:01Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 1
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=1 (body:hand-wired-dispatch)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-282: termlink dispatch command — atomic spawn+tag+collect

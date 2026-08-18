@@ -2,18 +2,47 @@
 id: T-1720
 name: "termlink_agent_identity MCP — local FP self-introspection (T-1554 parity)"
 description: >
-  Close MCP-parity gap for the agent identity CLI verb (T-1554). MCP-aware agents currently can't introspect their own identity_fingerprint without using the side effect of posting + reading back my_fp. termlink_agent_identity is a parameter-less read tool that loads ~/.termlink/identity.json and returns {ok, fingerprint, public_key_hex, path}. Mirrors cmd_identity_show one-to-one. No new RPC surface (local-only file read).
+  Close MCP-parity gap for the agent identity CLI verb (T-1554). MCP-aware agents
+  currently can't introspect their own identity_fingerprint without using the side
+  effect of posting + reading back my_fp. termlink_agent_identity is a parameter-less
+  read tool that loads ~/.termlink/identity.json and returns {ok, fingerprint, public_key_hex,
+  path}. Mirrors cmd_identity_show one-to-one. No new RPC surface (local-only file
+  read).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-05-20T06:26:56Z
-last_update: 2026-05-20T10:15:01Z
+last_update: '2026-08-18T18:58:54Z'
 date_finished: 2026-05-20T10:15:01Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:10Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:54Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1720: termlink_agent_identity MCP — local FP self-introspection (T-1554 parity)

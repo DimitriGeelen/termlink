@@ -2,18 +2,45 @@
 id: T-246
 name: "Interactive session picker — prompt when no target given"
 description: >
-  Add shared session picker utility: when target-requiring interactive commands (attach, mirror, stream, ping, status, watch, topics, output, interact, inject, kv, events, wait, remote ping, remote status) are run without a target and stdin is TTY, list sessions numbered, auto-select if 1, prompt if 2+. Works for local and remote (--hub) sessions. Make target Optional in clap for these commands, call picker before dispatch.
+  Add shared session picker utility: when target-requiring interactive commands (attach,
+  mirror, stream, ping, status, watch, topics, output, interact, inject, kv, events,
+  wait, remote ping, remote status) are run without a target and stdin is TTY, list
+  sessions numbered, auto-select if 1, prompt if 2+. Works for local and remote (--hub)
+  sessions. Make target Optional in clap for these commands, call picker before dispatch.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [ux, cli, T-245]
 components: []
 related_tasks: [T-245, T-244]
 created: 2026-03-23T15:54:57Z
-last_update: 2026-03-23T22:00:25Z
+last_update: '2026-08-18T18:59:11Z'
 date_finished: 2026-03-23T16:13:58Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:11Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-246: Interactive session picker — prompt when no target given

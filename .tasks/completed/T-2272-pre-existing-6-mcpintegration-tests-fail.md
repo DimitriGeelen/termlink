@@ -2,12 +2,18 @@
 id: T-2272
 name: "Pre-existing: 6 mcp_integration tests fail on main (map vs sequence) — list_sessions/discover/topics"
 description: >
-  Discovered during T-2268. On clean main (verified by stashing unrelated edits), 6 tests in crates/termlink-mcp/tests/mcp_integration.rs fail with 'invalid type: map, expected a sequence' at line 97: test_list_sessions_empty/_with_session/_filtered_by_role, test_discover_by_role_and_name, test_topics_specific_session/_with_events. Likely the tool output shape changed array->object OR they need a live hub fixture absent in sandbox. Investigate env-dependence vs genuine breakage; the suite is red either way. Not caused by T-2268 (error-rendering only).
+  Discovered during T-2268. On clean main (verified by stashing unrelated edits),
+  6 tests in crates/termlink-mcp/tests/mcp_integration.rs fail with 'invalid type:
+  map, expected a sequence' at line 97: test_list_sessions_empty/_with_session/_filtered_by_role,
+  test_discover_by_role_and_name, test_topics_specific_session/_with_events. Likely
+  the tool output shape changed array->object OR they need a live hub fixture absent
+  in sandbox. Investigate env-dependence vs genuine breakage; the suite is red either
+  way. Not caused by T-2268 (error-rendering only).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
@@ -16,7 +22,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-24T08:32:00Z
-last_update: 2026-07-04T23:23:34Z
+last_update: '2026-08-18T18:59:06Z'
 date_finished: 2026-07-04T23:23:34Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +34,30 @@ date_finished: 2026-07-04T23:23:34Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:36Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=3 (body:portability-abstraction); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:06Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2272: Pre-existing: 6 mcp_integration tests fail on main (map vs sequence) — list_sessions/discover/topics

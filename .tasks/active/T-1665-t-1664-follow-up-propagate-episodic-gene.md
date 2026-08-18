@@ -1,8 +1,14 @@
 ---
 id: T-1665
-name: "T-1664 follow-up: propagate episodic-generator escape-order fix to upstream /opt/999-AEF"
+name: "T-1664 follow-up: propagate episodic-generator escape-order fix to upstream
+  /opt/999-AEF"
 description: >
-  T-1664 fixed the consumer copy. Dispatch from this host's container fails with cd /opt/999-AEF (path inaccessible). Operator must propagate from a host that has /opt/999-AEF mounted, or run termlink dispatch from outside the boundary. Without this fix landing upstream, consumer fw upgrade will silently re-introduce the bug. Three sites (lines 288/304/361 in agents/context/lib/episodic.sh) need 'sed s/\\\\/\\\\\\\\/g' prepended before the existing quote-escape.
+  T-1664 fixed the consumer copy. Dispatch from this host's container fails with cd
+  /opt/999-AEF (path inaccessible). Operator must propagate from a host that has /opt/999-AEF
+  mounted, or run termlink dispatch from outside the boundary. Without this fix landing
+  upstream, consumer fw upgrade will silently re-introduce the bug. Three sites (lines
+  288/304/361 in agents/context/lib/episodic.sh) need 'sed s/\\\\/\\\\\\\\/g' prepended
+  before the existing quote-escape.
 
 status: started-work
 workflow_type: build
@@ -12,8 +18,32 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-17T18:54:38Z
-last_update: 2026-05-26T16:03:11Z
-date_finished: null
+last_update: '2026-08-18T18:58:37Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:30Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1665: T-1664 follow-up: propagate episodic-generator escape-order fix to upstream /opt/999-AEF

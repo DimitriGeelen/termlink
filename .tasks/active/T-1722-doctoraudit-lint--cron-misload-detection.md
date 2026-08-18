@@ -2,7 +2,15 @@
 id: T-1722
 name: "Doctor/audit lint — cron-misload detection (PL-173 enforcement)"
 description: >
-  Add a fw doctor / fw audit check that catches the T-1721 cron-misload class structurally instead of waiting for the next silent failure. PL-173 documents the bidirectional signature: (1) a cron file present in BOTH /etc/cron.d/<name> AND root's user crontab → cron will run the wrong one or both; (2) a source-of-truth crontab at .context/cron/*.crontab using /etc/cron.d/ USER-field syntax ('m h dom mon dow USER cmd') with no matching /etc/cron.d/ counterpart → the crontab is dormant. The lint walks .context/cron/*.crontab files, classifies each by syntax (USER field present/absent), and verifies the install destination is correct. Wire into fw doctor under the existing 'cron registry' family of checks. Outcome: T-1721's silent failure mode becomes impossible to ship undetected.
+  Add a fw doctor / fw audit check that catches the T-1721 cron-misload class structurally
+  instead of waiting for the next silent failure. PL-173 documents the bidirectional
+  signature: (1) a cron file present in BOTH /etc/cron.d/<name> AND root's user crontab
+  → cron will run the wrong one or both; (2) a source-of-truth crontab at .context/cron/*.crontab
+  using /etc/cron.d/ USER-field syntax ('m h dom mon dow USER cmd') with no matching
+  /etc/cron.d/ counterpart → the crontab is dormant. The lint walks .context/cron/*.crontab
+  files, classifies each by syntax (USER field present/absent), and verifies the install
+  destination is correct. Wire into fw doctor under the existing 'cron registry' family
+  of checks. Outcome: T-1721's silent failure mode becomes impossible to ship undetected.
 
 status: work-completed
 workflow_type: build
@@ -12,8 +20,32 @@ tags: [cron, doctor, lint, PL-173, G-058, prevention]
 components: []
 related_tasks: [T-1721, T-1696]
 created: 2026-05-20T07:06:58Z
-last_update: 2026-05-26T22:44:25Z
+last_update: '2026-08-18T18:58:37Z'
 date_finished: 2026-05-26T22:44:25Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:30Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=0
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1722: Doctor/audit lint — cron-misload detection (PL-173 enforcement)

@@ -1,19 +1,44 @@
 ---
 id: T-1326
-name: "fix subscribe --filter-mentions to also suppress redaction explicit-render branch (e2e bug)"
+name: "fix subscribe --filter-mentions to also suppress redaction explicit-render
+  branch (e2e bug)"
 description: >
-  fix subscribe --filter-mentions to also suppress redaction explicit-render branch (e2e bug)
+  fix subscribe --filter-mentions to also suppress redaction explicit-render branch
+  (e2e bug)
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-cli/src/commands/channel.rs]
 related_tasks: []
 created: 2026-04-27T15:45:39Z
-last_update: 2026-04-27T15:50:47Z
+last_update: '2026-08-18T18:58:48Z'
 date_finished: 2026-04-27T15:50:47Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:54Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:48Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 6
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1326: fix subscribe --filter-mentions to also suppress redaction explicit-render branch (e2e bug)

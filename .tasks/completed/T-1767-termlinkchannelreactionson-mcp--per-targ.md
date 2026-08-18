@@ -1,19 +1,46 @@
 ---
 id: T-1767
-name: "termlink_channel_reactions_on MCP — per-target reaction rollup with correct repeat-tap semantics (T-1166 wedge)"
+name: "termlink_channel_reactions_on MCP — per-target reaction rollup with correct
+  repeat-tap semantics (T-1166 wedge)"
 description: >
-  Port channel reactions-on CLI verb to MCP. Value-add over agent_reaction_summary: topic-flexible + respects redactions + correct count semantics (CLI counts every reaction; agent_reaction_summary counts only distinct senders).
+  Port channel reactions-on CLI verb to MCP. Value-add over agent_reaction_summary:
+  topic-flexible + respects redactions + correct count semantics (CLI counts every
+  reaction; agent_reaction_summary counts only distinct senders).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [termlink, mcp, t-1166]
 components: []
 related_tasks: []
 created: 2026-05-21T12:44:43Z
-last_update: 2026-05-21T12:47:45Z
+last_update: '2026-08-18T18:58:55Z'
 date_finished: 2026-05-21T12:47:45Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:12Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:55Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1767: termlink_channel_reactions_on MCP — per-target reaction rollup with correct repeat-tap semantics (T-1166 wedge)

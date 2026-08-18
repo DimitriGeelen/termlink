@@ -1,13 +1,21 @@
 ---
 id: T-2535
-name: "MCP channel_subscribe from_latest uses count-1 — returns stale envelope after sweep (T-2533 sibling)"
+name: "MCP channel_subscribe from_latest uses count-1 — returns stale envelope after
+  sweep (T-2533 sibling)"
 description: >
-  MCP termlink_channel_subscribe from_latest=true path (tools.rs:28126-28137) computes latest offset as count-1 from channel.list, ignoring the authoritative latest_offset field (T-2533). On a swept topic (offsets 4990..4999, count=10, latest_offset=4999) it sets cursor=count-1=9, limit=1; hub records_from returns the FIRST survivor (offset 4990) as 'the single latest envelope' — silent stale-data read on exactly the broadcast-with-replay topics (agent-presence, cv-keyed rooms) that get swept. The CLI twin (channel.rs:9044) was fixed via resolve_latest_offset; this is the 4th sibling, the only unfixed inline site. Fix: prefer latest_offset, fall back to count-1 (back-compat). Small, buildable.
+  MCP termlink_channel_subscribe from_latest=true path (tools.rs:28126-28137) computes
+  latest offset as count-1 from channel.list, ignoring the authoritative latest_offset
+  field (T-2533). On a swept topic (offsets 4990..4999, count=10, latest_offset=4999)
+  it sets cursor=count-1=9, limit=1; hub records_from returns the FIRST survivor (offset
+  4990) as 'the single latest envelope' — silent stale-data read on exactly the broadcast-with-replay
+  topics (agent-presence, cv-keyed rooms) that get swept. The CLI twin (channel.rs:9044)
+  was fixed via resolve_latest_offset; this is the 4th sibling, the only unfixed inline
+  site. Fix: prefer latest_offset, fall back to count-1 (back-compat). Small, buildable.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
@@ -16,7 +24,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-08T08:03:28Z
-last_update: 2026-08-08T08:08:49Z
+last_update: '2026-08-18T18:59:12Z'
 date_finished: 2026-08-08T08:08:49Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +36,30 @@ date_finished: 2026-08-08T08:08:49Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=3 (body:portability-abstraction); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:12Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2535: MCP channel_subscribe from_latest uses count-1 — returns stale envelope after sweep (T-2533 sibling)

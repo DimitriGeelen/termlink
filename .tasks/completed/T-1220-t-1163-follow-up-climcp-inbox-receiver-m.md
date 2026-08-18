@@ -2,18 +2,49 @@
 id: T-1220
 name: "T-1163 follow-up: CLI/MCP inbox receiver migration to channel.{subscribe,list}"
 description: >
-  Receiver-side migration following T-1163's hub dual-write shim. CLI verbs 'inbox {list,status,clear}' + MCP tools termlink_inbox_* + remote inbox verbs switch to channel.{subscribe,list} on topic 'inbox:<target>' with capabilities fallback to legacy inbox.* when peer lacks channel API.
+  Receiver-side migration following T-1163's hub dual-write shim. CLI verbs 'inbox
+  {list,status,clear}' + MCP tools termlink_inbox_* + remote inbox verbs switch to
+  channel.{subscribe,list} on topic 'inbox:<target>' with capabilities fallback to
+  legacy inbox.* when peer lacks channel API.
 
 status: work-completed
 workflow_type: inception
 owner: agent
-horizon: null
+horizon:
 tags: [T-1155, bus, migration, T-1163-followup]
-components: [crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/commands/mirror_grid_composer.rs, crates/termlink-cli/src/commands/mirror_grid.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs, crates/termlink-session/src/inbox_channel.rs, crates/termlink-session/src/lib.rs]
+components: [crates/termlink-cli/src/commands/infrastructure.rs, 
+      crates/termlink-cli/src/commands/mirror_grid_composer.rs, 
+      crates/termlink-cli/src/commands/mirror_grid.rs, 
+      crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs, 
+      crates/termlink-session/src/inbox_channel.rs, 
+      crates/termlink-session/src/lib.rs]
 related_tasks: []
 created: 2026-04-24T15:10:01Z
-last_update: 2026-04-25T10:45:13Z
+last_update: '2026-08-18T18:58:46Z'
 date_finished: 2026-04-25T10:45:13Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 7
+      tier: 4
+      effort: 7
+    rationale: blast_radius=7 (no-signal); tier=4 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1220: T-1163 follow-up: CLI/MCP inbox receiver migration to channel.{subscribe,list}

@@ -2,18 +2,53 @@
 id: T-1299
 name: "Build A: termlink whoami RPC + CLI subcommand"
 description: >
-  Per T-1297 GO: read-only RPC that returns the calling session's identity card (id, display_name, roles, tags, cwd, pid, hub_address). Disambiguator chain: TERMLINK_SESSION_ID env var (primary, set by termlink register) → source-PID tree-walk fallback → ambiguous-result hint with candidates list. Pure exposure of existing session registry — no new data model. Estimate: ½ dev-day. Reversible: additive RPC. Forward-compat: older binaries return Method-not-found cleanly. Evidence: docs/reports/T-1297-termlink-agent-routing-discipline.md § Spike 2.
+  Per T-1297 GO: read-only RPC that returns the calling session's identity card (id,
+  display_name, roles, tags, cwd, pid, hub_address). Disambiguator chain: TERMLINK_SESSION_ID
+  env var (primary, set by termlink register) → source-PID tree-walk fallback → ambiguous-result
+  hint with candidates list. Pure exposure of existing session registry — no new data
+  model. Estimate: ½ dev-day. Reversible: additive RPC. Forward-compat: older binaries
+  return Method-not-found cleanly. Evidence: docs/reports/T-1297-termlink-agent-routing-discipline.md
+  § Spike 2.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [termlink, routing, whoami, T-1297-child, hub-rpc]
-components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/metadata.rs, crates/termlink-cli/src/commands/session.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/server.rs, crates/termlink-protocol/src/control.rs, crates/termlink-session/src/pty.rs]
+components: [crates/termlink-cli/src/cli.rs, 
+      crates/termlink-cli/src/commands/metadata.rs, 
+      crates/termlink-cli/src/commands/session.rs, 
+      crates/termlink-cli/src/main.rs, crates/termlink-hub/src/router.rs, 
+      crates/termlink-hub/src/server.rs, crates/termlink-protocol/src/control.rs,
+  crates/termlink-session/src/pty.rs]
 related_tasks: [T-1297]
 created: 2026-04-26T21:19:36Z
-last_update: 2026-04-27T06:16:20Z
+last_update: '2026-08-18T18:58:47Z'
 date_finished: 2026-04-27T06:15:59Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:53Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=1 (body:fix-without-learning); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=2 (body:lightly-promoted); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 7
+      tier: 2
+      effort: 8
+    rationale: blast_radius=7 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1299: Build A: termlink whoami RPC + CLI subcommand

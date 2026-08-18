@@ -2,18 +2,45 @@
 id: T-1295
 name: "Widen volatile-runtime_dir doc — tmpfs OR systemd-tmpfiles D /tmp"
 description: >
-  T-1294 confirmed the volatile-runtime_dir scenario, BUT mechanism on .122 was systemd-tmpfiles 'D /tmp' rule with /tmp on regular disk — NOT tmpfs as CLAUDE.md currently describes. Same effect, different cause. CLAUDE.md 'Hub Auth Rotation Protocol' / 'Special case — volatile runtime_dir' section should widen the diagnostic so the next operator looks at both /usr/lib/tmpfiles.d/tmp.conf (D rule) AND mount table (tmpfs).
+  T-1294 confirmed the volatile-runtime_dir scenario, BUT mechanism on .122 was systemd-tmpfiles
+  'D /tmp' rule with /tmp on regular disk — NOT tmpfs as CLAUDE.md currently describes.
+  Same effect, different cause. CLAUDE.md 'Hub Auth Rotation Protocol' / 'Special
+  case — volatile runtime_dir' section should widen the diagnostic so the next operator
+  looks at both /usr/lib/tmpfiles.d/tmp.conf (D rule) AND mount table (tmpfs).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [docs, auth, G-011, T-1294-followup]
 components: []
 related_tasks: [T-1294, T-1290, T-1292]
 created: 2026-04-26T14:27:04Z
-last_update: 2026-04-26T14:29:42Z
+last_update: '2026-08-18T18:58:47Z'
 date_finished: 2026-04-26T14:29:42Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:53Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 5
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=5 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1295: Widen volatile-runtime_dir doc — tmpfs OR systemd-tmpfiles D /tmp

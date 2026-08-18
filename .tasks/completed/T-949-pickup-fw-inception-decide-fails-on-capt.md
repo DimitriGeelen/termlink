@@ -1,19 +1,44 @@
 ---
 id: T-949
-name: "Pickup: fw inception decide fails on captured tasks — should auto-transition through started-work (from termlink)"
+name: "Pickup: fw inception decide fails on captured tasks — should auto-transition
+  through started-work (from termlink)"
 description: >
   Auto-created from pickup envelope. Source: termlink, task T-940. Type: bug-report.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [pickup, bug-report, framework]
 components: []
 related_tasks: []
 created: 2026-04-12T08:12:01Z
-last_update: 2026-04-12T13:01:27Z
+last_update: '2026-08-18T18:59:23Z'
 date_finished: 2026-04-12T13:01:27Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:15Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=1 (body:fix-without-learning); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:23Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 3
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=3 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-949: Pickup: fw inception decide fails on captured tasks — should auto-transition through started-work (from termlink)

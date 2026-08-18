@@ -2,18 +2,47 @@
 id: T-1993
 name: "Hub-side: bisect+fix 0.11.473 channel info concurrency regression (T-1991 follow-up)"
 description: >
-  Hub-side proper fix per T-1991 GO. Bisect commits in the 0.11.472..0.11.473 range to find the regression that makes channel info wedge under sequential load. Likely candidate: crates/termlink-hub/ topic-state lock or rpc dispatcher. Symptom: 9/20 sequential channel info on agent-presence (1503 envelopes) time out at exactly 15s, fleet-wide on every 0.11.473 hub. .107 (0.11.472, 13441 envelopes, LAN) is 0/20 clean. Pure hub-binary regression, not topic-size driven. See docs/reports/T-1991-channel-info-hub-concurrency-regression.md for full data.
+  Hub-side proper fix per T-1991 GO. Bisect commits in the 0.11.472..0.11.473 range
+  to find the regression that makes channel info wedge under sequential load. Likely
+  candidate: crates/termlink-hub/ topic-state lock or rpc dispatcher. Symptom: 9/20
+  sequential channel info on agent-presence (1503 envelopes) time out at exactly 15s,
+  fleet-wide on every 0.11.473 hub. .107 (0.11.472, 13441 envelopes, LAN) is 0/20
+  clean. Pure hub-binary regression, not topic-size driven. See docs/reports/T-1991-channel-info-hub-concurrency-regression.md
+  for full data.
 
 status: work-completed
 workflow_type: inception
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: [T-2013]
 created: 2026-06-05T09:35:50Z
-last_update: 2026-06-06T12:25:00Z
+last_update: '2026-08-18T18:59:00Z'
 date_finished: 2026-06-06
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:22Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1993: Hub-side: bisect+fix 0.11.473 channel info concurrency regression (T-1991 follow-up)

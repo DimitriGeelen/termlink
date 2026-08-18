@@ -2,18 +2,48 @@
 id: T-1219
 name: "Fix T-1217 subscriber — use event poll not event collect"
 description: >
-  T-1217 subscriber uses event collect which only delivers NEW events during the collect window, not events already accumulated in session buses. When broadcast comes from a different session than collector, collect returns 0 even though events ARE in the target sessions' buses (confirmed via event poll). Fix: change subscriber to event poll <session-name> --since=<cursor> against a session on the hub. Needs per-session cursor. Alternative: spawn a dedicated short-lived subscriber session that stays registered long enough to catch live events. Blocks T-1217 Human RUBBER-STAMP.
+  T-1217 subscriber uses event collect which only delivers NEW events during the collect
+  window, not events already accumulated in session buses. When broadcast comes from
+  a different session than collector, collect returns 0 even though events ARE in
+  the target sessions' buses (confirmed via event poll). Fix: change subscriber to
+  event poll <session-name> --since=<cursor> against a session on the hub. Needs per-session
+  cursor. Alternative: spawn a dedicated short-lived subscriber session that stays
+  registered long enough to catch live events. Blocks T-1217 Human RUBBER-STAMP.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-24T13:39:45Z
-last_update: 2026-04-24T13:50:52Z
+last_update: '2026-08-18T18:58:46Z'
 date_finished: 2026-04-24T13:50:52Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 3
+      F-ORCH: 0
+    rationale: D1=1 (body:fix-without-learning); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=3 (body:fw-recall-or-memory-link);
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1219: Fix T-1217 subscriber — use event poll not event collect

@@ -2,18 +2,44 @@
 id: T-113
 name: "Error analysis from telemetry store — escalation ladder auto-detection"
 description: >
-  Build error analysis on T-111 telemetry data. Query tool-calls.jsonl for is_error records, classify by tool/frequency/pattern, map to escalation ladder (A-D), output actionable recommendations. Delivers T-103 vision.
+  Build error analysis on T-111 telemetry data. Query tool-calls.jsonl for is_error
+  records, classify by tool/frequency/pattern, map to escalation ladder (A-D), output
+  actionable recommendations. Delivers T-103 vision.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [antifragility, error-escalation, telemetry, healing]
 components: []
 related_tasks: [T-103, T-104, T-111, T-112]
 created: 2026-03-12T06:41:54Z
-last_update: 2026-03-12T06:51:07Z
+last_update: '2026-08-18T18:58:44Z'
 date_finished: 2026-03-12T06:51:07Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 2
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=2 (body:telemetry-or-audit-entry); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:44Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-113: Error analysis from telemetry store — escalation ladder auto-detection

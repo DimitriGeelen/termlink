@@ -1,19 +1,46 @@
 ---
 id: T-1875
-name: "/agent-handoff skill — replace whoami self-fp path with channel info read (PL-195 parallel fix)"
+name: "/agent-handoff skill — replace whoami self-fp path with channel info read (PL-195
+  parallel fix)"
 description: >
-  PL-195 parallel: /agent-handoff Step 2 reads sender_id from whoami --json but on every host (shared or single) candidates[].sender_id is null. Skill currently logs 'unknown' on every handoff and Step 3.5/end-of-skill subscribe instructions inherit the same bad path. Apply the same channel info agent-presence fix that closed T-1874.
+  PL-195 parallel: /agent-handoff Step 2 reads sender_id from whoami --json but on
+  every host (shared or single) candidates[].sender_id is null. Skill currently logs
+  'unknown' on every handoff and Step 3.5/end-of-skill subscribe instructions inherit
+  the same bad path. Apply the same channel info agent-presence fix that closed T-1874.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-30T08:19:40Z
-last_update: 2026-05-30T08:22:07Z
+last_update: '2026-08-18T18:58:58Z'
 date_finished: 2026-05-30T08:22:07Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1875: /agent-handoff skill — replace whoami self-fp path with channel info read (PL-195 parallel fix)

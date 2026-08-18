@@ -1,19 +1,47 @@
 ---
 id: T-1658
-name: "hub probe — TLS handshake to <addr>, print remote cert fingerprint (pre-pin, no auth)"
+name: "hub probe — TLS handshake to <addr>, print remote cert fingerprint (pre-pin,
+  no auth)"
 description: >
-  hub probe — TLS handshake to <addr>, print remote cert fingerprint (pre-pin, no auth)
+  hub probe — TLS handshake to <addr>, print remote cert fingerprint (pre-pin, no
+  auth)
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [auth, G-011, rotation-protocol, cli, tls]
-components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/main.rs, crates/termlink-session/src/tofu.rs]
+components: [crates/termlink-cli/src/cli.rs, 
+      crates/termlink-cli/src/commands/infrastructure.rs, 
+      crates/termlink-cli/src/main.rs, crates/termlink-session/src/tofu.rs]
 related_tasks: [T-1656, T-1657, T-1051, T-1052]
 created: 2026-05-17T15:35:26Z
-last_update: 2026-05-17T15:46:00Z
+last_update: '2026-08-18T18:58:53Z'
 date_finished: 2026-05-17T15:46:00Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:07Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 1
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=1 
+      (body:error-msg-improved); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:53Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 5
+      tier: 2
+      effort: 8
+    rationale: blast_radius=5 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1658: hub probe — TLS handshake to <addr>, print remote cert fingerprint (pre-pin, no auth)

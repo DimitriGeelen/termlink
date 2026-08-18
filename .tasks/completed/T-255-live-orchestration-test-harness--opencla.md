@@ -2,18 +2,46 @@
 id: T-255
 name: "Live orchestration test harness — OpenClaw-style observe-inject-iterate loop"
 description: >
-  Reusable test harness that spawns specialist sessions with specific roles/capabilities, starts the hub, and provides attach points for observation. Exercises all 15 T-247 scenarios via real TermLink sessions with the observe-inject-iterate pattern from the OpenClaw experiment. See docs/reports/T-247-orchestration-scenarios.md and all T-247-scenarios-*.md files.
+  Reusable test harness that spawns specialist sessions with specific roles/capabilities,
+  starts the hub, and provides attach points for observation. Exercises all 15 T-247
+  scenarios via real TermLink sessions with the observe-inject-iterate pattern from
+  the OpenClaw experiment. See docs/reports/T-247-orchestration-scenarios.md and all
+  T-247-scenarios-*.md files.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [T-247, orchestration, testing, termlink]
 components: []
 related_tasks: [T-247, T-248, T-249, T-250, T-251, T-252, T-253, T-254, T-233]
 created: 2026-03-23T16:54:33Z
-last_update: 2026-03-23T21:14:05Z
+last_update: '2026-08-18T18:59:13Z'
 date_finished: 2026-03-23T21:14:05Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:51Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 2
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=2 (body:telemetry-or-audit-entry); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=2 (body:lightly-promoted); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:13Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-255: Live orchestration test harness — OpenClaw-style observe-inject-iterate loop

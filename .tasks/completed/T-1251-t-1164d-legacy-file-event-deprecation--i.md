@@ -2,18 +2,49 @@
 id: T-1251
 name: "T-1164d Legacy file.* event deprecation + inbox.rs cleanup + PL-011 closure"
 description: >
-  Mark legacy file.init/chunk/complete event-name path as deprecated, integrate blob GC with retention engine (T-1158), close PL-011 (send-file delivery confirmation) with structural-fix evidence pointing at T-1164. Depends on T-1164b + T-1164c.
+  Mark legacy file.init/chunk/complete event-name path as deprecated, integrate blob
+  GC with retention engine (T-1158), close PL-011 (send-file delivery confirmation)
+  with structural-fix evidence pointing at T-1164. Depends on T-1164b + T-1164c.
 
 status: work-completed
 workflow_type: decommission
 owner: agent
-horizon: null
+horizon:
 tags: [T-1164, T-1155, bus, artifact, PL-011]
-components: [crates/termlink-bus/src/artifact_store.rs, crates/termlink-bus/src/error.rs, crates/termlink-bus/src/lib.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-hub/src/artifact.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/inbox.rs, crates/termlink-hub/src/lib.rs, crates/termlink-hub/src/router.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-protocol/src/control.rs]
+components: [crates/termlink-bus/src/artifact_store.rs, 
+      crates/termlink-bus/src/error.rs, crates/termlink-bus/src/lib.rs, 
+      crates/termlink-cli/src/commands/remote.rs, 
+      crates/termlink-hub/src/artifact.rs, crates/termlink-hub/src/channel.rs, 
+      crates/termlink-hub/src/inbox.rs, crates/termlink-hub/src/lib.rs, 
+      crates/termlink-hub/src/router.rs, crates/termlink-mcp/src/tools.rs, 
+      crates/termlink-protocol/src/control.rs]
 related_tasks: [T-1164, T-1164b, T-1164c, T-1158]
 created: 2026-04-25T11:43:54Z
-last_update: 2026-04-25T13:30:48Z
+last_update: '2026-08-18T18:58:46Z'
 date_finished: 2026-04-25T13:30:48Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:51Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 9
+      tier: 2
+      effort: 6
+    rationale: blast_radius=9 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1251: T-1164d Legacy file.* event deprecation + inbox.rs cleanup + PL-011 closure

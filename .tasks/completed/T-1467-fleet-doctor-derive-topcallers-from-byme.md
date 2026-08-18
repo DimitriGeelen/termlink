@@ -1,19 +1,44 @@
 ---
 id: T-1467
-name: "fleet doctor: derive top_callers from by_method fallback (works against pre-T-1460 hubs)"
+name: "fleet doctor: derive top_callers from by_method fallback (works against pre-T-1460
+  hubs)"
 description: >
-  fleet doctor: derive top_callers from by_method fallback (works against pre-T-1460 hubs)
+  fleet doctor: derive top_callers from by_method fallback (works against pre-T-1460
+  hubs)
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 created: 2026-05-04T06:35:58Z
-last_update: 2026-05-04T06:43:50Z
+last_update: '2026-08-18T18:58:50Z'
 date_finished: 2026-05-04T06:43:50Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 7
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1467: fleet doctor: derive top_callers from by_method fallback (works against pre-T-1460 hubs)

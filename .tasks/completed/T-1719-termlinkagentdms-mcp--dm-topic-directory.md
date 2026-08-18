@@ -2,18 +2,47 @@
 id: T-1719
 name: "termlink_agent_dms MCP — DM topic directory + unread (T-1552 parity)"
 description: >
-  Close MCP-parity gap for the agent dms CLI verb (T-1552). MCP-aware agents currently cannot enumerate their DM topics — they have to call termlink_channel_list and filter manually. This task ships termlink_agent_dms with basic mode (topic+peer rows) AND unread mode (per-DM channel.receipts probe + content envelope walk). Mirrors cmd_channel_dm_list one-to-one. No new RPC surface — uses existing channel.list + channel.receipts + channel.subscribe.
+  Close MCP-parity gap for the agent dms CLI verb (T-1552). MCP-aware agents currently
+  cannot enumerate their DM topics — they have to call termlink_channel_list and filter
+  manually. This task ships termlink_agent_dms with basic mode (topic+peer rows) AND
+  unread mode (per-DM channel.receipts probe + content envelope walk). Mirrors cmd_channel_dm_list
+  one-to-one. No new RPC surface — uses existing channel.list + channel.receipts +
+  channel.subscribe.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-05-20T06:16:58Z
-last_update: 2026-05-20T19:34:09Z
+last_update: '2026-08-18T18:58:54Z'
 date_finished: 2026-05-20T19:34:09Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:10Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:54Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1719: termlink_agent_dms MCP — DM topic directory + unread (T-1552 parity)

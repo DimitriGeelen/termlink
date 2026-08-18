@@ -1,8 +1,24 @@
 ---
 id: T-2600
-name: "find_idle 60s LIVE window vs agent-listeners 2*interval_secs — discovery surfaces disagree"
+name: "find_idle 60s LIVE window vs agent-listeners 2*interval_secs — discovery surfaces
+  disagree"
 description: >
-  T-2468 verb-1 hunt (2026-08-10, PLAUSIBLE — code divergence certain, field-impact depends on non-default interval_secs). find_idle hardcodes DEFAULT_LIVE_WINDOW_MS=60_000 (crates/termlink-hub/src/channel.rs:2129) regardless of an agent's advertised cadence, while the shell listeners path uses 2*interval_secs from metadata.interval_secs (scripts/agent-listeners.sh:289-291). Consequence: an agent advertising interval_secs=15 that last beat 45s ago is STALE in /peers (window 30s) but LIVE+dispatchable in /find-idle (window 60s) -> orchestrator dispatches to a worker /peers already retired; symmetric the other way for interval_secs=60 (find_idle cuts at 60s, /peers keeps LIVE to 120s). T-2585 unified only the msg_type==heartbeat predicate across surfaces, NOT the window/clock logic. DESIGN decision needed: should find_idle honor per-agent interval_secs (read metadata.interval_secs, window=2*interval) to match the listeners definition, OR is a fixed 60s floor authoritative and /peers should clamp to it? Not a clear bug (either window is defensible) — needs a decision on the ONE liveness definition, then align all three surfaces + a cross-surface consistency test. Distinct from T-2598/T-2599 (those fixed the future-clock UPPER bound; this is the STALE lower-window disagreement).
+  T-2468 verb-1 hunt (2026-08-10, PLAUSIBLE — code divergence certain, field-impact
+  depends on non-default interval_secs). find_idle hardcodes DEFAULT_LIVE_WINDOW_MS=60_000
+  (crates/termlink-hub/src/channel.rs:2129) regardless of an agent's advertised cadence,
+  while the shell listeners path uses 2*interval_secs from metadata.interval_secs
+  (scripts/agent-listeners.sh:289-291). Consequence: an agent advertising interval_secs=15
+  that last beat 45s ago is STALE in /peers (window 30s) but LIVE+dispatchable in
+  /find-idle (window 60s) -> orchestrator dispatches to a worker /peers already retired;
+  symmetric the other way for interval_secs=60 (find_idle cuts at 60s, /peers keeps
+  LIVE to 120s). T-2585 unified only the msg_type==heartbeat predicate across surfaces,
+  NOT the window/clock logic. DESIGN decision needed: should find_idle honor per-agent
+  interval_secs (read metadata.interval_secs, window=2*interval) to match the listeners
+  definition, OR is a fixed 60s floor authoritative and /peers should clamp to it?
+  Not a clear bug (either window is defensible) — needs a decision on the ONE liveness
+  definition, then align all three surfaces + a cross-surface consistency test. Distinct
+  from T-2598/T-2599 (those fixed the future-clock UPPER bound; this is the STALE
+  lower-window disagreement).
 
 status: captured
 workflow_type: build
@@ -16,8 +32,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-10T20:34:47Z
-last_update: 2026-08-10T20:34:47Z
-date_finished: null
+last_update: '2026-08-18T18:58:39Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,6 +44,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:35Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:39Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2600: find_idle 60s LIVE window vs agent-listeners 2*interval_secs — discovery surfaces disagree

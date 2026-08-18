@@ -1,22 +1,34 @@
 ---
 id: T-2334
-name: "Webhook fan-out S3 — retry/backoff/dead-letter for outbound dispatch (arc-004, follows T-2333)"
+name: "Webhook fan-out S3 — retry/backoff/dead-letter for outbound dispatch (arc-004,
+  follows T-2333)"
 description: >
-  Slice 3 of the T-2331 GO webhook feature. Slices 1-2 shipped the signed+allowlisted dispatch primitive (T-2332) and the event->dispatch fan-out wiring (T-2333). S3 adds delivery resilience: an in-memory bounded retry queue with per-entry exponential backoff + jitter, poison->dead-letter after N attempts, drained by one hub-startup-spawned loop (mirrors governor::spawn_rate_evict_loop). Reuses the SHAPE of the T-2051 offline-queue flush loop (attempts column + jittered periodic drain + poison->dead-letter) WITHOUT its sqlite store — webhook delivery is best-effort/opt-in and durability-across-hub-restart is lower priority than keeping a Mutex<Connection> off the hot channel.post path. Classify HTTP outcomes: 2xx=success, 4xx=permanent-drop, 5xx/transport=retryable. Observability counters (retry_enqueued/retry_success/dead_letter_total + queue depth) for Slice 4 to surface. See docs/reports/T-2331-webhooks-external-fan-out-inception.md.
+  Slice 3 of the T-2331 GO webhook feature. Slices 1-2 shipped the signed+allowlisted
+  dispatch primitive (T-2332) and the event->dispatch fan-out wiring (T-2333). S3
+  adds delivery resilience: an in-memory bounded retry queue with per-entry exponential
+  backoff + jitter, poison->dead-letter after N attempts, drained by one hub-startup-spawned
+  loop (mirrors governor::spawn_rate_evict_loop). Reuses the SHAPE of the T-2051 offline-queue
+  flush loop (attempts column + jittered periodic drain + poison->dead-letter) WITHOUT
+  its sqlite store — webhook delivery is best-effort/opt-in and durability-across-hub-restart
+  is lower priority than keeping a Mutex<Connection> off the hot channel.post path.
+  Classify HTTP outcomes: 2xx=success, 4xx=permanent-drop, 5xx/transport=retryable.
+  Observability counters (retry_enqueued/retry_success/dead_letter_total + queue depth)
+  for Slice 4 to surface. See docs/reports/T-2331-webhooks-external-fan-out-inception.md.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-hub/src/server.rs, crates/termlink-hub/src/webhook.rs]
+components: [crates/termlink-hub/src/server.rs, 
+      crates/termlink-hub/src/webhook.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-03T13:39:30Z
-last_update: 2026-07-03T13:47:21Z
+last_update: '2026-08-18T18:59:08Z'
 date_finished: 2026-07-03T13:47:21Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +40,31 @@ date_finished: 2026-07-03T13:47:21Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:40Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=2 
+      (body:telemetry-or-audit-entry); D3=2 (body:default-change); D4=2 
+      (body:env-class-handled); F-RECALL=2 (body:lightly-promoted); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:08Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2334: Webhook fan-out S3 — retry/backoff/dead-letter for outbound dispatch (arc-004, follows T-2333)

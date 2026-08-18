@@ -1,19 +1,45 @@
 ---
 id: T-1804
-name: "Deterministic doorbell+mail send verb — post turn + ring doorbell + receipt ack + bounded re-ring (T-1800 build #1)"
+name: "Deterministic doorbell+mail send verb — post turn + ring doorbell + receipt
+  ack + bounded re-ring (T-1800 build #1)"
 description: >
-  Deterministic doorbell+mail send verb — post turn + ring doorbell + receipt ack + bounded re-ring (T-1800 build #1)
+  Deterministic doorbell+mail send verb — post turn + ring doorbell + receipt ack
+  + bounded re-ring (T-1800 build #1)
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-hub/src/aggregator.rs, crates/termlink-hub/src/channel.rs, crates/termlink-protocol/src/events.rs]
+components: [crates/termlink-hub/src/aggregator.rs, 
+      crates/termlink-hub/src/channel.rs, crates/termlink-protocol/src/events.rs]
 related_tasks: []
 created: 2026-05-25T17:28:59Z
-last_update: 2026-05-25T17:35:31Z
+last_update: '2026-08-18T18:58:56Z'
 date_finished: 2026-05-25T17:35:31Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:13Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:56Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1804: Deterministic doorbell+mail send verb — post turn + ring doorbell + receipt ack + bounded re-ring (T-1800 build #1)

@@ -2,18 +2,45 @@
 id: T-1285
 name: "T-243 dep: Audit + harden channel.* ordered durable delivery"
 description: >
-  Verify channel.* guarantees ordered durable delivery under: (a) concurrent multi-publisher writes, (b) hub restart, (c) subscriber reconnect mid-stream. This is Agent A's NO-GO check from T-243 inception and Agent C's crash gap. If gaps found, fix before any dialog.heartbeat or metadata-extension work proceeds — append-only log model collapses without it. Foundation for all other T-243 child tasks.
+  Verify channel.* guarantees ordered durable delivery under: (a) concurrent multi-publisher
+  writes, (b) hub restart, (c) subscriber reconnect mid-stream. This is Agent A's
+  NO-GO check from T-243 inception and Agent C's crash gap. If gaps found, fix before
+  any dialog.heartbeat or metadata-extension work proceeds — append-only log model
+  collapses without it. Foundation for all other T-243 child tasks.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [T-243, channel, reliability]
 components: [crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs]
 related_tasks: []
 created: 2026-04-26T09:31:53Z
-last_update: 2026-04-26T09:43:20Z
+last_update: '2026-08-18T18:58:47Z'
 date_finished: 2026-04-26T09:43:20Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:52Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1285: T-243 dep: Audit + harden channel.* ordered durable delivery

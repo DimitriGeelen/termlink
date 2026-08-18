@@ -1,19 +1,45 @@
 ---
 id: T-1384
-name: "Are we ready to push agent-conversation arc to other agents (cross-machine), and what end-to-end multi-agent test should we run with the fleet we already have?"
+name: "Are we ready to push agent-conversation arc to other agents (cross-machine),
+  and what end-to-end multi-agent test should we run with the fleet we already have?"
 description: >
-  Inception: Are we ready to push agent-conversation arc to other agents (cross-machine), and what end-to-end multi-agent test should we run with the fleet we already have?
+  Inception: Are we ready to push agent-conversation arc to other agents (cross-machine),
+  and what end-to-end multi-agent test should we run with the fleet we already have?
 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-cli/src/commands/channel.rs, crates/termlink-session/src/bus_client.rs]
+components: [crates/termlink-cli/src/commands/channel.rs, 
+      crates/termlink-session/src/bus_client.rs]
 related_tasks: []
 created: 2026-04-28T17:14:57Z
-last_update: 2026-04-28T19:33:22Z
+last_update: '2026-08-18T18:58:49Z'
 date_finished: 2026-04-28T19:33:22Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:56Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:49Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 4
+      effort: 7
+    rationale: blast_radius=3 (no-signal); tier=4 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1384: Are we ready to push agent-conversation arc to other agents (cross-machine), and what end-to-end multi-agent test should we run with the fleet we already have?

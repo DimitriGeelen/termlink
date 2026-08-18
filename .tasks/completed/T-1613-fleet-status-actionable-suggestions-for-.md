@@ -1,19 +1,45 @@
 ---
 id: T-1613
-name: "fleet status: actionable suggestions for misconfigured profiles (Secret-file-not-found, /tmp residue)"
+name: "fleet status: actionable suggestions for misconfigured profiles (Secret-file-not-found,
+  /tmp residue)"
 description: >
-  fleet status: actionable suggestions for misconfigured profiles (Secret-file-not-found, /tmp residue)
+  fleet status: actionable suggestions for misconfigured profiles (Secret-file-not-found,
+  /tmp residue)
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 created: 2026-05-06T09:09:26Z
-last_update: 2026-05-06T09:25:35Z
+last_update: '2026-08-18T18:58:52Z'
 date_finished: 2026-05-06T09:25:35Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:05Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:52Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1613: fleet status: actionable suggestions for misconfigured profiles (Secret-file-not-found, /tmp residue)

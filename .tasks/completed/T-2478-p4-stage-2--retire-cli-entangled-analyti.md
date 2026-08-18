@@ -2,12 +2,17 @@
 id: T-2478
 name: "P4 Stage 2 — retire CLI-entangled analytics tools (Groups A/B/D)"
 description: >
-  T-2468 P4 continuation of T-2471 (Stage 1 retired the 12 zero-consumer Group C tools). Groups A (reactions/emoji ~11), B (stars/pins leaderboards ~13), D (typing indicators + polls ~11) each have CLI-entangled members — the MCP tool and its CLI twin (+ shared compute helper) must be retired together, per-group, with the same build+test+count guard. Investigate each group's CLI/slash consumers before deleting. Reversible via git.
+  T-2468 P4 continuation of T-2471 (Stage 1 retired the 12 zero-consumer Group C tools).
+  Groups A (reactions/emoji ~11), B (stars/pins leaderboards ~13), D (typing indicators
+  + polls ~11) each have CLI-entangled members — the MCP tool and its CLI twin (+
+  shared compute helper) must be retired together, per-group, with the same build+test+count
+  guard. Investigate each group's CLI/slash consumers before deleting. Reversible
+  via git.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-cli/src/cli.rs, crates/termlink-mcp/src/tools.rs]
 related_tasks: []
@@ -16,7 +21,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-01T20:17:38Z
-last_update: 2026-08-01T23:14:16Z
+last_update: '2026-08-18T18:59:11Z'
 date_finished: 2026-08-01T23:14:16Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +33,30 @@ date_finished: 2026-08-01T23:14:16Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=3 (body:portability-abstraction); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:11Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2478: P4 Stage 2 — retire CLI-entangled analytics tools (Groups A/B/D)

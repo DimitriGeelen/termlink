@@ -2,18 +2,43 @@
 id: T-264
 name: "MCP server for TermLink — termlink-mcp crate with rmcp"
 description: >
-  Build MCP server exposing TermLink as structured tools. New crates/termlink-mcp crate, rmcp SDK, stdio transport, 10 tools + 3 resources. From T-261 GO decision.
+  Build MCP server exposing TermLink as structured tools. New crates/termlink-mcp
+  crate, rmcp SDK, stdio transport, 10 tools + 3 resources. From T-261 GO decision.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [mcp, cli, orchestration]
 components: []
 related_tasks: [T-261, T-233]
 created: 2026-03-24T11:52:10Z
-last_update: 2026-03-24T12:22:41Z
+last_update: '2026-08-18T18:59:14Z'
 date_finished: 2026-03-24T12:22:41Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:54Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=3 
+      (body:portability-abstraction); F-RECALL=2 (body:lightly-promoted); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-264: MCP server for TermLink — termlink-mcp crate with rmcp

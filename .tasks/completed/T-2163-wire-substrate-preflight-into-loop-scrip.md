@@ -2,12 +2,20 @@
 id: T-2163
 name: "Wire substrate-preflight into loop-script startup (T-2154 closure)"
 description: >
-  Wire substrate-preflight.sh into substrate-orchestrator-loop.sh and substrate-worker-loop.sh as a startup check. The two loop scripts are the load-bearing 'real' substrate-runtime entry points (every production worker/orchestrator wraps them). Today they will happily start with TERMLINK_RUNTIME_DIR=/tmp and wedge silently on the next reboot — PL-021. Add a preflight call at the top of each loop: on exit 2 (FAIL) refuse to start, on exit 1 (WARN) print and continue, on exit 0 (PASS) silent. Add --skip-preflight flag for CI/test paths where preflight is already known clean. Closes the substrate-arc safety arc: preflight CLI (T-2154) → /preflight skill (T-2158) → cron canary (T-2160) → loop-startup gate (this slice).
+  Wire substrate-preflight.sh into substrate-orchestrator-loop.sh and substrate-worker-loop.sh
+  as a startup check. The two loop scripts are the load-bearing 'real' substrate-runtime
+  entry points (every production worker/orchestrator wraps them). Today they will
+  happily start with TERMLINK_RUNTIME_DIR=/tmp and wedge silently on the next reboot
+  — PL-021. Add a preflight call at the top of each loop: on exit 2 (FAIL) refuse
+  to start, on exit 1 (WARN) print and continue, on exit 0 (PASS) silent. Add --skip-preflight
+  flag for CI/test paths where preflight is already known clean. Closes the substrate-arc
+  safety arc: preflight CLI (T-2154) → /preflight skill (T-2158) → cron canary (T-2160)
+  → loop-startup gate (this slice).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [substrate, preflight, T-2018, safety]
 components: []
 related_tasks: []
@@ -16,7 +24,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-11T14:00:47Z
-last_update: 2026-06-11T14:05:54Z
+last_update: '2026-08-18T18:59:04Z'
 date_finished: 2026-06-11T14:05:54Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +36,30 @@ date_finished: 2026-06-11T14:05:54Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:31Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:04Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2163: Wire substrate-preflight into loop-script startup (T-2154 closure)

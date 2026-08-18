@@ -3,20 +3,44 @@ id: T-099
 name: "PR to Anthropic — PostMessage / SessionEnd hook request for Claude Code"
 description: >
   Draft and submit a feature request PR (or issue) to Anthropic / Claude Code asking
-  for two new hook event types: PostMessage (fires after each assistant response) and
+  for two new hook event types: PostMessage (fires after each assistant response)
+  and
   SessionEnd (fires on normal session exit). The case is well-evidenced by this project.
   Before drafting, research the correct submission format and channel for Claude Code
   contributions/feature requests.
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: [anthropic, claude-code, hooks, framework, governance]
 components: []
 related_tasks: [T-094, T-095, T-096, T-100, T-101, T-102]
 created: 2026-03-11T12:00:00Z
-last_update: 2026-03-19T17:52:25Z
+last_update: '2026-08-18T18:58:42Z'
 date_finished: 2026-03-18T21:37:58Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:41Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-099: PR to Anthropic — PostMessage / SessionEnd Hook Request

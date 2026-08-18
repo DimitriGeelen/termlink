@@ -1,19 +1,49 @@
 ---
 id: T-2010
-name: "Extend fw audit cron lint to detect content-drift between source and /etc/cron.d/ (T-1887 RCA Prevention §1)"
+name: "Extend fw audit cron lint to detect content-drift between source and /etc/cron.d/
+  (T-1887 RCA Prevention §1)"
 description: >
-  T-1722 ships a cron-misload lint with scope 'USER-field syntax check'; it does not detect when /etc/cron.d/<x> diverges in content from .context/cron/<x>.crontab. T-1887 hit this on 2026-06-06: 7-line drift (T-1723 meta-canary block missing) went undetected for 9 days. Extend the audit cron section: for every .context/cron/*.crontab source, if a corresponding /etc/cron.d/<basename> exists, fail-loud on diff. Catches the next 'source updated, install forgotten' instance automatically.
+  T-1722 ships a cron-misload lint with scope 'USER-field syntax check'; it does not
+  detect when /etc/cron.d/<x> diverges in content from .context/cron/<x>.crontab.
+  T-1887 hit this on 2026-06-06: 7-line drift (T-1723 meta-canary block missing) went
+  undetected for 9 days. Extend the audit cron section: for every .context/cron/*.crontab
+  source, if a corresponding /etc/cron.d/<basename> exists, fail-loud on diff. Catches
+  the next 'source updated, install forgotten' instance automatically.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: [T-1722, T-1887]
 created: 2026-06-05T22:39:21Z
-last_update: 2026-06-05T22:47:28Z
+last_update: '2026-08-18T18:59:00Z'
 date_finished: 2026-06-05T22:49:32Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:23Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 4
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=4
+      (body:framework-level-ux); D4=0 (no-signal); F-RECALL=0 (no-signal); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2010: Extend fw audit cron lint to detect content-drift between source and /etc/cron.d/ (T-1887 RCA Prevention §1)

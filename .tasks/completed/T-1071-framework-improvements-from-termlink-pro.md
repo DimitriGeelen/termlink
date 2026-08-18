@@ -1,19 +1,44 @@
 ---
 id: T-1071
-name: "Framework improvements from termlink protocol-skew + event.broadcast workaround pattern"
+name: "Framework improvements from termlink protocol-skew + event.broadcast workaround
+  pattern"
 description: >
-  Inception: Framework improvements from termlink protocol-skew + event.broadcast workaround pattern
+  Inception: Framework improvements from termlink protocol-skew + event.broadcast
+  workaround pattern
 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-15T21:18:07Z
-last_update: 2026-04-23T19:30:27Z
+last_update: '2026-08-18T18:58:43Z'
 date_finished: 2026-04-18T19:51:42Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:44Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:43Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1071: Framework improvements from termlink protocol-skew + event.broadcast workaround pattern

@@ -8,13 +8,36 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [framework, skill, self-test]
 components: []
 related_tasks: [T-136, T-137]
 created: 2026-03-14T17:07:00Z
-last_update: 2026-03-14T21:23:00Z
+last_update: '2026-08-18T18:58:49Z'
 date_finished: 2026-03-14T21:23:00Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:56Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 1
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=1 (body:hand-wired-dispatch)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:49Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 5
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=5 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-138: /self-test framework skill — E2E validation loop

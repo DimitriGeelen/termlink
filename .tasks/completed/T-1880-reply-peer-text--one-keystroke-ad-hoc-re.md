@@ -2,18 +2,48 @@
 id: T-1880
 name: "/reply <peer> '<text>' — one-keystroke ad-hoc reply skill (SEND/RECEIVE symmetry)"
 description: >
-  Operator has /agent-handoff for first-contact send but no one-keystroke verb for ad-hoc reply to an existing thread. Currently must invoke bash scripts/agent-respond.sh --topic dm:... --conversation-id <??> --reply '...' which requires manual cid extraction from envelope metadata. Build (a) scripts/agent-reply.sh wrapper that resolves topic via peer-substring match + auto-extracts cid from the topic's latest envelope, delegates to agent-respond.sh for the actual ack+reply; (b) /reply slash skill that surfaces this with one-keystroke invocation. Complements /check-arc respond (which is the batch-iterate-unread pattern) — /reply is the targeted single-thread case.
+  Operator has /agent-handoff for first-contact send but no one-keystroke verb for
+  ad-hoc reply to an existing thread. Currently must invoke bash scripts/agent-respond.sh
+  --topic dm:... --conversation-id <??> --reply '...' which requires manual cid extraction
+  from envelope metadata. Build (a) scripts/agent-reply.sh wrapper that resolves topic
+  via peer-substring match + auto-extracts cid from the topic's latest envelope, delegates
+  to agent-respond.sh for the actual ack+reply; (b) /reply slash skill that surfaces
+  this with one-keystroke invocation. Complements /check-arc respond (which is the
+  batch-iterate-unread pattern) — /reply is the targeted single-thread case.
 
 status: work-completed
 workflow_type: build
 owner: claude-code
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-30T15:21:10Z
-last_update: 2026-05-30T15:25:47Z
+last_update: '2026-08-18T18:58:58Z'
 date_finished: 2026-05-30T15:25:47Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1880: /reply <peer> '<text>' — one-keystroke ad-hoc reply skill (SEND/RECEIVE symmetry)

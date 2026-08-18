@@ -2,7 +2,11 @@
 id: T-1451
 name: "revisit_at frontmatter field + template update (T-1449 Phase-1 #1)"
 description: >
-  T-1449 Phase-1 deliverable #1: add revisit_at: <ISO-date> and optional revisit_evidence_needed: <one-line> frontmatter fields to task templates. Backward-compatible (opt-in field). Update zzz-default.md + inception.md templates. Teach update-task.sh to preserve the field on status changes. Document in CLAUDE.md inception section. ~30 LOC + 1 template + doc.
+  T-1449 Phase-1 deliverable #1: add revisit_at: <ISO-date> and optional revisit_evidence_needed:
+  <one-line> frontmatter fields to task templates. Backward-compatible (opt-in field).
+  Update zzz-default.md + inception.md templates. Teach update-task.sh to preserve
+  the field on status changes. Document in CLAUDE.md inception section. ~30 LOC +
+  1 template + doc.
 
 status: started-work
 workflow_type: build
@@ -12,8 +16,32 @@ tags: [framework, governance, T-1449, phase-1, channel-1-mirror]
 components: []
 related_tasks: [T-1449, T-1428]
 created: 2026-05-02T22:21:29Z
-last_update: 2026-05-15T19:21:24Z
-date_finished: null
+last_update: '2026-08-18T18:58:36Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:28Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 3
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 1
+      F-ORCH: 1
+    rationale: D1=3 (body:test-or-audit-check); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=1 (body:episodic-only); F-ORCH=1 
+      (body:hand-wired-dispatch)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:36Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1451: revisit_at frontmatter field + template update (T-1449 Phase-1 #1)

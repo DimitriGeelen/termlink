@@ -1,22 +1,30 @@
 ---
 id: T-2045
-name: "Substrate primitive #2: hub-owned idle/busy agent registry (T-2020 GO build slice)"
+name: "Substrate primitive #2: hub-owned idle/busy agent registry (T-2020 GO build
+  slice)"
 description: >
-  Implement the T-2020 GO decision per docs/reports/T-2020-idle-busy-registry-inception.md. Derivation-based: idle_agents = LIVE(presence) \ DISTINCT(claimed_by). Add metadata.capabilities: [string] to heartbeat. Surface as agent.find_idle RPC + termlink agent find-idle CLI. ~150 LOC across 5 vertical slices.
+  Implement the T-2020 GO decision per docs/reports/T-2020-idle-busy-registry-inception.md.
+  Derivation-based: idle_agents = LIVE(presence) \ DISTINCT(claimed_by). Add metadata.capabilities:
+  [string] to heartbeat. Surface as agent.find_idle RPC + termlink agent find-idle
+  CLI. ~150 LOC across 5 vertical slices.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [arc:arc-parallel-substrate, substrate-primitive, foundation]
-components: [crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/mod.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-protocol/src/control.rs, scripts/be-reachable.sh]
+components: [crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, 
+      crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/mod.rs, 
+      crates/termlink-cli/src/main.rs, crates/termlink-hub/src/channel.rs, 
+      crates/termlink-hub/src/router.rs, crates/termlink-mcp/src/tools.rs, 
+      crates/termlink-protocol/src/control.rs, scripts/be-reachable.sh]
 related_tasks: [T-2018, T-2020, T-2019, T-2021]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T10:48:48Z
-last_update: 2026-06-08T13:19:02Z
+last_update: '2026-08-18T18:59:01Z'
 date_finished: 2026-06-08T13:19:02Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +36,30 @@ date_finished: 2026-06-08T13:19:02Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:25Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 3
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=3 (body:portability-abstraction); F-RECALL=2 
+      (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:01Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 9
+      tier: 2
+      effort: 8
+    rationale: blast_radius=9 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2045: Substrate primitive #2: hub-owned idle/busy agent registry (T-2020 GO build slice)

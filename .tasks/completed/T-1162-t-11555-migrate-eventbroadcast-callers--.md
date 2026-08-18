@@ -2,18 +2,44 @@
 id: T-1162
 name: "T-1155/5 Migrate event.broadcast callers → channel.post(topic=broadcast:global)"
 description: >
-  ~2 producer sites in events.rs + tools.rs. Wrap legacy method as channel.post adapter; preserve semantics. See T-1155 S-5 migration plan phase 2.
+  ~2 producer sites in events.rs + tools.rs. Wrap legacy method as channel.post adapter;
+  preserve semantics. See T-1155 S-5 migration plan phase 2.
 
 status: work-completed
 workflow_type: refactor
 owner: human
-horizon: null
+horizon:
 tags: [T-1155, bus, migration]
-components: [crates/termlink-cli/tests/cli_integration.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs]
+components: [crates/termlink-cli/tests/cli_integration.rs, 
+      crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs]
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:10Z
-last_update: 2026-04-23T19:17:49Z
+last_update: '2026-08-18T18:58:45Z'
 date_finished: 2026-04-20T22:31:41Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 2
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 1
+    rationale: D1=0 (no-signal); D2=2 (body:telemetry-or-audit-entry); D3=0 
+      (no-signal); D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); 
+      F-ORCH=1 (body:hand-wired-dispatch)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 3
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=3 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1162: T-1155/5 Migrate event.broadcast callers → channel.post(topic=broadcast:global)

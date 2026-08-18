@@ -1,19 +1,43 @@
 ---
 id: T-593
-name: "Add JSON-aware error output to session ping, status, signal, exec, and send commands"
+name: "Add JSON-aware error output to session ping, status, signal, exec, and send
+  commands"
 description: >
   Add JSON-aware error output to session ping, status, signal, exec, and send commands
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-cli/src/commands/session.rs]
 related_tasks: []
 created: 2026-03-28T16:22:41Z
-last_update: 2026-03-28T16:24:15Z
+last_update: '2026-08-18T18:59:18Z'
 date_finished: 2026-03-28T16:24:15Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:03Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:18Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 6
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-593: Add JSON-aware error output to session ping, status, signal, exec, and send commands

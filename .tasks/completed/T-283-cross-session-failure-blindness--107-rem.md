@@ -1,19 +1,44 @@
 ---
 id: T-283
-name: "Cross-session failure blindness — .107 remote access as case study for framework observability gap"
+name: "Cross-session failure blindness — .107 remote access as case study for framework
+  observability gap"
 description: >
-  Inception: Cross-session failure blindness — .107 remote access as case study for framework observability gap
+  Inception: Cross-session failure blindness — .107 remote access as case study for
+  framework observability gap
 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-25T17:50:18Z
-last_update: 2026-04-22T10:20:56Z
+last_update: '2026-08-18T18:59:17Z'
 date_finished: 2026-04-12T08:43:04Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:01Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-283: Cross-session failure blindness — .107 remote access as case study for framework observability gap

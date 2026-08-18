@@ -2,21 +2,46 @@
 id: T-100
 name: "Inception — TermLink output capture as conversation logger"
 description: >
-  Explore and investigate whether TermLink's terminal output capture capability can be
+  Explore and investigate whether TermLink's terminal output capture capability can
+  be
   used to log Claude Code conversation turns. TermLink can attach to a terminal session
-  and stream its output. This exploration asks: can we wrap a Claude Code session as a
+  and stream its output. This exploration asks: can we wrap a Claude Code session
+  as a
   TermLink session, capture stdout, and extract conversation turns from the raw stream?
   Explore only — no implementation.
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: [termlink, output-capture, conversation-logging, exploration]
 components: []
 related_tasks: [T-094, T-101, T-102, T-099]
 created: 2026-03-11T12:00:00Z
-last_update: 2026-03-19T17:52:26Z
+last_update: '2026-08-18T18:58:42Z'
 date_finished: 2026-03-18T21:29:51Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:41Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-100: Inception — TermLink Output Capture as Conversation Logger

@@ -1,19 +1,45 @@
 ---
 id: T-1197
-name: "Backfill ceremonial Agent AC ticks on 13 work-completed inceptions (post-T-1194 cleanup)"
+name: "Backfill ceremonial Agent AC ticks on 13 work-completed inceptions (post-T-1194
+  cleanup)"
 description: >
-  Backfill ceremonial Agent AC ticks on 13 work-completed inceptions (post-T-1194 cleanup)
+  Backfill ceremonial Agent AC ticks on 13 work-completed inceptions (post-T-1194
+  cleanup)
 
 status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-23T12:29:52Z
-last_update: 2026-04-23T12:31:54Z
+last_update: '2026-08-18T18:58:45Z'
 date_finished: 2026-04-23T12:31:54Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:49Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=0
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 3
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=3 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1197: Backfill ceremonial Agent AC ticks on 13 work-completed inceptions (post-T-1194 cleanup)

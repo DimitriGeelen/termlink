@@ -1,13 +1,22 @@
 ---
 id: T-2588
-name: "fix 4 sibling agent analytics tools sharing legacy msg_type-post filter (T-2587 sweep)"
+name: "fix 4 sibling agent analytics tools sharing legacy msg_type-post filter (T-2587
+  sweep)"
 description: >
-  Four agent chat-arc analytics MCP tools share the same legacy msg_type==post filter that T-2587 fixed for response_received: termlink_agent_search_by (tools.rs ~24336), termlink_agent_threads_by (~24519), termlink_agent_busiest_threads (~24619), termlink_agent_recent_decisions (~24705). Real content is note/chat/post (agent_post/channel_post default note, bus_client/offline_queue chat) so != Some(post) continue drops all real content and these tools silently return empty/zero. Correct content set is Some(post)|Some(chat)|Some(note) per shared helpers at tools.rs 3444/5383. Scoped sweep: per-tool confirm each genuinely wants CONTENT (not a distinct post-typed subset) then apply the set + load-bearing test each. From T-2468 verb-2 hunt, sibling class of T-2587.
+  Four agent chat-arc analytics MCP tools share the same legacy msg_type==post filter
+  that T-2587 fixed for response_received: termlink_agent_search_by (tools.rs ~24336),
+  termlink_agent_threads_by (~24519), termlink_agent_busiest_threads (~24619), termlink_agent_recent_decisions
+  (~24705). Real content is note/chat/post (agent_post/channel_post default note,
+  bus_client/offline_queue chat) so != Some(post) continue drops all real content
+  and these tools silently return empty/zero. Correct content set is Some(post)|Some(chat)|Some(note)
+  per shared helpers at tools.rs 3444/5383. Scoped sweep: per-tool confirm each genuinely
+  wants CONTENT (not a distinct post-typed subset) then apply the set + load-bearing
+  test each. From T-2468 verb-2 hunt, sibling class of T-2587.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [bug]
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
@@ -16,7 +25,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-09T22:38:02Z
-last_update: 2026-08-10T18:43:11Z
+last_update: '2026-08-18T18:59:13Z'
 date_finished: 2026-08-10T18:43:11Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +37,31 @@ date_finished: 2026-08-10T18:43:11Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:52Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 3
+      D3: 2
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=3 
+      (body:component-silent-failure); D3=2 (body:default-change); D4=3 
+      (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:13Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2588: fix 4 sibling agent analytics tools sharing legacy msg_type-post filter (T-2587 sweep)

@@ -2,7 +2,13 @@
 id: T-2481
 name: "P3b — make-it-live fleet primitive (T-2477, G-069)"
 description: >
-  T-2477 P3 part (b), GO recorded but NEW SUBSYSTEM (fleet-orchestration) — needs its own scoping before build. One-command 'roll capability live across reachable fleet + confirm': compose build -> fleet-deploy-binary.sh (currently single-host) -> restart-through-systemd (G-070) -> capability-probe -> confirm live. This session manually did the local version (rebuild->reinstall->verify-absent for P4). Foothold-blocked hosts (.121/.141) bound reach. Larger than one bounded slice; split further at build time.
+  T-2477 P3 part (b), GO recorded but NEW SUBSYSTEM (fleet-orchestration) — needs
+  its own scoping before build. One-command 'roll capability live across reachable
+  fleet + confirm': compose build -> fleet-deploy-binary.sh (currently single-host)
+  -> restart-through-systemd (G-070) -> capability-probe -> confirm live. This session
+  manually did the local version (rebuild->reinstall->verify-absent for P4). Foothold-blocked
+  hosts (.121/.141) bound reach. Larger than one bounded slice; split further at build
+  time.
 
 status: captured
 workflow_type: build
@@ -16,8 +22,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-01T21:18:45Z
-last_update: 2026-08-01T21:18:45Z
-date_finished: null
+last_update: '2026-08-18T18:58:38Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,6 +34,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:33Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2481: P3b — make-it-live fleet primitive (T-2477, G-069)

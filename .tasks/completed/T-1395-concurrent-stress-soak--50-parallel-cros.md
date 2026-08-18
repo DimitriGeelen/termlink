@@ -1,19 +1,44 @@
 ---
 id: T-1395
-name: "Concurrent stress soak — 50 parallel cross-hub posts; verify offset linearization + zero loss"
+name: "Concurrent stress soak — 50 parallel cross-hub posts; verify offset linearization
+  + zero loss"
 description: >
-  Concurrent stress soak — 50 parallel cross-hub posts; verify offset linearization + zero loss
+  Concurrent stress soak — 50 parallel cross-hub posts; verify offset linearization
+  + zero loss
 
 status: work-completed
 workflow_type: test
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-28T21:42:52Z
-last_update: 2026-04-28T21:44:36Z
+last_update: '2026-08-18T18:58:49Z'
 date_finished: 2026-04-28T21:44:36Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:57Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:49Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 1
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=1 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1395: Concurrent stress soak — 50 parallel cross-hub posts; verify offset linearization + zero loss

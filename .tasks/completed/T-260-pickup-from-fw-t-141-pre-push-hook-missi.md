@@ -4,18 +4,42 @@ name: "Pickup from fw T-141: Pre-push hook missing PROJECT_ROOT (framework-side)
 description: >
   Framework-side fix from fw-agent. Pre-push hook doesn't pass PROJECT_ROOT to audit
   script. Also: declare -A breaks on macOS bash 3.2, D2 should be WARN not FAIL for
-  upstream-blocked tasks. This is a framework repo fix — track here, dispatch back to .107.
+  upstream-blocked tasks. This is a framework repo fix — track here, dispatch back
+  to .107.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [pickup, framework]
 components: []
 related_tasks: [T-160]
 created: 2026-03-24T08:42:18Z
-last_update: 2026-04-23T19:34:26Z
+last_update: '2026-08-18T18:59:13Z'
 date_finished: 2026-04-23T19:34:26Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:53Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:13Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 1
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=1 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-260: Pickup from fw T-141 — Pre-push hook missing PROJECT_ROOT

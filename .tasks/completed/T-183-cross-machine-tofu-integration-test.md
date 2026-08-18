@@ -2,17 +2,42 @@
 id: T-183
 name: "Cross-machine TOFU integration test"
 description: >
-  End-to-end test: connect from macOS to remote Linux hub via TOFU TLS, authenticate, list sessions, and inject a prompt into the remote Claude session. Validates T-178 (split writes) and T-182 (TOFU) together.
+  End-to-end test: connect from macOS to remote Linux hub via TOFU TLS, authenticate,
+  list sessions, and inject a prompt into the remote Claude session. Validates T-178
+  (split writes) and T-182 (TOFU) together.
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [test, tls, cross-machine]
 components: []
 related_tasks: [T-178, T-182, T-163]
 created: 2026-03-18T23:12:30Z
-last_update: 2026-03-18T23:15:18Z
+last_update: '2026-08-18T18:58:57Z'
 date_finished: 2026-03-18T23:15:18Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:15Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 4
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=4 
+      (body:cross-machine); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:57Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 5
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=5 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-183: Cross-machine TOFU integration test

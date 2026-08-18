@@ -2,18 +2,44 @@
 id: T-179
 name: "Cross-hub TLS trust via TOFU (Trust On First Use)"
 description: >
-  Hub-to-hub TCP forwarding fails because local hub uses local cert to connect to remote hub. Need TOFU model: accept+store remote cert fingerprint on first connect, verify on subsequent. ~300 lines. Uses rustls custom ServerCertVerifier + known_hubs file. See agent research from T-099 session.
+  Hub-to-hub TCP forwarding fails because local hub uses local cert to connect to
+  remote hub. Need TOFU model: accept+store remote cert fingerprint on first connect,
+  verify on subsequent. ~300 lines. Uses rustls custom ServerCertVerifier + known_hubs
+  file. See agent research from T-099 session.
 
 status: work-completed
 workflow_type: inception
 owner: agent
-horizon: null
+horizon:
 tags: [security, tls, hub, cross-machine]
 components: []
 related_tasks: []
 created: 2026-03-18T22:19:49Z
-last_update: 2026-03-18T22:58:29Z
+last_update: '2026-08-18T18:58:56Z'
 date_finished: 2026-03-18T22:58:29Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:13Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:56Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 4
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=4 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-179: Cross-hub TLS trust via TOFU (Trust On First Use)

@@ -1,13 +1,20 @@
 ---
 id: T-2204
-name: "AEF coordination — substrate parallel-worker test using backlog drain workload (T-2018 §6)"
+name: "AEF coordination — substrate parallel-worker test using backlog drain workload
+  (T-2018 §6)"
 description: >
-  Initiate cross-host coordination with AEF (upstream) to run the first end-to-end test of the arc-parallel-substrate ADR (T-2018 §6) using the 18 agent-eligible backlog tasks as real workload. Roles: this session (root-claude-dimitrimintdev on 127.0.0.1:9100) acts as orchestrator; AEF spawns a worker session with /be-reachable --capabilities backlog-drain. Coordination via agent-chat-arc broadcast + DM thread. Substrate primitives exercised: find-idle (#2), claim (#1), agent contact (DM dispatch), release (#1), governor (#10).
+  Initiate cross-host coordination with AEF (upstream) to run the first end-to-end
+  test of the arc-parallel-substrate ADR (T-2018 §6) using the 18 agent-eligible backlog
+  tasks as real workload. Roles: this session (root-claude-dimitrimintdev on 127.0.0.1:9100)
+  acts as orchestrator; AEF spawns a worker session with /be-reachable --capabilities
+  backlog-drain. Coordination via agent-chat-arc broadcast + DM thread. Substrate
+  primitives exercised: find-idle (#2), claim (#1), agent contact (DM dispatch), release
+  (#1), governor (#10).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [substrate, parallel-worker, coordination, arc-001, T-2018]
 components: [scripts/orchestrator-backlog-drain.sh]
 related_tasks: []
@@ -16,7 +23,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-13T08:15:01Z
-last_update: 2026-06-13T09:04:44Z
+last_update: '2026-08-18T18:59:05Z'
 date_finished: 2026-06-13T09:04:44Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +35,30 @@ date_finished: 2026-06-13T09:04:44Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:33Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:05Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2204: AEF coordination — substrate parallel-worker test using backlog drain workload (T-2018 §6)

@@ -2,12 +2,20 @@
 id: T-2294
 name: "V3a: deterministic notify (sidecar wake)"
 description: >
-  RC3a fix. No-LLM sidecar listener (AEF ADR §5): remote-write -> local flag/KV + heartbeat timestamp; turn-based agent cooperatively polls local flag at its yield points; stale timestamped-delta => deaf => stop before acting (self-check-ears); sender missing-ack => retry. The flag is a file/KV, not a keystroke; determinism = the timestamp (absent fresh delta IS the signal). Replaces the preemptive PTY doorbell (T-1800, miss-mid-turn = T-2285 gap). Homes: kv, agent-presence, T-2051 offline-queue. ACs: idle turn-based agent woken deterministically on new mail; stale-delta self-check halts an agent whose listener died; NO preemptive mid-turn injection; missing-ack triggers retry.
+  RC3a fix. No-LLM sidecar listener (AEF ADR §5): remote-write -> local flag/KV +
+  heartbeat timestamp; turn-based agent cooperatively polls local flag at its yield
+  points; stale timestamped-delta => deaf => stop before acting (self-check-ears);
+  sender missing-ack => retry. The flag is a file/KV, not a keystroke; determinism
+  = the timestamp (absent fresh delta IS the signal). Replaces the preemptive PTY
+  doorbell (T-1800, miss-mid-turn = T-2285 gap). Homes: kv, agent-presence, T-2051
+  offline-queue. ACs: idle turn-based agent woken deterministically on new mail; stale-delta
+  self-check halts an agent whose listener died; NO preemptive mid-turn injection;
+  missing-ack triggers retry.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [arc:reliable-comms]
 components: []
 related_tasks: [T-2291, T-2292, T-2293]
@@ -16,7 +24,7 @@ related_tasks: [T-2291, T-2292, T-2293]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-27T17:06:22Z
-last_update: 2026-06-27T20:32:45Z
+last_update: '2026-08-18T18:59:07Z'
 date_finished: 2026-06-27T20:32:45Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +36,30 @@ date_finished: 2026-06-27T20:32:45Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=2 
+      (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:07Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2294: V3a: deterministic notify (sidecar wake)

@@ -2,7 +2,18 @@
 id: T-2755
 name: "topic-count growth is an unwatched axis"
 description: >
-  T-2754 fixed the producers that leaked one permanent topic per run; this closes the blindness that let it run unseen since 2026-04-27. The local hub holds 771 topics carrying 13705 records total. Both existing growth canaries gate on per-topic RECORD count: T-2252 (topic-growth) fires at 5000 records on four watched name patterns; T-2562 (forever-archival) fires at 50000 records on a Forever topic. 771 topics averaging 18 records each trips neither, so unbounded topic-COUNT accumulation is structurally invisible. Note health:ring20-fedprobe sits at 4971 records - Forever, unwatched by name, and 29 under T-2252's threshold. Design question to settle first: a new canary (T-2562 precedent - same channel list read, orthogonal firing gate) versus a second arm on T-2252. Prefer whichever avoids canary sprawl. Any firing gate must account for legitimately-durable topics and must not latch on debris the operator cannot clear (PL-340 / T-2709).
+  T-2754 fixed the producers that leaked one permanent topic per run; this closes
+  the blindness that let it run unseen since 2026-04-27. The local hub holds 771 topics
+  carrying 13705 records total. Both existing growth canaries gate on per-topic RECORD
+  count: T-2252 (topic-growth) fires at 5000 records on four watched name patterns;
+  T-2562 (forever-archival) fires at 50000 records on a Forever topic. 771 topics
+  averaging 18 records each trips neither, so unbounded topic-COUNT accumulation is
+  structurally invisible. Note health:ring20-fedprobe sits at 4971 records - Forever,
+  unwatched by name, and 29 under T-2252's threshold. Design question to settle first:
+  a new canary (T-2562 precedent - same channel list read, orthogonal firing gate)
+  versus a second arm on T-2252. Prefer whichever avoids canary sprawl. Any firing
+  gate must account for legitimately-durable topics and must not latch on debris the
+  operator cannot clear (PL-340 / T-2709).
 
 status: captured
 workflow_type: build
@@ -16,8 +27,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-15T22:27:23Z
-last_update: 2026-08-15T22:27:23Z
-date_finished: null
+last_update: '2026-08-18T18:58:40Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,6 +39,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:40Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2755: topic-count growth is an unwatched axis

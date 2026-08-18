@@ -7,13 +7,37 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 created: 2026-05-18T06:04:38Z
-last_update: 2026-05-18T06:09:00Z
+last_update: '2026-08-18T18:58:54Z'
 date_finished: 2026-05-18T06:09:00Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:08Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 1
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=1 (body:log-or-error-line); D3=0 
+      (no-signal); D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:54Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1682: watch loop auth-mismatch parsing broken — T-1681 follow-up bug fix

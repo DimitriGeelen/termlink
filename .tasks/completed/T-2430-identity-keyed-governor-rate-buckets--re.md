@@ -2,17 +2,18 @@
 id: T-2430
 name: "identity-keyed governor rate buckets — retire peer_pid keying (PL-218 follow-up)"
 description: >
-  Inception: identity-keyed governor rate buckets — retire peer_pid keying (PL-218 follow-up)
+  Inception: identity-keyed governor rate buckets — retire peer_pid keying (PL-218
+  follow-up)
 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-07-21T12:32:51Z
-last_update: 2026-07-21T13:27:33Z
+last_update: '2026-08-18T18:59:10Z'
 date_finished: 2026-07-21T13:27:33Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -22,6 +23,29 @@ target_blast_radius: 3            # int 0..9. Anticipated component count of the
                                   # Guide: 0=docs only, 1=single file, 3=small subsystem (S), 5=cross-subsystem (M), 7=multi-arc (L), 9=framework-wide (XL).
 voi_score: 0.5                    # float 0..1. Value of Information — expected value of resolving this question,
                                   # independent of build cost. Higher when answer affects many tasks or unblocks a strategic decision. Required.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:10Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 4
+      effort: 7
+    rationale: blast_radius=3 (no-signal); tier=4 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2430: identity-keyed governor rate buckets — retire peer_pid keying (PL-218 follow-up)

@@ -2,7 +2,10 @@
 id: T-1452
 name: "revisit-due-scan.sh cron + handover banner integration (T-1449 Phase-1 #2)"
 description: >
-  T-1449 Phase-1 deliverable #2: daily 07:00 cron scans .tasks/active/*.md for revisit_at <= today, writes ripe revisits to .context/working/.revisits-due.txt. Handover banner reads the file. Watchtower /home page surfaces it. Prerequisite: T-1451 (revisit_at field). ~50 LOC. Channel-1 mirror to upstream framework needed.
+  T-1449 Phase-1 deliverable #2: daily 07:00 cron scans .tasks/active/*.md for revisit_at
+  <= today, writes ripe revisits to .context/working/.revisits-due.txt. Handover banner
+  reads the file. Watchtower /home page surfaces it. Prerequisite: T-1451 (revisit_at
+  field). ~50 LOC. Channel-1 mirror to upstream framework needed.
 
 status: started-work
 workflow_type: build
@@ -12,8 +15,31 @@ tags: [framework, governance, T-1449, phase-1, channel-1-mirror, cron]
 components: []
 related_tasks: [T-1449, T-1451]
 created: 2026-05-02T22:21:38Z
-last_update: 2026-08-18T18:10:18Z
-date_finished: null
+last_update: '2026-08-18T18:58:36Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:28Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 1
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=0
+      (no-signal); F-RECALL=1 (body:episodic-only); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:36Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1452: revisit-due-scan.sh cron + handover banner integration (T-1449 Phase-1 #2)

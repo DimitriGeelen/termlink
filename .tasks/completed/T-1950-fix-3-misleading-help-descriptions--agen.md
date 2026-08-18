@@ -1,19 +1,45 @@
 ---
 id: T-1950
-name: "Fix 3 misleading help descriptions — agent_digest/agent_peers/remote_doctor (LLM-mispick bug)"
+name: "Fix 3 misleading help descriptions — agent_digest/agent_peers/remote_doctor
+  (LLM-mispick bug)"
 description: >
-  Help registry descriptions inaccurately describe tool semantics; LLMs would pick wrong tool
+  Help registry descriptions inaccurately describe tool semantics; LLMs would pick
+  wrong tool
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T20:35:19Z
-last_update: 2026-06-03T20:37:21Z
+last_update: '2026-08-18T18:58:59Z'
 date_finished: 2026-06-03T20:40:56Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1950: Fix 3 misleading help descriptions — agent_digest/agent_peers/remote_doctor (LLM-mispick bug)

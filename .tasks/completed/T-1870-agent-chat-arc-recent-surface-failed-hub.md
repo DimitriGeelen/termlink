@@ -1,19 +1,44 @@
 ---
 id: T-1870
-name: "agent-chat-arc-recent: surface failed hub names in JSON + human output (PL-189 visibility follow-on)"
+name: "agent-chat-arc-recent: surface failed hub names in JSON + human output (PL-189
+  visibility follow-on)"
 description: >
-  agent-chat-arc-recent: surface failed hub names in JSON + human output (PL-189 visibility follow-on)
+  agent-chat-arc-recent: surface failed hub names in JSON + human output (PL-189 visibility
+  follow-on)
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [scripts/agent-chat-arc-recent.sh]
 related_tasks: [T-1845, T-1861, T-1851, T-1860]
 created: 2026-05-29T23:15:58Z
-last_update: 2026-05-29T23:21:33Z
+last_update: '2026-08-18T18:58:58Z'
 date_finished: 2026-05-29T23:21:33Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1870: agent-chat-arc-recent: surface failed hub names in JSON + human output (PL-189 visibility follow-on)

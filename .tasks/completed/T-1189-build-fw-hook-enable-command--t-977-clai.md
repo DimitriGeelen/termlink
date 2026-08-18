@@ -1,19 +1,47 @@
 ---
 id: T-1189
-name: "Build fw hook-enable command — T-977 claimed complete but bin/hook-enable.sh missing (G-015 Hit #2)"
+name: "Build fw hook-enable command — T-977 claimed complete but bin/hook-enable.sh
+  missing (G-015 Hit #2)"
 description: >
-  T-977 closed 2026-04-12 with 4 Agent AC [x] claiming bin/hook-enable.sh exists and fw hook-enable route was added. G-015 audit confirmed both are missing. Build honest deliverable in vendored .agentic-framework/ copy, create follow-up upstream-mirror task (T-1188 pattern).
+  T-977 closed 2026-04-12 with 4 Agent AC [x] claiming bin/hook-enable.sh exists and
+  fw hook-enable route was added. G-015 audit confirmed both are missing. Build honest
+  deliverable in vendored .agentic-framework/ copy, create follow-up upstream-mirror
+  task (T-1188 pattern).
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [framework, hook, g-015-repair]
 components: []
 related_tasks: [T-977, T-1187, T-1188]
 created: 2026-04-22T18:33:20Z
-last_update: 2026-04-26T10:55:19Z
+last_update: '2026-08-18T18:58:45Z'
 date_finished: 2026-04-23T17:19:51Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:49Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 4
+      F-RECALL: 0
+      F-ORCH: 1
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=4
+      (body:cross-machine); F-RECALL=0 (no-signal); F-ORCH=1 
+      (body:hand-wired-dispatch)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1189: Build fw hook-enable command — T-977 claimed complete but bin/hook-enable.sh missing (G-015 Hit #2)

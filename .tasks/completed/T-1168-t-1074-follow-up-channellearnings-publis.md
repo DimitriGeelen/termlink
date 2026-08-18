@@ -2,18 +2,46 @@
 id: T-1168
 name: "T-1074 follow-up: channel:learnings publisher + subscriber on T-1155 bus"
 description: >
-  Cross-agent learning exchange on top of T-1155 channel bus. Publish learnings to channel:learnings on fw context add-learning; subscribe daemon writes to received-learnings.yaml; Watchtower fleet-insights panel. Depends on T-1158 (bus crate), T-1159 (ed25519 identity), T-1160 (channel API). Replaces the 15-min cron design from T-1074 inception — see docs/reports/T-1074-cross-agent-learning-exchange-inception.md for rationale.
+  Cross-agent learning exchange on top of T-1155 channel bus. Publish learnings to
+  channel:learnings on fw context add-learning; subscribe daemon writes to received-learnings.yaml;
+  Watchtower fleet-insights panel. Depends on T-1158 (bus crate), T-1159 (ed25519
+  identity), T-1160 (channel API). Replaces the 15-min cron design from T-1074 inception
+  — see docs/reports/T-1074-cross-agent-learning-exchange-inception.md for rationale.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [T-1074, T-1155, bus, learnings-exchange]
 components: []
 related_tasks: [T-1074, T-1155, T-1158, T-1159, T-1160, T-1161]
 created: 2026-04-20T14:43:26Z
-last_update: 2026-04-24T12:31:56Z
+last_update: '2026-08-18T18:58:45Z'
 date_finished: 2026-04-24T12:31:56Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:48Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 3
+      D4: 0
+      F-RECALL: 3
+      F-ORCH: 0
+    rationale: D1=2 (body:learning-ref); D2=2 (body:telemetry-or-audit-entry); 
+      D3=3 (body:component-discoverability); D4=0 (no-signal); F-RECALL=3 
+      (body:fw-recall-or-memory-link); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1168: T-1074 follow-up: channel:learnings publisher + subscriber on T-1155 bus

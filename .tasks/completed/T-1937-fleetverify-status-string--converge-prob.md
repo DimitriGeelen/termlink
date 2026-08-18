@@ -1,19 +1,49 @@
 ---
 id: T-1937
-name: "fleet_verify status string — converge probe-fail → probe-failed (matches tofu_verify, T-1927)"
+name: "fleet_verify status string — converge probe-fail → probe-failed (matches tofu_verify,
+  T-1927)"
 description: >
-  T-1927 settled tofu_verify on 'probe-failed'. fleet_verify, fleet_doctor --include-pin-check, and fleet_reauth_all all still emit 'probe-fail' — both CLI and MCP. Aligning gives operators and LLM consumers a single status string to recognize across the rotation-protocol family. Scope: only string literal values that appear in 'status' / 'verdict' fields + operator-visible print strings + exit-code match arms. Out of scope: JSON field names (probe_fail_count, any_probe_fail) and internal Rust variable names.
+  T-1927 settled tofu_verify on 'probe-failed'. fleet_verify, fleet_doctor --include-pin-check,
+  and fleet_reauth_all all still emit 'probe-fail' — both CLI and MCP. Aligning gives
+  operators and LLM consumers a single status string to recognize across the rotation-protocol
+  family. Scope: only string literal values that appear in 'status' / 'verdict' fields
+  + operator-visible print strings + exit-code match arms. Out of scope: JSON field
+  names (probe_fail_count, any_probe_fail) and internal Rust variable names.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-02T23:03:44Z
-last_update: 2026-06-02T23:40:15Z
+last_update: '2026-08-18T18:58:59Z'
 date_finished: 2026-06-03T00:34:17Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1937: fleet_verify status string — converge probe-fail → probe-failed (matches tofu_verify, T-1927)

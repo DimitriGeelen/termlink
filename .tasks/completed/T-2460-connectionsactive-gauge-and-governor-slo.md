@@ -1,13 +1,18 @@
 ---
 id: T-2460
-name: "connections_active gauge and governor slot leak on a panic inside handle_connection — add RAII drop-guard (round-14 F4, LOW)"
+name: "connections_active gauge and governor slot leak on a panic inside handle_connection
+  — add RAII drop-guard (round-14 F4, LOW)"
 description: >
-  Panic-only connection-slot leak. handle_connection increments connections_active + reserves a governor slot on accept (server.rs:682/694), releasing via fetch_sub/release after the match (server.rs:740/775). A panic inside the spawned task skips the release (no Drop guard) — the gauge and governor slot leak permanently. LOW: panic-only. Fix: wrap acquire in an RAII scope-guard that releases on drop. Round-14 F4.
+  Panic-only connection-slot leak. handle_connection increments connections_active
+  + reserves a governor slot on accept (server.rs:682/694), releasing via fetch_sub/release
+  after the match (server.rs:740/775). A panic inside the spawned task skips the release
+  (no Drop guard) — the gauge and governor slot leak permanently. LOW: panic-only.
+  Fix: wrap acquire in an RAII scope-guard that releases on drop. Round-14 F4.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-hub/src/server.rs]
 related_tasks: []
@@ -16,7 +21,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-22T18:38:46Z
-last_update: 2026-08-02T07:12:35Z
+last_update: '2026-08-18T18:59:11Z'
 date_finished: 2026-08-02T07:12:35Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +33,30 @@ date_finished: 2026-08-02T07:12:35Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:11Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2460: connections_active gauge and governor slot leak on a panic inside handle_connection — add RAII drop-guard (round-14 F4, LOW)

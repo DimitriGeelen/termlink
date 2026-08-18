@@ -2,18 +2,45 @@
 id: T-1742
 name: "Align MCP-CLI defaults — timeline + overview (T-1739/41 follow-up)"
 description: >
-  Parity divergence in T-1739 (timeline) and T-1741 (overview) MCP wedges: defaults differ from CLI. Timeline: CLI uses n=50/window=3600s, MCP used n=30/window=86400s. Overview: CLI uses window=3600/top=5, MCP used window=86400/top=10. Fix MCP defaults to match CLI verbatim; agents calling MCP should get same shape as humans via CLI.
+  Parity divergence in T-1739 (timeline) and T-1741 (overview) MCP wedges: defaults
+  differ from CLI. Timeline: CLI uses n=50/window=3600s, MCP used n=30/window=86400s.
+  Overview: CLI uses window=3600/top=5, MCP used window=86400/top=10. Fix MCP defaults
+  to match CLI verbatim; agents calling MCP should get same shape as humans via CLI.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-21T07:16:27Z
-last_update: 2026-05-21T07:18:42Z
+last_update: '2026-08-18T18:58:55Z'
 date_finished: 2026-05-21T07:18:42Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:11Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:55Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1742: Align MCP-CLI defaults — timeline + overview (T-1739/41 follow-up)

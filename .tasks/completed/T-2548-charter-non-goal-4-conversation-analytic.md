@@ -2,17 +2,20 @@
 id: T-2548
 name: "Charter non-goal #4: conversation-analytics MCP tool family subtract-vs-keep"
 description: >
-  Off-charter subtract candidate from T-2468 purpose review: ~30-40 LIVE conversation-analytics MCP tools that fail all four charter verbs; zero first-party callers; sibling of T-2471/T-2478 pruned social-analytics set.
+  Off-charter subtract candidate from T-2468 purpose review: ~30-40 LIVE conversation-analytics
+  MCP tools that fail all four charter verbs; zero first-party callers; sibling of
+  T-2471/T-2478 pruned social-analytics set.
 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: []
-components: [scripts/check-charter-drift-freshness.sh, tests/charter-drift-check-fixtures.sh]
+components: [scripts/check-charter-drift-freshness.sh, 
+      tests/charter-drift-check-fixtures.sh]
 related_tasks: []
 created: 2026-08-08T19:34:48Z
-last_update: 2026-08-16T14:11:11Z
+last_update: '2026-08-18T18:59:12Z'
 date_finished: 2026-08-16T14:11:11Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -22,6 +25,29 @@ target_blast_radius: 3            # int 0..9. Anticipated component count of the
                                   # Guide: 0=docs only, 1=single file, 3=small subsystem (S), 5=cross-subsystem (M), 7=multi-arc (L), 9=framework-wide (XL).
 voi_score: 0.5                    # float 0..1. Value of Information — expected value of resolving this question,
                                   # independent of build cost. Higher when answer affects many tasks or unblocks a strategic decision. Required.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:51Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:12Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 4
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=4 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2548: Charter non-goal #4: conversation-analytics MCP tool family subtract-vs-keep

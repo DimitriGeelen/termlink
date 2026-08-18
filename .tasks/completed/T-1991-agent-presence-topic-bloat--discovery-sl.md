@@ -1,19 +1,44 @@
 ---
 id: T-1991
-name: "agent-presence topic-bloat — discovery slowdown on .122/.107 from monotonic growth"
+name: "agent-presence topic-bloat — discovery slowdown on .122/.107 from monotonic
+  growth"
 description: >
-  Inception: agent-presence topic-bloat — discovery slowdown on .122/.107 from monotonic growth
+  Inception: agent-presence topic-bloat — discovery slowdown on .122/.107 from monotonic
+  growth
 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-05T09:23:56Z
-last_update: 2026-06-06T20:25:31Z
+last_update: '2026-08-18T18:59:00Z'
 date_finished: 2026-06-06T20:25:31Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:22Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1991: agent-presence topic-bloat — discovery slowdown on .122/.107 from monotonic growth

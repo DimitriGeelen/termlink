@@ -2,18 +2,47 @@
 id: T-1939
 name: "MCP help registry — surface channel_* family (primitive bus operations)"
 description: >
-  Add the channel_* primitive bus family to termlink_help so LLM consumers can discover the lower-level operations beneath agent_*. Currently ~50 channel_* tools are registered but invisible via help. Scope: channel primitives (create/list/post/subscribe/info/describe/snapshot) + edits/redactions/pins/stars/reactions/quotes/replies/forwards. Out of scope: aggregate stats (emoji_stats, quote_stats, edit_stats, queue_status), poll lifecycle (covered as agent_poll already), members/typing (admin-tier).
+  Add the channel_* primitive bus family to termlink_help so LLM consumers can discover
+  the lower-level operations beneath agent_*. Currently ~50 channel_* tools are registered
+  but invisible via help. Scope: channel primitives (create/list/post/subscribe/info/describe/snapshot)
+  + edits/redactions/pins/stars/reactions/quotes/replies/forwards. Out of scope: aggregate
+  stats (emoji_stats, quote_stats, edit_stats, queue_status), poll lifecycle (covered
+  as agent_poll already), members/typing (admin-tier).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T00:39:31Z
-last_update: 2026-06-03T00:42:24Z
+last_update: '2026-08-18T18:58:59Z'
 date_finished: 2026-06-03T00:44:57Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 1
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=1 (body:log-or-error-line); D3=0 
+      (no-signal); D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1939: MCP help registry — surface channel_* family (primitive bus operations)

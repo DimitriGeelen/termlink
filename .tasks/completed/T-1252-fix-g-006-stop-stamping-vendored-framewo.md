@@ -2,18 +2,44 @@
 id: T-1252
 name: "Fix G-006: stop stamping vendored framework VERSION on push"
 description: >
-  Pre-push hook lib/hooks.sh:410-412 stamps the project's git-derived version into .agentic-framework/VERSION, overwriting the framework's own version. Remove the second stamp; only the project root VERSION should be touched. Fix in consumer + upstream framework via Channel 1.
+  Pre-push hook lib/hooks.sh:410-412 stamps the project's git-derived version into
+  .agentic-framework/VERSION, overwriting the framework's own version. Remove the
+  second stamp; only the project root VERSION should be touched. Fix in consumer +
+  upstream framework via Channel 1.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-25T13:37:06Z
-last_update: 2026-04-25T13:41:00Z
+last_update: '2026-08-18T18:58:46Z'
 date_finished: 2026-04-25T13:41:00Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:51Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=0
+      (no-signal); F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 5
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=5 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1252: Fix G-006: stop stamping vendored framework VERSION on push

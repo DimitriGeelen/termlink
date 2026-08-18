@@ -2,18 +2,45 @@
 id: T-1227
 name: "T-1220c: CLI remote cmd_remote_inbox_list migration (T-1220 wedge c, narrowed)"
 description: >
-  Migrate the List arm of cmd_remote_inbox_inner in crates/termlink-cli/src/commands/remote.rs (@1286) to use T-1231's list_with_fallback_with_client. Status / Clear arms and fleet-doctor inbox.status call deferred (same semantic blockers as T-1229 / T-1230).
+  Migrate the List arm of cmd_remote_inbox_inner in crates/termlink-cli/src/commands/remote.rs
+  (@1286) to use T-1231's list_with_fallback_with_client. Status / Clear arms and
+  fleet-doctor inbox.status call deferred (same semantic blockers as T-1229 / T-1230).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [T-1155, bus, migration, T-1220, wedge-c]
-components: [crates/termlink-cli/src/commands/remote.rs, crates/termlink-session/src/inbox_channel.rs, crates/termlink-session/src/lib.rs]
+components: [crates/termlink-cli/src/commands/remote.rs, 
+      crates/termlink-session/src/inbox_channel.rs, 
+      crates/termlink-session/src/lib.rs]
 related_tasks: [T-1220, T-1225, T-1226, T-1228, T-1231]
 created: 2026-04-25T07:00:14Z
-last_update: 2026-04-25T08:35:14Z
+last_update: '2026-08-18T18:58:46Z'
 date_finished: 2026-04-25T08:35:14Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1227: T-1220c CLI remote cmd_remote_inbox_list migration

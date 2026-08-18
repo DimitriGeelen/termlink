@@ -1,17 +1,44 @@
 ---
 id: T-915
 name: "Poll framework for T-909 RCA fixes; fw upgrade when landed"
-description: "Wait-and-poll task for 4 framework bugs surfaced during T-909 (symlink fix, 2026-04-11). When upstream fixes land, run fw upgrade from termlink and re-verify. If no fixes available, leave on horizon: later and recheck periodically. See body for findings + check procedure."
+description: "Wait-and-poll task for 4 framework bugs surfaced during T-909 (symlink
+  fix, 2026-04-11). When upstream fixes land, run fw upgrade from termlink and re-verify.
+  If no fixes available, leave on horizon: later and recheck periodically. See body
+  for findings + check procedure."
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [framework, upgrade, rca, polling]
 components: []
 related_tasks: [T-909, T-910, T-911, T-912, T-913, T-914]
 created: 2026-04-11T12:47:25Z
-last_update: 2026-04-24T16:15:18Z
+last_update: '2026-08-18T18:59:23Z'
 date_finished: 2026-04-24T16:15:18Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 4
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=4 
+      (body:framework-level-ux); D4=0 (no-signal); F-RECALL=2 
+      (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:23Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 5
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=5 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 ## Findings

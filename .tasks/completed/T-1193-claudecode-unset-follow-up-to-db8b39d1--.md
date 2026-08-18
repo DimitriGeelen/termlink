@@ -1,19 +1,49 @@
 ---
 id: T-1193
-name: "CLAUDECODE-unset follow-up to db8b39d1 — approvals auto-execute must strip CLAUDECODE from subprocess env"
+name: "CLAUDECODE-unset follow-up to db8b39d1 — approvals auto-execute must strip
+  CLAUDECODE from subprocess env"
 description: >
-  Structural fix db8b39d1 landed Watchtower auto-execute for fw inception decide approvals, but subprocess.run passes env={**os.environ,'TIER0_AUTOEXEC':'1'} which still includes CLAUDECODE=1. Inner gate (T-679/T-1259) refuses the command with 'Agents must not invoke fw inception decide directly'. Fix: strip CLAUDECODE before spawning. Apply to both /opt/termlink vendored and upstream /opt/999-Agentic-Engineering-Framework via Channel 1 dispatch.
+  Structural fix db8b39d1 landed Watchtower auto-execute for fw inception decide approvals,
+  but subprocess.run passes env={**os.environ,'TIER0_AUTOEXEC':'1'} which still includes
+  CLAUDECODE=1. Inner gate (T-679/T-1259) refuses the command with 'Agents must not
+  invoke fw inception decide directly'. Fix: strip CLAUDECODE before spawning. Apply
+  to both /opt/termlink vendored and upstream /opt/999-Agentic-Engineering-Framework
+  via Channel 1 dispatch.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [framework, watchtower, structural-fix]
 components: []
 related_tasks: [T-1192, T-939]
 created: 2026-04-22T21:52:21Z
-last_update: 2026-04-22T21:55:58Z
+last_update: '2026-08-18T18:58:45Z'
 date_finished: 2026-04-22T21:55:58Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:49Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=1 (body:fix-without-learning); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1193: CLAUDECODE-unset follow-up to db8b39d1 — approvals auto-execute must strip CLAUDECODE from subprocess env

@@ -1,19 +1,50 @@
 ---
 id: T-1173
-name: "T-1162 follow-up: audit event.collect/event.poll kind-filter callers (no migration needed)"
+name: "T-1162 follow-up: audit event.collect/event.poll kind-filter callers (no migration
+  needed)"
 description: >
-  Audit receiver-side callers of event.collect/event.poll that filter by 'kind' (payload discriminator). Audit outcome: no such callers exist in the termlink repo — consumers filter by the RPC 'topic' param, not by a payload 'kind' field. The task premise is invalidated. Finding recorded; no code change required. The hub-side T-1162 dual-write shim already exposes every event.broadcast on channel:broadcast:global for any future consumer that wants the new surface.
+  Audit receiver-side callers of event.collect/event.poll that filter by 'kind' (payload
+  discriminator). Audit outcome: no such callers exist in the termlink repo — consumers
+  filter by the RPC 'topic' param, not by a payload 'kind' field. The task premise
+  is invalidated. Finding recorded; no code change required. The hub-side T-1162 dual-write
+  shim already exposes every event.broadcast on channel:broadcast:global for any future
+  consumer that wants the new surface.
 
 status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: null
+horizon:
 tags: [T-1155, bus, migration, audit]
-components: [crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs]
+components: [crates/termlink-hub/src/channel.rs, 
+      crates/termlink-hub/src/router.rs]
 related_tasks: [T-1162, T-1166]
 created: 2026-04-20T22:28:50Z
-last_update: 2026-04-20T22:40:46Z
+last_update: '2026-08-18T18:58:45Z'
 date_finished: 2026-04-20T22:40:46Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:48Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=3 
+      (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 3
+      effort: 6
+    rationale: blast_radius=3 (no-signal); tier=3 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1173: T-1162 follow-up — audit event.collect/event.poll kind-filter callers (no migration needed)

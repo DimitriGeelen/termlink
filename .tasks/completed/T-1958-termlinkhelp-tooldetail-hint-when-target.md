@@ -2,18 +2,47 @@
 id: T-1958
 name: "termlink_help tool_detail hint when target is a category name"
 description: >
-  MCP client arc T-1958: when an LLM passes a category name (e.g. 'channel', 'session', 'kv') as tool_detail, the error path emits did_you_mean tool-name suggestions by Levenshtein, none of which are likely matches because the input was a valid CATEGORY (not a typoed tool). Add a category_hint field to the error envelope when target is a known category — points the LLM at category=<value> or list_categories=true. Unknown non-category inputs keep the existing did_you_mean behavior unchanged.
+  MCP client arc T-1958: when an LLM passes a category name (e.g. 'channel', 'session',
+  'kv') as tool_detail, the error path emits did_you_mean tool-name suggestions by
+  Levenshtein, none of which are likely matches because the input was a valid CATEGORY
+  (not a typoed tool). Add a category_hint field to the error envelope when target
+  is a known category — points the LLM at category=<value> or list_categories=true.
+  Unknown non-category inputs keep the existing did_you_mean behavior unchanged.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T21:50:40Z
-last_update: 2026-06-03T21:53:01Z
+last_update: '2026-08-18T18:58:59Z'
 date_finished: 2026-06-03T21:55:22Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:21Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 1
+      D3: 4
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=1 (body:log-or-error-line); D3=4 
+      (body:framework-level-ux); D4=3 (body:portability-abstraction); F-RECALL=0
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1958: termlink_help tool_detail hint when target is a category name

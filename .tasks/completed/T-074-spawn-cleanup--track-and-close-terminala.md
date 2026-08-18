@@ -2,18 +2,44 @@
 id: T-074
 name: "Spawn cleanup — track and close Terminal.app windows on test exit"
 description: >
-  E2e tests spawn Terminal.app windows via osascript but never close them. Window IDs are returned by spawn (tab 1 of window id XXXX) but not captured. Cleanup kills processes but leaves windows. Need: capture window IDs, store in runtime dir, close only tracked windows on cleanup.
+  E2e tests spawn Terminal.app windows via osascript but never close them. Window
+  IDs are returned by spawn (tab 1 of window id XXXX) but not captured. Cleanup kills
+  processes but leaves windows. Need: capture window IDs, store in runtime dir, close
+  only tracked windows on cleanup.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-10T09:05:49Z
-last_update: 2026-03-12T00:38:50Z
+last_update: '2026-08-18T18:58:41Z'
 date_finished: 2026-03-12T00:38:50Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:41Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 1
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=1 (body:hand-wired-dispatch)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:41Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-074: Spawn cleanup — track and close Terminal.app windows on test exit

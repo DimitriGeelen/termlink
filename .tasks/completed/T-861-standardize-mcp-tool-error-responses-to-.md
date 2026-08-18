@@ -1,19 +1,45 @@
 ---
 id: T-861
-name: "Standardize MCP tool error responses to JSON — migrate plain text errors to {ok:false, error:...}"
+name: "Standardize MCP tool error responses to JSON — migrate plain text errors to
+  {ok:false, error:...}"
 description: >
-  Standardize MCP tool error responses to JSON — migrate plain text errors to {ok:false, error:...}
+  Standardize MCP tool error responses to JSON — migrate plain text errors to {ok:false,
+  error:...}
 
 status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-04T19:42:10Z
-last_update: 2026-04-04T19:57:47Z
+last_update: '2026-08-18T18:59:22Z'
 date_finished: 2026-04-04T19:57:47Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:12Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=3 
+      (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:22Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 3
+      effort: 5
+    rationale: blast_radius=0 (no-signal); tier=3 (no-signal); effort=5 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-861: Standardize MCP tool error responses to JSON — migrate plain text errors to {ok:false, error:...}

@@ -2,7 +2,23 @@
 id: T-2017
 name: "T-2013 follow-up: .141 channel.info wedges over network despite fix"
 description: >
-  T-2013 fix landed on .141 (binary swapped to v0.11.806, hub restarted, LOCAL channel info instant proving worker starvation cured). But .107 client → .141 hub channel.info on agent-presence + agent-chat-arc both wedge at 15s timeout. Same client, same network: channel list (~100ms) and fleet doctor (~113ms) work fine. Hub log shows TCP accept + token authenticated (scope=execute) then handler stalls. Inside .141 the same channel info on the same topic completes in <500ms (instant). This is NOT the T-2013 worker starvation bug (which is structurally cured on the same binary running locally). It's a separate latent issue — possibly: WSL-on-Windows /mnt/c DrvFs filesystem latency on a code path that channel.list avoids, or response-size handling regression in v0.11.806 specific to channel.info envelope. Reproduce: from .107: timeout 15 termlink channel info agent-presence --hub 192.168.10.141:9100 → exit 124. Then from .141 agent-1 session: /home/dimitri/bin/termlink channel info agent-presence → instant. Investigate hub.rs::handle_channel_info_with: is there a code path that walks envelopes for sender summary on agent-presence (2412 posts, 1 sender)? Compare to handle_channel_list_with which works fine. .122 + .121 (same v0.11.806 binary, both LXC ext4) work end-to-end so it's NOT a generic regression — laptop-141 specific.
+  T-2013 fix landed on .141 (binary swapped to v0.11.806, hub restarted, LOCAL channel
+  info instant proving worker starvation cured). But .107 client → .141 hub channel.info
+  on agent-presence + agent-chat-arc both wedge at 15s timeout. Same client, same
+  network: channel list (~100ms) and fleet doctor (~113ms) work fine. Hub log shows
+  TCP accept + token authenticated (scope=execute) then handler stalls. Inside .141
+  the same channel info on the same topic completes in <500ms (instant). This is NOT
+  the T-2013 worker starvation bug (which is structurally cured on the same binary
+  running locally). It's a separate latent issue — possibly: WSL-on-Windows /mnt/c
+  DrvFs filesystem latency on a code path that channel.list avoids, or response-size
+  handling regression in v0.11.806 specific to channel.info envelope. Reproduce: from
+  .107: timeout 15 termlink channel info agent-presence --hub 192.168.10.141:9100
+  → exit 124. Then from .141 agent-1 session: /home/dimitri/bin/termlink channel info
+  agent-presence → instant. Investigate hub.rs::handle_channel_info_with: is there
+  a code path that walks envelopes for sender summary on agent-presence (2412 posts,
+  1 sender)? Compare to handle_channel_list_with which works fine. .122 + .121 (same
+  v0.11.806 binary, both LXC ext4) work end-to-end so it's NOT a generic regression
+  — laptop-141 specific.
 
 status: started-work
 workflow_type: build
@@ -16,8 +32,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-06T12:20:15Z
-last_update: 2026-06-06T12:43:43Z
-date_finished: null
+last_update: '2026-08-18T18:58:37Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,6 +44,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:31Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2017: T-2013 follow-up: .141 channel.info wedges over network despite fix

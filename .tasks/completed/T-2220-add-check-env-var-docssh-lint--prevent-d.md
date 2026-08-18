@@ -1,13 +1,19 @@
 ---
 id: T-2220
-name: "Add check-env-var-docs.sh lint — prevent doc-vs-source env-var-name drift (G-019 prevention for T-2219)"
+name: "Add check-env-var-docs.sh lint — prevent doc-vs-source env-var-name drift (G-019
+  prevention for T-2219)"
 description: >
-  T-2219 fixed env-var-name drift in operator docs but the prevention was deferred. Add a sibling lint to check-error-code-docs.sh that scans every TERMLINK_* env var cited in docs/CLAUDE.md/.claude against the union of names referenced in crates/+scripts/+systemd-templates/, flagging citations with no implementation surface. Wire into the existing doc-lint.yml CI job. Completes the G-019 prevention loop for the env-var-name surface of the doc-vs-source identifier drift class.
+  T-2219 fixed env-var-name drift in operator docs but the prevention was deferred.
+  Add a sibling lint to check-error-code-docs.sh that scans every TERMLINK_* env var
+  cited in docs/CLAUDE.md/.claude against the union of names referenced in crates/+scripts/+systemd-templates/,
+  flagging citations with no implementation surface. Wire into the existing doc-lint.yml
+  CI job. Completes the G-019 prevention loop for the env-var-name surface of the
+  doc-vs-source identifier drift class.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: [T-2219, T-2217, T-2218]
@@ -16,7 +22,7 @@ related_tasks: [T-2219, T-2217, T-2218]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-13T16:35:14Z
-last_update: 2026-06-13T16:39:27Z
+last_update: '2026-08-18T18:59:05Z'
 date_finished: 2026-06-13T16:39:27Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +34,30 @@ date_finished: 2026-06-13T16:39:27Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:34Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:05Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2220: Add check-env-var-docs.sh lint — prevent doc-vs-source env-var-name drift (G-019 prevention for T-2219)

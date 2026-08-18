@@ -7,13 +7,45 @@ description: >
 status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/commands/dispatch.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/util.rs, crates/termlink-hub/src/circuit_breaker.rs, crates/termlink-hub/src/route_cache.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/template_cache.rs, crates/termlink-hub/src/trust.rs, crates/termlink-mcp/src/server.rs, crates/termlink-mcp/src/tools.rs]
+components: [crates/termlink-cli/src/commands/agent.rs, 
+      crates/termlink-cli/src/commands/dispatch.rs, 
+      crates/termlink-cli/src/commands/infrastructure.rs, 
+      crates/termlink-cli/src/commands/remote.rs, 
+      crates/termlink-cli/src/util.rs, 
+      crates/termlink-hub/src/circuit_breaker.rs, 
+      crates/termlink-hub/src/route_cache.rs, crates/termlink-hub/src/router.rs, 
+      crates/termlink-hub/src/template_cache.rs, 
+      crates/termlink-hub/src/trust.rs, crates/termlink-mcp/src/server.rs, 
+      crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-03-27T19:15:59Z
-last_update: 2026-03-27T19:17:39Z
+last_update: '2026-08-18T18:59:17Z'
 date_finished: 2026-03-27T19:17:39Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:01Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 9
+      tier: 3
+      effort: 5
+    rationale: blast_radius=9 (no-signal); tier=3 (no-signal); effort=5 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-536: Fix clippy warnings across all crates

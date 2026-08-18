@@ -1,19 +1,50 @@
 ---
 id: T-1978
-name: "termlink_help: summary mode live-count aggregates (live_tools, live_categories, largest_live_categories)"
+name: "termlink_help: summary mode live-count aggregates (live_tools, live_categories,
+  largest_live_categories)"
 description: >
-  Extend summary mode with live-count derivations: total_live_tools (= total_tools - total_deprecated), total_live_categories (count of categories with >=1 live tool), and largest_live_categories[5] (top-5 by LIVE tool count, not total). Composes with T-1977's exclude_deprecated axis: LLMs landing on summary see effective post-T-1166-retirement namespace sizes at first glance, instead of having to mentally subtract deprecated rows from the existing aggregates. All derived from the existing categories walk + is_deprecated() — no new source of truth.
+  Extend summary mode with live-count derivations: total_live_tools (= total_tools
+  - total_deprecated), total_live_categories (count of categories with >=1 live tool),
+  and largest_live_categories[5] (top-5 by LIVE tool count, not total). Composes with
+  T-1977's exclude_deprecated axis: LLMs landing on summary see effective post-T-1166-retirement
+  namespace sizes at first glance, instead of having to mentally subtract deprecated
+  rows from the existing aggregates. All derived from the existing categories walk
+  + is_deprecated() — no new source of truth.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-04T07:16:29Z
-last_update: 2026-06-04T07:19:31Z
+last_update: '2026-08-18T18:59:00Z'
 date_finished: 2026-06-04T07:21:20Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:21Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1978: termlink_help: summary mode live-count aggregates (live_tools, live_categories, largest_live_categories)

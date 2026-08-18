@@ -7,13 +7,36 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [scripts/fleet-adoption-snapshot.sh, scripts/lib/hubs-toml-walk.sh]
 related_tasks: []
 created: 2026-05-31T09:20:54Z
-last_update: 2026-05-31T09:59:50Z
+last_update: '2026-08-18T18:58:58Z'
 date_finished: 2026-05-31T09:59:50Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:18Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 7
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1894: apply hubs-toml-walk lib to fleet-adoption-snapshot (T-1892 followup)

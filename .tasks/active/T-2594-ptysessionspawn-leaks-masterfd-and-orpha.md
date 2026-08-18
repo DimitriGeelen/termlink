@@ -2,7 +2,16 @@
 id: T-2594
 name: "PtySession::spawn leaks master_fd and orphans child when dup() fails"
 description: >
-  T-2468 verb-4 re-hunt (2026-08-10, CONFIRMED + self-verified). crates/termlink-session/src/pty.rs ~162-165: after fork() (child already spawned at ~129), libc::dup(master_fd) failure returns Err(PtyError::Create(...)) WITHOUT (a) closing master_fd (leaked openpty master) and (b) killing/reaping the already-forked child. PtySession is not yet constructed, so Drop cannot clean up. Under fd exhaustion every failed spawn leaks the master fd AND leaves a live orphaned shell child — compounding the exhaustion. Fix: on the dup<0 branch, libc::close(master_fd) and kill(child_pid,SIGKILL)+waitpid before returning Err. Small, contained fix but on the delicate spawn/fork path — file-not-build per T-2468 boundary; add a test that injects dup failure (or at least an fd-count assertion around a forced-fail spawn).
+  T-2468 verb-4 re-hunt (2026-08-10, CONFIRMED + self-verified). crates/termlink-session/src/pty.rs
+  ~162-165: after fork() (child already spawned at ~129), libc::dup(master_fd) failure
+  returns Err(PtyError::Create(...)) WITHOUT (a) closing master_fd (leaked openpty
+  master) and (b) killing/reaping the already-forked child. PtySession is not yet
+  constructed, so Drop cannot clean up. Under fd exhaustion every failed spawn leaks
+  the master fd AND leaves a live orphaned shell child — compounding the exhaustion.
+  Fix: on the dup<0 branch, libc::close(master_fd) and kill(child_pid,SIGKILL)+waitpid
+  before returning Err. Small, contained fix but on the delicate spawn/fork path —
+  file-not-build per T-2468 boundary; add a test that injects dup failure (or at least
+  an fd-count assertion around a forced-fail spawn).
 
 status: captured
 workflow_type: build
@@ -16,8 +25,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-10T20:11:50Z
-last_update: 2026-08-10T20:11:50Z
-date_finished: null
+last_update: '2026-08-18T18:58:38Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,6 +37,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:35Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2594: PtySession::spawn leaks master_fd and orphans child when dup() fails

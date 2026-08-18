@@ -1,19 +1,45 @@
 ---
 id: T-975
-name: "Refactor gate scripts to use shared watchtower helper — eliminate bare command output"
+name: "Refactor gate scripts to use shared watchtower helper — eliminate bare command
+  output"
 description: >
-  Refactor check-tier0.sh, inception.sh, update-task.sh, verify-acs.sh, and init.sh to use _watchtower_url/_watchtower_open from lib/watchtower.sh instead of hardcoding ports and outputting bare commands. From T-972 RC-1 fix.
+  Refactor check-tier0.sh, inception.sh, update-task.sh, verify-acs.sh, and init.sh
+  to use _watchtower_url/_watchtower_open from lib/watchtower.sh instead of hardcoding
+  ports and outputting bare commands. From T-972 RC-1 fix.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T10:27:22Z
-last_update: 2026-04-12T10:41:26Z
+last_update: '2026-08-18T18:59:24Z'
 date_finished: 2026-04-12T10:41:26Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:16Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 1
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=1 
+      (body:hard-coded-removed); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:24Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 4
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=4 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-975: Refactor gate scripts to use shared watchtower helper — eliminate bare command output

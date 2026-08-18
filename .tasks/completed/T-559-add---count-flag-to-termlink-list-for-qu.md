@@ -7,13 +7,39 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/session.rs, crates/termlink-cli/src/main.rs, crates/termlink-cli/tests/cli_integration.rs]
+components: [crates/termlink-cli/src/cli.rs, 
+      crates/termlink-cli/src/commands/session.rs, 
+      crates/termlink-cli/src/main.rs, 
+      crates/termlink-cli/tests/cli_integration.rs]
 related_tasks: []
 created: 2026-03-28T10:07:58Z
-last_update: 2026-03-28T10:09:48Z
+last_update: '2026-08-18T18:59:17Z'
 date_finished: 2026-03-28T10:09:48Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:02Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 5
+      tier: 2
+      effort: 7
+    rationale: blast_radius=5 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-559: Add --count flag to termlink list for quick session counting

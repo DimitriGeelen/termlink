@@ -1,19 +1,49 @@
 ---
 id: T-1693
-name: "Per-agent ed25519 signing identity on shared hosts — provisioning + session-time identity selection (cohort-agent ask B)"
+name: "Per-agent ed25519 signing identity on shared hosts — provisioning + session-time
+  identity selection (cohort-agent ask B)"
 description: >
-  Cohort-agent ask (B). T-1427 enforcement revealed all co-resident agents on .107 share one envelope-signing key (d1993c2c). Per-agent attribution is structurally impossible at envelope layer today. T-1159 already shipped per-session ed25519 keypair infra; this task designs the deployment+wiring model. Cohort recommends Shape 1 (agent-managed key files, per-project secrets dir, passed via --identity-key at termlink register). Independent from T-1448 (which was about disambiguation primitives); this one is about identity provisioning.
+  Cohort-agent ask (B). T-1427 enforcement revealed all co-resident agents on .107
+  share one envelope-signing key (d1993c2c). Per-agent attribution is structurally
+  impossible at envelope layer today. T-1159 already shipped per-session ed25519 keypair
+  infra; this task designs the deployment+wiring model. Cohort recommends Shape 1
+  (agent-managed key files, per-project secrets dir, passed via --identity-key at
+  termlink register). Independent from T-1448 (which was about disambiguation primitives);
+  this one is about identity provisioning.
 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-18T09:19:51Z
-last_update: 2026-05-18T21:02:26Z
+last_update: '2026-08-18T18:58:54Z'
 date_finished: 2026-05-18T21:02:26Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:09Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:54Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1693: Per-agent ed25519 signing identity on shared hosts — provisioning + session-time identity selection (cohort-agent ask B)

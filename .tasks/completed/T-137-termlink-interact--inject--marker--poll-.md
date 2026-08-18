@@ -8,13 +8,37 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [cli, interactive, self-test]
 components: []
 related_tasks: [T-136]
 created: 2026-03-14T17:05:41Z
-last_update: 2026-03-19T17:52:30Z
+last_update: '2026-08-18T18:58:49Z'
 date_finished: 2026-03-14T19:51:01Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:56Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (body:wrap-phrase-without-substrate)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:49Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-137: termlink interact — inject + marker + poll wrapper

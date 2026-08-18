@@ -7,13 +7,37 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-hub/build.rs, scripts/check-vendored-arc-rollout.sh]
 related_tasks: []
 created: 2026-05-03T20:56:57Z
-last_update: 2026-05-03T22:01:30Z
+last_update: '2026-08-18T18:58:50Z'
 date_finished: 2026-05-03T22:01:30Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 6
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1458: Fix hub.version RPC — returns hardcoded 0.9.0 instead of actual build version

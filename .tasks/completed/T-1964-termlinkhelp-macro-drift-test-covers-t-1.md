@@ -2,18 +2,45 @@
 id: T-1964
 name: "termlink_help macro drift test covers T-1963 summary fields"
 description: >
-  Extend the T-1962 drift-detection test to require the termlink_help macro description mentions T-1963's new fields: 'summary', 'total_deprecated', 'largest_categories', 'smallest_categories', 'deprecated_by_category'. Locks the schema-doc contract so future return-shape additions cannot ship without macro-text updates.
+  Extend the T-1962 drift-detection test to require the termlink_help macro description
+  mentions T-1963's new fields: 'summary', 'total_deprecated', 'largest_categories',
+  'smallest_categories', 'deprecated_by_category'. Locks the schema-doc contract so
+  future return-shape additions cannot ship without macro-text updates.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [mcp, help-registry]
 components: []
 related_tasks: []
 created: 2026-06-03T22:38:36Z
-last_update: 2026-06-03T22:40:13Z
+last_update: '2026-08-18T18:58:59Z'
 date_finished: 2026-06-03T22:42:15Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:21Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1964: termlink_help macro drift test covers T-1963 summary fields

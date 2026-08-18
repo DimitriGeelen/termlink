@@ -15,13 +15,37 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [T-1166, T-1235, ring20-dashboard, cut-blocker, operator-runbook]
 components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: [T-1166, T-1235, T-1296, T-1417, T-1290]
 created: 2026-04-30T08:11:23Z
-last_update: 2026-05-06T17:00:28Z
+last_update: '2026-08-18T18:58:49Z'
 date_finished: 2026-05-06T17:00:28Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 4
+      D4: 2
+      F-RECALL: 1
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=2 (body:telemetry-or-audit-entry); 
+      D3=4 (body:framework-level-ux); D4=2 (body:env-class-handled); F-RECALL=1 
+      (body:episodic-only); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:49Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1418: Upgrade ring20-dashboard termlink-cli to T-1235 build (clear T-1166 cut blocker)

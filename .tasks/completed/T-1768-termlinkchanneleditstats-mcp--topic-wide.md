@@ -2,18 +2,44 @@
 id: T-1768
 name: "termlink_channel_edit_stats MCP — topic-wide edit count rollup"
 description: >
-  Port CLI cmd_channel_edit_stats / compute_edit_stats to MCP. Completes audit trio (pin-history + redactions + edit-stats) at MCP layer; pin-history and redactions already ported. No existing agent_* equivalent — new shape.
+  Port CLI cmd_channel_edit_stats / compute_edit_stats to MCP. Completes audit trio
+  (pin-history + redactions + edit-stats) at MCP layer; pin-history and redactions
+  already ported. No existing agent_* equivalent — new shape.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-21T13:19:33Z
-last_update: 2026-05-21T13:23:54Z
+last_update: '2026-08-18T18:58:55Z'
 date_finished: 2026-05-21T13:23:54Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:12Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:55Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1768: termlink_channel_edit_stats MCP — topic-wide edit count rollup

@@ -2,21 +2,27 @@
 id: T-2275
 name: "CLI agent contact falls back to fleet presence when local find_session misses"
 description: >
-  T-2267 review item 4, slice 4 (findings 11,16). CLI cmd_agent_contact (agent.rs:804-850) resolves target name via local manager::find_session only (817); a peer on another hub is invisible -> 'Session not found'. Add a fleet-presence fallback resolving name->(hub,fp) via identity_fingerprint (T-2270 foundation), use the resolved hub for the dm post, and on not-found steer toward fleet presence rather than broadcast. Depends on T-2270.
+  T-2267 review item 4, slice 4 (findings 11,16). CLI cmd_agent_contact (agent.rs:804-850)
+  resolves target name via local manager::find_session only (817); a peer on another
+  hub is invisible -> 'Session not found'. Add a fleet-presence fallback resolving
+  name->(hub,fp) via identity_fingerprint (T-2270 foundation), use the resolved hub
+  for the dm post, and on not-found steer toward fleet presence rather than broadcast.
+  Depends on T-2270.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-cli/src/commands/agent.rs, crates/termlink-session/src/lib.rs]
+components: [crates/termlink-cli/src/commands/agent.rs, 
+      crates/termlink-session/src/lib.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-24T10:21:39Z
-last_update: 2026-06-24T19:46:43Z
+last_update: '2026-08-18T18:59:06Z'
 date_finished: 2026-06-24T19:46:43Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +34,30 @@ date_finished: 2026-06-24T19:46:43Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=3 (body:portability-abstraction); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:06Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2275: CLI agent contact falls back to fleet presence when local find_session misses

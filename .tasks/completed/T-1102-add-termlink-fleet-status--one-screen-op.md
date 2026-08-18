@@ -7,13 +7,41 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs, crates/termlink-cli/tests/cli_integration.rs, crates/termlink-mcp/src/tools.rs]
+components: [crates/termlink-cli/src/cli.rs, 
+      crates/termlink-cli/src/commands/remote.rs, 
+      crates/termlink-cli/src/main.rs, 
+      crates/termlink-cli/tests/cli_integration.rs, 
+      crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-17T08:42:26Z
-last_update: 2026-04-23T19:17:44Z
+last_update: '2026-08-18T18:58:43Z'
 date_finished: 2026-04-17T09:02:39Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 4
+      D4: 3
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=4 
+      (body:framework-level-ux); D4=3 (body:portability-abstraction); F-RECALL=2
+      (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:43Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 5
+      tier: 2
+      effort: 8
+    rationale: blast_radius=5 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1102: Add termlink fleet status — one-screen operational overview

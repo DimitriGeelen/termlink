@@ -2,18 +2,46 @@
 id: T-1288
 name: "T-243 dep: Document multi-turn dialog convention catalog"
 description: >
-  Document the convention-layer event types (turn, typing, receipt, presence, member) and recommended subscriber patterns built on channel.post with metadata.conversation_id. Cover: 2-agent dialog, N-agent collaboration, human-in-the-loop, confirmation flows. No code — pure documentation. Output to docs/protocols/multi-turn-dialog.md or similar. Depends on metadata-extension child task being landed.
+  Document the convention-layer event types (turn, typing, receipt, presence, member)
+  and recommended subscriber patterns built on channel.post with metadata.conversation_id.
+  Cover: 2-agent dialog, N-agent collaboration, human-in-the-loop, confirmation flows.
+  No code — pure documentation. Output to docs/protocols/multi-turn-dialog.md or similar.
+  Depends on metadata-extension child task being landed.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [T-243, docs, protocol]
-components: [crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs, crates/termlink-protocol/src/control.rs]
+components: [crates/termlink-hub/src/channel.rs, 
+      crates/termlink-hub/src/router.rs, crates/termlink-protocol/src/control.rs]
 related_tasks: []
 created: 2026-04-26T09:32:05Z
-last_update: 2026-04-26T11:05:37Z
+last_update: '2026-08-18T18:58:47Z'
 date_finished: 2026-04-26T11:05:37Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:53Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1288: T-243 dep: Document multi-turn dialog convention catalog

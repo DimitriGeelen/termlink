@@ -2,21 +2,26 @@
 id: T-2494
 name: "unread count blind to never-acked offset-0 message (up_to=0 sentinel collision)"
 description: >
-  count_unread / count_unread_mcp use up_to:u64 with a 0 default sentinel that collides with acked-through-offset-0; inclusive off<=up_to then hides a never-acked FIRST DM (offset 0) as unread=0 on the RECEIVE surface (/check-arc, channel unread, agent_dms). Fix: thread Option<u64> (None=never-acked=>count all, Some(b)=>skip off<=b). Silent durable-message loss, directive-#2.
+  count_unread / count_unread_mcp use up_to:u64 with a 0 default sentinel that collides
+  with acked-through-offset-0; inclusive off<=up_to then hides a never-acked FIRST
+  DM (offset 0) as unread=0 on the RECEIVE surface (/check-arc, channel unread, agent_dms).
+  Fix: thread Option<u64> (None=never-acked=>count all, Some(b)=>skip off<=b). Silent
+  durable-message loss, directive-#2.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-cli/src/commands/channel.rs, crates/termlink-mcp/src/tools.rs]
+components: [crates/termlink-cli/src/commands/channel.rs, 
+      crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-02T09:37:40Z
-last_update: 2026-08-02T09:45:28Z
+last_update: '2026-08-18T18:59:11Z'
 date_finished: 2026-08-02T09:45:28Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +33,30 @@ date_finished: 2026-08-02T09:45:28Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:48Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=3 (body:portability-abstraction); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:11Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2494: unread count blind to never-acked offset-0 message (up_to=0 sentinel collision)

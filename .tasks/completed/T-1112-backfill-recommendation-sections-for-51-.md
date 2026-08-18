@@ -2,18 +2,42 @@
 id: T-1112
 name: "Backfill Recommendation sections for 51 pending-decision inceptions"
 description: >
-  Backfill Recommendation GO/NO-GO/DEFER sections in 51 inception tasks that never got their recommendation filled in. Mirrors T-1110 pattern but larger batch.
+  Backfill Recommendation GO/NO-GO/DEFER sections in 51 inception tasks that never
+  got their recommendation filled in. Mirrors T-1110 pattern but larger batch.
 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-17T20:28:07Z
-last_update: 2026-04-23T19:30:27Z
+last_update: '2026-08-18T18:58:44Z'
 date_finished: 2026-04-18T19:52:17Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:44Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1112: Backfill Recommendation sections for 51 pending-decision inceptions

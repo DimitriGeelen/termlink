@@ -1,19 +1,47 @@
 ---
 id: T-1934
-name: "tofu_clear MCP/CLI convergence — add --all support to MCP + align single-host envelope (message field)"
+name: "tofu_clear MCP/CLI convergence — add --all support to MCP + align single-host
+  envelope (message field)"
 description: >
-  MCP termlink_tofu_clear only accepts host (CLI has --all to wipe entire store; MCP missing). CLI single-host JSON lacks message field (MCP has it). Fill both gaps: add 'all: bool' to TofuClearParams + branch to store.clear_all(); add message field to CLI single-host JSON. Two parity tests: --all empty-store + single-host miss.
+  MCP termlink_tofu_clear only accepts host (CLI has --all to wipe entire store; MCP
+  missing). CLI single-host JSON lacks message field (MCP has it). Fill both gaps:
+  add 'all: bool' to TofuClearParams + branch to store.clear_all(); add message field
+  to CLI single-host JSON. Two parity tests: --all empty-store + single-host miss.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-02T20:39:37Z
-last_update: 2026-06-02T20:40:47Z
+last_update: '2026-08-18T18:58:59Z'
 date_finished: 2026-06-02T21:43:57Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:19Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1934: tofu_clear MCP/CLI convergence — add --all support to MCP + align single-host envelope (message field)

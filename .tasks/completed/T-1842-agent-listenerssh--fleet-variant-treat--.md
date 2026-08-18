@@ -1,19 +1,45 @@
 ---
 id: T-1842
-name: "agent-listeners.sh + fleet variant: treat -32013 unknown topic as 0 listeners, not subscribe failure (G-060 graceful degradation)"
+name: "agent-listeners.sh + fleet variant: treat -32013 unknown topic as 0 listeners,
+  not subscribe failure (G-060 graceful degradation)"
 description: >
-  agent-listeners.sh + fleet variant: treat -32013 unknown topic as 0 listeners, not subscribe failure (G-060 graceful degradation)
+  agent-listeners.sh + fleet variant: treat -32013 unknown topic as 0 listeners, not
+  subscribe failure (G-060 graceful degradation)
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-28T15:03:27Z
-last_update: 2026-05-28T15:06:48Z
+last_update: '2026-08-18T18:58:57Z'
 date_finished: 2026-05-28T15:06:48Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:15Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:57Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1842: agent-listeners.sh + fleet variant: treat -32013 unknown topic as 0 listeners, not subscribe failure (G-060 graceful degradation)

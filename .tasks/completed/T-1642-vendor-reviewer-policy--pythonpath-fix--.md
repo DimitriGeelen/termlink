@@ -2,18 +2,47 @@
 id: T-1642
 name: "Vendor reviewer policy + PYTHONPATH fix — unblock T-1636 closure"
 description: >
-  fw reviewer fails in /opt/termlink: (1) ModuleNotFoundError on lib.reviewer.static_scan (PYTHONPATH gap), (2) policy/anti-patterns.yaml + escalation-patterns.yaml absent from vendored .agentic-framework. Copy both yamls from upstream /opt/999-Agentic-Engineering-Framework/policy/ into .agentic-framework/policy/, then patch fw script reviewer dispatch lines to set PYTHONPATH=$FRAMEWORK_ROOT. Goal: unblock T-1636 AC #8 (Reviewer verdict PASS) so the inbox.queued v2 peer-consult feature can close.
+  fw reviewer fails in /opt/termlink: (1) ModuleNotFoundError on lib.reviewer.static_scan
+  (PYTHONPATH gap), (2) policy/anti-patterns.yaml + escalation-patterns.yaml absent
+  from vendored .agentic-framework. Copy both yamls from upstream /opt/999-Agentic-Engineering-Framework/policy/
+  into .agentic-framework/policy/, then patch fw script reviewer dispatch lines to
+  set PYTHONPATH=$FRAMEWORK_ROOT. Goal: unblock T-1636 AC #8 (Reviewer verdict PASS)
+  so the inbox.queued v2 peer-consult feature can close.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-15T22:49:50Z
-last_update: 2026-05-15T23:39:56Z
+last_update: '2026-08-18T18:58:53Z'
 date_finished: 2026-05-15T23:39:56Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:07Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=2 (body:env-class-handled); F-RECALL=2 (body:lightly-promoted); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:53Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1642: Vendor reviewer policy + PYTHONPATH fix — unblock T-1636 closure

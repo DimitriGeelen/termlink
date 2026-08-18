@@ -2,18 +2,53 @@
 id: T-1723
 name: "Meta-canary — warn when release-mirror-canary log is stale despite drift"
 description: >
-  Add a self-check to scripts/check-mirror-freshness.sh (or a sibling cron) so that if .context/working/.release-mirror-canary.log mtime is older than 2× cron-interval (≥48h for the daily canary) AND OneDev→GitHub HEAD divergence is non-zero, an alert fires. T-1721 surfaced the failure mode: the canary itself can be silently broken (wrong install location, bad PATH, parse error in /etc/cron.d/) and produce zero log entries even when drift is present — replicating the exact G-058 silent-failure pattern the canary was built to prevent. The meta-canary closes the recursion: 'the watcher is being watched'. Implementation options: (a) prepend a self-check to check-mirror-freshness.sh that stats its own log; (b) a separate scripts/check-canary-aliveness.sh; (c) a Watchtower panel that surfaces 'canary log mtime' next to 'drift status' so an operator sees both in one glance. Choice between (a)/(b)/(c) is the first design decision in the task.
+  Add a self-check to scripts/check-mirror-freshness.sh (or a sibling cron) so that
+  if .context/working/.release-mirror-canary.log mtime is older than 2× cron-interval
+  (≥48h for the daily canary) AND OneDev→GitHub HEAD divergence is non-zero, an alert
+  fires. T-1721 surfaced the failure mode: the canary itself can be silently broken
+  (wrong install location, bad PATH, parse error in /etc/cron.d/) and produce zero
+  log entries even when drift is present — replicating the exact G-058 silent-failure
+  pattern the canary was built to prevent. The meta-canary closes the recursion: 'the
+  watcher is being watched'. Implementation options: (a) prepend a self-check to check-mirror-freshness.sh
+  that stats its own log; (b) a separate scripts/check-canary-aliveness.sh; (c) a
+  Watchtower panel that surfaces 'canary log mtime' next to 'drift status' so an operator
+  sees both in one glance. Choice between (a)/(b)/(c) is the first design decision
+  in the task.
 
 status: work-completed
 workflow_type: build
 owner: human
 horizon: now
 tags: [canary, meta, release, G-058, prevention, observability]
-components: [scripts/check-canary-aliveness.sh, scripts/check-mirror-freshness.sh]
+components: [scripts/check-canary-aliveness.sh, 
+      scripts/check-mirror-freshness.sh]
 related_tasks: [T-1721, T-1696, T-1695]
 created: 2026-05-20T07:07:06Z
-last_update: 2026-06-06T12:54:51Z
+last_update: '2026-08-18T18:58:37Z'
 date_finished: 2026-05-26T22:34:36Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:30Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1723: Meta-canary — warn when release-mirror-canary log is stale despite drift

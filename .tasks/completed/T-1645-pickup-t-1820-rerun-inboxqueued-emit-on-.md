@@ -1,21 +1,51 @@
 ---
 id: T-1645
-name: "Pickup: T-1820 rerun: inbox.queued emit on fix-shipped hub 0.9.2110 (ebe05294) not observable from any session-targeted event poll/subscribe — wiring-asymmetry vs fw peer subscribe (from 999-Agentic-Engineering-Framework)"
+name: "Pickup: T-1820 rerun: inbox.queued emit on fix-shipped hub 0.9.2110 (ebe05294)
+  not observable from any session-targeted event poll/subscribe — wiring-asymmetry
+  vs fw peer subscribe (from 999-Agentic-Engineering-Framework)"
 description: >
-  Auto-created from pickup envelope. Source: 999-Agentic-Engineering-Framework, task T-1637. Type: bug-report.
+  Auto-created from pickup envelope. Source: 999-Agentic-Engineering-Framework, task
+  T-1637. Type: bug-report.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [pickup, bug-report]
-components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/events.rs, crates/termlink-cli/src/main.rs]
+components: [crates/termlink-cli/src/cli.rs, 
+      crates/termlink-cli/src/commands/events.rs, 
+      crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-05-16T07:01:02Z
-last_update: 2026-05-16T08:43:55Z
+last_update: '2026-08-18T18:58:53Z'
 date_finished: 2026-05-16T08:43:55Z
 source_task_id_in_origin: T-1637
 source_project_in_origin: "999-Agentic-Engineering-Framework"
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:07Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 2
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=2 
+      (body:telemetry-or-audit-entry); D3=0 (no-signal); D4=3 
+      (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:53Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1645: Pickup: T-1820 rerun: inbox.queued emit on fix-shipped hub 0.9.2110 (ebe05294) not observable from any session-targeted event poll/subscribe — wiring-asymmetry vs fw peer subscribe (from 999-Agentic-Engineering-Framework)

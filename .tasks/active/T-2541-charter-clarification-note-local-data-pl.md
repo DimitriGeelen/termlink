@@ -1,8 +1,24 @@
 ---
 id: T-2541
-name: "Charter clarification: note local data-plane exception in the Hub-mediated strict-star bullet"
+name: "Charter clarification: note local data-plane exception in the Hub-mediated
+  strict-star bullet"
 description: >
-  Purpose-review (T-2468) strict-star-invariant hunter: VERDICT RESPECTED — the invariant is load-bearing and honored (data plane = LOCAL Unix socket .sock.data for raw PTY I/O, data_server.rs:26-28; mirror/stream connect only to LOCAL session sockets; coordination + file transfer are hub-mediated; legacy direct file.send/receive retired T-1166, protocol/lib.rs:24-29). The ONLY nuance: the charter's absolute phrasing 'spokes never talk peer-to-peer' (CHARTER.md:25) is not literally airtight against the same-HOST case where agent A's CLI connects directly to session B's local .sock.data for PTY attach — host-local IPC + terminal I/O, NOT cross-host coordination, so no real breach. ARCHITECTURE.md:9/80 already documents/sanctions the local data plane, but the CHARTER bullet does not carve it out. OPTIONAL SMALL doc-only adjustment (no code change): append to the Hub-mediated bullet a half-sentence, e.g. '(raw terminal I/O streams over a host-local data-plane Unix socket; the strict-star invariant governs cross-host coordination, not co-located PTY attach).' Owner human: the charter is human-blessed (agents propose wording, human owns final). Low priority (airtight-precision, not a real gap). Does NOT trip the T-2484 canonical-sentence-drift canary (edits a bullet, not the canonical sentence).
+  Purpose-review (T-2468) strict-star-invariant hunter: VERDICT RESPECTED — the invariant
+  is load-bearing and honored (data plane = LOCAL Unix socket .sock.data for raw PTY
+  I/O, data_server.rs:26-28; mirror/stream connect only to LOCAL session sockets;
+  coordination + file transfer are hub-mediated; legacy direct file.send/receive retired
+  T-1166, protocol/lib.rs:24-29). The ONLY nuance: the charter's absolute phrasing
+  'spokes never talk peer-to-peer' (CHARTER.md:25) is not literally airtight against
+  the same-HOST case where agent A's CLI connects directly to session B's local .sock.data
+  for PTY attach — host-local IPC + terminal I/O, NOT cross-host coordination, so
+  no real breach. ARCHITECTURE.md:9/80 already documents/sanctions the local data
+  plane, but the CHARTER bullet does not carve it out. OPTIONAL SMALL doc-only adjustment
+  (no code change): append to the Hub-mediated bullet a half-sentence, e.g. '(raw
+  terminal I/O streams over a host-local data-plane Unix socket; the strict-star invariant
+  governs cross-host coordination, not co-located PTY attach).' Owner human: the charter
+  is human-blessed (agents propose wording, human owns final). Low priority (airtight-precision,
+  not a real gap). Does NOT trip the T-2484 canonical-sentence-drift canary (edits
+  a bullet, not the canonical sentence).
 
 status: captured
 workflow_type: build
@@ -16,8 +32,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-08T16:30:55Z
-last_update: 2026-08-08T16:31:12Z
-date_finished: null
+last_update: '2026-08-18T18:58:38Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,6 +44,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:34Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2541: Charter clarification: note local data-plane exception in the Hub-mediated strict-star bullet

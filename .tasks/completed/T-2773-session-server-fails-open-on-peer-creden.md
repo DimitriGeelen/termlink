@@ -1,22 +1,28 @@
 ---
 id: T-2773
-name: "Session server fails OPEN on peer-credential extraction failure — T-2448 hub hardening never migrated to the sibling"
+name: "Session server fails OPEN on peer-credential extraction failure — T-2448 hub
+  hardening never migrated to the sibling"
 description: >
-  server.rs:239-242 allows the connection when PeerCredentials extraction errors ('graceful degradation'), while the hub's decide_unix_peer rejects the same case fail-closed (T-2448, from T-2447 F1). Same uid gate, opposite security posture. The session server also drops uid-mismatched peers silently (bare continue, line 231) — the defect T-2772 just fixed in the hub.
+  server.rs:239-242 allows the connection when PeerCredentials extraction errors ('graceful
+  degradation'), while the hub's decide_unix_peer rejects the same case fail-closed
+  (T-2448, from T-2447 F1). Same uid gate, opposite security posture. The session
+  server also drops uid-mismatched peers silently (bare continue, line 231) — the
+  defect T-2772 just fixed in the hub.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-hub/src/server.rs, crates/termlink-session/src/auth.rs, crates/termlink-session/src/server.rs]
+components: [crates/termlink-hub/src/server.rs, 
+      crates/termlink-session/src/auth.rs, crates/termlink-session/src/server.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-16T17:41:00Z
-last_update: 2026-08-16T19:52:21Z
+last_update: '2026-08-18T18:59:16Z'
 date_finished: 2026-08-16T19:52:21Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +34,30 @@ date_finished: 2026-08-16T19:52:21Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:16Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2773: Session server fails OPEN on peer-credential extraction failure — T-2448 hub hardening never migrated to the sibling

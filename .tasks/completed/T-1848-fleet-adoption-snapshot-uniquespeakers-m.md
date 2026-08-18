@@ -1,19 +1,46 @@
 ---
 id: T-1848
-name: "fleet-adoption-snapshot: unique_speakers metric — distinguish conversation from monologue"
+name: "fleet-adoption-snapshot: unique_speakers metric — distinguish conversation
+  from monologue"
 description: >
-  Add unique_speakers (per-hub + fleet) to fleet-adoption-snapshot.sh. Refine HOT semantics: HOT requires >=2 unique speakers. Closes the gap where 178 chat_arc_posts from a single agent reports HOT but is actually a solo-monologue with no active conversation — the exact symptom the user's directive calls out.
+  Add unique_speakers (per-hub + fleet) to fleet-adoption-snapshot.sh. Refine HOT
+  semantics: HOT requires >=2 unique speakers. Closes the gap where 178 chat_arc_posts
+  from a single agent reports HOT but is actually a solo-monologue with no active
+  conversation — the exact symptom the user's directive calls out.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [doorbell-mail, adoption, t-1843-followon]
 components: [scripts/fleet-adoption-snapshot.sh]
 related_tasks: []
 created: 2026-05-28T18:58:30Z
-last_update: 2026-05-28T19:02:16Z
+last_update: '2026-08-18T18:58:57Z'
 date_finished: 2026-05-28T19:02:16Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:16Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:57Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1848: fleet-adoption-snapshot: unique_speakers metric — distinguish conversation from monologue

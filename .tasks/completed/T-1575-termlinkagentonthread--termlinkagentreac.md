@@ -1,19 +1,45 @@
 ---
 id: T-1575
-name: "termlink_agent_on_thread + termlink_agent_reactions — thread descent + per-offset reactions MCP read tools"
+name: "termlink_agent_on_thread + termlink_agent_reactions — thread descent + per-offset
+  reactions MCP read tools"
 description: >
-  termlink_agent_on_thread + termlink_agent_reactions — thread descent + per-offset reactions MCP read tools
+  termlink_agent_on_thread + termlink_agent_reactions — thread descent + per-offset
+  reactions MCP read tools
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-05T16:43:14Z
-last_update: 2026-05-20T13:23:26Z
+last_update: '2026-08-18T18:58:52Z'
 date_finished: 2026-05-05T16:51:59Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:03Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:52Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1575: termlink_agent_on_thread + termlink_agent_reactions — thread descent + per-offset reactions MCP read tools

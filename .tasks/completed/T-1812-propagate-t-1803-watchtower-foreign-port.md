@@ -1,19 +1,51 @@
 ---
 id: T-1812
-name: "Propagate T-1803 watchtower foreign-port-kill guard upstream to /opt/999-AEF (channel-1)"
+name: "Propagate T-1803 watchtower foreign-port-kill guard upstream to /opt/999-AEF
+  (channel-1)"
 description: >
-  Land the T-1803 launcher hardening (lib/watchtower.sh sourceable _watchtower_identity_matches + _watchtower_port_holder_is_ours; reader delegates; bin/watchtower.sh sources the lib, do_start refuses to signal a foreign port holder + identity-verifies before writing the watchtower.{port,url} triple) into the upstream framework repo via termlink dispatch (remote is onedev, not origin; verify the push after — G-002 fast-exit). The change is validated + live on /opt/termlink's vendored .agentic-framework copy (gitignored), but that is wiped on next fw upgrade, so upstream landing is required for durability + other consumers. Validation artifact: scripts/test-watchtower-guard.sh.
+  Land the T-1803 launcher hardening (lib/watchtower.sh sourceable _watchtower_identity_matches
+  + _watchtower_port_holder_is_ours; reader delegates; bin/watchtower.sh sources the
+  lib, do_start refuses to signal a foreign port holder + identity-verifies before
+  writing the watchtower.{port,url} triple) into the upstream framework repo via termlink
+  dispatch (remote is onedev, not origin; verify the push after — G-002 fast-exit).
+  The change is validated + live on /opt/termlink's vendored .agentic-framework copy
+  (gitignored), but that is wiped on next fw upgrade, so upstream landing is required
+  for durability + other consumers. Validation artifact: scripts/test-watchtower-guard.sh.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-25T21:25:29Z
-last_update: 2026-05-25T21:48:11Z
+last_update: '2026-08-18T18:58:56Z'
 date_finished: 2026-05-25T21:48:11Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 1
+      F-ORCH: 1
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=2 (body:env-class-handled); F-RECALL=1 (body:episodic-only); F-ORCH=1 
+      (body:hand-wired-dispatch)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:56Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1812: Propagate T-1803 watchtower foreign-port-kill guard upstream to /opt/999-AEF (channel-1)

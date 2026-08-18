@@ -2,18 +2,54 @@
 id: T-1640
 name: "Fix pgrep self-match in hub-binary-swap.sh — bracket trick"
 description: >
-  scripts/hub-binary-swap.sh:111 uses 'pgrep -f "termlink hub start" | head -1' to find the running hub PID. The pattern matches the remote-exec shell's own argv (which contains the pgrep command itself, including the search string), so head -1 can return a transient PID instead of the long-running hub. 2026-05-15 T-1632/T-1633 deploy on .122 hit this: pgrep returned PID 2274098 (transient) instead of 3067203 (real hub), kill missed, script reported 'hub did not exit within 5s' and exited without rollback — leaving binary swapped on disk but old process still serving. Fix: bracket trick '[t]ermlink hub start' so pgrep's own argv (which contains 't' followed by ']' not 'e') no longer self-matches. Apply same to fleet-deploy-binary.sh:101+118+127+142 where 'pgrep -f' patterns also appear. Add a regression test: spawn a fake remote-exec wrapper that contains 'termlink hub start' in its argv, run the script's PID-resolution against a known-PID hub, assert the right one is picked. Pre-existing latent since T-1438 (2026-05-01). Related: T-1632, T-1633, T-1438.
+  scripts/hub-binary-swap.sh:111 uses 'pgrep -f "termlink hub start" | head -1' to
+  find the running hub PID. The pattern matches the remote-exec shell's own argv (which
+  contains the pgrep command itself, including the search string), so head -1 can
+  return a transient PID instead of the long-running hub. 2026-05-15 T-1632/T-1633
+  deploy on .122 hit this: pgrep returned PID 2274098 (transient) instead of 3067203
+  (real hub), kill missed, script reported 'hub did not exit within 5s' and exited
+  without rollback — leaving binary swapped on disk but old process still serving.
+  Fix: bracket trick '[t]ermlink hub start' so pgrep's own argv (which contains 't'
+  followed by ']' not 'e') no longer self-matches. Apply same to fleet-deploy-binary.sh:101+118+127+142
+  where 'pgrep -f' patterns also appear. Add a regression test: spawn a fake remote-exec
+  wrapper that contains 'termlink hub start' in its argv, run the script's PID-resolution
+  against a known-PID hub, assert the right one is picked. Pre-existing latent since
+  T-1438 (2026-05-01). Related: T-1632, T-1633, T-1438.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [bug, T-1438, hub-binary-swap, deploy-tooling]
 components: []
 related_tasks: [T-1632, T-1633, T-1438]
 created: 2026-05-15T20:14:13Z
-last_update: 2026-05-15T20:19:24Z
+last_update: '2026-08-18T18:58:53Z'
 date_finished: 2026-05-15T20:19:24Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:06Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 1
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=1 (body:log-or-error-line); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:53Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1640: Fix pgrep self-match in hub-binary-swap.sh — bracket trick

@@ -2,18 +2,43 @@
 id: T-1029
 name: "Fix local TCP fallback — use TOFU when pinned cert missing, never plaintext"
 description: >
-  client.rs connect_addr falls back to plaintext TCP when local cert file is missing (line 62). Should use TOFU instead. Currently causes local-test hub profile to fail when runtime dirs differ (e.g. /tmp/termlink-0 vs /var/lib/termlink).
+  client.rs connect_addr falls back to plaintext TCP when local cert file is missing
+  (line 62). Should use TOFU instead. Currently causes local-test hub profile to fail
+  when runtime dirs differ (e.g. /tmp/termlink-0 vs /var/lib/termlink).
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-session/src/client.rs]
 related_tasks: []
 created: 2026-04-13T13:38:42Z
-last_update: 2026-04-23T19:17:16Z
+last_update: '2026-08-18T18:58:42Z'
 date_finished: 2026-04-23T19:17:16Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=2 
+      (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 6
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1029: Fix local TCP fallback — use TOFU when pinned cert missing, never plaintext

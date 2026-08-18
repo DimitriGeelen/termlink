@@ -2,18 +2,49 @@
 id: T-1229
 name: "T-1220b/d follow-up: inbox.status migration via channel aggregation"
 description: >
-  Migrate inbox.status callers (cmd_inbox_status local CLI, termlink_inbox_status MCP, cmd_remote_inbox_status arm, termlink_remote_inbox_status MCP, fleet-doctor inbox check) to channel surface. Needs a new aggregation entry point in inbox_channel — channel.* is per-topic but status returns {total, targets[]}. **Inception-style task: design first, build later.**
+  Migrate inbox.status callers (cmd_inbox_status local CLI, termlink_inbox_status
+  MCP, cmd_remote_inbox_status arm, termlink_remote_inbox_status MCP, fleet-doctor
+  inbox check) to channel surface. Needs a new aggregation entry point in inbox_channel
+  — channel.* is per-topic but status returns {total, targets[]}. **Inception-style
+  task: design first, build later.**
 
 status: work-completed
 workflow_type: inception
 owner: agent
-horizon: null
+horizon:
 tags: [T-1155, bus, migration, T-1220, wedge-b-followup, inception]
-components: [crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-hub/src/channel.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-session/src/inbox_channel.rs]
+components: [crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, 
+      crates/termlink-cli/src/commands/infrastructure.rs, 
+      crates/termlink-cli/src/commands/remote.rs, 
+      crates/termlink-hub/src/channel.rs, crates/termlink-mcp/src/tools.rs, 
+      crates/termlink-session/src/inbox_channel.rs]
 related_tasks: [T-1220, T-1225, T-1231, T-1226, T-1227, T-1228, T-1232]
 created: 2026-04-25T08:24:26Z
-last_update: 2026-04-25T10:44:24Z
+last_update: '2026-08-18T18:58:46Z'
 date_finished: 2026-04-25T10:44:24Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 7
+      tier: 4
+      effort: 6
+    rationale: blast_radius=7 (no-signal); tier=4 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1229: inbox.status channel-aware migration (5 sites, design-first)

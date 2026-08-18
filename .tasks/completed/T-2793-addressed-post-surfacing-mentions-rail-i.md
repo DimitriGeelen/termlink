@@ -1,13 +1,15 @@
 ---
 id: T-2793
-name: "Addressed-post surfacing: mentions rail is built but dark, no sender sets it and no daily verb reads it"
+name: "Addressed-post surfacing: mentions rail is built but dark, no sender sets it
+  and no daily verb reads it"
 description: >
-  Addressed-post surfacing: mentions rail is built but dark, no sender sets it and no daily verb reads it
+  Addressed-post surfacing: mentions rail is built but dark, no sender sets it and
+  no daily verb reads it
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +18,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-18T18:33:07Z
-last_update: 2026-08-18T18:43:30Z
+last_update: '2026-08-18T18:59:16Z'
 date_finished: 2026-08-18T18:43:30Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +30,30 @@ date_finished: 2026-08-18T18:43:30Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:01Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 5
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=5 (body:silent-class-removed); 
+      D3=2 (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:16Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2793: Addressed-post surfacing: mentions rail is built but dark, no sender sets it and no daily verb reads it

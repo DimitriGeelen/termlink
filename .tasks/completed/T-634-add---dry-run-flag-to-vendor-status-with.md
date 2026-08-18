@@ -1,19 +1,43 @@
 ---
 id: T-634
-name: "Add --dry-run flag to vendor status with JSON output showing update-needed info"
+name: "Add --dry-run flag to vendor status with JSON output showing update-needed
+  info"
 description: >
   Add --dry-run flag to vendor status with JSON output showing update-needed info
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-28T18:06:13Z
-last_update: 2026-03-29T14:19:47Z
+last_update: '2026-08-18T18:59:18Z'
 date_finished: 2026-03-29T14:19:47Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:04Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:18Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 3
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=3 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-634: Add --dry-run flag to vendor status with JSON output showing update-needed info

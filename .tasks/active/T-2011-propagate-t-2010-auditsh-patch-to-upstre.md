@@ -1,8 +1,16 @@
 ---
 id: T-2011
-name: "Propagate T-2010 audit.sh patch to upstream agentic-engineering-framework when checkout available"
+name: "Propagate T-2010 audit.sh patch to upstream agentic-engineering-framework when
+  checkout available"
 description: >
-  T-2010 extended the local .agentic-framework/agents/audit/audit.sh cron-misload lint with a byte-identical diff check. The change is vendored — no local upstream checkout exists on .107 (per .framework.yaml: upstream is GitHub repo DimitriGeelen/agentic-engineering-framework). Without propagation, the next 'fw upgrade' will overwrite the customization. Two paths: (a) propose the patch upstream via PR/issue when framework-repo access is available, (b) document the customization in CLAUDE.md so the G-055 preservation pattern catches it. Lower priority than T-2010 itself because the lint works locally today.
+  T-2010 extended the local .agentic-framework/agents/audit/audit.sh cron-misload
+  lint with a byte-identical diff check. The change is vendored — no local upstream
+  checkout exists on .107 (per .framework.yaml: upstream is GitHub repo DimitriGeelen/agentic-engineering-framework).
+  Without propagation, the next 'fw upgrade' will overwrite the customization. Two
+  paths: (a) propose the patch upstream via PR/issue when framework-repo access is
+  available, (b) document the customization in CLAUDE.md so the G-055 preservation
+  pattern catches it. Lower priority than T-2010 itself because the lint works locally
+  today.
 
 status: captured
 workflow_type: build
@@ -12,8 +20,32 @@ tags: []
 components: []
 related_tasks: [T-2010, T-1887]
 created: 2026-06-05T22:44:53Z
-last_update: 2026-06-05T22:44:53Z
-date_finished: null
+last_update: '2026-08-18T18:58:37Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:31Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 5
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=5 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2011: Propagate T-2010 audit.sh patch to upstream agentic-engineering-framework when checkout available

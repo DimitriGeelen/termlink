@@ -2,21 +2,29 @@
 id: T-2293
 name: "V2: fleet discovery registry"
 description: >
-  RC2 fix. Resolve agent_id -> {host:port (hub-stamped observed addr, self-report fallback), hub, topics-read, liveness}. remote_store.rs RemoteEntry{host,port,TTL=300s,last_heartbeat} supplies the schema — populate + add fleet-rollup reader over hubs.toml with short TTL. Symmetric (both directions: recipient resolves sender too). Tier-2 only; Tier-1 LAN-broadcast/mDNS DEFERRED (T-006 already rejected mDNS). ACs: registry resolves agent_id->host:port+topics-read; addr is hub-stamped (self-report fallback); rollup walks hubs.toml; reverse lookup works; G-155 false-green probe fixed to test the intended correspondent.
+  RC2 fix. Resolve agent_id -> {host:port (hub-stamped observed addr, self-report
+  fallback), hub, topics-read, liveness}. remote_store.rs RemoteEntry{host,port,TTL=300s,last_heartbeat}
+  supplies the schema — populate + add fleet-rollup reader over hubs.toml with short
+  TTL. Symmetric (both directions: recipient resolves sender too). Tier-2 only; Tier-1
+  LAN-broadcast/mDNS DEFERRED (T-006 already rejected mDNS). ACs: registry resolves
+  agent_id->host:port+topics-read; addr is hub-stamped (self-report fallback); rollup
+  walks hubs.toml; reverse lookup works; G-155 false-green probe fixed to test the
+  intended correspondent.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [arc:reliable-comms]
-components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/main.rs]
+components: [crates/termlink-cli/src/cli.rs, 
+      crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/main.rs]
 related_tasks: [T-2291, T-2292, T-2297]
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-27T17:06:08Z
-last_update: 2026-06-27T17:55:07Z
+last_update: '2026-08-18T18:59:07Z'
 date_finished: 2026-06-27T17:55:07Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +36,30 @@ date_finished: 2026-06-27T17:55:07Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=2 
+      (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:07Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2293: V2: fleet discovery registry

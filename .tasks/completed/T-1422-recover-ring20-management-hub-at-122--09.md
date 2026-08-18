@@ -2,18 +2,48 @@
 id: T-1422
 name: "Recover ring20-management hub at .122 — 0.9.1591 swap left hub down"
 description: >
-  On 2026-04-30T19:55Z deployed 0.9.1591 to .122 via fleet-deploy-binary.sh; staging succeeded, sha verified. Then swapped /usr/local/bin/termlink (backup at .bak) and killed PID 215. Cron watchdog runs every minute and should respawn — but hub at 9100 stayed down 6+ min. Suspect glibc/libc mismatch (binary built on .107). No SSH/console fallback. Operator needs to console into .122 and either rollback (cp /usr/local/bin/termlink.0.9.1542.bak /usr/local/bin/termlink) or run /usr/local/bin/termlink hub start --tcp 0.0.0.0:9100 to read the actual error. See PL-100.
+  On 2026-04-30T19:55Z deployed 0.9.1591 to .122 via fleet-deploy-binary.sh; staging
+  succeeded, sha verified. Then swapped /usr/local/bin/termlink (backup at .bak) and
+  killed PID 215. Cron watchdog runs every minute and should respawn — but hub at
+  9100 stayed down 6+ min. Suspect glibc/libc mismatch (binary built on .107). No
+  SSH/console fallback. Operator needs to console into .122 and either rollback (cp
+  /usr/local/bin/termlink.0.9.1542.bak /usr/local/bin/termlink) or run /usr/local/bin/termlink
+  hub start --tcp 0.0.0.0:9100 to read the actual error. See PL-100.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-30T20:03:47Z
-last_update: 2026-05-06T16:29:44Z
+last_update: '2026-08-18T18:58:49Z'
 date_finished: 2026-05-06T16:28:14Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 1
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=1 (body:fix-without-learning); D2=1 (body:log-or-error-line); 
+      D3=0 (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:49Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1422: Recover ring20-management hub at .122 — 0.9.1591 swap left hub down

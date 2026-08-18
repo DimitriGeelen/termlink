@@ -2,12 +2,18 @@
 id: T-2033
 name: "MCP parity for channel.claim/release/renew (T-2031/T-2032 follow-up)"
 description: >
-  Add termlink_channel_claim/release/renew MCP tools so AI agents can drive the arc-parallel-substrate first primitive the same way operators drive it via CLI (T-2032). Mirror the existing channel MCP tool families. Implementation: three new param structs after ChannelPinParams in crates/termlink-mcp/src/tools.rs (~line 8013), three new #[tool]-decorated async methods near termlink_channel_pin (~line 19640) calling rpc_call(method::CHANNEL_CLAIM/RELEASE/RENEW), and entries in the channel help-registry group (~line 340). No identity signing needed — claim/release/renew are control-plane RPCs not signed envelopes.
+  Add termlink_channel_claim/release/renew MCP tools so AI agents can drive the arc-parallel-substrate
+  first primitive the same way operators drive it via CLI (T-2032). Mirror the existing
+  channel MCP tool families. Implementation: three new param structs after ChannelPinParams
+  in crates/termlink-mcp/src/tools.rs (~line 8013), three new #[tool]-decorated async
+  methods near termlink_channel_pin (~line 19640) calling rpc_call(method::CHANNEL_CLAIM/RELEASE/RENEW),
+  and entries in the channel help-registry group (~line 340). No identity signing
+  needed — claim/release/renew are control-plane RPCs not signed envelopes.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [arc:arc-parallel-substrate]
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: [T-2031, T-2032, T-2019, T-2018]
@@ -16,7 +22,7 @@ related_tasks: [T-2031, T-2032, T-2019, T-2018]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-07T17:09:24Z
-last_update: 2026-06-07T19:14:12Z
+last_update: '2026-08-18T18:59:01Z'
 date_finished: 2026-06-07T19:14:12Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +34,30 @@ date_finished: 2026-06-07T19:14:12Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:24Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=3 (body:portability-abstraction); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:01Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2033: MCP parity for channel.claim/release/renew (T-2031/T-2032 follow-up)

@@ -1,8 +1,10 @@
 ---
 id: T-1727
-name: "Ship default .secret-scan-patterns + chmod +x secret-scan.sh upstream (T-1725 follow-up)"
+name: "Ship default .secret-scan-patterns + chmod +x secret-scan.sh upstream (T-1725
+  follow-up)"
 description: >
-  Channel-1 upstream fix: framework ships secret-scan.sh + installer but no default pattern catalogue; result is silently-no-op hooks. Also chmod +x missing.
+  Channel-1 upstream fix: framework ships secret-scan.sh + installer but no default
+  pattern catalogue; result is silently-no-op hooks. Also chmod +x missing.
 
 status: started-work
 workflow_type: build
@@ -12,8 +14,32 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-20T18:42:17Z
-last_update: 2026-05-20T18:44:13Z
-date_finished: null
+last_update: '2026-08-18T18:58:37Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:31Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1727: Ship default .secret-scan-patterns + chmod +x secret-scan.sh upstream (T-1725 follow-up)

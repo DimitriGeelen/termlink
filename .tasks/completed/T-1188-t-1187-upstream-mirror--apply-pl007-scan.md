@@ -2,18 +2,46 @@
 id: T-1188
 name: "T-1187 upstream mirror — apply pl007-scanner patch in framework repo"
 description: >
-  T-1187 built pl007-scanner.sh in the termlink-vendored copy at .agentic-framework/agents/context/pl007-scanner.sh. Since .agentic-framework is gitignored (vendored copy), the patch does not persist — next fw upgrade will overwrite. Mirror the patch into /opt/999-Agentic-Engineering-Framework/agents/context/pl007-scanner.sh and commit there. Use termlink dispatch to cross the project boundary per T-559 policy.
+  T-1187 built pl007-scanner.sh in the termlink-vendored copy at .agentic-framework/agents/context/pl007-scanner.sh.
+  Since .agentic-framework is gitignored (vendored copy), the patch does not persist
+  — next fw upgrade will overwrite. Mirror the patch into /opt/999-Agentic-Engineering-Framework/agents/context/pl007-scanner.sh
+  and commit there. Use termlink dispatch to cross the project boundary per T-559
+  policy.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: [T-1187, T-1176]
 created: 2026-04-22T11:18:03Z
-last_update: 2026-04-23T17:27:41Z
+last_update: '2026-08-18T18:58:45Z'
 date_finished: 2026-04-22T11:26:31Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:49Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 4
+      F-RECALL: 2
+      F-ORCH: 1
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=4 (body:cross-machine); F-RECALL=2 (body:lightly-promoted); F-ORCH=1 
+      (body:hand-wired-dispatch)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1188: T-1187 upstream mirror — apply pl007-scanner patch in framework repo

@@ -2,18 +2,43 @@
 id: T-1158
 name: "T-1155/1 Build termlink-bus crate — log-append + cursor + subscribe + retention"
 description: >
-  Foundation crate for T-1155 channel bus. Append-only per-channel log, per-recipient cursor store, subscribe API, per-channel retention engine. In-hub. See docs/reports/T-1155-agent-communication-bus.md §Recommendation.
+  Foundation crate for T-1155 channel bus. Append-only per-channel log, per-recipient
+  cursor store, subscribe API, per-channel retention engine. In-hub. See docs/reports/T-1155-agent-communication-bus.md
+  §Recommendation.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [T-1155, bus, foundation]
 components: []
 related_tasks: [T-1155]
 created: 2026-04-20T14:11:33Z
-last_update: 2026-04-23T19:17:47Z
+last_update: '2026-08-18T18:58:44Z'
 date_finished: 2026-04-20T20:38:03Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:44Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1158: T-1155/1 Build termlink-bus crate — log-append + cursor + subscribe + retention

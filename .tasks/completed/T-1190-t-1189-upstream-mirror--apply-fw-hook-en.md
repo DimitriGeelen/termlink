@@ -2,18 +2,44 @@
 id: T-1190
 name: "T-1189 upstream mirror — apply fw hook-enable patch in framework repo"
 description: >
-  T-1189 built hook-enable.sh + bin/fw route in termlink-vendored copy at .agentic-framework/ (gitignored). Mirror the patch into /opt/999-Agentic-Engineering-Framework/ and commit there. Use cross-project human step per T-559 boundary policy (agent sessions rooted in /opt/termlink are blocked from cd'ing into the framework repo).
+  T-1189 built hook-enable.sh + bin/fw route in termlink-vendored copy at .agentic-framework/
+  (gitignored). Mirror the patch into /opt/999-Agentic-Engineering-Framework/ and
+  commit there. Use cross-project human step per T-559 boundary policy (agent sessions
+  rooted in /opt/termlink are blocked from cd'ing into the framework repo).
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [framework, upstream-mirror, g-015-repair]
 components: []
 related_tasks: [T-977, T-1187, T-1188, T-1189]
 created: 2026-04-22T18:35:47Z
-last_update: 2026-04-26T10:55:25Z
+last_update: '2026-08-18T18:58:45Z'
 date_finished: 2026-04-23T17:19:53Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:49Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 1
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=1 (body:hand-wired-dispatch)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 4
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=4 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1190: T-1189 upstream mirror — apply fw hook-enable patch in framework repo

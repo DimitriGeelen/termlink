@@ -1,19 +1,51 @@
 ---
 id: T-1938
-name: "MCP help registry — surface agent_* family (chat/read/presence/inbox/thread/poll categories)"
+name: "MCP help registry — surface agent_* family (chat/read/presence/inbox/thread/poll
+  categories)"
 description: >
-  Add the agent_* conversation/thread family to termlink_help so LLM consumers can discover them. Currently ~100 agent_* MCP tools are registered but invisible via help — agents calling termlink_help to plan their work cannot find post/reply/recent/inbox/threads etc. Scope: workflow tools only (chat=write, read=history, presence=who/where, inbox=mailbox, thread=navigation, poll=lifecycle). Out of scope: admin/aggregate stats (emoji_stats, age_distribution, busiest_threads, top_*, response_latency, daily_volume, etc.) — those are diagnostics, not workflow. Out of scope: channel_* family (separate slice).
+  Add the agent_* conversation/thread family to termlink_help so LLM consumers can
+  discover them. Currently ~100 agent_* MCP tools are registered but invisible via
+  help — agents calling termlink_help to plan their work cannot find post/reply/recent/inbox/threads
+  etc. Scope: workflow tools only (chat=write, read=history, presence=who/where, inbox=mailbox,
+  thread=navigation, poll=lifecycle). Out of scope: admin/aggregate stats (emoji_stats,
+  age_distribution, busiest_threads, top_*, response_latency, daily_volume, etc.)
+  — those are diagnostics, not workflow. Out of scope: channel_* family (separate
+  slice).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T00:33:24Z
-last_update: 2026-06-03T00:36:52Z
+last_update: '2026-08-18T18:58:59Z'
 date_finished: 2026-06-03T00:40:09Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 1
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=1 (body:log-or-error-line); D3=0 
+      (no-signal); D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1938: MCP help registry — surface agent_* family (chat/read/presence/inbox/thread/poll categories)

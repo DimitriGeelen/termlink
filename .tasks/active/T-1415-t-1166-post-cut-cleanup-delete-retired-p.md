@@ -2,7 +2,9 @@
 id: T-1415
 name: "T-1166 post-cut cleanup: delete retired primitive handlers + fallback paths"
 description: >
-  After Tier-2 cut (LEGACY_PRIMITIVES_ENABLED=false has been baked >=7d in production), delete the retired-primitive code entirely. Replaces the const + cfg-feature mechanism with permanent removal.
+  After Tier-2 cut (LEGACY_PRIMITIVES_ENABLED=false has been baked >=7d in production),
+  delete the retired-primitive code entirely. Replaces the const + cfg-feature mechanism
+  with permanent removal.
 
 status: started-work
 workflow_type: decommission
@@ -12,8 +14,33 @@ tags: []
 components: []
 related_tasks: [T-1166, T-1411, T-1413]
 created: 2026-04-30T07:07:28Z
-last_update: 2026-07-04T10:22:43Z
-date_finished: null
+last_update: '2026-08-18T18:58:36Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:27Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 3
+      D2: 2
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=3 (body:test-or-audit-check); D2=2 
+      (body:telemetry-or-audit-entry); D3=0 (no-signal); D4=3 
+      (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:36Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1415: T-1166 post-cut cleanup: delete retired primitive handlers + fallback paths

@@ -2,12 +2,20 @@
 id: T-2330
 name: "Reviewer fails-open (rc=0) on catalogue-not-found — missing catalogue is undetectable"
 description: >
-  static_scan.py prints 'ERROR: catalogue not found at <path>' but the process exits rc=0 (observed via fw reviewer T-2325 --dispatch: bus artifact 'reviewer: ERROR (rc=0)'). Because update-task.sh runs the completion-time auto-review as '... ) || true' (line ~1499, measurement-only), a rc=0 on a hard error is swallowed — the reviewer silently no-ops on every completed task and nothing surfaces the failure (G-019 'framework was blind' pattern). Fix: exit non-zero (e.g. 2) on catalogue-not-found so callers/monitors can detect a broken reviewer. This is AEF code (upstream /opt/999-Agentic-Engineering-Framework/lib/reviewer/static_scan.py) — relay to AEF via .pickup. Discovered alongside T-2329 (the missing-catalogue vendoring gap that triggered this error path).
+  static_scan.py prints 'ERROR: catalogue not found at <path>' but the process exits
+  rc=0 (observed via fw reviewer T-2325 --dispatch: bus artifact 'reviewer: ERROR
+  (rc=0)'). Because update-task.sh runs the completion-time auto-review as '... )
+  || true' (line ~1499, measurement-only), a rc=0 on a hard error is swallowed — the
+  reviewer silently no-ops on every completed task and nothing surfaces the failure
+  (G-019 'framework was blind' pattern). Fix: exit non-zero (e.g. 2) on catalogue-not-found
+  so callers/monitors can detect a broken reviewer. This is AEF code (upstream /opt/999-Agentic-Engineering-Framework/lib/reviewer/static_scan.py)
+  — relay to AEF via .pickup. Discovered alongside T-2329 (the missing-catalogue vendoring
+  gap that triggered this error path).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +24,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-03T09:31:36Z
-last_update: 2026-07-05T09:13:42Z
+last_update: '2026-08-18T18:59:08Z'
 date_finished: 2026-07-05T09:13:42Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +36,30 @@ date_finished: 2026-07-05T09:13:42Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:40Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (body:wrap-phrase-without-substrate)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:08Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2330: Reviewer fails-open (rc=0) on catalogue-not-found — missing catalogue is undetectable

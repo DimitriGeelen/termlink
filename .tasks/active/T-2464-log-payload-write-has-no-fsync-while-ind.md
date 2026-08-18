@@ -1,8 +1,22 @@
 ---
 id: T-2464
-name: "log payload write has no fsync while index commit does — durability inversion yields an unrecoverable poison offset on power loss (round-16 F1)"
+name: "log payload write has no fsync while index commit does — durability inversion
+  yields an unrecoverable poison offset on power loss (round-16 F1)"
 description: >
-  post() indexes durably (SQLite synchronous=FULL, record_append tx.commit fsyncs) but the log payload is written with write_all+flush and NO fsync (LogAppender::append; Rust File::flush is a no-op). The pointer is durable while the data is not — inverted vs WAL discipline. On power/kernel loss (not plain process restart — page cache survives that), the offset-N index row survives but its log bytes are gone -> ReaderIter::next read_exact/decode fails -> Some(Err(..)): LOUD but UNRECOVERABLE and stream-blocking (no skip/repair path, every re-subscribe at/after that offset re-hits the wall forever). No sync_all anywhere in the crate. Two separable fixes: (a) fsync the log before the index commit (durability — has a design tension: fsync-per-post cost vs the ADR single-supervised-durable-hub / restart=recoverable-pause model that plausibly scopes power-loss out — this half may need a human go/no-go); (b) a skip-corrupt-record path so a poison offset yields a gap-marker not a permanent stream wall (reliability — worthwhile even if (a) is declined). Round-16 reliability hunt F1, captured in T-2462.
+  post() indexes durably (SQLite synchronous=FULL, record_append tx.commit fsyncs)
+  but the log payload is written with write_all+flush and NO fsync (LogAppender::append;
+  Rust File::flush is a no-op). The pointer is durable while the data is not — inverted
+  vs WAL discipline. On power/kernel loss (not plain process restart — page cache
+  survives that), the offset-N index row survives but its log bytes are gone -> ReaderIter::next
+  read_exact/decode fails -> Some(Err(..)): LOUD but UNRECOVERABLE and stream-blocking
+  (no skip/repair path, every re-subscribe at/after that offset re-hits the wall forever).
+  No sync_all anywhere in the crate. Two separable fixes: (a) fsync the log before
+  the index commit (durability — has a design tension: fsync-per-post cost vs the
+  ADR single-supervised-durable-hub / restart=recoverable-pause model that plausibly
+  scopes power-loss out — this half may need a human go/no-go); (b) a skip-corrupt-record
+  path so a poison offset yields a gap-marker not a permanent stream wall (reliability
+  — worthwhile even if (a) is declined). Round-16 reliability hunt F1, captured in
+  T-2462.
 
 status: captured
 workflow_type: build
@@ -16,8 +30,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-23T09:28:28Z
-last_update: 2026-08-03T21:39:54Z
-date_finished: null
+last_update: '2026-08-18T18:58:38Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,6 +42,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:33Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2464: log payload write has no fsync while index commit does — durability inversion yields an unrecoverable poison offset on power loss (round-16 F1)

@@ -2,7 +2,12 @@
 id: T-1632
 name: "Bump default_protocol_version() to 3 (T-1166 AC #6 follow-up)"
 description: >
-  T-1166 AC #6 carve-out. CONTROL_PLANE_VERSION (lib.rs:29) was bumped 2->3 at cut time, but hub.capabilities.protocol_version is sourced from default_protocol_version() at crates/termlink-protocol/src/control.rs:239 which still returns 1. Live verification on .122 (2026-05-12T21:50Z) confirmed protocol_version=1 in the post-cut response. Functional cut works (-32601 + retired methods absent); version-handshake half is incomplete. Older clients see method-not-found rather than PROTOCOL_VERSION_TOO_OLD.
+  T-1166 AC #6 carve-out. CONTROL_PLANE_VERSION (lib.rs:29) was bumped 2->3 at cut
+  time, but hub.capabilities.protocol_version is sourced from default_protocol_version()
+  at crates/termlink-protocol/src/control.rs:239 which still returns 1. Live verification
+  on .122 (2026-05-12T21:50Z) confirmed protocol_version=1 in the post-cut response.
+  Functional cut works (-32601 + retired methods absent); version-handshake half is
+  incomplete. Older clients see method-not-found rather than PROTOCOL_VERSION_TOO_OLD.
 
 status: started-work
 workflow_type: build
@@ -12,8 +17,31 @@ tags: [T-1166, protocol, cut-followup]
 components: []
 related_tasks: [T-1166]
 created: 2026-05-12T21:55:18Z
-last_update: 2026-05-15T20:46:27Z
-date_finished: null
+last_update: '2026-08-18T18:58:36Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:30Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 4
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=4 (body:cross-machine); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:36Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1632: Bump default_protocol_version() to 3 (T-1166 AC #6 follow-up)

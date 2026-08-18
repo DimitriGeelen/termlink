@@ -11,13 +11,37 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [framework, upstream, governance, P-011]
 components: []
 related_tasks: [T-904, T-906, T-907]
 created: 2026-04-11T14:39:06Z
-last_update: 2026-04-11T14:40:25Z
+last_update: '2026-08-18T18:59:23Z'
 date_finished: 2026-04-11T14:40:25Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=1 (body:fix-without-learning); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=2 (body:lightly-promoted); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:23Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 4
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=4 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-918: Framework gap — P-011 verification gate blind to un-staged files

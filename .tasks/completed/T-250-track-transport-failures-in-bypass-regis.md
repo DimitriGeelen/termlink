@@ -2,18 +2,44 @@
 id: T-250
 name: "Track transport failures in bypass registry"
 description: >
-  Connection errors and timeouts in orchestrator.route failover are not recorded in bypass registry. Only RPC-level errors call record_orchestrated_run. Transport failures should count toward bypass stats. See docs/reports/T-247-scenarios-adversarial.md Scenario 3 (lines 119-134).
+  Connection errors and timeouts in orchestrator.route failover are not recorded in
+  bypass registry. Only RPC-level errors call record_orchestrated_run. Transport failures
+  should count toward bypass stats. See docs/reports/T-247-scenarios-adversarial.md
+  Scenario 3 (lines 119-134).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [T-247, T-238, orchestration, bypass]
 components: []
 related_tasks: [T-247, T-238, T-233]
 created: 2026-03-23T16:54:22Z
-last_update: 2026-03-23T17:09:52Z
+last_update: '2026-08-18T18:59:11Z'
 date_finished: 2026-03-23T17:09:52Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:48Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:11Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 4
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=4 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-250: Track transport failures in bypass registry

@@ -2,18 +2,43 @@
 id: T-289
 name: "Push T-287 findings to fw-agent"
 description: >
-  Push T-287 inception findings to framework agent on .107 — confirm upgrade.sh bugs, request register --self in Session Start Protocol
+  Push T-287 inception findings to framework agent on .107 — confirm upgrade.sh bugs,
+  request register --self in Session Start Protocol
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-25T22:16:19Z
-last_update: 2026-04-23T19:34:06Z
+last_update: '2026-08-18T18:59:17Z'
 date_finished: 2026-04-23T19:34:06Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:01Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 4
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=4 
+      (body:cross-machine); F-RECALL=2 (body:lightly-promoted); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 4
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=4 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-289: Push T-287 findings to fw-agent

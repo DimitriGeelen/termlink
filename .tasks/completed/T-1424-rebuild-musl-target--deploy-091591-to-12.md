@@ -1,19 +1,47 @@
 ---
 id: T-1424
-name: "Rebuild musl target + deploy 0.9.1591 to .122 (close PL-100 build-pipeline gap)"
+name: "Rebuild musl target + deploy 0.9.1591 to .122 (close PL-100 build-pipeline
+  gap)"
 description: >
-  Followup to T-1422 / PL-100. Local target/x86_64-unknown-linux-musl/release/termlink is 0.9.1542 (Apr 28); target/release is 0.9.1591 (Apr 30). Rebuild musl target so fleet-deploy-binary.sh's new default picks up the current version. Then deploy to .122 with --probe (T-1423 mitigation) — first end-to-end exercise of the post-incident toolchain.
+  Followup to T-1422 / PL-100. Local target/x86_64-unknown-linux-musl/release/termlink
+  is 0.9.1542 (Apr 28); target/release is 0.9.1591 (Apr 30). Rebuild musl target so
+  fleet-deploy-binary.sh's new default picks up the current version. Then deploy to
+  .122 with --probe (T-1423 mitigation) — first end-to-end exercise of the post-incident
+  toolchain.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-30T20:48:04Z
-last_update: 2026-05-06T16:42:08Z
+last_update: '2026-08-18T18:58:49Z'
 date_finished: 2026-05-06T16:42:08Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:49Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1424: Rebuild musl target + deploy 0.9.1591 to .122 (close PL-100 build-pipeline gap)

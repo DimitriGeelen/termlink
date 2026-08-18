@@ -1,19 +1,47 @@
 ---
 id: T-1915
-name: "CLI --json error-path audit — find all commands like cmd_channel_list (T-1914 broader)"
+name: "CLI --json error-path audit — find all commands like cmd_channel_list (T-1914
+  broader)"
 description: >
-  T-1914 fixed cmd_channel_list to honor --json on hub-down. Audit all other CLI commands for the same pattern: early bail/?-propagation before reaching the --json branch. Expected suspects: any cmd_channel_*, cmd_event_*, cmd_kv_* that contact a hub. Add parity tests for each as caught.
+  T-1914 fixed cmd_channel_list to honor --json on hub-down. Audit all other CLI commands
+  for the same pattern: early bail/?-propagation before reaching the --json branch.
+  Expected suspects: any cmd_channel_*, cmd_event_*, cmd_kv_* that contact a hub.
+  Add parity tests for each as caught.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: [T-1904, T-1909, T-1913, T-1914]
 created: 2026-06-01T14:06:37Z
-last_update: 2026-06-01T17:00:49Z
+last_update: '2026-08-18T18:58:58Z'
 date_finished: 2026-06-01T17:31:35Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:19Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 1
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=1 (body:log-or-error-line); D3=0 
+      (no-signal); D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1915: CLI --json error-path audit — find all commands like cmd_channel_list (T-1914 broader)

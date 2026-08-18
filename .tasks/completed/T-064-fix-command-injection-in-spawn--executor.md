@@ -2,18 +2,42 @@
 id: T-064
 name: "Fix command injection in spawn — executor.rs input validation"
 description: >
-  Security: executor.rs passes user-controlled strings to sh -c with no escaping. Fix with input validation/escaping. Ref: security reflection agent finding.
+  Security: executor.rs passes user-controlled strings to sh -c with no escaping.
+  Fix with input validation/escaping. Ref: security reflection agent finding.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-10T08:44:07Z
-last_update: 2026-03-10T12:51:41Z
+last_update: '2026-08-18T18:58:41Z'
 date_finished: 2026-03-10T12:51:41Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:40Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=0
+      (no-signal); F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:41Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-064: Fix command injection in spawn — executor.rs input validation

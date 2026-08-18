@@ -7,13 +7,38 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-cli/src/commands/dispatch.rs, crates/termlink-cli/src/commands/events.rs, crates/termlink-hub/src/router.rs]
+components: [crates/termlink-cli/src/commands/dispatch.rs, 
+      crates/termlink-cli/src/commands/events.rs, 
+      crates/termlink-hub/src/router.rs]
 related_tasks: []
 created: 2026-03-30T20:10:07Z
-last_update: 2026-03-30T20:17:16Z
+last_update: '2026-08-18T18:59:21Z'
 date_finished: 2026-03-30T20:17:16Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:10Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:21Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 6
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-818: Upgrade hub event.collect to use event.subscribe internally

@@ -7,13 +7,37 @@ description: >
 status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-19T12:11:00Z
-last_update: 2026-04-19T12:20:11Z
+last_update: '2026-08-18T18:58:44Z'
 date_finished: 2026-04-19T12:20:11Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=0
+      (no-signal); D4=0 (no-signal); F-RECALL=2 (body:lightly-promoted); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:44Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 3
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=3 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1139: Remediate audit warnings — ownership, verification gates, artifact references

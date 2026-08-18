@@ -2,12 +2,13 @@
 id: T-2712
 name: "Fabric watch patterns exclude the guard layer — coverage measured over a subset"
 description: >
-  Widen watch-patterns.yaml to cover scripts/tests that already carry cards, and register the newly-visible files
+  Widen watch-patterns.yaml to cover scripts/tests that already carry cards, and register
+  the newly-visible files
 
 status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +17,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T18:50:18Z
-last_update: 2026-08-14T19:18:58Z
+last_update: '2026-08-18T18:59:15Z'
 date_finished: 2026-08-14T19:18:58Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +29,30 @@ date_finished: 2026-08-14T19:18:58Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:56Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 2
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=2
+      (body:default-change); D4=3 (body:portability-abstraction); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:15Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 3
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=3 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2712: Fabric watch patterns exclude the guard layer — coverage measured over a subset

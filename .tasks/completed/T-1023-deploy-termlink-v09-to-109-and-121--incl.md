@@ -1,19 +1,46 @@
 ---
 id: T-1023
-name: "Deploy termlink v0.9+ to .109 and .121 — includes remote doctor and file transfer fixes"
+name: "Deploy termlink v0.9+ to .109 and .121 — includes remote doctor and file transfer
+  fixes"
 description: >
-  Build musl static binary and deploy to both remote hubs via termlink send-file + remote exec. Restart hub services so they run the new code (fixing the stale hub binary issue).
+  Build musl static binary and deploy to both remote hubs via termlink send-file +
+  remote exec. Restart hub services so they run the new code (fixing the stale hub
+  binary issue).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-13T12:29:47Z
-last_update: 2026-04-13T12:56:33Z
+last_update: '2026-08-18T18:58:42Z'
 date_finished: 2026-04-13T12:56:33Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=3 
+      (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1023: Deploy termlink v0.9+ to .109 and .121 — includes remote doctor and file transfer fixes

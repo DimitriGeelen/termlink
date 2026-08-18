@@ -1,13 +1,26 @@
 ---
 id: T-2770
-name: "socket_has_listener treats EACCES as no-listener — T-2767 guard is blind to the uid-coupled split-brain path"
+name: "socket_has_listener treats EACCES as no-listener — T-2767 guard is blind to
+  the uid-coupled split-brain path"
 description: >
-  crates/termlink-hub/src/pidfile.rs::socket_has_listener does UnixStream::connect(socket).is_ok(). A non-root agent probing a root:root 0755 hub.sock gets EACCES, is_ok() is false, the guard reports no-listener and PERMITS a second hub to start. So the T-2767 guard misses precisely the permission-coupled case that produces split-brain; it only catches probers that could have connected anyway. Fix: branch on io::ErrorKind — ConnectionRefused means a dead socket file (start, preserving the unclean-shutdown case), PermissionDenied means a socket exists this uid may not probe, which is positive evidence of another user's hub (REFUSE, naming the uid mismatch), any other kind refuses conservatively and names the error. Never treat cannot-look as nothing-there. Regression test must pin the EACCES case specifically (chmod fixture socket 0700 and probe as another uid, or inject the ErrorKind); stale_socket_file_with_no_listener_still_starts already pins the refused case. Origin: AEF agent analysis of local IPC uid-coupling, 2026-08-16.
+  crates/termlink-hub/src/pidfile.rs::socket_has_listener does UnixStream::connect(socket).is_ok().
+  A non-root agent probing a root:root 0755 hub.sock gets EACCES, is_ok() is false,
+  the guard reports no-listener and PERMITS a second hub to start. So the T-2767 guard
+  misses precisely the permission-coupled case that produces split-brain; it only
+  catches probers that could have connected anyway. Fix: branch on io::ErrorKind —
+  ConnectionRefused means a dead socket file (start, preserving the unclean-shutdown
+  case), PermissionDenied means a socket exists this uid may not probe, which is positive
+  evidence of another user's hub (REFUSE, naming the uid mismatch), any other kind
+  refuses conservatively and names the error. Never treat cannot-look as nothing-there.
+  Regression test must pin the EACCES case specifically (chmod fixture socket 0700
+  and probe as another uid, or inject the ErrorKind); stale_socket_file_with_no_listener_still_starts
+  already pins the refused case. Origin: AEF agent analysis of local IPC uid-coupling,
+  2026-08-16.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-hub/src/pidfile.rs]
 related_tasks: []
@@ -16,7 +29,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-16T16:41:47Z
-last_update: 2026-08-16T18:13:36Z
+last_update: '2026-08-18T18:59:16Z'
 date_finished: 2026-08-16T18:13:36Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +41,30 @@ date_finished: 2026-08-16T18:13:36Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:16Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2770: socket_has_listener treats EACCES as no-listener — T-2767 guard is blind to the uid-coupled split-brain path

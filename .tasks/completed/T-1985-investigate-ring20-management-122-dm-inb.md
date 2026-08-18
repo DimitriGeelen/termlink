@@ -1,19 +1,57 @@
 ---
 id: T-1985
-name: "Investigate ring20-management (.122) DM inbox backlog — 30 unread incl. T-1695 G-058 ask"
+name: "Investigate ring20-management (.122) DM inbox backlog — 30 unread incl. T-1695
+  G-058 ask"
 description: >
-  User reported errors on .122. Investigation finding: hub HEALTHY (PONG 83ms, no rotation in 30d, fleet doctor PASS). Issue is at a different layer: dm:9219671e28054458:d1993c2c3ec44c94 on .122 hub has 30 posts but local .107 view of same topic has 22 — federation .107→.122 is asymmetric since T-1166 cut (~2026-05-12) per a self-documenting DM in offset 25. .122-side agent never acked any posts on this topic (peer_acked=-1). Critical missed item: offset 29 carries T-1695 G-058 OneDev mirror fix request (the penelope-shell executor pin). Also: agent-presence on .122 is EMPTY — no peer-agent listener registered, so /agent-handoff DMs cannot reach. Vendored-arc heartbeat IS running on .122 (hourly chat-arc emissions) but it's emit-only, no DM subscription. 4 termlink remote sessions registered (skills-manager, review-batch-3/4, ring20-management) but none subscribe to dm:* topics. Scope: investigate root cause + report; do NOT take direct admin action without operator authorization (G-058 OneDev change is Tier-1, federation restart is Tier-1).
+  User reported errors on .122. Investigation finding: hub HEALTHY (PONG 83ms, no
+  rotation in 30d, fleet doctor PASS). Issue is at a different layer: dm:9219671e28054458:d1993c2c3ec44c94
+  on .122 hub has 30 posts but local .107 view of same topic has 22 — federation .107→.122
+  is asymmetric since T-1166 cut (~2026-05-12) per a self-documenting DM in offset
+  25. .122-side agent never acked any posts on this topic (peer_acked=-1). Critical
+  missed item: offset 29 carries T-1695 G-058 OneDev mirror fix request (the penelope-shell
+  executor pin). Also: agent-presence on .122 is EMPTY — no peer-agent listener registered,
+  so /agent-handoff DMs cannot reach. Vendored-arc heartbeat IS running on .122 (hourly
+  chat-arc emissions) but it's emit-only, no DM subscription. 4 termlink remote sessions
+  registered (skills-manager, review-batch-3/4, ring20-management) but none subscribe
+  to dm:* topics. Scope: investigate root cause + report; do NOT take direct admin
+  action without operator authorization (G-058 OneDev change is Tier-1, federation
+  restart is Tier-1).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [fleet, ring20-management, doorbell-mail, operational]
 components: []
 related_tasks: []
 created: 2026-06-04T08:20:54Z
-last_update: 2026-06-04T08:34:59Z
+last_update: '2026-08-18T18:59:00Z'
 date_finished: 2026-06-04T08:37:29Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:22Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 2
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=2 
+      (body:telemetry-or-audit-entry); D3=0 (no-signal); D4=3 
+      (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1985: Investigate ring20-management (.122) DM inbox backlog — 30 unread incl. T-1695 G-058 ask

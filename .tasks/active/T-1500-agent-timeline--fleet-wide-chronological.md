@@ -2,7 +2,13 @@
 id: T-1500
 name: "agent timeline — fleet-wide chronological log (tail -f for the fleet)"
 description: >
-  Add 'agent timeline' verb — fleet-wide chronological log of posts across all peers in a window. Mirrors recent/on-thread shape but no peer or thread filter required (both optional). Compose with --thread, --project, --msg-type, --window-secs, --n, --watch. Operator gets a 'tail -f for the fleet' primitive: see all activity chronologically without first picking a peer or thread. Pure wrapper around extract_recent_posts (peer=None). New render_timeline_body helper that prefixes each post with peer_short for multi-peer disambiguation.
+  Add 'agent timeline' verb — fleet-wide chronological log of posts across all peers
+  in a window. Mirrors recent/on-thread shape but no peer or thread filter required
+  (both optional). Compose with --thread, --project, --msg-type, --window-secs, --n,
+  --watch. Operator gets a 'tail -f for the fleet' primitive: see all activity chronologically
+  without first picking a peer or thread. Pure wrapper around extract_recent_posts
+  (peer=None). New render_timeline_body helper that prefixes each post with peer_short
+  for multi-peer disambiguation.
 
 status: work-completed
 workflow_type: build
@@ -12,8 +18,32 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T20:29:04Z
-last_update: 2026-05-04T21:45:19Z
+last_update: '2026-08-18T18:58:36Z'
 date_finished: 2026-05-04T21:44:28Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:29Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=0 (no-signal); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:36Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1500: agent timeline — fleet-wide chronological log (tail -f for the fleet)

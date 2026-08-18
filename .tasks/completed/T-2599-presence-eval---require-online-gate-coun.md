@@ -1,22 +1,35 @@
 ---
 id: T-2599
-name: "presence eval (--require-online gate) counts future-dated posts as online — missing upper clock bound"
+name: "presence eval (--require-online gate) counts future-dated posts as online —
+  missing upper clock bound"
 description: >
-  T-2468 verb-1 (discover) hunt (2026-08-10, CONFIRMED + self-verified). evaluate_presence_msgs (crates/termlink-mcp/src/tools.rs:6854) AND its one-to-one CLI mirror evaluate_presence (crates/termlink-cli/src/commands/channel.rs:1511) both do 'if ts >= cutoff { posts_in_window += 1 }' with NO 'ts <= now_ms' upper bound. A future-dated envelope (clock skew / corrupt heartbeat) satisfies ts>=cutoff forever -> online=true forever -> agent contact --require-online gate passes -> orchestrator dispatches work to a corpse. Same class as T-2536 (find_idle) / T-2598 (agent-listeners.sh) / tools.rs:4029 chat-arc-stats 'ts>now_ms drop'. Sibling mirrors maintained one-to-one (docstring asserts it), so BOTH get the guard in one task (PL-318 cross-copy audit). Fix: 'if ts >= cutoff && ts <= now_ms'. Both are pure helpers with existing unit-test harnesses (tools.rs:30147+, channel.rs) — add a future-ts test to each asserting online==false. Load-bearing via temp-revert.
+  T-2468 verb-1 (discover) hunt (2026-08-10, CONFIRMED + self-verified). evaluate_presence_msgs
+  (crates/termlink-mcp/src/tools.rs:6854) AND its one-to-one CLI mirror evaluate_presence
+  (crates/termlink-cli/src/commands/channel.rs:1511) both do 'if ts >= cutoff { posts_in_window
+  += 1 }' with NO 'ts <= now_ms' upper bound. A future-dated envelope (clock skew
+  / corrupt heartbeat) satisfies ts>=cutoff forever -> online=true forever -> agent
+  contact --require-online gate passes -> orchestrator dispatches work to a corpse.
+  Same class as T-2536 (find_idle) / T-2598 (agent-listeners.sh) / tools.rs:4029 chat-arc-stats
+  'ts>now_ms drop'. Sibling mirrors maintained one-to-one (docstring asserts it),
+  so BOTH get the guard in one task (PL-318 cross-copy audit). Fix: 'if ts >= cutoff
+  && ts <= now_ms'. Both are pure helpers with existing unit-test harnesses (tools.rs:30147+,
+  channel.rs) — add a future-ts test to each asserting online==false. Load-bearing
+  via temp-revert.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [bug, verb1, silent-failure]
-components: [crates/termlink-cli/src/commands/channel.rs, crates/termlink-mcp/src/tools.rs]
+components: [crates/termlink-cli/src/commands/channel.rs, 
+      crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-10T20:26:19Z
-last_update: 2026-08-10T20:33:11Z
+last_update: '2026-08-18T18:59:13Z'
 date_finished: 2026-08-10T20:33:11Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +41,30 @@ date_finished: 2026-08-10T20:33:11Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:53Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=3 (body:portability-abstraction); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:13Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2599: presence eval (--require-online gate) counts future-dated posts as online — missing upper clock bound

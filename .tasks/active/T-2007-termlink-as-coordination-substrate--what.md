@@ -2,7 +2,8 @@
 id: T-2007
 name: "TermLink-as-coordination-substrate — what exists today (research, not design)"
 description: >
-  Inception: TermLink-as-coordination-substrate — what exists today (research, not design)
+  Inception: TermLink-as-coordination-substrate — what exists today (research, not
+  design)
 
 status: captured
 workflow_type: inception
@@ -12,8 +13,31 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-05T19:16:55Z
-last_update: 2026-06-06T12:32:28Z
-date_finished: null
+last_update: '2026-08-18T18:58:37Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:31Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2007: TermLink-as-coordination-substrate — what exists today (research, not design)

@@ -2,18 +2,47 @@
 id: T-1940
 name: "termlink_help — add name_filter for substring search across categories"
 description: >
-  When LLM consumers don't know the exact category for the tool they want, they currently get 'Unknown category' on guesses. Add a  parameter to termlink_help that returns a flat list of {category, name, description} for tools whose name OR description contains the substring (case-insensitive). Works alongside or instead of . Delivers real LLM value: 'I want to redact a post' → search 'redact' → finds termlink_channel_redact + termlink_agent_redact + redactions verbs.
+  When LLM consumers don't know the exact category for the tool they want, they currently
+  get 'Unknown category' on guesses. Add a  parameter to termlink_help that returns
+  a flat list of {category, name, description} for tools whose name OR description
+  contains the substring (case-insensitive). Works alongside or instead of . Delivers
+  real LLM value: 'I want to redact a post' → search 'redact' → finds termlink_channel_redact
+  + termlink_agent_redact + redactions verbs.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T05:32:22Z
-last_update: 2026-06-03T05:42:49Z
+last_update: '2026-08-18T18:58:59Z'
 date_finished: 2026-06-03T05:50:08Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1940: termlink_help — add name_filter for substring search across categories

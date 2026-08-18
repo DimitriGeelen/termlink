@@ -1,19 +1,46 @@
 ---
 id: T-1677
-name: "Client::connect_addr_with_timeout primitive + migrate operator-facing remote-hub sites (T-1675 follow-up)"
+name: "Client::connect_addr_with_timeout primitive + migrate operator-facing remote-hub
+  sites (T-1675 follow-up)"
 description: >
-  Client::connect_addr_with_timeout primitive + migrate operator-facing remote-hub sites (T-1675 follow-up)
+  Client::connect_addr_with_timeout primitive + migrate operator-facing remote-hub
+  sites (T-1675 follow-up)
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-cli/src/commands/remote.rs, crates/termlink-session/src/client.rs]
+components: [crates/termlink-cli/src/commands/remote.rs, 
+      crates/termlink-session/src/client.rs]
 related_tasks: []
 created: 2026-05-17T21:47:53Z
-last_update: 2026-05-17T21:56:47Z
+last_update: '2026-08-18T18:58:54Z'
 date_finished: 2026-05-17T21:56:47Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:08Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:54Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 7
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1677: Client::connect_addr_with_timeout primitive + migrate operator-facing remote-hub sites (T-1675 follow-up)

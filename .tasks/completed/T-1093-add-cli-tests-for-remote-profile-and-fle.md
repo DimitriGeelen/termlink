@@ -7,13 +7,36 @@ description: >
 status: work-completed
 workflow_type: test
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-16T21:26:47Z
-last_update: 2026-04-23T17:22:36Z
+last_update: '2026-08-18T18:58:43Z'
 date_finished: 2026-04-16T21:29:48Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:43Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 1
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=1 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1093: Add CLI tests for remote profile and fleet reauth commands

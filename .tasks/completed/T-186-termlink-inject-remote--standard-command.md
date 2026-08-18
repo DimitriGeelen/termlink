@@ -2,17 +2,45 @@
 id: T-186
 name: "termlink inject-remote — standard command for cross-machine prompt injection"
 description: >
-  Design a standard CLI command for repeatable cross-machine prompt injection. Currently requires: hex secret parsing, HMAC token generation, TOFU TLS, hub routing — all manual via tofu_test example. Need: 'termlink inject-remote host:port session-name "message" --secret-file /path'. Should handle auth, TOFU, and split-writes automatically. Also consider 'termlink connect-hub' for persistent hub connections.
+  Design a standard CLI command for repeatable cross-machine prompt injection. Currently
+  requires: hex secret parsing, HMAC token generation, TOFU TLS, hub routing — all
+  manual via tofu_test example. Need: 'termlink inject-remote host:port session-name
+  "message" --secret-file /path'. Should handle auth, TOFU, and split-writes automatically.
+  Also consider 'termlink connect-hub' for persistent hub connections.
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: [cli, cross-machine, ux]
-components: [crates/termlink-cli/src/commands/remote.rs, crates/termlink-mcp/src/tools.rs]
+components: [crates/termlink-cli/src/commands/remote.rs, 
+      crates/termlink-mcp/src/tools.rs]
 related_tasks: [T-182, T-183, T-184, T-185]
 created: 2026-03-18T23:28:42Z
-last_update: 2026-04-23T19:29:58Z
+last_update: '2026-08-18T18:58:57Z'
 date_finished: 2026-04-23T19:29:58Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:16Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:57Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 4
+      effort: 5
+    rationale: blast_radius=3 (no-signal); tier=4 (no-signal); effort=5 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-186: termlink inject-remote — standard command for cross-machine prompt injection

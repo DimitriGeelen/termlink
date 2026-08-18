@@ -2,18 +2,45 @@
 id: T-1436
 name: "T-1429-prereq: identity_fingerprint in SessionMetadata + session.discover"
 description: >
-  Phase-0 prereq for T-1429 (agent contact verb). Add identity_fingerprint: Option<String> to SessionMetadata; populate from load_identity_or_create() at registration time; ensure session.discover response includes it. Unblocks T-1429 Phase-1 (name-resolution to canonical dm:<a>:<b> topic). Decision documented in T-1429.md.
+  Phase-0 prereq for T-1429 (agent contact verb). Add identity_fingerprint: Option<String>
+  to SessionMetadata; populate from load_identity_or_create() at registration time;
+  ensure session.discover response includes it. Unblocks T-1429 Phase-1 (name-resolution
+  to canonical dm:<a>:<b> topic). Decision documented in T-1429.md.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [T-1429, identity, registration]
 components: []
 related_tasks: []
 created: 2026-05-01T10:12:02Z
-last_update: 2026-05-01T10:33:55Z
+last_update: '2026-08-18T18:58:50Z'
 date_finished: 2026-05-01T10:33:55Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=1 (body:fix-without-learning); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=2 (body:lightly-promoted); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1436: T-1429-prereq: identity_fingerprint in SessionMetadata + session.discover

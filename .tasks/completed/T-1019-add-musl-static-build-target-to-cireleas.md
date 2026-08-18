@@ -2,18 +2,44 @@
 id: T-1019
 name: "Add musl static build target to CI/release pipeline"
 description: >
-  Deploying termlink to Debian 12 hosts (.109, .121) required a manual musl static build because the glibc-linked binary needs glibc 2.38+ (Ubuntu) while Debian 12 has 2.36. The CI/release pipeline should produce a musl static binary alongside the dynamic one so cross-distro deployment works out of the box.
+  Deploying termlink to Debian 12 hosts (.109, .121) required a manual musl static
+  build because the glibc-linked binary needs glibc 2.38+ (Ubuntu) while Debian 12
+  has 2.36. The CI/release pipeline should produce a musl static binary alongside
+  the dynamic one so cross-distro deployment works out of the box.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-13T12:01:23Z
-last_update: 2026-04-23T18:41:43Z
+last_update: '2026-08-18T18:58:42Z'
 date_finished: 2026-04-13T12:12:22Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=0
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1019: Add musl static build target to CI/release pipeline

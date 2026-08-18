@@ -1,19 +1,53 @@
 ---
 id: T-1987
-name: "Install DM-inbox poller on .122 — surface unread DMs to /var/log/dm-inbox.log (T-1985 followup)"
+name: "Install DM-inbox poller on .122 — surface unread DMs to /var/log/dm-inbox.log
+  (T-1985 followup)"
 description: >
-  T-1985 shipped the presence-emitter (peers can reach .122). Companion missing: nothing on .122 is READING the dm:* topics, so inbound messages still go unseen even though they land cleanly. This task installs a per-2-minute cron poller on .122 that walks all dm:<self-fp>:* topics, tracks per-topic last-seen offsets in /root/.termlink/dm-poller.state, and appends new envelopes to /var/log/dm-inbox.log so the operator can tail -f and see what arrived. Read-only (no auto-ack), idempotent across restarts. Closes the doorbell+mail rail for .122: T-1985 = presence (announce), T-1987 = polling (receive). Same install mechanism as T-1985 (remote exec → write script + add cron). Does NOT subscribe in real-time — that's a heavier listener-process pattern reserved for follow-up if cron-poll proves insufficient.
+  T-1985 shipped the presence-emitter (peers can reach .122). Companion missing: nothing
+  on .122 is READING the dm:* topics, so inbound messages still go unseen even though
+  they land cleanly. This task installs a per-2-minute cron poller on .122 that walks
+  all dm:<self-fp>:* topics, tracks per-topic last-seen offsets in /root/.termlink/dm-poller.state,
+  and appends new envelopes to /var/log/dm-inbox.log so the operator can tail -f and
+  see what arrived. Read-only (no auto-ack), idempotent across restarts. Closes the
+  doorbell+mail rail for .122: T-1985 = presence (announce), T-1987 = polling (receive).
+  Same install mechanism as T-1985 (remote exec → write script + add cron). Does NOT
+  subscribe in real-time — that's a heavier listener-process pattern reserved for
+  follow-up if cron-poll proves insufficient.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [fleet, ring20-management, doorbell-mail, operational]
 components: []
 related_tasks: []
 created: 2026-06-04T08:52:05Z
-last_update: 2026-06-04T08:55:26Z
+last_update: '2026-08-18T18:59:00Z'
 date_finished: 2026-06-04T08:57:20Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:22Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1987: Install DM-inbox poller on .122 — surface unread DMs to /var/log/dm-inbox.log (T-1985 followup)

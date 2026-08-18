@@ -2,18 +2,44 @@
 id: T-1740
 name: "termlink_agent_stats MCP — chat-arc activity stats"
 description: >
-  Port cmd_agent_stats to MCP — counts by msg_type/peer/project/thread for chat-arc within window. Helper-port pattern: summarize_chat_arc_stats_mcp + ChatArcStatsMcp struct. T-1166 MCP-parity arc.
+  Port cmd_agent_stats to MCP — counts by msg_type/peer/project/thread for chat-arc
+  within window. Helper-port pattern: summarize_chat_arc_stats_mcp + ChatArcStatsMcp
+  struct. T-1166 MCP-parity arc.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-21T06:53:08Z
-last_update: 2026-05-21T06:57:00Z
+last_update: '2026-08-18T18:58:55Z'
 date_finished: 2026-05-21T06:57:00Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:11Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:55Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1740: termlink_agent_stats MCP — chat-arc activity stats

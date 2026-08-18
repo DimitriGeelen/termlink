@@ -1,19 +1,21 @@
 ---
 id: T-2319
-name: "Push-waker leaks its channel-subscribe child on be-reachable stop (orphan reconnect loop)"
+name: "Push-waker leaks its channel-subscribe child on be-reachable stop (orphan reconnect
+  loop)"
 description: >
-  Push-waker leaks its channel-subscribe child on be-reachable stop (orphan reconnect loop)
+  Push-waker leaks its channel-subscribe child on be-reachable stop (orphan reconnect
+  loop)
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: ["arc:push-transport", "bug", "resource-leak"]
 components: [scripts/be-reachable.sh]
 related_tasks: [T-2318, T-2316, T-2314]
 arc_id: push-transport
 created: 2026-07-02T22:34:38Z
-last_update: 2026-07-02T22:51:56Z
+last_update: '2026-08-18T18:59:08Z'
 date_finished: 2026-07-02T22:51:56Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -25,6 +27,30 @@ date_finished: 2026-07-02T22:51:56Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:39Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=2 
+      (body:telemetry-or-audit-entry); D3=2 (body:default-change); D4=2 
+      (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:08Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2319: Push-waker leaks its channel-subscribe child on be-reachable stop (orphan reconnect loop)

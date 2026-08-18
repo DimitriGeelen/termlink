@@ -2,18 +2,44 @@
 id: T-1024
 name: "Add termlink hub restart — graceful self-restart via fork-exec"
 description: >
-  Add 'termlink hub restart' command and hub.restart RPC method. The hub spawns a new process from the current binary, waits for it to bind the port, then exits. This enables remote hub upgrades via termlink without losing connectivity (solves the chicken-and-egg problem from T-1023).
+  Add 'termlink hub restart' command and hub.restart RPC method. The hub spawns a
+  new process from the current binary, waits for it to bind the port, then exits.
+  This enables remote hub upgrades via termlink without losing connectivity (solves
+  the chicken-and-egg problem from T-1023).
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-13T12:47:11Z
-last_update: 2026-04-23T19:17:04Z
+last_update: '2026-08-18T18:58:42Z'
 date_finished: 2026-04-13T12:51:59Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1024: Add termlink hub restart — graceful self-restart via fork-exec

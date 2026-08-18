@@ -7,13 +7,36 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-22T04:58:48Z
-last_update: 2026-04-22T05:02:13Z
+last_update: '2026-08-18T18:58:45Z'
 date_finished: 2026-04-22T05:02:13Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:48Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 4
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=4
+      (body:cross-machine); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 5
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=5 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1179: Batch-evidence 11 REVIEW-type Human ACs across started-work/human tasks

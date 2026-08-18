@@ -2,18 +2,45 @@
 id: T-1975
 name: "termlink_help: name_filter adds max_parameters filter (cycle 10 slice 6)"
 description: >
-  MCP arc cycle 10 slice 6: add max_parameters: Option<usize> to HelpParams. When set in combination with name_filter, suppresses matches whose parameter_count exceeds the threshold. Lets LLMs ask 'find me simple tools matching X' in one round-trip. Composes T-1972's name_filter parameter_count signal with explicit filtering.
+  MCP arc cycle 10 slice 6: add max_parameters: Option<usize> to HelpParams. When
+  set in combination with name_filter, suppresses matches whose parameter_count exceeds
+  the threshold. Lets LLMs ask 'find me simple tools matching X' in one round-trip.
+  Composes T-1972's name_filter parameter_count signal with explicit filtering.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-04T06:03:29Z
-last_update: 2026-06-04T06:10:28Z
+last_update: '2026-08-18T18:59:00Z'
 date_finished: 2026-06-04T06:11:46Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:21Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1975: termlink_help: name_filter adds max_parameters filter (cycle 10 slice 6)

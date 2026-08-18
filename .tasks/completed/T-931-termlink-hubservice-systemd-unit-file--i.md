@@ -2,18 +2,47 @@
 id: T-931
 name: "termlink-hub.service systemd unit file + installer"
 description: >
-  Create /etc/systemd/system/termlink-hub.service matching the watchtower-vinix24 precedent: Type=exec, User=root, TERMLINK_RUNTIME_DIR=/var/lib/termlink, StateDirectory=termlink, ExecStart=termlink hub start --tcp 0.0.0.0:9100 --json, Restart=on-failure, RestartSec=5, KillSignal=SIGINT (temporary until T-932 lands). Include installer in .context/systemd/ mirroring the agentic-audit-termlink cron install pattern. From T-930 decomposition.
+  Create /etc/systemd/system/termlink-hub.service matching the watchtower-vinix24
+  precedent: Type=exec, User=root, TERMLINK_RUNTIME_DIR=/var/lib/termlink, StateDirectory=termlink,
+  ExecStart=termlink hub start --tcp 0.0.0.0:9100 --json, Restart=on-failure, RestartSec=5,
+  KillSignal=SIGINT (temporary until T-932 lands). Include installer in .context/systemd/
+  mirroring the agentic-audit-termlink cron install pattern. From T-930 decomposition.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/metadata.rs, crates/termlink-cli/src/main.rs]
+components: [crates/termlink-cli/src/cli.rs, 
+      crates/termlink-cli/src/commands/metadata.rs, 
+      crates/termlink-cli/src/main.rs]
 related_tasks: [T-930, T-932, T-933]
 created: 2026-04-11T22:29:17Z
-last_update: 2026-04-11T22:41:44Z
+last_update: '2026-08-18T18:59:23Z'
 date_finished: 2026-04-11T22:41:44Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:23Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 4
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=4 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-931: termlink-hub.service systemd unit file + installer

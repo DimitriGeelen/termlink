@@ -2,18 +2,46 @@
 id: T-1174
 name: "Wire termlink channel post through BusClient so CLI gets offline-queue tolerance"
 description: >
-  T-1161 follow-up. Smoke-test on 2026-04-21 surfaced that the CLI `channel post` verb bypasses BusClient and calls rpc_call directly at crates/termlink-cli/src/commands/channel.rs:137. Operators running `termlink channel post` while the hub is down get an RPC error instead of offline-queue fallback. Swap to BusClient::post so CLI ops inherit the durable queue. Keep the existing rpc_call path as fallback when no identity/queue is available.
+  T-1161 follow-up. Smoke-test on 2026-04-21 surfaced that the CLI `channel post`
+  verb bypasses BusClient and calls rpc_call directly at crates/termlink-cli/src/commands/channel.rs:137.
+  Operators running `termlink channel post` while the hub is down get an RPC error
+  instead of offline-queue fallback. Swap to BusClient::post so CLI ops inherit the
+  durable queue. Keep the existing rpc_call path as fallback when no identity/queue
+  is available.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [T-1155, bus, cli, offline-queue]
 components: []
 related_tasks: []
 created: 2026-04-20T23:09:11Z
-last_update: 2026-04-20T23:19:43Z
+last_update: '2026-08-18T18:58:45Z'
 date_finished: 2026-04-20T23:19:43Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:48Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1174: Wire termlink channel post through BusClient so CLI gets offline-queue tolerance

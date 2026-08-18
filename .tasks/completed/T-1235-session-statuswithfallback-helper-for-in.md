@@ -2,18 +2,45 @@
 id: T-1235
 name: "Session: status_with_fallback helper for inbox.status migration (T-1229b)"
 description: >
-  Add status_with_fallback{,_with_client} helper in inbox_channel.rs that mirrors list_with_fallback (T-1231) for inbox.status. Probes hub.capabilities; uses channel.list(prefix=inbox:) when channel.* is supported, sums per-topic counts; falls back to legacy inbox.status on -32601. Critical dependency for T-1229c/d/e/f/g call-site migrations.
+  Add status_with_fallback{,_with_client} helper in inbox_channel.rs that mirrors
+  list_with_fallback (T-1231) for inbox.status. Probes hub.capabilities; uses channel.list(prefix=inbox:)
+  when channel.* is supported, sums per-topic counts; falls back to legacy inbox.status
+  on -32601. Critical dependency for T-1229c/d/e/f/g call-site migrations.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [T-1229, T-1155, bus, channel, session]
 components: [crates/termlink-session/src/inbox_channel.rs]
 related_tasks: []
 created: 2026-04-25T10:19:41Z
-last_update: 2026-04-25T10:21:59Z
+last_update: '2026-08-18T18:58:46Z'
 date_finished: 2026-04-25T10:21:59Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:51Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=2 (body:lightly-promoted); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1235: Session: status_with_fallback helper for inbox.status migration (T-1229b)

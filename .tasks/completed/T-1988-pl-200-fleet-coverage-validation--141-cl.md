@@ -2,18 +2,48 @@
 id: T-1988
 name: "PL-200 fleet coverage validation + .141 closure (T-1987 sibling)"
 description: >
-  PL-200 prevention follow-up. (1) End-to-end validate the .122 doorbell+mail rail (T-1987 cron) by sending a test DM from this .107 session and confirming it lands in /var/log/dm-inbox.log on .122 within 2 minutes. (2) Apply the same presence-heartbeat cron pattern to .141 laptop-141 — last fleet host with the PL-200 gap (per memory, ~4d old). On success, peers can /agent-handoff to laptop-141-agent and the fleet listener-discovery is complete. Both deliverables are autonomous-safe (additive, recoverable cron entries; no source code changes; no destructive ops).
+  PL-200 prevention follow-up. (1) End-to-end validate the .122 doorbell+mail rail
+  (T-1987 cron) by sending a test DM from this .107 session and confirming it lands
+  in /var/log/dm-inbox.log on .122 within 2 minutes. (2) Apply the same presence-heartbeat
+  cron pattern to .141 laptop-141 — last fleet host with the PL-200 gap (per memory,
+  ~4d old). On success, peers can /agent-handoff to laptop-141-agent and the fleet
+  listener-discovery is complete. Both deliverables are autonomous-safe (additive,
+  recoverable cron entries; no source code changes; no destructive ops).
 
 status: work-completed
 workflow_type: test
 owner: agent
-horizon: null
+horizon:
 tags: [pl-200, doorbell-mail, ring20, fleet]
 components: []
 related_tasks: []
 created: 2026-06-04T19:57:51Z
-last_update: 2026-06-04T19:58:34Z
+last_update: '2026-08-18T18:59:00Z'
 date_finished: 2026-06-04T20:16:25Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:22Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 1
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=2 (body:env-class-handled); F-RECALL=1 (body:episodic-only); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 1
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=1 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1988: PL-200 fleet coverage validation + .141 closure (T-1987 sibling)

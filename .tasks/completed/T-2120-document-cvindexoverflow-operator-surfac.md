@@ -1,14 +1,17 @@
 ---
 id: T-2120
-name: "Document cv_index_overflow operator surface in /governor, /substrate skills + substrate-governor.md (T-2118/T-2119 doc closure)"
+name: "Document cv_index_overflow operator surface in /governor, /substrate skills
+  + substrate-governor.md (T-2118/T-2119 doc closure)"
 description: >
-  Document cv_index_overflow operator surface in /governor, /substrate skills + substrate-governor.md (T-2118/T-2119 doc closure)
+  Document cv_index_overflow operator surface in /governor, /substrate skills + substrate-governor.md
+  (T-2118/T-2119 doc closure)
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
-tags: [arc:arc-parallel-substrate, substrate-primitive-10, cv-index-pressure, docs]
+horizon:
+tags: [arc:arc-parallel-substrate, substrate-primitive-10, cv-index-pressure, 
+      docs]
 components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
@@ -16,7 +19,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-10T09:56:11Z
-last_update: 2026-06-10T10:35:41Z
+last_update: '2026-08-18T18:59:03Z'
 date_finished: 2026-06-10T10:35:41Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +31,31 @@ date_finished: 2026-06-10T10:35:41Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:29Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 2
+      D3: 4
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=2 
+      (body:telemetry-or-audit-entry); D3=4 (body:framework-level-ux); D4=3 
+      (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:03Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2120: Document cv_index_overflow operator surface in /governor, /substrate skills + substrate-governor.md (T-2118/T-2119 doc closure)

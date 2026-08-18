@@ -2,18 +2,46 @@
 id: T-1125
 name: "Persist FW_SECRET_KEY across watchtower restarts (fix CSRF 403 after restart)"
 description: >
-  Watchtower's FW_SECRET_KEY auto-generates on every restart (app.py:50), invalidating all existing browser session cookies and CSRF tokens. Users hit '403 Forbidden — CSRF token missing or invalid' on any POST form (Record decision, task updates, etc.) if their page was loaded before the restart. Workaround: refresh the page. Fix: persist FW_SECRET_KEY in .context/working/.fw-secret-key (chmod 600) and load on startup, or document setting it in the systemd unit / fw watchtower start.
+  Watchtower's FW_SECRET_KEY auto-generates on every restart (app.py:50), invalidating
+  all existing browser session cookies and CSRF tokens. Users hit '403 Forbidden —
+  CSRF token missing or invalid' on any POST form (Record decision, task updates,
+  etc.) if their page was loaded before the restart. Workaround: refresh the page.
+  Fix: persist FW_SECRET_KEY in .context/working/.fw-secret-key (chmod 600) and load
+  on startup, or document setting it in the systemd unit / fw watchtower start.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [watchtower, security, csrf]
 components: []
 related_tasks: []
 created: 2026-04-18T10:01:16Z
-last_update: 2026-04-23T19:17:45Z
+last_update: '2026-08-18T18:58:44Z'
 date_finished: 2026-04-18T15:48:59Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=0
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:44Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1125: Persist FW_SECRET_KEY across watchtower restarts (fix CSRF 403 after restart)

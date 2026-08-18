@@ -1,19 +1,47 @@
 ---
 id: T-1866
-name: "Vendor doorbell+mail skill + script bundle into upstream AEF (T-1865 follow-up #1)"
+name: "Vendor doorbell+mail skill + script bundle into upstream AEF (T-1865 follow-up
+  #1)"
 description: >
-  Phase 1 of T-1865 GO decision: ship the 9 doorbell+mail slash skills + 7 supporting scripts + systemd presence-emitter template into upstream /opt/999-Agentic-Engineering-Framework via direct termlink_run commit. No behavioral change — file copy only. Enables T-1867 to extend do_vendor includes so the toolkit reaches consumers.
+  Phase 1 of T-1865 GO decision: ship the 9 doorbell+mail slash skills + 7 supporting
+  scripts + systemd presence-emitter template into upstream /opt/999-Agentic-Engineering-Framework
+  via direct termlink_run commit. No behavioral change — file copy only. Enables T-1867
+  to extend do_vendor includes so the toolkit reaches consumers.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: [T-1865, T-1867, T-1868]
 created: 2026-05-29T12:04:27Z
-last_update: 2026-05-29T21:35:53Z
+last_update: '2026-08-18T18:58:57Z'
 date_finished: 2026-05-29T21:35:53Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:16Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:57Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1866: Vendor doorbell+mail skill + script bundle into upstream AEF (T-1865 follow-up #1)

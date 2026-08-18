@@ -1,13 +1,20 @@
 ---
 id: T-2475
-name: "Fix OBS-108 MCP parity — termlink_file_receive has same false-green tautology (no receiver-expected-digest)"
+name: "Fix OBS-108 MCP parity — termlink_file_receive has same false-green tautology
+  (no receiver-expected-digest)"
 description: >
-  Successor-path audit (docs/reports/OBS-108-successor-path-audit.md) found the MCP tool termlink_file_receive (crates/termlink-mcp/src/tools.rs:13706-13966) still carries the OBS-108 false-green: expected_sha256 comes from the SENDER file.complete event and is compared to bytes recomputed from the same payload; FileReceiveParams has no caller-supplied expected field. Add expected_sha256: Option<String> to FileReceiveParams + a receiver-vs-actual loud compare. Legacy-events surface parity gap, same class as T-2472.
+  Successor-path audit (docs/reports/OBS-108-successor-path-audit.md) found the MCP
+  tool termlink_file_receive (crates/termlink-mcp/src/tools.rs:13706-13966) still
+  carries the OBS-108 false-green: expected_sha256 comes from the SENDER file.complete
+  event and is compared to bytes recomputed from the same payload; FileReceiveParams
+  has no caller-supplied expected field. Add expected_sha256: Option<String> to FileReceiveParams
+  + a receiver-vs-actual loud compare. Legacy-events surface parity gap, same class
+  as T-2472.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
@@ -16,7 +23,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-31T12:16:32Z
-last_update: 2026-07-31T12:36:31Z
+last_update: '2026-08-18T18:59:11Z'
 date_finished: 2026-07-31T12:36:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +35,30 @@ date_finished: 2026-07-31T12:36:31Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 3
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=3 (body:portability-abstraction); F-RECALL=2 
+      (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:11Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2475: Fix OBS-108 MCP parity — termlink_file_receive has same false-green tautology (no receiver-expected-digest)

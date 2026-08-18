@@ -1,13 +1,17 @@
 ---
 id: T-2050
-name: "Substrate primitive #5 Gap B: audit + document T-1439 offline_queue flush-loop backoff parameters (T-2023 GO follow-up)"
+name: "Substrate primitive #5 Gap B: audit + document T-1439 offline_queue flush-loop
+  backoff parameters (T-2023 GO follow-up)"
 description: >
-  Implement T-2023 Gap B per docs/reports/T-2023-client-reconnect-queue-inception.md §4.B. Locate flush-loop downstream of T-1439's offline_queue.rs. Document: initial-delay, max-delay, jitter, max-attempts, dead-letter behavior. Identify any params with poor defaults; file conditional <50 LOC follow-up if found. Doc-only otherwise.
+  Implement T-2023 Gap B per docs/reports/T-2023-client-reconnect-queue-inception.md
+  §4.B. Locate flush-loop downstream of T-1439's offline_queue.rs. Document: initial-delay,
+  max-delay, jitter, max-attempts, dead-letter behavior. Identify any params with
+  poor defaults; file conditional <50 LOC follow-up if found. Doc-only otherwise.
 
 status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: null
+horizon:
 tags: [arc:arc-parallel-substrate, substrate-primitive, resilience]
 components: []
 related_tasks: [T-2018, T-2023, T-1439]
@@ -16,7 +20,7 @@ related_tasks: [T-2018, T-2023, T-1439]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T10:49:29Z
-last_update: 2026-06-08T16:14:57Z
+last_update: '2026-08-18T18:59:01Z'
 date_finished: 2026-06-08T16:14:57Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +32,30 @@ date_finished: 2026-06-08T16:14:57Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:25Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=2 
+      (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:01Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 3
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=3 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2050: Substrate primitive #5 Gap B: audit + document T-1439 offline_queue flush-loop backoff parameters (T-2023 GO follow-up)

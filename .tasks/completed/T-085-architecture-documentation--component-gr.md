@@ -2,18 +2,43 @@
 id: T-085
 name: "Architecture documentation — component graph and hierarchical description"
 description: >
-  Create detailed documentation from the component fabric, inferring functionality of each component and producing a logical, structured hierarchical description of TermLink.
+  Create detailed documentation from the component fabric, inferring functionality
+  of each component and producing a logical, structured hierarchical description of
+  TermLink.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-10T22:33:12Z
-last_update: 2026-03-11T23:49:06Z
+last_update: '2026-08-18T18:58:41Z'
 date_finished: 2026-03-10T22:41:29Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:41Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:41Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 4
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=4 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-085: Architecture documentation — component graph and hierarchical description

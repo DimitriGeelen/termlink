@@ -7,13 +7,37 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [audit, framework-discipline, G-059, PL-169]
 components: [scripts/t1697-human-ac-audit.py]
 related_tasks: [T-1480, T-1481]
 created: 2026-05-18T17:41:52Z
-last_update: 2026-05-27T20:42:04Z
+last_update: '2026-08-18T18:58:54Z'
 date_finished: 2026-05-27T20:42:04Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:09Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=2 (body:env-class-handled); F-RECALL=2 (body:lightly-promoted); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:54Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1697: Audit Human ACs for mechanical-criteria misclassification (G-059)

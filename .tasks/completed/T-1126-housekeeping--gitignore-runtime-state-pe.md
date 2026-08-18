@@ -7,13 +7,37 @@ description: >
 status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-18T15:40:05Z
-last_update: 2026-04-18T15:43:38Z
+last_update: '2026-08-18T18:58:44Z'
 date_finished: 2026-04-18T15:43:38Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 1
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=1 (body:episodic-only); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:44Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 3
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=3 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1126: Housekeeping — gitignore runtime state per L-028 + cleanup uncommitted churn

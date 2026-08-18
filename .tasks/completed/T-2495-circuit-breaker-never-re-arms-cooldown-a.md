@@ -1,13 +1,22 @@
 ---
 id: T-2495
-name: "circuit breaker never re-arms cooldown after failed half-open probe (protection evaporates)"
+name: "circuit breaker never re-arms cooldown after failed half-open probe (protection
+  evaporates)"
 description: >
-  CircuitState::record_failure (crates/termlink-hub/src/circuit_breaker.rs:41) guards the opened_at stamp with '&& self.opened_at.is_none()', so a failure on the half-open PROBE never re-stamps opened_at. After the first 60s cooldown, is_half_open() stays true forever => should_skip()=false forever => the breaker is silently defeated: every orchestrator.route to a dead session re-pays the full timeout (the cascading-delay it exists to prevent). Only a success ever re-closes it, which a dead session can't produce. Fix: drop the is_none() guard so any failure at/over threshold re-arms the cooldown. Applies to both CircuitBreakerRegistry + ModelCircuitBreaker (shared CircuitState). directive-#2 silent-failure.
+  CircuitState::record_failure (crates/termlink-hub/src/circuit_breaker.rs:41) guards
+  the opened_at stamp with '&& self.opened_at.is_none()', so a failure on the half-open
+  PROBE never re-stamps opened_at. After the first 60s cooldown, is_half_open() stays
+  true forever => should_skip()=false forever => the breaker is silently defeated:
+  every orchestrator.route to a dead session re-pays the full timeout (the cascading-delay
+  it exists to prevent). Only a success ever re-closes it, which a dead session can't
+  produce. Fix: drop the is_none() guard so any failure at/over threshold re-arms
+  the cooldown. Applies to both CircuitBreakerRegistry + ModelCircuitBreaker (shared
+  CircuitState). directive-#2 silent-failure.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-hub/src/circuit_breaker.rs]
 related_tasks: []
@@ -16,7 +25,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-02T09:54:20Z
-last_update: 2026-08-02T09:56:03Z
+last_update: '2026-08-18T18:59:11Z'
 date_finished: 2026-08-02T09:56:03Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +37,30 @@ date_finished: 2026-08-02T09:56:03Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:48Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:11Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2495: circuit breaker never re-arms cooldown after failed half-open probe (protection evaporates)

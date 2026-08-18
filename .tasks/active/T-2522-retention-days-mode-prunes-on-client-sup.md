@@ -1,8 +1,20 @@
 ---
 id: T-2522
-name: "Retention Days mode prunes on client-supplied timestamp (message loss + unbounded-growth vectors)"
+name: "Retention Days mode prunes on client-supplied timestamp (message loss + unbounded-growth
+  vectors)"
 description: >
-  Retention::Days sweep deletes records WHERE records.ts_unix_ms < now - d*86400000 (bus/meta.rs:319). That column is populated from env.ts_unix_ms (bus/lib.rs:192), which channel.post takes from client params.ts (server_now only as fallback, channel.rs:617). So Days is the ONLY retention mode keyed off a client-supplied, non-monotonic value. Consequence (a) over-reclaim: a message posted now but carrying an old client ts is deleted on the next sweep before any consumer reads it — durability violation / message loss. (b) never-fires: a message with a FUTURE client ts is never < cutoff, survives forever, pins the topic (T-1991-class unbounded growth from one poison record). NEEDS HUMAN DECISION: does Days(N) mean keep-N-days-by-content-time (current) or by-hub-receive-time? Existing tests (bus/lib.rs:1306/1321/1356) encode content-time; agent-presence stale-eviction leans on it. See RCA for the durability argument for receive-time + the fix.
+  Retention::Days sweep deletes records WHERE records.ts_unix_ms < now - d*86400000
+  (bus/meta.rs:319). That column is populated from env.ts_unix_ms (bus/lib.rs:192),
+  which channel.post takes from client params.ts (server_now only as fallback, channel.rs:617).
+  So Days is the ONLY retention mode keyed off a client-supplied, non-monotonic value.
+  Consequence (a) over-reclaim: a message posted now but carrying an old client ts
+  is deleted on the next sweep before any consumer reads it — durability violation
+  / message loss. (b) never-fires: a message with a FUTURE client ts is never < cutoff,
+  survives forever, pins the topic (T-1991-class unbounded growth from one poison
+  record). NEEDS HUMAN DECISION: does Days(N) mean keep-N-days-by-content-time (current)
+  or by-hub-receive-time? Existing tests (bus/lib.rs:1306/1321/1356) encode content-time;
+  agent-presence stale-eviction leans on it. See RCA for the durability argument for
+  receive-time + the fix.
 
 status: captured
 workflow_type: build
@@ -16,8 +28,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-04T10:12:58Z
-last_update: 2026-08-04T10:30:10Z
-date_finished: null
+last_update: '2026-08-18T18:58:38Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,6 +40,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:34Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2522: Retention Days mode prunes on client-supplied timestamp (message loss + unbounded-growth vectors)

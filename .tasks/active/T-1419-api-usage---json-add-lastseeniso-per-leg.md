@@ -17,8 +17,31 @@ tags: [T-1166, observability, metrics, post-deploy-verification]
 components: [.agentic-framework/agents/metrics/api-usage.sh]
 related_tasks: [T-1166, T-1414, T-1416, T-1418, T-1408, T-1409, T-1410]
 created: 2026-04-30T08:32:26Z
-last_update: 2026-04-30T08:37:01Z
+last_update: '2026-08-18T18:58:36Z'
 date_finished: 2026-04-30T08:37:01Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:27Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=0
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:36Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1419: api-usage --json: add last_seen_iso per legacy caller (post-deploy freshness)

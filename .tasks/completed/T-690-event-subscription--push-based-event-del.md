@@ -2,18 +2,44 @@
 id: T-690
 name: "Event subscription — push-based event delivery to eliminate polling in dispatch/request/watch"
 description: >
-  Inception: Event subscription — push-based event delivery to eliminate polling in dispatch/request/watch
+  Inception: Event subscription — push-based event delivery to eliminate polling in
+  dispatch/request/watch
 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-protocol/src/control.rs, crates/termlink-session/src/auth.rs, crates/termlink-session/src/events.rs, crates/termlink-session/src/handler.rs, crates/termlink-session/src/server.rs]
+components: [crates/termlink-protocol/src/control.rs, 
+      crates/termlink-session/src/auth.rs, crates/termlink-session/src/events.rs,
+  crates/termlink-session/src/handler.rs, crates/termlink-session/src/server.rs]
 related_tasks: []
 created: 2026-03-28T23:38:01Z
-last_update: 2026-04-22T10:20:56Z
+last_update: '2026-08-18T18:59:19Z'
 date_finished: 2026-04-12T08:43:25Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:06Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:19Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 5
+      tier: 4
+      effort: 6
+    rationale: blast_radius=5 (no-signal); tier=4 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-690: Event subscription — push-based event delivery to eliminate polling in dispatch/request/watch

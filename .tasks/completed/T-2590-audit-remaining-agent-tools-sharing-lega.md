@@ -1,13 +1,26 @@
 ---
 id: T-2590
-name: "audit remaining agent_* tools sharing legacy msg_type=post filter (T-2588 broader class)"
+name: "audit remaining agent_* tools sharing legacy msg_type=post filter (T-2588 broader
+  class)"
 description: >
-  T-2588 fixed 4 of a broader class. Grep of tools.rs found ~23 more agent_* MCP tools whose post-processing loop still gates on Some("post"): active_in_thread, followups_to, search_thread, unanswered, thread_health(==), response_latency, top_reacted, top_replied, first_post_by, self_replies, first_responders, orphan_replies, thread_authors, recent_window, thread_depth, quiet_threads, presence_now, top_thread_starters, idle_threads, reaction_rate, recent_threads, chat_arc_recent, who_is(==). Per-tool audit required — NOT a blind predicate swap: some genuinely want content (apply is_content_msg_type from tools.rs T-2588), but others operate on non-post envelopes with different semantics (presence_now walks heartbeat; reaction_rate/top_reacted involve reaction envelopes; thread_health/who_is use == Some(post) which may be intentional). For each: confirm intended msg_type set in code, apply is_content_msg_type where it wants content, add a load-bearing test. Decompose if >~6 genuinely-buggy tools. From T-2468 verb-2 hunt, sibling of T-2587/T-2588.
+  T-2588 fixed 4 of a broader class. Grep of tools.rs found ~23 more agent_* MCP tools
+  whose post-processing loop still gates on Some("post"): active_in_thread, followups_to,
+  search_thread, unanswered, thread_health(==), response_latency, top_reacted, top_replied,
+  first_post_by, self_replies, first_responders, orphan_replies, thread_authors, recent_window,
+  thread_depth, quiet_threads, presence_now, top_thread_starters, idle_threads, reaction_rate,
+  recent_threads, chat_arc_recent, who_is(==). Per-tool audit required — NOT a blind
+  predicate swap: some genuinely want content (apply is_content_msg_type from tools.rs
+  T-2588), but others operate on non-post envelopes with different semantics (presence_now
+  walks heartbeat; reaction_rate/top_reacted involve reaction envelopes; thread_health/who_is
+  use == Some(post) which may be intentional). For each: confirm intended msg_type
+  set in code, apply is_content_msg_type where it wants content, add a load-bearing
+  test. Decompose if >~6 genuinely-buggy tools. From T-2468 verb-2 hunt, sibling of
+  T-2587/T-2588.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [bug]
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
@@ -16,7 +29,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-10T18:42:54Z
-last_update: 2026-08-10T18:57:42Z
+last_update: '2026-08-18T18:59:13Z'
 date_finished: 2026-08-10T18:57:42Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +41,31 @@ date_finished: 2026-08-10T18:57:42Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:52Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 3
+      D3: 2
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=3 
+      (body:component-silent-failure); D3=2 (body:default-change); D4=3 
+      (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:13Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2590: audit remaining agent_* tools sharing legacy msg_type=post filter (T-2588 broader class)

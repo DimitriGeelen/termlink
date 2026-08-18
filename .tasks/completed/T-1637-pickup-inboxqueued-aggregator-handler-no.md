@@ -1,21 +1,48 @@
 ---
 id: T-1637
-name: "Pickup: inbox.queued aggregator handler not registered at hub boot — emit unreachable from CLI (from agentic-engineering-framework)"
+name: "Pickup: inbox.queued aggregator handler not registered at hub boot — emit unreachable
+  from CLI (from agentic-engineering-framework)"
 description: >
-  Auto-created from pickup envelope. Source: agentic-engineering-framework, task T-1636. Type: bug-report.
+  Auto-created from pickup envelope. Source: agentic-engineering-framework, task T-1636.
+  Type: bug-report.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [pickup, bug-report, arc:peer-consult, cross-repo]
-components: [crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs]
+components: [crates/termlink-hub/src/channel.rs, 
+      crates/termlink-hub/src/router.rs]
 related_tasks: [T-1636, T-1820, T-1821, T-1166]
 created: 2026-05-14T05:55:01Z
-last_update: 2026-05-15T09:29:07Z
+last_update: '2026-08-18T18:58:53Z'
 date_finished: 2026-05-15T09:29:07Z
 source_task_id_in_origin: T-1636
 source_project_in_origin: "agentic-engineering-framework"
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:06Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 3
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=3 (body:test-or-audit-check); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:53Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1637: Pickup: inbox.queued aggregator handler not registered at hub boot — emit unreachable from CLI (from agentic-engineering-framework)

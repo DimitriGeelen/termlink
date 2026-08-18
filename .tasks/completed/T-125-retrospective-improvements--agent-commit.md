@@ -1,19 +1,44 @@
 ---
 id: T-125
-name: "Retrospective improvements — agent commit discipline, merge orchestration, prompt templates"
+name: "Retrospective improvements — agent commit discipline, merge orchestration,
+  prompt templates"
 description: >
-  Retrospective improvements — agent commit discipline, merge orchestration, prompt templates
+  Retrospective improvements — agent commit discipline, merge orchestration, prompt
+  templates
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-13T10:01:53Z
-last_update: 2026-03-14T12:42:04Z
+last_update: '2026-08-18T18:58:46Z'
 date_finished: 2026-03-13T10:05:34Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:51Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 2
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=2 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-125: Retrospective improvements — agent commit discipline, merge orchestration, prompt templates

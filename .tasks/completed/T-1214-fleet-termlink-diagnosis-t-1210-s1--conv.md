@@ -2,18 +2,47 @@
 id: T-1214
 name: "Fleet termlink diagnosis (T-1210 S1) + converge-vs-federate decision"
 description: >
-  Execute T-1210 S1: probe every reachable peer for termlink binary lineage (version, subcommand list, mtime, source path if discoverable). Classify as same-lineage-older / same-lineage-newer / forked / stranger. Preliminary finding from T-1210 probe: .122 has 0.9.844 install with no channel subcommand and no /opt/termlink source → stranger lineage. After S1 complete, produce converge-vs-federate recommendation. Pilot S2 (unified install) or S3 (capability probe) depending on direction. See .tasks/completed/T-1210-fleet-termlink-version-divergence--unifi.md.
+  Execute T-1210 S1: probe every reachable peer for termlink binary lineage (version,
+  subcommand list, mtime, source path if discoverable). Classify as same-lineage-older
+  / same-lineage-newer / forked / stranger. Preliminary finding from T-1210 probe:
+  .122 has 0.9.844 install with no channel subcommand and no /opt/termlink source
+  → stranger lineage. After S1 complete, produce converge-vs-federate recommendation.
+  Pilot S2 (unified install) or S3 (capability probe) depending on direction. See
+  .tasks/completed/T-1210-fleet-termlink-version-divergence--unifi.md.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [fleet, install, capability-probe]
 components: []
 related_tasks: [T-1210, T-1165, T-1168]
 created: 2026-04-24T10:05:17Z
-last_update: 2026-04-24T10:28:11Z
+last_update: '2026-08-18T18:58:46Z'
 date_finished: 2026-04-24T10:28:11Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=0
+      (no-signal); F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1214: Fleet termlink diagnosis (T-1210 S1) + converge-vs-federate decision

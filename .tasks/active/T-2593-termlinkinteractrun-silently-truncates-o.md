@@ -2,7 +2,26 @@
 id: T-2593
 name: "termlink_interact/run silently truncates output on scrollback ring-slide"
 description: >
-  T-2468 verb-4 adversarial re-hunt (2026-08-10, hunter CONFIRMED + self-verified in code). The MCP interact/run exec path (crates/termlink-mcp/src/tools.rs ~12636-12652) snapshots pre_len = byte-len of a pre-injection output snapshot, injects the command, then polls query.output with a FIXED 131072-byte window and computes output = output_delta(full_output, pre_len). But full_output is the last 128KB of a 1MiB scrollback RING (session.rs ring). If the session already holds >128KB of prior output, or the command emits enough that the ring slides forward between snapshot and poll, the first pre_len bytes of full_output are NO LONGER the pre-snapshot prefix — slicing at pre_len discards remaining old content PLUS the first bytes of the command's REAL output, returning a silently truncated result with ok:true. If the marker line is pushed out of the 128KB window, has_marker never matches -> command that SUCCEEDED is reported as a TIMEOUT. Both violate the charter 'no silent failures' directive, on the charter-PREFERRED exec tool. NOTE: output_delta's T-2519 boundary-safety only prevents a char-boundary PANIC, not this ring-slide semantic bug. Distinct from T-2567 (executor::execute_capped cap-hit exit_code, a different path). Fix direction: anchor the diff on a stable cursor/offset from the ring rather than a byte-length into a sliding window (e.g. track absolute byte offset consumed, or use a sentinel marker as the ONLY anchor and read forward with pagination until marker or timeout). DELICATE exec path — file-not-build per T-2468 boundary; needs careful design + a load-bearing test that emits >128KB before the marker.
+  T-2468 verb-4 adversarial re-hunt (2026-08-10, hunter CONFIRMED + self-verified
+  in code). The MCP interact/run exec path (crates/termlink-mcp/src/tools.rs ~12636-12652)
+  snapshots pre_len = byte-len of a pre-injection output snapshot, injects the command,
+  then polls query.output with a FIXED 131072-byte window and computes output = output_delta(full_output,
+  pre_len). But full_output is the last 128KB of a 1MiB scrollback RING (session.rs
+  ring). If the session already holds >128KB of prior output, or the command emits
+  enough that the ring slides forward between snapshot and poll, the first pre_len
+  bytes of full_output are NO LONGER the pre-snapshot prefix — slicing at pre_len
+  discards remaining old content PLUS the first bytes of the command's REAL output,
+  returning a silently truncated result with ok:true. If the marker line is pushed
+  out of the 128KB window, has_marker never matches -> command that SUCCEEDED is reported
+  as a TIMEOUT. Both violate the charter 'no silent failures' directive, on the charter-PREFERRED
+  exec tool. NOTE: output_delta's T-2519 boundary-safety only prevents a char-boundary
+  PANIC, not this ring-slide semantic bug. Distinct from T-2567 (executor::execute_capped
+  cap-hit exit_code, a different path). Fix direction: anchor the diff on a stable
+  cursor/offset from the ring rather than a byte-length into a sliding window (e.g.
+  track absolute byte offset consumed, or use a sentinel marker as the ONLY anchor
+  and read forward with pagination until marker or timeout). DELICATE exec path —
+  file-not-build per T-2468 boundary; needs careful design + a load-bearing test that
+  emits >128KB before the marker.
 
 status: captured
 workflow_type: build
@@ -16,8 +35,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-10T20:11:25Z
-last_update: 2026-08-10T20:11:25Z
-date_finished: null
+last_update: '2026-08-18T18:58:38Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,6 +47,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:35Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2593: termlink_interact/run silently truncates output on scrollback ring-slide

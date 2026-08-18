@@ -1,19 +1,45 @@
 ---
 id: T-1675
-name: "tofu::probe_cert_with_timeout — pull T-1674 timeout into the primitive; migrate all 8 callers"
+name: "tofu::probe_cert_with_timeout — pull T-1674 timeout into the primitive; migrate
+  all 8 callers"
 description: >
-  tofu::probe_cert_with_timeout — pull T-1674 timeout into the primitive; migrate all 8 callers
+  tofu::probe_cert_with_timeout — pull T-1674 timeout into the primitive; migrate
+  all 8 callers
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-17T20:59:40Z
-last_update: 2026-05-17T21:09:48Z
+last_update: '2026-08-18T18:58:54Z'
 date_finished: 2026-05-17T21:09:48Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:08Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:54Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1675: tofu::probe_cert_with_timeout — pull T-1674 timeout into the primitive; migrate all 8 callers

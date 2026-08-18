@@ -2,18 +2,44 @@
 id: T-1910
 name: "Converge termlink_topics MCP/CLI JSON shape (T-1909 first-catch)"
 description: >
-  MCP returns sessions as object map; CLI returns sessions as array with extra total_sessions field. Choose one shape; update divergent side; un-ignore parity_topics test.
+  MCP returns sessions as object map; CLI returns sessions as array with extra total_sessions
+  field. Choose one shape; update divergent side; un-ignore parity_topics test.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: [T-1904, T-1909]
 created: 2026-06-01T11:34:45Z
-last_update: 2026-06-01T12:43:36Z
+last_update: '2026-08-18T18:58:58Z'
 date_finished: 2026-06-01T12:57:56Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:18Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 2
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=2 
+      (body:telemetry-or-audit-entry); D3=0 (no-signal); D4=3 
+      (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1910: Converge termlink_topics MCP/CLI JSON shape (T-1909 first-catch)

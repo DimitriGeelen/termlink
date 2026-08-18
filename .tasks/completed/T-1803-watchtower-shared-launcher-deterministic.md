@@ -1,19 +1,51 @@
 ---
 id: T-1803
-name: "Watchtower shared-launcher: deterministic per-project port + triple self-validation (T-1802 follow-up)"
+name: "Watchtower shared-launcher: deterministic per-project port + triple self-validation
+  (T-1802 follow-up)"
 description: >
-  On a multi-project host (.107 runs termlink :3003 + 050-email-archive :3001 + others), bin/watchtower.sh can advertise/drift onto a port another project owns, and the watchtower.{pid,port,url} triple can be internally inconsistent (pid=real instance, url/port=neighbor). Harden: refuse to kill a foreign port holder; validate that watchtower.url/port resolve to THIS project's PROJECT_ROOT (cross-check served instance) before trusting them; surface a doctor warning on drift. Lives in vendored .agentic-framework — propagate upstream via channel-1.
+  On a multi-project host (.107 runs termlink :3003 + 050-email-archive :3001 + others),
+  bin/watchtower.sh can advertise/drift onto a port another project owns, and the
+  watchtower.{pid,port,url} triple can be internally inconsistent (pid=real instance,
+  url/port=neighbor). Harden: refuse to kill a foreign port holder; validate that
+  watchtower.url/port resolve to THIS project's PROJECT_ROOT (cross-check served instance)
+  before trusting them; surface a doctor warning on drift. Lives in vendored .agentic-framework
+  — propagate upstream via channel-1.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-25T15:40:43Z
-last_update: 2026-05-25T21:25:38Z
+last_update: '2026-08-18T18:58:56Z'
 date_finished: 2026-05-25T21:25:38Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:13Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 2
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=2 
+      (body:telemetry-or-audit-entry); D3=3 (body:component-discoverability); 
+      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:56Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1803: Watchtower shared-launcher: deterministic per-project port + triple self-validation (T-1802 follow-up)

@@ -1,19 +1,47 @@
 ---
 id: T-1728
-name: "termlink_fleet_reauth MCP — single-shot heal RPC (CLI parity, T-1054/T-1055/T-1291 culmination)"
+name: "termlink_fleet_reauth MCP — single-shot heal RPC (CLI parity, T-1054/T-1055/T-1291
+  culmination)"
 description: >
-  Add MCP wrapper for cmd_fleet_reauth — single-shot rotation heal RPC. Agents currently shell out to fleet reauth; MCP wrapper completes the rotation-protocol MCP arc (probe/verify/doctor/bootstrap_check shipped, heal is the missing verb). Bulk variant fleet reauth --all-drifted (T-1679) is also unwrapped; in-scope here.
+  Add MCP wrapper for cmd_fleet_reauth — single-shot rotation heal RPC. Agents currently
+  shell out to fleet reauth; MCP wrapper completes the rotation-protocol MCP arc (probe/verify/doctor/bootstrap_check
+  shipped, heal is the missing verb). Bulk variant fleet reauth --all-drifted (T-1679)
+  is also unwrapped; in-scope here.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-20T18:48:42Z
-last_update: 2026-05-20T18:56:45Z
+last_update: '2026-08-18T18:58:55Z'
 date_finished: 2026-05-20T18:56:45Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:10Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:55Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1728: termlink_fleet_reauth MCP — single-shot heal RPC (CLI parity, T-1054/T-1055/T-1291 culmination)

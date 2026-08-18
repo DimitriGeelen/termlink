@@ -7,13 +7,37 @@ description: >
 status: work-completed
 workflow_type: test
 owner: human
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-cli/tests/cli_integration.rs, crates/termlink-session/src/client.rs]
+components: [crates/termlink-cli/tests/cli_integration.rs, 
+      crates/termlink-session/src/client.rs]
 related_tasks: []
 created: 2026-04-13T18:22:06Z
-last_update: 2026-04-23T17:22:32Z
+last_update: '2026-08-18T18:58:42Z'
 date_finished: 2026-04-13T18:30:23Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:43Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=0
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 1
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=1 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1033: Add tests for resolve_hub_paths — split-brain runtime dir logic

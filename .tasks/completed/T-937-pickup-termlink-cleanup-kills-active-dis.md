@@ -1,19 +1,44 @@
 ---
 id: T-937
-name: "Pickup: TermLink cleanup kills active dispatch workers — fw termlink cleanup treats running workers as orphans because they lack exit_code file (from 999-Agentic-Engineering-Framework)"
+name: "Pickup: TermLink cleanup kills active dispatch workers — fw termlink cleanup
+  treats running workers as orphans because they lack exit_code file (from 999-Agentic-Engineering-Framework)"
 description: >
-  Auto-created from pickup envelope. Source: 999-Agentic-Engineering-Framework, task T-843. Type: bug-report.
+  Auto-created from pickup envelope. Source: 999-Agentic-Engineering-Framework, task
+  T-843. Type: bug-report.
 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: [pickup, bug-report]
 components: []
 related_tasks: []
 created: 2026-04-11T23:00:01Z
-last_update: 2026-04-22T10:20:57Z
+last_update: '2026-08-18T18:59:23Z'
 date_finished: 2026-04-12T17:14:28Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:23Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-937: Pickup: TermLink cleanup kills active dispatch workers — fw termlink cleanup treats running workers as orphans because they lack exit_code file (from 999-Agentic-Engineering-Framework)

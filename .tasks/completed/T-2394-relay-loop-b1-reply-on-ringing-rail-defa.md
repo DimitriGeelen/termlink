@@ -2,12 +2,16 @@
 id: T-2394
 name: "Relay-loop B1: reply-on-ringing-rail default"
 description: >
-  T-2393 GO build 1/3. When the doorbell wakes an agent, its reply must default to the DM rail + conversation_id that rang it (not a thread/broadcast post) so the RETURN leg rings the sender. Stamp reply-rail metadata into the injected payload so /reply + agent-respond.sh have zero ambiguity. B1 alone kills the 'say check' symptom (IW-4).
+  T-2393 GO build 1/3. When the doorbell wakes an agent, its reply must default to
+  the DM rail + conversation_id that rang it (not a thread/broadcast post) so the
+  RETURN leg rings the sender. Stamp reply-rail metadata into the injected payload
+  so /reply + agent-respond.sh have zero ambiguity. B1 alone kills the 'say check'
+  symptom (IW-4).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +20,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-10T15:06:14Z
-last_update: 2026-07-10T16:42:17Z
+last_update: '2026-08-18T18:59:09Z'
 date_finished: 2026-07-10T16:42:17Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +32,30 @@ date_finished: 2026-07-10T16:42:17Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:43Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=2 
+      (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:09Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2394: Relay-loop B1: reply-on-ringing-rail default

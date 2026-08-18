@@ -1,22 +1,28 @@
 ---
 id: T-2230
-name: "Fix heartbeat freeze on hub restart — termlink register must re-handshake on reconnect"
+name: "Fix heartbeat freeze on hub restart — termlink register must re-handshake on
+  reconnect"
 description: >
-  Fault 2 from ring20 RCA (T-2229): on hub restart the hub reloads the persisted session with its ORIGINAL registration heartbeat; termlink register never re-handshakes with the new hub instance, so presence freezes at registration time (live PID but registry heartbeat==created). Repro then fix: register should detect a hub bounce and re-emit/re-handshake heartbeat.
+  Fault 2 from ring20 RCA (T-2229): on hub restart the hub reloads the persisted session
+  with its ORIGINAL registration heartbeat; termlink register never re-handshakes
+  with the new hub instance, so presence freezes at registration time (live PID but
+  registry heartbeat==created). Repro then fix: register should detect a hub bounce
+  and re-emit/re-handshake heartbeat.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-cli/src/commands/session.rs, crates/termlink-session/src/registration.rs]
+components: [crates/termlink-cli/src/commands/session.rs, 
+      crates/termlink-session/src/registration.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-21T09:52:43Z
-last_update: 2026-06-21T10:07:16Z
+last_update: '2026-08-18T18:59:05Z'
 date_finished: 2026-06-21T10:07:16Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +34,30 @@ date_finished: 2026-06-21T10:07:16Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:34Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:05Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2230: Fix heartbeat freeze on hub restart — termlink register must re-handshake on reconnect

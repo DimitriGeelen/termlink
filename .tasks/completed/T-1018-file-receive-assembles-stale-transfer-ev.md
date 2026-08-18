@@ -2,18 +2,44 @@
 id: T-1018
 name: "file receive assembles stale transfer events — picks up old chunks"
 description: >
-  When a file receiver starts, it processes all pending transfer events including stale ones from previous send-file operations. This causes the receiver to assemble the wrong (old) binary. Receiver should filter by transfer ID or timestamp, or clear stale events before starting.
+  When a file receiver starts, it processes all pending transfer events including
+  stale ones from previous send-file operations. This causes the receiver to assemble
+  the wrong (old) binary. Receiver should filter by transfer ID or timestamp, or clear
+  stale events before starting.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-13T12:01:14Z
-last_update: 2026-04-23T19:17:03Z
+last_update: '2026-08-18T18:58:42Z'
 date_finished: 2026-04-13T12:10:54Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 2
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=2 (body:default-change); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1018: file receive assembles stale transfer events — picks up old chunks

@@ -1,19 +1,47 @@
 ---
 id: T-1656
-name: "hub export-secret — read-live alternative to cat ~/.termlink/secrets/<IP>.hex (G-011 R3 facet 2)"
+name: "hub export-secret — read-live alternative to cat ~/.termlink/secrets/<IP>.hex
+  (G-011 R3 facet 2)"
 description: >
-  hub export-secret — read-live alternative to cat ~/.termlink/secrets/<IP>.hex (G-011 R3 facet 2)
+  hub export-secret — read-live alternative to cat ~/.termlink/secrets/<IP>.hex (G-011
+  R3 facet 2)
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/main.rs]
+components: [crates/termlink-cli/src/cli.rs, 
+      crates/termlink-cli/src/commands/infrastructure.rs, 
+      crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-05-17T13:55:46Z
-last_update: 2026-05-17T14:07:22Z
+last_update: '2026-08-18T18:58:53Z'
 date_finished: 2026-05-17T14:07:22Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:07Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:53Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1656: hub export-secret — read-live alternative to cat ~/.termlink/secrets/<IP>.hex (G-011 R3 facet 2)

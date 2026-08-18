@@ -2,18 +2,44 @@
 id: T-1911
 name: "Converge termlink_ping MCP/CLI transport path (T-1909 second-catch)"
 description: >
-  MCP termlink_ping reaches session via in-process lookup; CLI termlink ping routes through hub and times out without one. Either align MCP to use hub-routing, or give CLI an in-process fallback when hub absent. Un-ignore parity_ping when converged.
+  MCP termlink_ping reaches session via in-process lookup; CLI termlink ping routes
+  through hub and times out without one. Either align MCP to use hub-routing, or give
+  CLI an in-process fallback when hub absent. Un-ignore parity_ping when converged.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: [T-1904, T-1909]
 created: 2026-06-01T11:34:57Z
-last_update: 2026-06-02T10:54:26Z
+last_update: '2026-08-18T18:58:58Z'
 date_finished: 2026-06-02T13:17:21Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:18Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1911: Converge termlink_ping MCP/CLI transport path (T-1909 second-catch)

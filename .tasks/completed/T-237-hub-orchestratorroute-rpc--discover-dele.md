@@ -2,18 +2,44 @@
 id: T-237
 name: "Hub orchestrator.route RPC — discover, delegate, relay in one call"
 description: >
-  Add orchestrator.route RPC method to TermLink hub. Combines session.discover + delegate + relay into a single call. Agent sends capability slug, hub finds matching specialist, forwards request, relays response. ~100 LOC Rust on existing hub primitives. See T-233 research: Q2b-termlink-mapping.md
+  Add orchestrator.route RPC method to TermLink hub. Combines session.discover + delegate
+  + relay into a single call. Agent sends capability slug, hub finds matching specialist,
+  forwards request, relays response. ~100 LOC Rust on existing hub primitives. See
+  T-233 research: Q2b-termlink-mapping.md
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [T-233, orchestration, hub]
 components: []
 related_tasks: [T-233]
 created: 2026-03-23T13:27:16Z
-last_update: 2026-03-23T22:00:20Z
+last_update: '2026-08-18T18:59:09Z'
 date_finished: 2026-03-23T16:21:04Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:09Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-237: Hub orchestrator.route RPC — discover, delegate, relay in one call

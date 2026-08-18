@@ -1,19 +1,44 @@
 ---
 id: T-1946
-name: "termlink_help reverse coverage invariant — every real tool must have a help entry"
+name: "termlink_help reverse coverage invariant — every real tool must have a help
+  entry"
 description: >
   Add structural CI guard preventing future help-registry coverage gaps
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T20:14:56Z
-last_update: 2026-06-03T20:17:01Z
+last_update: '2026-08-18T18:58:59Z'
 date_finished: 2026-06-03T20:20:02Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1946: termlink_help reverse coverage invariant — every real tool must have a help entry

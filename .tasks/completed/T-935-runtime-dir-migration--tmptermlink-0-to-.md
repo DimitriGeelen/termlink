@@ -2,18 +2,46 @@
 id: T-935
 name: "Runtime dir migration — /tmp/termlink-0 to /var/lib/termlink"
 description: >
-  One-shot migration when switching from ad-hoc hub start (TERMLINK_RUNTIME_DIR defaulting to /tmp) to systemd-managed hub (TERMLINK_RUNTIME_DIR=/var/lib/termlink + StateDirectory=termlink). Two approaches: (a) script that copies hub.secret/cert/key to the new location and removes /tmp/termlink-0, (b) documentation telling operators to delete /tmp/termlink-0/ and let the unit recreate. Approach (b) is cheaper because restart rotates anyway. Lower priority — optional cleanup. From T-930 decomposition.
+  One-shot migration when switching from ad-hoc hub start (TERMLINK_RUNTIME_DIR defaulting
+  to /tmp) to systemd-managed hub (TERMLINK_RUNTIME_DIR=/var/lib/termlink + StateDirectory=termlink).
+  Two approaches: (a) script that copies hub.secret/cert/key to the new location and
+  removes /tmp/termlink-0, (b) documentation telling operators to delete /tmp/termlink-0/
+  and let the unit recreate. Approach (b) is cheaper because restart rotates anyway.
+  Lower priority — optional cleanup. From T-930 decomposition.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: [T-930, T-931, T-933]
 created: 2026-04-11T22:29:34Z
-last_update: 2026-04-11T23:04:34Z
+last_update: '2026-08-18T18:59:23Z'
 date_finished: 2026-04-11T23:04:34Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:23Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 5
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=5 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-935: Runtime dir migration — /tmp/termlink-0 to /var/lib/termlink

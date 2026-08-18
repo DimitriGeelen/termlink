@@ -2,18 +2,57 @@
 id: T-1164
 name: "T-1155/7 Migrate file.send/receive → channel.post {type: artifact}"
 description: >
-  ~10 sites in file.rs, remote.rs, main.rs, tools.rs. Artifact becomes typed channel.post; chunked transfer becomes bus implementation detail. Replaces T-1017/T-1018 fix path (silent drop, stale chunks) with channel semantics.
+  ~10 sites in file.rs, remote.rs, main.rs, tools.rs. Artifact becomes typed channel.post;
+  chunked transfer becomes bus implementation detail. Replaces T-1017/T-1018 fix path
+  (silent drop, stale chunks) with channel semantics.
 
 status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: null
+horizon:
 tags: [T-1155, bus, migration]
-components: [crates/termlink-bus/src/artifact_store.rs, crates/termlink-bus/src/error.rs, crates/termlink-bus/src/lib.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/commands/file.rs, crates/termlink-cli/src/commands/mirror_grid_composer.rs, crates/termlink-cli/src/commands/mirror_grid.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-hub/src/artifact.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/inbox.rs, crates/termlink-hub/src/lib.rs, crates/termlink-hub/src/router.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-protocol/src/control.rs, crates/termlink-session/src/artifact.rs, crates/termlink-session/src/inbox_channel.rs, crates/termlink-session/src/lib.rs]
+components: [crates/termlink-bus/src/artifact_store.rs, 
+      crates/termlink-bus/src/error.rs, crates/termlink-bus/src/lib.rs, 
+      crates/termlink-cli/src/commands/channel.rs, 
+      crates/termlink-cli/src/commands/file.rs, 
+      crates/termlink-cli/src/commands/mirror_grid_composer.rs, 
+      crates/termlink-cli/src/commands/mirror_grid.rs, 
+      crates/termlink-cli/src/commands/remote.rs, 
+      crates/termlink-hub/src/artifact.rs, crates/termlink-hub/src/channel.rs, 
+      crates/termlink-hub/src/inbox.rs, crates/termlink-hub/src/lib.rs, 
+      crates/termlink-hub/src/router.rs, crates/termlink-mcp/src/tools.rs, 
+      crates/termlink-protocol/src/control.rs, 
+      crates/termlink-session/src/artifact.rs, 
+      crates/termlink-session/src/inbox_channel.rs, 
+      crates/termlink-session/src/lib.rs]
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:15Z
-last_update: 2026-04-25T13:57:00Z
+last_update: '2026-08-18T18:58:45Z'
 date_finished: 2026-04-25T13:57:00Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:48Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=3
+      (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 9
+      tier: 3
+      effort: 8
+    rationale: blast_radius=9 (no-signal); tier=3 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1164: T-1155/7 Migrate file.send/receive → channel.post {type: artifact}

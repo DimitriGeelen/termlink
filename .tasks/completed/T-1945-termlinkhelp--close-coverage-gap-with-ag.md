@@ -1,19 +1,46 @@
 ---
 id: T-1945
-name: "termlink_help — close coverage gap with agent_stats + agent_thread_health (28 tools)"
+name: "termlink_help — close coverage gap with agent_stats + agent_thread_health (28
+  tools)"
 description: >
-  Final 28 unsurfaced agent_* tools across 2 new categories: agent_stats (16 counters/distributions/aggregates) + agent_thread_health (12 thread-quality/activity-pattern queries). After this slice the help registry covers 100% of real MCP tools.
+  Final 28 unsurfaced agent_* tools across 2 new categories: agent_stats (16 counters/distributions/aggregates)
+  + agent_thread_health (12 thread-quality/activity-pattern queries). After this slice
+  the help registry covers 100% of real MCP tools.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T19:45:49Z
-last_update: 2026-06-03T19:48:40Z
+last_update: '2026-08-18T18:58:59Z'
 date_finished: 2026-06-03T19:49:54Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1945: termlink_help — close coverage gap with agent_stats + agent_thread_health (28 tools)

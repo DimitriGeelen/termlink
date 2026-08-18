@@ -9,13 +9,36 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: [remote-access, tcp, security, cross-machine]
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: [T-145, T-146, T-147, T-155, T-157]
 created: 2026-03-18T09:42:29Z
-last_update: 2026-04-23T19:29:54Z
+last_update: '2026-08-18T18:58:53Z'
 date_finished: 2026-04-23T19:29:54Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:06Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:53Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 4
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=4 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-163: Cross-machine agent communication via TCP hub

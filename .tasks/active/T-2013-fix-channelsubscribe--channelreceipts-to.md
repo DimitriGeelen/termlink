@@ -2,7 +2,15 @@
 id: T-2013
 name: "Fix channel.subscribe + channel.receipts tokio worker starvation (T-2012 fix)"
 description: >
-  Wrap sync iterator walks in handle_channel_subscribe_with + handle_channel_receipts_with with tokio::task::spawn_blocking. Root cause from T-2012 spike: bus.subscribe() returns sync iterator over std::fs::File reads; called from async fn it blocks tokio worker for the entire topic walk. Under sequential load + concurrent writes (presence-heartbeat cron) this starves the 4-worker pool, causing 16s wedges on .121/.122/.141 hubs. Fix is standard Rust async pattern. Audit other channel.rs handlers for same pattern. Integration test: 5 sequential channel.info on 1000+ envelope topic with concurrent writer must complete <2s each. Cargo check + test clean across hub + bus + session crates. Deploy to .122 via operator coord and re-run 5/5 to confirm fix.
+  Wrap sync iterator walks in handle_channel_subscribe_with + handle_channel_receipts_with
+  with tokio::task::spawn_blocking. Root cause from T-2012 spike: bus.subscribe()
+  returns sync iterator over std::fs::File reads; called from async fn it blocks tokio
+  worker for the entire topic walk. Under sequential load + concurrent writes (presence-heartbeat
+  cron) this starves the 4-worker pool, causing 16s wedges on .121/.122/.141 hubs.
+  Fix is standard Rust async pattern. Audit other channel.rs handlers for same pattern.
+  Integration test: 5 sequential channel.info on 1000+ envelope topic with concurrent
+  writer must complete <2s each. Cargo check + test clean across hub + bus + session
+  crates. Deploy to .122 via operator coord and re-run 5/5 to confirm fix.
 
 status: work-completed
 workflow_type: build
@@ -12,8 +20,32 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-05T23:28:06Z
-last_update: 2026-06-13T09:38:11Z
+last_update: '2026-08-18T18:58:37Z'
 date_finished: 2026-06-13T09:35:50Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:31Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (body:wrap-phrase-without-substrate)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2013: Fix channel.subscribe + channel.receipts tokio worker starvation (T-2012 fix)

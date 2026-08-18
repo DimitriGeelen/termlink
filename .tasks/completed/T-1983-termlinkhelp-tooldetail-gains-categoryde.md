@@ -2,18 +2,47 @@
 id: T-1983
 name: "termlink_help: tool_detail gains category_deprecated_count + category_live_tool_count"
 description: >
-  Add two flat fields to tool_detail: category_deprecated_count and category_live_tool_count. Completes per-mode metadata symmetry — list_categories rows now carry deprecated_count/live_tool_count (T-1967/T-1979), category=X carries category_meta (T-1981), and tool_detail already carries category_tool_count (T-1965). The remaining gap is that tool_detail does not show the retirement status of its category. This slice closes that. Same source: per-category walk of is_deprecated().
+  Add two flat fields to tool_detail: category_deprecated_count and category_live_tool_count.
+  Completes per-mode metadata symmetry — list_categories rows now carry deprecated_count/live_tool_count
+  (T-1967/T-1979), category=X carries category_meta (T-1981), and tool_detail already
+  carries category_tool_count (T-1965). The remaining gap is that tool_detail does
+  not show the retirement status of its category. This slice closes that. Same source:
+  per-category walk of is_deprecated().
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-04T07:39:59Z
-last_update: 2026-06-04T07:43:09Z
+last_update: '2026-08-18T18:59:00Z'
 date_finished: 2026-06-04T07:44:08Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:22Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1983: termlink_help: tool_detail gains category_deprecated_count + category_live_tool_count

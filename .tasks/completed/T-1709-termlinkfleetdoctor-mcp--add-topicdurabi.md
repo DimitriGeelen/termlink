@@ -1,19 +1,45 @@
 ---
 id: T-1709
-name: "termlink_fleet_doctor MCP — add topic_durability + bus_state_summary (T-1446 / G-050 parity for LLM agents)"
+name: "termlink_fleet_doctor MCP — add topic_durability + bus_state_summary (T-1446
+  / G-050 parity for LLM agents)"
 description: >
-  termlink_fleet_doctor MCP — add topic_durability + bus_state_summary (T-1446 / G-050 parity for LLM agents)
+  termlink_fleet_doctor MCP — add topic_durability + bus_state_summary (T-1446 / G-050
+  parity for LLM agents)
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [mcp, fleet-doctor, T-1446, G-050, PL-021, G-057, PL-167]
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: [T-1446, T-1707, T-1708, T-1294, T-1296]
 created: 2026-05-19T07:32:45Z
-last_update: 2026-05-19T07:35:53Z
+last_update: '2026-08-18T18:58:54Z'
 date_finished: 2026-05-19T07:35:53Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:09Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=3 (body:portability-abstraction); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:54Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1709: termlink_fleet_doctor MCP — add topic_durability + bus_state_summary (T-1446 / G-050 parity for LLM agents)

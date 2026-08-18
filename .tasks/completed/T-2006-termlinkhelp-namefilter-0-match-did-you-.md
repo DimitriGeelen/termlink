@@ -1,19 +1,45 @@
 ---
 id: T-2006
-name: "termlink_help name_filter 0-match: did-you-mean suggestions over tool+category names — cycle 13 slice 4"
+name: "termlink_help name_filter 0-match: did-you-mean suggestions over tool+category
+  names — cycle 13 slice 4"
 description: >
-  termlink_help name_filter 0-match: did-you-mean suggestions over tool+category names — cycle 13 slice 4
+  termlink_help name_filter 0-match: did-you-mean suggestions over tool+category names
+  — cycle 13 slice 4
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-05T18:34:07Z
-last_update: 2026-06-05T19:57:58Z
+last_update: '2026-08-18T18:59:00Z'
 date_finished: 2026-06-05T20:11:49Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:23Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2006: termlink_help name_filter 0-match: did-you-mean suggestions over tool+category names — cycle 13 slice 4

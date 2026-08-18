@@ -10,13 +10,37 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [bug, file-transfer, events]
 components: []
 related_tasks: [T-197]
 created: 2026-03-20T22:39:35Z
-last_update: 2026-03-23T10:24:11Z
+last_update: '2026-08-18T18:59:00Z'
 date_finished: 2026-03-20T23:12:33Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:22Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 0
+      D3: 0
+      D4: 4
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=1 (body:fix-without-learning); D2=0 (no-signal); D3=0 
+      (no-signal); D4=4 (body:cross-machine); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-198: Fix file receive replaying stale events from ring buffer

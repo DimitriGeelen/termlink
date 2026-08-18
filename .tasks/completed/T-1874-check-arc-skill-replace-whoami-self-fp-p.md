@@ -1,19 +1,46 @@
 ---
 id: T-1874
-name: "/check-arc skill: replace whoami self-fp path with recent-local-post sender_id read (shared-host fix)"
+name: "/check-arc skill: replace whoami self-fp path with recent-local-post sender_id
+  read (shared-host fix)"
 description: >
-  PL-195 mitigation. /check-arc Step 1 reads whoami.session.identity_fingerprint which isnt the envelope sender_id. On shared hosts whoami is ambiguous. Fix: read sender_id from any recent local-hub post. See PL-195 for full context.
+  PL-195 mitigation. /check-arc Step 1 reads whoami.session.identity_fingerprint which
+  isnt the envelope sender_id. On shared hosts whoami is ambiguous. Fix: read sender_id
+  from any recent local-hub post. See PL-195 for full context.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-30T07:53:19Z
-last_update: 2026-05-30T08:16:51Z
+last_update: '2026-08-18T18:58:58Z'
 date_finished: 2026-05-30T08:16:51Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 1
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=1 
+      (body:error-msg-improved); D4=0 (no-signal); F-RECALL=0 (no-signal); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1874: /check-arc skill: replace whoami self-fp path with recent-local-post sender_id read (shared-host fix)

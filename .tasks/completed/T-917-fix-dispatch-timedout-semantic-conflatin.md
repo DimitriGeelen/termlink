@@ -2,18 +2,52 @@
 id: T-917
 name: "Fix dispatch timed_out semantic conflating crash with timeout"
 description: >
-  Discovered 2026-04-11 during T-914 end-to-end smoke test. dispatch.rs:672 defines: 'let timed_out = collected_count < registered_count;'. This conflates two distinct failure modes: (a) actual timeout (collect_start.elapsed() exceeded --timeout), vs (b) workers crashed before emitting events (collected_count < registered_count but elapsed was 0.5s). Real-world result observed: smoke test ran in 1.01s wall clock with crashed_workers populated correctly, BUT JSON output also reported 'timed_out: true' which is misleading. The 'ok' field and exit code are also derived from 'timed_out' so this also affects success/failure signaling. FIX: define timed_out as 'collect_start.elapsed() >= collect_timeout' (the literal definition), and introduce 'any_failure = timed_out || !crashed_workers.is_empty() || collected_count < registered_count' for ok/exit-code logic. Trivial single-function change.
+  Discovered 2026-04-11 during T-914 end-to-end smoke test. dispatch.rs:672 defines:
+  'let timed_out = collected_count < registered_count;'. This conflates two distinct
+  failure modes: (a) actual timeout (collect_start.elapsed() exceeded --timeout),
+  vs (b) workers crashed before emitting events (collected_count < registered_count
+  but elapsed was 0.5s). Real-world result observed: smoke test ran in 1.01s wall
+  clock with crashed_workers populated correctly, BUT JSON output also reported 'timed_out:
+  true' which is misleading. The 'ok' field and exit code are also derived from 'timed_out'
+  so this also affects success/failure signaling. FIX: define timed_out as 'collect_start.elapsed()
+  >= collect_timeout' (the literal definition), and introduce 'any_failure = timed_out
+  || !crashed_workers.is_empty() || collected_count < registered_count' for ok/exit-code
+  logic. Trivial single-function change.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [termlink, dispatch, bug, semantics, observability]
 components: [crates/termlink-cli/src/commands/dispatch.rs]
 related_tasks: [T-914, T-916]
 created: 2026-04-11T13:54:36Z
-last_update: 2026-04-11T13:57:51Z
+last_update: '2026-08-18T18:59:23Z'
 date_finished: 2026-04-11T13:57:51Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=1 (body:fix-without-learning); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:23Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 7
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-917: Fix dispatch timed_out semantic conflating crash with timeout

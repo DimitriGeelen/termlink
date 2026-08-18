@@ -2,18 +2,43 @@
 id: T-1850
 name: "fleet-adoption-snapshot: extend sender resolution (T-1848 undercount fix)"
 description: >
-  T-1848 used .metadata.agent_id only — undercount on vendored-arc heartbeat posters that use .metadata._from. T-1849 found the gap. Apply the same priority chain (agent_id → _from → sender_id) to fleet-adoption-snapshot.sh.
+  T-1848 used .metadata.agent_id only — undercount on vendored-arc heartbeat posters
+  that use .metadata._from. T-1849 found the gap. Apply the same priority chain (agent_id
+  → _from → sender_id) to fleet-adoption-snapshot.sh.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [bug, doorbell-mail, adoption, t-1848-followon]
 components: [scripts/fleet-adoption-snapshot.sh]
 related_tasks: []
 created: 2026-05-28T19:34:56Z
-last_update: 2026-05-28T19:36:49Z
+last_update: '2026-08-18T18:58:57Z'
 date_finished: 2026-05-28T19:36:49Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:16Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:57Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 7
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1850: fleet-adoption-snapshot: extend sender resolution (T-1848 undercount fix)

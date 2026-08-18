@@ -1,19 +1,44 @@
 ---
 id: T-1066
-name: "Add fw task review-queue — list partial-complete tasks awaiting human signature (G-008 mitigation)"
+name: "Add fw task review-queue — list partial-complete tasks awaiting human signature
+  (G-008 mitigation)"
 description: >
-  Add fw task review-queue — list partial-complete tasks awaiting human signature (G-008 mitigation)
+  Add fw task review-queue — list partial-complete tasks awaiting human signature
+  (G-008 mitigation)
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-15T18:48:40Z
-last_update: 2026-04-15T18:54:32Z
+last_update: '2026-08-18T18:58:43Z'
 date_finished: 2026-04-15T18:54:32Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:44Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 1
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=0
+      (no-signal); F-RECALL=1 (body:episodic-only); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:43Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1066: Add fw task review-queue — list partial-complete tasks awaiting human signature (G-008 mitigation)

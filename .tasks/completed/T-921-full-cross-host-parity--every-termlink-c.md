@@ -2,18 +2,46 @@
 id: T-921
 name: "Full cross-host parity — every termlink CLI command works network-wide"
 description: >
-  Phase 2 of the network-everything program. T-920 wraps the existing remote family in MCP; this inception scopes what it takes to make ALL termlink CLI commands (~50) work cross-host. Questions: unified remote-target parameter on every command, or keep the 'remote' subcommand namespace and add per-command wrappers? Which commands actually need cross-host semantics vs being local-only by design? How do we route RPC through the hub vs direct-to-target? Decisions needed before building anything.
+  Phase 2 of the network-everything program. T-920 wraps the existing remote family
+  in MCP; this inception scopes what it takes to make ALL termlink CLI commands (~50)
+  work cross-host. Questions: unified remote-target parameter on every command, or
+  keep the 'remote' subcommand namespace and add per-command wrappers? Which commands
+  actually need cross-host semantics vs being local-only by design? How do we route
+  RPC through the hub vs direct-to-target? Decisions needed before building anything.
 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-11T19:33:05Z
-last_update: 2026-04-23T19:31:29Z
+last_update: '2026-08-18T18:59:23Z'
 date_finished: 2026-04-11T20:19:55Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:23Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 4
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=4 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-921: Full cross-host parity — every termlink CLI command works network-wide

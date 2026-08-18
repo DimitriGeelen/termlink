@@ -1,19 +1,49 @@
 ---
 id: T-1302
-name: "T-1299 follow-up: termlink register injects TERMLINK_SESSION_ID into spawned shell"
+name: "T-1299 follow-up: termlink register injects TERMLINK_SESSION_ID into spawned
+  shell"
 description: >
-  Per T-1299 final unchecked AC item (a). When `termlink register --shell` spawns a child shell, inject `TERMLINK_SESSION_ID=<id>` into the child's environment between `fork()` and `execvp()`. Today the operator copies the id manually from `termlink list --json`. With this fix, the spawned shell can run `termlink whoami` immediately and have it auto-resolve. Reversible: additive env-var, default behavior unchanged for non-PTY callers (tests pass empty slice).
+  Per T-1299 final unchecked AC item (a). When `termlink register --shell` spawns
+  a child shell, inject `TERMLINK_SESSION_ID=<id>` into the child's environment between
+  `fork()` and `execvp()`. Today the operator copies the id manually from `termlink
+  list --json`. With this fix, the spawned shell can run `termlink whoami` immediately
+  and have it auto-resolve. Reversible: additive env-var, default behavior unchanged
+  for non-PTY callers (tests pass empty slice).
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [termlink, routing, whoami, T-1299-followup, pty]
-components: [crates/termlink-cli/src/commands/session.rs, crates/termlink-session/src/pty.rs]
+components: [crates/termlink-cli/src/commands/session.rs, 
+      crates/termlink-session/src/pty.rs]
 related_tasks: [T-1299, T-1297]
 created: 2026-04-26T22:08:31Z
-last_update: 2026-04-27T06:16:16Z
+last_update: '2026-08-18T18:58:47Z'
 date_finished: 2026-04-26T22:12:16Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:53Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=2 
+      (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1302: T-1299 follow-up: termlink register injects TERMLINK_SESSION_ID into spawned shell

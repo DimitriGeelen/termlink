@@ -1,19 +1,43 @@
 ---
 id: T-954
-name: "Pickup: Partial migrations are a recurring bug class — audit should detect incomplete migrations (from termlink)"
+name: "Pickup: Partial migrations are a recurring bug class — audit should detect
+  incomplete migrations (from termlink)"
 description: >
   Auto-created from pickup envelope. Source: termlink, task T-940. Type: pattern.
 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: [pickup, pattern]
 components: []
 related_tasks: []
 created: 2026-04-12T08:40:31Z
-last_update: 2026-04-22T10:21:00Z
+last_update: '2026-08-18T18:59:24Z'
 date_finished: 2026-04-12T17:16:34Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:15Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:24Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-954: Pickup: Partial migrations are a recurring bug class — audit should detect incomplete migrations (from termlink)

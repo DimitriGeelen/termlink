@@ -1,8 +1,17 @@
 ---
 id: T-1898
-name: "Vendored Agent Runner — inception (autonomous claude-code-as-service for vendored hosts)"
+name: "Vendored Agent Runner — inception (autonomous claude-code-as-service for vendored
+  hosts)"
 description: >
-  Inception: TermLink ships the presence half of the doorbell+mail conversation arc (T-1832/T-1840 listener-heartbeat as systemd service) but NOT the agent half — there is no service that holds an attached claude-code session, reads its dm:<self>:* topics, and replies. Result: ring20-manager-vendored (and .141 per T-1457) emit hourly presence beats but nothing ever reads inbound DMs. Outbound mailboxes accumulate indefinitely; the conversation arc is one-directional in practice. T-1898 explores: what is the right primitive shape for "vendored agent" — should it be a long-running attached claude-code service, a per-message claude -p doorbell-bridge, or something else? Decision feeds Phase-1 build task downstream.
+  Inception: TermLink ships the presence half of the doorbell+mail conversation arc
+  (T-1832/T-1840 listener-heartbeat as systemd service) but NOT the agent half — there
+  is no service that holds an attached claude-code session, reads its dm:<self>:*
+  topics, and replies. Result: ring20-manager-vendored (and .141 per T-1457) emit
+  hourly presence beats but nothing ever reads inbound DMs. Outbound mailboxes accumulate
+  indefinitely; the conversation arc is one-directional in practice. T-1898 explores:
+  what is the right primitive shape for "vendored agent" — should it be a long-running
+  attached claude-code service, a per-message claude -p doorbell-bridge, or something
+  else? Decision feeds Phase-1 build task downstream.
 
 status: captured
 workflow_type: inception
@@ -12,10 +21,35 @@ tags: [conversation-arc, presence, agent-runtime]
 components: []
 related_tasks: [T-1457, T-1841, T-1832, T-1840, T-1695, T-1856]
 created: 2026-05-31T17:45:16Z
-last_update: 2026-07-02T15:40:51Z
-date_finished: null
+last_update: '2026-08-18T18:58:37Z'
+date_finished:
 revisit_at: 2026-07-06
-revisit_evidence_needed: "Either (a) operator authorizes the 5h-agent + 24h-observation spike budget to run S1-S8, or (b) ring20-management goes silent for >24h again (G-009-class incident), making the cost of NOT having a vendored agent runner immediately quantifiable."
+revisit_evidence_needed: "Either (a) operator authorizes the 5h-agent + 24h-observation
+  spike budget to run S1-S8, or (b) ring20-management goes silent for >24h again (G-009-class
+  incident), making the cost of NOT having a vendored agent runner immediately quantifiable."
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:31Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1898: Vendored Agent Runner — inception

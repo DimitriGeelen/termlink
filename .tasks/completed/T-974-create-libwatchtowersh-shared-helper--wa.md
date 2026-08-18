@@ -2,18 +2,45 @@
 id: T-974
 name: "Create lib/watchtower.sh shared helper — _watchtower_url and _watchtower_open"
 description: >
-  Extract shared Watchtower URL detection and browser-open logic from review.sh into lib/watchtower.sh. Two functions: _watchtower_url (port detection + host detection) and _watchtower_open (URL + browser open with desktop-user awareness). Refactor review.sh to use them. From T-972 RC-3 fix.
+  Extract shared Watchtower URL detection and browser-open logic from review.sh into
+  lib/watchtower.sh. Two functions: _watchtower_url (port detection + host detection)
+  and _watchtower_open (URL + browser open with desktop-user awareness). Refactor
+  review.sh to use them. From T-972 RC-3 fix.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T10:27:15Z
-last_update: 2026-04-12T10:37:30Z
+last_update: '2026-08-18T18:59:24Z'
 date_finished: 2026-04-12T10:35:44Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:15Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 1
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=1 (body:hard-coded-removed); F-RECALL=2 (body:lightly-promoted); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:24Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-974: Create lib/watchtower.sh shared helper — _watchtower_url and _watchtower_open

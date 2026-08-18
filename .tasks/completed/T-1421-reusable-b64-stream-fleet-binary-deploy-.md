@@ -7,13 +7,36 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [agent-chat-arc, fleet-rollout, tooling, PL-095, PL-096]
 components: [scripts/fleet-deploy-binary.sh]
 related_tasks: [T-1418, T-1420]
 created: 2026-04-30T19:17:08Z
-last_update: 2026-04-30T19:20:18Z
+last_update: '2026-08-18T18:58:49Z'
 date_finished: 2026-04-30T19:20:18Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:49Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1421: Reusable b64-stream fleet binary deploy script (codify PL-096)

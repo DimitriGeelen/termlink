@@ -2,18 +2,46 @@
 id: T-1215
 name: "Hub capabilities method + client-side cache (T-1214 follow-up)"
 description: >
-  Per T-1214 federate recommendation: add a 'hub.capabilities' JSON-RPC method to the hub so clients can discover which methods (channel.post, command.exec, etc.) a peer supports at connect time. Client-side: cache supported-method list per peer. Enables T-1165 bridge to gracefully fall back to event.broadcast when channel.* is absent. See docs/reports/T-1214-fleet-diagnosis.md 'Scope of B'.
+  Per T-1214 federate recommendation: add a 'hub.capabilities' JSON-RPC method to
+  the hub so clients can discover which methods (channel.post, command.exec, etc.)
+  a peer supports at connect time. Client-side: cache supported-method list per peer.
+  Enables T-1165 bridge to gracefully fall back to event.broadcast when channel.*
+  is absent. See docs/reports/T-1214-fleet-diagnosis.md 'Scope of B'.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [fleet, federation, capability-probe]
 components: []
 related_tasks: [T-1214, T-1165]
 created: 2026-04-24T10:35:19Z
-last_update: 2026-04-25T21:54:32Z
+last_update: '2026-08-18T18:58:46Z'
 date_finished: 2026-04-24T12:01:48Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=3
+      (body:portability-abstraction); F-RECALL=2 (body:lightly-promoted); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1215: Hub capabilities method + client-side cache (T-1214 follow-up)

@@ -7,13 +7,41 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/rpc_audit.rs]
+components: [crates/termlink-cli/src/cli.rs, 
+      crates/termlink-cli/src/commands/agent.rs, 
+      crates/termlink-cli/src/commands/channel.rs, 
+      crates/termlink-cli/src/commands/remote.rs, 
+      crates/termlink-cli/src/main.rs, crates/termlink-hub/src/router.rs, 
+      crates/termlink-hub/src/rpc_audit.rs]
 related_tasks: []
 created: 2026-04-30T21:09:32Z
-last_update: 2026-05-30T12:35:25Z
+last_update: '2026-08-18T18:58:50Z'
 date_finished: 2026-05-30T12:35:25Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 7
+      tier: 4
+      effort: 8
+    rationale: blast_radius=7 (no-signal); tier=4 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1425: agent-to-agent contact pattern (post-T-1166 canon)

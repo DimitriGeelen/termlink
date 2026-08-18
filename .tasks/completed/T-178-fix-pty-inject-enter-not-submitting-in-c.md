@@ -2,18 +2,46 @@
 id: T-178
 name: "Fix pty inject Enter not submitting in Claude Code TUI"
 description: >
-  pty inject sends text+Enter as one write. Ink TUI needs Enter (0x0D) as separate write with small delay. Root cause: batched write means ink sees multi-char chunk, not a keypress. Fix: split text write and Enter into two separate pty.write() calls. Also check ICRNL termios flag. See docs/reports/T-163-cross-machine-rca-findings.md for full RCA. Related: Claude Code issue #15553, ink useInput batching.
+  pty inject sends text+Enter as one write. Ink TUI needs Enter (0x0D) as separate
+  write with small delay. Root cause: batched write means ink sees multi-char chunk,
+  not a keypress. Fix: split text write and Enter into two separate pty.write() calls.
+  Also check ICRNL termios flag. See docs/reports/T-163-cross-machine-rca-findings.md
+  for full RCA. Related: Claude Code issue #15553, ink useInput batching.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [bug, cli, inject, pty]
 components: []
 related_tasks: [T-137, T-156, T-163, T-177]
 created: 2026-03-18T22:19:38Z
-last_update: 2026-03-20T13:41:13Z
+last_update: '2026-08-18T18:58:56Z'
 date_finished: 2026-03-20T13:41:13Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:12Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 0
+      D3: 0
+      D4: 4
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=1 (body:fix-without-learning); D2=0 (no-signal); D3=0 
+      (no-signal); D4=4 (body:cross-machine); F-RECALL=2 
+      (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:56Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-178: Fix pty inject Enter not submitting in Claude Code TUI

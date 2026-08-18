@@ -2,18 +2,44 @@
 id: T-909
 name: "Fix .agentic-framework symlink — replace with vendored copy"
 description: >
-  Inception: TermLink's .agentic-framework is a symlink to /opt/999-Agentic-Engineering-Framework instead of a vendored copy (other projects use vendored copies). Causes PROJECT_ROOT resolution bugs in tooling like watchtower.sh and potentially shared state pollution in the framework repo. Evaluate risks, design the fix, decide go/no-go.
+  Inception: TermLink's .agentic-framework is a symlink to /opt/999-Agentic-Engineering-Framework
+  instead of a vendored copy (other projects use vendored copies). Causes PROJECT_ROOT
+  resolution bugs in tooling like watchtower.sh and potentially shared state pollution
+  in the framework repo. Evaluate risks, design the fix, decide go/no-go.
 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: [infrastructure, symlink, vendor]
 components: []
 related_tasks: [T-288, T-908]
 created: 2026-04-11T10:49:11Z
-last_update: 2026-04-23T19:30:27Z
+last_update: '2026-08-18T18:59:23Z'
 date_finished: 2026-04-11T12:21:19Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:13Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:23Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-909: Fix .agentic-framework symlink — replace with vendored copy

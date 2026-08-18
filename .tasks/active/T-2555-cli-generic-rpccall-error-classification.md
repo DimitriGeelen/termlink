@@ -1,8 +1,13 @@
 ---
 id: T-2555
-name: "CLI generic rpc_call error classification — actionable hints for list/sweep/delete paths"
+name: "CLI generic rpc_call error classification — actionable hints for list/sweep/delete
+  paths"
 description: >
-  Usability finding #6 (deferred from T-2554): generic .context("Hub rpc_call failed") on channel list/sweep/delete (channel.rs ~707,737,761,845,2737,2919) passes the underlying hub message through with no guidance. Needs a small design choice: per-call hints vs classify centrally in rpc_call_authed (missing-topic → termlink channel list; auth-mismatch → termlink fleet doctor). Lower-traffic than #2-#5.
+  Usability finding #6 (deferred from T-2554): generic .context("Hub rpc_call failed")
+  on channel list/sweep/delete (channel.rs ~707,737,761,845,2737,2919) passes the
+  underlying hub message through with no guidance. Needs a small design choice: per-call
+  hints vs classify centrally in rpc_call_authed (missing-topic → termlink channel
+  list; auth-mismatch → termlink fleet doctor). Lower-traffic than #2-#5.
 
 status: captured
 workflow_type: build
@@ -16,8 +21,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-08T20:37:59Z
-last_update: 2026-08-08T20:37:59Z
-date_finished: null
+last_update: '2026-08-18T18:58:38Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,6 +33,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:34Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2555: CLI generic rpc_call error classification — actionable hints for list/sweep/delete paths

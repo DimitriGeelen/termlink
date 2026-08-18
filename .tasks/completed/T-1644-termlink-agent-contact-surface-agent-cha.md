@@ -1,19 +1,45 @@
 ---
 id: T-1644
-name: "termlink agent contact: surface agent-chat-arc fallback in pre-T-1436-peer error message"
+name: "termlink agent contact: surface agent-chat-arc fallback in pre-T-1436-peer
+  error message"
 description: >
-  termlink agent contact: surface agent-chat-arc fallback in pre-T-1436-peer error message
+  termlink agent contact: surface agent-chat-arc fallback in pre-T-1436-peer error
+  message
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-cli/src/commands/agent.rs]
 related_tasks: []
 created: 2026-05-16T06:59:41Z
-last_update: 2026-05-16T07:23:04Z
+last_update: '2026-08-18T18:58:53Z'
 date_finished: 2026-05-16T07:23:04Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:07Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 1
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=1 (body:log-or-error-line); D3=0 
+      (no-signal); D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:53Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1644: termlink agent contact: surface agent-chat-arc fallback in pre-T-1436-peer error message

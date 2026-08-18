@@ -2,21 +2,47 @@
 id: T-101
 name: "Inception — JSONL transcript reader for conversation capture"
 description: >
-  Claude Code already writes every conversation turn to a structured JSONL file on disk.
-  The budget-gate.sh script already reads this file to count tokens. Explore: can we
+  Claude Code already writes every conversation turn to a structured JSONL file on
+  disk.
+  The budget-gate.sh script already reads this file to count tokens. Explore: can
+  we
   read this file to extract conversation content and write it as a research artifact?
-  This is the most direct path — no new capture mechanism needed, the data already exists.
+  This is the most direct path — no new capture mechanism needed, the data already
+  exists.
   Explore and dialogue only — understand what's there before deciding anything.
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: [jsonl, transcript, conversation-capture, exploration]
 components: []
 related_tasks: [T-094, T-100, T-102, T-099]
 created: 2026-03-11T12:00:00Z
-last_update: 2026-03-11T23:47:37Z
+last_update: '2026-08-18T18:58:42Z'
 date_finished: 2026-03-11T23:47:30Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-101: Inception — JSONL Transcript Reader for Conversation Capture

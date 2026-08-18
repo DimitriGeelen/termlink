@@ -1,19 +1,45 @@
 ---
 id: T-1947
-name: "termlink_help — disambiguate 15 duplicate description pairs (agent_* vs channel_* parallel families)"
+name: "termlink_help — disambiguate 15 duplicate description pairs (agent_* vs channel_*
+  parallel families)"
 description: >
-  Differentiate help-registry descriptions where agent_X and channel_X share identical text
+  Differentiate help-registry descriptions where agent_X and channel_X share identical
+  text
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T20:19:00Z
-last_update: 2026-06-03T20:24:03Z
+last_update: '2026-08-18T18:58:59Z'
 date_finished: 2026-06-03T20:26:48Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=3 (body:portability-abstraction); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1947: termlink_help — disambiguate 15 duplicate description pairs (agent_* vs channel_* parallel families)

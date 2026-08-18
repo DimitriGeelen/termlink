@@ -1,19 +1,48 @@
 ---
 id: T-1417
-name: "Migrate event.broadcast --targets fanout to parallel event.emit_to (final pre-cut migration)"
+name: "Migrate event.broadcast --targets fanout to parallel event.emit_to (final pre-cut
+  migration)"
 description: >
-  The termlink event broadcast CLI and termlink_broadcast MCP tool still call legacy event.broadcast when --targets is non-empty. After the T-1166 cut, this path errors with -32601. Replace with parallel event.emit_to per target (event.emit_to is in the keeper-set, not retired). Migration doc already plans this.
+  The termlink event broadcast CLI and termlink_broadcast MCP tool still call legacy
+  event.broadcast when --targets is non-empty. After the T-1166 cut, this path errors
+  with -32601. Replace with parallel event.emit_to per target (event.emit_to is in
+  the keeper-set, not retired). Migration doc already plans this.
 
 status: work-completed
 workflow_type: build
 owner: human
 horizon: now
 tags: []
-components: [crates/termlink-cli/src/commands/events.rs, crates/termlink-hub/src/server.rs, crates/termlink-mcp/src/tools.rs]
+components: [crates/termlink-cli/src/commands/events.rs, 
+      crates/termlink-hub/src/server.rs, crates/termlink-mcp/src/tools.rs]
 related_tasks: [T-1166, T-1401, T-1403]
 created: 2026-04-30T07:16:42Z
-last_update: 2026-06-06T16:32:08Z
+last_update: '2026-08-18T18:58:36Z'
 date_finished: 2026-04-30T07:44:37Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:27Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=2 (body:telemetry-or-audit-entry); 
+      D3=0 (no-signal); D4=3 (body:portability-abstraction); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:36Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1417: Migrate event.broadcast --targets fanout to parallel event.emit_to (final pre-cut migration)

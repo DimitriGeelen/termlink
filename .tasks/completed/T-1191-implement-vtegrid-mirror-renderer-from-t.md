@@ -2,18 +2,50 @@
 id: T-1191
 name: "Implement vte+grid mirror renderer (from T-235 GO)"
 description: >
-  T-235 GO on vte tokeniser + in-process minimal grid. Add vte 0.13 + unicode-width deps, create mirror_grid.rs with Grid + vte::Perform impl handling CUP/CUU/CUD/CUF/CUB/EL/ED/SGR/DECSET/DECRST + render_diff dirty-compression. Wire into mirror_loop; gate with --raw flag for byte passthrough. Golden tests for vim/htop/ls --color/less. Benchmark <16ms/frame on 1MB vim session. See docs/reports/T-235-terminal-output-rendering.md Follow-on Build Task Scope.
+  T-235 GO on vte tokeniser + in-process minimal grid. Add vte 0.13 + unicode-width
+  deps, create mirror_grid.rs with Grid + vte::Perform impl handling CUP/CUU/CUD/CUF/CUB/EL/ED/SGR/DECSET/DECRST
+  + render_diff dirty-compression. Wire into mirror_loop; gate with --raw flag for
+  byte passthrough. Golden tests for vim/htop/ls --color/less. Benchmark <16ms/frame
+  on 1MB vim session. See docs/reports/T-235-terminal-output-rendering.md Follow-on
+  Build Task Scope.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [termlink, mirror, rendering, vte]
-components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/mirror_grid.rs, crates/termlink-cli/src/commands/mod.rs, crates/termlink-cli/src/commands/pty.rs, crates/termlink-cli/src/main.rs]
+components: [crates/termlink-cli/src/cli.rs, 
+      crates/termlink-cli/src/commands/mirror_grid.rs, 
+      crates/termlink-cli/src/commands/mod.rs, 
+      crates/termlink-cli/src/commands/pty.rs, crates/termlink-cli/src/main.rs]
 related_tasks: [T-235, T-234, T-236]
 created: 2026-04-22T18:41:26Z
-last_update: 2026-04-23T19:17:50Z
+last_update: '2026-08-18T18:58:45Z'
 date_finished: 2026-04-23T19:17:50Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:49Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 1
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=2 (body:lightly-promoted); F-ORCH=1 
+      (body:hand-wired-dispatch)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 5
+      tier: 2
+      effort: 8
+    rationale: blast_radius=5 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1191: Implement vte+grid mirror renderer (from T-235 GO)

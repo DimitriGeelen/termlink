@@ -1,19 +1,45 @@
 ---
 id: T-1841
-name: "be-reachable claude code skill — one-command opt-in to agent-presence for ephemeral sessions"
+name: "be-reachable claude code skill — one-command opt-in to agent-presence for ephemeral
+  sessions"
 description: >
-  be-reachable claude code skill — one-command opt-in to agent-presence for ephemeral sessions
+  be-reachable claude code skill — one-command opt-in to agent-presence for ephemeral
+  sessions
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-28T14:12:58Z
-last_update: 2026-05-31T11:44:45Z
+last_update: '2026-08-18T18:58:57Z'
 date_finished: 2026-05-28T14:28:28Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:15Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=3 (body:portability-abstraction); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:57Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1841: be-reachable claude code skill — one-command opt-in to agent-presence for ephemeral sessions

@@ -1,19 +1,47 @@
 ---
 id: T-1105
-name: "Add termlink fleet status --verbose — show sessions per hub and fleet status as default fleet subcommand"
+name: "Add termlink fleet status --verbose — show sessions per hub and fleet status
+  as default fleet subcommand"
 description: >
-  Add termlink fleet status --verbose — show sessions per hub and fleet status as default fleet subcommand
+  Add termlink fleet status --verbose — show sessions per hub and fleet status as
+  default fleet subcommand
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs]
+components: [crates/termlink-cli/src/cli.rs, 
+      crates/termlink-cli/src/commands/remote.rs, 
+      crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-04-17T10:42:35Z
-last_update: 2026-04-17T10:47:41Z
+last_update: '2026-08-18T18:58:44Z'
 date_finished: 2026-04-17T10:47:41Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:44Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 4
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=4 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1105: Add termlink fleet status --verbose — show sessions per hub and fleet status as default fleet subcommand

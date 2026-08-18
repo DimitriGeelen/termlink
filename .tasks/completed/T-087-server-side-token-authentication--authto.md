@@ -2,18 +2,42 @@
 id: T-087
 name: "Server-side token authentication — auth.token RPC method"
 description: >
-  Add auth.token RPC method, connection scope upgrade from token, default scope logic (Execute if no secret, Observe if secret). From T-079 inception.
+  Add auth.token RPC method, connection scope upgrade from token, default scope logic
+  (Execute if no secret, Observe if secret). From T-079 inception.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-10T23:27:02Z
-last_update: 2026-03-11T07:46:47Z
+last_update: '2026-08-18T18:58:41Z'
 date_finished: 2026-03-11T07:46:47Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:41Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 2
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=2 (body:default-change); 
+      D4=0 (no-signal); F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:41Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-087: Server-side token authentication — auth.token RPC method

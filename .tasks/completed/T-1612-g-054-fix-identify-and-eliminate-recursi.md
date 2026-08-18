@@ -1,19 +1,44 @@
 ---
 id: T-1612
-name: "G-054 fix: identify and eliminate recursive update-task.sh fork on completion deadlock"
+name: "G-054 fix: identify and eliminate recursive update-task.sh fork on completion
+  deadlock"
 description: >
   G-054 fix: identify and eliminate recursive update-task.sh fork on completion deadlock
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [tests/test_g054_completion_smoke.sh]
 related_tasks: []
 created: 2026-05-06T08:05:18Z
-last_update: 2026-05-06T08:15:03Z
+last_update: '2026-08-18T18:58:52Z'
 date_finished: 2026-05-06T08:15:03Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:05Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=2 (body:env-class-handled); F-RECALL=2 (body:lightly-promoted); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:52Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1612: G-054 fix: identify and eliminate recursive update-task.sh fork on completion deadlock

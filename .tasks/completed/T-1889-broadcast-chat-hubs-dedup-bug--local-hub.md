@@ -1,19 +1,52 @@
 ---
 id: T-1889
-name: "broadcast-chat hubs-dedup bug — local hub posted twice when hubs.toml has multiple profiles for same address"
+name: "broadcast-chat hubs-dedup bug — local hub posted twice when hubs.toml has multiple
+  profiles for same address"
 description: >
-  chat-arc-broadcast.sh + termlink_broadcast (via scripts/chat-arc-broadcast.sh) iterate hubs.toml profiles without canonicalizing address. workstation-107-public (192.168.10.107:9100) and local-test (127.0.0.1:9100) both resolve to the single hub process bound to 0.0.0.0:9100 (PID 2382342, /var/lib/termlink/hub.secret), so every /broadcast-chat post lands twice with ~100-150ms gap. Visible in chat-arc-recent output: 6 consecutive duplicate entries from root-claude-dimitrimintdev with ts deltas 96/147/104 ms. Fix: dedup by canonicalized destination in chat-arc-broadcast.sh (resolve loopback + same-port collisions) so script-of-truth wins regardless of hubs.toml profile multiplicity.
+  chat-arc-broadcast.sh + termlink_broadcast (via scripts/chat-arc-broadcast.sh) iterate
+  hubs.toml profiles without canonicalizing address. workstation-107-public (192.168.10.107:9100)
+  and local-test (127.0.0.1:9100) both resolve to the single hub process bound to
+  0.0.0.0:9100 (PID 2382342, /var/lib/termlink/hub.secret), so every /broadcast-chat
+  post lands twice with ~100-150ms gap. Visible in chat-arc-recent output: 6 consecutive
+  duplicate entries from root-claude-dimitrimintdev with ts deltas 96/147/104 ms.
+  Fix: dedup by canonicalized destination in chat-arc-broadcast.sh (resolve loopback
+  + same-port collisions) so script-of-truth wins regardless of hubs.toml profile
+  multiplicity.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-31T07:15:18Z
-last_update: 2026-05-31T07:18:02Z
+last_update: '2026-08-18T18:58:58Z'
 date_finished: 2026-05-31T15:34:40Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:18Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 2
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=2 
+      (body:telemetry-or-audit-entry); D3=0 (no-signal); D4=2 
+      (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1889: broadcast-chat hubs-dedup bug — local hub posted twice when hubs.toml has multiple profiles for same address

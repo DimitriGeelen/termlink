@@ -7,13 +7,37 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [agent-mesh, events, dispatch]
 components: []
 related_tasks: [T-114]
 created: 2026-03-12T12:05:46Z
-last_update: 2026-03-12T15:46:56Z
+last_update: '2026-08-18T18:58:45Z'
 date_finished: 2026-03-12T12:29:46Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 1
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=1 (body:log-or-error-line); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-116: Event-driven agent mesh dispatch — worker watches for tasks via TermLink events

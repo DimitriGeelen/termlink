@@ -1,8 +1,13 @@
 ---
 id: T-1294
-name: "Migrate ring20-management hub runtime_dir from /tmp/termlink-0 to /var/lib/termlink (T-1290 GO)"
+name: "Migrate ring20-management hub runtime_dir from /tmp/termlink-0 to /var/lib/termlink
+  (T-1290 GO)"
 description: >
-  Operator-side migration on CT 200 (.122). Confirm hypothesis (spike 1) then apply T-935 systemd-unit migration so TERMLINK_RUNTIME_DIR=/var/lib/termlink, restart hub, all clients re-pin once. Closes the upstream cause of recurring G-011 cascades — eliminates the loop where every CT reboot wipes hub.secret and triggers TOFU+auth-mismatch storm across the fleet.
+  Operator-side migration on CT 200 (.122). Confirm hypothesis (spike 1) then apply
+  T-935 systemd-unit migration so TERMLINK_RUNTIME_DIR=/var/lib/termlink, restart
+  hub, all clients re-pin once. Closes the upstream cause of recurring G-011 cascades
+  — eliminates the loop where every CT reboot wipes hub.secret and triggers TOFU+auth-mismatch
+  storm across the fleet.
 
 status: started-work
 workflow_type: build
@@ -12,8 +17,32 @@ tags: [auth, infrastructure, ring20-management, G-011, runtime_dir]
 components: []
 related_tasks: [T-1290, T-935, T-931, T-1291, T-1137, T-1051]
 created: 2026-04-26T12:04:17Z
-last_update: 2026-05-13T06:06:52Z
-date_finished: null
+last_update: '2026-08-18T18:58:35Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:27Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=3
+      (body:portability-abstraction); F-RECALL=2 (body:lightly-promoted); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:35Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1294: Migrate ring20-management hub runtime_dir from /tmp/termlink-0 to /var/lib/termlink (T-1290 GO)

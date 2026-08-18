@@ -1,13 +1,23 @@
 ---
 id: T-2585
-name: "fix: find_idle applies no msg_type filter, trusts any agent-presence envelope (disagrees with peers/listeners liveness)"
+name: "fix: find_idle applies no msg_type filter, trusts any agent-presence envelope
+  (disagrees with peers/listeners liveness)"
 description: >
-  find_idle (both hint and walk paths, lib.rs:583-609 and 685-713) applies NO msg_type filter — it trusts any envelope on agent-presence carrying metadata.agent_id, disagreeing with the listeners/peers path which requires msg_type==heartbeat (agent-listeners.sh jq ~line 85). A later non-heartbeat post to agent-presence from a known agent_id is taken as the last heartbeat, so /peers (heartbeat-only) and /find-idle (any-envelope) disagree about who is LIVE; also a trust-the-topic reliability gap. Fix candidate: add msg_type==heartbeat predicate to both find_idle paths so all three discovery surfaces share one liveness definition. VERIFY heartbeat envelopes carry msg_type==heartbeat (heartbeat_env sets it) and that no legit producer posts liveness via a different msg_type before building. From T-2468 verb-1 hunt.
+  find_idle (both hint and walk paths, lib.rs:583-609 and 685-713) applies NO msg_type
+  filter — it trusts any envelope on agent-presence carrying metadata.agent_id, disagreeing
+  with the listeners/peers path which requires msg_type==heartbeat (agent-listeners.sh
+  jq ~line 85). A later non-heartbeat post to agent-presence from a known agent_id
+  is taken as the last heartbeat, so /peers (heartbeat-only) and /find-idle (any-envelope)
+  disagree about who is LIVE; also a trust-the-topic reliability gap. Fix candidate:
+  add msg_type==heartbeat predicate to both find_idle paths so all three discovery
+  surfaces share one liveness definition. VERIFY heartbeat envelopes carry msg_type==heartbeat
+  (heartbeat_env sets it) and that no legit producer posts liveness via a different
+  msg_type before building. From T-2468 verb-1 hunt.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-bus/src/lib.rs]
 related_tasks: []
@@ -16,7 +26,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-09T21:59:09Z
-last_update: 2026-08-09T22:24:16Z
+last_update: '2026-08-18T18:59:13Z'
 date_finished: 2026-08-09T22:24:16Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +38,30 @@ date_finished: 2026-08-09T22:24:16Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:52Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=3 (body:portability-abstraction); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:13Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2585: fix: find_idle applies no msg_type filter, trusts any agent-presence envelope (disagrees with peers/listeners liveness)

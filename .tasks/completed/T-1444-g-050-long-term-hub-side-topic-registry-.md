@@ -1,19 +1,47 @@
 ---
 id: T-1444
-name: "G-050 long-term: hub-side topic registry persistence (option-1 follow-up to T-1443 mitigation)"
+name: "G-050 long-term: hub-side topic registry persistence (option-1 follow-up to
+  T-1443 mitigation)"
 description: >
-  Inception: G-050 long-term: hub-side topic registry persistence (option-1 follow-up to T-1443 mitigation)
+  Inception: G-050 long-term: hub-side topic registry persistence (option-1 follow-up
+  to T-1443 mitigation)
 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/server.rs]
+components: [crates/termlink-cli/src/cli.rs, 
+      crates/termlink-cli/src/commands/remote.rs, 
+      crates/termlink-cli/src/main.rs, crates/termlink-hub/src/router.rs, 
+      crates/termlink-hub/src/server.rs]
 related_tasks: []
 created: 2026-05-01T21:28:03Z
-last_update: 2026-05-02T07:02:34Z
+last_update: '2026-08-18T18:58:50Z'
 date_finished: 2026-05-02T07:02:34Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 5
+      tier: 4
+      effort: 8
+    rationale: blast_radius=5 (no-signal); tier=4 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1444: G-050 long-term: hub-side topic registry persistence (option-1 follow-up to T-1443 mitigation)

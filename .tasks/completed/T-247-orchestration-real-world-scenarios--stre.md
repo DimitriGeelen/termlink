@@ -1,19 +1,45 @@
 ---
 id: T-247
-name: "Orchestration real-world scenarios — stress-test orchestrator.route + bypass registry"
+name: "Orchestration real-world scenarios — stress-test orchestrator.route + bypass
+  registry"
 description: >
-  Inception: Orchestration real-world scenarios — stress-test orchestrator.route + bypass registry
+  Inception: Orchestration real-world scenarios — stress-test orchestrator.route +
+  bypass registry
 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: [T-233, T-238, T-237, orchestration, bypass, testing]
 components: []
-related_tasks: [T-233, T-237, T-238, T-248, T-249, T-250, T-251, T-252, T-253, T-254, T-255]
+related_tasks: [T-233, T-237, T-238, T-248, T-249, T-250, T-251, T-252, T-253, 
+      T-254, T-255]
 created: 2026-03-23T16:43:45Z
-last_update: 2026-03-23T22:00:28Z
+last_update: '2026-08-18T18:59:11Z'
 date_finished: 2026-03-23T22:00:28Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:11Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 5
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=5 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-247: Orchestration real-world scenarios — stress-test orchestrator.route + bypass registry

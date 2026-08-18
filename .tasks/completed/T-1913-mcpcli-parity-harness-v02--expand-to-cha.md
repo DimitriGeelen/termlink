@@ -2,18 +2,44 @@
 id: T-1913
 name: "MCP/CLI parity harness v0.2 — expand to channel_* pairs (T-1909 follow-on)"
 description: >
-  Add 3-5 channel_* parity pairs to crates/termlink-mcp/tests/parity.rs. Highest-trafficked subsystem (53 pairs total in census). v0.1 caught 3 real divergences; v0.2 has high expected-catch yield.
+  Add 3-5 channel_* parity pairs to crates/termlink-mcp/tests/parity.rs. Highest-trafficked
+  subsystem (53 pairs total in census). v0.1 caught 3 real divergences; v0.2 has high
+  expected-catch yield.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: [T-1904, T-1909]
 created: 2026-06-01T12:58:08Z
-last_update: 2026-06-01T13:23:35Z
+last_update: '2026-08-18T18:58:58Z'
 date_finished: 2026-06-01T14:06:27Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:19Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1913: MCP/CLI parity harness v0.2 — expand to channel_* pairs (T-1909 follow-on)

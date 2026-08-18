@@ -1,15 +1,47 @@
 ---
 id: T-2506
-name: "Client-side receipt-frontier reducers key on latest ts, regressing the delivery frontier"
-description: "The CLI + MCP client-side receipt aggregators keep the receipt with the latest ts instead of the highest up_to. A later-but-lower receipt (out-of-order, or an operator ack --up-to smaller) regresses the monotonic delivery frontier → check-outbox/awaiting-ack over-report already-read offsets as unread. Regression-of-omission: the hub reducer was fixed for this exact class in T-2456; the 5 client-side copies were never brought in line."
+name: "Client-side receipt-frontier reducers key on latest ts, regressing the delivery
+  frontier"
+description: "The CLI + MCP client-side receipt aggregators keep the receipt with
+  the latest ts instead of the highest up_to. A later-but-lower receipt (out-of-order,
+  or an operator ack --up-to smaller) regresses the monotonic delivery frontier →
+  check-outbox/awaiting-ack over-report already-read offsets as unread. Regression-of-omission:
+  the hub reducer was fixed for this exact class in T-2456; the 5 client-side copies
+  were never brought in line."
 status: work-completed
 workflow_type: build
-horizon: null
+horizon:
 owner: agent
 created: 2026-08-03
-last_update: 2026-08-02T22:41:26Z
+last_update: '2026-08-18T18:59:12Z'
 tags: [reliability, correctness, receipts, delivery-confirmation, regression]
-components: [crates/termlink-cli/src/commands/channel.rs, crates/termlink-mcp/src/tools.rs]
+components: [crates/termlink-cli/src/commands/channel.rs, 
+      crates/termlink-mcp/src/tools.rs]
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:48Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 3
+      D2: 5
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=3 (body:test-or-audit-check); D2=5 
+      (body:silent-class-removed); D3=0 (no-signal); D4=3 
+      (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:12Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 ## Context

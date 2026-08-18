@@ -2,7 +2,13 @@
 id: T-2710
 name: "Canary test seams ship unexercised — 8 of 9 have no fixture suite"
 description: >
-  Nine runtime canaries ship a *_TEST_JSON seam (PL-213) explicitly so their exit-code contract can be verified without a live hub, but only check-charter-drift has a fixture suite that uses it. The other eight seams exist and nothing runs them — dormant tooling (PL-168) one level up. Concretely: the stuck-claims canary's HEALTHY path had never been asserted, which is why it could fire daily for ~62 days on latched debris (T-2709) with no test noticing. Adds tests/stuck-claims-check-fixtures.sh and files the remaining seven.
+  Nine runtime canaries ship a *_TEST_JSON seam (PL-213) explicitly so their exit-code
+  contract can be verified without a live hub, but only check-charter-drift has a
+  fixture suite that uses it. The other eight seams exist and nothing runs them —
+  dormant tooling (PL-168) one level up. Concretely: the stuck-claims canary's HEALTHY
+  path had never been asserted, which is why it could fire daily for ~62 days on latched
+  debris (T-2709) with no test noticing. Adds tests/stuck-claims-check-fixtures.sh
+  and files the remaining seven.
 
 status: captured
 workflow_type: build
@@ -16,8 +22,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T16:59:52Z
-last_update: 2026-08-14T16:59:52Z
-date_finished: null
+last_update: '2026-08-18T18:58:40Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,6 +34,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:40Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2710: Canary test seams ship unexercised — 8 of 9 have no fixture suite

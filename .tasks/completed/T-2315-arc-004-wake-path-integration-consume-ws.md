@@ -1,19 +1,21 @@
 ---
 id: T-2315
-name: "arc-004 wake-path integration: consume WS push in the live doorbell/be-reachable path to replace the 15s poll floor"
+name: "arc-004 wake-path integration: consume WS push in the live doorbell/be-reachable
+  path to replace the 15s poll floor"
 description: >
-  Inception: arc-004 wake-path integration: consume WS push in the live doorbell/be-reachable path to replace the 15s poll floor
+  Inception: arc-004 wake-path integration: consume WS push in the live doorbell/be-reachable
+  path to replace the 15s poll floor
 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: [arc:push-transport]
 arc_id: push-transport
 components: []
 related_tasks: [T-2303, T-2309, T-2313, T-2314]
 created: 2026-07-02T20:51:50Z
-last_update: 2026-07-02T21:10:46Z
+last_update: '2026-08-18T18:59:07Z'
 date_finished: 2026-07-02T21:10:46Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -23,6 +25,29 @@ target_blast_radius: 3            # int 0..9. Anticipated component count of the
                                   # Guide: 0=docs only, 1=single file, 3=small subsystem (S), 5=cross-subsystem (M), 7=multi-arc (L), 9=framework-wide (XL).
 voi_score: 0.5                    # float 0..1. Value of Information — expected value of resolving this question,
                                   # independent of build cost. Higher when answer affects many tasks or unblocks a strategic decision. Required.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:39Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:07Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 4
+      effort: 7
+    rationale: blast_radius=3 (no-signal); tier=4 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2315: arc-004 wake-path integration: consume WS push in the live doorbell/be-reachable path to replace the 15s poll floor

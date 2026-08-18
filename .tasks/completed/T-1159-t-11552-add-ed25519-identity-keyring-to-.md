@@ -2,18 +2,44 @@
 id: T-1159
 name: "T-1155/2 Add ed25519 identity keyring to termlink-session"
 description: >
-  Self-sovereign agent identity per T-1155 S-4. Generate/store ed25519 keypair per session. Bootstrap command (termlink identity init), show fingerprint (termlink identity show), rotate. TOFU pin on first-contact. Separates identity trust from transport trust — structural fix for T-1051 rotation pain.
+  Self-sovereign agent identity per T-1155 S-4. Generate/store ed25519 keypair per
+  session. Bootstrap command (termlink identity init), show fingerprint (termlink
+  identity show), rotate. TOFU pin on first-contact. Separates identity trust from
+  transport trust — structural fix for T-1051 rotation pain.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [T-1155, bus, identity]
 components: []
 related_tasks: [T-1155]
 created: 2026-04-20T14:12:03Z
-last_update: 2026-04-23T19:17:48Z
+last_update: '2026-08-18T18:58:44Z'
 date_finished: 2026-04-20T20:46:26Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:44Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1159: T-1155/2 Add ed25519 identity keyring to termlink-session

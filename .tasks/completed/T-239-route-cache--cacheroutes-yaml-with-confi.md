@@ -2,18 +2,45 @@
 id: T-239
 name: "Route cache — .cache/routes/ YAML with confidence, TTL, lazy invalidation"
 description: >
-  Per-agent route cache in .cache/routes/ keyed by capability slug. YAML entries with confidence scores, TTL, hit counts, schema validation. 3-way branch: hit+valid -> direct, partial match -> refinement query, miss -> orchestrator. See T-233 research: Q2b-routing-decision.md
+  Per-agent route cache in .cache/routes/ keyed by capability slug. YAML entries with
+  confidence scores, TTL, hit counts, schema validation. 3-way branch: hit+valid ->
+  direct, partial match -> refinement query, miss -> orchestrator. See T-233 research:
+  Q2b-routing-decision.md
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [T-233, orchestration, cache]
 components: []
 related_tasks: [T-233, T-237]
 created: 2026-03-23T13:27:32Z
-last_update: 2026-03-24T09:03:06Z
+last_update: '2026-08-18T18:59:09Z'
 date_finished: 2026-03-24T09:03:06Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:43Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=1 (body:fix-without-learning); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=2 (body:lightly-promoted); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:09Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-239: Route cache — .cache/routes/ YAML with confidence, TTL, lazy invalidation

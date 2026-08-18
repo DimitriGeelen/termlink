@@ -2,18 +2,45 @@
 id: T-1163
 name: "T-1155/6 Migrate inbox.{list,status,clear} callers → channel.{post,subscribe}"
 description: >
-  18 call sites across infrastructure.rs, remote.rs, tools.rs, router.rs. inbox.target becomes recipient channel; inbox.list becomes subscribe-since-cursor; inbox.clear becomes cursor advance. See T-1155 S-5.
+  18 call sites across infrastructure.rs, remote.rs, tools.rs, router.rs. inbox.target
+  becomes recipient channel; inbox.list becomes subscribe-since-cursor; inbox.clear
+  becomes cursor advance. See T-1155 S-5.
 
 status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: null
+horizon:
 tags: [T-1155, bus, migration]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:13Z
-last_update: 2026-04-24T15:15:50Z
+last_update: '2026-08-18T18:58:45Z'
 date_finished: 2026-04-24T15:15:50Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 2
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=1 (body:fix-without-learning); D2=2 
+      (body:telemetry-or-audit-entry); D3=0 (no-signal); D4=3 
+      (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 3
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=3 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1163: T-1155/6 Migrate inbox.{list,status,clear} callers → channel.{post,subscribe}

@@ -2,18 +2,42 @@
 id: T-232
 name: "Terminal shadow sessions — read-only monitoring of agent terminals via hub"
 description: >
-  Inception: Terminal shadow sessions — read-only monitoring of agent terminals via hub
+  Inception: Terminal shadow sessions — read-only monitoring of agent terminals via
+  hub
 
 status: work-completed
 workflow_type: inception
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-23T08:58:57Z
-last_update: 2026-03-23T09:09:23Z
+last_update: '2026-08-18T18:59:08Z'
 date_finished: 2026-03-23T09:09:23Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:39Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:08Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-232: Terminal shadow sessions — read-only monitoring of agent terminals via hub

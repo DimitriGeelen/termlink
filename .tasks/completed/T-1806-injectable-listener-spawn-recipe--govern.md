@@ -2,18 +2,46 @@
 id: T-1806
 name: "Injectable-listener spawn recipe + governance doc (T-1800 build #3)"
 description: >
-  T-1800 build #3. Document the canonical recipe to run a persistent injectable Claude listener: persistent termlink --shell session + claude (default permission mode, NOT claude -p), governed via FW_SAFE_MODE=1 (keeps Tier-0+budget) OR its own started-work task, with Bash(termlink:*) allowlisted for hands-free replies. Per T-1800 Evidence: do NOT use ungoverned /tmp (drops Tier-0+budget+boundary). Write to docs/operations/.
+  T-1800 build #3. Document the canonical recipe to run a persistent injectable Claude
+  listener: persistent termlink --shell session + claude (default permission mode,
+  NOT claude -p), governed via FW_SAFE_MODE=1 (keeps Tier-0+budget) OR its own started-work
+  task, with Bash(termlink:*) allowlisted for hands-free replies. Per T-1800 Evidence:
+  do NOT use ungoverned /tmp (drops Tier-0+budget+boundary). Write to docs/operations/.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-25T17:35:12Z
-last_update: 2026-05-25T20:05:37Z
+last_update: '2026-08-18T18:58:56Z'
 date_finished: 2026-05-25T20:05:37Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 4
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=4 
+      (body:framework-level-ux); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:56Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1806: Injectable-listener spawn recipe + governance doc (T-1800 build #3)

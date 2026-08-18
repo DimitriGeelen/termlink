@@ -1,19 +1,45 @@
 ---
 id: T-1203
-name: "Composer initial-scrollback prefetch — feed query.output into each panel before first frame (T-236 follow-up)"
+name: "Composer initial-scrollback prefetch — feed query.output into each panel before
+  first frame (T-236 follow-up)"
 description: >
-  Composer initial-scrollback prefetch — feed query.output into each panel before first frame (T-236 follow-up)
+  Composer initial-scrollback prefetch — feed query.output into each panel before
+  first frame (T-236 follow-up)
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-cli/src/commands/mirror_grid_composer.rs, crates/termlink-cli/src/main.rs]
+components: [crates/termlink-cli/src/commands/mirror_grid_composer.rs, 
+      crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-04-23T14:44:26Z
-last_update: 2026-04-23T14:46:15Z
+last_update: '2026-08-18T18:58:45Z'
 date_finished: 2026-04-23T14:46:15Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:49Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1203: Composer initial-scrollback prefetch — feed query.output into each panel before first frame (T-236 follow-up)

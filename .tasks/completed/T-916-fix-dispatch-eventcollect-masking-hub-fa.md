@@ -2,18 +2,57 @@
 id: T-916
 name: "Fix dispatch event.collect masking hub failures via continue path"
 description: >
-  Discovered 2026-04-11 while smoke-testing T-914 (G-002 fix). When the hub is down or unreachable, dispatch's collect loop in crates/termlink-cli/src/commands/dispatch.rs (around line 406) hits Connection refused on every event.collect RPC and falls through a 'continue' statement that skips the entire rest of the loop body — including the early-crash detection at lines 454-480. Result: dispatch hangs in a tight error loop until --timeout expires, with no signal to the user that the hub is unreachable. Confirmed reproduction: repeated 'I/O error: Connection refused (os error 111)' debug lines during a smoke test where the hub PID was dead but the socket file persisted on disk. RECOMMENDED FIX: move the early-crash check to the TOP of the collect loop (before event.collect) so it always runs regardless of RPC outcome. Additionally, track consecutive event.collect errors and bail with a clear 'hub unreachable' error after N consecutive failures (e.g., 5). PRE-FLIGHT OPTION: ping the hub once before entering the collect loop and fail fast with a clear error message. Symptom is identical to the G-002 fast-fail hang from the user's perspective (silent timeout) but the cause and fix are different. T-914 fix is correct; this is a separate orthogonal bug.
+  Discovered 2026-04-11 while smoke-testing T-914 (G-002 fix). When the hub is down
+  or unreachable, dispatch's collect loop in crates/termlink-cli/src/commands/dispatch.rs
+  (around line 406) hits Connection refused on every event.collect RPC and falls through
+  a 'continue' statement that skips the entire rest of the loop body — including the
+  early-crash detection at lines 454-480. Result: dispatch hangs in a tight error
+  loop until --timeout expires, with no signal to the user that the hub is unreachable.
+  Confirmed reproduction: repeated 'I/O error: Connection refused (os error 111)'
+  debug lines during a smoke test where the hub PID was dead but the socket file persisted
+  on disk. RECOMMENDED FIX: move the early-crash check to the TOP of the collect loop
+  (before event.collect) so it always runs regardless of RPC outcome. Additionally,
+  track consecutive event.collect errors and bail with a clear 'hub unreachable' error
+  after N consecutive failures (e.g., 5). PRE-FLIGHT OPTION: ping the hub once before
+  entering the collect loop and fail fast with a clear error message. Symptom is identical
+  to the G-002 fast-fail hang from the user's perspective (silent timeout) but the
+  cause and fix are different. T-914 fix is correct; this is a separate orthogonal
+  bug.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [termlink, dispatch, bug, observability, error-handling]
 components: [crates/termlink-cli/src/commands/dispatch.rs]
 related_tasks: [T-914, T-282]
 created: 2026-04-11T13:16:45Z
-last_update: 2026-04-23T19:17:52Z
+last_update: '2026-08-18T18:59:23Z'
 date_finished: 2026-04-11T13:30:15Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 1
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 1
+    rationale: D1=1 (body:fix-without-learning); D2=1 (body:log-or-error-line); 
+      D3=0 (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=1 
+      (body:hand-wired-dispatch)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:23Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-916: Fix dispatch event.collect masking hub failures via continue path

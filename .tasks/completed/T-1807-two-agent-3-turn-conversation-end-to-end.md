@@ -2,18 +2,47 @@
 id: T-1807
 name: "Two-agent >=3-turn conversation end-to-end validation (T-1800 S-5/build #4)"
 description: >
-  T-1800 build #4 / spike S-5. Validate the full runtime loop live: two real persistent claude listeners (per build #3 recipe) hold a >=3-turn structured conversation using agent-send.sh (T-1804) + the pickup-respond ritual (build #2), with heartbeats. Confirms determinism (every turn acked) and A-4 (content via channel.* envelopes, PTY never scraped). Needs live infra; lower priority until #2/#3 land.
+  T-1800 build #4 / spike S-5. Validate the full runtime loop live: two real persistent
+  claude listeners (per build #3 recipe) hold a >=3-turn structured conversation using
+  agent-send.sh (T-1804) + the pickup-respond ritual (build #2), with heartbeats.
+  Confirms determinism (every turn acked) and A-4 (content via channel.* envelopes,
+  PTY never scraped). Needs live infra; lower priority until #2/#3 land.
 
 status: work-completed
 workflow_type: test
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-25T17:35:16Z
-last_update: 2026-05-25T20:17:39Z
+last_update: '2026-08-18T18:58:56Z'
 date_finished: 2026-05-25T20:17:39Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 3
+      D3: 0
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=3 
+      (body:component-silent-failure); D3=0 (no-signal); D4=2 
+      (body:env-class-handled); F-RECALL=2 (body:lightly-promoted); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:56Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 1
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=1 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1807: Two-agent >=3-turn conversation end-to-end validation (T-1800 S-5/build #4)

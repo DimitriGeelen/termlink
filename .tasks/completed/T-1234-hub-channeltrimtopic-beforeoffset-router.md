@@ -2,18 +2,46 @@
 id: T-1234
 name: "Hub: channel.trim(topic, before_offset?) router method (T-1230a)"
 description: >
-  Add hub-side channel.trim(topic, before_offset?) RPC method per T-1230 Option A. Destructive hub-side delete that mirrors legacy inbox.clear semantics (affects ALL subscribers). Replaces inbox.clear under T-1166 retirement. Pairs with channel.cursor.advance (separate sub-task) for the per-subscriber semantic.
+  Add hub-side channel.trim(topic, before_offset?) RPC method per T-1230 Option A.
+  Destructive hub-side delete that mirrors legacy inbox.clear semantics (affects ALL
+  subscribers). Replaces inbox.clear under T-1166 retirement. Pairs with channel.cursor.advance
+  (separate sub-task) for the per-subscriber semantic.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [T-1230, T-1155, bus, channel, hub]
-components: [crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs, crates/termlink-protocol/src/control.rs]
+components: [crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, 
+      crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs, 
+      crates/termlink-protocol/src/control.rs]
 related_tasks: []
 created: 2026-04-25T10:15:21Z
-last_update: 2026-04-25T10:18:42Z
+last_update: '2026-08-18T18:58:46Z'
 date_finished: 2026-04-25T10:18:42Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:51Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 5
+      tier: 2
+      effort: 8
+    rationale: blast_radius=5 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1234: Hub: channel.trim(topic, before_offset?) router method (T-1230a)

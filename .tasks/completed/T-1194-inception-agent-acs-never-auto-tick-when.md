@@ -1,19 +1,51 @@
 ---
 id: T-1194
-name: "Inception Agent ACs never auto-tick when Recommendation populated — blocks fw inception decide even with full evidence"
+name: "Inception Agent ACs never auto-tick when Recommendation populated — blocks
+  fw inception decide even with full evidence"
 description: >
-  User hit this on T-1192 AND T-068 (different project) same session. Inception template has 3 generic Agent ACs (Problem statement validated / Assumptions tested / Recommendation written with rationale). 'fw inception decide T-XXX go' calls update-task --status work-completed which is P-010 gated on unchecked Agent ACs. Even when ## Recommendation is fully populated with evidence, the checkboxes remain unticked and the decide command is blocked. Options: (a) fw inception decide auto-ticks the 3 generic Agent ACs when Recommendation has content + Decision is non-empty; (b) inception template omits the generic ACs entirely (Recommendation section IS the proof); (c) decide accepts --force-ac implicit. Structural, cross-project: affects every inception.
+  User hit this on T-1192 AND T-068 (different project) same session. Inception template
+  has 3 generic Agent ACs (Problem statement validated / Assumptions tested / Recommendation
+  written with rationale). 'fw inception decide T-XXX go' calls update-task --status
+  work-completed which is P-010 gated on unchecked Agent ACs. Even when ## Recommendation
+  is fully populated with evidence, the checkboxes remain unticked and the decide
+  command is blocked. Options: (a) fw inception decide auto-ticks the 3 generic Agent
+  ACs when Recommendation has content + Decision is non-empty; (b) inception template
+  omits the generic ACs entirely (Recommendation section IS the proof); (c) decide
+  accepts --force-ac implicit. Structural, cross-project: affects every inception.
 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: [framework, governance, inception, structural-gap]
 components: []
 related_tasks: [T-1192, T-068, T-679, T-1259]
 created: 2026-04-22T21:56:11Z
-last_update: 2026-04-23T12:11:22Z
+last_update: '2026-08-18T18:58:45Z'
 date_finished: 2026-04-23T12:11:22Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:49Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1194: Inception Agent ACs never auto-tick when Recommendation populated — blocks fw inception decide even with full evidence

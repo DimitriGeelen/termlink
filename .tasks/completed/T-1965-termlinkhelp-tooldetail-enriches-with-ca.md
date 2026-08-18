@@ -2,18 +2,45 @@
 id: T-1965
 name: "termlink_help tool_detail enriches with category_description + category_tool_count"
 description: >
-  Extend tool_detail return envelope with category-context fields: category_description (from T-1957 category_descriptions()) and category_tool_count (size of the target's category). Drift-proof — both derived live. Gives LLMs drilling into one tool the sizing + semantic context of its category without a second round-trip.
+  Extend tool_detail return envelope with category-context fields: category_description
+  (from T-1957 category_descriptions()) and category_tool_count (size of the target's
+  category). Drift-proof — both derived live. Gives LLMs drilling into one tool the
+  sizing + semantic context of its category without a second round-trip.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [mcp, help-registry]
 components: []
 related_tasks: []
 created: 2026-06-03T22:41:18Z
-last_update: 2026-06-03T22:44:08Z
+last_update: '2026-08-18T18:58:59Z'
 date_finished: 2026-06-03T22:46:24Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:21Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1965: termlink_help tool_detail enriches with category_description + category_tool_count

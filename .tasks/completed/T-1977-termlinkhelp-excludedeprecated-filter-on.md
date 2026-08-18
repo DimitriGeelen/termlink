@@ -1,19 +1,49 @@
 ---
 id: T-1977
-name: "termlink_help: exclude_deprecated filter on name_filter — discovery without retirement-WIP noise"
+name: "termlink_help: exclude_deprecated filter on name_filter — discovery without
+  retirement-WIP noise"
 description: >
-  Add exclude_deprecated: Option<bool> to HelpParams. When true, name_filter and standalone-arity-filter modes suppress rows where deprecated==true. Composes with name_filter + min_parameters + max_parameters for clean discovery queries: 'find me live, low-arity tools matching channel'. Mirrors the T-1975/T-1976 filter pattern: same call site, same envelope shape, only the row set shrinks. Real value: LLM clients no longer fetch deprecated rows just to filter them out.
+  Add exclude_deprecated: Option<bool> to HelpParams. When true, name_filter and standalone-arity-filter
+  modes suppress rows where deprecated==true. Composes with name_filter + min_parameters
+  + max_parameters for clean discovery queries: 'find me live, low-arity tools matching
+  channel'. Mirrors the T-1975/T-1976 filter pattern: same call site, same envelope
+  shape, only the row set shrinks. Real value: LLM clients no longer fetch deprecated
+  rows just to filter them out.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-04T07:10:05Z
-last_update: 2026-06-04T07:14:59Z
+last_update: '2026-08-18T18:59:00Z'
 date_finished: 2026-06-04T07:17:13Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:21Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1977: termlink_help: exclude_deprecated filter on name_filter — discovery without retirement-WIP noise

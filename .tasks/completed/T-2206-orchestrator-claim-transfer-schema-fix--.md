@@ -1,13 +1,17 @@
 ---
 id: T-2206
-name: "Orchestrator claim-transfer schema fix + end-to-end LIVE smoke proof (T-2204 follow-up)"
+name: "Orchestrator claim-transfer schema fix + end-to-end LIVE smoke proof (T-2204
+  follow-up)"
 description: >
-  Smoke testing T-2204+T-2205 substrate consumer kit end-to-end uncovered that scripts/orchestrator-backlog-drain.sh's claim-transfer call used positional args ('claim_id' 'to-owner') but the CLI verb requires --claim-id + --to-owner flags. Fix the call, re-run the LIVE smoke proof, capture the success path in the recipe doc as a validation reference.
+  Smoke testing T-2204+T-2205 substrate consumer kit end-to-end uncovered that scripts/orchestrator-backlog-drain.sh's
+  claim-transfer call used positional args ('claim_id' 'to-owner') but the CLI verb
+  requires --claim-id + --to-owner flags. Fix the call, re-run the LIVE smoke proof,
+  capture the success path in the recipe doc as a validation reference.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [substrate, parallel-worker, bug-fix, arc-001, T-2018]
 components: [scripts/orchestrator-backlog-drain.sh]
 related_tasks: []
@@ -16,7 +20,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-13T09:18:44Z
-last_update: 2026-06-13T09:20:49Z
+last_update: '2026-08-18T18:59:05Z'
 date_finished: 2026-06-13T09:20:49Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +32,30 @@ date_finished: 2026-06-13T09:20:49Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:33Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:05Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2206: Orchestrator claim-transfer schema fix + end-to-end LIVE smoke proof (T-2204 follow-up)

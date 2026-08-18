@@ -2,7 +2,18 @@
 id: T-1899
 name: "G-020 task-create-time gate failed — RCA + pickup to framework-agent"
 description: >
-  Inception: the G-020 / T-469 Pickup Message Handling rule (Build Readiness Gate) is supposed to prevent unscoped build tasks from being created with placeholder ACs. Empirically: on 2026-05-31T17:45Z I created T-1898 via `fw work-on "<name>" --type build`, the task file landed with `[First criterion]` / `[Second criterion]` placeholder ACs from the default template, status was set to `started-work`, and no hook blocked the creation. The G-020 gate DID fire on the next Bash tool call (preventing read of inception.md template), proving the gate exists and runs — but only at use-time, not at create-time. This inception scopes the RCA: was the gate designed to be use-time-only by intent (spec gap → needs feature), or was it designed for create-time AND we have a regression (bug → needs fix)? Deliverable post-GO: pickup envelope to framework-agent describing the structural gap with proposed prevention path.
+  Inception: the G-020 / T-469 Pickup Message Handling rule (Build Readiness Gate)
+  is supposed to prevent unscoped build tasks from being created with placeholder
+  ACs. Empirically: on 2026-05-31T17:45Z I created T-1898 via `fw work-on "<name>"
+  --type build`, the task file landed with `[First criterion]` / `[Second criterion]`
+  placeholder ACs from the default template, status was set to `started-work`, and
+  no hook blocked the creation. The G-020 gate DID fire on the next Bash tool call
+  (preventing read of inception.md template), proving the gate exists and runs — but
+  only at use-time, not at create-time. This inception scopes the RCA: was the gate
+  designed to be use-time-only by intent (spec gap → needs feature), or was it designed
+  for create-time AND we have a regression (bug → needs fix)? Deliverable post-GO:
+  pickup envelope to framework-agent describing the structural gap with proposed prevention
+  path.
 
 status: captured
 workflow_type: inception
@@ -12,8 +23,31 @@ tags: [governance, hook-gates, framework-agent, pickup, G-020]
 components: []
 related_tasks: [T-1898, T-469]
 created: 2026-05-31T17:52:28Z
-last_update: 2026-06-06T12:32:57Z
-date_finished: null
+last_update: '2026-08-18T18:58:37Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:31Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1899: G-020 task-create-time gate failed — RCA + pickup to framework-agent

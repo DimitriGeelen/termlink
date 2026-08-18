@@ -8,13 +8,36 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: [observability, reporting, ui, tool-calls]
 components: []
 related_tasks: [T-104, T-103]
 created: 2026-03-11T13:00:00Z
-last_update: 2026-03-12T17:04:04Z
+last_update: '2026-08-18T18:58:43Z'
 date_finished: 2026-03-12T07:59:21Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:43Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:43Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-105: Inception — Tool Call Reporting Page

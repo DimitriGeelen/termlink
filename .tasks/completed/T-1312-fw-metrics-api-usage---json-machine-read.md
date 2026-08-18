@@ -7,13 +7,37 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [T-1166, T-1304-followup, metrics, json, observability]
 components: [.agentic-framework/agents/metrics/api-usage.sh]
 related_tasks: [T-1304, T-1308, T-1309, T-1166]
 created: 2026-04-27T12:46:13Z
-last_update: 2026-04-27T12:50:36Z
+last_update: '2026-08-18T18:58:47Z'
 date_finished: 2026-04-27T12:50:36Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:54Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 2
+      D3: 3
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=2 (body:telemetry-or-audit-entry); D3=3 
+      (body:component-discoverability); D4=0 (no-signal); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1312: fw metrics api-usage --json: machine-readable output for dashboards

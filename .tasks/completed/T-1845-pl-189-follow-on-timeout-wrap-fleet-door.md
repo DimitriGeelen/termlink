@@ -2,18 +2,44 @@
 id: T-1845
 name: "PL-189 follow-on: timeout-wrap fleet-doorbell-mail-canary + selftest"
 description: >
-  Apply timeout 8/30 bounding to scripts/check-fleet-doorbell-mail-health.sh + scripts/agent-conversation-selftest.sh. PL-189 captured the root cause (termlink channel info/subscribe has NO client-side timeout); T-1843 fixed fleet-adoption-snapshot. This closes the symmetric gap in the canary path — a single hanging hub must not wedge the whole sweep.
+  Apply timeout 8/30 bounding to scripts/check-fleet-doorbell-mail-health.sh + scripts/agent-conversation-selftest.sh.
+  PL-189 captured the root cause (termlink channel info/subscribe has NO client-side
+  timeout); T-1843 fixed fleet-adoption-snapshot. This closes the symmetric gap in
+  the canary path — a single hanging hub must not wedge the whole sweep.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [bug, doorbell-mail, canary, pl-189]
 components: []
 related_tasks: []
 created: 2026-05-28T18:32:23Z
-last_update: 2026-05-28T18:35:47Z
+last_update: '2026-08-18T18:58:57Z'
 date_finished: 2026-05-28T18:35:47Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:15Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:57Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1845: PL-189 follow-on: timeout-wrap fleet-doorbell-mail-canary + selftest

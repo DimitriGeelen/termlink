@@ -2,12 +2,24 @@
 id: T-2589
 name: "fix check-outbox outbound_unread over-count (peer receipt makes it always >=1)"
 description: >
-  check-outbox.sh:234 computes outbound_unread=(count - 1 - peer_acked) where count is the WHOLE dm topic envelope count (both senders posts + both sides receipt envelopes) but peer_acked is the peer max receipt up_to. A receipt acking up_to=N is posted at an offset greater than N, so the peers own latest receipt forces count-1-peer_acked to be at least 1 even when the peer has read every DM you sent. Result: the all-caught-up state is nearly unreachable once a peer acks, and the operator-facing unread=N line (line 328/331) counts the peers own posts/receipts as your unread mail, prompting needless nudges. The header comment (228-233) self-documents it as an approximation but does not acknowledge the always->=1 false positive. Fix: count only self-authored non-receipt envelopes with offset > peer_acked (filter sender_id==self_fp and msg_type != receipt in the per-topic scan) instead of the whole-count subtraction. Semantics: decide what outbound_unread should mean (posts I sent the peer has not acked). From T-2468 verb-2 hunt.
+  check-outbox.sh:234 computes outbound_unread=(count - 1 - peer_acked) where count
+  is the WHOLE dm topic envelope count (both senders posts + both sides receipt envelopes)
+  but peer_acked is the peer max receipt up_to. A receipt acking up_to=N is posted
+  at an offset greater than N, so the peers own latest receipt forces count-1-peer_acked
+  to be at least 1 even when the peer has read every DM you sent. Result: the all-caught-up
+  state is nearly unreachable once a peer acks, and the operator-facing unread=N line
+  (line 328/331) counts the peers own posts/receipts as your unread mail, prompting
+  needless nudges. The header comment (228-233) self-documents it as an approximation
+  but does not acknowledge the always->=1 false positive. Fix: count only self-authored
+  non-receipt envelopes with offset > peer_acked (filter sender_id==self_fp and msg_type
+  != receipt in the per-topic scan) instead of the whole-count subtraction. Semantics:
+  decide what outbound_unread should mean (posts I sent the peer has not acked). From
+  T-2468 verb-2 hunt.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [bug]
 components: []
 related_tasks: []
@@ -16,7 +28,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-09T22:38:21Z
-last_update: 2026-08-10T19:22:02Z
+last_update: '2026-08-18T18:59:13Z'
 date_finished: 2026-08-10T19:22:02Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +40,30 @@ date_finished: 2026-08-10T19:22:02Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:52Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:13Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2589: fix check-outbox outbound_unread over-count (peer receipt makes it always >=1)

@@ -2,7 +2,12 @@
 id: T-1423
 name: "fleet-deploy-binary.sh: add --probe pre-swap dry-run (PL-100 mitigation)"
 description: >
-  PL-100 incident on .122 (T-1422) showed the script will happily kill+swap a binary that the target host can't actually execute (glibc/lib mismatch between build host and target). Add --probe: before kill, run NEW_BIN --version with a short timeout on the remote; abort if non-zero. Cheap pre-flight that would have caught this with zero downtime. Optional follow-on: --rollback-script flag that pre-stages a rollback shell on the remote so recovery doesn't depend on termlink remote-exec being available.
+  PL-100 incident on .122 (T-1422) showed the script will happily kill+swap a binary
+  that the target host can't actually execute (glibc/lib mismatch between build host
+  and target). Add --probe: before kill, run NEW_BIN --version with a short timeout
+  on the remote; abort if non-zero. Cheap pre-flight that would have caught this with
+  zero downtime. Optional follow-on: --rollback-script flag that pre-stages a rollback
+  shell on the remote so recovery doesn't depend on termlink remote-exec being available.
 
 status: started-work
 workflow_type: build
@@ -12,8 +17,31 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-30T20:05:11Z
-last_update: 2026-04-30T20:06:55Z
-date_finished: null
+last_update: '2026-08-18T18:58:36Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:27Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:36Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1423: fleet-deploy-binary.sh: add --probe pre-swap dry-run (PL-100 mitigation)

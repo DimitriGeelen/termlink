@@ -1,19 +1,45 @@
 ---
 id: T-1406
-name: "Regression test: forbid new in-repo direct legacy primitive callers during T-1166 bake"
+name: "Regression test: forbid new in-repo direct legacy primitive callers during
+  T-1166 bake"
 description: >
-  Regression test: forbid new in-repo direct legacy primitive callers during T-1166 bake
+  Regression test: forbid new in-repo direct legacy primitive callers during T-1166
+  bake
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-29T20:28:54Z
-last_update: 2026-04-29T20:34:02Z
+last_update: '2026-08-18T18:58:49Z'
 date_finished: 2026-04-29T20:34:02Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:57Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 3
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=3 (body:test-or-audit-check); D2=0 (no-signal); D3=0 
+      (no-signal); D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:49Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 5
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=5 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1406: Regression test: forbid new in-repo direct legacy primitive callers during T-1166 bake

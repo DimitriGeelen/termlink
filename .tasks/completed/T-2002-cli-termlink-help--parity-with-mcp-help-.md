@@ -1,19 +1,45 @@
 ---
 id: T-2002
-name: "CLI termlink help — parity with MCP help registry (cycle 13 slice 1: pub wrapper + flat top-level subcommand)"
+name: "CLI termlink help — parity with MCP help registry (cycle 13 slice 1: pub wrapper
+  + flat top-level subcommand)"
 description: >
-  CLI termlink help — parity with MCP help registry (cycle 13 slice 1: pub wrapper + flat top-level subcommand)
+  CLI termlink help — parity with MCP help registry (cycle 13 slice 1: pub wrapper
+  + flat top-level subcommand)
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-05T17:20:29Z
-last_update: 2026-06-05T17:36:56Z
+last_update: '2026-08-18T18:59:00Z'
 date_finished: 2026-06-05T17:47:17Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:23Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=3 (body:portability-abstraction); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2002: CLI termlink help — parity with MCP help registry (cycle 13 slice 1: pub wrapper + flat top-level subcommand)

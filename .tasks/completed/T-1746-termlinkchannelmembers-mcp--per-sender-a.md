@@ -1,19 +1,48 @@
 ---
 id: T-1746
-name: "termlink_channel_members MCP — per-sender activity for arbitrary topic (T-1166 MCP-parity)"
+name: "termlink_channel_members MCP — per-sender activity for arbitrary topic (T-1166
+  MCP-parity)"
 description: >
-  MCP wrapper for channel.rs cmd_channel_members. Sister to termlink_agent_peers (which is hardcoded to agent-chat-arc with a 3-field row) — channel_members works on ANY topic and returns the richer 4-field MemberRow (sender_id, posts, first_ts, last_ts). Supports as_of_ms cutoff for historical snapshots and include_meta toggle. Mirrors summarize_members + summarize_members_as_of pure helpers.
+  MCP wrapper for channel.rs cmd_channel_members. Sister to termlink_agent_peers (which
+  is hardcoded to agent-chat-arc with a 3-field row) — channel_members works on ANY
+  topic and returns the richer 4-field MemberRow (sender_id, posts, first_ts, last_ts).
+  Supports as_of_ms cutoff for historical snapshots and include_meta toggle. Mirrors
+  summarize_members + summarize_members_as_of pure helpers.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-21T07:51:40Z
-last_update: 2026-05-21T07:54:28Z
+last_update: '2026-08-18T18:58:55Z'
 date_finished: 2026-05-21T07:54:28Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:11Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:55Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1746: termlink_channel_members MCP — per-sender activity for arbitrary topic (T-1166 MCP-parity)

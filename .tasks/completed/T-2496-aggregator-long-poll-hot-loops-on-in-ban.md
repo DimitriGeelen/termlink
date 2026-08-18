@@ -2,12 +2,19 @@
 id: T-2496
 name: "aggregator long-poll hot-loops on in-band RPC error (no backoff)"
 description: >
-  crates/termlink-hub/src/aggregator.rs (~:96-118) long-poll loop does 'if let Ok(data) = client::unwrap_result(resp)' — silently drops the Err (in-band JSON-RPC error) branch with NO sleep/backoff. The transport-error branch (Ok(Err(_))) sleeps 2s, but a session that responds with a JSON-RPC ERROR is re-polled in a tight hot loop (CPU spin + hammering the failing session). Fix: treat the dropped Err like the transport-error branch (log + same backoff). directive-#2 (observable, no silent tight-loop). Runner-up from firing-#15 adversarial audit (round 2). Verify in code before building (confirm the two branches + that Err currently has no sleep).
+  crates/termlink-hub/src/aggregator.rs (~:96-118) long-poll loop does 'if let Ok(data)
+  = client::unwrap_result(resp)' — silently drops the Err (in-band JSON-RPC error)
+  branch with NO sleep/backoff. The transport-error branch (Ok(Err(_))) sleeps 2s,
+  but a session that responds with a JSON-RPC ERROR is re-polled in a tight hot loop
+  (CPU spin + hammering the failing session). Fix: treat the dropped Err like the
+  transport-error branch (log + same backoff). directive-#2 (observable, no silent
+  tight-loop). Runner-up from firing-#15 adversarial audit (round 2). Verify in code
+  before building (confirm the two branches + that Err currently has no sleep).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-hub/src/aggregator.rs]
 related_tasks: []
@@ -16,7 +23,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-02T09:57:22Z
-last_update: 2026-08-02T10:19:11Z
+last_update: '2026-08-18T18:59:11Z'
 date_finished: 2026-08-02T10:19:11Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +35,30 @@ date_finished: 2026-08-02T10:19:11Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:48Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:11Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2496: aggregator long-poll hot-loops on in-band RPC error (no backoff)

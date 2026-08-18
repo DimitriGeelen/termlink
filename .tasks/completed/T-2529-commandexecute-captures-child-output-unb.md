@@ -1,13 +1,18 @@
 ---
 id: T-2529
-name: "command.execute captures child output unbounded — daemon-OOM on a huge-output command (no MAX_LINE_BYTES twin for exec)"
+name: "command.execute captures child output unbounded — daemon-OOM on a huge-output
+  command (no MAX_LINE_BYTES twin for exec)"
 description: >
-  executor::execute uses cmd.output() which drains child stdout+stderr fully into Vec<u8> with no size cap; a yes/cat-/dev/zero (or accidental cat biglog) grows the long-lived daemon's heap until OOM. Command string is capped (MAX_COMMAND_LEN) but output is not. Fix: cap captured output at MAX_OUTPUT_BYTES, kill child + flag truncated on overflow.
+  executor::execute uses cmd.output() which drains child stdout+stderr fully into
+  Vec<u8> with no size cap; a yes/cat-/dev/zero (or accidental cat biglog) grows the
+  long-lived daemon's heap until OOM. Command string is capped (MAX_COMMAND_LEN) but
+  output is not. Fix: cap captured output at MAX_OUTPUT_BYTES, kill child + flag truncated
+  on overflow.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-session/src/executor.rs]
 related_tasks: []
@@ -16,7 +21,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-04T13:05:53Z
-last_update: 2026-08-04T13:17:55Z
+last_update: '2026-08-18T18:59:12Z'
 date_finished: 2026-08-04T13:17:55Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +33,30 @@ date_finished: 2026-08-04T13:17:55Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:12Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2529: command.execute captures child output unbounded — daemon-OOM on a huge-output command (no MAX_LINE_BYTES twin for exec)

@@ -2,18 +2,44 @@
 id: T-1031
 name: "Fix hub stop/restart — check /var/lib/termlink pidfile when default not found"
 description: >
-  hub stop and hub restart use hub_pidfile_path() which resolves to default runtime_dir. When hub runs from /var/lib/termlink (systemd), these commands fail to find the running hub. Apply same fallback pattern as T-1030 doctor fix.
+  hub stop and hub restart use hub_pidfile_path() which resolves to default runtime_dir.
+  When hub runs from /var/lib/termlink (systemd), these commands fail to find the
+  running hub. Apply same fallback pattern as T-1030 doctor fix.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-session/src/client.rs]
+components: [crates/termlink-cli/src/commands/infrastructure.rs, 
+      crates/termlink-session/src/client.rs]
 related_tasks: []
 created: 2026-04-13T13:48:46Z
-last_update: 2026-04-23T19:17:34Z
+last_update: '2026-08-18T18:58:42Z'
 date_finished: 2026-04-23T19:17:34Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:43Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1031: Fix hub stop/restart — check /var/lib/termlink pidfile when default not found

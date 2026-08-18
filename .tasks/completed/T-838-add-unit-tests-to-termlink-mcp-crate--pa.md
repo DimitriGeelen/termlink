@@ -1,19 +1,47 @@
 ---
 id: T-838
-name: "Add unit tests to termlink-mcp crate — parse_signal, parameter serde, filter extraction"
+name: "Add unit tests to termlink-mcp crate — parse_signal, parameter serde, filter
+  extraction"
 description: >
   Add unit tests to termlink-mcp crate — parse_signal, parameter serde, filter extraction
 
 status: work-completed
 workflow_type: test
 owner: agent
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-cli/src/commands/metadata.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/commands/session.rs, crates/termlink-cli/src/main.rs, crates/termlink-mcp/src/tools.rs]
+components: [crates/termlink-cli/src/commands/metadata.rs, 
+      crates/termlink-cli/src/commands/remote.rs, 
+      crates/termlink-cli/src/commands/session.rs, 
+      crates/termlink-cli/src/main.rs, crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-03T23:47:39Z
-last_update: 2026-04-04T00:00:13Z
+last_update: '2026-08-18T18:59:22Z'
 date_finished: 2026-04-04T00:00:13Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:11Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=3 
+      (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:22Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 5
+      tier: 1
+      effort: 5
+    rationale: blast_radius=5 (no-signal); tier=1 (no-signal); effort=5 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-838: Add unit tests to termlink-mcp crate — parse_signal, parameter serde, filter extraction

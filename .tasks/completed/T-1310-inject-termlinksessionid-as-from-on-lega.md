@@ -1,19 +1,46 @@
 ---
 id: T-1310
-name: "Inject TERMLINK_SESSION_ID as from on legacy primitive calls — fully populate T-1309 breakdown"
+name: "Inject TERMLINK_SESSION_ID as from on legacy primitive calls — fully populate
+  T-1309 breakdown"
 description: >
-  Inject TERMLINK_SESSION_ID as from on legacy primitive calls — fully populate T-1309 breakdown
+  Inject TERMLINK_SESSION_ID as from on legacy primitive calls — fully populate T-1309
+  breakdown
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [T-1166, T-1309-followup, cli, hub, telemetry]
-components: [crates/termlink-cli/src/commands/events.rs, crates/termlink-session/src/inbox_channel.rs]
+components: [crates/termlink-cli/src/commands/events.rs, 
+      crates/termlink-session/src/inbox_channel.rs]
 related_tasks: [T-1300, T-1304, T-1309, T-1166]
 created: 2026-04-27T12:35:48Z
-last_update: 2026-04-27T12:40:21Z
+last_update: '2026-08-18T18:58:47Z'
 date_finished: 2026-04-27T12:40:21Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:54Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=3 
+      (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1310: Inject TERMLINK_SESSION_ID as from on legacy primitive calls — fully populate T-1309 breakdown

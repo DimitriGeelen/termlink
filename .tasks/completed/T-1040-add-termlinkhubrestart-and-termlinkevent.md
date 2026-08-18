@@ -2,18 +2,43 @@
 id: T-1040
 name: "Add termlink_hub_restart and termlink_events MCP tools — T-922 codification"
 description: >
-  Add MCP tools for hub restart and event history queries. Continues T-922 codification: every CLI command should be MCP-reachable.
+  Add MCP tools for hub restart and event history queries. Continues T-922 codification:
+  every CLI command should be MCP-reachable.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-13T20:23:42Z
-last_update: 2026-04-23T17:05:50Z
+last_update: '2026-08-18T18:58:42Z'
 date_finished: 2026-04-23T17:05:50Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:43Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=3
+      (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 6
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1040: Add termlink_hub_restart and termlink_events MCP tools — T-922 codification

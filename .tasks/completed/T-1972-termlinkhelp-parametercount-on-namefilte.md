@@ -1,19 +1,48 @@
 ---
 id: T-1972
-name: "termlink_help: parameter_count on name_filter + default-mode rows (cycle 10 slice 3)"
+name: "termlink_help: parameter_count on name_filter + default-mode rows (cycle 10
+  slice 3)"
 description: >
-  MCP arc cycle 10 slice 3: extend T-1971's parameter_count signal from tool_detail to name_filter matches and default-mode rows. Without this, an LLM browsing tools sees arity only via per-tool drill-in — costly. Each row carries its own parameter_count so the LLM can rank tools in a single round-trip. Drift-proof: sourced from the same parse_tool_parameters() output that backs tool_detail.
+  MCP arc cycle 10 slice 3: extend T-1971's parameter_count signal from tool_detail
+  to name_filter matches and default-mode rows. Without this, an LLM browsing tools
+  sees arity only via per-tool drill-in — costly. Each row carries its own parameter_count
+  so the LLM can rank tools in a single round-trip. Drift-proof: sourced from the
+  same parse_tool_parameters() output that backs tool_detail.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-04T05:52:02Z
-last_update: 2026-06-04T05:54:44Z
+last_update: '2026-08-18T18:59:00Z'
 date_finished: 2026-06-04T05:56:47Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:21Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1972: termlink_help: parameter_count on name_filter + default-mode rows (cycle 10 slice 3)

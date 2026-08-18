@@ -1,13 +1,17 @@
 ---
 id: T-2227
-name: "Regression test harness for substrate-preflight Check 4 (lock in T-2226 fail-safe staleness logic)"
+name: "Regression test harness for substrate-preflight Check 4 (lock in T-2226 fail-safe
+  staleness logic)"
 description: >
-  substrate-preflight.sh has no test coverage. The T-2226 crates_unchanged_since_binary fail-safe (must never silence a genuinely stale binary) needs a regression guard. Add scripts/test-substrate-preflight.sh exercising the Check 4 branches via PATH-shimmed termlink.
+  substrate-preflight.sh has no test coverage. The T-2226 crates_unchanged_since_binary
+  fail-safe (must never silence a genuinely stale binary) needs a regression guard.
+  Add scripts/test-substrate-preflight.sh exercising the Check 4 branches via PATH-shimmed
+  termlink.
 
 status: work-completed
 workflow_type: test
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [scripts/test-substrate-preflight.sh]
 related_tasks: []
@@ -16,7 +20,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-14T05:48:39Z
-last_update: 2026-06-14T05:51:20Z
+last_update: '2026-08-18T18:59:05Z'
 date_finished: 2026-06-14T05:51:20Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +32,30 @@ date_finished: 2026-06-14T05:51:20Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:34Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:05Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 1
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=1 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2227: Regression test harness for substrate-preflight Check 4 (lock in T-2226 fail-safe staleness logic)

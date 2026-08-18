@@ -2,18 +2,46 @@
 id: T-1233
 name: "Hub: channel.list_topics(prefix) router method + tests (T-1229a)"
 description: >
-  Add hub-side channel.list_topics(prefix="inbox:") RPC method per T-1229 Option A. Returns [{topic, count}] for topics matching the prefix, mirroring the existing inbox::list_all_targets() spool walk on the channel surface. Single round-trip aggregation. Preserves fleet-doctor correctness invariant.
+  Add hub-side channel.list_topics(prefix="inbox:") RPC method per T-1229 Option A.
+  Returns [{topic, count}] for topics matching the prefix, mirroring the existing
+  inbox::list_all_targets() spool walk on the channel surface. Single round-trip aggregation.
+  Preserves fleet-doctor correctness invariant.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [T-1229, T-1155, bus, channel, hub]
-components: [crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, crates/termlink-hub/src/channel.rs]
+components: [crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, 
+      crates/termlink-hub/src/channel.rs]
 related_tasks: []
 created: 2026-04-25T10:11:10Z
-last_update: 2026-04-25T10:15:13Z
+last_update: '2026-08-18T18:58:46Z'
 date_finished: 2026-04-25T10:15:13Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:51Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=3 
+      (body:portability-abstraction); F-RECALL=2 (body:lightly-promoted); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 7
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1233: Hub: channel.list_topics(prefix) router method + tests (T-1229a)

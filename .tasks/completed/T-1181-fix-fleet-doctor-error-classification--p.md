@@ -1,19 +1,45 @@
 ---
 id: T-1181
-name: "Fix fleet-doctor error classification — preserve anyhow context chain so TOFU/auth causes aren't misclassified as 'Cannot connect'"
+name: "Fix fleet-doctor error classification — preserve anyhow context chain so TOFU/auth
+  causes aren't misclassified as 'Cannot connect'"
 description: >
-  Fix fleet-doctor error classification — preserve anyhow context chain so TOFU/auth causes aren't misclassified as 'Cannot connect'
+  Fix fleet-doctor error classification — preserve anyhow context chain so TOFU/auth
+  causes aren't misclassified as 'Cannot connect'
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-22T05:26:15Z
-last_update: 2026-04-23T19:26:46Z
+last_update: '2026-08-18T18:58:45Z'
 date_finished: 2026-04-22T05:28:30Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:48Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 4
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=4
+      (body:cross-machine); F-RECALL=2 (body:lightly-promoted); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1181: Fix fleet-doctor error classification — preserve anyhow context chain so TOFU/auth causes aren't misclassified as 'Cannot connect'

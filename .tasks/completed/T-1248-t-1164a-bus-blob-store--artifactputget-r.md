@@ -2,18 +2,47 @@
 id: T-1248
 name: "T-1164a Bus blob store + artifact.put/get RPC"
 description: >
-  Foundational blob store primitive for T-1164. Implements <bus-path>/artifacts/<sha256> content-addressed storage + artifact.put / artifact.get RPC methods. Unblocks T-1164b (sender) and T-1164c (receiver).
+  Foundational blob store primitive for T-1164. Implements <bus-path>/artifacts/<sha256>
+  content-addressed storage + artifact.put / artifact.get RPC methods. Unblocks T-1164b
+  (sender) and T-1164c (receiver).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [T-1164, T-1155, bus, artifact]
-components: [crates/termlink-bus/src/artifact_store.rs, crates/termlink-bus/src/error.rs, crates/termlink-bus/src/lib.rs, crates/termlink-hub/src/artifact.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/lib.rs, crates/termlink-hub/src/router.rs, crates/termlink-protocol/src/control.rs]
+components: [crates/termlink-bus/src/artifact_store.rs, 
+      crates/termlink-bus/src/error.rs, crates/termlink-bus/src/lib.rs, 
+      crates/termlink-hub/src/artifact.rs, crates/termlink-hub/src/channel.rs, 
+      crates/termlink-hub/src/lib.rs, crates/termlink-hub/src/router.rs, 
+      crates/termlink-protocol/src/control.rs]
 related_tasks: [T-1164, T-1155, T-1158]
 created: 2026-04-25T11:43:45Z
-last_update: 2026-04-25T11:53:33Z
+last_update: '2026-08-18T18:58:46Z'
 date_finished: 2026-04-25T11:53:33Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:51Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 7
+      tier: 2
+      effort: 8
+    rationale: blast_radius=7 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1248: T-1164a Bus blob store + artifact.put/get RPC

@@ -2,18 +2,47 @@
 id: T-1957
 name: "termlink_help list_categories surfaces per-category description"
 description: >
-  MCP client arc T-1957: list_categories mode currently returns {name, tool_count} per category. An LLM cold-discovering the registry sees 27 category names with counts but no purpose hint, forcing it to drill into each category just to read tool descriptions and infer the category's domain. Add a curated one-line description per category and surface it in list_categories output. Structural invariant test ensures the map covers every help_categories() entry — drift cannot land silently.
+  MCP client arc T-1957: list_categories mode currently returns {name, tool_count}
+  per category. An LLM cold-discovering the registry sees 27 category names with counts
+  but no purpose hint, forcing it to drill into each category just to read tool descriptions
+  and infer the category's domain. Add a curated one-line description per category
+  and surface it in list_categories output. Structural invariant test ensures the
+  map covers every help_categories() entry — drift cannot land silently.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T21:44:57Z
-last_update: 2026-06-03T21:48:35Z
+last_update: '2026-08-18T18:58:59Z'
 date_finished: 2026-06-03T21:51:21Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1957: termlink_help list_categories surfaces per-category description

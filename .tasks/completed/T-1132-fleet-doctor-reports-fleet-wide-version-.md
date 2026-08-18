@@ -1,19 +1,49 @@
 ---
 id: T-1132
-name: "fleet doctor reports fleet-wide version diversity (piggyback on query.capabilities) (from T-1071 GO)"
+name: "fleet doctor reports fleet-wide version diversity (piggyback on query.capabilities)
+  (from T-1071 GO)"
 description: >
-  From T-1071 inception GO. fleet doctor / fleet status should report fleet-wide version diversity, e.g. 'Versions in fleet: 0.9.815 (1 hub), 0.9.99 (1 hub), 0.9.844 (1 hub)'. Cheap — reuses the query.capabilities ping already in fleet doctor probe path. Lets operators see at a glance whether a fleet is homogenous or skewed before a Tier-B typed RPC fails.
+  From T-1071 inception GO. fleet doctor / fleet status should report fleet-wide version
+  diversity, e.g. 'Versions in fleet: 0.9.815 (1 hub), 0.9.99 (1 hub), 0.9.844 (1
+  hub)'. Cheap — reuses the query.capabilities ping already in fleet doctor probe
+  path. Lets operators see at a glance whether a fleet is homogenous or skewed before
+  a Tier-B typed RPC fails.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [termlink, fleet-doctor, diagnostics, T-1071]
-components: [crates/termlink-cli/src/commands/remote.rs, crates/termlink-hub/src/remote_store.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/server.rs, crates/termlink-protocol/src/control.rs]
+components: [crates/termlink-cli/src/commands/remote.rs, 
+      crates/termlink-hub/src/remote_store.rs, crates/termlink-hub/src/router.rs,
+  crates/termlink-hub/src/server.rs, crates/termlink-protocol/src/control.rs]
 related_tasks: []
 created: 2026-04-18T23:00:06Z
-last_update: 2026-04-23T19:17:47Z
+last_update: '2026-08-18T18:58:44Z'
 date_finished: 2026-04-19T14:12:44Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=0
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:44Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 5
+      tier: 2
+      effort: 8
+    rationale: blast_radius=5 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1132: fleet doctor reports fleet-wide version diversity (piggyback on query.capabilities) (from T-1071 GO)

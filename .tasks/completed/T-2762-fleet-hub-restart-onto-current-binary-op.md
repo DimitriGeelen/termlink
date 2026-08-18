@@ -2,12 +2,17 @@
 id: T-2762
 name: "Fleet hub restart onto current binary (operator-authorized)"
 description: >
-  Operator authorized a fleet-wide hub restart to clear the T-2359 staleness warnings. Recon: only the local hub (.107, 0.11.720) has a usable foothold. .121 (0.11.588) refuses SSH publickey; .122 (0.11.679) answers SSH with a forced-command token broker and no shell; .141 is unreachable (no route). Scope is therefore: build+install current binary locally, restart the local hub THROUGH systemd per G-070, verify no PL-021 auth rotation, and report per-hub blockers for the three unreachable hubs.
+  Operator authorized a fleet-wide hub restart to clear the T-2359 staleness warnings.
+  Recon: only the local hub (.107, 0.11.720) has a usable foothold. .121 (0.11.588)
+  refuses SSH publickey; .122 (0.11.679) answers SSH with a forced-command token broker
+  and no shell; .141 is unreachable (no route). Scope is therefore: build+install
+  current binary locally, restart the local hub THROUGH systemd per G-070, verify
+  no PL-021 auth rotation, and report per-hub blockers for the three unreachable hubs.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +21,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-16T12:19:55Z
-last_update: 2026-08-16T13:10:46Z
+last_update: '2026-08-18T18:59:16Z'
 date_finished: 2026-08-16T13:10:46Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +33,30 @@ date_finished: 2026-08-16T13:10:46Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 4
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=4 (body:cross-machine); F-RECALL=2 
+      (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:16Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2762: Fleet hub restart onto current binary (operator-authorized)

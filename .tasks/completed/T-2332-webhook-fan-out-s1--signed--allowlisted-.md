@@ -1,13 +1,20 @@
 ---
 id: T-2332
-name: "Webhook fan-out S1 — signed + allowlisted outbound POST primitive + target config (T-2331 GO)"
+name: "Webhook fan-out S1 — signed + allowlisted outbound POST primitive + target
+  config (T-2331 GO)"
 description: >
-  First build slice descending from the T-2331 GO (webhooks = external HTTP fan-out from the hub). Delivers the SEND PRIMITIVE only, security-first, opt-in: an outbound HTTP client in termlink-hub that POSTs a payload to a configured WebhookTarget with an HMAC-SHA256 signature header, gated by a deny-by-default host allowlist (SSRF guard). No event wiring yet (Slice 2), no retry/dead-letter yet (Slice 3), no CLI yet (Slice 4). Zero configured targets = no-op, no behavior change (portability: outbound HTTP must not become a hard substrate dependency). Descends from docs/reports/T-2331-webhooks-external-fan-out-inception.md.
+  First build slice descending from the T-2331 GO (webhooks = external HTTP fan-out
+  from the hub). Delivers the SEND PRIMITIVE only, security-first, opt-in: an outbound
+  HTTP client in termlink-hub that POSTs a payload to a configured WebhookTarget with
+  an HMAC-SHA256 signature header, gated by a deny-by-default host allowlist (SSRF
+  guard). No event wiring yet (Slice 2), no retry/dead-letter yet (Slice 3), no CLI
+  yet (Slice 4). Zero configured targets = no-op, no behavior change (portability:
+  outbound HTTP must not become a hard substrate dependency). Descends from docs/reports/T-2331-webhooks-external-fan-out-inception.md.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-hub/src/lib.rs, crates/termlink-hub/src/webhook.rs]
 related_tasks: []
@@ -16,7 +23,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-03T09:50:44Z
-last_update: 2026-07-03T09:58:38Z
+last_update: '2026-08-18T18:59:08Z'
 date_finished: 2026-07-03T09:58:38Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +35,30 @@ date_finished: 2026-07-03T09:58:38Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:40Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:08Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2332: Webhook fan-out S1 — signed + allowlisted outbound POST primitive + target config (T-2331 GO)

@@ -2,18 +2,44 @@
 id: T-1028
 name: "Persist TLS certs across hub restarts — load-or-generate pattern (T-945 GO)"
 description: >
-  Apply T-933 persist-if-present pattern to TLS certs. Load existing cert+key from disk if present, else generate. Remove cert deletion from cleanup(). Fixes TOFU breakage on every hub restart.
+  Apply T-933 persist-if-present pattern to TLS certs. Load existing cert+key from
+  disk if present, else generate. Remove cert deletion from cleanup(). Fixes TOFU
+  breakage on every hub restart.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-hub/src/server.rs]
 related_tasks: []
 created: 2026-04-13T13:26:45Z
-last_update: 2026-04-23T19:17:06Z
+last_update: '2026-08-18T18:58:42Z'
 date_finished: 2026-04-23T19:17:06Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=2 (body:telemetry-or-audit-entry); 
+      D3=0 (no-signal); D4=3 (body:portability-abstraction); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 6
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1028: Persist TLS certs across hub restarts — load-or-generate pattern (T-945 GO)

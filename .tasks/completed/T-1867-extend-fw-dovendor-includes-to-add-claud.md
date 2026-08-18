@@ -1,19 +1,49 @@
 ---
 id: T-1867
-name: "Extend fw do_vendor includes to add .claude/commands/ + scripts/ (T-1865 follow-up #2)"
+name: "Extend fw do_vendor includes to add .claude/commands/ + scripts/ (T-1865 follow-up
+  #2)"
 description: >
-  Phase 2 of T-1865 GO: structural change to .agentic-framework/bin/fw do_vendor() includes list (line 254-264) to add .claude/commands/ and scripts/ so the upstream toolkit propagates to consumer projects on next fw upgrade. Depends on T-1866 (toolkit must be upstream first). HIGH-IMPACT — affects every existing AEF consumer project. Requires careful review for upgrade-path conflicts (e.g. consumer-local skills that would be overwritten).
+  Phase 2 of T-1865 GO: structural change to .agentic-framework/bin/fw do_vendor()
+  includes list (line 254-264) to add .claude/commands/ and scripts/ so the upstream
+  toolkit propagates to consumer projects on next fw upgrade. Depends on T-1866 (toolkit
+  must be upstream first). HIGH-IMPACT — affects every existing AEF consumer project.
+  Requires careful review for upgrade-path conflicts (e.g. consumer-local skills that
+  would be overwritten).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: [T-1865, T-1866, T-1868]
 created: 2026-05-29T12:04:41Z
-last_update: 2026-05-29T22:24:48Z
+last_update: '2026-08-18T18:58:57Z'
 date_finished: 2026-05-29T22:24:48Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:57Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1867: Extend fw do_vendor includes to add .claude/commands/ + scripts/ (T-1865 follow-up #2)

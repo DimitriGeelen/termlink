@@ -2,18 +2,47 @@
 id: T-1216
 name: "Handover RECOVERED banner (T-1212 follow-up)"
 description: >
-  Deferred follow-up from T-1212: teach `fw handover` to detect `RECOVERED=1` env (set by session-silent-scanner.sh) and prepend a `[recovered, no agent context]` banner to the generated handover document. Currently the scanner triggers handover for idle sessions but the output is indistinguishable from a normal end-of-session handover, so the next agent cannot tell whether the agent context reflects live state or a post-mortem recovery.
+  Deferred follow-up from T-1212: teach `fw handover` to detect `RECOVERED=1` env
+  (set by session-silent-scanner.sh) and prepend a `[recovered, no agent context]`
+  banner to the generated handover document. Currently the scanner triggers handover
+  for idle sessions but the output is indistinguishable from a normal end-of-session
+  handover, so the next agent cannot tell whether the agent context reflects live
+  state or a post-mortem recovery.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [hook, handover, framework-bridge, antifragility]
 components: []
 related_tasks: [T-1212]
 created: 2026-04-24T12:03:15Z
-last_update: 2026-04-24T12:08:03Z
+last_update: '2026-08-18T18:58:46Z'
 date_finished: 2026-04-24T12:08:03Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 2
+      D3: 0
+      D4: 0
+      F-RECALL: 1
+      F-ORCH: 1
+    rationale: D1=0 (no-signal); D2=2 (body:telemetry-or-audit-entry); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=1 (body:episodic-only); F-ORCH=1 
+      (body:hand-wired-dispatch)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1216: Handover RECOVERED banner (T-1212 follow-up)

@@ -2,12 +2,14 @@
 id: T-2328
 name: "be-reachable WARN when push-wake dormant (no bound pty_session)"
 description: >
-  PL-237: push-wake (inbox+dm rails) silently falls back to poll floor when no pty_session binds (headless session, no tmux/screen, no --pty-session). Emit a WARN on be-reachable start so the dormancy is observable, not silent.
+  PL-237: push-wake (inbox+dm rails) silently falls back to poll floor when no pty_session
+  binds (headless session, no tmux/screen, no --pty-session). Emit a WARN on be-reachable
+  start so the dormancy is observable, not silent.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [scripts/be-reachable.sh]
 related_tasks: []
@@ -16,7 +18,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-03T08:55:18Z
-last_update: 2026-07-03T08:59:39Z
+last_update: '2026-08-18T18:59:08Z'
 date_finished: 2026-07-03T08:59:39Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +30,30 @@ date_finished: 2026-07-03T08:59:39Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:39Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:08Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 5
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=5 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2328: be-reachable WARN when push-wake dormant (no bound pty_session)

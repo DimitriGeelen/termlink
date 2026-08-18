@@ -2,18 +2,42 @@
 id: T-229
 name: "Renumber colliding task IDs T-205–T-210 to T-222–T-227"
 description: >
-  Renumber colliding task IDs T-205–T-210 to T-222–T-227 to resolve collision with remote tasks
+  Renumber colliding task IDs T-205–T-210 to T-222–T-227 to resolve collision with
+  remote tasks
 
 status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-21T23:26:35Z
-last_update: 2026-03-23T07:47:02Z
+last_update: '2026-08-18T18:59:07Z'
 date_finished: 2026-03-23T07:47:02Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 1
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=0
+      (no-signal); F-RECALL=1 (body:episodic-only); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:07Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 3
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=3 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-229: Renumber colliding task IDs T-205–T-210 to T-222–T-227

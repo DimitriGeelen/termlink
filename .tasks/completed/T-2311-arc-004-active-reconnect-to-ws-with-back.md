@@ -1,18 +1,20 @@
 ---
 id: T-2311
-name: "arc-004 active reconnect-to-WS with backoff — should --push retry the socket after a drop instead of staying on poll?"
+name: "arc-004 active reconnect-to-WS with backoff — should --push retry the socket
+  after a drop instead of staying on poll?"
 description: >
-  Inception: arc-004 active reconnect-to-WS with backoff — should --push retry the socket after a drop instead of staying on poll?
+  Inception: arc-004 active reconnect-to-WS with backoff — should --push retry the
+  socket after a drop instead of staying on poll?
 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-07-02T18:48:51Z
-last_update: 2026-07-02T19:14:36Z
+last_update: '2026-08-18T18:59:07Z'
 date_finished: 2026-07-02T19:14:36Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -22,6 +24,29 @@ target_blast_radius: 3            # int 0..9. Anticipated component count of the
                                   # Guide: 0=docs only, 1=single file, 3=small subsystem (S), 5=cross-subsystem (M), 7=multi-arc (L), 9=framework-wide (XL).
 voi_score: 0.5                    # float 0..1. Value of Information — expected value of resolving this question,
                                   # independent of build cost. Higher when answer affects many tasks or unblocks a strategic decision. Required.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:39Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:07Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 4
+      effort: 7
+    rationale: blast_radius=3 (no-signal); tier=4 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2311: arc-004 active reconnect-to-WS with backoff — should --push retry the socket after a drop instead of staying on poll?

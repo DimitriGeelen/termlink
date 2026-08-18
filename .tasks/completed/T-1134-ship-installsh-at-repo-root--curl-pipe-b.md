@@ -1,19 +1,50 @@
 ---
 id: T-1134
-name: "Ship install.sh at repo root — curl-pipe bootstrap (auto-detect triple, checksum-verify, install to /usr/local/bin) (from T-1070 GO)"
+name: "Ship install.sh at repo root — curl-pipe bootstrap (auto-detect triple, checksum-verify,
+  install to /usr/local/bin) (from T-1070 GO)"
 description: >
-  From T-1070 inception GO. Ship install.sh at termlink repo root. Requirements: (1) auto-detect target triple (uname -m + uname -s), (2) pick the right artifact from GitHub Releases (match T-1019 musl variants for LXC), (3) curl + sha256 checksum-verify, (4) install to /usr/local/bin (sudo if needed), (5) refuse to run on unknown targets with a friendly error. ~80 lines of portable POSIX shell. Unblocks every fresh-host scenario observed this session (ring20 LXCs, parallel session's no-cargo host). Target consumer UX: 'curl -fsSL https://raw.githubusercontent.com/DimitriGeelen/termlink/main/install.sh | sh'.
+  From T-1070 inception GO. Ship install.sh at termlink repo root. Requirements: (1)
+  auto-detect target triple (uname -m + uname -s), (2) pick the right artifact from
+  GitHub Releases (match T-1019 musl variants for LXC), (3) curl + sha256 checksum-verify,
+  (4) install to /usr/local/bin (sudo if needed), (5) refuse to run on unknown targets
+  with a friendly error. ~80 lines of portable POSIX shell. Unblocks every fresh-host
+  scenario observed this session (ring20 LXCs, parallel session's no-cargo host).
+  Target consumer UX: 'curl -fsSL https://raw.githubusercontent.com/DimitriGeelen/termlink/main/install.sh
+  | sh'.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [install, ux, T-1070, distribution]
 components: [install.sh]
 related_tasks: []
 created: 2026-04-18T23:02:15Z
-last_update: 2026-04-23T19:26:45Z
+last_update: '2026-08-18T18:58:44Z'
 date_finished: 2026-04-19T13:54:45Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:44Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1134: Ship install.sh at repo root — curl-pipe bootstrap (auto-detect triple, checksum-verify, install to /usr/local/bin) (from T-1070 GO)

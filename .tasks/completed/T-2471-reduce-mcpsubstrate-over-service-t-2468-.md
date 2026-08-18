@@ -2,12 +2,14 @@
 id: T-2471
 name: "Reduce MCP/substrate over-service (T-2468 P4)"
 description: >
-  Retire ~57 directive-untraceable social-analytics MCP tools + ~30 never-read substrate observability surfaces (--log/history slices reading never-written logs). Staged, reversible via git; coordinate with arc-005. GO recorded in T-2468.
+  Retire ~57 directive-untraceable social-analytics MCP tools + ~30 never-read substrate
+  observability surfaces (--log/history slices reading never-written logs). Staged,
+  reversible via git; coordinate with arc-005. GO recorded in T-2468.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
@@ -16,7 +18,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-31T11:11:15Z
-last_update: 2026-08-01T20:16:13Z
+last_update: '2026-08-18T18:59:11Z'
 date_finished: 2026-08-01T20:16:13Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +30,30 @@ date_finished: 2026-08-01T20:16:13Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=3 (body:portability-abstraction); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:11Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2471: Reduce MCP/substrate over-service (T-2468 P4)

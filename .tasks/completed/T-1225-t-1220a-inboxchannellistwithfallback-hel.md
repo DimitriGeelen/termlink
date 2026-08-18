@@ -2,18 +2,47 @@
 id: T-1225
 name: "T-1220a: inbox_channel::list_with_fallback helper (T-1220 wedge a)"
 description: >
-  termlink-session helper that wraps capabilities probe + channel.subscribe(topic=inbox:<target>) + legacy inbox.list fallback + dedup-merge. Foundation for T-1220b/c/d migrations. ~100 LOC + tests. Per T-1220 GO inception: in-memory cursor (Q1 D), per-session-per-target cap cache (Q2 B), warn-once + flag-legacy fallback (Q3 B+C), dual-read transition (Q5 A).
+  termlink-session helper that wraps capabilities probe + channel.subscribe(topic=inbox:<target>)
+  + legacy inbox.list fallback + dedup-merge. Foundation for T-1220b/c/d migrations.
+  ~100 LOC + tests. Per T-1220 GO inception: in-memory cursor (Q1 D), per-session-per-target
+  cap cache (Q2 B), warn-once + flag-legacy fallback (Q3 B+C), dual-read transition
+  (Q5 A).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [T-1155, bus, migration, T-1220, wedge-a]
-components: [crates/termlink-session/src/inbox_channel.rs, crates/termlink-session/src/lib.rs]
+components: [crates/termlink-session/src/inbox_channel.rs, 
+      crates/termlink-session/src/lib.rs]
 related_tasks: [T-1220, T-1215, T-1163]
 created: 2026-04-25T07:00:04Z
-last_update: 2026-04-25T07:06:40Z
+last_update: '2026-08-18T18:58:46Z'
 date_finished: 2026-04-25T07:06:40Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=3 
+      (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1225: T-1220a: inbox_channel::list_with_fallback helper (T-1220 wedge a)

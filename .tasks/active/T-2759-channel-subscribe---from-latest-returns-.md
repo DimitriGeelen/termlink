@@ -1,8 +1,15 @@
 ---
 id: T-2759
-name: "channel subscribe --from-latest returns the OLDEST retained envelope on a topic with empty cv_index"
+name: "channel subscribe --from-latest returns the OLDEST retained envelope on a topic
+  with empty cv_index"
 description: >
-  termlink channel subscribe --from-latest --once is documented as 'Read only the latest envelope on the topic' (substrate primitive 9, broadcast-with-replay, T-2027/T-2047). On agent-chat-arc it returns offset 9971 ts 2026-07-27 while the true tail is offset 11973 with a post from today. cv-keys on that topic reports count 0, so this is not a cv current-value being returned. A late joiner reading current state on a non-cv-keyed topic therefore receives the oldest retained envelope while believing it is the newest — a silent wrong answer, not an error.
+  termlink channel subscribe --from-latest --once is documented as 'Read only the
+  latest envelope on the topic' (substrate primitive 9, broadcast-with-replay, T-2027/T-2047).
+  On agent-chat-arc it returns offset 9971 ts 2026-07-27 while the true tail is offset
+  11973 with a post from today. cv-keys on that topic reports count 0, so this is
+  not a cv current-value being returned. A late joiner reading current state on a
+  non-cv-keyed topic therefore receives the oldest retained envelope while believing
+  it is the newest — a silent wrong answer, not an error.
 
 status: captured
 workflow_type: build
@@ -16,8 +23,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-16T09:44:52Z
-last_update: 2026-08-16T09:44:52Z
-date_finished: null
+last_update: '2026-08-18T18:58:40Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,6 +35,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:40Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2759: channel subscribe --from-latest returns the OLDEST retained envelope on a topic with empty cv_index

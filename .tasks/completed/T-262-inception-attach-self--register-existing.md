@@ -2,18 +2,43 @@
 id: T-262
 name: "Inception: Attach-self — register existing shell as TermLink endpoint"
 description: >
-  Pickup from fw-agent T-600. Add termlink attach command to wrap current shell as TermLink endpoint, discoverable via hub. Key questions: can register already do this, lifecycle on shell exit, SSH forwarding interaction, security model.
+  Pickup from fw-agent T-600. Add termlink attach command to wrap current shell as
+  TermLink endpoint, discoverable via hub. Key questions: can register already do
+  this, lifecycle on shell exit, SSH forwarding interaction, security model.
 
 status: work-completed
 workflow_type: inception
 owner: agent
-horizon: null
+horizon:
 tags: [pickup, cli]
 components: []
 related_tasks: []
 created: 2026-03-24T09:27:26Z
-last_update: 2026-03-24T10:46:51Z
+last_update: '2026-08-18T18:59:14Z'
 date_finished: 2026-03-24T10:46:51Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:53Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 4
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=4 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-262: Inception: Attach-self — register existing shell as TermLink endpoint

@@ -2,18 +2,47 @@
 id: T-922
 name: "Codify MCP auto-exposure — every new CLI command must be MCP-reachable"
 description: >
-  Meta-structural rule: discovered via T-920 RCA that shipping CLI-only cross-host features (T-163/T-164/T-182/T-186) left MCP agents blind for months. Need a framework/tooling rule that any new CLI command automatically gets an MCP wrapper OR must explicitly document why not. Options: code-gen from CLI enum, a lint that greps cli.rs vs tools.rs, a pre-commit hook blocking new Command variants without matching MCP tool, or a runtime registration pattern. Deliverable: decision on mechanism + first enforcement step.
+  Meta-structural rule: discovered via T-920 RCA that shipping CLI-only cross-host
+  features (T-163/T-164/T-182/T-186) left MCP agents blind for months. Need a framework/tooling
+  rule that any new CLI command automatically gets an MCP wrapper OR must explicitly
+  document why not. Options: code-gen from CLI enum, a lint that greps cli.rs vs tools.rs,
+  a pre-commit hook blocking new Command variants without matching MCP tool, or a
+  runtime registration pattern. Deliverable: decision on mechanism + first enforcement
+  step.
 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-11T19:33:14Z
-last_update: 2026-04-23T19:14:00Z
+last_update: '2026-08-18T18:59:23Z'
 date_finished: 2026-04-12T21:29:17Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:23Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 4
+      effort: 6
+    rationale: blast_radius=1 (no-signal); tier=4 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-922: Codify MCP auto-exposure — every new CLI command must be MCP-reachable

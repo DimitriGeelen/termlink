@@ -2,7 +2,18 @@
 id: T-1502
 name: "extract_recent_posts content extraction returns empty for chat-arc envelopes"
 description: >
-  Live observation while smoke-testing T-1501 (--grep filter): all 88 posts in a 24h window of agent-chat-arc render with empty content via cmd_agent_timeline / recent / on-thread. The render shows '(empty)' for every post even though metadata (msg_type, thread, project, peer_fp) is correctly extracted. This means agent recent / on-thread / timeline / overview have been silently rendering empty for real chat-arc traffic since T-1492 — content cap, grep, and reading flows are all moot until this is fixed. Expected fix: inspect actual envelope shape on the wire (likely payload structure differs from what extract_recent_posts assumes — text under 'content' or similar nested field), update the payload.text → payload (string) → payload.to_string() fallback chain to match real shape. Add unit test against a captured real envelope. RCA: how did 4 verbs ship without this being caught? content=empty was not regression-tested against live arc; unit tests use synthetic envelopes.
+  Live observation while smoke-testing T-1501 (--grep filter): all 88 posts in a 24h
+  window of agent-chat-arc render with empty content via cmd_agent_timeline / recent
+  / on-thread. The render shows '(empty)' for every post even though metadata (msg_type,
+  thread, project, peer_fp) is correctly extracted. This means agent recent / on-thread
+  / timeline / overview have been silently rendering empty for real chat-arc traffic
+  since T-1492 — content cap, grep, and reading flows are all moot until this is fixed.
+  Expected fix: inspect actual envelope shape on the wire (likely payload structure
+  differs from what extract_recent_posts assumes — text under 'content' or similar
+  nested field), update the payload.text → payload (string) → payload.to_string()
+  fallback chain to match real shape. Add unit test against a captured real envelope.
+  RCA: how did 4 verbs ship without this being caught? content=empty was not regression-tested
+  against live arc; unit tests use synthetic envelopes.
 
 status: work-completed
 workflow_type: build
@@ -12,8 +23,31 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T22:02:14Z
-last_update: 2026-06-07T10:46:20Z
+last_update: '2026-08-18T18:58:36Z'
 date_finished: 2026-05-04T22:25:00Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:29Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:36Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1502: extract_recent_posts content extraction returns empty for chat-arc envelopes

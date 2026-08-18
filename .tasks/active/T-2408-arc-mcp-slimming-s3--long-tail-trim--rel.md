@@ -1,8 +1,13 @@
 ---
 id: T-2408
-name: "arc mcp-slimming S3 — long-tail trim + relocate archaeology to docs + tighten guard to final ceiling"
+name: "arc mcp-slimming S3 — long-tail trim + relocate archaeology to docs + tighten
+  guard to final ceiling"
 description: >
-  Closing slice of arc-005 mcp-slimming. Trim the remaining 400-600 char descriptions, relocate any genuinely-useful T-XXXX/PL lineage from descriptions into docs/ or task files (not lost, just moved), and tighten the anti-regrowth guard ceiling to the final target. Arc close demo: before/after total-bytes + a diff showing a representative slimmed tool + guard test green.
+  Closing slice of arc-005 mcp-slimming. Trim the remaining 400-600 char descriptions,
+  relocate any genuinely-useful T-XXXX/PL lineage from descriptions into docs/ or
+  task files (not lost, just moved), and tighten the anti-regrowth guard ceiling to
+  the final target. Arc close demo: before/after total-bytes + a diff showing a representative
+  slimmed tool + guard test green.
 
 status: work-completed
 workflow_type: build
@@ -16,7 +21,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-11T14:16:26Z
-last_update: 2026-07-11T21:33:03Z
+last_update: '2026-08-18T18:58:38Z'
 date_finished: 2026-07-11T21:32:35Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +33,30 @@ date_finished: 2026-07-11T21:32:35Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:33Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=3 (body:portability-abstraction); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2408: arc mcp-slimming S3 — long-tail trim + relocate archaeology to docs + tighten guard to final ceiling

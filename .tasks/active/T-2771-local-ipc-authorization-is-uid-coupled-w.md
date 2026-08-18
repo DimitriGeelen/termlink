@@ -1,8 +1,14 @@
 ---
 id: T-2771
-name: "Local IPC authorization is uid-coupled while remote is identity-based — fragmentation is the default outcome"
+name: "Local IPC authorization is uid-coupled while remote is identity-based — fragmentation
+  is the default outcome"
 description: >
-  A unix domain socket carries filesystem permissions, so local hub access is decided by whichever uid started the hub and its umask, never by TermLink's own auth. Remote TCP uses HMAC and is user-agnostic. Net inversion: a remote host on another machine can authenticate in while a local agent on the same box cannot — and an agent that cannot reach the hub silently starts its own, which is why .107 currently runs three. Origin: AEF agent (/opt/999-Agentic-Engineering-Framework), 2026-08-16.
+  A unix domain socket carries filesystem permissions, so local hub access is decided
+  by whichever uid started the hub and its umask, never by TermLink's own auth. Remote
+  TCP uses HMAC and is user-agnostic. Net inversion: a remote host on another machine
+  can authenticate in while a local agent on the same box cannot — and an agent that
+  cannot reach the hub silently starts its own, which is why .107 currently runs three.
+  Origin: AEF agent (/opt/999-Agentic-Engineering-Framework), 2026-08-16.
 
 status: started-work
 workflow_type: inception
@@ -12,8 +18,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-08-16T16:42:47Z
-last_update: 2026-08-16T16:44:12Z
-date_finished: null
+last_update: '2026-08-18T18:58:40Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -22,6 +28,29 @@ target_blast_radius: 3            # int 0..9. Anticipated component count of the
                                   # Guide: 0=docs only, 1=single file, 3=small subsystem (S), 5=cross-subsystem (M), 7=multi-arc (L), 9=framework-wide (XL).
 voi_score: 0.5                    # float 0..1. Value of Information — expected value of resolving this question,
                                   # independent of build cost. Higher when answer affects many tasks or unblocks a strategic decision. Required.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:40Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 4
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=4 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2771: Local IPC authorization is uid-coupled while remote is identity-based — fragmentation is the default outcome

@@ -2,7 +2,11 @@
 id: T-1886
 name: "fw independent-review v0.2 — remote-exec extension"
 description: >
-  T-1884 v0.2 build (parked horizon=next until v0.1/T-1885 lands). Extends fw independent-review with termlink remote exec routing for RUBBER-STAMP-MECHANICAL (9 ACs) + OBSERVE-INFRA (7 ACs). Adds +16 ACs to drain = 79% queue cumulative coverage. Per-AC target-host is hinted by content (e.g. .122, .121, .180 references) and validated via termlink remote exec on the right hub. Design source: docs/reports/T-1884-review-queue-orchestrator-inception.md.
+  T-1884 v0.2 build (parked horizon=next until v0.1/T-1885 lands). Extends fw independent-review
+  with termlink remote exec routing for RUBBER-STAMP-MECHANICAL (9 ACs) + OBSERVE-INFRA
+  (7 ACs). Adds +16 ACs to drain = 79% queue cumulative coverage. Per-AC target-host
+  is hinted by content (e.g. .122, .121, .180 references) and validated via termlink
+  remote exec on the right hub. Design source: docs/reports/T-1884-review-queue-orchestrator-inception.md.
 
 status: captured
 workflow_type: build
@@ -12,8 +16,32 @@ tags: []
 components: []
 related_tasks: [T-1884, T-1885]
 created: 2026-05-30T21:59:57Z
-last_update: 2026-05-30T21:59:57Z
-date_finished: null
+last_update: '2026-08-18T18:58:37Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:31Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 5
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=5 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1886: fw independent-review v0.2 — remote-exec extension

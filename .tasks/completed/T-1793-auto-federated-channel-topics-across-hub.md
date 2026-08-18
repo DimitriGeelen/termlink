@@ -1,21 +1,48 @@
 ---
 id: T-1793
-name: "Auto-federated channel topics across hubs — does the fleet want it? (T-1791 follow-up #3)"
+name: "Auto-federated channel topics across hubs — does the fleet want it? (T-1791
+  follow-up #3)"
 description: >
-  Inception: Auto-federated channel topics across hubs — does the fleet want it? (T-1791 follow-up #3)
+  Inception: Auto-federated channel topics across hubs — does the fleet want it? (T-1791
+  follow-up #3)
 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: [federation, T-1791, G-060]
 components: []
 related_tasks: [T-1791, T-1166, T-1792]
 revisit_at: 2026-08-21
-revisit_evidence_needed: "Multiple agents independently surprised by per-hub channel-topic semantics despite T-1792 documentation, OR a concrete fleet-wide coordination workflow emerges that client-driven cross-posting can't serve cleanly."
+revisit_evidence_needed: "Multiple agents independently surprised by per-hub channel-topic
+  semantics despite T-1792 documentation, OR a concrete fleet-wide coordination workflow
+  emerges that client-driven cross-posting can't serve cleanly."
 created: 2026-05-21T19:14:37Z
-last_update: 2026-05-25T17:27:58Z
+last_update: '2026-08-18T18:58:56Z'
 date_finished: 2026-05-25T17:27:58Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:13Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:56Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1793: Auto-federated channel topics across hubs — does the fleet want it? (T-1791 follow-up #3)

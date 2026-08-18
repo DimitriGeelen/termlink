@@ -2,18 +2,47 @@
 id: T-1936
 name: "MCP help registry — add rotation-protocol family (tofu_*, hub_*, fleet_*)"
 description: >
-  Add the rotation-protocol tool family to termlink_help registry so LLM consumers can discover them. Currently tofu_clear/list/verify, hub_probe/fingerprint/export_secret/restart, and the entire fleet_* family (verify/doctor/history/status/bootstrap_check/reauth/secrets_audit/adoption_snapshot) are registered as MCP tools but invisible via termlink_help. LLM agents cannot help with auth-rotation recovery (documented at length in CLAUDE.md) without discovery. Out of scope: agent_* family (100+ tools, separate slice).
+  Add the rotation-protocol tool family to termlink_help registry so LLM consumers
+  can discover them. Currently tofu_clear/list/verify, hub_probe/fingerprint/export_secret/restart,
+  and the entire fleet_* family (verify/doctor/history/status/bootstrap_check/reauth/secrets_audit/adoption_snapshot)
+  are registered as MCP tools but invisible via termlink_help. LLM agents cannot help
+  with auth-rotation recovery (documented at length in CLAUDE.md) without discovery.
+  Out of scope: agent_* family (100+ tools, separate slice).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-02T22:55:51Z
-last_update: 2026-06-02T23:00:04Z
+last_update: '2026-08-18T18:58:59Z'
 date_finished: 2026-06-02T23:04:21Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 1
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=1 (body:log-or-error-line); D3=0 
+      (no-signal); D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1936: MCP help registry — add rotation-protocol family (tofu_*, hub_*, fleet_*)

@@ -1,19 +1,50 @@
 ---
 id: T-1984
-name: "termlink_help name_filter accepts limit param — deterministic result sizes for LLM clients (cycle 12 slice 1)"
+name: "termlink_help name_filter accepts limit param — deterministic result sizes
+  for LLM clients (cycle 12 slice 1)"
 description: >
-  Add Option<usize> limit param to HelpParams. When set with name_filter mode, cap matches[] at the first N (post-filter, deterministic order — alphabetical by name within category, preserves category iteration order). Emit total_matched (pre-cap count) and limit_applied=true so LLM clients can detect truncation and request the next page later. Without limit: behavior unchanged. The cycle-11 retirement filters + arity filters compose normally. Direct value: an LLM client running termlink_help(name_filter='agent') currently gets 100+ matches in one shot; with limit it can paginate safely.
+  Add Option<usize> limit param to HelpParams. When set with name_filter mode, cap
+  matches[] at the first N (post-filter, deterministic order — alphabetical by name
+  within category, preserves category iteration order). Emit total_matched (pre-cap
+  count) and limit_applied=true so LLM clients can detect truncation and request the
+  next page later. Without limit: behavior unchanged. The cycle-11 retirement filters
+  + arity filters compose normally. Direct value: an LLM client running termlink_help(name_filter='agent')
+  currently gets 100+ matches in one shot; with limit it can paginate safely.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [mcp, help-registry, client-arc]
 components: []
 related_tasks: []
 created: 2026-06-04T08:14:50Z
-last_update: 2026-06-05T11:57:30Z
+last_update: '2026-08-18T18:59:00Z'
 date_finished: 2026-06-05T12:14:45Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:22Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1984: termlink_help name_filter accepts limit param — deterministic result sizes for LLM clients (cycle 12 slice 1)

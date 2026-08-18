@@ -2,7 +2,12 @@
 id: T-1810
 name: "Live two-real-claude >=3-turn soak (T-1807 live portion)"
 description: >
-  The live portion of T-1807, split out after deterministic transport validation landed. Spawn two real persistent claude listeners per docs/operations/injectable-listener-spawn-recipe.md (plain -- claude + Bash(termlink:*) allowlist, NOT --dangerously-skip-permissions under root per G-a), have them hold a >=3-turn autonomous conversation over the doorbell+mail loop, and confirm every turn acked. Blocked on T-1809 (respond-mode doorbell signal). Needs observation.
+  The live portion of T-1807, split out after deterministic transport validation landed.
+  Spawn two real persistent claude listeners per docs/operations/injectable-listener-spawn-recipe.md
+  (plain -- claude + Bash(termlink:*) allowlist, NOT --dangerously-skip-permissions
+  under root per G-a), have them hold a >=3-turn autonomous conversation over the
+  doorbell+mail loop, and confirm every turn acked. Blocked on T-1809 (respond-mode
+  doorbell signal). Needs observation.
 
 status: captured
 workflow_type: test
@@ -12,8 +17,32 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-25T20:16:23Z
-last_update: 2026-05-25T20:16:23Z
-date_finished: null
+last_update: '2026-08-18T18:58:37Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:31Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 1
+      effort: 5
+    rationale: blast_radius=0 (no-signal); tier=1 (no-signal); effort=5 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1810: Live two-real-claude >=3-turn soak (T-1807 live portion)

@@ -2,7 +2,10 @@
 id: T-1124
 name: "Run T-1122 WSGI migration spikes (after GO decision)"
 description: >
-  Once T-1122 inception receives a GO decision, run the 4 spikes from the exploration plan: 1) gunicorn vs waitress vs hypercorn comparison, 2) Flask app WSGI compatibility check, 3) hook/signal integration, 4) startup ergonomics. Update fw watchtower start to use the chosen server.
+  Once T-1122 inception receives a GO decision, run the 4 spikes from the exploration
+  plan: 1) gunicorn vs waitress vs hypercorn comparison, 2) Flask app WSGI compatibility
+  check, 3) hook/signal integration, 4) startup ergonomics. Update fw watchtower start
+  to use the chosen server.
 
 status: captured
 workflow_type: build
@@ -12,8 +15,31 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-18T09:59:44Z
-last_update: 2026-04-25T13:42:06Z
-date_finished: null
+last_update: '2026-08-18T18:58:35Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:27Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:35Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 4
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=4 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1124: Run T-1122 WSGI migration spikes (after GO decision)

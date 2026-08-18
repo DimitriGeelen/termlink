@@ -1,13 +1,21 @@
 ---
 id: T-2221
-name: "Rebuild + install termlink CLI to HEAD — clear preflight binary-staleness WARN (documented substrate verbs unusable on host)"
+name: "Rebuild + install termlink CLI to HEAD — clear preflight binary-staleness WARN
+  (documented substrate verbs unusable on host)"
 description: >
-  substrate-preflight.sh check #4 (T-2181) WARNs: installed ~/.cargo/bin/termlink is 0.11.1230 vs project VERSION 0.11.1324 (HEAD 0.11.1328). The stale CLI predates most of the substrate observability arc (governor-history T-2068, find-idle-history T-2081, queue-history T-2086, claims-history T-2074, cv-keys T-2106, --only-stuck T-2076, --only-pressured T-2070, ...), so an operator copy-pasting those documented verbs hits 'unknown subcommand/flag'. Hub is fresh (serves T-2139 telemetry) — CLI-only fix, no hub restart, no PL-209 footgun. Remediation per preflight: cargo build --release && install to ~/.cargo/bin.
+  substrate-preflight.sh check #4 (T-2181) WARNs: installed ~/.cargo/bin/termlink
+  is 0.11.1230 vs project VERSION 0.11.1324 (HEAD 0.11.1328). The stale CLI predates
+  most of the substrate observability arc (governor-history T-2068, find-idle-history
+  T-2081, queue-history T-2086, claims-history T-2074, cv-keys T-2106, --only-stuck
+  T-2076, --only-pressured T-2070, ...), so an operator copy-pasting those documented
+  verbs hits 'unknown subcommand/flag'. Hub is fresh (serves T-2139 telemetry) — CLI-only
+  fix, no hub restart, no PL-209 footgun. Remediation per preflight: cargo build --release
+  && install to ~/.cargo/bin.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: [T-2181, T-2219, T-2220]
@@ -16,7 +24,7 @@ related_tasks: [T-2181, T-2219, T-2220]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-13T17:52:26Z
-last_update: 2026-06-13T18:00:35Z
+last_update: '2026-08-18T18:59:05Z'
 date_finished: 2026-06-13T18:00:35Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +36,30 @@ date_finished: 2026-06-13T18:00:35Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:34Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=2 
+      (body:telemetry-or-audit-entry); D3=2 (body:default-change); D4=2 
+      (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:05Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2221: Rebuild + install termlink CLI to HEAD — clear preflight binary-staleness WARN (documented substrate verbs unusable on host)

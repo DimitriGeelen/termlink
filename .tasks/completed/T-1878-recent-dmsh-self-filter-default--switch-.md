@@ -1,19 +1,46 @@
 ---
 id: T-1878
-name: "recent-dm.sh self-filter default — switch from be-reachable agent_id to envelope sender_id (PL-195 propagation)"
+name: "recent-dm.sh self-filter default — switch from be-reachable agent_id to envelope
+  sender_id (PL-195 propagation)"
 description: >
-  recent-dm.sh defaults --self to ~/.termlink/be-reachable.state agent_id (e.g. root-claude-dimitrimintdev) but DM topics are keyed by envelope sender_id (host signing fp, e.g. d1993c2c3ec44c94). Result: default-mode silently filters away every real DM. Apply the PL-195 canonical fix (channel info agent-presence) used by check-arc/agent-handoff/agent-send/agent-respond.
+  recent-dm.sh defaults --self to ~/.termlink/be-reachable.state agent_id (e.g. root-claude-dimitrimintdev)
+  but DM topics are keyed by envelope sender_id (host signing fp, e.g. d1993c2c3ec44c94).
+  Result: default-mode silently filters away every real DM. Apply the PL-195 canonical
+  fix (channel info agent-presence) used by check-arc/agent-handoff/agent-send/agent-respond.
 
 status: work-completed
 workflow_type: build
 owner: claude-code
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-30T14:22:21Z
-last_update: 2026-05-30T14:24:54Z
+last_update: '2026-08-18T18:58:58Z'
 date_finished: 2026-05-30T14:24:54Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1878: recent-dm.sh self-filter default — switch from be-reachable agent_id to envelope sender_id (PL-195 propagation)

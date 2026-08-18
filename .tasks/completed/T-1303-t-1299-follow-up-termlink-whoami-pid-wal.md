@@ -2,18 +2,47 @@
 id: T-1303
 name: "T-1299 follow-up: termlink whoami PID-walk fallback when env var absent"
 description: >
-  T-1299 follow-up item (b). When `termlink whoami` has no flag and no `$TERMLINK_SESSION_ID`, walk /proc/self/stat ancestors and check each PID against `manager::list_sessions()` — return the closest match. CLI-side only: avoids plumbing peer_pid through JSON-RPC dispatch (the hub-side path matters only for cross-host `termlink remote call`, which is out of scope). Reversible: pure additive fallback in metadata.rs::cmd_whoami; existing flag/env paths unchanged. Estimate: ~½ dev-day.
+  T-1299 follow-up item (b). When `termlink whoami` has no flag and no `$TERMLINK_SESSION_ID`,
+  walk /proc/self/stat ancestors and check each PID against `manager::list_sessions()`
+  — return the closest match. CLI-side only: avoids plumbing peer_pid through JSON-RPC
+  dispatch (the hub-side path matters only for cross-host `termlink remote call`,
+  which is out of scope). Reversible: pure additive fallback in metadata.rs::cmd_whoami;
+  existing flag/env paths unchanged. Estimate: ~½ dev-day.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [termlink, routing, whoami, T-1299-followup, cli]
 components: [crates/termlink-cli/src/commands/metadata.rs]
 related_tasks: [T-1299, T-1297, T-1302]
 created: 2026-04-26T22:13:07Z
-last_update: 2026-04-27T06:16:31Z
+last_update: '2026-08-18T18:58:47Z'
 date_finished: 2026-04-26T22:17:45Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:53Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 3
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=0 (no-signal); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1303: T-1299 follow-up: termlink whoami PID-walk fallback when env var absent

@@ -3,20 +3,45 @@ id: T-257
 name: "Collect-based dispatch — fw dispatch + worker push convention"
 description: >
   Build the collect-based multi-agent dispatch pattern using existing TermLink primitives.
-  Workers emit task.completed events to self; orchestrator uses termlink event collect for
+  Workers emit task.completed events to self; orchestrator uses termlink event collect
+  for
   hub-level fan-in. No protocol changes needed. Delivers: dispatch convention docs,
   worker completion event convention, orchestrator collect pattern, and E2E test.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [orchestration, dispatch, events, T-256]
 components: []
 related_tasks: [T-256, T-233, T-247]
 created: 2026-03-23T22:41:05Z
-last_update: 2026-03-23T22:52:25Z
+last_update: '2026-08-18T18:59:13Z'
 date_finished: 2026-03-23T22:52:25Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:51Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 1
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=2 (body:lightly-promoted); F-ORCH=1 
+      (body:hand-wired-dispatch)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:13Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-257: Collect-based dispatch — fw dispatch + worker push convention

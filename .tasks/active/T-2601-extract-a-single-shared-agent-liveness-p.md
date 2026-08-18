@@ -2,7 +2,23 @@
 id: T-2601
 name: "Extract a single shared agent-liveness predicate (dedupe 4 presence surfaces)"
 description: >
-  ROOT-CAUSE adjustment behind the T-2536/T-2598/T-2599/T-2600 symptom fixes (T-2468 verb-1 review). Agent 'liveness' is computed on FOUR duplicated surfaces with NO shared predicate: (1) hub find_idle DEFAULT_LIVE_WINDOW_MS=60_000 (crates/termlink-hub/src/channel.rs:2129), (2) chat-arc-stats ts>now_ms drop (crates/termlink-mcp/src/tools.rs:4029), (3) agent-listeners.sh 2*interval_secs window (scripts/agent-listeners.sh), (4) presence-eval evaluate_presence_msgs (MCP) + evaluate_presence (CLI) one-to-one mirrors. Each carries its own copy of the window + clock-bound logic. A single future-clock guard (T-2536) required THREE follow-up tasks to propagate (T-2598 shell, T-2599 both eval mirrors) and the surfaces STILL disagree on the stale lower-window (T-2600 open). The DUPLICATION is the structural defect; every per-surface fix is a symptom. Adjustment: define ONE canonical liveness predicate — inputs (ts, now_ms, interval_secs|default, window policy), outputs (LIVE/STALE/OFFLINE or online-bool) with BOTH clock bounds — in a shared location the Rust surfaces import; the shell surface mirrors it with a single documented jq snippet + a cross-surface consistency test (same fixture -> same verdict across find_idle / listeners / presence-eval). Resolve T-2600's 60s-vs-2*interval decision as part of defining the predicate. NOT a quick fix (crosses hub/mcp/cli crates + shell + a semantics decision) -> file-not-build until scoped; likely an inception first. Generalizes PL-318 to presence.
+  ROOT-CAUSE adjustment behind the T-2536/T-2598/T-2599/T-2600 symptom fixes (T-2468
+  verb-1 review). Agent 'liveness' is computed on FOUR duplicated surfaces with NO
+  shared predicate: (1) hub find_idle DEFAULT_LIVE_WINDOW_MS=60_000 (crates/termlink-hub/src/channel.rs:2129),
+  (2) chat-arc-stats ts>now_ms drop (crates/termlink-mcp/src/tools.rs:4029), (3) agent-listeners.sh
+  2*interval_secs window (scripts/agent-listeners.sh), (4) presence-eval evaluate_presence_msgs
+  (MCP) + evaluate_presence (CLI) one-to-one mirrors. Each carries its own copy of
+  the window + clock-bound logic. A single future-clock guard (T-2536) required THREE
+  follow-up tasks to propagate (T-2598 shell, T-2599 both eval mirrors) and the surfaces
+  STILL disagree on the stale lower-window (T-2600 open). The DUPLICATION is the structural
+  defect; every per-surface fix is a symptom. Adjustment: define ONE canonical liveness
+  predicate — inputs (ts, now_ms, interval_secs|default, window policy), outputs (LIVE/STALE/OFFLINE
+  or online-bool) with BOTH clock bounds — in a shared location the Rust surfaces
+  import; the shell surface mirrors it with a single documented jq snippet + a cross-surface
+  consistency test (same fixture -> same verdict across find_idle / listeners / presence-eval).
+  Resolve T-2600's 60s-vs-2*interval decision as part of defining the predicate. NOT
+  a quick fix (crosses hub/mcp/cli crates + shell + a semantics decision) -> file-not-build
+  until scoped; likely an inception first. Generalizes PL-318 to presence.
 
 status: captured
 workflow_type: refactor
@@ -16,8 +32,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-10T20:42:04Z
-last_update: 2026-08-10T20:42:04Z
-date_finished: null
+last_update: '2026-08-18T18:58:39Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,6 +44,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:35Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:39Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 3
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=3 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2601: Extract a single shared agent-liveness predicate (dedupe 4 presence surfaces)

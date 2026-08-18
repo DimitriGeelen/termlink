@@ -2,18 +2,49 @@
 id: T-1172
 name: "T-1161 follow-up: termlink channel queue-status CLI verb"
 description: >
-  Optional CLI verb from T-1161 AC (punted to follow-up). Adds 'termlink channel queue-status' showing pending count + oldest timestamp from ~/.termlink/outbound.sqlite for operator debugging. ~40 LOC CLI + 1 MCP mirror (R-033).
+  Optional CLI verb from T-1161 AC (punted to follow-up). Adds 'termlink channel queue-status'
+  showing pending count + oldest timestamp from ~/.termlink/outbound.sqlite for operator
+  debugging. ~40 LOC CLI + 1 MCP mirror (R-033).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [T-1155, bus, cli]
-components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs, crates/termlink-cli/tests/cli_integration.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-session/src/offline_queue.rs]
+components: [crates/termlink-cli/src/cli.rs, 
+      crates/termlink-cli/src/commands/channel.rs, 
+      crates/termlink-cli/src/main.rs, 
+      crates/termlink-cli/tests/cli_integration.rs, 
+      crates/termlink-mcp/src/tools.rs, 
+      crates/termlink-session/src/offline_queue.rs]
 related_tasks: [T-1161]
 created: 2026-04-20T22:19:52Z
-last_update: 2026-04-20T22:26:01Z
+last_update: '2026-08-18T18:58:45Z'
 date_finished: 2026-04-20T22:26:01Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:48Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=3 
+      (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 5
+      tier: 2
+      effort: 7
+    rationale: blast_radius=5 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1172: T-1161 follow-up: termlink channel queue-status CLI verb

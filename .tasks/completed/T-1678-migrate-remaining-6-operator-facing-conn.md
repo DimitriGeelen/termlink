@@ -1,19 +1,46 @@
 ---
 id: T-1678
-name: "Migrate remaining 6 operator-facing connect_addr sites to connect_addr_with_timeout (T-1677 follow-up)"
+name: "Migrate remaining 6 operator-facing connect_addr sites to connect_addr_with_timeout
+  (T-1677 follow-up)"
 description: >
-  Migrate remaining 6 operator-facing connect_addr sites to connect_addr_with_timeout (T-1677 follow-up)
+  Migrate remaining 6 operator-facing connect_addr sites to connect_addr_with_timeout
+  (T-1677 follow-up)
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-cli/src/commands/channel.rs, crates/termlink-mcp/src/tools.rs]
+components: [crates/termlink-cli/src/commands/channel.rs, 
+      crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-05-17T21:57:34Z
-last_update: 2026-05-17T22:06:49Z
+last_update: '2026-08-18T18:58:54Z'
 date_finished: 2026-05-17T22:06:49Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:08Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:54Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 6
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1678: Migrate remaining 6 operator-facing connect_addr sites to connect_addr_with_timeout (T-1677 follow-up)

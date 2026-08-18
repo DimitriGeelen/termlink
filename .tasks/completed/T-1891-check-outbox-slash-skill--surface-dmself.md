@@ -1,19 +1,52 @@
 ---
 id: T-1891
-name: "/check-outbox slash skill — surface dm:<self>:* topics where peer hasn't read my posts (OUTBOUND complement of /check-arc)"
+name: "/check-outbox slash skill — surface dm:<self>:* topics where peer hasn't read
+  my posts (OUTBOUND complement of /check-arc)"
 description: >
-  /check-arc shows my INBOUND unread DMs (topics where count > my last ack). The OUTBOUND complement is missing: did peers actually read my DMs, or are they accumulating in someone's silent inbox? Today's evidence: T-1457 surfaced 5 DMs accumulating on dm:6604a2af:d1993c2c (.141 inbox) with NO receipts — operator had no way to detect this short of manually inspecting each dm:* topic per hub. This skill closes the loop. Read-only, no auth modification, mirrors /check-arc pattern. Output: list each dm:<self-fp>:* topic on each hub where count > max(peer_receipts.up_to), with unread-count delta. Pair with /agent-handoff (which opens a thread you can't otherwise know is being ignored).
+  /check-arc shows my INBOUND unread DMs (topics where count > my last ack). The OUTBOUND
+  complement is missing: did peers actually read my DMs, or are they accumulating
+  in someone's silent inbox? Today's evidence: T-1457 surfaced 5 DMs accumulating
+  on dm:6604a2af:d1993c2c (.141 inbox) with NO receipts — operator had no way to detect
+  this short of manually inspecting each dm:* topic per hub. This skill closes the
+  loop. Read-only, no auth modification, mirrors /check-arc pattern. Output: list
+  each dm:<self-fp>:* topic on each hub where count > max(peer_receipts.up_to), with
+  unread-count delta. Pair with /agent-handoff (which opens a thread you can't otherwise
+  know is being ignored).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-31T07:55:15Z
-last_update: 2026-05-31T15:25:35Z
+last_update: '2026-08-18T18:58:58Z'
 date_finished: 2026-05-31T15:34:40Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:18Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1891: /check-outbox slash skill — surface dm:<self>:* topics where peer hasn't read my posts (OUTBOUND complement of /check-arc)

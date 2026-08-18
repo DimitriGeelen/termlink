@@ -2,21 +2,47 @@
 id: T-258
 name: "Context amnesia root cause — T-233 vision lost across sessions"
 description: >
-  The T-233 specialist orchestration GO decision (the most important architectural decision in the project)
-  was lost across sessions. Five child tasks (T-239-T-242, T-256) were incorrectly NO-GO'd because the
-  incoming agent had no access to the architectural vision. Root cause: 5 structural gaps in the context
+  The T-233 specialist orchestration GO decision (the most important architectural
+  decision in the project)
+  was lost across sessions. Five child tasks (T-239-T-242, T-256) were incorrectly
+  NO-GO'd because the
+  incoming agent had no access to the architectural vision. Root cause: 5 structural
+  gaps in the context
   framework's decision persistence pipeline.
 
 status: work-completed
 workflow_type: inception
 owner: agent
-horizon: null
+horizon:
 tags: [context, framework, critical]
 components: []
 related_tasks: [T-233, T-247, T-239, T-240, T-241, T-242, T-256]
 created: 2026-03-24T07:25:29Z
-last_update: 2026-03-24T08:22:16Z
+last_update: '2026-08-18T18:59:13Z'
 date_finished: 2026-03-24T08:22:16Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:52Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:13Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-258: Context amnesia root cause — T-233 vision lost across sessions

@@ -2,18 +2,46 @@
 id: T-1504
 name: "agent stats — fleet-wide aggregate counts on chat-arc"
 description: >
-  New 'agent stats' verb: walks the chat-arc, aggregates posts in a window into 4 buckets — by msg_type, by peer, by project, by thread. Renders top-N rows per section in text mode, full counts in JSON. Pure helper change in channel.rs (new summarize_chat_arc_stats fn). Complements presence (per-peer activity), who (single-peer detail), timeline (chronological log). Operator question: 'what's the fleet been doing this week?'
+  New 'agent stats' verb: walks the chat-arc, aggregates posts in a window into 4
+  buckets — by msg_type, by peer, by project, by thread. Renders top-N rows per section
+  in text mode, full counts in JSON. Pure helper change in channel.rs (new summarize_chat_arc_stats
+  fn). Complements presence (per-peer activity), who (single-peer detail), timeline
+  (chronological log). Operator question: 'what's the fleet been doing this week?'
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T22:18:53Z
-last_update: 2026-05-20T13:22:52Z
+last_update: '2026-08-18T18:58:50Z'
 date_finished: 2026-05-04T22:55:00Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1504: agent stats — fleet-wide aggregate counts on chat-arc

@@ -7,13 +7,37 @@ description: >
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-12T09:50:48Z
-last_update: 2026-04-23T19:17:53Z
+last_update: '2026-08-18T18:59:24Z'
 date_finished: 2026-04-12T09:54:35Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:15Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 4
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=4 
+      (body:framework-level-ux); D4=3 (body:portability-abstraction); F-RECALL=0
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:24Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-970: fw task review UX overhaul — dynamic port, browser open, push-based delivery

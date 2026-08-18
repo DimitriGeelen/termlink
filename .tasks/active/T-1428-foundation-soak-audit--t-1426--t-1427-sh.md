@@ -2,7 +2,12 @@
 id: T-1428
 name: "Foundation soak audit — T-1426 + T-1427 ship status (2-week check)"
 description: >
-  Scheduled audit fire date: 2026-05-14. Check whether T-1426 (deprecation print on legacy primitives) and T-1427 (termlink whoami + identity binding) have shipped, and gather T-1166 cut-readiness signal from any deprecation telemetry the picks may have produced. This is a foundation-soak sentinel — created at the same time as T-1425 inception RFC + T-1426/T-1427 captures so the system has a structural reminder to re-check that the pre-cut foundation actually got built.
+  Scheduled audit fire date: 2026-05-14. Check whether T-1426 (deprecation print on
+  legacy primitives) and T-1427 (termlink whoami + identity binding) have shipped,
+  and gather T-1166 cut-readiness signal from any deprecation telemetry the picks
+  may have produced. This is a foundation-soak sentinel — created at the same time
+  as T-1425 inception RFC + T-1426/T-1427 captures so the system has a structural
+  reminder to re-check that the pre-cut foundation actually got built.
 
 status: started-work
 workflow_type: build
@@ -12,8 +17,32 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-30T21:21:07Z
-last_update: 2026-05-15T08:04:36Z
-date_finished: null
+last_update: '2026-08-18T18:58:36Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:28Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 0
+      D4: 0
+      F-RECALL: 1
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=2 (body:telemetry-or-audit-entry); 
+      D3=0 (no-signal); D4=0 (no-signal); F-RECALL=1 (body:episodic-only); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:36Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1428: Foundation soak audit — T-1426 + T-1427 ship status (2-week check)

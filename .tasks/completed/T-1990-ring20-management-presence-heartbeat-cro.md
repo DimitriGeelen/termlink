@@ -1,19 +1,44 @@
 ---
 id: T-1990
-name: "ring20-management presence-heartbeat cron stopped firing — listener silently OFFLINE"
+name: "ring20-management presence-heartbeat cron stopped firing — listener silently
+  OFFLINE"
 description: >
   ring20-management presence-heartbeat cron stopped firing — listener silently OFFLINE
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-05T09:07:07Z
-last_update: 2026-06-05T09:21:14Z
+last_update: '2026-08-18T18:59:00Z'
 date_finished: 2026-06-05T09:35:07Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:22Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 3
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=3 
+      (body:component-silent-failure); D3=0 (no-signal); D4=2 
+      (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1990: ring20-management presence-heartbeat cron stopped firing — listener silently OFFLINE

@@ -1,8 +1,15 @@
 ---
 id: T-2259
-name: "Propagate no-federation-by-design correction into shared fleet operating model (ring20 systemic R1)"
+name: "Propagate no-federation-by-design correction into shared fleet operating model
+  (ring20 systemic R1)"
 description: >
-  ring20-management major systemic finding (framework:pickup offset 48, 2026-06-23), 3rd recurrence (T-1259/T-1264/T-1296): peers keep re-filing 'fix passive replication' because termlink's no-inter-hub-federation-by-design finding (T-2229, PL-176/G-060) never propagated into the SHARED fleet operating model. R1: land the correction in FRAMEWORK.md/fleet-comms so no agent re-files it; relay ack to ring20. R2 (fleet peer registry) + R3 (cross-agent delivery ACK) noted as larger related items, out of scope here.
+  ring20-management major systemic finding (framework:pickup offset 48, 2026-06-23),
+  3rd recurrence (T-1259/T-1264/T-1296): peers keep re-filing 'fix passive replication'
+  because termlink's no-inter-hub-federation-by-design finding (T-2229, PL-176/G-060)
+  never propagated into the SHARED fleet operating model. R1: land the correction
+  in FRAMEWORK.md/fleet-comms so no agent re-files it; relay ack to ring20. R2 (fleet
+  peer registry) + R3 (cross-agent delivery ACK) noted as larger related items, out
+  of scope here.
 
 status: started-work
 workflow_type: build
@@ -16,8 +23,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-23T19:40:04Z
-last_update: 2026-06-23T20:59:10Z
-date_finished: null
+last_update: '2026-08-18T18:58:37Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,6 +35,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:32Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2259: Propagate no-federation-by-design correction into shared fleet operating model (ring20 systemic R1)

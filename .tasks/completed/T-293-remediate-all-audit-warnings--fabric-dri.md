@@ -1,19 +1,44 @@
 ---
 id: T-293
-name: "Remediate all audit warnings — fabric drift, version pin, stale tasks, T-530 refs"
+name: "Remediate all audit warnings — fabric drift, version pin, stale tasks, T-530
+  refs"
 description: >
   Remediate all audit warnings — fabric drift, version pin, stale tasks, T-530 refs
 
 status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-26T12:37:39Z
-last_update: 2026-03-26T16:02:50Z
+last_update: '2026-08-18T18:59:17Z'
 date_finished: 2026-03-26T16:02:50Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:01Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 4
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=4 (body:fw-audit-or-doctor); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 3
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=3 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-293: Remediate all audit warnings — fabric drift, version pin, stale tasks, T-530 refs

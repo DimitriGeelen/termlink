@@ -2,18 +2,47 @@
 id: T-1503
 name: "agent post <text> — focus-aware chat-arc post verb"
 description: >
-  New 'agent post <text>' verb: posts a note to agent-chat-arc with thread + project auto-resolved from .context/working/focus.yaml (current_task) and .framework.yaml (project_name). --thread T-XXX and --project P override. --msg-type defaults to 'note'. Reduces a 6-arg 'channel post agent-chat-arc --msg-type note --metadata thread=T-XXX --metadata from_project=Y --payload ...' invocation to 1-2 args. Aligns with the 'reading verbs' (recent/on-thread/timeline) train: now operators have read AND write verbs at the agent abstraction level.
+  New 'agent post <text>' verb: posts a note to agent-chat-arc with thread + project
+  auto-resolved from .context/working/focus.yaml (current_task) and .framework.yaml
+  (project_name). --thread T-XXX and --project P override. --msg-type defaults to
+  'note'. Reduces a 6-arg 'channel post agent-chat-arc --msg-type note --metadata
+  thread=T-XXX --metadata from_project=Y --payload ...' invocation to 1-2 args. Aligns
+  with the 'reading verbs' (recent/on-thread/timeline) train: now operators have read
+  AND write verbs at the agent abstraction level.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T22:11:38Z
-last_update: 2026-05-20T13:21:41Z
+last_update: '2026-08-18T18:58:50Z'
 date_finished: 2026-05-04T22:42:00Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1503: agent post <text> — focus-aware chat-arc post verb

@@ -1,13 +1,24 @@
 ---
 id: T-2375
-name: "MCP termlink_file_send cannot reach offline targets — early find_session guard bypasses hub-spool fallback"
+name: "MCP termlink_file_send cannot reach offline targets — early find_session guard
+  bypasses hub-spool fallback"
 description: >
-  T-2363 follow-up (noted in that task's RCA). termlink_file_send MCP tool (crates/termlink-mcp/src/tools.rs:13423) bails at an up-front manager::find_session(&p.target) guard, returning 'session not found' for a genuinely offline target BEFORE the T-1249 hub artifact path (tools.rs:13454+) — which routes via the local hub and could spool to an offline target's inbox + fire inbox.queued — is ever reached. Net effect: MCP file-send cannot deliver to an offline target at all, unlike the CLI (file.rs/remote.rs, fixed in T-2363). Fix: restructure the fallback tiers so the hub artifact/spool path runs first (it only needs p.target, not a local reg), and defer the find_session guard to only the legacy 3-phase direct-to-socket path that genuinely needs the target's socket. Verify send_artifact_via_client's offline-target spool behavior before relying on it. Moderate refactor of the ~150-line tool + termlink-mcp compile.
+  T-2363 follow-up (noted in that task's RCA). termlink_file_send MCP tool (crates/termlink-mcp/src/tools.rs:13423)
+  bails at an up-front manager::find_session(&p.target) guard, returning 'session
+  not found' for a genuinely offline target BEFORE the T-1249 hub artifact path (tools.rs:13454+)
+  — which routes via the local hub and could spool to an offline target's inbox +
+  fire inbox.queued — is ever reached. Net effect: MCP file-send cannot deliver to
+  an offline target at all, unlike the CLI (file.rs/remote.rs, fixed in T-2363). Fix:
+  restructure the fallback tiers so the hub artifact/spool path runs first (it only
+  needs p.target, not a local reg), and defer the find_session guard to only the legacy
+  3-phase direct-to-socket path that genuinely needs the target's socket. Verify send_artifact_via_client's
+  offline-target spool behavior before relying on it. Moderate refactor of the ~150-line
+  tool + termlink-mcp compile.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [bug, inbox-queued, mcp, T-2363-followup]
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
@@ -16,7 +27,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-06T13:17:54Z
-last_update: 2026-07-06T13:41:02Z
+last_update: '2026-08-18T18:59:09Z'
 date_finished: 2026-07-06T13:41:02Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +39,30 @@ date_finished: 2026-07-06T13:41:02Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=3 (body:portability-abstraction); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:09Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2375: MCP termlink_file_send cannot reach offline targets — early find_session guard bypasses hub-spool fallback

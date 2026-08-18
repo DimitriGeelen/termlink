@@ -2,18 +2,43 @@
 id: T-1021
 name: "Add termlink_remote_doctor MCP tool — health check remote hubs"
 description: >
-  Add MCP tool wrapper for the new termlink remote doctor command. Follows the MCP auto-exposure pattern (T-922): every CLI command must be MCP-reachable.
+  Add MCP tool wrapper for the new termlink remote doctor command. Follows the MCP
+  auto-exposure pattern (T-922): every CLI command must be MCP-reachable.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-13T12:20:13Z
-last_update: 2026-04-23T17:24:12Z
+last_update: '2026-08-18T18:58:42Z'
 date_finished: 2026-04-13T12:23:09Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=3
+      (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1021: Add termlink_remote_doctor MCP tool — health check remote hubs

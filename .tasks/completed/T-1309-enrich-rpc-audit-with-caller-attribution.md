@@ -7,13 +7,38 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [T-1166, T-1304-followup, hub, telemetry, observability]
-components: [crates/termlink-hub/src/rpc_audit.rs, crates/termlink-hub/src/server.rs]
+components: [crates/termlink-hub/src/rpc_audit.rs, 
+      crates/termlink-hub/src/server.rs]
 related_tasks: [T-1304, T-1307, T-1308, T-1166]
 created: 2026-04-27T12:26:32Z
-last_update: 2026-04-27T12:33:11Z
+last_update: '2026-08-18T18:58:47Z'
 date_finished: 2026-04-27T12:33:11Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:53Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 2
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=2 (body:telemetry-or-audit-entry); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1309: Enrich rpc-audit with caller attribution (from field) — T-1166 hunt-down enabler

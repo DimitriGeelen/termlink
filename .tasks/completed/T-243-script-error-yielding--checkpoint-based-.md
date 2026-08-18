@@ -2,18 +2,48 @@
 id: T-243
 name: "Multi-turn agent conversation primitive over TermLink (re-scoped from script-error-yielding)"
 description: >
-  Inception: Two or more agents need to hold a reliable multi-turn conversation over TermLink. Existing primitives (`agent.ask`, `request`, `channel.post`) are single-shot. Design a session-scoped dialog protocol with explicit yield/resume semantics. Re-scoped 2026-04-26 — original "script error yielding" framing was one downstream symptom; root pain is missing multi-turn agent dialogue. Auth foundation (G-011) deferred to T-1284.
+  Inception: Two or more agents need to hold a reliable multi-turn conversation over
+  TermLink. Existing primitives (`agent.ask`, `request`, `channel.post`) are single-shot.
+  Design a session-scoped dialog protocol with explicit yield/resume semantics. Re-scoped
+  2026-04-26 — original "script error yielding" framing was one downstream symptom;
+  root pain is missing multi-turn agent dialogue. Auth foundation (G-011) deferred
+  to T-1284.
 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: [T-233, orchestration, error-yielding]
-components: [crates/termlink-bus/src/envelope.rs, crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs, crates/termlink-protocol/src/control.rs]
+components: [crates/termlink-bus/src/envelope.rs, crates/termlink-bus/src/lib.rs,
+  crates/termlink-bus/src/meta.rs, crates/termlink-hub/src/channel.rs, 
+      crates/termlink-hub/src/router.rs, crates/termlink-protocol/src/control.rs]
 related_tasks: [T-233]
 created: 2026-03-23T13:28:06Z
-last_update: 2026-04-26T22:26:15Z
+last_update: '2026-08-18T18:59:10Z'
 date_finished: 2026-04-26T22:26:15Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:10Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 5
+      tier: 4
+      effort: 8
+    rationale: blast_radius=5 (no-signal); tier=4 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-243: Script error yielding — checkpoint-based execution via TermLink sessions

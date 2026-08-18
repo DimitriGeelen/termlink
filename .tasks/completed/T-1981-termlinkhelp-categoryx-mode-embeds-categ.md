@@ -1,19 +1,49 @@
 ---
 id: T-1981
-name: "termlink_help: category=X mode embeds category_meta envelope block (description+counts at first round-trip)"
+name: "termlink_help: category=X mode embeds category_meta envelope block (description+counts
+  at first round-trip)"
 description: >
-  When called with category=X (no other modes), the response currently returns {X: [rows...], total_tools}. Add a top-level category_meta object: {name, description, tool_count, deprecated_count, live_tool_count}. LLMs drilling into a category see its purpose + size + retirement status at the same round-trip as the row enumeration, without a separate list_categories call. Derives from category_descriptions() + the existing tool walk.
+  When called with category=X (no other modes), the response currently returns {X:
+  [rows...], total_tools}. Add a top-level category_meta object: {name, description,
+  tool_count, deprecated_count, live_tool_count}. LLMs drilling into a category see
+  its purpose + size + retirement status at the same round-trip as the row enumeration,
+  without a separate list_categories call. Derives from category_descriptions() +
+  the existing tool walk.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-04T07:28:27Z
-last_update: 2026-06-04T07:31:12Z
+last_update: '2026-08-18T18:59:00Z'
 date_finished: 2026-06-04T07:33:11Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:22Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1981: termlink_help: category=X mode embeds category_meta envelope block (description+counts at first round-trip)

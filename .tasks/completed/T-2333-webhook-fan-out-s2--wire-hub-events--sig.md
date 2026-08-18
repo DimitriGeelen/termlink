@@ -2,21 +2,29 @@
 id: T-2333
 name: "Webhook fan-out S2 — wire hub events → signed dispatch (arc-004, follows T-2332)"
 description: >
-  Slice 2 of the T-2331 GO webhook feature. Slice 1 (T-2332) shipped the SEND PRIMITIVE (sign_payload + host_allowed + dispatch + WebhookConfig in crates/termlink-hub/src/webhook.rs, all unit-tested). Slice 2 wires it to real hub events: subscribe each WebhookTarget to topics/event-kinds, load WebhookConfig at hub startup from the hub config surface, and fan out a signed POST when a matching event is appended. Build on the existing channel-post path (crates/termlink-hub/src/channel.rs). Keep opt-in: zero targets = no dispatch. Then S3 = retry/backoff/dead-letter (reuse T-2051 queue pattern); S4 = CLII config verbs (webhook add/list/test) + governor_status counters. See docs/reports/T-2331-webhooks-external-fan-out-inception.md.
+  Slice 2 of the T-2331 GO webhook feature. Slice 1 (T-2332) shipped the SEND PRIMITIVE
+  (sign_payload + host_allowed + dispatch + WebhookConfig in crates/termlink-hub/src/webhook.rs,
+  all unit-tested). Slice 2 wires it to real hub events: subscribe each WebhookTarget
+  to topics/event-kinds, load WebhookConfig at hub startup from the hub config surface,
+  and fan out a signed POST when a matching event is appended. Build on the existing
+  channel-post path (crates/termlink-hub/src/channel.rs). Keep opt-in: zero targets
+  = no dispatch. Then S3 = retry/backoff/dead-letter (reuse T-2051 queue pattern);
+  S4 = CLII config verbs (webhook add/list/test) + governor_status counters. See docs/reports/T-2331-webhooks-external-fan-out-inception.md.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/server.rs, crates/termlink-hub/src/webhook.rs]
+components: [crates/termlink-hub/src/channel.rs, 
+      crates/termlink-hub/src/server.rs, crates/termlink-hub/src/webhook.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-03T09:59:52Z
-last_update: 2026-07-03T13:30:31Z
+last_update: '2026-08-18T18:59:08Z'
 date_finished: 2026-07-03T13:30:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +36,30 @@ date_finished: 2026-07-03T13:30:31Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:40Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=2 
+      (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:08Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2333: Webhook fan-out S2 — wire hub events → signed dispatch (arc-004, follows T-2332)

@@ -1,19 +1,44 @@
 ---
 id: T-534
-name: "RCA: Agent keeps suggesting direct GitHub push — investigate OneDev→GitHub mirror and fix workflow assumptions"
+name: "RCA: Agent keeps suggesting direct GitHub push — investigate OneDev→GitHub
+  mirror and fix workflow assumptions"
 description: >
-  RCA: Agent keeps suggesting direct GitHub push — investigate OneDev→GitHub mirror and fix workflow assumptions
+  RCA: Agent keeps suggesting direct GitHub push — investigate OneDev→GitHub mirror
+  and fix workflow assumptions
 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-27T17:59:50Z
-last_update: 2026-04-15T15:27:20Z
+last_update: '2026-08-18T18:59:17Z'
 date_finished: 2026-03-27T18:19:04Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:01Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 5
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=5 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-534: RCA: Agent keeps suggesting direct GitHub push — investigate OneDev→GitHub mirror and fix workflow assumptions

@@ -2,18 +2,44 @@
 id: T-1868
 name: "Operator runbook for doorbell+mail toolkit (T-1865 follow-up #3, optional)"
 description: >
-  Phase 3 of T-1865 GO (optional): docs/operations/doorbell-mail-operator-runbook.md covering hub deployment, secret deployment, /be-reachable opt-in, /pulse cold-start, /agent-handoff vs /broadcast-chat decision tree. Audience: AEF consumer-project operators who just got the toolkit via fw upgrade and need to know how to use it.
+  Phase 3 of T-1865 GO (optional): docs/operations/doorbell-mail-operator-runbook.md
+  covering hub deployment, secret deployment, /be-reachable opt-in, /pulse cold-start,
+  /agent-handoff vs /broadcast-chat decision tree. Audience: AEF consumer-project
+  operators who just got the toolkit via fw upgrade and need to know how to use it.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: [T-1865, T-1866, T-1867]
 created: 2026-05-29T12:04:45Z
-last_update: 2026-05-29T22:28:15Z
+last_update: '2026-08-18T18:58:57Z'
 date_finished: 2026-05-29T22:28:15Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 4
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=4 (body:cross-machine); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:57Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1868: Operator runbook for doorbell+mail toolkit (T-1865 follow-up #3, optional)

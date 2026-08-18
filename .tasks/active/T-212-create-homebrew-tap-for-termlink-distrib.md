@@ -2,7 +2,9 @@
 id: T-212
 name: "Create Homebrew tap for TermLink distribution"
 description: >
-  Create Homebrew tap repo and formula for TermLink distribution — enables `brew install` on macOS without requiring Rust toolchain. Depends on release.yml CI and GitHub release artifacts.
+  Create Homebrew tap repo and formula for TermLink distribution — enables `brew install`
+  on macOS without requiring Rust toolchain. Depends on release.yml CI and GitHub
+  release artifacts.
 
 status: started-work
 workflow_type: build
@@ -12,8 +14,31 @@ tags: [homebrew]
 components: []
 related_tasks: []
 created: 2026-03-21T15:43:22Z
-last_update: 2026-05-15T17:57:00Z
-date_finished: null
+last_update: '2026-08-18T18:58:37Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:32Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=2
+      (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-212: Create Homebrew tap for TermLink distribution

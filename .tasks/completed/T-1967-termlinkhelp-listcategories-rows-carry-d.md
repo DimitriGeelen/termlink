@@ -2,18 +2,45 @@
 id: T-1967
 name: "termlink_help list_categories rows carry deprecated_count"
 description: >
-  Enrich every list_categories row with deprecated_count: number — the count of deprecated tools in that category (derived from is_deprecated() on each tool's description). Composes with existing {name, tool_count, description} to complete the category-shape signal at discovery time. Drift-proof — derived live.
+  Enrich every list_categories row with deprecated_count: number — the count of deprecated
+  tools in that category (derived from is_deprecated() on each tool's description).
+  Composes with existing {name, tool_count, description} to complete the category-shape
+  signal at discovery time. Drift-proof — derived live.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [mcp, help-registry]
 components: []
 related_tasks: []
 created: 2026-06-03T22:49:06Z
-last_update: 2026-06-03T22:51:39Z
+last_update: '2026-08-18T18:58:59Z'
 date_finished: 2026-06-03T22:52:48Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:21Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1967: termlink_help list_categories rows carry deprecated_count

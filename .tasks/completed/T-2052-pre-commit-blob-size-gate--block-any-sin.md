@@ -1,13 +1,21 @@
 ---
 id: T-2052
-name: "Pre-commit blob-size gate — block any single tracked blob > 50MB (G-058 prevention follow-up)"
+name: "Pre-commit blob-size gate — block any single tracked blob > 50MB (G-058 prevention
+  follow-up)"
 description: >
-  Today's G-058 incident: .context/working/fw-vec-index.db (288MB) accidentally committed 2026-05-25 in b7f18de5, silently rejected by GitHub's 100MB pre-receive hook for 14 days, 805 commits of mirror drift. Canary detected drift correctly but recovery playbook only covered PAT-rotation. Add a structural gate: agents/git pre-commit hook checks each staged blob's size; >50MB → block with hint. Mirrors the secret-scan pattern. Also: extend scripts/check-mirror-freshness.sh diagnosis branch to recognize the file-size-rejection error pattern in pre-receive output. Cost: ~40 LOC + doc update.
+  Today's G-058 incident: .context/working/fw-vec-index.db (288MB) accidentally committed
+  2026-05-25 in b7f18de5, silently rejected by GitHub's 100MB pre-receive hook for
+  14 days, 805 commits of mirror drift. Canary detected drift correctly but recovery
+  playbook only covered PAT-rotation. Add a structural gate: agents/git pre-commit
+  hook checks each staged blob's size; >50MB → block with hint. Mirrors the secret-scan
+  pattern. Also: extend scripts/check-mirror-freshness.sh diagnosis branch to recognize
+  the file-size-rejection error pattern in pre-receive output. Cost: ~40 LOC + doc
+  update.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [framework, prevention, git-hook, g-058]
 components: [scripts/check-mirror-freshness.sh]
 related_tasks: [T-1696, T-1799]
@@ -16,7 +24,7 @@ related_tasks: [T-1696, T-1799]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T10:49:48Z
-last_update: 2026-06-08T19:16:00Z
+last_update: '2026-08-18T18:59:01Z'
 date_finished: 2026-06-08T19:16:00Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +36,30 @@ date_finished: 2026-06-08T19:16:00Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:25Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:01Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2052: Pre-commit blob-size gate — block any single tracked blob > 50MB (G-058 prevention follow-up)

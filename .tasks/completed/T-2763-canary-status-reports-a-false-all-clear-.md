@@ -2,12 +2,19 @@
 id: T-2763
 name: "canary-status reports a false all-clear inside a git worktree"
 description: >
-  canary-status.sh (/canaries) resolves .context/working/ relative to the CURRENT checkout, with no worktree awareness. Host cron writes canary logs and heartbeats into the MAIN checkout only, so inside a linked worktree every log reads empty and every heartbeat reads ancient. Two failure directions: STALE noise on canaries that are firing fine (annoying), and — far worse — a confident HEALTHY for a canary that IS firing in the main checkout (a false all-clear). fw audit already knows about this ('Cron drift checks skipped — linked worktree'); canary-status does not. Same class as T-2681: a guard whose reported health depends on unversioned local state.
+  canary-status.sh (/canaries) resolves .context/working/ relative to the CURRENT
+  checkout, with no worktree awareness. Host cron writes canary logs and heartbeats
+  into the MAIN checkout only, so inside a linked worktree every log reads empty and
+  every heartbeat reads ancient. Two failure directions: STALE noise on canaries that
+  are firing fine (annoying), and — far worse — a confident HEALTHY for a canary that
+  IS firing in the main checkout (a false all-clear). fw audit already knows about
+  this ('Cron drift checks skipped — linked worktree'); canary-status does not. Same
+  class as T-2681: a guard whose reported health depends on unversioned local state.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [scripts/canary-status.sh]
 related_tasks: []
@@ -16,7 +23,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-16T13:13:54Z
-last_update: 2026-08-16T13:31:30Z
+last_update: '2026-08-18T18:59:16Z'
 date_finished: 2026-08-16T13:31:30Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +35,30 @@ date_finished: 2026-08-16T13:31:30Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=2
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:16Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2763: canary-status reports a false all-clear inside a git worktree

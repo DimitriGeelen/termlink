@@ -2,18 +2,48 @@
 id: T-1960
 name: "termlink_help surfaces deprecated flag on legacy tools"
 description: >
-  MCP client arc T-1960: legacy / retirement-WIP tools (inbox primitives, remote-inbox-*) carry 'legacy' / 'T-1166 retirement WIP' phrases in their short descriptions but LLMs see them in name_filter and tool_detail results indistinguishable from live tools. Add a derived deprecated boolean field: scan short description for 'legacy', 'retirement', 'deprecated', '(T-1166' (case-insensitive). Surface in both tool_detail and name_filter match rows so the LLM can route around deprecated paths. Pure derivation — no curation, drift-proof.
+  MCP client arc T-1960: legacy / retirement-WIP tools (inbox primitives, remote-inbox-*)
+  carry 'legacy' / 'T-1166 retirement WIP' phrases in their short descriptions but
+  LLMs see them in name_filter and tool_detail results indistinguishable from live
+  tools. Add a derived deprecated boolean field: scan short description for 'legacy',
+  'retirement', 'deprecated', '(T-1166' (case-insensitive). Surface in both tool_detail
+  and name_filter match rows so the LLM can route around deprecated paths. Pure derivation
+  — no curation, drift-proof.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T22:00:42Z
-last_update: 2026-06-03T22:03:19Z
+last_update: '2026-08-18T18:58:59Z'
 date_finished: 2026-06-03T22:05:57Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:21Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1960: termlink_help surfaces deprecated flag on legacy tools

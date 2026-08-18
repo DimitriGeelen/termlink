@@ -7,13 +7,38 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-mcp/src/tools.rs]
+components: [crates/termlink-cli/src/commands/infrastructure.rs, 
+      crates/termlink-cli/src/commands/remote.rs, 
+      crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-04-25T10:40:05Z
-last_update: 2026-04-25T10:47:10Z
+last_update: '2026-08-18T18:58:46Z'
 date_finished: 2026-04-25T10:47:10Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:51Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 6
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1242: T-1230d migrate cmd_inbox_clear to clear_with_fallback

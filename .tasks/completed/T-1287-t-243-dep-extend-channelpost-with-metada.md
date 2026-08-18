@@ -2,18 +2,46 @@
 id: T-1287
 name: "T-243 dep: Extend channel.post with metadata.conversation_id + metadata.event_type"
 description: >
-  Per T-243 inception synthesis: one-field code change in channel.post params. Optional metadata.conversation_id (string) — scope events to a conversation. Optional metadata.event_type (turn|typing|receipt|presence|member) — routing/filtering hint, not enforcement. Enables convention-layer multi-turn dialog without new typed-method namespace. Independently testable; can land before or after dialog.heartbeat.
+  Per T-243 inception synthesis: one-field code change in channel.post params. Optional
+  metadata.conversation_id (string) — scope events to a conversation. Optional metadata.event_type
+  (turn|typing|receipt|presence|member) — routing/filtering hint, not enforcement.
+  Enables convention-layer multi-turn dialog without new typed-method namespace. Independently
+  testable; can land before or after dialog.heartbeat.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [T-243, channel, protocol]
-components: [crates/termlink-bus/src/envelope.rs, crates/termlink-bus/src/lib.rs, crates/termlink-hub/src/channel.rs]
+components: [crates/termlink-bus/src/envelope.rs, crates/termlink-bus/src/lib.rs,
+  crates/termlink-hub/src/channel.rs]
 related_tasks: []
 created: 2026-04-26T09:32:02Z
-last_update: 2026-04-26T10:57:58Z
+last_update: '2026-08-18T18:58:47Z'
 date_finished: 2026-04-26T10:57:58Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:53Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1287: T-243 dep: Extend channel.post with metadata.conversation_id + metadata.event_type

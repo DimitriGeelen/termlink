@@ -2,18 +2,44 @@
 id: T-1943
 name: "termlink_help — add channel_admin + channel_poll categories (8 tools)"
 description: >
-  Surface 8 remaining channel admin tools: channel_members, channel_queue_status, channel_typing_emit, channel_typing_list (new channel_admin category) + channel_poll_start, channel_poll_vote, channel_poll_end, channel_poll_results (new channel_poll category).
+  Surface 8 remaining channel admin tools: channel_members, channel_queue_status,
+  channel_typing_emit, channel_typing_list (new channel_admin category) + channel_poll_start,
+  channel_poll_vote, channel_poll_end, channel_poll_results (new channel_poll category).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T15:53:47Z
-last_update: 2026-06-03T15:55:46Z
+last_update: '2026-08-18T18:58:59Z'
 date_finished: 2026-06-03T15:57:33Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1943: termlink_help — add channel_admin + channel_poll categories (8 tools)

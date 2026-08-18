@@ -2,21 +2,32 @@
 id: T-2297
 name: "V2b: hub-stamped observed source address"
 description: >
-  Arc-003 V2 follow-up (sliced from T-2293). Hub stamps the OBSERVED TCP source address it saw onto agent-presence heartbeats / registrations, so the discovery registry can prefer a hub-attested host:port over the agent's self-report (defeats stale/spoofed self-reported hostnames). peer_addr is already available at server.rs:640/670 and threaded into process_request; the work is to thread it through route_request -> handle_channel_post and inject observed_addr into the stored envelope, then have fleet_presence/agent-resolve prefer it. Consumed by V6 (T-2296) direct transport, which needs the agent's real host. Self-report addr (the AC2 fallback) already ships in T-2293.
+  Arc-003 V2 follow-up (sliced from T-2293). Hub stamps the OBSERVED TCP source address
+  it saw onto agent-presence heartbeats / registrations, so the discovery registry
+  can prefer a hub-attested host:port over the agent's self-report (defeats stale/spoofed
+  self-reported hostnames). peer_addr is already available at server.rs:640/670 and
+  threaded into process_request; the work is to thread it through route_request ->
+  handle_channel_post and inject observed_addr into the stored envelope, then have
+  fleet_presence/agent-resolve prefer it. Consumed by V6 (T-2296) direct transport,
+  which needs the agent's real host. Self-report addr (the AC2 fallback) already ships
+  in T-2293.
 
 status: work-completed
 workflow_type: build
 owner: human
 horizon: now
 tags: [arc:reliable-comms]
-components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/server.rs]
+components: [crates/termlink-cli/src/cli.rs, 
+      crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/main.rs,
+  crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/router.rs, 
+      crates/termlink-hub/src/server.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-27T17:52:01Z
-last_update: 2026-07-06T10:11:39Z
+last_update: '2026-08-18T18:58:38Z'
 date_finished: 2026-07-02T08:15:05Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +39,30 @@ date_finished: 2026-07-02T08:15:05Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:32Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 5
+      tier: 2
+      effort: 8
+    rationale: blast_radius=5 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2297: V2b: hub-stamped observed source address

@@ -1,19 +1,49 @@
 ---
 id: T-1133
-name: "Resilience-tier taxonomy — tag each RPC method Tier-A (opaque) or Tier-B (typed) in protocol doc comments (from T-1071 GO)"
+name: "Resilience-tier taxonomy — tag each RPC method Tier-A (opaque) or Tier-B (typed)
+  in protocol doc comments (from T-1071 GO)"
 description: >
-  From T-1071 inception GO. Tag every RPC method as Tier-A (opaque payload, drift-tolerant — event.broadcast, event.emit, kv.set strings) or Tier-B (typed struct, drift-fragile — command.inject, command.exec, session.update). Document in crates/termlink-protocol/src/control.rs as doc comments on each method constant. fleet doctor can then flag fleets where Tier-B methods would fail across the observed version diversity (extends T-1132). This is the 'codify the event.broadcast resilience property' deliverable — promotes a happy accident into a documented design tier.
+  From T-1071 inception GO. Tag every RPC method as Tier-A (opaque payload, drift-tolerant
+  — event.broadcast, event.emit, kv.set strings) or Tier-B (typed struct, drift-fragile
+  — command.inject, command.exec, session.update). Document in crates/termlink-protocol/src/control.rs
+  as doc comments on each method constant. fleet doctor can then flag fleets where
+  Tier-B methods would fail across the observed version diversity (extends T-1132).
+  This is the 'codify the event.broadcast resilience property' deliverable — promotes
+  a happy accident into a documented design tier.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [termlink, protocol, taxonomy, documentation, T-1071]
 components: [crates/termlink-protocol/src/control.rs]
 related_tasks: []
 created: 2026-04-18T23:00:36Z
-last_update: 2026-04-23T19:13:57Z
+last_update: '2026-08-18T18:58:44Z'
 date_finished: 2026-04-19T14:00:56Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=0
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:44Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 7
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1133: Resilience-tier taxonomy — tag each RPC method Tier-A (opaque) or Tier-B (typed) in protocol doc comments (from T-1071 GO)

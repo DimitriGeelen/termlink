@@ -1,19 +1,44 @@
 ---
 id: T-1246
-name: "T-1246 G-046 fix: Watchtower decide form falls back to docs/reports/T-XXX-inception.md when task body lacks Recommendation section"
+name: "T-1246 G-046 fix: Watchtower decide form falls back to docs/reports/T-XXX-inception.md
+  when task body lacks Recommendation section"
 description: >
-  T-1246 G-046 fix: Watchtower decide form falls back to docs/reports/T-XXX-inception.md when task body lacks Recommendation section
+  T-1246 G-046 fix: Watchtower decide form falls back to docs/reports/T-XXX-inception.md
+  when task body lacks Recommendation section
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-25T10:48:31Z
-last_update: 2026-04-25T10:53:56Z
+last_update: '2026-08-18T18:58:46Z'
 date_finished: 2026-04-25T10:53:56Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:51Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=0
+      (no-signal); F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1246: T-1246 G-046 fix: Watchtower decide form falls back to docs/reports/T-XXX-inception.md when task body lacks Recommendation section

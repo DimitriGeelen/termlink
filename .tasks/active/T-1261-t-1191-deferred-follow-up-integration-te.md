@@ -1,8 +1,12 @@
 ---
 id: T-1261
-name: "T-1191 deferred follow-up: integration tests + bench scaffold for vte mirror grid"
+name: "T-1191 deferred follow-up: integration tests + bench scaffold for vte mirror
+  grid"
 description: >
-  Capture deferred work from T-1191: golden-input integration tests for vim/htop/ls --color/less, and cargo bench scaffold + corpus for mirror_render. Both deferred at completion 2026-04-23 because they require captured byte-stream corpora and bench infra that don't exist yet.
+  Capture deferred work from T-1191: golden-input integration tests for vim/htop/ls
+  --color/less, and cargo bench scaffold + corpus for mirror_render. Both deferred
+  at completion 2026-04-23 because they require captured byte-stream corpora and bench
+  infra that don't exist yet.
 
 status: captured
 workflow_type: test
@@ -12,8 +16,31 @@ tags: []
 components: []
 related_tasks: [T-1191, T-1199, T-1200, T-1201, T-235]
 created: 2026-04-25T18:16:00Z
-last_update: 2026-04-25T18:16:07Z
-date_finished: null
+last_update: '2026-08-18T18:58:35Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:27Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:35Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 1
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=1 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1261: T-1191 deferred follow-up: integration tests + bench scaffold for vte mirror grid

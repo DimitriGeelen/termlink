@@ -2,18 +2,45 @@
 id: T-1743
 name: "termlink_agent_listen MCP — agent.request polling wrapper (T-1166 MCP-parity)"
 description: >
-  MCP wrapper around event.subscribe(agent.request) — closes the agent.rs CLI surface gap noted in S-2026-0521-0919 handover. One-shot polling pattern (caller passes since cursor + timeout, gets events + next_seq for iteration). Returns shaped {seq, from, action, request_id, params, timeout_secs} matching CLI --json output.
+  MCP wrapper around event.subscribe(agent.request) — closes the agent.rs CLI surface
+  gap noted in S-2026-0521-0919 handover. One-shot polling pattern (caller passes
+  since cursor + timeout, gets events + next_seq for iteration). Returns shaped {seq,
+  from, action, request_id, params, timeout_secs} matching CLI --json output.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-21T07:34:23Z
-last_update: 2026-05-21T07:38:41Z
+last_update: '2026-08-18T18:58:55Z'
 date_finished: 2026-05-21T07:38:41Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:11Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:55Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1743: termlink_agent_listen MCP — agent.request polling wrapper (T-1166 MCP-parity)

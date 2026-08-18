@@ -2,17 +2,42 @@
 id: T-2327
 name: "pushwaker trap reaps only direct children — subscribe grandchild can orphan"
 description: >
-  pushwaker trap reaps only direct children — subscribe grandchild can orphan on non-pgroup stop
+  pushwaker trap reaps only direct children — subscribe grandchild can orphan on non-pgroup
+  stop
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-07-03T08:40:00Z
-last_update: 2026-07-03T08:50:01Z
+last_update: '2026-08-18T18:59:08Z'
 date_finished: 2026-07-03T08:50:01Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:39Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=1 (body:fix-without-learning); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:08Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 4
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=4 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2327: pushwaker trap reaps only direct children — subscribe grandchild can orphan

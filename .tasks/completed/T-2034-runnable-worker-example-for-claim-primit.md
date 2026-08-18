@@ -1,13 +1,15 @@
 ---
 id: T-2034
-name: "runnable worker example for claim primitive — examples/parallel_worker.rs (substrate T-2018)"
+name: "runnable worker example for claim primitive — examples/parallel_worker.rs (substrate
+  T-2018)"
 description: >
-  runnable worker example for claim primitive — examples/parallel_worker.rs (substrate T-2018)
+  runnable worker example for claim primitive — examples/parallel_worker.rs (substrate
+  T-2018)
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [arc:arc-parallel-substrate]
 components: []
 related_tasks: [T-2031, T-2032, T-2033]
@@ -16,7 +18,7 @@ related_tasks: [T-2031, T-2032, T-2033]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-07T19:29:09Z
-last_update: 2026-06-07T19:32:54Z
+last_update: '2026-08-18T18:59:01Z'
 date_finished: 2026-06-07T19:32:54Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +30,30 @@ date_finished: 2026-06-07T19:32:54Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:24Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 4
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 5
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=4 
+      (body:framework-level-ux); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=5 (body:substrate-expand)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:01Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2034: runnable worker example for claim primitive — examples/parallel_worker.rs (substrate T-2018)

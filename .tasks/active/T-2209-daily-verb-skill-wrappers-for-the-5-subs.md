@@ -2,7 +2,12 @@
 id: T-2209
 name: "Daily-verb skill wrappers for the 5 substrate history/retrospective verbs"
 description: >
-  Add .claude/commands/ skill wrappers for claims-history, find-idle-history, queue-history, governor-history, substrate-history — completing the daily-verb skill layer (base verbs shipped as /claims, /find-idle, /queue-status, /governor, /substrate under T-2092..T-2096). CLI+MCP tiers already exist (T-2074/2081/2086/2068/2111); only the skill tier is missing, breaking the established pattern for operators investigating flaps.
+  Add .claude/commands/ skill wrappers for claims-history, find-idle-history, queue-history,
+  governor-history, substrate-history — completing the daily-verb skill layer (base
+  verbs shipped as /claims, /find-idle, /queue-status, /governor, /substrate under
+  T-2092..T-2096). CLI+MCP tiers already exist (T-2074/2081/2086/2068/2111); only
+  the skill tier is missing, breaking the established pattern for operators investigating
+  flaps.
 
 status: work-completed
 workflow_type: build
@@ -16,7 +21,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-13T10:34:40Z
-last_update: 2026-06-13T10:46:41Z
+last_update: '2026-08-18T18:58:37Z'
 date_finished: 2026-06-13T10:46:41Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +33,31 @@ date_finished: 2026-06-13T10:46:41Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:32Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 2
+      D3: 3
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=2 
+      (body:telemetry-or-audit-entry); D3=3 (body:component-discoverability); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2209: Daily-verb skill wrappers for the 5 substrate history/retrospective verbs

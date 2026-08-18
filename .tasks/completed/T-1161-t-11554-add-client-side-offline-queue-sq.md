@@ -2,18 +2,44 @@
 id: T-1161
 name: "T-1155/4 Add client-side offline queue (SQLite) + flush task to termlink-session"
 description: >
-  Per T-1155 S-3. Client-side SQLite pending_posts + last_read_cursor tables. Queue on bus-unreachable, idempotent flush on reconnect via (sender_id, client_seq). Cap queue size; fail loudly when full. ~300 LOC Rust.
+  Per T-1155 S-3. Client-side SQLite pending_posts + last_read_cursor tables. Queue
+  on bus-unreachable, idempotent flush on reconnect via (sender_id, client_seq). Cap
+  queue size; fail loudly when full. ~300 LOC Rust.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [T-1155, bus, offline-tolerance]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:08Z
-last_update: 2026-04-23T19:17:49Z
+last_update: '2026-08-18T18:58:45Z'
 date_finished: 2026-04-20T22:20:02Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 3
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=3 (body:component-silent-failure); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1161: T-1155/4 Add client-side offline queue (SQLite) + flush task to termlink-session

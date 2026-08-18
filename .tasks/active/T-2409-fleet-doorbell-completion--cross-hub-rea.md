@@ -2,7 +2,11 @@
 id: T-2409
 name: "Fleet doorbell completion — cross-hub reach to ring20 hubs (.122/.121)"
 description: >
-  Verify cross-hub SEND path from .107 to ring20 hubs; reduce discovery-blocking agent-presence bloat on .122/.121 if their binary supports it; send ring20-manager a precise actionable request for the parts requiring host-side action (hub upgrade + launch agents via tl-claude --reachable). .141 is down (no route). Directive: make the doorbell work across the whole fleet.
+  Verify cross-hub SEND path from .107 to ring20 hubs; reduce discovery-blocking agent-presence
+  bloat on .122/.121 if their binary supports it; send ring20-manager a precise actionable
+  request for the parts requiring host-side action (hub upgrade + launch agents via
+  tl-claude --reachable). .141 is down (no route). Directive: make the doorbell work
+  across the whole fleet.
 
 status: started-work
 workflow_type: build
@@ -16,8 +20,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-12T13:09:27Z
-last_update: 2026-07-21T08:12:37Z
-date_finished: null
+last_update: '2026-08-18T18:58:38Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,6 +32,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:33Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=2 
+      (body:telemetry-or-audit-entry); D3=2 (body:default-change); D4=2 
+      (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2409: Fleet doorbell completion — cross-hub reach to ring20 hubs (.122/.121)

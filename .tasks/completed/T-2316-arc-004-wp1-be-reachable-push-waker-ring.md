@@ -1,13 +1,16 @@
 ---
 id: T-2316
-name: "arc-004 WP1: be-reachable push-waker rings PTY doorbell on inbox.queued (T-2315 GO, Option A)"
+name: "arc-004 WP1: be-reachable push-waker rings PTY doorbell on inbox.queued (T-2315
+  GO, Option A)"
 description: >
-  Background WS-push waker in the be-reachable lifecycle: holds a channel subscribe --push on the session inbox and fires the existing PTY doorbell ring on inbox.queued, degrading to poll on drop. Delivers arc-004's instant-wake value.
+  Background WS-push waker in the be-reachable lifecycle: holds a channel subscribe
+  --push on the session inbox and fires the existing PTY doorbell ring on inbox.queued,
+  degrading to poll on drop. Delivers arc-004's instant-wake value.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: ["arc:push-transport"]
 components: [scripts/be-reachable.sh]
 related_tasks: ["T-2315", "T-2314", "T-1800", "T-1834"]
@@ -17,7 +20,7 @@ arc_id: push-transport
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-02T21:23:41Z
-last_update: 2026-07-02T21:34:01Z
+last_update: '2026-08-18T18:59:07Z'
 date_finished: 2026-07-02T21:34:01Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -29,6 +32,30 @@ date_finished: 2026-07-02T21:34:01Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:39Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:07Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2316: arc-004 WP1: be-reachable push-waker rings PTY doorbell on inbox.queued (T-2315 GO, Option A)

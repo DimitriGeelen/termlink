@@ -2,18 +2,46 @@
 id: T-1888
 name: "Investigate T-1431 e2e regression — dm:handoff-rubber* missing on chat-arc"
 description: >
-  T-1884 S2 ran T-1431's [RUBBER-STAMP] Human AC Step 5: termlink channel list --prefix dm: | grep handoff-rubber — exit=1, no match. T-1431's AC asserts the skill works end-to-end. Either (a) the evidence smoke from 2026-05-30 was hub-local and dm topics were cleaned up since, or (b) the /agent-handoff skill regressed. Diagnose which, fix or refresh evidence accordingly. Source: docs/reports/T-1884-S2-results.md.
+  T-1884 S2 ran T-1431's [RUBBER-STAMP] Human AC Step 5: termlink channel list --prefix
+  dm: | grep handoff-rubber — exit=1, no match. T-1431's AC asserts the skill works
+  end-to-end. Either (a) the evidence smoke from 2026-05-30 was hub-local and dm topics
+  were cleaned up since, or (b) the /agent-handoff skill regressed. Diagnose which,
+  fix or refresh evidence accordingly. Source: docs/reports/T-1884-S2-results.md.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [bug]
 components: []
 related_tasks: [T-1431, T-1884]
 created: 2026-05-30T22:00:08Z
-last_update: 2026-05-31T07:04:44Z
+last_update: '2026-08-18T18:58:58Z'
 date_finished: 2026-05-31T07:04:44Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1888: Investigate T-1431 e2e regression — dm:handoff-rubber* missing on chat-arc

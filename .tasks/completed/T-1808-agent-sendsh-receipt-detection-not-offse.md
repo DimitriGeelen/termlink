@@ -2,18 +2,44 @@
 id: T-1808
 name: "agent-send.sh receipt detection not offset-aware — false DELIVERED on multi-turn"
 description: >
-  agent-send.sh accepts any receipt for the cid rather than one acking the posted turn; on turn 2+ of a same-cid conversation the prior turn's receipt yields false DELIVERED. Fix: require receipt up_to >= post_offset. Found during T-1807 e2e validation.
+  agent-send.sh accepts any receipt for the cid rather than one acking the posted
+  turn; on turn 2+ of a same-cid conversation the prior turn's receipt yields false
+  DELIVERED. Fix: require receipt up_to >= post_offset. Found during T-1807 e2e validation.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-25T20:12:40Z
-last_update: 2026-05-25T20:14:15Z
+last_update: '2026-08-18T18:58:56Z'
 date_finished: 2026-05-25T20:14:15Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:56Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1808: agent-send.sh receipt detection not offset-aware — false DELIVERED on multi-turn

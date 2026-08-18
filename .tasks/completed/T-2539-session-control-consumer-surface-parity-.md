@@ -2,12 +2,19 @@
 id: T-2539
 name: "Session-control consumer surface parity (deepen founding charter verb)"
 description: >
-  T-2468 deepen-the-core: the founding charter verb 'control terminal sessions' is capability-complete (register/list/spawn/exec/interact/run/pty attach|inject|output|stream/mirror/signal/clean) but surface-starved — 0 of 33 skills touch it and the cold-start on-ramp (substrate-getting-started.md, /substrate digest) omits it entirely, while its 3 sibling verbs each have rich skill+doc surfaces. Give verb #4 proportionate surface parity WITHOUT adding breadth: an on-ramp doc + cold-start integration + one flagship read-tier skill (/sessions), each thin over existing CLI. Purpose-review finding, in-authority (same category as the 33 existing skills), no non-goal tripped.
+  T-2468 deepen-the-core: the founding charter verb 'control terminal sessions' is
+  capability-complete (register/list/spawn/exec/interact/run/pty attach|inject|output|stream/mirror/signal/clean)
+  but surface-starved — 0 of 33 skills touch it and the cold-start on-ramp (substrate-getting-started.md,
+  /substrate digest) omits it entirely, while its 3 sibling verbs each have rich skill+doc
+  surfaces. Give verb #4 proportionate surface parity WITHOUT adding breadth: an on-ramp
+  doc + cold-start integration + one flagship read-tier skill (/sessions), each thin
+  over existing CLI. Purpose-review finding, in-authority (same category as the 33
+  existing skills), no non-goal tripped.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +23,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-08T16:10:42Z
-last_update: 2026-08-08T16:13:49Z
+last_update: '2026-08-18T18:59:12Z'
 date_finished: 2026-08-08T16:13:49Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +35,30 @@ date_finished: 2026-08-08T16:13:49Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 4
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=4 
+      (body:framework-level-ux); D4=3 (body:portability-abstraction); F-RECALL=0
+      (no-signal); F-ORCH=0 (body:wrap-phrase-without-substrate)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:12Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2539: Session-control consumer surface parity (deepen founding charter verb)

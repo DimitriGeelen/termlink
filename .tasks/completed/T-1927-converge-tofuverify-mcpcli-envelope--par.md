@@ -2,18 +2,44 @@
 id: T-1927
 name: "Converge tofu_verify MCP/CLI envelope + parity test (PL-198 follow-up)"
 description: >
-  MCP and CLI tofu_verify diverge in 4 fields: status=probe-fail vs probe-failed, error vs probe_error, MCP missing match:bool, MCP has ok+actions CLI lacks. Align MCP field names to CLI, add ok+actions to CLI, add parity_tofu_verify_no_pin test.
+  MCP and CLI tofu_verify diverge in 4 fields: status=probe-fail vs probe-failed,
+  error vs probe_error, MCP missing match:bool, MCP has ok+actions CLI lacks. Align
+  MCP field names to CLI, add ok+actions to CLI, add parity_tofu_verify_no_pin test.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-02T14:57:41Z
-last_update: 2026-06-02T14:57:41Z
+last_update: '2026-08-18T18:58:59Z'
 date_finished: 2026-06-02T18:25:08Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:19Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1927: Converge tofu_verify MCP/CLI envelope + parity test (PL-198 follow-up)

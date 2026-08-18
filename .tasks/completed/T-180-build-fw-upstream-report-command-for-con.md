@@ -2,17 +2,44 @@
 id: T-180
 name: "Build fw upstream report command for consumer-to-framework bug reports"
 description: >
-  Two-path upstream reporting for consumer-to-framework feedback. PRIMARY: TermLink inject-remote — directly inject improvement prompts into framework agent Claude session on another machine (proven in T-184/T-185: 5 prompts, 7.4KB injected). FALLBACK: fw upstream report --title ... --attach-doctor — create a task file with evidence when TermLink not available. Both scenarios need clear docs. Discovered 2026-03-18.
+  Two-path upstream reporting for consumer-to-framework feedback. PRIMARY: TermLink
+  inject-remote — directly inject improvement prompts into framework agent Claude
+  session on another machine (proven in T-184/T-185: 5 prompts, 7.4KB injected). FALLBACK:
+  fw upstream report --title ... --attach-doctor — create a task file with evidence
+  when TermLink not available. Both scenarios need clear docs. Discovered 2026-03-18.
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: [framework, cli, upstream]
 components: []
 related_tasks: []
 created: 2026-03-18T22:25:12Z
-last_update: 2026-04-23T19:29:57Z
+last_update: '2026-08-18T18:58:56Z'
 date_finished: 2026-04-23T19:29:57Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:13Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:56Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 5
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=5 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-180: Build fw upstream report command for consumer-to-framework bug reports

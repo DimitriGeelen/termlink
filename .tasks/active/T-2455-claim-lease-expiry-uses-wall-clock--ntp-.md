@@ -1,8 +1,22 @@
 ---
 id: T-2455
-name: "claim lease expiry uses wall-clock — NTP forward step can expire a live lease early (round-12 MED-2)"
+name: "claim lease expiry uses wall-clock — NTP forward step can expire a live lease
+  early (round-12 MED-2)"
 description: >
-  Round-12 claim-lifecycle review MED-2 (orthogonal to T-2454 identity binding). Claim lease expiry compares claimed_until against now_unix_ms = SystemTime::now (crates/termlink-bus/src/meta.rs:826-831); all expiry checks (claim_offset:363, transfer:547, renew:609, list/summary) use it. A forward wall-clock correction (NTP step) makes an active lease's claimed_until compare <= now EARLY: claim_offset lazily deletes the still-valid lease (meta.rs:361-365) and grants the slot to a second worker while the original owner is mid-work and unaware -> transient double-grant. Fix options: (a) derive expiry from a monotonic base where possible; (b) at minimum clamp/ignore backward-then-forward wall-clock steps, or store lease as (issued_monotonic + ttl) alongside the wall-clock for a sanity cross-check. Constraint: claimed_until is persisted in SQL and compared across process restarts, so a pure Instant-monotonic clock does not serialize — the fix must handle restart. Verified-clean context: the SQL state machine is otherwise sound (see T-2454). Deferred as backlog: MED severity, requires NTP step to trigger; batch with T-2454 claim hardening if that goes GO.
+  Round-12 claim-lifecycle review MED-2 (orthogonal to T-2454 identity binding). Claim
+  lease expiry compares claimed_until against now_unix_ms = SystemTime::now (crates/termlink-bus/src/meta.rs:826-831);
+  all expiry checks (claim_offset:363, transfer:547, renew:609, list/summary) use
+  it. A forward wall-clock correction (NTP step) makes an active lease's claimed_until
+  compare <= now EARLY: claim_offset lazily deletes the still-valid lease (meta.rs:361-365)
+  and grants the slot to a second worker while the original owner is mid-work and
+  unaware -> transient double-grant. Fix options: (a) derive expiry from a monotonic
+  base where possible; (b) at minimum clamp/ignore backward-then-forward wall-clock
+  steps, or store lease as (issued_monotonic + ttl) alongside the wall-clock for a
+  sanity cross-check. Constraint: claimed_until is persisted in SQL and compared across
+  process restarts, so a pure Instant-monotonic clock does not serialize — the fix
+  must handle restart. Verified-clean context: the SQL state machine is otherwise
+  sound (see T-2454). Deferred as backlog: MED severity, requires NTP step to trigger;
+  batch with T-2454 claim hardening if that goes GO.
 
 status: captured
 workflow_type: build
@@ -16,8 +30,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-22T09:59:13Z
-last_update: 2026-07-22T09:59:30Z
-date_finished: null
+last_update: '2026-08-18T18:58:38Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,6 +42,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:33Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2455: claim lease expiry uses wall-clock — NTP forward step can expire a live lease early (round-12 MED-2)

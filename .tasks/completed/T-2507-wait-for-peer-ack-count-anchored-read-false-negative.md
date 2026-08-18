@@ -1,15 +1,48 @@
 ---
 id: T-2507
-name: "wait_for_peer_ack reads count-anchored slice, returning false 'delivery unconfirmed' on swept dm topics"
-description: "The synchronous ack-wait behind `agent contact --ack-required` reads its tail via fetch_topic_msgs, whose tail_slice_cursor(count,slice)=count-slice treats channel.list count as the max offset. After a retention sweep front-trims a Messages(1000) dm topic, count decouples from the tail offset, the hub returns the OLDEST live page, and the peer's just-posted ack at the tail is missed → false Ok(None) 'delivery unconfirmed'. Fix: poll via offset-cursor pagination (walk_topic_from), correct under any sweep. Sibling of T-2390/T-2391 (which fixed the same count-vs-offset decoupling on the presence read)."
+name: "wait_for_peer_ack reads count-anchored slice, returning false 'delivery unconfirmed'
+  on swept dm topics"
+description: "The synchronous ack-wait behind `agent contact --ack-required` reads
+  its tail via fetch_topic_msgs, whose tail_slice_cursor(count,slice)=count-slice
+  treats channel.list count as the max offset. After a retention sweep front-trims
+  a Messages(1000) dm topic, count decouples from the tail offset, the hub returns
+  the OLDEST live page, and the peer's just-posted ack at the tail is missed → false
+  Ok(None) 'delivery unconfirmed'. Fix: poll via offset-cursor pagination (walk_topic_from),
+  correct under any sweep. Sibling of T-2390/T-2391 (which fixed the same count-vs-offset
+  decoupling on the presence read)."
 status: work-completed
 workflow_type: build
-horizon: null
+horizon:
 owner: agent
 created: 2026-08-03
-last_update: 2026-08-02T23:05:17Z
-tags: [reliability, correctness, delivery-confirmation, ack, retention-sweep, count-vs-offset]
+last_update: '2026-08-18T18:59:12Z'
+tags: [reliability, correctness, delivery-confirmation, ack, retention-sweep, 
+      count-vs-offset]
 components: [crates/termlink-cli/src/commands/channel.rs]
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:49Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=1 (body:fix-without-learning); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:12Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 6
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 ## Context

@@ -1,8 +1,12 @@
 ---
 id: T-1695
-name: "Restore OneDev → GitHub mirror — release pipeline silently broken since 2026-05-02 (G-058)"
+name: "Restore OneDev → GitHub mirror — release pipeline silently broken since 2026-05-02
+  (G-058)"
 description: >
-  OneDev → GitHub mirror has been broken since 2026-05-02. GH HEAD frozen at b39fc916, OneDev HEAD at b179b0cb. 16 days of commits + 3 release tags (v0.10.0, v0.11.0, v0.11.1) never reached GitHub Releases. Homebrew install path broken. Operator-only: needs OneDev UI access + likely github-push-token rotation.
+  OneDev → GitHub mirror has been broken since 2026-05-02. GH HEAD frozen at b39fc916,
+  OneDev HEAD at b179b0cb. 16 days of commits + 3 release tags (v0.10.0, v0.11.0,
+  v0.11.1) never reached GitHub Releases. Homebrew install path broken. Operator-only:
+  needs OneDev UI access + likely github-push-token rotation.
 
 status: work-completed
 workflow_type: build
@@ -12,8 +16,32 @@ tags: [release, operator-action, G-058]
 components: []
 related_tasks: [T-1691]
 created: 2026-05-18T10:43:28Z
-last_update: 2026-06-13T09:37:51Z
+last_update: '2026-08-18T18:58:37Z'
 date_finished: 2026-06-13T09:37:51Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:30Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 1
+      D3: 0
+      D4: 0
+      F-RECALL: 3
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=1 (body:log-or-error-line); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=3 (body:fw-recall-or-memory-link);
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1695: Restore OneDev → GitHub mirror (G-058)

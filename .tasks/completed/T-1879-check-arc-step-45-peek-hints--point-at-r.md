@@ -1,19 +1,48 @@
 ---
 id: T-1879
-name: "/check-arc Step 4+5 peek hints — point at /recent-dm and /recent-chat (skill cross-link)"
+name: "/check-arc Step 4+5 peek hints — point at /recent-dm and /recent-chat (skill
+  cross-link)"
 description: >
-  /check-arc Steps 4 and 5 currently emit verbose 'termlink channel subscribe <topic> --since-offset <last-acked> --limit <count>' as the peek hint per topic, requiring the operator to do cursor arithmetic. The canonical drill-in tools already exist: /recent-dm <peer-short> (T-1862, just got its PL-195 fix in T-1878) for DM topics, and /recent-chat (T-1851) for agent-chat-arc. Replace the verbose hints with the slash-skill calls to lower the floor on every check-arc → respond cycle.
+  /check-arc Steps 4 and 5 currently emit verbose 'termlink channel subscribe <topic>
+  --since-offset <last-acked> --limit <count>' as the peek hint per topic, requiring
+  the operator to do cursor arithmetic. The canonical drill-in tools already exist:
+  /recent-dm <peer-short> (T-1862, just got its PL-195 fix in T-1878) for DM topics,
+  and /recent-chat (T-1851) for agent-chat-arc. Replace the verbose hints with the
+  slash-skill calls to lower the floor on every check-arc → respond cycle.
 
 status: work-completed
 workflow_type: build
 owner: claude-code
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-30T14:38:38Z
-last_update: 2026-05-30T14:41:32Z
+last_update: '2026-08-18T18:58:58Z'
 date_finished: 2026-05-30T14:41:32Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1879: /check-arc Step 4+5 peek hints — point at /recent-dm and /recent-chat (skill cross-link)

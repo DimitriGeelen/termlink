@@ -1,6 +1,7 @@
 ---
 id: T-1369
-name: "docs/operations/agent-conversations.md — T-1365/1366/1367/1368 wave (threads, edits-of, forwards-of, topic-stats)"
+name: "docs/operations/agent-conversations.md — T-1365/1366/1367/1368 wave (threads,
+  edits-of, forwards-of, topic-stats)"
 description: >
   Documentation wave for the latest 4 agent-conversation deliverables —
   channel threads (T-1365), edits-of (T-1366), forwards-of (T-1367), and
@@ -11,13 +12,36 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [docs, agent-conversation, channel-cli]
 components: []
 related_tasks: [T-1365, T-1366, T-1367, T-1368, T-1364]
 created: 2026-04-28T10:33:00Z
-last_update: 2026-04-28T10:35:59Z
+last_update: '2026-08-18T18:58:49Z'
 date_finished: 2026-04-28T10:35:59Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:56Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=0
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:49Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 5
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=5 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1369: docs wave for T-1365..T-1368

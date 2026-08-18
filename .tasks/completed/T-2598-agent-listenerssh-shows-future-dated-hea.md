@@ -1,13 +1,27 @@
 ---
 id: T-2598
-name: "agent-listeners.sh shows future-dated heartbeat as LIVE forever (missing upper clock bound)"
+name: "agent-listeners.sh shows future-dated heartbeat as LIVE forever (missing upper
+  clock bound)"
 description: >
-  T-2468 verb-1 (discover) adversarial hunt (2026-08-10, CONFIRMED + self-verified). scripts/agent-listeners.sh ~284-291: heartbeats are filtered on msg_type+agent_id, grouped, max_by(.ts) per agent, then age=((now_ms-.ts)/1000)|floor and 'LIVE if age<=2*interval'. A FUTURE-dated ts (clock skew or corrupt final heartbeat) makes now_ms-.ts NEGATIVE -> negative age -> age<=2*interval trivially true -> the agent shows LIVE FOREVER in /peers, /agent-listeners, and (via merge) agent-listeners-fleet.sh. The Rust find_idle path already guards this (T-2536 future_cutoff_ms) and chat-arc-stats drops ts>now_ms (tools.rs:4029 'future-clock safety'), but this shell surface never got the guard -> discovery surfaces DISAGREE on the same agent; orchestrator dispatches work to a corpse /find-idle already retired. Violates 'no silent failures'. Fix: drop future-dated envelopes before group_by (add '(.ts // 0) <= $now_ms' to the heartbeat select) so max_by picks a valid recent envelope, or the agent falls to OFFLINE/absent. Mirrors T-2536. Load-bearing test via TERMLINK_LISTENERS_TEST_JSON seam: a future-dated heartbeat must NOT classify LIVE.
+  T-2468 verb-1 (discover) adversarial hunt (2026-08-10, CONFIRMED + self-verified).
+  scripts/agent-listeners.sh ~284-291: heartbeats are filtered on msg_type+agent_id,
+  grouped, max_by(.ts) per agent, then age=((now_ms-.ts)/1000)|floor and 'LIVE if
+  age<=2*interval'. A FUTURE-dated ts (clock skew or corrupt final heartbeat) makes
+  now_ms-.ts NEGATIVE -> negative age -> age<=2*interval trivially true -> the agent
+  shows LIVE FOREVER in /peers, /agent-listeners, and (via merge) agent-listeners-fleet.sh.
+  The Rust find_idle path already guards this (T-2536 future_cutoff_ms) and chat-arc-stats
+  drops ts>now_ms (tools.rs:4029 'future-clock safety'), but this shell surface never
+  got the guard -> discovery surfaces DISAGREE on the same agent; orchestrator dispatches
+  work to a corpse /find-idle already retired. Violates 'no silent failures'. Fix:
+  drop future-dated envelopes before group_by (add '(.ts // 0) <= $now_ms' to the
+  heartbeat select) so max_by picks a valid recent envelope, or the agent falls to
+  OFFLINE/absent. Mirrors T-2536. Load-bearing test via TERMLINK_LISTENERS_TEST_JSON
+  seam: a future-dated heartbeat must NOT classify LIVE.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [bug, verb1, silent-failure]
 components: []
 related_tasks: []
@@ -16,7 +30,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-10T20:21:13Z
-last_update: 2026-08-10T20:23:44Z
+last_update: '2026-08-18T18:59:13Z'
 date_finished: 2026-08-10T20:23:44Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +42,30 @@ date_finished: 2026-08-10T20:23:44Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:53Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:13Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2598: agent-listeners.sh shows future-dated heartbeat as LIVE forever (missing upper clock bound)

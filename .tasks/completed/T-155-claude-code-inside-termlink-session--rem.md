@@ -8,13 +8,36 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: [remote-access, claude-fw, observation]
 components: []
 related_tasks: [T-136, T-142, T-143, T-144]
 created: 2026-03-16T18:06:40Z
-last_update: 2026-03-17T11:37:25Z
+last_update: '2026-08-18T18:58:51Z'
 date_finished: 2026-03-17T11:37:25Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:02Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:51Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-155: Claude Code inside TermLink session — remote access to master session

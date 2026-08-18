@@ -2,18 +2,47 @@
 id: T-1231
 name: "T-1220 follow-up: extend list_with_fallback to accept authenticated Client"
 description: >
-  Refactor T-1225 inbox_channel helper so the dispatch body operates on `&mut Client` (works equally for unauth Unix/TCP and post-auth Client). Add public entry `list_with_fallback_with_client(client, host_port, target, cache, ctx)` for callers who already authenticated. Original `list_with_fallback(addr, ...)` becomes a thin wrapper. Unblocks T-1227 (CLI remote) and remote half of T-1228 (MCP).
+  Refactor T-1225 inbox_channel helper so the dispatch body operates on `&mut Client`
+  (works equally for unauth Unix/TCP and post-auth Client). Add public entry `list_with_fallback_with_client(client,
+  host_port, target, cache, ctx)` for callers who already authenticated. Original
+  `list_with_fallback(addr, ...)` becomes a thin wrapper. Unblocks T-1227 (CLI remote)
+  and remote half of T-1228 (MCP).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [T-1155, bus, migration, T-1220, T-1225-followup]
-components: [crates/termlink-mcp/src/tools.rs, crates/termlink-session/src/inbox_channel.rs]
+components: [crates/termlink-mcp/src/tools.rs, 
+      crates/termlink-session/src/inbox_channel.rs]
 related_tasks: [T-1220, T-1225, T-1227, T-1228]
 created: 2026-04-25T08:27:29Z
-last_update: 2026-04-25T08:33:32Z
+last_update: '2026-08-18T18:58:46Z'
 date_finished: 2026-04-25T08:33:32Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=1 (body:fix-without-learning); D2=0 (no-signal); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1231: extend list_with_fallback to accept authenticated Client

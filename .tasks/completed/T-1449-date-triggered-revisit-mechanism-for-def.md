@@ -2,18 +2,48 @@
 id: T-1449
 name: "Date-triggered revisit mechanism for DEFER inceptions and sentinel audits (G-053)"
 description: >
-  Inception: design how the framework structurally captures and surfaces 'when do we revisit this DEFER?' Currently sentinel tasks (T-1428 for T-1425) carry the date in description prose; nothing scans for it; if 2026-05-14 passes silently the deadline goes unnoticed. Five concrete deliverables on the table — need design choices before build: (1) revisit_at frontmatter field shape, (2) cron job that surfaces ripe revisits, (3) fw task revisit-due CLI, (4) backfill T-1428's ACs from prose recipe, (5) optional deferred-decisions.yaml register. Inception scope = decide the shape; build tasks land downstream.
+  Inception: design how the framework structurally captures and surfaces 'when do
+  we revisit this DEFER?' Currently sentinel tasks (T-1428 for T-1425) carry the date
+  in description prose; nothing scans for it; if 2026-05-14 passes silently the deadline
+  goes unnoticed. Five concrete deliverables on the table — need design choices before
+  build: (1) revisit_at frontmatter field shape, (2) cron job that surfaces ripe revisits,
+  (3) fw task revisit-due CLI, (4) backfill T-1428's ACs from prose recipe, (5) optional
+  deferred-decisions.yaml register. Inception scope = decide the shape; build tasks
+  land downstream.
 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: [framework, governance, deferred-decisions, sentinel, G-053]
 components: []
 related_tasks: [T-1425, T-1428, T-1448]
 created: 2026-05-02T21:47:02Z
-last_update: 2026-05-02T22:03:48Z
+last_update: '2026-08-18T18:58:50Z'
 date_finished: 2026-05-02T22:03:48Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1449: Date-triggered revisit mechanism for DEFER inceptions and sentinel audits (G-053)

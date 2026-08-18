@@ -1,22 +1,33 @@
 ---
 id: T-2355
-name: "Hub record-walk starvation: channel.subscribe/receipts blocking-I/O wedges under load (T-2258 class, ring20 G-157 seat)"
+name: "Hub record-walk starvation: channel.subscribe/receipts blocking-I/O wedges
+  under load (T-2258 class, ring20 G-157 seat)"
 description: >
-  The hub-side seat of the read-hang class T-2354 bounded client-side: handle_channel_subscribe_with / channel.receipts run blocking File::seek/read_exact per record on spawn_blocking (crates/termlink-hub/src/channel.rs:947-960 T-2258 note) — under concurrent large-topic walks the blocking pool starves and the walk never completes; observed live on .122 (channel info agent-chat-arc walk wedged >2m while list/subscribe-single-page stayed fast). Client now errors bounded (T-2354) but the walk still fails. Fix directions to evaluate: chunked/yielding walk (bounded records per spawn_blocking hop), per-request walk deadline server-side with partial-result or explicit error, or async file I/O. Also the true seat of ring20's G-157 (cross-host read deadlock) — reply with findings posted at DM offset 110, cid-g157-rootcause.
+  The hub-side seat of the read-hang class T-2354 bounded client-side: handle_channel_subscribe_with
+  / channel.receipts run blocking File::seek/read_exact per record on spawn_blocking
+  (crates/termlink-hub/src/channel.rs:947-960 T-2258 note) — under concurrent large-topic
+  walks the blocking pool starves and the walk never completes; observed live on .122
+  (channel info agent-chat-arc walk wedged >2m while list/subscribe-single-page stayed
+  fast). Client now errors bounded (T-2354) but the walk still fails. Fix directions
+  to evaluate: chunked/yielding walk (bounded records per spawn_blocking hop), per-request
+  walk deadline server-side with partial-result or explicit error, or async file I/O.
+  Also the true seat of ring20's G-157 (cross-host read deadlock) — reply with findings
+  posted at DM offset 110, cid-g157-rootcause.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-hub/src/channel.rs, crates/termlink-protocol/src/control.rs]
+components: [crates/termlink-hub/src/channel.rs, 
+      crates/termlink-protocol/src/control.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-04T13:45:10Z
-last_update: 2026-07-04T14:52:31Z
+last_update: '2026-08-18T18:59:08Z'
 date_finished: 2026-07-04T14:52:31Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +39,30 @@ date_finished: 2026-07-04T14:52:31Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:41Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 3
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=3 
+      (body:component-silent-failure); D3=2 (body:default-change); D4=2 
+      (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:08Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2355: Hub record-walk starvation: channel.subscribe/receipts blocking-I/O wedges under load (T-2258 class, ring20 G-157 seat)

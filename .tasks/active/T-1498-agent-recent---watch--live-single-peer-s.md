@@ -2,7 +2,11 @@
 id: T-1498
 name: "agent recent --watch — live single-peer streaming view"
 description: >
-  Add --watch flag to agent recent (T-1492) — symmetric to T-1494 (on-thread --watch) and T-1496 (overview --watch). Closes the watch trio: presence/on-thread/overview/recent all stream live. Single-peer streaming is the missing primitive for an operator who wants a live feed of one peer (e.g. babysitting a long-running build). Pure UX extension; underlying extract_recent_posts pure helper already shipped.
+  Add --watch flag to agent recent (T-1492) — symmetric to T-1494 (on-thread --watch)
+  and T-1496 (overview --watch). Closes the watch trio: presence/on-thread/overview/recent
+  all stream live. Single-peer streaming is the missing primitive for an operator
+  who wants a live feed of one peer (e.g. babysitting a long-running build). Pure
+  UX extension; underlying extract_recent_posts pure helper already shipped.
 
 status: work-completed
 workflow_type: build
@@ -12,8 +16,31 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T19:54:18Z
-last_update: 2026-05-04T20:08:00Z
+last_update: '2026-08-18T18:58:36Z'
 date_finished: 2026-05-04T20:08:00Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:29Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:36Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1498: agent recent --watch — live single-peer streaming view

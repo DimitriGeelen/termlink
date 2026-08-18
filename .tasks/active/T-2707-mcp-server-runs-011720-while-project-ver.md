@@ -2,7 +2,12 @@
 id: T-2707
 name: "MCP server runs 0.11.720 while project VERSION is 0.11.1231 (~500 commits stale)"
 description: >
-  termlink_doctor reports termlink-mcp 0.11.720; the project VERSION is 0.11.1231. Same repo and tag base, so these ARE comparable — the running MCP server predates every fix shipped this session (T-2679 kv bounds, T-2687 topics parity, T-2691 whoami probe, T-2697 inject status, T-2699 error codes). Agent-facing surface is serving stale behaviour: shipped-not-live (G-069) on the MCP tier, which preflight Check 5 covers for the hub but not for the MCP server.
+  termlink_doctor reports termlink-mcp 0.11.720; the project VERSION is 0.11.1231.
+  Same repo and tag base, so these ARE comparable — the running MCP server predates
+  every fix shipped this session (T-2679 kv bounds, T-2687 topics parity, T-2691 whoami
+  probe, T-2697 inject status, T-2699 error codes). Agent-facing surface is serving
+  stale behaviour: shipped-not-live (G-069) on the MCP tier, which preflight Check
+  5 covers for the hub but not for the MCP server.
 
 status: captured
 workflow_type: build
@@ -16,8 +21,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T15:11:10Z
-last_update: 2026-08-14T15:11:10Z
-date_finished: null
+last_update: '2026-08-18T18:58:40Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,6 +33,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=3 (body:portability-abstraction); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:40Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2707: MCP server runs 0.11.720 while project VERSION is 0.11.1231 (~500 commits stale)

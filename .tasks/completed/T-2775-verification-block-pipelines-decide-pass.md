@@ -1,13 +1,19 @@
 ---
 id: T-2775
-name: "Verification-block pipelines decide pass/fail by SIGPIPE, not by the check (L-613/PL-161 class)"
+name: "Verification-block pipelines decide pass/fail by SIGPIPE, not by the check
+  (L-613/PL-161 class)"
 description: >
-  update-task.sh runs each Verification line as 'if ( eval $cmd )' under 'set -euo pipefail', so 'cmd | grep -q PAT' exits 141 when grep matches early and SIGPIPEs the producer — the gate FAILS precisely when the check SUCCEEDS. Measured here: 61 active tasks carry 262 such lines (58% of all active verification commands). Reproduced under the exact gate construct. Cross-project confirmed by AEF L-613 and 050-email-archive PL-161.
+  update-task.sh runs each Verification line as 'if ( eval $cmd )' under 'set -euo
+  pipefail', so 'cmd | grep -q PAT' exits 141 when grep matches early and SIGPIPEs
+  the producer — the gate FAILS precisely when the check SUCCEEDS. Measured here:
+  61 active tasks carry 262 such lines (58% of all active verification commands).
+  Reproduced under the exact gate construct. Cross-project confirmed by AEF L-613
+  and 050-email-archive PL-161.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +22,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-16T19:50:37Z
-last_update: 2026-08-16T20:07:23Z
+last_update: '2026-08-18T18:59:16Z'
 date_finished: 2026-08-16T20:07:23Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +34,30 @@ date_finished: 2026-08-16T20:07:23Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:16Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2775: Verification-block pipelines decide pass/fail by SIGPIPE, not by the check (L-613/PL-161 class)

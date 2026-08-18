@@ -2,12 +2,23 @@
 id: T-2165
 name: "Substrate systemd templates doc — orchestrator + worker patterns"
 description: >
-  Author docs/operations/substrate-systemd.md — production systemd templates for substrate-orchestrator-loop.sh AND the worker-loop wrapper pattern. Operators currently have no copy-pasteable systemd surface for substrate components: listener-heartbeat-systemd.md exists for presence, but substrate-orchestrator-loop.sh (T-2148) and the worker-loop wrap pattern have no equivalent. Include: (1) .service template with the right Restart=, Environment= for TERMLINK_RUNTIME_DIR + TERMLINK_AGENT_ID + TERMLINK_CAPABILITIES, ExecStart pointing at the loop script, (2) note that T-2163 preflight gate's exit 4 interacts correctly with Restart=on-failure (loud restart-loop rather than silent wedge — exactly what you want from a misconfigured host), (3) worker-side pattern (a wrapping work-source / inbox-poll loop calling substrate-worker-loop.sh per claim adoption — DM-driven path from T-2148 orchestrator). Cross-link from substrate-getting-started.md References + substrate-tunables.md.
+  Author docs/operations/substrate-systemd.md — production systemd templates for substrate-orchestrator-loop.sh
+  AND the worker-loop wrapper pattern. Operators currently have no copy-pasteable
+  systemd surface for substrate components: listener-heartbeat-systemd.md exists for
+  presence, but substrate-orchestrator-loop.sh (T-2148) and the worker-loop wrap pattern
+  have no equivalent. Include: (1) .service template with the right Restart=, Environment=
+  for TERMLINK_RUNTIME_DIR + TERMLINK_AGENT_ID + TERMLINK_CAPABILITIES, ExecStart
+  pointing at the loop script, (2) note that T-2163 preflight gate's exit 4 interacts
+  correctly with Restart=on-failure (loud restart-loop rather than silent wedge —
+  exactly what you want from a misconfigured host), (3) worker-side pattern (a wrapping
+  work-source / inbox-poll loop calling substrate-worker-loop.sh per claim adoption
+  — DM-driven path from T-2148 orchestrator). Cross-link from substrate-getting-started.md
+  References + substrate-tunables.md.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [substrate, systemd, docs, T-2018]
 components: []
 related_tasks: []
@@ -16,7 +27,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-11T14:15:13Z
-last_update: 2026-06-11T14:19:22Z
+last_update: '2026-08-18T18:59:04Z'
 date_finished: 2026-06-11T14:19:22Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +39,30 @@ date_finished: 2026-06-11T14:19:22Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:31Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 4
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=4 
+      (body:framework-level-ux); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:04Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2165: Substrate systemd templates doc — orchestrator + worker patterns

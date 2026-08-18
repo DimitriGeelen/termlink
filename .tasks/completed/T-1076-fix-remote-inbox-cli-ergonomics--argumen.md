@@ -1,19 +1,44 @@
 ---
 id: T-1076
-name: "Fix remote inbox CLI ergonomics — argument ordering, missing default subcommand, option propagation"
+name: "Fix remote inbox CLI ergonomics — argument ordering, missing default subcommand,
+  option propagation"
 description: >
-  Fix remote inbox CLI ergonomics — argument ordering, missing default subcommand, option propagation
+  Fix remote inbox CLI ergonomics — argument ordering, missing default subcommand,
+  option propagation
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-04-16T04:37:59Z
-last_update: 2026-04-23T17:25:31Z
+last_update: '2026-08-18T18:58:43Z'
 date_finished: 2026-04-16T04:45:32Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:44Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=0
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:43Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 7
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1076: Fix remote inbox CLI ergonomics — argument ordering, missing default subcommand, option propagation

@@ -2,18 +2,46 @@
 id: T-1450
 name: "T-1428 AC backfill — extract audit recipe from prose into checkable ACs"
 description: >
-  T-1449 Phase 1 deliverable #4 (no-code wedge): T-1428 was created with empty placeholder ACs ([First criterion], [Second criterion]). The audit recipe lives only in the description prose. Extract the recipe into checkbox ACs so the 2026-05-14 audit fire is mechanically checkable, regardless of whether the structural surfacing mechanism (T-1450/1451/1452) lands by then. Single task-file edit, markdown only, no framework code, no Channel-1 mirror needed.
+  T-1449 Phase 1 deliverable #4 (no-code wedge): T-1428 was created with empty placeholder
+  ACs ([First criterion], [Second criterion]). The audit recipe lives only in the
+  description prose. Extract the recipe into checkbox ACs so the 2026-05-14 audit
+  fire is mechanically checkable, regardless of whether the structural surfacing mechanism
+  (T-1450/1451/1452) lands by then. Single task-file edit, markdown only, no framework
+  code, no Channel-1 mirror needed.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [framework, governance, T-1449, T-1428, phase-1]
 components: []
 related_tasks: [T-1449, T-1428, T-1425]
 created: 2026-05-02T22:20:35Z
-last_update: 2026-05-02T22:22:06Z
+last_update: '2026-08-18T18:58:50Z'
 date_finished: 2026-05-02T22:22:06Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 4
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=4 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1450: T-1428 AC backfill — extract audit recipe from prose into checkable ACs

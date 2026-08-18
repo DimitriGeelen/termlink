@@ -2,18 +2,46 @@
 id: T-1953
 name: "termlink_help: tool_detail surfaces parameter schemas (derive-not-hardcode)"
 description: >
-  Add a third extractor (parallel to tool_descriptions()) that regex-scans tools.rs to build {tool_name: [{param_name, type, optional, doc}]}. Surface in tool_detail JSON response as parameters: [...]. Closes the call-the-tool-correctly gap — LLMs no longer have to guess param shapes or invoke-to-error to learn them. Auto-covers all 252 tools, structurally maintained, no curation. T-1952 follow-up.
+  Add a third extractor (parallel to tool_descriptions()) that regex-scans tools.rs
+  to build {tool_name: [{param_name, type, optional, doc}]}. Surface in tool_detail
+  JSON response as parameters: [...]. Closes the call-the-tool-correctly gap — LLMs
+  no longer have to guess param shapes or invoke-to-error to learn them. Auto-covers
+  all 252 tools, structurally maintained, no curation. T-1952 follow-up.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T21:05:10Z
-last_update: 2026-06-03T21:13:36Z
+last_update: '2026-08-18T18:58:59Z'
 date_finished: 2026-06-03T21:17:30Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1953: termlink_help: tool_detail surfaces parameter schemas (derive-not-hardcode)

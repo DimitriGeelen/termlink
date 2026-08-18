@@ -1,13 +1,18 @@
 ---
 id: T-2358
-name: "Preflight Check 6: systemd unit health + pidfile-vs-MainPID ghost detection (G-070)"
+name: "Preflight Check 6: systemd unit health + pidfile-vs-MainPID ghost detection
+  (G-070)"
 description: >
-  G-070 prevention: substrate-preflight.sh gains Check 6 — when termlink-hub.service exists, WARN/FAIL if the unit is not active, if NRestarts exceeds threshold, or if the pidfile PID is alive but differs from the unit Main PID (detached-ghost, the T-2357 finding: 2178 silent restart failures while a detached hub held the pidfile). Same WARN/FAIL taxonomy + remediation-hint pattern as Checks 4/5.
+  G-070 prevention: substrate-preflight.sh gains Check 6 — when termlink-hub.service
+  exists, WARN/FAIL if the unit is not active, if NRestarts exceeds threshold, or
+  if the pidfile PID is alive but differs from the unit Main PID (detached-ghost,
+  the T-2357 finding: 2178 silent restart failures while a detached hub held the pidfile).
+  Same WARN/FAIL taxonomy + remediation-hint pattern as Checks 4/5.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [scripts/substrate-preflight.sh]
 related_tasks: []
@@ -16,7 +21,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-04T15:11:44Z
-last_update: 2026-07-04T21:38:15Z
+last_update: '2026-08-18T18:59:08Z'
 date_finished: 2026-07-04T21:38:15Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +33,30 @@ date_finished: 2026-07-04T21:38:15Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:41Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:08Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2358: Preflight Check 6: systemd unit health + pidfile-vs-MainPID ghost detection (G-070)

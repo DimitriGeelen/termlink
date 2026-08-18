@@ -1,19 +1,46 @@
 ---
 id: T-874
-name: "Extract format_age() to termlink-protocol shared crate — remove duplication between CLI and MCP"
+name: "Extract format_age() to termlink-protocol shared crate — remove duplication
+  between CLI and MCP"
 description: >
-  Extract format_age() to termlink-protocol shared crate — remove duplication between CLI and MCP
+  Extract format_age() to termlink-protocol shared crate — remove duplication between
+  CLI and MCP
 
 status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-cli/src/commands/session.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-protocol/src/lib.rs]
+components: [crates/termlink-cli/src/commands/session.rs, 
+      crates/termlink-mcp/src/tools.rs, crates/termlink-protocol/src/lib.rs]
 related_tasks: []
 created: 2026-04-04T22:56:29Z
-last_update: 2026-04-04T23:02:07Z
+last_update: '2026-08-18T18:59:22Z'
 date_finished: 2026-04-04T23:02:07Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:12Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=3 
+      (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:22Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 3
+      effort: 6
+    rationale: blast_radius=3 (no-signal); tier=3 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-874: Extract format_age() to termlink-protocol shared crate — remove duplication between CLI and MCP

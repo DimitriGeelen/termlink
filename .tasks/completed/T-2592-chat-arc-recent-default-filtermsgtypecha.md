@@ -2,12 +2,26 @@
 id: T-2592
 name: "chat-arc-recent default filter_msg_type=chat hides note/post content"
 description: >
-  scripts/agent-chat-arc-recent.sh defaults FILTER_MSG_TYPE='chat' and applies it as single-value equality (.msg_type == $mtype), so /recent-chat and the MCP wrapper termlink_agent_chat_arc_recent (default filter_msg_type='chat') default to showing ONLY chat-type posts — hiding all 'note' content (termlink_agent_post/agent_reply write note) and 'post' content from the default 'what's been said?' view. Same PL-316/T-2591 content-set class. The --all-msg-types escape hatch exists but disables the filter ENTIRELY (includes heartbeats/reactions/meta noise), so there is NO clean 'all content' view. FILED not auto-built (T-2468 boundary): changes the DEFAULT of a user-facing viewer AND a wire-facing MCP tool, and requires converting single-value equality to content-set membership {post,chat,note} while preserving --filter-msg-type <X> single-type narrowing and --all-msg-types (everything incl meta). Design: default=content-set, --filter-msg-type X = narrow to one type, --all-msg-types = no filter. Load-bearing test: a note post appears in default output. Touch both shell script AND tools.rs MCP wrapper default + its JSON tool schema/description. From T-2468 verb-2/reliability hunt (hunter LIKELY-BUG).
+  scripts/agent-chat-arc-recent.sh defaults FILTER_MSG_TYPE='chat' and applies it
+  as single-value equality (.msg_type == $mtype), so /recent-chat and the MCP wrapper
+  termlink_agent_chat_arc_recent (default filter_msg_type='chat') default to showing
+  ONLY chat-type posts — hiding all 'note' content (termlink_agent_post/agent_reply
+  write note) and 'post' content from the default 'what's been said?' view. Same PL-316/T-2591
+  content-set class. The --all-msg-types escape hatch exists but disables the filter
+  ENTIRELY (includes heartbeats/reactions/meta noise), so there is NO clean 'all content'
+  view. FILED not auto-built (T-2468 boundary): changes the DEFAULT of a user-facing
+  viewer AND a wire-facing MCP tool, and requires converting single-value equality
+  to content-set membership {post,chat,note} while preserving --filter-msg-type <X>
+  single-type narrowing and --all-msg-types (everything incl meta). Design: default=content-set,
+  --filter-msg-type X = narrow to one type, --all-msg-types = no filter. Load-bearing
+  test: a note post appears in default output. Touch both shell script AND tools.rs
+  MCP wrapper default + its JSON tool schema/description. From T-2468 verb-2/reliability
+  hunt (hunter LIKELY-BUG).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-mcp/src/tools.rs, scripts/agent-chat-arc-recent.sh]
 related_tasks: []
@@ -16,7 +30,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-10T19:36:32Z
-last_update: 2026-08-10T20:07:18Z
+last_update: '2026-08-18T18:59:13Z'
 date_finished: 2026-08-10T20:07:18Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +42,31 @@ date_finished: 2026-08-10T20:07:18Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:52Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 3
+      D3: 2
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=3 
+      (body:component-silent-failure); D3=2 (body:default-change); D4=3 
+      (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:13Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2592: chat-arc-recent default filter_msg_type=chat hides note/post content

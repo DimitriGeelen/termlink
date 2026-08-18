@@ -2,18 +2,42 @@
 id: T-168
 name: "File transfer via base64 chunked events"
 description: >
-  Implement file.send.init/chunk/complete event protocol for transferring files between machines via base64 chunked events. CLI commands: termlink file send/receive.
+  Implement file.send.init/chunk/complete event protocol for transferring files between
+  machines via base64 chunked events. CLI commands: termlink file send/receive.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [file-transfer, agent-comms]
 components: []
 related_tasks: []
 created: 2026-03-18T10:08:38Z
-last_update: 2026-03-18T19:14:53Z
+last_update: '2026-08-18T18:58:54Z'
 date_finished: 2026-03-18T18:31:32Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:08Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 4
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=4 
+      (body:cross-machine); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:54Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-168: File transfer via base64 chunked events

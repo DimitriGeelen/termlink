@@ -9,12 +9,12 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: [arc:arc-parallel-substrate]
 components: []
 related_tasks: [T-2018]
 created: 2026-06-07T11:36:24Z
-last_update: 2026-06-08T07:28:13Z
+last_update: '2026-08-18T18:59:00Z'
 date_finished: 2026-06-08T10:04:49Z
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -32,6 +32,28 @@ bvp_scores_proposed:
       D3: 2
       D4: 2
     rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal)
+    rubric_sha: missing
+  - ts: '2026-08-18T18:56:23Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 4
+      effort: 7
+    rationale: blast_radius=3 (no-signal); tier=4 (no-signal); effort=7 
       (no-signal)
     rubric_sha: missing
 ---

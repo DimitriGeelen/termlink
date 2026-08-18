@@ -2,18 +2,44 @@
 id: T-1847
 name: "termlink_fleet_adoption_snapshot MCP wrapper (T-1843 follow-on)"
 description: >
-  Add MCP tool wrapping scripts/fleet-adoption-snapshot.sh — agent-callable parity with termlink_agent_listeners_fleet (T-1839). Without this, MCP-side agents must shell out to inspect adoption_state.
+  Add MCP tool wrapping scripts/fleet-adoption-snapshot.sh — agent-callable parity
+  with termlink_agent_listeners_fleet (T-1839). Without this, MCP-side agents must
+  shell out to inspect adoption_state.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [doorbell-mail, mcp, adoption, t-1843-followon]
 components: [crates/termlink-mcp/src/tools.rs]
 related_tasks: []
 created: 2026-05-28T18:43:50Z
-last_update: 2026-05-28T18:46:24Z
+last_update: '2026-08-18T18:58:57Z'
 date_finished: 2026-05-28T18:46:24Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:16Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:57Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1847: termlink_fleet_adoption_snapshot MCP wrapper (T-1843 follow-on)

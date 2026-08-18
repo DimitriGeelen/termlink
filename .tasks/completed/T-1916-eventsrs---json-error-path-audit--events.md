@@ -1,19 +1,48 @@
 ---
 id: T-1916
-name: "inbox commands --json error-path — cmd_inbox_status/clear/list bail without honoring json_output (T-1915 sibling)"
+name: "inbox commands --json error-path — cmd_inbox_status/clear/list bail without
+  honoring json_output (T-1915 sibling)"
 description: >
-  Audit found events.rs already handles --json correctly at all 4 sites. Real bug is in infrastructure.rs cmd_inbox_status / cmd_inbox_clear / cmd_inbox_list — they take json_output: bool but bail with anyhow::bail!() on hub-down without checking the flag. T-1166 will retire these eventually, but until then `termlink inbox status --json | jq` is broken.
+  Audit found events.rs already handles --json correctly at all 4 sites. Real bug
+  is in infrastructure.rs cmd_inbox_status / cmd_inbox_clear / cmd_inbox_list — they
+  take json_output: bool but bail with anyhow::bail!() on hub-down without checking
+  the flag. T-1166 will retire these eventually, but until then `termlink inbox status
+  --json | jq` is broken.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-01T17:22:36Z
-last_update: 2026-06-01T17:22:36Z
+last_update: '2026-08-18T18:58:58Z'
 date_finished: 2026-06-01T17:47:22Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:19Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1916: events.rs --json error-path audit — events/emit_to/subscribe (T-1915 sibling)

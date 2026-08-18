@@ -7,13 +7,39 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/events.rs, crates/termlink-cli/src/commands/metadata.rs, crates/termlink-cli/src/main.rs]
+components: [crates/termlink-cli/src/cli.rs, 
+      crates/termlink-cli/src/commands/events.rs, 
+      crates/termlink-cli/src/commands/metadata.rs, 
+      crates/termlink-cli/src/main.rs]
 related_tasks: []
 created: 2026-03-28T15:49:53Z
-last_update: 2026-03-28T15:53:35Z
+last_update: '2026-08-18T18:59:18Z'
 date_finished: 2026-03-28T15:53:35Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:03Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:18Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 5
+      tier: 2
+      effort: 7
+    rationale: blast_radius=5 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-584: Add --timeout to kv and event emit/emit-to/broadcast

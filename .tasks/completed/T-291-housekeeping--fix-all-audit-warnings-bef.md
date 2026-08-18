@@ -7,13 +7,37 @@ description: >
 status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-26T11:04:11Z
-last_update: 2026-03-26T22:05:04Z
+last_update: '2026-08-18T18:59:17Z'
 date_finished: 2026-03-26T22:05:04Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:01Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 4
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=4 (body:fw-audit-or-doctor); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=2 (body:lightly-promoted); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 3
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=3 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-291: Housekeeping — fix all audit warnings before push to origin

@@ -1,19 +1,49 @@
 ---
 id: T-1809
-name: "Doorbell respond-mode signal — woken /check-arc must enter respond mode not browse"
+name: "Doorbell respond-mode signal — woken /check-arc must enter respond mode not
+  browse"
 description: >
-  G-b from T-1807: agent-send.sh injects /check-arc as the doorbell, but /check-arc defaults to read-only browse mode. A woken listener has no way to know it was rung by a peer (ack+reply) vs invoked manually (read-only), so a live claude reads the turn but never posts a receipt and the sender never sees DELIVERED. Add an explicit respond-mode signal (e.g. /check-arc --respond, or a distinct doorbell text the skill recognizes) so a woken listener auto-acks via agent-respond.sh. Blocks T-1810.
+  G-b from T-1807: agent-send.sh injects /check-arc as the doorbell, but /check-arc
+  defaults to read-only browse mode. A woken listener has no way to know it was rung
+  by a peer (ack+reply) vs invoked manually (read-only), so a live claude reads the
+  turn but never posts a receipt and the sender never sees DELIVERED. Add an explicit
+  respond-mode signal (e.g. /check-arc --respond, or a distinct doorbell text the
+  skill recognizes) so a woken listener auto-acks via agent-respond.sh. Blocks T-1810.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-25T20:16:19Z
-last_update: 2026-05-25T20:19:37Z
+last_update: '2026-08-18T18:58:56Z'
 date_finished: 2026-05-25T20:19:37Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:56Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1809: Doorbell respond-mode signal — woken /check-arc must enter respond mode not browse

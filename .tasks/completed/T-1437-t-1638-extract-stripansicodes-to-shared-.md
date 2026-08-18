@@ -7,13 +7,37 @@ description: >
 status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-session/src/governance_subscriber.rs, crates/termlink-session/src/handler.rs, crates/termlink-session/src/lib.rs]
+components: [crates/termlink-session/src/governance_subscriber.rs, 
+      crates/termlink-session/src/handler.rs, crates/termlink-session/src/lib.rs]
 related_tasks: []
 created: 2026-05-01T10:54:31Z
-last_update: 2026-05-01T10:58:42Z
+last_update: '2026-08-18T18:58:50Z'
 date_finished: 2026-05-01T10:58:42Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 3
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=3 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1437: T-1638 extract strip_ansi_codes to shared ansi module

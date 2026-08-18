@@ -1,19 +1,48 @@
 ---
 id: T-1877
-name: "Doc: canonical self-fp resolution recipe in operator runbook + e2e doc (PL-195 closure)"
+name: "Doc: canonical self-fp resolution recipe in operator runbook + e2e doc (PL-195
+  closure)"
 description: >
-  PL-195 fixed at 4 code sites (T-1874/1875/1876) but no doc tells operators or future arc-tool authors WHY whoami doesn't work and what the canonical path is. Add: (1) Failure-modes entry in doorbell-mail-operator-runbook.md describing the symptom and the channel-info path; (2) Short identity-resolution recipe in agent-conversations.md or arc-e2e.md for skill/script authors writing new arc tooling. Prevents the next PL-195 recurrence.
+  PL-195 fixed at 4 code sites (T-1874/1875/1876) but no doc tells operators or future
+  arc-tool authors WHY whoami doesn't work and what the canonical path is. Add: (1)
+  Failure-modes entry in doorbell-mail-operator-runbook.md describing the symptom
+  and the channel-info path; (2) Short identity-resolution recipe in agent-conversations.md
+  or arc-e2e.md for skill/script authors writing new arc tooling. Prevents the next
+  PL-195 recurrence.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-30T12:18:23Z
-last_update: 2026-05-30T12:20:13Z
+last_update: '2026-08-18T18:58:58Z'
 date_finished: 2026-05-30T12:20:13Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1877: Doc: canonical self-fp resolution recipe in operator runbook + e2e doc (PL-195 closure)

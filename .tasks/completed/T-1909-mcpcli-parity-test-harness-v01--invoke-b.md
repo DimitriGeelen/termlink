@@ -1,19 +1,45 @@
 ---
 id: T-1909
-name: "MCP/CLI parity test harness v0.1 — invoke both, diff outputs (T-1904 GO-PARITY primary follow-up)"
+name: "MCP/CLI parity test harness v0.1 — invoke both, diff outputs (T-1904 GO-PARITY
+  primary follow-up)"
 description: >
-  MCP/CLI parity test harness v0.1 — invoke both, diff outputs (T-1904 GO-PARITY primary follow-up)
+  MCP/CLI parity test harness v0.1 — invoke both, diff outputs (T-1904 GO-PARITY primary
+  follow-up)
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-test-utils/src/lib.rs]
 related_tasks: []
 created: 2026-06-01T10:27:30Z
-last_update: 2026-06-01T11:37:26Z
+last_update: '2026-08-18T18:58:58Z'
 date_finished: 2026-06-01T11:37:26Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:18Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=2 (body:lightly-promoted); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1909: MCP/CLI parity test harness v0.1 — invoke both, diff outputs (T-1904 GO-PARITY primary follow-up)

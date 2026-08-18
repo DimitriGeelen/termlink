@@ -2,18 +2,46 @@
 id: T-932
 name: "Hub SIGTERM handling — select! on ctrl_c + SignalKind::terminate"
 description: >
-  cmd_hub_start in crates/termlink-cli/src/commands/infrastructure.rs:56 only listens on tokio::signal::ctrl_c() which is SIGINT-only. SIGTERM from systemctl stop falls through without triggering handle.shutdown(), skipping clean-shutdown cleanup (socket/secret/pidfile removal). Fix: select! on ctrl_c + tokio::signal::unix::SignalKind::terminate(). Add unit test that spawns hub, sends SIGTERM, verifies runtime dir is cleaned. Unblocks removing KillSignal=SIGINT from T-931 unit file. From T-930 decomposition.
+  cmd_hub_start in crates/termlink-cli/src/commands/infrastructure.rs:56 only listens
+  on tokio::signal::ctrl_c() which is SIGINT-only. SIGTERM from systemctl stop falls
+  through without triggering handle.shutdown(), skipping clean-shutdown cleanup (socket/secret/pidfile
+  removal). Fix: select! on ctrl_c + tokio::signal::unix::SignalKind::terminate().
+  Add unit test that spawns hub, sends SIGTERM, verifies runtime dir is cleaned. Unblocks
+  removing KillSignal=SIGINT from T-931 unit file. From T-930 decomposition.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-cli/src/commands/infrastructure.rs]
 related_tasks: [T-930, T-931]
 created: 2026-04-11T22:29:21Z
-last_update: 2026-04-11T22:50:23Z
+last_update: '2026-08-18T18:59:23Z'
 date_finished: 2026-04-11T22:50:23Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:23Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 7
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-932: Hub SIGTERM handling — select! on ctrl_c + SignalKind::terminate

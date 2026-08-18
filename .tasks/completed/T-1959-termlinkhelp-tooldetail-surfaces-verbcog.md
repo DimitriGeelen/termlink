@@ -2,18 +2,48 @@
 id: T-1959
 name: "termlink_help tool_detail surfaces verb_cognates across categories"
 description: >
-  MCP client arc T-1959: T-1956's related_tools only surfaces siblings sharing the same first-3-segment prefix (intra-domain). An LLM landing on termlink_agent_post never learns about termlink_channel_post / termlink_broadcast — verb-cognate tools in different domains. Add verb_cognates field: tools sharing the LAST segment but a DIFFERENT first segment, capped at 5. When the verb family exceeds 5 (common verbs like _status, _list signaling low discriminative value), the field is omitted to avoid noise. related_tools (intra-domain) preserved unchanged.
+  MCP client arc T-1959: T-1956's related_tools only surfaces siblings sharing the
+  same first-3-segment prefix (intra-domain). An LLM landing on termlink_agent_post
+  never learns about termlink_channel_post / termlink_broadcast — verb-cognate tools
+  in different domains. Add verb_cognates field: tools sharing the LAST segment but
+  a DIFFERENT first segment, capped at 5. When the verb family exceeds 5 (common verbs
+  like _status, _list signaling low discriminative value), the field is omitted to
+  avoid noise. related_tools (intra-domain) preserved unchanged.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T21:54:35Z
-last_update: 2026-06-03T21:57:27Z
+last_update: '2026-08-18T18:58:59Z'
 date_finished: 2026-06-03T21:58:56Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:21Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1959: termlink_help tool_detail surfaces verb_cognates across categories

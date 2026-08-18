@@ -2,12 +2,17 @@
 id: T-2295
 name: "V3b: delivery-confirm by default + canary"
 description: >
-  RC3b fix. Flip T-2286 --await-ack to the DEFAULT for /agent-handoff, /reply, agent-send.sh; recipient sidecar (V3a) auto-acks, advancing the channel.receipts frontier. Add an unconfirmed-delivery canary: local sent-but-unconfirmed mirror made observable (kills the write-only-sink class, e.g. framework:pickup 36-sent/0-recv per G-063). ACs: default send confirms or fails LOUD (never silent 'sent'); recipient auto-ack wired; canary surfaces unconfirmed sends; /check-arc read emits a receipt.
+  RC3b fix. Flip T-2286 --await-ack to the DEFAULT for /agent-handoff, /reply, agent-send.sh;
+  recipient sidecar (V3a) auto-acks, advancing the channel.receipts frontier. Add
+  an unconfirmed-delivery canary: local sent-but-unconfirmed mirror made observable
+  (kills the write-only-sink class, e.g. framework:pickup 36-sent/0-recv per G-063).
+  ACs: default send confirms or fails LOUD (never silent 'sent'); recipient auto-ack
+  wired; canary surfaces unconfirmed sends; /check-arc read emits a receipt.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [arc:reliable-comms]
 components: []
 related_tasks: [T-2291, T-2294]
@@ -16,7 +21,7 @@ related_tasks: [T-2291, T-2294]
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-27T17:06:39Z
-last_update: 2026-06-28T09:41:05Z
+last_update: '2026-08-18T18:59:07Z'
 date_finished: 2026-06-28T09:41:05Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +33,31 @@ date_finished: 2026-06-28T09:41:05Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=2 
+      (body:telemetry-or-audit-entry); D3=2 (body:default-change); D4=2 
+      (body:env-class-handled); F-RECALL=2 (body:lightly-promoted); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:07Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2295: V3b: delivery-confirm by default + canary

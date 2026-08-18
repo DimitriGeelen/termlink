@@ -1,19 +1,46 @@
 ---
 id: T-1815
-name: "self-audit guard: framework bus bridges must not invoke retired termlink primitives (G-019 prevention for T-1814)"
+name: "self-audit guard: framework bus bridges must not invoke retired termlink primitives
+  (G-019 prevention for T-1814)"
 description: >
-  self-audit guard: framework bus bridges must not invoke retired termlink primitives (G-019 prevention for T-1814)
+  self-audit guard: framework bus bridges must not invoke retired termlink primitives
+  (G-019 prevention for T-1814)
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-25T22:19:03Z
-last_update: 2026-05-25T22:21:52Z
+last_update: '2026-08-18T18:58:56Z'
 date_finished: 2026-05-25T22:21:52Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 2
+      D3: 0
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=2 
+      (body:telemetry-or-audit-entry); D3=0 (no-signal); D4=2 
+      (body:env-class-handled); F-RECALL=2 (body:lightly-promoted); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:56Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1815: self-audit guard: framework bus bridges must not invoke retired termlink primitives (G-019 prevention for T-1814)

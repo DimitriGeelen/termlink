@@ -1,19 +1,45 @@
 ---
 id: T-1648
-name: "fleet doctor — suggest --bootstrap-from auto when profile declares it (T-1291 ergonomic follow-up)"
+name: "fleet doctor — suggest --bootstrap-from auto when profile declares it (T-1291
+  ergonomic follow-up)"
 description: >
-  fleet doctor — suggest --bootstrap-from auto when profile declares it (T-1291 ergonomic follow-up)
+  fleet doctor — suggest --bootstrap-from auto when profile declares it (T-1291 ergonomic
+  follow-up)
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [auth, fleet, ergonomic]
 components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: [T-1291, T-1054, T-1055, T-1051]
 created: 2026-05-16T21:21:59Z
-last_update: 2026-05-16T21:34:15Z
+last_update: '2026-08-18T18:58:53Z'
 date_finished: 2026-05-16T21:34:15Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:07Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:53Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1648: fleet doctor — suggest --bootstrap-from auto when profile declares it (T-1291 ergonomic follow-up)

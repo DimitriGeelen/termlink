@@ -1,19 +1,50 @@
 ---
 id: T-1169
-name: "Pickup to framework: multi-agent dispatch safety model (isolation + coordination for parallel agent work)"
+name: "Pickup to framework: multi-agent dispatch safety model (isolation + coordination
+  for parallel agent work)"
 description: >
-  Formulate and deliver an inception-pickup proposal to the framework: a structural safety model for dispatching multiple agents to work concurrently on a single repo. Today's dispatch primitive (termlink_dispatch / fw dispatch) is solid for investigation + scope-writing but unsafe for concurrent code edits — no worktree isolation, no touches/conflicts metadata on tasks, no dispatch-gate that refuses unsafe parallel runs. Proposal composes on T-789 (worktree isolation) + T-914/T-916 (dispatch reliability) + T-1155 bus decision. Not asking framework to implement — asking them to open an inception that scopes the primitives.
+  Formulate and deliver an inception-pickup proposal to the framework: a structural
+  safety model for dispatching multiple agents to work concurrently on a single repo.
+  Today's dispatch primitive (termlink_dispatch / fw dispatch) is solid for investigation
+  + scope-writing but unsafe for concurrent code edits — no worktree isolation, no
+  touches/conflicts metadata on tasks, no dispatch-gate that refuses unsafe parallel
+  runs. Proposal composes on T-789 (worktree isolation) + T-914/T-916 (dispatch reliability)
+  + T-1155 bus decision. Not asking framework to implement — asking them to open an
+  inception that scopes the primitives.
 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: [pickup, framework, dispatch, multi-agent, worktree, T-789, T-1155]
 components: []
 related_tasks: []
 created: 2026-04-20T18:56:49Z
-last_update: 2026-04-22T04:47:46Z
+last_update: '2026-08-18T18:58:45Z'
 date_finished: 2026-04-20T19:02:10Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:48Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1169: Pickup to framework: multi-agent dispatch safety model (isolation + coordination for parallel agent work)

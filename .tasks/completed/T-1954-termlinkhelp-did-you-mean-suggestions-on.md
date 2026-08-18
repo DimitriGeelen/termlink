@@ -2,18 +2,46 @@
 id: T-1954
 name: "termlink_help: did-you-mean suggestions on unknown tool / unknown category"
 description: >
-  When tool_detail or category receives an unknown name, return a did_you_mean array of nearest matches (substring overlap + Levenshtein distance). Closes the self-correcting-error gap: LLM consumers fix typos and near-misses in one round-trip instead of falling back to list_categories or name_filter. Tiny slice, high LLM ergonomics gain. T-1953 follow-up.
+  When tool_detail or category receives an unknown name, return a did_you_mean array
+  of nearest matches (substring overlap + Levenshtein distance). Closes the self-correcting-error
+  gap: LLM consumers fix typos and near-misses in one round-trip instead of falling
+  back to list_categories or name_filter. Tiny slice, high LLM ergonomics gain. T-1953
+  follow-up.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T21:15:54Z
-last_update: 2026-06-03T21:20:55Z
+last_update: '2026-08-18T18:58:59Z'
 date_finished: 2026-06-03T21:23:29Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=3 (body:portability-abstraction); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1954: termlink_help: did-you-mean suggestions on unknown tool / unknown category

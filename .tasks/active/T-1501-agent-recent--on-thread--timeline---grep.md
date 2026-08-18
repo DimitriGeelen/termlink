@@ -2,7 +2,11 @@
 id: T-1501
 name: "agent recent / on-thread / timeline --grep — content substring filter"
 description: >
-  Add --grep <pattern> filter to extract_recent_posts: case-insensitive substring match against post content. AND-composes with existing peer/thread/project/msg-type filters. Threaded through cmd_agent_recent + cmd_agent_on_thread + cmd_agent_timeline. Pure helper change with new unit tests. Operator can grep the chat-arc for any phrase or task-id mention.
+  Add --grep <pattern> filter to extract_recent_posts: case-insensitive substring
+  match against post content. AND-composes with existing peer/thread/project/msg-type
+  filters. Threaded through cmd_agent_recent + cmd_agent_on_thread + cmd_agent_timeline.
+  Pure helper change with new unit tests. Operator can grep the chat-arc for any phrase
+  or task-id mention.
 
 status: work-completed
 workflow_type: build
@@ -12,8 +16,31 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-04T21:46:00Z
-last_update: 2026-05-04T22:01:55Z
+last_update: '2026-08-18T18:58:36Z'
 date_finished: 2026-05-04T22:08:00Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:29Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:36Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1501: agent recent / on-thread / timeline --grep — content substring filter

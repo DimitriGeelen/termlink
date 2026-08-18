@@ -2,18 +2,46 @@
 id: T-1989
 name: "PL-200 closure on .121 ring20-dashboard (T-1988 sibling)"
 description: >
-  T-1988 closed PL-200 on .141 + validated .122 end-to-end. Fleet listener walk shows ring20-dashboard (.121) still has zero presence-emitter entries — same PL-200 gap as .141. Install presence-heartbeat cron on .121 following the T-1988 PL-146-aware recipe. Verify ring20-dashboard-agent appears LIVE in fleet. Tags: pl-200, ring20-dashboard, doorbell-mail.
+  T-1988 closed PL-200 on .141 + validated .122 end-to-end. Fleet listener walk shows
+  ring20-dashboard (.121) still has zero presence-emitter entries — same PL-200 gap
+  as .141. Install presence-heartbeat cron on .121 following the T-1988 PL-146-aware
+  recipe. Verify ring20-dashboard-agent appears LIVE in fleet. Tags: pl-200, ring20-dashboard,
+  doorbell-mail.
 
 status: work-completed
 workflow_type: test
 owner: agent
-horizon: null
+horizon:
 tags: [pl-200, doorbell-mail, ring20]
 components: []
 related_tasks: []
 created: 2026-06-04T20:15:20Z
-last_update: 2026-06-04T20:16:25Z
+last_update: '2026-08-18T18:59:00Z'
 date_finished: 2026-06-04T20:26:32Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:22Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 1
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=1 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1989: PL-200 closure on .121 ring20-dashboard (T-1988 sibling)

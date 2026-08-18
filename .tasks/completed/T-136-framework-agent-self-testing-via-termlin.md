@@ -9,13 +9,36 @@ description: >
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: [framework, self-test, agent-autonomy]
 components: []
 related_tasks: [T-121, T-011, T-100]
 created: 2026-03-14T16:38:43Z
-last_update: 2026-03-16T07:46:45Z
+last_update: '2026-08-18T18:58:48Z'
 date_finished: 2026-03-16T07:46:45Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:55Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:48Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-136: Framework agent self-testing via TermLink — spawn, observe, fix loop

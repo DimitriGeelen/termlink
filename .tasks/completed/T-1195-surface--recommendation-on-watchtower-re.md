@@ -2,18 +2,47 @@
 id: T-1195
 name: "Surface ## Recommendation on Watchtower /review/T-XXX page (fw task review)"
 description: >
-  review.py (176 LoC) parses Human ACs, pending Tier 0, artifacts — but never touches the ## Recommendation section from the task body. review.html (284 LoC) has no recommendation rendering block. Result: human scanning a QR to review an inception sees the approval button but not the recommendation they're approving. Separate from T-939 (/approvals page — already shows recs). Fix: add _parse_recommendation helper in review.py, pass to template, render above the Tier 0 approval block. Mirror upstream via Channel 1.
+  review.py (176 LoC) parses Human ACs, pending Tier 0, artifacts — but never touches
+  the ## Recommendation section from the task body. review.html (284 LoC) has no recommendation
+  rendering block. Result: human scanning a QR to review an inception sees the approval
+  button but not the recommendation they're approving. Separate from T-939 (/approvals
+  page — already shows recs). Fix: add _parse_recommendation helper in review.py,
+  pass to template, render above the Tier 0 approval block. Mirror upstream via Channel
+  1.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [framework, watchtower, ui, structural-fix]
 components: []
 related_tasks: [T-939, T-1192, T-1194]
 created: 2026-04-22T22:04:41Z
-last_update: 2026-04-22T22:08:18Z
+last_update: '2026-08-18T18:58:45Z'
 date_finished: 2026-04-22T22:08:18Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:49Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1195: Surface ## Recommendation on Watchtower /review/T-XXX page (fw task review)

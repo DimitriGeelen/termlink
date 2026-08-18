@@ -1,19 +1,45 @@
 ---
 id: T-1872
-name: "chat-arc-recent: fallback to cursor-0 subscribe when channel info times out (PL-194 mitigation)"
+name: "chat-arc-recent: fallback to cursor-0 subscribe when channel info times out
+  (PL-194 mitigation)"
 description: >
-  chat-arc-recent: fallback to cursor-0 subscribe when channel info times out (PL-194 mitigation)
+  chat-arc-recent: fallback to cursor-0 subscribe when channel info times out (PL-194
+  mitigation)
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [scripts/agent-chat-arc-recent.sh]
 related_tasks: [T-1870, T-1871, T-1851]
 created: 2026-05-30T06:41:36Z
-last_update: 2026-05-30T06:49:36Z
+last_update: '2026-08-18T18:58:58Z'
 date_finished: 2026-05-30T06:49:36Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1872: chat-arc-recent: fallback to cursor-0 subscribe when channel info times out (PL-194 mitigation)

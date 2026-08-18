@@ -2,18 +2,47 @@
 id: T-1211
 name: "Build Stop-hook nudge script (T-1207 follow-up)"
 description: >
-  Implement the Stop hook per T-1207 GO: framework-side agents/context/stop-guard.sh that reads .tool-counter + .last-commit-hash + focus.yaml, counts exchanges since last productive signal, and emits stderr nudge at N=15 with 0 tools AND 0 commits AND no focus. Non-blocking (exit 0). Wire in consumer .claude/settings.json. Agent owns the y/n user prompt; dismissal writes .context/working/.stop-dismissed-at-N. See docs/reports/T-1207-stop-hook-inception.md for design.
+  Implement the Stop hook per T-1207 GO: framework-side agents/context/stop-guard.sh
+  that reads .tool-counter + .last-commit-hash + focus.yaml, counts exchanges since
+  last productive signal, and emits stderr nudge at N=15 with 0 tools AND 0 commits
+  AND no focus. Non-blocking (exit 0). Wire in consumer .claude/settings.json. Agent
+  owns the y/n user prompt; dismissal writes .context/working/.stop-dismissed-at-N.
+  See docs/reports/T-1207-stop-hook-inception.md for design.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [hook, governance, framework-bridge]
 components: []
 related_tasks: [T-1207, T-173]
 created: 2026-04-24T10:04:49Z
-last_update: 2026-04-27T15:32:10Z
+last_update: '2026-08-18T18:58:46Z'
 date_finished: 2026-04-25T21:53:15Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 1
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=2 (body:lightly-promoted); F-ORCH=1 
+      (body:hand-wired-dispatch)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1211: Build Stop-hook nudge script (T-1207 follow-up)

@@ -2,18 +2,42 @@
 id: T-1043
 name: "Add CLI tests for info and exec error paths"
 description: >
-  Add CLI integration tests for info on nonexistent session and exec on nonexistent session. Quick error-path coverage.
+  Add CLI integration tests for info on nonexistent session and exec on nonexistent
+  session. Quick error-path coverage.
 
 status: work-completed
 workflow_type: test
 owner: human
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-cli/tests/cli_integration.rs]
 related_tasks: []
 created: 2026-04-13T22:15:21Z
-last_update: 2026-04-23T16:56:24Z
+last_update: '2026-08-18T18:58:42Z'
 date_finished: 2026-04-23T16:54:22Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:43Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 1
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=0
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=1 (body:hand-wired-dispatch)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 1
+      effort: 5
+    rationale: blast_radius=1 (no-signal); tier=1 (no-signal); effort=5 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1043: Add CLI tests for info and exec error paths

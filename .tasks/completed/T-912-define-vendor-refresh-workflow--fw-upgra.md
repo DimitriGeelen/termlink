@@ -2,18 +2,46 @@
 id: T-912
 name: "Define vendor-refresh workflow — fw upgrade from consumer re-syncs framework"
 description: >
-  Follow-up from T-909. After a consumer project vendors its framework via fw vendor, subsequent fw upgrade from that consumer becomes a no-op (or worse: upgrades the vendored copy from itself). Need a workflow where fw upgrade from a consumer project either (a) re-runs fw vendor from the live framework source, or (b) runs a git-like pull from the framework repo into the vendored copy. Scope: decide which pattern, prototype, document.
+  Follow-up from T-909. After a consumer project vendors its framework via fw vendor,
+  subsequent fw upgrade from that consumer becomes a no-op (or worse: upgrades the
+  vendored copy from itself). Need a workflow where fw upgrade from a consumer project
+  either (a) re-runs fw vendor from the live framework source, or (b) runs a git-like
+  pull from the framework repo into the vendored copy. Scope: decide which pattern,
+  prototype, document.
 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: [infrastructure, vendor, upgrade, workflow]
 components: []
 related_tasks: []
 created: 2026-04-11T12:28:41Z
-last_update: 2026-04-22T10:20:56Z
+last_update: '2026-08-18T18:59:23Z'
 date_finished: 2026-04-12T11:41:27Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:13Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:23Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-912: Define vendor-refresh workflow — fw upgrade from consumer re-syncs framework

@@ -2,18 +2,44 @@
 id: T-1165
 name: "T-1155/8 Build shell pickup → channel bridge adapter"
 description: >
-  Keep framework-side pickup portability (shell-based, 442-line lib/pickup.sh). Add one adapter that reads pickup YAML envelopes and posts them to a 'pickup:' channel. New projects can post direct; legacy pickup still works. Per T-1155 S-5 phase 3.
+  Keep framework-side pickup portability (shell-based, 442-line lib/pickup.sh). Add
+  one adapter that reads pickup YAML envelopes and posts them to a 'pickup:' channel.
+  New projects can post direct; legacy pickup still works. Per T-1155 S-5 phase 3.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [T-1155, bus, pickup, framework-bridge]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:17Z
-last_update: 2026-04-24T12:16:49Z
+last_update: '2026-08-18T18:58:45Z'
 date_finished: 2026-04-24T12:16:49Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:48Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 4
+      F-RECALL: 2
+      F-ORCH: 1
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=4 
+      (body:cross-machine); F-RECALL=2 (body:lightly-promoted); F-ORCH=1 
+      (body:hand-wired-dispatch)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1165: T-1155/8 Build shell pickup → channel bridge adapter

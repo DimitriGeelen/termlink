@@ -1,19 +1,47 @@
 ---
 id: T-1638
-name: "Re-vendor framework to pick up T-1822/T-1823/T-1824/T-1825 fixes from upstream (response to framework-agent fix.shipped batch)"
+name: "Re-vendor framework to pick up T-1822/T-1823/T-1824/T-1825 fixes from upstream
+  (response to framework-agent fix.shipped batch)"
 description: >
-  Re-vendor framework to pick up T-1822/T-1823/T-1824/T-1825 fixes from upstream (response to framework-agent fix.shipped batch)
+  Re-vendor framework to pick up T-1822/T-1823/T-1824/T-1825 fixes from upstream (response
+  to framework-agent fix.shipped batch)
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-session/src/ansi.rs, crates/termlink-session/src/governance_subscriber.rs, crates/termlink-session/src/handler.rs, crates/termlink-session/src/lib.rs]
+components: [crates/termlink-session/src/ansi.rs, 
+      crates/termlink-session/src/governance_subscriber.rs, 
+      crates/termlink-session/src/handler.rs, crates/termlink-session/src/lib.rs]
 related_tasks: []
 created: 2026-05-14T15:52:32Z
-last_update: 2026-05-15T12:40:40Z
+last_update: '2026-08-18T18:58:53Z'
 date_finished: 2026-05-15T12:40:40Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:06Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 4
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=1 (body:fix-without-learning); D2=4 (body:fw-audit-or-doctor);
+      D3=0 (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:53Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 5
+      tier: 2
+      effort: 8
+    rationale: blast_radius=5 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1638: Re-vendor framework to pick up T-1822/T-1823/T-1824/T-1825 fixes from upstream (response to framework-agent fix.shipped batch)

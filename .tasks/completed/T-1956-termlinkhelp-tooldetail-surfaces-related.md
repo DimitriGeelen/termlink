@@ -2,18 +2,46 @@
 id: T-1956
 name: "termlink_help: tool_detail surfaces related_tools (same name-prefix family)"
 description: >
-  When tool_detail returns a tool, also include related_tools[] — other tool names sharing the first 2-3 underscore segments. E.g., termlink_agent_react surfaces siblings termlink_agent_reactions, termlink_agent_react_*. Closes the workflow-continuity gap: LLMs see the verb family without a second category lookup. Derive-not-hardcode (no curation). T-1955 follow-up.
+  When tool_detail returns a tool, also include related_tools[] — other tool names
+  sharing the first 2-3 underscore segments. E.g., termlink_agent_react surfaces siblings
+  termlink_agent_reactions, termlink_agent_react_*. Closes the workflow-continuity
+  gap: LLMs see the verb family without a second category lookup. Derive-not-hardcode
+  (no curation). T-1955 follow-up.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T21:27:57Z
-last_update: 2026-06-03T21:30:14Z
+last_update: '2026-08-18T18:58:59Z'
 date_finished: 2026-06-03T21:32:00Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=3 (body:portability-abstraction); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1956: termlink_help: tool_detail surfaces related_tools (same name-prefix family)

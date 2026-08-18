@@ -1,17 +1,41 @@
 ---
 id: T-940
 name: "RCA: Unify termlink runtime dir — split-brain blocks cross-host session discovery"
-description: "RCA: Unify termlink runtime dir — split-brain blocks cross-host session discovery — see body for context."
+description: "RCA: Unify termlink runtime dir — split-brain blocks cross-host session
+  discovery — see body for context."
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: [termlink, systemd, runtime-dir, cross-host, rca]
 components: []
 related_tasks: [T-931, T-933, T-936]
 created: 2026-04-12T07:43:43Z
-last_update: 2026-04-23T19:30:28Z
+last_update: '2026-08-18T18:59:23Z'
 date_finished: 2026-04-12T07:49:57Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:14Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:23Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 ## Problem Context

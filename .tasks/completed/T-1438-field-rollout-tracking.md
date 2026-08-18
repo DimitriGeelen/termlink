@@ -15,13 +15,40 @@ description: >
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
-components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs, scripts/chat-arc-multicast.sh]
+components: [crates/termlink-cli/src/cli.rs, 
+      crates/termlink-cli/src/commands/agent.rs, 
+      crates/termlink-cli/src/commands/channel.rs, 
+      crates/termlink-cli/src/main.rs, scripts/chat-arc-multicast.sh]
 related_tasks: []
 created: 2026-05-01T12:03:44Z
-last_update: 2026-05-03T08:14:04Z
+last_update: '2026-08-18T18:58:50Z'
 date_finished: 2026-05-03T08:14:04Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (body:wrap-phrase-without-substrate)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:50Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 5
+      tier: 2
+      effort: 8
+    rationale: blast_radius=5 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1438: field-rollout-tracking

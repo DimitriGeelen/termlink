@@ -2,18 +2,45 @@
 id: T-1941
 name: "termlink_help phantom audit — drop 2 dead entries + add regression test"
 description: >
-  Two help-registry entries reference tools that do not exist as real MCP tools — LLM consumers calling them get tool-not-found errors. Drop the phantoms and add a unit test that walks the registry against the real tool name table so this class of bug cannot recur.
+  Two help-registry entries reference tools that do not exist as real MCP tools —
+  LLM consumers calling them get tool-not-found errors. Drop the phantoms and add
+  a unit test that walks the registry against the real tool name table so this class
+  of bug cannot recur.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-03T15:40:30Z
-last_update: 2026-06-03T15:46:29Z
+last_update: '2026-08-18T18:58:59Z'
 date_finished: 2026-06-03T15:50:12Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 5
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=5 (body:silent-class-removed); 
+      D3=0 (no-signal); D4=3 (body:portability-abstraction); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1941: termlink_help phantom audit — drop 2 dead entries + add regression test

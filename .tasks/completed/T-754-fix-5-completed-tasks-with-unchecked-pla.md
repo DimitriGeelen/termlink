@@ -1,19 +1,44 @@
 ---
 id: T-754
-name: "Fix 5 completed tasks with unchecked placeholder ACs (T-599, T-684, T-697, T-709, T-744)"
+name: "Fix 5 completed tasks with unchecked placeholder ACs (T-599, T-684, T-697,
+  T-709, T-744)"
 description: >
-  Fix 5 completed tasks with unchecked placeholder ACs (T-599, T-684, T-697, T-709, T-744)
+  Fix 5 completed tasks with unchecked placeholder ACs (T-599, T-684, T-697, T-709,
+  T-744)
 
 status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-29T18:50:05Z
-last_update: 2026-03-29T18:51:52Z
+last_update: '2026-08-18T18:59:20Z'
 date_finished: 2026-03-29T18:51:52Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:08Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 3
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=3 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-754: Fix 5 completed tasks with unchecked placeholder ACs (T-599, T-684, T-697, T-709, T-744)

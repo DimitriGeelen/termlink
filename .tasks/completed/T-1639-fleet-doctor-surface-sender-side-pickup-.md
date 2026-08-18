@@ -2,18 +2,50 @@
 id: T-1639
 name: "fleet doctor: surface sender-side pickup-queue stall (T-1827 follow-up)"
 description: >
-  Framework-agent T-1827 offset-14 follow-up. When termlink-agent posts to framework:pickup, the local hub returns offset+ts immediately but the message can sit queued (the offset-9/10/12 stretch took ~19h to surface to framework-agent on same local hub). fleet doctor currently shows hub health (reachable, version, latency) but NOT sender-side queue depth or stall age. Operator and agent both blind to outbound queue stalls until destination acks. Ask: add a queue-status block to fleet doctor that surfaces per-topic outbound-queue depth, oldest-unacked-age, and last-acked offset. Threshold-warn when oldest-unacked-age > 5min. Out of scope: fixing the queue stall itself — that's a different issue. This task is the visibility layer.
+  Framework-agent T-1827 offset-14 follow-up. When termlink-agent posts to framework:pickup,
+  the local hub returns offset+ts immediately but the message can sit queued (the
+  offset-9/10/12 stretch took ~19h to surface to framework-agent on same local hub).
+  fleet doctor currently shows hub health (reachable, version, latency) but NOT sender-side
+  queue depth or stall age. Operator and agent both blind to outbound queue stalls
+  until destination acks. Ask: add a queue-status block to fleet doctor that surfaces
+  per-topic outbound-queue depth, oldest-unacked-age, and last-acked offset. Threshold-warn
+  when oldest-unacked-age > 5min. Out of scope: fixing the queue stall itself — that's
+  a different issue. This task is the visibility layer.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [ops, fleet-doctor, visibility, arc:queue-health]
 components: [crates/termlink-cli/src/commands/remote.rs]
 related_tasks: []
 created: 2026-05-15T07:18:00Z
-last_update: 2026-05-15T07:47:48Z
+last_update: '2026-08-18T18:58:53Z'
 date_finished: 2026-05-15T07:47:48Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:06Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:53Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1639: fleet doctor: surface sender-side pickup-queue stall (T-1827 follow-up)

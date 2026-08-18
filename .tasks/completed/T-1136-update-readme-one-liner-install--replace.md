@@ -1,19 +1,48 @@
 ---
 id: T-1136
-name: "Update README one-liner install — replace 'cargo install --git' hint with install.sh curl-pipe (from T-1070 GO)"
+name: "Update README one-liner install — replace 'cargo install --git' hint with install.sh
+  curl-pipe (from T-1070 GO)"
 description: >
-  From T-1070 inception GO. README currently points consumers to 'brew install termlink' (macOS-centric) or 'cargo install --git' (requires toolchain — the failure mode for LXCs). After T-1070-install-sh lands, update README Install section to lead with the curl-pipe one-liner (cross-platform, no toolchain). Keep brew as the macOS preferred path, cargo as the 'from source' path, but de-emphasize. Small, text-only change that consolidates the install UX behind the bootstrap script.
+  From T-1070 inception GO. README currently points consumers to 'brew install termlink'
+  (macOS-centric) or 'cargo install --git' (requires toolchain — the failure mode
+  for LXCs). After T-1070-install-sh lands, update README Install section to lead
+  with the curl-pipe one-liner (cross-platform, no toolchain). Keep brew as the macOS
+  preferred path, cargo as the 'from source' path, but de-emphasize. Small, text-only
+  change that consolidates the install UX behind the bootstrap script.
 
 status: work-completed
 workflow_type: build
 owner: human
-horizon: null
+horizon:
 tags: [readme, docs, ux, T-1070]
 components: []
 related_tasks: []
 created: 2026-04-18T23:02:47Z
-last_update: 2026-04-23T17:26:26Z
+last_update: '2026-08-18T18:58:44Z'
 date_finished: 2026-04-19T13:56:06Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:46Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=2
+      (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:44Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1136: Update README one-liner install — replace 'cargo install --git' hint with install.sh curl-pipe (from T-1070 GO)

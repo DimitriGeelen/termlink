@@ -2,7 +2,9 @@
 id: T-2402
 name: "Woken-but-silent: make a rung-yet-unanswered agent loud + self-healing"
 description: >
-  Push-waker rings PTY once on dm.queued; a rung agent that does not reply is invisible (no re-ring, no operator signal). Demo T-2400: rang wfd offset=7, silent 15min. Explore re-ring-on-no-receipt / awaiting-ack registration / woken-but-silent surface.
+  Push-waker rings PTY once on dm.queued; a rung agent that does not reply is invisible
+  (no re-ring, no operator signal). Demo T-2400: rang wfd offset=7, silent 15min.
+  Explore re-ring-on-no-receipt / awaiting-ack registration / woken-but-silent surface.
 
 status: work-completed
 workflow_type: build
@@ -13,7 +15,7 @@ components: []
 arc_id: comms-loudness              # arc-007 (T-2425 R2-GAP-C re-home)
 related_tasks: []
 created: 2026-07-11T07:37:06Z
-last_update: 2026-07-11T12:08:32Z
+last_update: '2026-08-18T18:58:38Z'
 date_finished: 2026-07-11T12:08:32Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -23,6 +25,30 @@ target_blast_radius: 3            # int 0..9. Anticipated component count of the
                                   # Guide: 0=docs only, 1=single file, 3=small subsystem (S), 5=cross-subsystem (M), 7=multi-arc (L), 9=framework-wide (XL).
 voi_score: 0.5                    # float 0..1. Value of Information — expected value of resolving this question,
                                   # independent of build cost. Higher when answer affects many tasks or unblocks a strategic decision. Required.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:33Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 3
+      F-ORCH: 0
+    rationale: D1=1 (body:fix-without-learning); D2=0 (no-signal); D3=0 
+      (no-signal); D4=2 (body:env-class-handled); F-RECALL=3 
+      (body:fw-recall-or-memory-link); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2402: Woken-but-silent: make a rung-yet-unanswered agent loud + self-healing

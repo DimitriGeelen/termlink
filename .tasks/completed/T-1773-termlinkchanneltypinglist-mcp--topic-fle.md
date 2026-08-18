@@ -2,18 +2,45 @@
 id: T-1773
 name: "termlink_channel_typing_list MCP — topic-flexible active typers"
 description: >
-  Port CLI cmd_channel_typing_list (channel.rs:3406) to MCP. Topic-flexible variant of termlink_agent_typers (hardcoded chat-arc). Reuses existing compute_active_typers_mcp helper. Read companion to MCP-side typing-emit (T-1731 covered emit on chat-arc only; typing_list now covers any topic).
+  Port CLI cmd_channel_typing_list (channel.rs:3406) to MCP. Topic-flexible variant
+  of termlink_agent_typers (hardcoded chat-arc). Reuses existing compute_active_typers_mcp
+  helper. Read companion to MCP-side typing-emit (T-1731 covered emit on chat-arc
+  only; typing_list now covers any topic).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-05-21T13:40:02Z
-last_update: 2026-05-21T13:41:55Z
+last_update: '2026-08-18T18:58:55Z'
 date_finished: 2026-05-21T13:41:55Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:12Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:55Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1773: termlink_channel_typing_list MCP — topic-flexible active typers

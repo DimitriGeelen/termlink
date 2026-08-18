@@ -1,19 +1,50 @@
 ---
 id: T-1721
-name: "Fix T-1696 canary cron format — installed in user-crontab with /etc/cron.d/ USER-field syntax (silent fail)"
+name: "Fix T-1696 canary cron format — installed in user-crontab with /etc/cron.d/
+  USER-field syntax (silent fail)"
 description: >
-  T-1696's release-mirror canary was installed in root's user crontab but uses /etc/cron.d/ system-cron syntax (USER field). cron parses 'root' as the first command token → 'root: command not found' → silent exit 127 → log file never written. Result: 67-commit OneDev→GitHub drift since 2026-05-18 went undetected for 2+ days, recreating the exact G-058 silent-failure pattern the canary was designed to prevent. Fix: move canary to /etc/cron.d/termlink-release-mirror-canary and strip the broken entry from root's user crontab.
+  T-1696's release-mirror canary was installed in root's user crontab but uses /etc/cron.d/
+  system-cron syntax (USER field). cron parses 'root' as the first command token →
+  'root: command not found' → silent exit 127 → log file never written. Result: 67-commit
+  OneDev→GitHub drift since 2026-05-18 went undetected for 2+ days, recreating the
+  exact G-058 silent-failure pattern the canary was designed to prevent. Fix: move
+  canary to /etc/cron.d/termlink-release-mirror-canary and strip the broken entry
+  from root's user crontab.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [release, cron, G-058, bug, silent-fail]
 components: []
 related_tasks: [T-1695, T-1696]
 created: 2026-05-20T06:51:27Z
-last_update: 2026-05-20T06:55:56Z
+last_update: '2026-08-18T18:58:55Z'
 date_finished: 2026-05-20T06:55:56Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:10Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 1
+      D3: 0
+      D4: 2
+      F-RECALL: 1
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=1 (body:log-or-error-line); D3=0 
+      (no-signal); D4=2 (body:env-class-handled); F-RECALL=1 
+      (body:episodic-only); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:55Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1721: Fix T-1696 canary cron format — installed in user-crontab with /etc/cron.d/ USER-field syntax (silent fail)

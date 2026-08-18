@@ -2,18 +2,46 @@
 id: T-1887
 name: "Fix T-1696 cron drift — installed crontab not byte-identical to source"
 description: >
-  Bug surfaced by T-1884 S2 dry-run: /etc/cron.d/termlink-release-mirror-canary differs from /opt/termlink/.context/cron/release-mirror-canary.crontab (diff returned 17a18,24). T-1696's Human AC asserts ALREADY DONE byte-identical. Either the installed file diverged post-install OR the git source got updated without reinstall. Reconcile and document RCA per G-019. Source: docs/reports/T-1884-S2-results.md.
+  Bug surfaced by T-1884 S2 dry-run: /etc/cron.d/termlink-release-mirror-canary differs
+  from /opt/termlink/.context/cron/release-mirror-canary.crontab (diff returned 17a18,24).
+  T-1696's Human AC asserts ALREADY DONE byte-identical. Either the installed file
+  diverged post-install OR the git source got updated without reinstall. Reconcile
+  and document RCA per G-019. Source: docs/reports/T-1884-S2-results.md.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [bug]
 components: []
 related_tasks: [T-1696, T-1884]
 created: 2026-05-30T22:00:02Z
-last_update: 2026-06-05T22:38:53Z
+last_update: '2026-08-18T18:58:58Z'
 date_finished: 2026-06-05T22:46:32Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:17Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 4
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=4 (body:fw-audit-or-doctor); D3=0
+      (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:58Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1887: Fix T-1696 cron drift — installed crontab not byte-identical to source

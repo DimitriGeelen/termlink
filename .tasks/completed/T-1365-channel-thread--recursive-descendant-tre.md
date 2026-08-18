@@ -2,22 +2,50 @@
 id: T-1365
 name: "channel threads — index of threads in a topic with reply counts"
 description: >
-  Add `channel threads <topic>` — list every top-level post that has at least one reply
-  (a thread root), with reply count, distinct participant count, and last-activity ts.
-  Renders as a sortable table or JSON. Builds on the parent→children index already used
+  Add `channel threads <topic>` — list every top-level post that has at least one
+  reply
+  (a thread root), with reply count, distinct participant count, and last-activity
+  ts.
+  Renders as a sortable table or JSON. Builds on the parent→children index already
+  used
   by `channel thread` (T-1328); this is the index/overview view, not the single-thread
   drill-down. Matrix m.thread analog at the room-overview level.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [agent-conversation, matrix, threads, channel-cli]
-components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/main.rs]
+components: [crates/termlink-cli/src/cli.rs, 
+      crates/termlink-cli/src/commands/channel.rs, 
+      crates/termlink-cli/src/main.rs]
 related_tasks: [T-1328, T-1362, T-1363]
 created: 2026-04-28T09:05:29Z
-last_update: 2026-04-28T09:28:22Z
+last_update: '2026-08-18T18:58:48Z'
 date_finished: 2026-04-28T09:28:22Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:56Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:48Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 2
+      effort: 5
+    rationale: blast_radius=3 (no-signal); tier=2 (no-signal); effort=5 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1365: channel threads — index of threads in a topic with reply counts

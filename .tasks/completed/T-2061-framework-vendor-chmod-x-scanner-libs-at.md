@@ -2,12 +2,19 @@
 id: T-2061
 name: "Framework vendor: chmod +x scanner libs at install or vendor time (T-2052 upstream)"
 description: >
-  Framework upstream gap: hooks.sh:install_hooks writes a pre-commit hook that delegates to agents/git/lib/*.sh, but the vendored scanner libs are not chmod +x. Pre-commit hook checks [ ! -x SCANNER ] and exits 0 fail-open if non-executable, silently disabling T-1844 secret-scan + T-1863 dup-task-scan + T-1845 large-file gate. Discovered in T-2052 closure 2026-06-08. Fix options: (a) chmod +x in hooks.sh:install_hooks for each scanner before writing the hook, OR (b) vendor logic in fw upgrade preserves exec bits on lib/*.sh. Needs upstream landing on /opt/999-AEF before next fw upgrade in any consumer project.
+  Framework upstream gap: hooks.sh:install_hooks writes a pre-commit hook that delegates
+  to agents/git/lib/*.sh, but the vendored scanner libs are not chmod +x. Pre-commit
+  hook checks [ ! -x SCANNER ] and exits 0 fail-open if non-executable, silently disabling
+  T-1844 secret-scan + T-1863 dup-task-scan + T-1845 large-file gate. Discovered in
+  T-2052 closure 2026-06-08. Fix options: (a) chmod +x in hooks.sh:install_hooks for
+  each scanner before writing the hook, OR (b) vendor logic in fw upgrade preserves
+  exec bits on lib/*.sh. Needs upstream landing on /opt/999-AEF before next fw upgrade
+  in any consumer project.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
@@ -16,7 +23,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-06-08T19:15:43Z
-last_update: 2026-06-08T19:27:28Z
+last_update: '2026-08-18T18:59:02Z'
 date_finished: 2026-06-08T20:06:37Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -28,6 +35,30 @@ date_finished: 2026-06-08T20:06:37Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:26Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:02Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2061: Framework vendor: chmod +x scanner libs at install or vendor time (T-2052 upstream)

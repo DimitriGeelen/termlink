@@ -2,18 +2,42 @@
 id: T-067
 name: "Session state machine validation — transition guards, Drop impl, TOCTOU fix"
 description: >
-  SessionState accepts any transition. Add valid_transition guard, Drop impl for cleanup on panic, fix TOCTOU race on display name.
+  SessionState accepts any transition. Add valid_transition guard, Drop impl for cleanup
+  on panic, fix TOCTOU race on display name.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-03-10T08:44:31Z
-last_update: 2026-03-10T16:49:02Z
+last_update: '2026-08-18T18:58:41Z'
 date_finished: 2026-03-10T16:49:02Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:40Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:41Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-067: Session state machine validation — transition guards, Drop impl, TOCTOU fix

@@ -1,19 +1,48 @@
 ---
 id: T-1935
-name: "termlink_whoami populated-path parity test — registered-session happy path (T-1933 follow-up)"
+name: "termlink_whoami populated-path parity test — registered-session happy path
+  (T-1933 follow-up)"
 description: >
-  T-1933 shipped MCP whoami + empty-state parity test. The populated path (one registered session, query via name_hint) is the LLM agent's actual production flow and is currently un-tested. Add parity_whoami_session_match: register a session, both MCP and CLI whoami with name_hint return matching identity card. Surface and document any residual shape drift (posts_as.from_project in particular).
+  T-1933 shipped MCP whoami + empty-state parity test. The populated path (one registered
+  session, query via name_hint) is the LLM agent's actual production flow and is currently
+  un-tested. Add parity_whoami_session_match: register a session, both MCP and CLI
+  whoami with name_hint return matching identity card. Surface and document any residual
+  shape drift (posts_as.from_project in particular).
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-02T22:00:31Z
-last_update: 2026-06-02T22:01:32Z
+last_update: '2026-08-18T18:58:59Z'
 date_finished: 2026-06-02T22:45:16Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:19Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:59Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1935: termlink_whoami populated-path parity test — registered-session happy path (T-1933 follow-up)

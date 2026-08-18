@@ -1,19 +1,44 @@
 ---
 id: T-1101
-name: "Deep value assessment — what does termlink actually give the human operator, what works end-to-end, what's cargo cult"
+name: "Deep value assessment — what does termlink actually give the human operator,
+  what works end-to-end, what's cargo cult"
 description: >
-  Inception: Deep value assessment — what does termlink actually give the human operator, what works end-to-end, what's cargo cult
+  Inception: Deep value assessment — what does termlink actually give the human operator,
+  what works end-to-end, what's cargo cult
 
 status: work-completed
 workflow_type: inception
 owner: human
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-04-17T08:34:06Z
-last_update: 2026-04-22T10:20:55Z
+last_update: '2026-08-18T18:58:43Z'
 date_finished: 2026-04-17T10:50:39Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:45Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:43Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 4
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=4 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1101: Deep value assessment — what does termlink actually give the human operator, what works end-to-end, what's cargo cult

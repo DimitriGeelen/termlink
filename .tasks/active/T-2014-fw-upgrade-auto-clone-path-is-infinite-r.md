@@ -2,7 +2,10 @@
 id: T-2014
 name: "fw upgrade auto-clone path is infinite recursion — propagate fix upstream"
 description: >
-  fw upgrade in consumer projects with upstream_repo set spawns infinite-recursing nested processes via bare-from-consumer auto-clone loop. Killed 132 nested procs + 16GB clone debris from /tmp during first occurrence (2026-06-06 root@.107 /opt/termlink). Root cause in upstream resolve_framework Step 2. This task tracks upstream fix landing.
+  fw upgrade in consumer projects with upstream_repo set spawns infinite-recursing
+  nested processes via bare-from-consumer auto-clone loop. Killed 132 nested procs
+  + 16GB clone debris from /tmp during first occurrence (2026-06-06 root@.107 /opt/termlink).
+  Root cause in upstream resolve_framework Step 2. This task tracks upstream fix landing.
 
 status: work-completed
 workflow_type: build
@@ -12,8 +15,32 @@ tags: [framework, upgrade, bug, infinite-loop]
 components: []
 related_tasks: []
 created: 2026-06-06T06:30:34Z
-last_update: 2026-06-13T09:36:11Z
+last_update: '2026-08-18T18:58:37Z'
 date_finished: 2026-06-13T09:36:11Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:31Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 3
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=3 (body:test-or-audit-check); D2=0 (no-signal); D3=0 
+      (no-signal); D4=2 (body:env-class-handled); F-RECALL=2 
+      (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2014: fw upgrade auto-clone path is infinite recursion — propagate fix upstream

@@ -2,18 +2,43 @@
 id: T-1974
 name: "termlink_help: essentials rows carry parameter_count (cycle 10 slice 5)"
 description: >
-  MCP arc cycle 10 slice 5: extend essentials mode (T-1968) rows with parameter_count, completing the signal across all 4 bulk-listing modes.
+  MCP arc cycle 10 slice 5: extend essentials mode (T-1968) rows with parameter_count,
+  completing the signal across all 4 bulk-listing modes.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-04T05:59:54Z
-last_update: 2026-06-04T06:02:03Z
+last_update: '2026-08-18T18:59:00Z'
 date_finished: 2026-06-04T06:04:20Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:21Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1974: termlink_help: essentials rows carry parameter_count (cycle 10 slice 5)

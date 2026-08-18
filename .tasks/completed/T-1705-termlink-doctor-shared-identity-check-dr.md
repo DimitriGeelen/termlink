@@ -1,19 +1,44 @@
 ---
 id: T-1705
-name: "termlink doctor: shared-identity check (drives T-1700 adoption from diagnostic path)"
+name: "termlink doctor: shared-identity check (drives T-1700 adoption from diagnostic
+  path)"
 description: >
   termlink doctor: shared-identity check (drives T-1700 adoption from diagnostic path)
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: [crates/termlink-cli/src/commands/infrastructure.rs]
 related_tasks: []
 created: 2026-05-19T06:20:17Z
-last_update: 2026-05-19T06:28:20Z
+last_update: '2026-08-18T18:58:54Z'
 date_finished: 2026-05-19T06:28:20Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:09Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 4
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=4 
+      (body:framework-level-ux); D4=0 (no-signal); F-RECALL=0 (no-signal); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:54Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 1
+      tier: 2
+      effort: 8
+    rationale: blast_radius=1 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-1705: termlink doctor: shared-identity check (drives T-1700 adoption from diagnostic path)

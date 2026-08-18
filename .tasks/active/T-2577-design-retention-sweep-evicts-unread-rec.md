@@ -2,7 +2,15 @@
 id: T-2577
 name: "DESIGN: retention sweep evicts unread records; subscribe surfaces no gap (auto-detect?)"
 description: >
-  DESIGN needs-human: retention sweep (Bus::sweep / retention_sweeper) deletes records purely by policy (Messages(N)/Days/Latest/LatestPerCvKey) with ZERO cursor awareness, and channel.subscribe then silently advances a lagging cursor over the swept span with no gap indicator in the response. A lagging subscriber loses unread records with nothing in the subscribe reply flagging it. Detection exists only as a separate opt-in verb (gap_before/oldest_offset). Whether to auto-fire (warn/refuse when sweeping below the min live subscriber cursor, or fold gap detection into every subscribe response) is a bounded-retention-vs-durability design/threshold call. From T-2468 verb-2 hunt. Relates to charter non-goal #2 and T-2562.
+  DESIGN needs-human: retention sweep (Bus::sweep / retention_sweeper) deletes records
+  purely by policy (Messages(N)/Days/Latest/LatestPerCvKey) with ZERO cursor awareness,
+  and channel.subscribe then silently advances a lagging cursor over the swept span
+  with no gap indicator in the response. A lagging subscriber loses unread records
+  with nothing in the subscribe reply flagging it. Detection exists only as a separate
+  opt-in verb (gap_before/oldest_offset). Whether to auto-fire (warn/refuse when sweeping
+  below the min live subscriber cursor, or fold gap detection into every subscribe
+  response) is a bounded-retention-vs-durability design/threshold call. From T-2468
+  verb-2 hunt. Relates to charter non-goal #2 and T-2562.
 
 status: captured
 workflow_type: build
@@ -16,8 +24,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-09T15:11:56Z
-last_update: 2026-08-09T15:11:56Z
-date_finished: null
+last_update: '2026-08-18T18:58:38Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,6 +36,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:55:34Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=2 
+      (body:telemetry-or-audit-entry); D3=2 (body:default-change); D4=2 
+      (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:58:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2577: DESIGN: retention sweep evicts unread records; subscribe surfaces no gap (auto-detect?)

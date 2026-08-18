@@ -2,18 +2,44 @@
 id: T-252
 name: "Distinguish infrastructure vs command failure in bypass tracking"
 description: >
-  Dead specialist (infra failure) should not count against a command's promotion stats. Currently record_orchestrated_run takes a boolean — needs a third state or caller decides. See docs/reports/T-247-scenarios-code-review.md Scenario 1, T-247-scenarios-infrastructure.md Scenario 2.
+  Dead specialist (infra failure) should not count against a command's promotion stats.
+  Currently record_orchestrated_run takes a boolean — needs a third state or caller
+  decides. See docs/reports/T-247-scenarios-code-review.md Scenario 1, T-247-scenarios-infrastructure.md
+  Scenario 2.
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [T-247, T-238, orchestration, bypass]
 components: []
 related_tasks: [T-247, T-238, T-233, T-250]
 created: 2026-03-23T16:54:27Z
-last_update: 2026-03-23T21:00:36Z
+last_update: '2026-08-18T18:59:12Z'
 date_finished: 2026-03-23T21:00:36Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:49Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=2 (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:12Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 5
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=5 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-252: Distinguish infrastructure vs command failure in bypass tracking

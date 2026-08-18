@@ -1,18 +1,25 @@
 ---
 id: T-2789
-name: "RCA cross-UID TermLink delivery from 0503-Codex (dimitri-mint-dev) to the root-owned AEF hub"
+name: "RCA cross-UID TermLink delivery from 0503-Codex (dimitri-mint-dev) to the root-owned
+  AEF hub"
 description: >
-  Codex agent running as dimitri-mint-dev in /opt/0503-codex-cli-playground cannot reach AEF session tl-812b4f38 on the root-owned hub (TERMLINK_RUNTIME_DIR=/var/lib/termlink); root-side ping succeeds at ~1ms. Produce evidence-backed RCA plus at least two least-privilege fix options with security trade-offs and a preferred architecture. Constraints from the operator: no world-writable sockets, no broad chmod/chown, no copied secrets, no unaudited bypass, no interactive sudo for normal governed collaboration, and delivery must remain distinct from receipt.
+  Codex agent running as dimitri-mint-dev in /opt/0503-codex-cli-playground cannot
+  reach AEF session tl-812b4f38 on the root-owned hub (TERMLINK_RUNTIME_DIR=/var/lib/termlink);
+  root-side ping succeeds at ~1ms. Produce evidence-backed RCA plus at least two least-privilege
+  fix options with security trade-offs and a preferred architecture. Constraints from
+  the operator: no world-writable sockets, no broad chmod/chown, no copied secrets,
+  no unaudited bypass, no interactive sudo for normal governed collaboration, and
+  delivery must remain distinct from receipt.
 
 status: work-completed
 workflow_type: inception
 owner: agent
-horizon: null
+horizon:
 tags: []
 components: []
 related_tasks: []
 created: 2026-08-18T11:49:38Z
-last_update: 2026-08-18T12:24:00Z
+last_update: '2026-08-18T18:59:16Z'
 date_finished: 2026-08-18T12:24:00Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -22,6 +29,29 @@ target_blast_radius: 3            # int 0..9. Anticipated component count of the
                                   # Guide: 0=docs only, 1=single file, 3=small subsystem (S), 5=cross-subsystem (M), 7=multi-arc (L), 9=framework-wide (XL).
 voi_score: 0.5                    # float 0..1. Value of Information — expected value of resolving this question,
                                   # independent of build cost. Higher when answer affects many tasks or unblocks a strategic decision. Required.
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:57:00Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:16Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 4
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=4 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-2789: RCA cross-UID TermLink delivery from 0503-Codex (dimitri-mint-dev) to the root-owned AEF hub

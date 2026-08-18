@@ -2,18 +2,43 @@
 id: T-240
 name: "Negotiation protocol — 4-phase format negotiation over agent events"
 description: >
-  Implement negotiate.offer/attempt/correction/accept protocol. Orchestrator brokers introduction then steps back. Agent and specialist talk directly. Max 5 rounds. JSON Schema as wire format. See T-233 research: Q2b-negotiation-protocol.md
+  Implement negotiate.offer/attempt/correction/accept protocol. Orchestrator brokers
+  introduction then steps back. Agent and specialist talk directly. Max 5 rounds.
+  JSON Schema as wire format. See T-233 research: Q2b-negotiation-protocol.md
 
 status: work-completed
 workflow_type: build
 owner: agent
-horizon: null
+horizon:
 tags: [T-233, orchestration, protocol]
 components: []
 related_tasks: [T-233, T-237]
 created: 2026-03-23T13:27:41Z
-last_update: 2026-03-24T09:12:37Z
+last_update: '2026-08-18T18:59:09Z'
 date_finished: 2026-03-24T09:12:37Z
+bvp_scores_proposed:
+  - ts: '2026-08-18T18:56:43Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: missing
+cost_estimate_proposed:
+  - ts: '2026-08-18T18:59:09Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: missing
 ---
 
 # T-240: Negotiation protocol — 4-phase format negotiation over agent events
