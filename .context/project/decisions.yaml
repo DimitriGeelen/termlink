@@ -801,3 +801,10 @@ decisions:
     date: 2026-08-13
     task: T-2676
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-094
+    decision: "Split this out as its own task instead of folding it into the T-2690 fix."
+    scope: project
+    date: 2026-08-18
+    task: T-2691
+    rationale: "Auto-captured from task file on completion"

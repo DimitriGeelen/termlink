@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2691: Canary heartbeat proves scheduling, not completion — a hung or killed canary still writes a fresh heartbeat (24/24 scripts)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-18T22:34:07Z
+# ============================================================================
+
+task_id: T-2691
+task_name: "Canary heartbeat proves scheduling, not completion — a hung or killed canary still writes a fresh heartbeat (24/24 scripts)"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-18T21:45:00Z
+completed: 2026-08-18T22:33:22Z
+duration_days: 0
+updates_count: 0
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - 'Heartbeat is written on **completion**, not on start, so its freshness means'
+  - 'The change composes with each script''s existing cleanup. The migration preserves'
+  - 'Those 4 also arm an **early** `trap _canary_hb EXIT` at the helper definition,'
+  - '`--no-heartbeat` continues to suppress the write entirely (fixture Case 2).'
+  - 'A fixture proves the property is load-bearing: `tests/canary-heartbeat-fixtures.sh`'
+  - 'Case 5 guards the clobber hazard directly: the pre-existing tmpfile cleanup still'
+  - 'Regression-checked: `tests/canary-status-fixtures.sh` 8/8, all four static checks'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-08-18 — Filed rather than built inside T-2690'
+    chose: 'Split this out as its own task instead of folding it into the T-2690 fix.'
+    rationale: 'It is a distinct root cause with a distinct blast radius — 24 scripts, several'
+    alternatives_rejected: ['Doing the 24-file trap migration opportunistically inside T-2690 — that']
+  - decision: '2026-08-18T22:02:48Z — status-update [task-update-agent]'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 48 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [governance, canary, observability]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 48
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/governance-canary-signal/.tasks/completed/T-2691-heartbeat-proves-scheduling-not-completion.md
+generated_by: context-agent-hybrid

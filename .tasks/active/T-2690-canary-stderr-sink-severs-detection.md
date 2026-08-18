@@ -10,16 +10,16 @@ description: >
   read the stderr companion, stop mis-classifying the four non-cron static checks
   as STALE canaries, and reconcile the git crontab source with what is installed.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [governance, canary, observability, bug]
 components: [scripts/canary-status.sh, scripts/check-cron-install-drift.sh, .context/cron]
 related_tasks: [T-2172, T-2561, T-1723, T-2527, T-2531, T-2666, T-2672]
 created: 2026-08-18T21:18:31Z
-last_update: 2026-08-18T21:54:36Z
-date_finished: null
+last_update: 2026-08-18T22:34:40Z
+date_finished: 2026-08-18T22:34:40Z
 ---
 
 # T-2690: Canary error channel is a write-only sink
@@ -103,6 +103,35 @@ out2=$(bash scripts/canary-status.sh --json 2>&1); echo "$out2" | python3 -c "im
 bash -n scripts/canary-status.sh
 bash -n scripts/check-cron-install-drift.sh
 
+## Recommendation
+
+**Recommendation:** GO
+
+**Rationale:** The change is additive to a read-only reporting verb — it introduces two new
+classifications and reads one extra file per canary. No canary script, crontab schedule, or
+exit-code contract on the detection path is altered by this task. The one behavioural change
+that could hide a problem — `NOT_SCHEDULED` suppressing a `STALE` — is deliberately narrow
+(it requires *both* "no log was ever written" *and* "no crontab under `.context/cron/`
+mentions the name") and fixture Case 5 proves a genuinely scheduled canary with a dead cron
+still fires `STALE`. The crontab reconciliation changed only git-side files to match what is
+already installed, verified by `check-cron-install-drift` going 21 → 0 drift.
+
+**Evidence:**
+- `tests/canary-status-fixtures.sh` — 8/8 pass, host-independent (`--working-dir` +
+  `CANARY_CRON_DIR` fixtures, PL-213 convention).
+- Load-bearing: Case 2 injects a non-empty stderr sink and flips `HEALTHY` → `ERRORING`
+  (exit 0 → 1); Case 3 truncates it and the state clears.
+- Narrowness: Case 5 — declared canary + 30-day-old heartbeat still returns `STALE`.
+- No false-fire on resolved history: Case 6 — stderr older than the window does not fire.
+- `check-cron-install-drift.sh` → `healthy (24 installed + matching, 0 drift-warning)`.
+- Root observation reproducible:
+  `TERMLINK_DEAD_LETTER_TEST_JSON=/nonexistent bash scripts/check-dead-letter-freshness.sh --quiet`
+  prints nothing on stdout and `check-dead-letter: could not read queue-status (exit=1)` on stderr.
+
+**What the human is being asked for:** only the post-merge observation that the four static
+checks now render `NOT_SCHEDULED` on the real host, where their heartbeat files actually
+exist. That cannot be asserted from a worktree because `.context/working/` is gitignored.
+
 ## RCA
 
 **Symptom:** `/canaries` reports 4 permanent STALE entries and would report HEALTHY for a
@@ -145,3 +174,15 @@ stands out against a clean baseline instead of hiding in a list of 21.
 ### 2026-08-18T21:18:31Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent (renumbered T-2678 → T-2690 to avoid
   collision with uncommitted pickup tasks T-2678..T-2686 in the parent checkout)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-10b396ba
+- **Timestamp:** 2026-08-18T22:34:42Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-18T22:34:40Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

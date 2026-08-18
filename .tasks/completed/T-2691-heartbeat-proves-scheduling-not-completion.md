@@ -9,16 +9,16 @@ description: >
   making the stderr sink a read surface; the remaining hole is a canary that
   HANGS or is KILLED: fresh heartbeat, no log, no stderr, invisible everywhere.
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: now
+horizon: null
 tags: [governance, canary, observability]
-components: [scripts/check-canary-aliveness.sh]
+components: [crates/termlink-cli/src/commands/metadata.rs, crates/termlink-mcp/src/tools.rs, scripts/check-framework-pickup-freshness.sh, scripts/check-mirror-freshness.sh, scripts/substrate-preflight.sh]
 related_tasks: [T-2690, T-1723, T-2172]
 created: 2026-08-18T21:45:00Z
-last_update: 2026-08-18T22:02:48Z
-date_finished: null
+last_update: 2026-08-18T22:33:22Z
+date_finished: 2026-08-18T22:33:22Z
 ---
 
 # T-2691: Canary heartbeat proves scheduling, not completion
@@ -132,3 +132,15 @@ bash scripts/check-silent-exit.sh
 ### 2026-08-18T22:02:48Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-8bd35b40
+- **Timestamp:** 2026-08-18T22:34:05Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-18T22:33:22Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

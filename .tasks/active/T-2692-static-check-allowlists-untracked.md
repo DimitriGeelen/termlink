@@ -12,16 +12,16 @@ description: >
   CLAUDE.md states each check "scans CLEAN" — a claim that only holds where the
   untracked file happens to exist.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [governance, static-check, reproducibility, bug]
 components: [.context/working/.alloc-sink-allowlist, .context/working/.drain-sink-allowlist, .context/working/.busy-spin-allowlist, .context/working/.silent-exit-allowlist]
 related_tasks: [T-2527, T-2531, T-2666, T-2672, T-2690]
 created: 2026-08-18T21:50:00Z
-last_update: 2026-08-18T22:01:27Z
-date_finished: null
+last_update: 2026-08-18T22:35:04Z
+date_finished: 2026-08-18T22:35:04Z
 ---
 
 # T-2692: Static-check allowlists are untracked
@@ -77,6 +77,33 @@ bash scripts/check-drain-sink-caps.sh
 bash scripts/check-busy-spin.sh
 bash scripts/check-silent-exit.sh
 
+## Recommendation
+
+**Recommendation:** GO
+
+**Rationale:** No source code changes — this adds four previously-untracked data files to
+git and one CLAUDE.md section. The only way it can be wrong is if a restored signature is
+inaccurate, and that is self-detecting: a wrong signature leaves its site FIRING, so
+"all four checks scan clean" is itself the proof the file is correct. Every one of the 15
+entries was re-verified against source rather than copied from the CLAUDE.md summary.
+
+**Evidence:**
+- Before: `check-alloc-sink` 5 firing, `check-drain-sink` 6 firing, `check-busy-spin` 4
+  firing from a clean worktree. After: all four report `clean`.
+- Scanned counts match CLAUDE.md's documented figures exactly (6 drain sinks, 14 long-poll
+  loops, 39 non-zero-literal exits), so the checks are seeing the same tree the docs describe.
+- Re-verification found the guard the grep cannot see:
+  `validate_dispatch_count(p.count)` at `tools.rs:13482` (max `MAX_DISPATCH_COUNT` = 256,
+  loud-reject) protects both `count` allocation sites at 13536/13623.
+- Drain sinks: each confirmed as `current_exe()` / `bash <repo script>` with
+  `kill_on_drop(true)` + `stdin(null)` + `tokio::time::timeout`.
+- Busy-spin loops: each confirmed to leave the loop on error — `cmd_wait` `bail!`s;
+  `termlink_request` / `termlink_wait` / `termlink_agent_ask` return on a wall-clock deadline.
+
+**What the human is being asked for:** confirm the restored files agree with the host's own
+untracked copies. If the host held entries beyond these 15, the merge surfaces them as a
+diff rather than losing them — which is the point of tracking them.
+
 ## RCA
 
 **Symptom:** Three of four static checks FIRE with 15 findings in a clean worktree, while
@@ -106,3 +133,15 @@ CLAUDE.md states the tracking requirement for the next check author.
   it confirmed `count` at tools.rs:13536/13623 is bounded by `validate_dispatch_count`
   (max 256, loud-reject) called at 13482 — a guard shape the grep structurally cannot see,
   which is exactly why the site needs an acknowledgement rather than a code change.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-bd62bd20
+- **Timestamp:** 2026-08-18T22:35:45Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-18T22:35:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
