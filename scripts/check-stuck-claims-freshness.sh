@@ -61,9 +61,13 @@ done
 
 # Heartbeat FIRST (before any check) so /canaries can prove the canary ran even
 # on a healthy cycle — mirrors the T-2290/T-2295 convention.
-if [ "$HEARTBEAT" -eq 1 ]; then
+_canary_hb() {
     mkdir -p "$(dirname "$HEARTBEAT_FILE")" 2>/dev/null && date -u +%Y-%m-%dT%H:%M:%SZ > "$HEARTBEAT_FILE" 2>/dev/null || true
-fi
+}
+# T-2691: deferred to EXIT so heartbeat freshness proves the run FINISHED,
+# not merely that cron started it. A hung or killed canary now leaves the
+# heartbeat untouched and surfaces as STALE instead of silently reading alive.
+if [ "$HEARTBEAT" -eq 1 ]; then trap _canary_hb EXIT; fi
 
 # Fetch the fleet-wide stuck-claims summary (test hook short-circuits the CLI for
 # hub-independence). --all sweeps every topic; --only-stuck keeps stuck_count

@@ -66,9 +66,13 @@ command -v jq >/dev/null 2>&1 || { echo "check-charter-drift: jq not found (requ
 
 # T-1723 heartbeat: prove this canary ran, even on healthy/error cycles.
 HEARTBEAT_FILE="${HEARTBEAT_FILE:-.context/working/.charter-drift-canary.heartbeat}"
-if [ "$HEARTBEAT" -eq 1 ]; then
+_canary_hb() {
     touch "$HEARTBEAT_FILE" 2>/dev/null || true
-fi
+}
+# T-2691: deferred to EXIT so heartbeat freshness proves the run FINISHED,
+# not merely that cron started it. A hung or killed canary now leaves the
+# heartbeat untouched and surfaces as STALE instead of silently reading alive.
+if [ "$HEARTBEAT" -eq 1 ]; then trap _canary_hb EXIT; fi
 
 # --- read the tool catalog (test hook wins; else live binary) ---------------
 if [ -n "${TERMLINK_CHARTER_DRIFT_TEST_JSON:-}" ]; then

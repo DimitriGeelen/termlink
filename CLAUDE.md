@@ -663,6 +663,31 @@ itself**, where it costs the most.
   problem. Before T-2690 all four read `STALE` forever and pinned `/canaries` at
   exit 1 — the alarm fatigue that makes an operator stop reading the verb.
 
+**Heartbeat means COMPLETED, not STARTED (T-2691).** The third leg of the same blind
+spot: every canary used to touch its `.heartbeat` right after argument parsing, before
+doing any work — so freshness proved *"cron fired"*, never *"the canary finished"*. A
+canary that **hangs** (an unbounded hub RPC) or is **killed** (cron timeout, OOM) left a
+fresh heartbeat, an empty log and an empty stderr sink: HEALTHY on `/canaries`, ALIVE to
+the meta-canary, invisible everywhere. That is the same "alive but not progressing" shape
+the frozen-husk canary (T-2239) exists to catch in the substrate — it was present in the
+detection layer itself. The write is now deferred to an `EXIT` trap in all 23
+heartbeat-writing scripts (`check-canary-aliveness.sh` only *reads* one, so it is
+untouched). EXIT traps do not run on SIGKILL, which is precisely the property wanted.
+
+**When you write a canary:** call the heartbeat from a `_canary_hb` helper armed with
+`trap _canary_hb EXIT`, never inline at the top. If your script already owns an `EXIT`
+trap for cleanup, make the helper self-guarding (`[ "$HEARTBEAT" = 1 ] || return 0`) and
+**chain** it — `trap 'rm -f -- "$TMP"; _canary_hb' EXIT` — because a second
+`trap ... EXIT` silently REPLACES the first, and a canary that leaks its temp files while
+still reporting green is worse than the gap being closed. Arm an early
+`trap _canary_hb EXIT` at the helper definition too, so a tooling-error `exit 2` before
+the combined trap is installed still records that the run completed.
+`tests/canary-heartbeat-fixtures.sh` locks all of this (its Case 3 hangs a real canary on
+a FIFO and SIGKILLs it; Case 5 proves the chained cleanup still fires). Make
+`HEARTBEAT_FILE` env-overridable (`"${HEARTBEAT_FILE:-...}"`) — a hard assignment makes
+the canary untestable, and silently turned the first draft of that fixture into a
+vacuous pass.
+
 **When you add a canary:** the crontab must end each line
 `>> .context/working/.<name>-canary.log 2>> .context/working/.<name>-canary.log.stderr`.
 Both halves are read surfaces now. `tests/canary-status-fixtures.sh` locks the

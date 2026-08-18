@@ -57,10 +57,14 @@ while [ $# -gt 0 ]; do
 done
 
 # Heartbeat first (prove the canary ran even on error/healthy cycles — T-1723).
-if [ "$HEARTBEAT" = 1 ]; then
+_canary_hb() {
     mkdir -p "$(dirname "$HEARTBEAT_FILE")" 2>/dev/null || true
     touch -- "$HEARTBEAT_FILE" 2>/dev/null || true
-fi
+}
+# T-2691: deferred to EXIT so heartbeat freshness proves the run FINISHED,
+# not merely that cron started it. A hung or killed canary now leaves the
+# heartbeat untouched and surfaces as STALE instead of silently reading alive.
+if [ "$HEARTBEAT" = 1 ]; then trap _canary_hb EXIT; fi
 
 if ! command -v termlink >/dev/null 2>&1; then
     echo "framework-pickup canary: termlink not on PATH (cannot read $TOPIC)" >&2

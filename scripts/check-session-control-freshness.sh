@@ -59,11 +59,17 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-# Heartbeat FIRST (before the check) so /canaries can prove the canary ran even on
-# a healthy cycle — mirrors the T-2290/T-2295/T-2556 convention.
-if [ "$HEARTBEAT" -eq 1 ]; then
+# Heartbeat so /canaries can prove the canary ran even on a healthy cycle —
+# mirrors the T-2290/T-2295/T-2556 convention. T-2691 moved the write from
+# here to an EXIT trap: it still fires on every completed run (healthy, firing,
+# or tooling-error), but no longer on a run that hangs or is killed.
+_canary_hb() {
     mkdir -p "$(dirname "$HEARTBEAT_FILE")" 2>/dev/null && date -u +%Y-%m-%dT%H:%M:%SZ > "$HEARTBEAT_FILE" 2>/dev/null || true
-fi
+}
+# T-2691: deferred to EXIT so heartbeat freshness proves the run FINISHED,
+# not merely that cron started it. A hung or killed canary now leaves the
+# heartbeat untouched and surfaces as STALE instead of silently reading alive.
+if [ "$HEARTBEAT" -eq 1 ]; then trap _canary_hb EXIT; fi
 
 # Run the prover (test hook short-circuits it for hub/tmux-independence).
 if [ -n "${TERMLINK_SESSION_CANARY_TEST_JSON:-}" ]; then

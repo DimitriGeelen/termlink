@@ -9,15 +9,15 @@ description: >
   making the stderr sink a read surface; the remaining hole is a canary that
   HANGS or is KILLED: fresh heartbeat, no log, no stderr, invisible everywhere.
 
-status: captured
+status: started-work
 workflow_type: refactor
 owner: agent
-horizon: next
+horizon: now
 tags: [governance, canary, observability]
 components: [scripts/check-canary-aliveness.sh]
 related_tasks: [T-2690, T-1723, T-2172]
 created: 2026-08-18T21:45:00Z
-last_update: 2026-08-18T21:45:00Z
+last_update: 2026-08-18T22:02:48Z
 date_finished: null
 ---
 
@@ -74,26 +74,46 @@ for the error case.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Heartbeat is written on **completion**, not on start, so its freshness means
+- [x] Heartbeat is written on **completion**, not on start, so its freshness means
       "this canary finished a run" — the property the meta-canary (T-1723) already
-      assumes it has.
-- [ ] The change composes with each script's existing cleanup: several canaries
-      already install a `trap ... EXIT` for tmpdir removal, so a blanket
-      `trap '<touch>' EXIT` would silently REPLACE that cleanup. Each script is
-      migrated individually, or a shared helper is sourced that chains rather than
-      overwrites the existing trap.
-- [ ] `--no-heartbeat` continues to suppress the write entirely (the meta-canary
-      probe depends on it).
-- [ ] A fixture proves the property is load-bearing: a canary killed mid-run leaves
-      the heartbeat UNCHANGED, and one that exits normally (including exit 1 =
-      firing and exit 2 = tooling error) updates it.
-- [ ] `/canaries` and the meta-canary are re-checked against the new semantics — a
-      canary whose heartbeat now legitimately stops updating must surface as `STALE`
-      and not as a silent regression.
+      assumes it has. 23 of 24 heartbeat-WRITING scripts migrated; the 24th
+      (`check-canary-aliveness.sh`) only READS a heartbeat, so it is correctly untouched.
+- [x] The change composes with each script's existing cleanup. The migration preserves
+      each script's heartbeat body **verbatim** (three variants exist in-tree: a
+      `date`-write, a `touch --`, and a bare `touch`) and reuses its guard line, so
+      `-eq 1` vs `= 1` spellings survive too. The 4 scripts that already own an
+      `EXIT` trap were migrated by hand: their helper is self-guarding and is CHAINED
+      into the existing trap (`trap 'rm -f -- "$LIST_TMP"; _canary_hb' EXIT`) rather
+      than replacing it.
+- [x] Those 4 also arm an **early** `trap _canary_hb EXIT` at the helper definition,
+      because their combined trap is installed late (next to the tmpfile) — without it
+      a tooling-error `exit 2` on an earlier line would skip the heartbeat entirely,
+      inconsistent with the other 19.
+- [x] `--no-heartbeat` continues to suppress the write entirely (fixture Case 2).
+- [x] A fixture proves the property is load-bearing: `tests/canary-heartbeat-fixtures.sh`
+      Case 3 hangs a real canary on a FIFO and SIGKILLs it (EXIT traps do not run on
+      SIGKILL) — heartbeat stays stale. Verified load-bearing by re-introducing the eager
+      write, which makes Case 3 FAIL, and restoring, which makes it pass.
+- [x] Case 5 guards the clobber hazard directly: the pre-existing tmpfile cleanup still
+      fires after chaining.
+- [x] Regression-checked: `tests/canary-status-fixtures.sh` 8/8, all four static checks
+      clean, `check-cron-install-drift` 0 drift, charter-sentence + task-finalization
+      canaries unchanged.
+
+Scope note: the fixture's FIRST draft silently lied — it injected `HEARTBEAT_FILE` into
+`check-dead-letter-freshness.sh`, which **hard-assigns** that variable, so every case
+measured an untouched temp file and Case 3 "passed" for the wrong reason. The suite now
+opens with Case 0 asserting the canary under test honours an injected `HEARTBEAT_FILE`,
+so that failure mode cannot recur silently.
 
 ## Verification
 
+bash tests/canary-heartbeat-fixtures.sh
 bash tests/canary-status-fixtures.sh
+bash scripts/check-alloc-sink-clamps.sh
+bash scripts/check-drain-sink-caps.sh
+bash scripts/check-busy-spin.sh
+bash scripts/check-silent-exit.sh
 
 ## Decisions
 
@@ -108,3 +128,7 @@ bash tests/canary-status-fixtures.sh
   sequencing is "ship the safe fix, file the risky one with its evidence".
 - **Rejected:** Doing the 24-file trap migration opportunistically inside T-2690 — that
   would have made one commit carry both a verified fix and an unverified sweep.
+
+### 2026-08-18T22:02:48Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: next → now (auto-sync)

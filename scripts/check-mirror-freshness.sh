@@ -46,10 +46,14 @@ done
 # --no-heartbeat suppresses the touch so the meta-canary can probe drift
 # without side-effecting the very signal it's checking.
 HEARTBEAT_FILE="${HEARTBEAT_FILE:-.context/working/.release-mirror-canary.heartbeat}"
-if [ "$HEARTBEAT" = 1 ]; then
+_canary_hb() {
     mkdir -p "$(dirname "$HEARTBEAT_FILE")" 2>/dev/null || true
     touch -- "$HEARTBEAT_FILE" 2>/dev/null || true
-fi
+}
+# T-2691: deferred to EXIT so heartbeat freshness proves the run FINISHED,
+# not merely that cron started it. A hung or killed canary now leaves the
+# heartbeat untouched and surfaces as STALE instead of silently reading alive.
+if [ "$HEARTBEAT" = 1 ]; then trap _canary_hb EXIT; fi
 
 die() {
     if [ "$FORMAT" = json ]; then

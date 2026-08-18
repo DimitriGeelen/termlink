@@ -64,10 +64,14 @@ done
 # T-1723 heartbeat: prove this canary ran, even on drift/error cycles. Placed BEFORE
 # any extraction so a missing surface can't silently swallow the heartbeat.
 HEARTBEAT_FILE="${HEARTBEAT_FILE:-.context/working/.charter-sentence-drift-canary.heartbeat}"
-if [ "$HEARTBEAT" = 1 ]; then
+_canary_hb() {
     mkdir -p "$(dirname "$HEARTBEAT_FILE")" 2>/dev/null || true
     touch -- "$HEARTBEAT_FILE" 2>/dev/null || true
-fi
+}
+# T-2691: deferred to EXIT so heartbeat freshness proves the run FINISHED,
+# not merely that cron started it. A hung or killed canary now leaves the
+# heartbeat untouched and surfaces as STALE instead of silently reading alive.
+if [ "$HEARTBEAT" = 1 ]; then trap _canary_hb EXIT; fi
 
 ROOT="${CHARTER_SENTENCE_REPO_ROOT:-.}"
 ANCHOR="TermLink is a hub-mediated, durable append-log message bus"

@@ -75,10 +75,20 @@ while [ $# -gt 0 ]; do
 done
 
 # Heartbeat first (prove the canary ran even on healthy/error cycles — T-1723).
-if [ "$HEARTBEAT" = 1 ]; then
+# T-2691: heartbeat is written on COMPLETION, not on start, so its freshness proves
+# the run FINISHED rather than merely that cron began it. This script already owns an
+# EXIT trap, so the helper is SELF-GUARDING and is chained onto that trap below —
+# registering a second `trap ... EXIT` here would silently replace the cleanup.
+_canary_hb() {
+    [ "$HEARTBEAT" = 1 ] || return 0
     mkdir -p "$(dirname "$HEARTBEAT_FILE")" 2>/dev/null || true
     touch -- "$HEARTBEAT_FILE" 2>/dev/null || true
-fi
+}
+# Arm immediately so an early tooling-error exit (before the combined trap below
+# is installed) still records that the run completed. The later
+# `trap '<cleanup>; _canary_hb' EXIT` supersedes this one and calls the helper too,
+# so the heartbeat is covered continuously rather than only after that point.
+trap _canary_hb EXIT
 
 # Acquire the channel-list JSON: canned (test hook) or live hub.
 if [ -n "${TERMLINK_GROWTH_TEST_JSON:-}" ]; then
@@ -109,7 +119,7 @@ fi
 # safe — a file path always is. The program itself rides the heredoc on stdin.
 LIST_TMP="$(mktemp "${TMPDIR:-/tmp}/termlink-topic-growth.XXXXXX")" || {
     echo "topic-growth canary: cannot create temp file" >&2; exit 2; }
-trap 'rm -f -- "$LIST_TMP"' EXIT
+trap 'rm -f -- "$LIST_TMP"; _canary_hb' EXIT
 printf '%s' "$LIST_JSON" > "$LIST_TMP"
 
 REPORT="$(python3 - "$LIST_TMP" "$THRESHOLD" "$FORMAT" "$WATCH_PATTERNS" "$EXCLUDE_TOPICS" <<'PY' 2>/dev/null || true

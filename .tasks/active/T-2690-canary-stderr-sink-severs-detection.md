@@ -18,7 +18,7 @@ tags: [governance, canary, observability, bug]
 components: [scripts/canary-status.sh, scripts/check-cron-install-drift.sh, .context/cron]
 related_tasks: [T-2172, T-2561, T-1723, T-2527, T-2531, T-2666, T-2672]
 created: 2026-08-18T21:18:31Z
-last_update: 2026-08-18T21:23:46Z
+last_update: 2026-08-18T21:54:36Z
 date_finished: null
 ---
 
