@@ -3287,3 +3287,9 @@ learnings:
   task: T-2792
   date: 2026-08-18
   context: Added via context agent
+- id: PL-365
+  learning: "A guard's own predicate can silently lose half its inputs and still print a confident verdict. Building the addressed-post canary (T-2793) produced three such failures, each invisible to fixtures and caught only by running against live data: (1) jq rebinds '.' inside a pipe, so select($body | contains(.)) matched every alias to every payload and the check fired on 114/115 envelopes — maximum output, zero signal; (2) excluding self-authored posts by sender_id zeroed the entire check because every envelope on the hub shares one relay fingerprint, reporting addressed:0 over a topic holding two posts written straight at the reader; (3) identity resolution failed and took the ack frontier with it while the check kept printing verdicts. Rule: any predicate that can degrade must declare its degradation on every output path, and a field used to discriminate must be tested for whether it actually discriminates on this data before it is trusted."
+  source: P-001
+  task: T-2793
+  date: 2026-08-18
+  context: Added via context agent

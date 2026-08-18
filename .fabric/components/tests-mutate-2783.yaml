@@ -1,0 +1,20 @@
+id: tests/mutate-2783.sh
+name: mutate-2783
+type: script
+subsystem: unknown
+location: tests/mutate-2783.sh
+tags: []
+
+purpose: "TODO: describe what this component does"
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-08-18
+created_by: unknown
