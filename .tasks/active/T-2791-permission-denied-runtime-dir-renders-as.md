@@ -16,7 +16,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-18T12:57:50Z
-last_update: 2026-08-18T12:57:50Z
+last_update: 2026-08-18T13:01:33Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -58,19 +58,44 @@ the fix. Reply with source citations: `docs/reports/T-2791-reply-to-999-aef-defe
 ## Acceptance Criteria
 
 ### Agent
-- [ ] A regression test pins the defect: an unreadable candidate runtime dir must NOT be
+- [x] A regression test pins the defect: an unreadable candidate runtime dir must NOT be
       reported as an absent one. Test fails against current `all_sessions_dirs()`.
-- [ ] `all_sessions_dirs()` distinguishes "absent" from "present but unreadable" —
+      → 6 new tests in `discovery.rs`. The two load-bearing ones are
+      `permission_denied_at_stat_is_unreadable_not_skipped` and
+      `permission_denied_at_read_dir_is_unreadable`; both assert `Unreadable`, which the
+      pre-fix `.filter(|d| d.is_dir())` could not express at all (it had one outcome:
+      dropped). Written against a PURE classifier `classify_candidate` rather than a
+      chmod fixture, because the test process runs as root here and root bypasses the
+      exact permission check under test — a chmod-based test would have passed while
+      never exercising the branch. Same pattern as `decide_unix_peer` (T-2448,
+      `server.rs:1929`). 13/13 `discovery` tests pass.
+- [x] `all_sessions_dirs()` distinguishes "absent" from "present but unreadable" —
       `ENOENT` stays silently filtered (the legitimate intent of the original filter),
       `EACCES` is surfaced to the caller rather than dropped.
-- [ ] `termlink topics` (text) no longer prints a bare `No event topics found.` when a
+      → New `scan_sessions_dirs() -> SessionsDirScan { usable, unreadable }`.
+      `all_sessions_dirs()` keeps its signature as `scan().usable`, so the three existing
+      callers (`supervisor.rs:38`, `manager.rs:199`, and the CLI) are unaffected —
+      pinned by the pre-existing `all_sessions_dirs_filters_nonexistent`, still green.
+      `read_dir` is consulted separately from `metadata` because traversing (`--x`) and
+      listing (`r--`) are distinct permissions.
+- [x] `termlink topics` (text) no longer prints a bare `No event topics found.` when a
       candidate runtime dir was skipped for permissions; it names the unreadable path.
-- [ ] `termlink topics --json` no longer asserts a complete inventory in that case — the
+      → Live-proven as uid 1000 against a root-owned `0700` dir: names the path, states
+      "this is not a complete answer", and gives the uid + remedy. Control (readable
+      empty dir, same uid) still prints exactly `No active sessions.` — unchanged.
+- [x] `termlink topics --json` no longer asserts a complete inventory in that case — the
       unreadable-dir count is a distinct field from `sessions_skipped` (which counts probe
       failures) so a consumer can tell the two apart.
-- [ ] Reply to 999-AEF posted on agent-chat-arc confirming Defect B from source
+      → New binary, unreadable dir: `{"dirs_unreadable":1,"inventory_complete":false,
+      "unreadable_dirs":["/tmp/t2791probe/sessions"],...}`. Same invocation on the OLD
+      binary: `{"ok":true,"sessions":[],"total_topics":0}` — byte-identical to the
+      readable-empty control, which is the defect demonstrated side by side.
+- [x] Reply to 999-AEF posted on agent-chat-arc confirming Defect B from source
       (`server.rs:743/766/813`) and correcting the two points where their advisory is
       version-dated or would misdirect an implementer.
+      → agent-chat-arc offset 105 (`{"delivered":{"offset":105}}`), full text at
+      `docs/reports/T-2791-reply-to-999-aef-defect-b.md`. Frontier acked to 105 at
+      offset 106 so the topic is meaningful to sweep next time.
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -105,6 +130,19 @@ the fix. Reply with source citations: `docs/reports/T-2791-reply-to-999-aef-defe
 -->
 
 ## Verification
+
+out=$(cargo test -p termlink-session --lib discovery 2>&1 || true); grep -q "13 passed; 0 failed" <<< "$out"
+out=$(cargo test -p termlink-session --lib discovery 2>&1 || true); grep -q "permission_denied_at_stat_is_unreadable_not_skipped ... ok" <<< "$out"
+out=$(cargo test -p termlink-session --lib discovery 2>&1 || true); grep -q "permission_denied_at_read_dir_is_unreadable ... ok" <<< "$out"
+out=$(cargo test -p termlink-session --lib discovery 2>&1 || true); grep -q "absent_dir_is_still_skipped_silently ... ok" <<< "$out"
+out=$(cargo test -p termlink-session --lib discovery 2>&1 || true); grep -q "all_sessions_dirs_filters_nonexistent ... ok" <<< "$out"
+out=$(cat crates/termlink-session/src/discovery.rs 2>&1 || true); grep -q "pub fn scan_sessions_dirs" <<< "$out"
+out=$(cat crates/termlink-session/src/discovery.rs 2>&1 || true); grep -q "PermissionDenied) => CandidateOutcome::Unreadable" <<< "$out"
+out=$(cat crates/termlink-cli/src/commands/events.rs 2>&1 || true); grep -q "inventory_complete" <<< "$out"
+out=$(cat crates/termlink-cli/src/commands/events.rs 2>&1 || true); grep -q "dirs_unreadable" <<< "$out"
+test -f docs/reports/T-2791-reply-to-999-aef-defect-b.md
+out=$(cat docs/reports/T-2791-reply-to-999-aef-defect-b.md 2>&1 || true); grep -q "server.rs:813" <<< "$out"
+out=$(cat docs/reports/T-2791-reply-to-999-aef-defect-b.md 2>&1 || true); grep -q "discovery.rs:81-87" <<< "$out"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -157,7 +195,51 @@ the fix. Reply with source citations: `docs/reports/T-2791-reply-to-999-aef-defe
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
+**Symptom:** A non-root process pointed at a `0700` root-owned `TERMLINK_RUNTIME_DIR`
+runs `termlink topics` and is told `No event topics found.` (exit 0), or in JSON
+`{"ok":true,"sessions":[],"total_topics":0}`. Both are indistinguishable from the answer
+given for a genuinely empty, fully-readable runtime dir. Reported independently by
+999-AEF as OBS-302, where it caused a peer project (0503-codex) to build an entire
+diagnosis on filesystem reads that were quietly returning nothing.
+
+**Root cause:** `discovery.rs:85`, `.filter(|d| d.is_dir())`. `Path::is_dir()` is
+documented to return `false` when the underlying `stat` fails **for any reason**, which
+includes `EACCES`. So "this directory does not exist" and "I am not allowed to look at
+this directory" produced the same value, and the second was discarded as the first. Two
+further layers repeated the collapse — `manager.rs:230` gates on `!sessions_dir.exists()`
+(also false under EACCES) and `manager.rs:217` swallows `read_dir` errors at `debug`
+level — so even had discovery reported honestly, the result would have been re-silenced.
+
+**Why structurally allowed:** three reasons, and the third is the one that matters.
+
+1. The filter's stated intent was noise suppression — the doc comment says "avoids noisy
+   read_dir errors" — and that intent is *legitimate* for `ENOENT` (an uncreated
+   `/tmp/termlink-$UID` is the common case). The bug is that one predicate was used for
+   two conditions, and no test distinguished them.
+2. T-2624 had already added partial-inventory fields to this exact command, so the
+   "our answer might be incomplete" concept existed — but it counts **probe** failures,
+   sessions found and then unreachable. A session never discovered is invisible to it.
+   The JSON surface therefore asserted `sessions_skipped: 0` — actively claiming
+   completeness — making the machine-readable output *more* confidently wrong than the
+   human one.
+3. **The guard layer could not see this class.** `check-silent-exit.sh` (T-2666) exists
+   for precisely this directive, but it detects a **non-zero exit that prints nothing**.
+   This is the inverse and strictly worse shape: a **zero exit that prints a positive,
+   plausible, wrong claim**. Nothing in the layer asks "can this success path be reached
+   by a failed read?" Recorded as the follow-up below rather than claimed as fixed here.
+
+**Prevention:** the fix itself is not prevention — `classify_candidate` is. It is a pure
+function with the `EACCES` branch pinned by name, so re-collapsing the two conditions now
+fails a test rather than passing silently. It is deliberately pure because the test
+process runs as **root**, and root bypasses the permission check under test: a
+chmod-based fixture would have gone green while never once exercising the branch, which
+is the T-2683 "a guard nothing executes" shape reproduced inside the regression test for
+it. The live proof was therefore run out-of-band by dropping to uid 1000, old binary
+against new, same directory.
+
+Structural follow-up (not closed by this task): the guard layer has no member for
+"zero-exit success path reachable from a failed read". Filed separately rather than
+folded in — one bug, one task. (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
 

@@ -1143,6 +1143,26 @@ pub(crate) async fn cmd_topics(target: Option<&str>, json: bool, timeout_secs: u
         }
     };
 
+    // T-2791: "no sessions" and "cannot SEE the sessions" are different
+    // answers, and the second one used to render as the first. A candidate
+    // runtime dir that exists but is unreadable by this uid (the 0700
+    // root-owned `/var/lib/termlink` case) was dropped by an `is_dir()`
+    // filter that returns false on EACCES, so discovery yielded zero
+    // sessions and every surface below asserted a COMPLETE empty inventory.
+    // Reported independently as 999-AEF OBS-302. Only consulted for the
+    // fleet-wide path — an explicit `target` names one session and its
+    // lookup failure is already loud.
+    let dir_scan = if target.is_some() {
+        termlink_session::discovery::SessionsDirScan::default()
+    } else {
+        termlink_session::discovery::scan_sessions_dirs()
+    };
+    let unreadable_dirs: Vec<String> = dir_scan
+        .unreadable
+        .iter()
+        .map(|p| p.display().to_string())
+        .collect();
+
     if registrations.is_empty() {
         if json {
             // T-2687: emit the full field set (zeroed). T-2624 added the
@@ -1150,7 +1170,11 @@ pub(crate) async fn cmd_topics(target: Option<&str>, json: bool, timeout_secs: u
             // return silently omitted `total_sessions` and all four counters —
             // a consumer parsing the shape had to special-case "no sessions".
             println!("{}", serde_json::json!({
+                // T-2791: an inventory we were not permitted to read is not a
+                // complete one. `ok` stays true (nothing malfunctioned) but the
+                // claim of completeness is withdrawn explicitly.
                 "ok": true,
+                "inventory_complete": unreadable_dirs.is_empty(),
                 "sessions": [],
                 "total_topics": 0,
                 "total_sessions": 0,
@@ -1158,9 +1182,29 @@ pub(crate) async fn cmd_topics(target: Option<&str>, json: bool, timeout_secs: u
                 "sessions_bad_result": 0,
                 "sessions_skipped": 0,
                 "sessions_probed": 0,
+                // Distinct from `sessions_skipped`, which counts sessions that
+                // were FOUND and then failed to probe. These were never
+                // discovered at all.
+                "dirs_unreadable": unreadable_dirs.len(),
+                "unreadable_dirs": unreadable_dirs,
             }));
-        } else {
+        } else if unreadable_dirs.is_empty() {
             println!("No active sessions.");
+        } else {
+            println!(
+                "No active sessions VISIBLE — {} candidate runtime director{} could not be read \
+                 by this user, so this is not a complete answer:",
+                unreadable_dirs.len(),
+                if unreadable_dirs.len() == 1 { "y" } else { "ies" }
+            );
+            for d in &unreadable_dirs {
+                println!("  {d}  (permission denied)");
+            }
+            println!(
+                "Sessions registered there are invisible to uid {}. Run as the owning user, \
+                 or point TERMLINK_RUNTIME_DIR at a readable directory.",
+                unsafe { libc::getuid() }
+            );
         }
         return Ok(());
     }
@@ -1205,6 +1249,10 @@ pub(crate) async fn cmd_topics(target: Option<&str>, json: bool, timeout_secs: u
             .collect();
         println!("{}", serde_json::json!({
             "ok": true,
+            // T-2791: single field a consumer can branch on. False when EITHER
+            // a discovered session failed to probe OR a candidate runtime dir
+            // was unreadable — the two ways this answer can be partial.
+            "inventory_complete": skipped == 0 && unreadable_dirs.is_empty(),
             "sessions": sessions,
             "total_topics": total,
             "total_sessions": session_topics.len(),
@@ -1214,12 +1262,30 @@ pub(crate) async fn cmd_topics(target: Option<&str>, json: bool, timeout_secs: u
             "sessions_bad_result": bad_result,
             "sessions_skipped": skipped,
             "sessions_probed": total_probed,
+            // T-2791: NOT the same thing as `sessions_skipped`. Those were
+            // discovered and then failed to answer; these were never
+            // discovered, because the directory holding them could not be read.
+            "dirs_unreadable": unreadable_dirs.len(),
+            "unreadable_dirs": unreadable_dirs,
         }));
         return Ok(());
     }
 
     if session_topics.is_empty() {
-        if skipped > 0 {
+        // T-2791: three distinct reasons the list is empty, and the bare
+        // third one used to absorb the first. Never claim an empty inventory
+        // is a complete one.
+        if !unreadable_dirs.is_empty() {
+            println!(
+                "No event topics found — but {} candidate runtime director{} could not be read \
+                 by this user, so this is NOT a complete answer:",
+                unreadable_dirs.len(),
+                if unreadable_dirs.len() == 1 { "y" } else { "ies" }
+            );
+            for d in &unreadable_dirs {
+                println!("  {d}  (permission denied)");
+            }
+        } else if skipped > 0 {
             println!(
                 "No event topics found ({} of {} session(s) unreachable/errored — inventory may be incomplete).",
                 skipped, total_probed
