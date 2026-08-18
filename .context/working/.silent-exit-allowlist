@@ -1,0 +1,12 @@
+# T-2666 silent-exit check — confirmed-loud exit sites.
+#
+# Signature format: <relpath>::<enclosing-fn>::silent-exit   (fn-name based, survives
+# line moves; a fn RENAME re-fires the site by design). One per line; # starts a comment.
+#
+# TRACKED IN GIT (T-2692). `.context/working/` is gitignored wholesale, so this file is
+# force-added. Untracked, the check would fire on every line below in a fresh clone.
+#
+# Currently EMPTY, and that is the healthy state: after the T-2667 migration the tree
+# scans clean with 0 allowlisted sites (39 non-zero-literal exits scanned, 0 firing).
+# The file is tracked anyway so the convention is visible and the next confirmed-loud
+# site is acknowledged here rather than in an untracked file.

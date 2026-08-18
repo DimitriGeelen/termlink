@@ -1,0 +1,18 @@
+# T-2672 busy-spin check — long-poll loops that provably cannot busy-spin.
+#
+# Signature format: <relpath>::<enclosing-fn>::busy-spin   (fn-name based, survives line
+# moves; a fn RENAME re-fires the site by design). One per line; text after # is a comment.
+#
+# TRACKED IN GIT (T-2692). `.context/working/` is gitignored wholesale, so this file is
+# force-added. Untracked, the check fires on every line below in any fresh clone.
+#
+# The check flags a long-poll loop with no `tokio::time::sleep`. These four are safe for
+# the OTHER admissible reason: the error path EXITS the loop instead of re-dispatching,
+# so there is no next iteration to spin on. The grep cannot see that from the loop body.
+#
+# All entries re-verified against source 2026-08-18 (T-2692).
+
+crates/termlink-cli/src/commands/events.rs::cmd_wait::busy-spin        # rpc_result Err(_) arm ends in `anyhow::bail!("Session '{}' disconnected while waiting")` (json mode: json_error_exit) — leaves the loop, never re-dispatches
+crates/termlink-mcp/src/tools.rs::termlink_request::busy-spin          # loop opens on a wall-clock deadline: `remaining.is_zero()` -> `return json_err(timeout...)`; each iteration's timeout_ms is min(subscribe_timeout, remaining), so iterations are bounded and terminate
+crates/termlink-mcp/src/tools.rs::termlink_wait::busy-spin             # same deadline-guard shape as termlink_request — `remaining.is_zero()` returns json_err before any re-dispatch
+crates/termlink-mcp/src/tools.rs::termlink_agent_ask::busy-spin        # same deadline-guard shape — `remaining.is_zero()` returns json_err("no agent response within Ns")

@@ -1,0 +1,17 @@
+# T-2527 alloc-sink check — confirmed-safe sink sites.
+#
+# Signature format: <relpath>::<sink>(<normalized-arg>)   ("as usize" casts stripped).
+# One per line; text after # is a comment. A site listed here is a STANDING ASSERTION
+# that its size argument is bounded by construction — re-verify before adding one.
+#
+# TRACKED IN GIT (T-2692). `.context/working/` is gitignored wholesale, so this file is
+# force-added. Do NOT let it fall out of tracking: untracked, the check fires on every
+# line below in any fresh clone / worktree / CI run.
+#
+# All entries below re-verified against source 2026-08-18 (T-2692).
+
+crates/termlink-mcp/src/tools.rs::with_capacity(total_tools)   # internally derived: total_tools counts the static tool registry (categories / tool_params()), never caller-supplied
+crates/termlink-mcp/src/tools.rs::with_capacity(count)         # guarded: validate_dispatch_count(p.count) at tools.rs:13482 returns early when count==0 or >MAX_DISPATCH_COUNT (256) — a validate-and-early-return the grep cannot see
+crates/termlink-mcp/src/tools.rs::vec!(count)                  # same guard as above (tools.rs:13482); this is the `vec![false; count]` registration tracker in the same fn
+crates/termlink-session/src/codec.rs::vec!(payload_len)        # bounded one line above at `FrameHeader::decode(&self.header_buf)?` which rejects payload_length > MAX_PAYLOAD_SIZE
+crates/termlink-session/src/events.rs::with_capacity(capacity) # library constructor param: EventBus::with_capacity is reached from EventBus::new() with the DEFAULT_CAPACITY const; not a peer-reachable field

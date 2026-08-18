@@ -599,6 +599,31 @@ termlink channel sweep <t>`), or — if genuinely operator-durable — add it to
 sixteen canaries above — all seventeen follow the same "empty-log = healthy"
 convention.
 
+### Static-check allowlists are TRACKED state (T-2692)
+
+The four source-level static checks (T-2527 alloc-sink, T-2531 drain-sink, T-2666
+silent-exit, T-2672 busy-spin) record their confirmed-safe acknowledgements — each
+with a cited reason — in `.context/working/.<check>-allowlist`. `.gitignore` ignores
+`.context/working/` **wholesale**, so those four files are **force-added**
+(`git add -f`), the same treatment the other ~115 durable files under that path get.
+
+**Keep them tracked.** Untracked, an allowlist exists on exactly one machine, and the
+"the current tree scans CLEAN" claim in each section above silently becomes false
+everywhere else: measured from a fresh worktree before T-2692, three of the four checks
+fired **15 false positives** (5 + 6 + 4) — every one of them an already-acknowledged
+site. A check that cries wolf in every clone but one is not a gate, it is noise, and it
+trains the reader to ignore it (the same alarm-fatigue mechanism T-2690 fixed for
+`/canaries`). The second cost is governance: an allowlist entry is a standing assertion
+that a potentially-OOMing allocation or a CPU-spinning loop is safe, so it needs a
+review trail — untracked, the *reason* has no history and no backup.
+
+**When adding an entry:** verify the site in source and write the reason from what the
+code does. Do not restore or copy an entry from prose. That discipline pays: re-verifying
+during T-2692 confirmed `count` at `tools.rs:13536/13623` is bounded by
+`validate_dispatch_count` (max 256, loud-reject) called at `tools.rs:13482` — a
+validate-and-early-return the grep structurally cannot see, which is precisely why the
+site needs an acknowledgement rather than a code change.
+
 ### Canary error sink is a READ surface (T-2690, G-063 class on the detection layer)
 
 Every canary crontab routes the canary's **stderr** to a companion

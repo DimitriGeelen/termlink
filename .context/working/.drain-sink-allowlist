@@ -1,0 +1,22 @@
+# T-2531 drain-sink check — confirmed-safe drain sites.
+#
+# Signature format: <relpath>::<enclosing-fn>::<sink>   (fn-name based, survives line
+# moves; a fn RENAME re-fires the site by design — that is intended re-review).
+# One per line; text after # is a comment.
+#
+# TRACKED IN GIT (T-2692). `.context/working/` is gitignored wholesale, so this file is
+# force-added. Untracked, the check fires on every line below in any fresh clone.
+#
+# All entries re-verified against source 2026-08-18 (T-2692). Every one is the same
+# shape: an INTERNAL subprocess — the SELF binary via `std::env::current_exe()`, or
+# `bash <repo script>` — invoked on a fixed trusted subcommand with
+# `kill_on_drop(true)` + `stdin(Stdio::null())` + `tokio::time::timeout(...)`. The
+# captured bytes are therefore bounded by our own subcommand's JSON emission under a
+# wall-clock cap, not by peer-supplied input (INTERNAL by the T-2529 threat model).
+
+crates/termlink-mcp/src/tools.rs::fetch_anchor_validation_map::output      # self binary (current_exe) `fleet bootstrap-check --all --json`; kill_on_drop + null stdin + timeout(timeout_secs)
+crates/termlink-mcp/src/tools.rs::termlink_fleet_bootstrap_check::output   # self binary, same fixed subcommand as above, same three bounds
+crates/termlink-mcp/src/tools.rs::termlink_substrate_status::output        # self binary `substrate status --json`; also threads its own --timeout downstream (T-2116) so the child's read bound matches ours
+crates/termlink-mcp/src/tools.rs::termlink_fleet_secrets_audit::output     # self binary, fixed fleet subcommand, kill_on_drop + null stdin + timeout
+crates/termlink-mcp/src/tools.rs::termlink_fleet_reauth::output            # self binary, fixed fleet subcommand, kill_on_drop + null stdin + timeout
+crates/termlink-mcp/src/tools.rs::run_t1836_subprocess::output             # `bash <script>` under TERMLINK_SCRIPTS_DIR — a repo-owned script, not peer input; kill_on_drop + null stdin + timeout(timeout_secs)
