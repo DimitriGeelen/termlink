@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2789: RCA cross-UID TermLink delivery from 0503-Codex (dimitri-mint-dev) to the root-owned AEF hub
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-18T12:24:05Z
+# ============================================================================
+
+task_id: T-2789
+task_name: "RCA cross-UID TermLink delivery from 0503-Codex (dimitri-mint-dev) to the root-owned AEF hub"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-18T11:49:38Z
+completed: 2026-08-18T12:24:00Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Codex agent running as dimitri-mint-dev in /opt/0503-codex-cli-playground cannot reach AEF session tl-812b4f38 on the root-owned hub (TERMLINK_RUNTIME_DIR=/var/lib/termlink); root-side ping succeeds at ~1ms. Produce evidence-backed RCA plus at least two least-privilege fix options with security trade-offs and a preferred architecture. Constraints from the operator: no world-writable sockets, no broad chmod/chown, no copied secrets, no unaudited bypass, no interactive sudo for normal governed collaboration, and delivery must remain distinct from receipt.
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - 'RCA names the refusing layer with live evidence, not inference (`docs/reports/T-2789-cross-uid-delivery-rca.md` §1.1, §1.6)'
+  - 'At least two fix options carry an explicit "authority actually granted" column, so'
+  - 'Every IW question carries a disposition and a `file:line` or measured-output rationale'
+  - 'The report states what was NOT done and why (§7) — in particular that no live'
+  - 'No permission, group, secret, or config on this host was modified by this task'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 34 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 34
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2789-rca-cross-uid-termlink-delivery-from-050.md
+generated_by: context-agent-hybrid

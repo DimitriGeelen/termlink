@@ -4,9 +4,9 @@ name: "Close the T-2685 deployment gap — verify installed crontabs carry the s
 description: >
   T-2685 split canary stderr out of the findings logs, but the commit (124a67e35) sits on the worktree branch and never reached main, so /opt/termlink still ships the unfixed crontabs. A deploy loop run from the main checkout copied unfixed over unfixed and exited 0 — a silent no-op. Verify the corrected deploy took effect, confirm check-cron-install-drift.sh clears its 21 JOB_DRIFT findings, and resolve the stranding so the next deploy from main is not another no-op.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-18T12:26:59Z
-last_update: 2026-08-18T12:26:59Z
-date_finished: null
+last_update: 2026-08-18T12:30:03Z
+date_finished: 2026-08-18T12:30:03Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -173,6 +173,34 @@ out=$(grep -c 'PL-357 RECURRED' .context/project/learnings.yaml 2>/dev/null || e
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+## Recommendation
+
+**Recommendation:** GO — un-strand the branch (merge to `main`, or cherry-pick `124a67e35`).
+
+**Rationale:** `/etc/cron.d` is correct as of today, but that state is *not durable*. `main`
+still carries the unfixed crontabs, and `main` is what `/opt/termlink` serves. So the next
+person who runs the documented deploy loop from the main checkout silently reverts all 21
+crontabs — with a command that exits 0 and prints nothing. That is not a hypothetical: it is
+exactly what happened this session, and PL-357 had already named the class after T-2764
+without preventing it. Leaving the fix branch-local means the *second* recurrence is set up
+in advance.
+
+The narrow cherry-pick is sufficient for the crontabs and lower-risk than merging the whole
+branch; the merge is the better answer if the branch is otherwise ready. That choice is the
+human's — it is a `main`-branch action, and agent initiative does not extend to merging.
+
+**Evidence:**
+- `git grep -l 'log.stderr' main -- '.context/cron/*.crontab'` → **0**; same against `HEAD` → **21**.
+- Deploy run from `/opt/termlink` copied unfixed→unfixed, exit 0, no output: installed split
+  count stayed **0/24** across the attempt.
+- Deploy re-run from the worktree: **21** installed, `systemctl is-active cron` → active.
+- Independent witness `scripts/check-cron-install-drift.sh --json`:
+  `{"ok":true,"missing_count":0,"uninstalled_jobs_count":0,"job_drift_count":0,"drift_count":0,"ok_count":24}`
+  — down from `job_drift: 21, uninstalled_jobs: 2`.
+- `uninstalled_jobs_count: 0` also means the two meta-canary job lines T-2787 un-buried
+  (fleet-doorbell-mail, substrate-preflight) are scheduled for the first time.
+- Recurrence recorded as **PL-362**; verification block asserts the witness, not the deploy.
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -188,6 +216,42 @@ out=$(grep -c 'PL-357 RECURRED' .context/project/learnings.yaml 2>/dev/null || e
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** The operator ran the documented crontab deploy loop from `/opt/termlink`. It
+exited 0 and printed nothing. Nothing changed: installed crontabs carrying the T-2685 stderr
+split stayed at **0 of 24**, and `check-cron-install-drift.sh` kept reporting
+`job_drift: 21, uninstalled_jobs: 2`.
+
+**Root cause:** T-2685 (`124a67e35`) was committed on the long-lived worktree branch
+`worktree-charter-review-2026-0814` and never reached `main`. `/opt/termlink` — the checkout
+the deploy loop reads, and the one cron's job lines `cd` into — is on `main`, whose
+`.context/cron/*.crontab` still carried `2>&1`. The loop therefore copied *unfixed over
+unfixed*: a correct execution of a correct command against the wrong source tree.
+
+**Why structurally allowed:** two properties compound, and neither is visible from the deploy
+command itself.
+1. `cp` cannot witness a deployment. It returns 0 for a copy that changes nothing, so exit
+   status is indistinguishable between "installed the fix" and "reinstalled the bug".
+2. The source-of-truth branch is implicit. The deploy loop names a *directory*, not a
+   revision, so a fix living on another branch is invisible at the point of use — the operator
+   sees `.context/cron/*.crontab` and has no signal that these are not the fixed ones.
+Compounding both: the fix being *committed* and the CI guard-layer being *green on the branch*
+made every conventional signal read healthy while the host ran the old configuration. Shipped,
+not live (G-069), one layer below the binary where that gap is usually watched.
+
+**Prevention:** not another instruction — PL-357 already stated this precisely after T-2764
+and did not prevent the recurrence, which is the standing argument (cf. T-2746, T-2775) that a
+learning is not a control. What actually caught it was
+`scripts/check-cron-install-drift.sh` — an independent post-condition witness that compares
+installed reality against what git declares, and which T-2787 had just taught to distinguish
+`JOB_DRIFT` from `UNINSTALLED_JOBS`. That check is now the assertion in this task's
+`## Verification` block (`job_drift_count:0`, `uninstalled_jobs_count:0`, `21` installed),
+so the deploy's own exit code is never the evidence. **Residual gap:** the check compares
+against the *working tree*, so it cannot see that the working tree itself is a branch cron
+never reads — it would have reported clean had this been run from `/opt/termlink`. Closing
+that means teaching it (or `fw doctor`) to warn when guard-layer sources are ahead of the
+branch the host serves. Recorded as PL-362; filing the structural check is the human decision
+in `## Recommendation`.
 
 ## Evolution
 
@@ -240,3 +304,6 @@ out=$(grep -c 'PL-357 RECURRED' .context/project/learnings.yaml 2>/dev/null || e
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2790-close-the-t-2685-deployment-gap--verify-.md
 - **Context:** Initial task creation
+
+### 2026-08-18T12:30:03Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

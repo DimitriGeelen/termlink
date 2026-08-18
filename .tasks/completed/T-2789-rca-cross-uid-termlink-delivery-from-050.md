@@ -4,16 +4,16 @@ name: "RCA cross-UID TermLink delivery from 0503-Codex (dimitri-mint-dev) to the
 description: >
   Codex agent running as dimitri-mint-dev in /opt/0503-codex-cli-playground cannot reach AEF session tl-812b4f38 on the root-owned hub (TERMLINK_RUNTIME_DIR=/var/lib/termlink); root-side ping succeeds at ~1ms. Produce evidence-backed RCA plus at least two least-privilege fix options with security trade-offs and a preferred architecture. Constraints from the operator: no world-writable sockets, no broad chmod/chown, no copied secrets, no unaudited bypass, no interactive sudo for normal governed collaboration, and delivery must remain distinct from receipt.
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-08-18T11:49:38Z
-last_update: 2026-08-18T11:50:22Z
-date_finished: null
+last_update: 2026-08-18T12:24:00Z
+date_finished: 2026-08-18T12:24:00Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -204,3 +204,6 @@ out=$(stat -c '%a' /var/lib/termlink/hub.secret 2>&1 || true); grep -q "^600$" <
 - **Action:** Recorded inception decision
 - **Decision:** GO
 - **Rationale:** Recommendation is the deliverable of this inception, not an input; set at decide time.
+
+### 2026-08-18T12:24:00Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -140,15 +140,15 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -197,9 +197,29 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale: MEASURED on .107: systemd unit runs User=root with StateDirectoryMode=0700, hub.sock lands root:root 0755, and three hubs are live (root's, dimitri-mint-dev's under /tmp/termlink, systemd's). Nobody misconfigured anything — fragmentation is the DEFAULT outcome once two agent runtimes run as different users, now the normal case with Claude Code and Codex side by side. Silent fragmentation is a Directive #2 violation by design rather than by bug, and it defeats charter verb 1 (discover) and verb 2 (exchange durable messages) locally while both still work across hosts. Self-demonstrating evidence: this session could not DM the AEF agent to co-write this task, because they are absent from agent-presence and .107's hub is unreachable from here — two agents on one machine unable to use the agent-to-agent comms tool to discuss the bug in agent-to-agent comms. Three candidate fixes: (1) UMask=0002 + shared termlink group + StateDirectoryMode=0770 — smallest and unblocks today, but it is DEPLOYMENT CONFIG, not a TermLink fix; every host that does not apply it still fragments, so it must not be recorded as the fix. (2) authorize local clients via SO_PEERCRED inside the hub so local and remote share one model — structurally right and my recommendation, with a Directive #4 caveat: SO_PEERCRED is Linux, macOS needs LOCAL_PEERCRED/getpeereid, and README claims macOS first-class, so it needs T-2693 platform-lock treatment or it trades a uid gap for a portability gap. (3) drop the unix socket for loopback TCP + the same HMAC — genuinely one auth path but gives up the local fast path and opens a port. Sequence behind T-2770, which contains the damage by making hub start refuse on EACCES instead of starting a rival hub.
+
+**Date**: 2026-08-18T12:10:07Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-08-18T12:10:02Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale: MEASURED on .107: systemd unit runs User=root with StateDirectoryMode=0700, hub.sock lands root:root 0755, and three hubs are live (root's, dimitri-mint-dev's under /tmp/termlink, systemd's). Nobody misconfigured anything — fragmentation is the DEFAULT outcome once two agent runtimes run as different users, now the normal case with Claude Code and Codex side by side. Silent fragmentation is a Directive #2 violation by design rather than by bug, and it defeats charter verb 1 (discover) and verb 2 (exchange durable messages) locally while both still work across hosts. Self-demonstrating evidence: this session could not DM the AEF agent to co-write this task, because they are absent from agent-presence and .107's hub is unreachable from here — two agents on one machine unable to use the agent-to-agent comms tool to discuss the bug in agent-to-agent comms. Three candidate fixes: (1) UMask=0002 + shared termlink group + StateDirectoryMode=0770 — smallest and unblocks today, but it is DEPLOYMENT CONFIG, not a TermLink fix; every host that does not apply it still fragments, so it must not be recorded as the fix. (2) authorize local clients via SO_PEERCRED inside the hub so local and remote share one model — structurally right and my recommendation, with a Directive #4 caveat: SO_PEERCRED is Linux, macOS needs LOCAL_PEERCRED/getpeereid, and README claims macOS first-class, so it needs T-2693 platform-lock treatment or it trades a uid gap for a portability gap. (3) drop the unix socket for loopback TCP + the same HMAC — genuinely one auth path but gives up the local fast path and opens a port. Sequence behind T-2770, which contains the damage by making hub start refuse on EACCES instead of starting a rival hub.
+
+### 2026-08-18T12:10:07Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale: MEASURED on .107: systemd unit runs User=root with StateDirectoryMode=0700, hub.sock lands root:root 0755, and three hubs are live (root's, dimitri-mint-dev's under /tmp/termlink, systemd's). Nobody misconfigured anything — fragmentation is the DEFAULT outcome once two agent runtimes run as different users, now the normal case with Claude Code and Codex side by side. Silent fragmentation is a Directive #2 violation by design rather than by bug, and it defeats charter verb 1 (discover) and verb 2 (exchange durable messages) locally while both still work across hosts. Self-demonstrating evidence: this session could not DM the AEF agent to co-write this task, because they are absent from agent-presence and .107's hub is unreachable from here — two agents on one machine unable to use the agent-to-agent comms tool to discuss the bug in agent-to-agent comms. Three candidate fixes: (1) UMask=0002 + shared termlink group + StateDirectoryMode=0770 — smallest and unblocks today, but it is DEPLOYMENT CONFIG, not a TermLink fix; every host that does not apply it still fragments, so it must not be recorded as the fix. (2) authorize local clients via SO_PEERCRED inside the hub so local and remote share one model — structurally right and my recommendation, with a Directive #4 caveat: SO_PEERCRED is Linux, macOS needs LOCAL_PEERCRED/getpeereid, and README claims macOS first-class, so it needs T-2693 platform-lock treatment or it trades a uid gap for a portability gap. (3) drop the unix socket for loopback TCP + the same HMAC — genuinely one auth path but gives up the local fast path and opens a port. Sequence behind T-2770, which contains the damage by making hub start refuse on EACCES instead of starting a rival hub.

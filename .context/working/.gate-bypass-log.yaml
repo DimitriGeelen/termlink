@@ -2727,3 +2727,9 @@ A clean re-run isolated it to exactly two tests, par'
   command: 'FW_SWITCH_FOCUS=1 git add -A && FW_SWITCH_FOCUS=1 git commit -q -m "T-2723: 3rd escalation of OneDev credential block — fleet broadcast; record all attempts + local diagnosis
 
 dm offsets 18 and 21 t'
+- timestamp: '2026-08-18T12:30:50Z'
+  task: 'T-2788'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2790'
+  command: 'FW_SWITCH_FOCUS=1 git add -A .tasks/ .context/ && FW_SWITCH_FOCUS=1 git commit -q -m "T-2790: close deployment gap — RCA + recommendation; partial-complete pending human un-strand decision" && git l'

@@ -114,15 +114,15 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -171,9 +171,22 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale: Eighth critical pass; prior axes were breadth (T-2468), non-goal guards (T-2678), guard execution (T-2683), Usability+Portability (T-2690), positive claims vs provers (T-2694), refusal taxonomy (T-2698), architecture invariants (T-2702). None examined AUTHORIZATION of the substrate primitives. Two findings. F1: channel.claim/release/renew/claim-transfer read claimer via param_str(params,'claimer') with no signature, pubkey or fingerprint anywhere in the claim path, so CLAIM_NOT_OWNED (-32017) compares two caller-supplied strings and stops only honest mistakes. The same file proves the standard exists: channel.post line 777 rejects a sender_id that does not match the fingerprint derived from sender_pubkey_hex, with in-code rationale naming the exact attack ('own key but claim any sender_id'). So the hub authenticates messages but not work ownership, and PL-262's disjointness property rests on client honesty. F2: measured live today, two agents on .107 (/opt/termlink and /opt/050-email-archive) share identity fingerprint d1993c2c3ec44c94, so their DMs land in one topic and receipts cross-mark; identity is host-scoped while discover/exchange/claim are agent-scoped. GO on F1 only: it mirrors an existing in-file check, is bounded and testable. F2 changes wire identity semantics for every peer and would re-key existing dm topics on a fleet with ~1000-commit-stale hosts, so it is human-sovereign.
+
+**Date**: 2026-08-18T12:09:52Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-08-18T12:09:52Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale: Eighth critical pass; prior axes were breadth (T-2468), non-goal guards (T-2678), guard execution (T-2683), Usability+Portability (T-2690), positive claims vs provers (T-2694), refusal taxonomy (T-2698), architecture invariants (T-2702). None examined AUTHORIZATION of the substrate primitives. Two findings. F1: channel.claim/release/renew/claim-transfer read claimer via param_str(params,'claimer') with no signature, pubkey or fingerprint anywhere in the claim path, so CLAIM_NOT_OWNED (-32017) compares two caller-supplied strings and stops only honest mistakes. The same file proves the standard exists: channel.post line 777 rejects a sender_id that does not match the fingerprint derived from sender_pubkey_hex, with in-code rationale naming the exact attack ('own key but claim any sender_id'). So the hub authenticates messages but not work ownership, and PL-262's disjointness property rests on client honesty. F2: measured live today, two agents on .107 (/opt/termlink and /opt/050-email-archive) share identity fingerprint d1993c2c3ec44c94, so their DMs land in one topic and receipts cross-mark; identity is host-scoped while discover/exchange/claim are agent-scoped. GO on F1 only: it mirrors an existing in-file check, is bounded and testable. F2 changes wire identity semantics for every peer and would re-key existing dm topics on a fleet with ~1000-commit-stale hosts, so it is human-sovereign.
