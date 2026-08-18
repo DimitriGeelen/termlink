@@ -3053,3 +3053,24 @@ learnings:
   date: 2026-08-13
   context: Added via context agent
   application: TBD
+- id: PL-328
+  learning: "A detection layer needs its own error channel READ, not just written. Canary stderr was routed to a .log.stderr sink nothing read, while the heartbeat was touched at startup before any work — so an erroring canary read HEALTHY on /canaries, ALIVE to the meta-canary, with its only diagnostic in an unread file. When adding any check, ask where its OWN failure output lands and who reads it."
+  source: unknown
+  task: T-2690
+  date: 2026-08-18
+  context: Added via context agent
+  application: TBD
+- id: PL-329
+  learning: "A liveness signal written BEFORE the work proves scheduling, not completion. All 24 canaries touched .heartbeat right after arg parsing, so a hung or SIGKILLed canary left a fresh heartbeat — the same alive-but-not-progressing shape the frozen-husk canary (T-2239) catches in the substrate, present in the detection layer itself. Write liveness markers from an EXIT trap; EXIT traps do not run on SIGKILL, which is exactly the property wanted."
+  source: unknown
+  task: T-2691
+  date: 2026-08-18
+  context: Added via context agent
+  application: TBD
+- id: PL-330
+  learning: "A check's allowlist is governance state and must be version-controlled. The four static-check allowlists lived in gitignored .context/working/ and were never force-added, so 3 of 4 checks fired 15 false positives in any fresh clone while CLAUDE.md claimed all scan clean. Fixture suites hid it: they pass an explicit --allowlist path, so they proved the mechanism but never the deployment. Test the deployed configuration, not only the mechanism."
+  source: unknown
+  task: T-2692
+  date: 2026-08-18
+  context: Added via context agent
+  application: TBD

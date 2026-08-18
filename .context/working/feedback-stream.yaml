@@ -7938,3 +7938,57 @@ scan_id: R-c5f9a739
 task_id: T-2676
 payload:
   task_file: .tasks/active/T-2676-bound-circuitbreakerregistrystates--per-.md
+---
+kind: scan_emitted
+timestamp: '2026-08-18T22:34:05Z'
+scan_id: R-8bd35b40
+task_id: T-2691
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-18T22:34:05Z'
+scan_id: R-8bd35b40
+task_id: T-2691
+payload:
+  task_file: .tasks/active/T-2691-heartbeat-proves-scheduling-not-completion.md
+---
+kind: scan_emitted
+timestamp: '2026-08-18T22:34:42Z'
+scan_id: R-10b396ba
+task_id: T-2690
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-18T22:34:42Z'
+scan_id: R-10b396ba
+task_id: T-2690
+payload:
+  task_file: .tasks/active/T-2690-canary-stderr-sink-severs-detection.md
+---
+kind: scan_emitted
+timestamp: '2026-08-18T22:35:45Z'
+scan_id: R-bd62bd20
+task_id: T-2692
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-18T22:35:45Z'
+scan_id: R-bd62bd20
+task_id: T-2692
+payload:
+  task_file: .tasks/active/T-2692-static-check-allowlists-untracked.md

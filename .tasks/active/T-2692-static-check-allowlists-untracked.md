@@ -20,7 +20,7 @@ tags: [governance, static-check, reproducibility, bug]
 components: [.context/working/.alloc-sink-allowlist, .context/working/.drain-sink-allowlist, .context/working/.busy-spin-allowlist, .context/working/.silent-exit-allowlist]
 related_tasks: [T-2527, T-2531, T-2666, T-2672, T-2690]
 created: 2026-08-18T21:50:00Z
-last_update: 2026-08-18T22:35:04Z
+last_update: 2026-08-18T22:35:54Z
 date_finished: 2026-08-18T22:35:04Z
 ---
 
