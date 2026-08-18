@@ -21,20 +21,45 @@
 #                    heartbeat mtime (cron is firing AND finding problems).
 #   STALE          — heartbeat older than max-age-hours (cron may have stopped
 #                    firing — protection silently degraded).
+#   ERRORING       — the canary's OWN error sink `<log>.stderr` has content
+#                    written inside the staleness window: the canary failed to
+#                    run (its documented exit-2 tooling-error class). Outranks
+#                    every other class — a canary that cannot complete its run
+#                    cannot be trusted to have found or missed anything. T-2690.
+#   NOT_SCHEDULED  — a `-canary.heartbeat` exists but no log was ever written
+#                    AND no crontab under `.context/cron/` mentions the name:
+#                    an ON-DEMAND source-level static check (alloc-sink /
+#                    drain-sink / silent-exit / busy-spin) that someone ran by
+#                    hand, not a cron canary. Informational, never a problem.
+#                    T-2690.
 #   NO_HEARTBEAT   — log file present but no .heartbeat companion. Some
 #                    canaries don't track heartbeats; classified by log content
 #                    alone (empty=HEALTHY, non-empty=FIRING).
 #
+# Why ERRORING exists (T-2690). Three locally-reasonable choices composed into a
+# blind spot: (a) canaries touch `.heartbeat` UNCONDITIONALLY at startup, before
+# doing any work — so heartbeat freshness proves "cron fired", never "the canary
+# succeeded"; (b) on a tooling error a canary writes its diagnostic to stderr and
+# nothing to stdout; (c) the installed crontabs route stderr to `<log>.stderr`,
+# keeping `.log` purely a firing log. Nothing read that sink, so a canary erroring
+# every single day showed `.log` empty (HEALTHY here) with a fresh heartbeat
+# (ALIVE to the meta-canary) and its diagnostic in an unread file. That is the
+# G-063 write-only-sink class landing on the detection layer itself.
+#
 # Exit codes:
 #   0 — all canaries healthy (cron firing AND no entries)
-#   1 — at least one canary is FIRING or STALE (operator action required)
+#   1 — at least one canary is FIRING, ERRORING or STALE (operator action required)
 #   2 — tooling error (missing dir, jq missing in --json mode, etc.)
 #
 # Usage:
 #   canary-status.sh                     # human-readable summary, all canaries
 #   canary-status.sh --json              # machine envelope (jq-friendly)
-#   canary-status.sh --quiet             # only render FIRING/STALE (cron-friendly)
+#   canary-status.sh --quiet             # only render problems (cron-friendly)
 #   canary-status.sh --max-age-hours 72  # custom stale threshold (default 48)
+#
+# Env:
+#   CANARY_CRON_DIR  — crontab source dir used for the NOT_SCHEDULED test
+#                      (default `.context/cron`; overridden by fixtures)
 #
 # Discovery: globs `.context/working/.*-canary.log` and `.canary-aliveness.log`
 # (the meta-canary), then pairs each with `.context/working/<stem>.heartbeat`
@@ -120,6 +145,29 @@ file_size() {
     fi
 }
 
+# Does any git-tracked crontab actually SCHEDULE this canary? (T-2690)
+#
+# `discover_canaries` synthesizes a `.log` path from any `-canary.heartbeat`
+# so a scheduled-but-never-fired canary still shows up (T-2178). That
+# synthesis also sweeps in the four SOURCE-LEVEL STATIC CHECKS
+# (alloc-sink / drain-sink / silent-exit / busy-spin) — CLAUDE.md documents
+# each as "NOT a runtime cron canary", they have no crontab and never write
+# a log, but they do touch a `-canary.heartbeat` when run by hand. Without
+# this discriminator every one of them reads STALE forever and `/canaries`
+# exits 1 permanently, which is exactly the alarm fatigue that makes an
+# operator stop reading the verb.
+#
+# The crontabs under `.context/cron/` are the declared source of truth for
+# what is scheduled (T-2561), so "a crontab mentions this canary's name" is
+# the precise, self-maintaining test: wire a new canary's crontab and it
+# starts being held to the staleness contract automatically.
+CANARY_CRON_DIR="${CANARY_CRON_DIR:-.context/cron}"
+crontab_declares() {
+    local name="$1"
+    [ -d "$CANARY_CRON_DIR" ] || return 1
+    grep -q -F -- "$name" "$CANARY_CRON_DIR"/*.crontab 2>/dev/null
+}
+
 # Compute per-canary classification + metadata. Emits one TSV row per canary
 # (avoids quoting hell when passing to the renderer): name TAB status TAB
 # log_size TAB log_mtime TAB heartbeat_mtime TAB latest_entry.
@@ -136,8 +184,31 @@ classify() {
     log_mtime=$(file_mtime "$log_path")
     heartbeat_mtime=$(file_mtime "$heartbeat_path")
 
+    # The canary's ERROR channel (T-2690). The installed crontabs route the
+    # canary's stderr to `<log>.stderr` so that `.log` stays purely a firing
+    # log — which keeps "empty log = healthy" precise, but only if something
+    # READS the stderr sink. Nothing did: a canary hitting its documented
+    # exit-2 tooling-error class writes NOTHING to stdout, so `.log` stayed
+    # empty (HEALTHY) while the heartbeat — touched unconditionally at
+    # startup, before any work — stayed fresh (ALIVE). An erroring canary was
+    # therefore invisible on every operator surface. This is the G-063
+    # write-only-sink class applied to the detection layer itself.
+    local stderr_path stderr_size stderr_mtime
+    stderr_path="${log_path}.stderr"
+    stderr_size=$(file_size "$stderr_path")
+    stderr_mtime=$(file_mtime "$stderr_path")
+
     local status
-    if [ "$heartbeat_mtime" = "0" ]; then
+    if [ "$stderr_size" != "0" ] && [ "$stderr_mtime" != "0" ] \
+       && [ $((NOW - stderr_mtime)) -le "$MAX_AGE_SECS" ]; then
+        # Recent content in the error sink: the canary itself is broken.
+        # This outranks FIRING deliberately — a canary that cannot complete
+        # its own run cannot be trusted to have found (or missed) anything,
+        # so canary integrity is the more urgent signal. The stderr window is
+        # bounded by the same staleness threshold so a long-resolved
+        # transient error does not pin the verb red forever.
+        status="ERRORING"
+    elif [ "$heartbeat_mtime" = "0" ]; then
         # No heartbeat companion. Classify by log content.
         if [ "$log_size" = "0" ]; then
             status="HEALTHY"
@@ -146,7 +217,12 @@ classify() {
         fi
     else
         local heartbeat_age=$((NOW - heartbeat_mtime))
-        if [ "$heartbeat_age" -gt "$MAX_AGE_SECS" ]; then
+        if [ "$log_mtime" = "0" ] && ! crontab_declares "$name"; then
+            # Heartbeat present but no log was ever created AND nothing
+            # schedules this name — an on-demand static check that someone ran
+            # by hand, not a cron canary. Informational, never a problem.
+            status="NOT_SCHEDULED"
+        elif [ "$heartbeat_age" -gt "$MAX_AGE_SECS" ]; then
             status="STALE"
         elif [ "$log_size" = "0" ]; then
             status="HEALTHY"
@@ -174,7 +250,10 @@ classify() {
     # tail when no signal found — typically the per-run header (e.g.
     # `Fleet doorbell+mail health: DRIFT`).
     local latest_entry=""
-    if [ "$log_size" != "0" ]; then
+    if [ "$status" = "ERRORING" ]; then
+        # Surface the error itself — the log (if any) is the less urgent half.
+        latest_entry=$(tail -n 20 "$stderr_path" 2>/dev/null | grep -v '^$' | tail -n 1 | head -c 120)
+    elif [ "$log_size" != "0" ]; then
         local recent_tail
         recent_tail=$(tail -n 50 "$log_path" 2>/dev/null)
         local signal
@@ -186,8 +265,8 @@ classify() {
         fi
     fi
 
-    printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
-        "$name" "$status" "$log_size" "$log_mtime" "$heartbeat_mtime" "$latest_entry"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$name" "$status" "$log_size" "$log_mtime" "$heartbeat_mtime" "$stderr_size" "$latest_entry"
 }
 
 # Build the result set.
@@ -197,6 +276,8 @@ HEALTHY=0
 FIRING=0
 STALE=0
 NO_HB=0
+ERRORING=0
+NOT_SCHEDULED=0
 
 while IFS= read -r log_path; do
     [ -n "$log_path" ] || continue
@@ -208,27 +289,31 @@ while IFS= read -r log_path; do
         HEALTHY) HEALTHY=$((HEALTHY + 1)) ;;
         FIRING) FIRING=$((FIRING + 1)) ;;
         STALE) STALE=$((STALE + 1)) ;;
+        ERRORING) ERRORING=$((ERRORING + 1)) ;;
+        NOT_SCHEDULED) NOT_SCHEDULED=$((NOT_SCHEDULED + 1)) ;;
         NO_HEARTBEAT) NO_HB=$((NO_HB + 1)) ;;
     esac
 done <<EOF
 $(discover_canaries)
 EOF
 
-PROBLEMS=$((FIRING + STALE))
+# NOT_SCHEDULED is deliberately absent: an on-demand static check that was run
+# by hand is not a problem, it is just not a canary.
+PROBLEMS=$((FIRING + STALE + ERRORING))
 
 # JSON rendering.
 if [ "$JSON" = "1" ]; then
-    printf '{"ok":true,"summary":{"total":%d,"healthy":%d,"firing":%d,"stale":%d,"no_heartbeat":%d,"max_age_hours":%d},"canaries":[' \
-        "$TOTAL" "$HEALTHY" "$FIRING" "$STALE" "$NO_HB" "$MAX_AGE_HOURS"
+    printf '{"ok":true,"summary":{"total":%d,"healthy":%d,"firing":%d,"stale":%d,"erroring":%d,"not_scheduled":%d,"no_heartbeat":%d,"max_age_hours":%d},"canaries":[' \
+        "$TOTAL" "$HEALTHY" "$FIRING" "$STALE" "$ERRORING" "$NOT_SCHEDULED" "$NO_HB" "$MAX_AGE_HOURS"
     first=1
-    while IFS=$'\t' read -r name status log_size log_mtime hb_mtime latest_entry; do
+    while IFS=$'\t' read -r name status log_size log_mtime hb_mtime stderr_size latest_entry; do
         [ -n "$name" ] || continue
         [ "$first" = "1" ] || printf ','
         first=0
         # JSON-escape the latest_entry (minimal: quotes + backslashes + newlines).
         esc=$(printf '%s' "$latest_entry" | sed 's/\\/\\\\/g; s/"/\\"/g; s/	/\\t/g')
-        printf '{"name":"%s","status":"%s","log_size":%s,"log_mtime":%s,"heartbeat_mtime":%s,"latest_entry":"%s"}' \
-            "$name" "$status" "$log_size" "$log_mtime" "$hb_mtime" "$esc"
+        printf '{"name":"%s","status":"%s","log_size":%s,"log_mtime":%s,"heartbeat_mtime":%s,"stderr_bytes":%s,"latest_entry":"%s"}' \
+            "$name" "$status" "$log_size" "$log_mtime" "$hb_mtime" "${stderr_size:-0}" "$esc"
     done <<EOF
 $RESULTS
 EOF
@@ -239,10 +324,11 @@ fi
 # Human rendering.
 render_status() {
     case "$1" in
-        HEALTHY) printf '\033[0;32m%-12s\033[0m' "HEALTHY" ;;
-        FIRING)  printf '\033[0;31m%-12s\033[0m' "FIRING" ;;
-        STALE)   printf '\033[0;33m%-12s\033[0m' "STALE" ;;
-        *)       printf '%-12s' "$1" ;;
+        HEALTHY)  printf '\033[0;32m%-14s\033[0m' "HEALTHY" ;;
+        FIRING)   printf '\033[0;31m%-14s\033[0m' "FIRING" ;;
+        ERRORING) printf '\033[0;31m%-14s\033[0m' "ERRORING" ;;
+        STALE)    printf '\033[0;33m%-14s\033[0m' "STALE" ;;
+        *)        printf '%-14s' "$1" ;;
     esac
 }
 
@@ -267,15 +353,15 @@ fi
 
 if [ "$QUIET" = "1" ]; then
     # Quiet mode WITH problems: render only the FIRING/STALE rows.
-    echo "canary-status: $PROBLEMS canary(ies) need attention ($FIRING firing, $STALE stale, threshold ${MAX_AGE_HOURS}h)"
-    while IFS=$'\t' read -r name status log_size log_mtime hb_mtime latest_entry; do
+    echo "canary-status: $PROBLEMS canary(ies) need attention ($FIRING firing, $ERRORING erroring, $STALE stale, threshold ${MAX_AGE_HOURS}h)"
+    while IFS=$'\t' read -r name status log_size log_mtime hb_mtime stderr_size latest_entry; do
         [ -n "$name" ] || continue
         case "$status" in
-            FIRING|STALE) ;;
+            FIRING|STALE|ERRORING) ;;
             *) continue ;;
         esac
         printf '  %s %s\n' "$(render_status "$status")" "$name"
-        [ -n "$latest_entry" ] && printf '             ↳ %s\n' "$latest_entry"
+        [ -n "$latest_entry" ] && printf '               ↳ %s\n' "$latest_entry"
     done <<EOF
 $RESULTS
 EOF
@@ -283,11 +369,11 @@ EOF
 fi
 
 # Full human render.
-echo "canary-status: $TOTAL canary(ies) — $HEALTHY healthy, $FIRING firing, $STALE stale (threshold ${MAX_AGE_HOURS}h)"
+echo "canary-status: $TOTAL canary(ies) — $HEALTHY healthy, $FIRING firing, $ERRORING erroring, $STALE stale, $NOT_SCHEDULED not-scheduled (threshold ${MAX_AGE_HOURS}h)"
 echo ""
-printf '  %-12s %-32s %s\n' "STATUS" "NAME" "LAST FIRED / LATEST ENTRY"
-printf '  %-12s %-32s %s\n' "------" "----" "-------------------------"
-while IFS=$'\t' read -r name status log_size log_mtime hb_mtime latest_entry; do
+printf '  %-14s %-32s %s\n' "STATUS" "NAME" "LAST FIRED / LATEST ENTRY"
+printf '  %-14s %-32s %s\n' "------" "----" "-------------------------"
+while IFS=$'\t' read -r name status log_size log_mtime hb_mtime stderr_size latest_entry; do
     [ -n "$name" ] || continue
     printf '  %s %-32s ' "$(render_status "$status")" "$name"
     # Show most-recent timestamp (heartbeat or log mtime, whichever is newer).
@@ -298,7 +384,7 @@ while IFS=$'\t' read -r name status log_size log_mtime hb_mtime latest_entry; do
     else
         echo ""
     fi
-    [ -n "$latest_entry" ] && printf '               ↳ %s\n' "$latest_entry"
+    [ -n "$latest_entry" ] && printf '                 ↳ %s\n' "$latest_entry"
 done <<EOF
 $RESULTS
 EOF
@@ -307,6 +393,16 @@ EOF
 if [ "$PROBLEMS" != "0" ]; then
     echo ""
     echo "Action needed:"
+    if [ "$ERRORING" != "0" ]; then
+        echo "  ERRORING — the canary itself failed to run (tooling error, exit 2 class)."
+        echo "  Its firing log may be EMPTY and its heartbeat FRESH, so it looks healthy"
+        echo "  everywhere else. Read the error sink:"
+        echo "    cat $WORKING_DIR/.<name>-canary.log.stderr"
+        echo "  Then reproduce by hand:"
+        echo "    bash scripts/<canary-script>.sh"
+        echo "  Truncate the sink once fixed so the state clears:"
+        echo "    : > $WORKING_DIR/.<name>-canary.log.stderr"
+    fi
     if [ "$FIRING" != "0" ]; then
         echo "  FIRING — a canary is detecting a real problem. Read the log:"
         echo "    cat $WORKING_DIR/.<name>-canary.log"
