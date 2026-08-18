@@ -129,7 +129,17 @@ if [ "$skip_n" -gt 0 ] && [ "$QUIET" -ne 1 ]; then
     for s in "${skipped[@]}"; do echo "  skipped: $s"; done
 fi
 if [ "$fired" -eq 0 ]; then
-    [ "$QUIET" -eq 1 ] || echo "check-cron-install-drift: healthy ($ok_count installed + matching, $drift_n drift-warning, $skip_n skipped)"
+    # Word the summary honestly (T-2690). Content drift stays a non-firing
+    # warning by design (T-2561) — but calling the result "healthy" in the same
+    # breath is how the signal gets discarded. It did: 21 crontabs had silently
+    # had their canaries' stderr rerouted to an unread `.log.stderr` sink, and
+    # this line reported "healthy" every time anyone looked. Same exit code,
+    # different word.
+    if [ "$drift_n" -gt 0 ]; then
+        [ "$QUIET" -eq 1 ] || echo "check-cron-install-drift: DRIFT ($ok_count installed + matching, $drift_n drift-warning, $skip_n skipped) — installed crontabs differ from the git source of truth; reconcile before trusting them"
+    else
+        [ "$QUIET" -eq 1 ] || echo "check-cron-install-drift: healthy ($ok_count installed + matching, $drift_n drift-warning, $skip_n skipped)"
+    fi
     exit 0
 fi
 exit 1

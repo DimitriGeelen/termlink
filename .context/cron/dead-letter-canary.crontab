@@ -21,4 +21,4 @@ PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 07:39 UTC — offset from the :27 stuck-claims, :33 session-control,
 # :17 unconfirmed-delivery, :13 mirror canaries.
-39 7 * * * root cd /opt/termlink && bash scripts/check-dead-letter-freshness.sh --quiet >> .context/working/.dead-letter-canary.log 2>&1
+39 7 * * * root cd /opt/termlink && bash scripts/check-dead-letter-freshness.sh --quiet >> .context/working/.dead-letter-canary.log 2>> .context/working/.dead-letter-canary.log.stderr

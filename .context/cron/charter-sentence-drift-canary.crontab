@@ -21,8 +21,8 @@ SHELL=/bin/bash
 PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 09:07 UTC — offset from the 08:17/08:47 charter-drift (P8) neighbours.
-7 9 * * * root cd /opt/termlink && bash scripts/check-charter-sentence-drift.sh --quiet >> .context/working/.charter-sentence-drift-canary.log 2>&1
+7 9 * * * root cd /opt/termlink && bash scripts/check-charter-sentence-drift.sh --quiet >> .context/working/.charter-sentence-drift-canary.log 2>> .context/working/.charter-sentence-drift-canary.log.stderr
 
 # Meta-canary (T-1723): a second daily run 30m later verifies THIS canary is still
 # firing at all — the aliveness log grows when the heartbeat is stale (canary broke).
-37 9 * * * root cd /opt/termlink && HEARTBEAT_FILE=.context/working/.charter-sentence-drift-canary.heartbeat CANARY_NAME="charter-sentence-drift canary" CANARY_PROBE_CMD="bash scripts/check-charter-sentence-drift.sh --quiet --no-heartbeat" CANARY_CRON_PATH=/etc/cron.d/termlink-charter-sentence-drift-canary bash scripts/check-canary-aliveness.sh --quiet >> .context/working/.canary-aliveness.log 2>&1
+37 9 * * * root cd /opt/termlink && HEARTBEAT_FILE=.context/working/.charter-sentence-drift-canary.heartbeat CANARY_NAME="charter-sentence-drift canary" CANARY_PROBE_CMD="bash scripts/check-charter-sentence-drift.sh --quiet --no-heartbeat" CANARY_CRON_PATH=/etc/cron.d/termlink-charter-sentence-drift-canary bash scripts/check-canary-aliveness.sh --quiet >> .context/working/.canary-aliveness.log 2>> .context/working/.canary-aliveness.log.stderr

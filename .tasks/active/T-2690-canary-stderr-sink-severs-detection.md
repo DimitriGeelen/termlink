@@ -18,7 +18,7 @@ tags: [governance, canary, observability, bug]
 components: [scripts/canary-status.sh, scripts/check-cron-install-drift.sh, .context/cron]
 related_tasks: [T-2172, T-2561, T-1723, T-2527, T-2531, T-2666, T-2672]
 created: 2026-08-18T21:18:31Z
-last_update: 2026-08-18T21:18:31Z
+last_update: 2026-08-18T21:23:46Z
 date_finished: null
 ---
 
@@ -59,31 +59,49 @@ that makes an operator stop reading it.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `canary-status.sh` reads the `.log.stderr` companion and classifies a canary whose
+- [x] `canary-status.sh` reads the `.log.stderr` companion and classifies a canary whose
       stderr sink is non-empty **within the staleness window** as `ERRORING` (counts as
       needing attention, exit 1), so a tooling-erroring canary can no longer read HEALTHY.
-- [ ] `canary-status.sh` classifies a heartbeat-only entry with **no log file and no
+- [x] `canary-status.sh` classifies a heartbeat-only entry with **no log file and no
       declaring crontab** in `.context/cron/` as `NOT_SCHEDULED` (informational,
       non-firing) instead of `STALE` — removing the 4 permanent false positives.
-- [ ] `bash scripts/canary-status.sh` on the current tree exits 0 (the 4 static checks
-      no longer count as problems and no canary is erroring).
-- [ ] `--json` envelope carries the new states and a `stderr_bytes` field per canary.
-- [ ] The 21 drifted git-source crontabs are reconciled to the installed
+- [x] The `NOT_SCHEDULED` discriminator is narrow: a canary that IS declared by a crontab
+      and has a stale heartbeat still fires `STALE` (fixture Case 5), so the fix cannot
+      blanket-suppress a genuinely dead cron.
+- [x] `--json` envelope carries the new states and a `stderr_bytes` field per canary.
+- [x] The 21 drifted git-source crontabs are reconciled to the installed
       `2>> .<name>.log.stderr` convention, so `check-cron-install-drift.sh` reports
       0 drift and git honestly describes what is deployed.
-- [ ] `check-cron-install-drift.sh` no longer prints the word `healthy` in its summary
+- [x] `check-cron-install-drift.sh` no longer prints the word `healthy` in its summary
       when `drift_count > 0` (exit semantics unchanged — drift stays non-firing per T-2561).
-- [ ] A fixture test `tests/canary-status-fixtures.sh` proves the two new classes are
+- [x] A fixture test `tests/canary-status-fixtures.sh` proves the two new classes are
       load-bearing: an injected non-empty stderr sink fires `ERRORING`; removing it clears.
-- [ ] CLAUDE.md documents the stderr sink as a read surface so the next canary author
+- [x] CLAUDE.md documents the stderr sink as a read surface so the next canary author
       wires it correctly.
+
+Scope note: the four phantom `STALE` entries live in `.context/working/`, which is
+gitignored — those heartbeat files exist only in the operator's checkout, not in this
+worktree. Fixture Case 4 proves the class fix; the live "`/canaries` returns to exit 0"
+observation happens on the host once this branch merges, and is recorded as the Human AC
+below rather than asserted from here.
+
+### Human
+- [ ] [RUBBER-STAMP] `/canaries` on the host returns to a clean exit after merge
+  **Steps:**
+  1. `cd /opt/termlink && bash scripts/canary-status.sh`
+  **Expected:** `alloc-sink`, `busy-spin`, `drain-sink`, `silent-exit` render as
+  `NOT_SCHEDULED` (not `STALE`), and the command exits 0 unless a canary is genuinely
+  firing or erroring.
+  **If not:** any canary still shown `STALE` is a real one whose cron stopped — check
+  `sudo systemctl status cron` and the relevant `/etc/cron.d/termlink-*` entry.
 
 ## Verification
 
 bash tests/canary-status-fixtures.sh
-bash scripts/canary-status.sh --quiet
-out=$(bash scripts/check-cron-install-drift.sh 2>&1); echo "$out" | grep -q "0 drift"
-out2=$(bash scripts/canary-status.sh --json 2>&1); echo "$out2" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['ok'] is True, d; assert all('stderr_bytes' in c for c in d['canaries']), 'stderr_bytes missing'"
+out=$(bash scripts/check-cron-install-drift.sh 2>&1); echo "$out" | grep -q "0 drift-warning"
+out2=$(bash scripts/canary-status.sh --json 2>&1); echo "$out2" | python3 -c "import json,sys; d=json.load(sys.stdin); assert d['ok'] is True, d; assert all('stderr_bytes' in c for c in d['canaries']), 'stderr_bytes missing'; assert 'erroring' in d['summary'] and 'not_scheduled' in d['summary'], 'summary counters missing'"
+bash -n scripts/canary-status.sh
+bash -n scripts/check-cron-install-drift.sh
 
 ## RCA
 

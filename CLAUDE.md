@@ -599,6 +599,52 @@ termlink channel sweep <t>`), or — if genuinely operator-durable — add it to
 sixteen canaries above — all seventeen follow the same "empty-log = healthy"
 convention.
 
+### Canary error sink is a READ surface (T-2690, G-063 class on the detection layer)
+
+Every canary crontab routes the canary's **stderr** to a companion
+`.context/working/.<name>-canary.log.stderr`, deliberately separate from the
+firing log so that "empty log = healthy" stays a precise signal instead of being
+polluted by transient warnings. For a long time nothing **read** that sink, and
+three locally-reasonable choices composed into a total blind spot:
+
+1. Canaries touch `.heartbeat` **unconditionally at startup**, before doing any
+   work — so heartbeat freshness proves *"cron fired"*, never *"the canary
+   succeeded"* (the meta-canary, T-1723, therefore cannot see this class).
+2. On its documented **exit-2 tooling-error** class a canary writes the
+   diagnostic to stderr and **nothing to stdout**.
+3. So the firing `.log` stayed EMPTY and the heartbeat stayed FRESH.
+
+Net: a canary erroring *every single day* read HEALTHY on `/canaries`, ALIVE to
+the meta-canary, with its only diagnostic in an unread file. That is the G-063
+"write-only sink nobody noticed" class — the same one T-2295 closed for
+await-ack and T-2558 for dead-letters — landing on the **detection layer
+itself**, where it costs the most.
+
+`canary-status.sh` (`/canaries`) now reads the sink. Two classes were added:
+
+- **`ERRORING`** — the sink is non-empty with content written **inside the
+  staleness window**: the canary failed to run. It **outranks every other
+  class**, including `FIRING` — a canary that cannot complete its own run cannot
+  be trusted to have found *or missed* anything, so canary integrity is the more
+  urgent signal. The window bound means a long-resolved transient error does not
+  pin the verb red forever. Remediation: read
+  `.context/working/.<name>-canary.log.stderr`, reproduce with
+  `bash scripts/<canary-script>.sh`, then `: > <sink>` to clear the state.
+- **`NOT_SCHEDULED`** — a `-canary.heartbeat` exists but no log was ever written
+  **and** no crontab under `.context/cron/` mentions the name. That is an
+  on-demand **source-level static check** (T-2527 alloc-sink / T-2531 drain-sink
+  / T-2666 silent-exit / T-2672 busy-spin — each documented above as "NOT a
+  runtime cron canary") that someone ran by hand. Informational, never a
+  problem. Before T-2690 all four read `STALE` forever and pinned `/canaries` at
+  exit 1 — the alarm fatigue that makes an operator stop reading the verb.
+
+**When you add a canary:** the crontab must end each line
+`>> .context/working/.<name>-canary.log 2>> .context/working/.<name>-canary.log.stderr`.
+Both halves are read surfaces now. `tests/canary-status-fixtures.sh` locks the
+behaviour host-independently (PL-213) — it drives the scanner through
+`--working-dir` + `CANARY_CRON_DIR` against fixture dirs, so a future refactor
+that drops the stderr read fails the suite.
+
 ### Cron-install-drift check (T-2561, shipped≠live / G-069 for the canary layer)
 
 A canary is only load-bearing if its crontab is actually installed to `/etc/cron.d`.
