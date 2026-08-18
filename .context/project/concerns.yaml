@@ -2315,3 +2315,46 @@ concerns:
   - T-2409
   - T-2359
   - T-2377
+- id: G-085
+  type: gap
+  severity: high
+  title: TermLink's capability-scope model is client-asserted, not server-granted — it reads
+    as a privilege boundary between principals and is not one
+  description: 'Found 2026-08-18 during T-2789 (RCA: cross-UID delivery from the 0503-Codex
+    agent to the root-owned AEF hub). TermLink ships a complete-looking hierarchical capability
+    model — `Observe < Interact < Control < Execute` with a per-method mapping (auth.rs:270-346),
+    HMAC-signed tokens carrying expires_at, a 7-day TTL ceiling clamped at the choke point
+    (auth.rs:415-464, T-2449), hub-side verification (server.rs:644-712), and a regression
+    test proving forwarded calls are not a scope bypass (router.rs:2809). Every conventional
+    signal reads green. BUT every production mint site runs CLIENT-SIDE, signing with the
+    client''s own copy of hub.secret and choosing its own scope: remote.rs:770, remote.rs:6417,
+    mcp/tools.rs:7770 pass a caller-supplied perm_scope, and channel.rs:428 + channel.rs:472
+    hardcode PermissionScope::Execute unconditionally. There is NO server-side issuance, NO
+    subject field in TokenPayload (so two secret-holders are indistinguishable in hub logs),
+    and NO revocation short of rotating hub.secret and re-pinning every client. CONSEQUENCE:
+    possession of hub.secret is identically Execute, so the scope hierarchy structures what
+    a COOPERATING client requests and is not a boundary against one that does not cooperate.
+    The practical harm is that it invites exactly the wrong remediation — an operator asked
+    to grant a peer "least privilege" reaches for a scoped token or a socket ACL, and both
+    silently confer full Execute (server.rs:813 grants PermissionScope::Execute to ANY UNIX
+    connection unconditionally, so filesystem reachability of hub.sock IS maximal authority;
+    server.rs:873 starts TCP at zero scope, making TCP the only plane with a real gate).
+    SHAPE: this is the inverse of the T-2699 finding (a builder with zero callers). Here the
+    VERIFIER is complete, tested, and load-bearing while the ISSUER does not exist — which
+    is precisely why it reads as working. Same family as T-2680 (a result that is true while
+    the impression it creates is false), applied to an authorisation model. Also note
+    `termlink token create` (token.rs:5-28) does NOT close this: it mints from a SESSION''s
+    reg.token_secret, a different secret requiring --token-secret at spawn, not from the hub''s.
+    PREVENTION does not exist and is not a patch: closing this means server-issued, subject-bound,
+    revocable tokens AND removing the client''s ability to self-mint, which is a breaking change
+    to how every hub client authenticates. Filed as an arc candidate (Option C in
+    docs/reports/T-2789-cross-uid-delivery-rca.md SS2). Do not close on a broker (Option D)
+    alone: a broker contains agent behaviour by holding the secret out of the agent''s reach,
+    which is mitigation for one caller, not prevention of the class.'
+  status: watching
+  created: 2026-08-18
+  last_reviewed: 2026-08-18
+  related_tasks:
+  - T-2789
+  - T-2699
+  - T-2449
