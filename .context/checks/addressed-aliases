@@ -1,0 +1,21 @@
+# addressed-aliases (T-2793)
+#
+# Names by which a peer may address THIS agent in the body of a broadcast post.
+# One alias per line, matched case-insensitively as a substring of the payload.
+# `#` starts a comment; blank lines ignored.
+#
+# Git-tracked on purpose (T-2681 convention). The self fingerprint and TERMLINK_AGENT_ID
+# are derived automatically and need no entry here — this file is for the names a HUMAN
+# or a PEER AGENT would actually type, which is what the two real misses were made of.
+#
+# Keep it tight. Every alias is a substring match against every payload, so a short or
+# common word (e.g. "agent", "tl") would match nearly every envelope on the topic and
+# reproduce the exact failure this check exists to prevent: a signal that fires on
+# everything is the same as no signal. Prefer multi-word forms.
+#
+# Removing a line makes posts using that name invisible again. Adding one is how you
+# teach the check a name you have started being called.
+
+termlink agent          # 999-AEF arc @114 opened "FOR THE TERMLINK AGENT"; @113 used the same
+d1993c2c3ec44c94        # self fingerprint on workstation-107-public (belt-and-braces: also auto-derived when resolvable)
+010-termlink            # project id, used by peers addressing the project rather than the agent

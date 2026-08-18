@@ -1,0 +1,40 @@
+# T-2793 — Addressed-post canary (the symmetric-inbox miss, G-063 sibling)
+# Source of truth: /opt/termlink/.context/cron/addressed-posts-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-addressed-posts-canary (USER field syntax — do NOT load into a user crontab)
+#
+# On 2026-08-18 two independent operators — this agent and 999-AEF — each wrote a post
+# to agent-chat-arc naming the other as recipient, and each found the other's only by
+# sweeping the topic by hand. Both posts were durable and both arrived: delivery was
+# never the problem, ADDRESSING was. To every surfacing verb either side owned, a post
+# that names its recipient is an undifferentiated broadcast, and the unread count is
+# honest but useless — it says "something happened" on a topic where a -vendored
+# heartbeat lands hourly. 999-AEF at arc @114: "Symmetric failure, both directions,
+# which is a stronger signal than either of us hitting it alone."
+#
+# The capability was already there and dark. T-1513 shipped metadata.mentions plus
+# `agent mentions` / `channel mentions-of` to read it; at filing, `agent mentions '*'`
+# returned [] across all 115 envelopes and no script set the field or read it in any
+# daily path. That is the T-2683 class (a capability nothing executes) in the comms rail.
+#
+# FIRES (exit 1) when a post addresses you — by metadata.mentions OR by an alias in
+# .context/checks/addressed-aliases — and sits past your ack frontier on the topic.
+# Empty log = healthy. /canaries auto-discovers this log.
+#
+# --self-id is pinned because identity does not resolve on this host: `whoami` is
+# ambiguous here (the T-2690 PID-ancestor case) and no be-reachable.state carries an
+# agent_id. Without it the check still runs but loses the ack frontier and reports every
+# addressed post on every run — safe, but it would fill the log daily and destroy the
+# "empty = healthy" one-bit channel. Re-derive it from `channel ack-status <topic> --json`
+# if this host's fingerprint ever changes.
+#
+# Operator action on firing: read the named offsets, reply (/reply or /agent-handoff),
+# then ack the topic — `termlink channel ack agent-chat-arc --up-to <offset>` — which is
+# what silences it. Ad-hoc: bash scripts/check-addressed-posts.sh
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Every 4 hours at :47 — deliberately NOT daily. This one is latency-sensitive in a way
+# the fitness canaries are not: the cost being prevented is a peer waiting on a reply,
+# and the miss it was built from ran ~2h before a hand sweep caught it. A 24h cadence
+# would have detected that miss no sooner than the human did.
+47 */4 * * * root cd /opt/termlink && bash scripts/check-addressed-posts.sh --quiet --self-id d1993c2c3ec44c94 >> .context/working/.addressed-posts-canary.log 2>> .context/working/.addressed-posts-canary.log.stderr
