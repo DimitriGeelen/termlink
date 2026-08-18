@@ -55,7 +55,7 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 - **IW-1: Which layer actually refuses the Codex agent — session discovery, or filesystem permission?**
   confidence: 3
   disposition: answered
-  rationale: Filesystem. `/var/lib/termlink` is 0700 root:root (traverse denied live) and `hub.sock` is 0755 so connect() lacks write (rc=1 live). Discovery is innocent — `discovery.rs:41-58` already scans `/var/lib/termlink` — UNLESS `TERMLINK_RUNTIME_DIR` is inherited, which `discovery.rs:44-47` makes an exclusive override; that is a second, distinct cause needing one command on the Codex host to rule out.
+  rationale: Filesystem, and ONLY filesystem. `/var/lib/termlink` is 0700 root:root (traverse denied live) and `hub.sock` is 0755 so connect() lacks write (rc=1 live). The competing hypothesis — an inherited `TERMLINK_RUNTIME_DIR` disabling multi-dir scan via `discovery.rs:44-47` — was MEASURED and ruled out: `strings /proc/2992705/environ` on the running codex process (user dimitri-mint-dev) shows `TERMLINK_RUNTIME_DIR=/var/lib/termlink`, i.e. correctly aimed at the dir it cannot enter. Read from the running process, not `sudo -u … env`, which would have reported a fresh login shell rather than what the agent actually inherited.
 
 - **IW-2: Does TermLink already ship a capability-scoped credential, so that granting the
   Codex agent access does not mean handing it the full `hub.secret`?**
@@ -101,11 +101,11 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 - [ ] RCA names the refusing layer with live evidence, not inference (`docs/reports/T-2789-cross-uid-delivery-rca.md` §1.1, §1.6)
 - [ ] At least two fix options carry an explicit "authority actually granted" column, so
       options that look narrow but are not are visibly distinguished (§2)
@@ -117,7 +117,7 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -180,7 +180,11 @@ out=$(stat -c '%a' /var/lib/termlink/hub.secret 2>&1 || true); grep -q "^600$" <
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation is the deliverable of this inception, not an input; set at decide time.
+
+**Date**: 2026-08-18T12:22:40Z
 
 ## Updates
 
@@ -189,3 +193,8 @@ out=$(stat -c '%a' /var/lib/termlink/hub.secret 2>&1 || true); grep -q "^600$" <
 
 ### 2026-08-18T11:50:22Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-08-18T12:22:40Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation is the deliverable of this inception, not an input; set at decide time.
