@@ -604,8 +604,8 @@ convention.
 Every canary crontab routes the canary's **stderr** to a companion
 `.context/working/.<name>-canary.log.stderr`, deliberately separate from the
 firing log so that "empty log = healthy" stays a precise signal instead of being
-polluted by transient warnings. For a long time nothing **read** that sink, and
-three locally-reasonable choices composed into a total blind spot:
+polluted by transient warnings. Nothing **read** that sink, and three
+locally-reasonable choices composed into a total blind spot:
 
 1. Canaries touch `.heartbeat` **unconditionally at startup**, before doing any
    work — so heartbeat freshness proves *"cron fired"*, never *"the canary
