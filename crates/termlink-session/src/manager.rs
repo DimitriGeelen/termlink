@@ -196,9 +196,33 @@ impl Drop for Session {
 /// results, and deduplicates by session ID (first occurrence wins — the
 /// primary runtime dir is checked first).
 pub fn list_sessions(include_stale: bool) -> Result<Vec<Registration>, SessionError> {
-    let dirs = crate::discovery::all_sessions_dirs();
+    // T-2792: use the scan, not just its usable half. T-2791 taught discovery to
+    // distinguish an ABSENT candidate dir from an UNREADABLE one, but this function
+    // still consumed only the usable list — so when the sole candidate was unreadable,
+    // `dirs` came back empty and the fallback below re-probed that SAME unreadable dir
+    // with `!exists()` (false under EACCES) and returned `Ok(vec![])`. The T-2791 chain
+    // therefore survived one layer down, and every caller of `list_sessions` other than
+    // `topics` (which scans separately) was still told "no sessions" for a directory it
+    // was merely not permitted to read. Found by
+    // `scripts/check-error-swallowing-predicate.sh` on its first run.
+    let scan = crate::discovery::scan_sessions_dirs();
+    let dirs = scan.usable;
     if dirs.is_empty() {
-        // Fall back to default (may not exist yet)
+        if let Some(denied) = scan.unreadable.first() {
+            // Do NOT fall through to the empty-list path: the answer is unknown, not
+            // empty. Directive #2 — an error the caller can see beats a plausible lie.
+            return Err(SessionError::Io(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                format!(
+                    "cannot read session directory {} (and {} other candidate(s) \
+                     unreadable) — session list would be incomplete, not empty",
+                    denied.display(),
+                    scan.unreadable.len().saturating_sub(1)
+                ),
+            )));
+        }
+        // No candidate was unreadable — the dirs genuinely do not exist yet. Fall back
+        // to the default (may not exist), which is the original T-987 behaviour.
         return list_sessions_in(&crate::discovery::sessions_dir(), include_stale);
     }
 
@@ -225,12 +249,22 @@ pub fn list_sessions(include_stale: bool) -> Result<Vec<Registration>, SessionEr
 }
 
 /// List all sessions in a specific sessions directory.
+///
+/// An ABSENT directory yields an empty list (the runtime dir is created lazily, so
+/// "not there yet" is a normal, empty inventory). A directory that exists but cannot
+/// be READ yields an error — T-2792. `Path::exists()` returns false on a permission
+/// error, so the previous `if !sessions_dir.exists() { return Ok(vec![]) }` reported
+/// an unreadable directory as an empty one, which is the T-2791 defect (a plausible
+/// wrong answer, Directive #2). The `read_dir` below would have surfaced it, but the
+/// fast path returned before reaching it.
 pub fn list_sessions_in(
     sessions_dir: &Path,
     include_stale: bool,
 ) -> Result<Vec<Registration>, SessionError> {
-    if !sessions_dir.exists() {
-        return Ok(vec![]);
+    match std::fs::metadata(sessions_dir) {
+        Ok(_) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(vec![]),
+        Err(e) => return Err(SessionError::Io(e)),
     }
 
     let mut sessions = Vec::new();
