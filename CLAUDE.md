@@ -1240,6 +1240,65 @@ idioms for real so the detection rule rests on measurement, and a PL-219 control
 real tree scans clean). **Load-bearing:** deleting one allowlist line re-fires exactly that
 task; restoring it returns the tree to clean.
 
+### Error-swallowing-predicate check (T-2792, the inverse of the silent-exit class)
+
+The twelfth source-level static check, and the first pointed at a **success** path.
+
+`check-silent-exit.sh` (T-2666) covers a non-zero exit that prints nothing. T-2791 was
+the **inverse and strictly worse** shape: a **zero exit printing a positive, plausible,
+wrong claim**. A silent failure at least leaves an operator suspicious; a confident wrong
+answer ends the investigation. Nothing in the layer asked *"can this success path be
+reached by a failed read?"*, so the defect was found by a peer project (999-AEF, OBS-302)
+rather than by this repo.
+
+**The hazard is the std ergonomic.** `Path::exists()` / `is_dir()` / `is_file()` reduce a
+three-state question — present / absent / **unknowable** — to a bool, and the docs say
+plainly that *"if you cannot access the metadata of the file, e.g. because of a permission
+error … this will return `false`."* So `EACCES` silently becomes "not there".
+
+**Why the check is narrow, and why that is the whole idea.** There are **384** bare
+predicate sites in the product crates. Flagging them would produce a ledger nobody works
+down — the T-2483 shape, where a guard's green stops meaning anything. Two anchors were
+measured and rejected: `.filter()` closures (**1** site, too narrow to justify a check)
+and bare `if !x.exists() {` (**220**, mostly benign `create-if-missing`, which fails
+loudly by itself). The hazard is not the predicate but the **consequent**: only a gate
+returning an **empty success** turns a swallowed error into a wrong *answer*. That cut
+384 → **10** and made a review list out of a ledger (PL-363).
+
+`scripts/check-error-swallowing-predicate.sh` flags
+`if !<expr>.exists()/is_dir()/is_file() { return <empty success>; }` — `Ok(vec![])`,
+`Ok(None)`, `None`, `Vec::new()`, and friends. Comments are stripped on both sides: a
+commented-out gate does not fire, and a comment *between* the gate and its return does
+not hide it (the T-2688 lesson, applied preemptively).
+
+**The allowlist rule is the stricter one** (borrowed from platform-lock, T-2693): each
+entry in `.context/checks/error-swallowing-allowlist` must state **what the code does
+when the predicate is false for a reason other than absence**. "Known safe" is not a
+reason — a grep cannot tell a correct empty answer from a lie, so the acknowledgement *is*
+the analysis. Two entries (`inbox.rs` ×2) are acknowledged **conditionally**: the empty
+answer is *not* provably correct there, and the entry says so, naming T-1166's retirement
+as the condition and what must change if that is abandoned. What is not allowlisted is the
+interesting part — T-2791's `discovery.rs` filter was **fixed**, and so were both
+`manager.rs` sites.
+
+**It earned its keep on its first run.** It fired on `manager.rs::list_sessions` — a gap
+in **T-2791**, shipped an hour earlier by the same session from the same RCA. That RCA had
+even *named* the layer as a second silencing point and still not fixed it, so every caller
+except the one command that had been looked at was still being told "no sessions" for a
+directory it merely could not read.
+
+**Scope, stated on every output path including the clean one** (T-2680): it detects ONE
+shape. A clean result means no unacknowledged empty-success gate — **not** that the other
+374 predicates are used correctly.
+
+Exit 0 clean / 1 unacknowledged / 2 tooling (fail-closed). `--json`, `--quiet`,
+`--no-heartbeat`, `--root` (repeatable), `--allowlist`. Ad-hoc:
+`bash scripts/check-error-swallowing-predicate.sh`. Fixtures:
+`bash tests/error-swallowing-check-fixtures.sh` (26 assertions, including **I1/I2 which
+reproduce the pre-T-2792 `list_sessions_in` and require a fire**, and a PL-219 control
+that the real tree scans clean). Current tree: 229 gates scanned, 0 unacknowledged,
+8 allowlisted. Guard layer: 48/48.
+
 ### Task-template idiom check (T-2777, the source the sibling guard could not see)
 
 The eleventh source-level static check, and the immediate sequel to T-2775. That check

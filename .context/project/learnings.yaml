@@ -3275,3 +3275,15 @@ learnings:
   task: T-2790
   date: 2026-08-18
   context: Added via context agent
+- id: PL-363
+  learning: "Path::exists()/is_dir()/is_file() answer a THREE-state question (present/absent/unknowable) with a bool — the docs state a permission error yields false. Every such predicate is a potential error-swallow, but the hazard is not the predicate, it is the CONSEQUENT: only a gate returning an EMPTY SUCCESS converts a failed read into a confident wrong answer. That distinction cut the guardable surface from 384 sites (a ledger nobody works down) to 10 (a review list) and is what made scripts/check-error-swallowing-predicate.sh buildable at all. When a hazard looks too widespread to guard, look for the narrower consequent that makes it harmful."
+  source: P-001
+  task: T-2792
+  date: 2026-08-18
+  context: Added via context agent
+- id: PL-364
+  learning: "A guard built from a defect can find the defect's own incomplete fix. T-2792's check fired on its first run against manager.rs::list_sessions — a site T-2791 (shipped one hour earlier, by the same session, from the same RCA) had left live: discovery and the topics command were fixed, but every OTHER caller was still told 'no sessions' for a directory it merely could not read. The RCA had even NAMED that layer as a second silencing point and still did not fix it. Reading a chain and fixing a chain are different acts; the mechanical check is what closes the gap between them."
+  source: P-001
+  task: T-2792
+  date: 2026-08-18
+  context: Added via context agent
