@@ -3269,3 +3269,9 @@ learnings:
   task: T-2785
   date: 2026-08-17
   context: Added via context agent
+- id: PL-362
+  learning: "PL-357 RECURRED (T-2790, 2026-08-18): cron serves the MAIN checkout, so a guard-layer fix committed only on a long-lived worktree branch is shipped-but-dark no matter how correct it is. T-2685 split canary stderr out of the findings logs on 2026-08-16 (124a67e35, branch worktree-charter-review-2026-0814); main never received it, so /opt/termlink kept serving unfixed crontabs for 2 days. The operator then ran the documented deploy loop FROM /opt/termlink, which copied unfixed over unfixed and exited 0 — a silent no-op with no output. Two compounding properties: (a) cp reports success for a copy that changes nothing, so exit status cannot witness a deployment; (b) the source of truth being a branch other than the one cron reads is invisible from the deploy command itself. The witness that worked was scripts/check-cron-install-drift.sh (job_drift 21 to 0, uninstalled_jobs 2 to 0), not the deploy. RULE: never treat a deploy loop's exit code as evidence — pair every install with an independent post-condition count, and run it from the checkout cron actually reads. PL-357 was recorded after T-2764 and stated this precisely; it recurred anyway, which is the standing argument (cf T-2746, T-2775) that a learning is not a control."
+  source: P-001
+  task: T-2790
+  date: 2026-08-18
+  context: Added via context agent
