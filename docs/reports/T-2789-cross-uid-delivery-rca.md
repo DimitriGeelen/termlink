@@ -72,11 +72,31 @@ if std::env::var("TERMLINK_RUNTIME_DIR").is_ok() {
 ```
 
 The request reports Gemini running with `TERMLINK_RUNTIME_DIR=/home/dimitri-mint-dev/.termlink`.
-If the Codex session inherits that variable, multi-dir scanning is **disabled
-entirely** and `/var/lib/termlink` is never consulted — a second, independent
-reason for `session not found`, with a different fix. Worth confirming which of the
-two is active before anything is changed; they are indistinguishable from the error
-message alone.
+If the Codex session inherited that variable, multi-dir scanning would be **disabled
+entirely** and `/var/lib/termlink` never consulted — a second, independent reason for
+`session not found`, with a different fix.
+
+**Measured, and it is not the cause here.** Read from the running process rather than
+from a fresh login shell (`sudo -u … env` would have shown the wrong thing — it
+reports what a *new* shell gets, not what the *running* agent inherited):
+
+```
+$ ps -o user=,cmd= -p 2992705
+dimitri-mint-dev   codex
+
+$ strings /proc/2992705/environ | grep ^TERMLINK
+TERMLINK_RUNTIME_DIR=/var/lib/termlink
+```
+
+The Codex agent is explicitly pointed at the **correct** directory — the root-owned
+one it is trying to reach. So the exclusive-override branch is ruled out and the
+diagnosis collapses to a single unambiguous cause: **§1.1 filesystem permission,
+nothing else.** The agent is correctly configured and purely permission-blocked.
+
+(Note the divergence this exposes: Codex uses `/var/lib/termlink`, Gemini uses
+`/home/dimitri-mint-dev/.termlink`. Two agents on the same host, two different
+runtime dirs, hence two different hubs and — per G-060 — unrelated topic state.
+That is a separate coordination question, not part of this RCA.)
 
 ### 1.3 Why `/var/lib/termlink` is root-owned in the first place
 
@@ -347,11 +367,10 @@ calling agent runs under AEF governance; a bare binary invocation does not.
 2. Approve or reject **Option D** (broker) as the governed transport.
 3. Approve filing **Option C** as an arc, with §1.5 recorded as a security finding in
    its own right — the capability model reads as a privilege boundary and is not one.
-4. Confirm whether the Codex session has `TERMLINK_RUNTIME_DIR` set (§1.2) — one
-   command on that host, and it distinguishes two different root causes:
-   ```
-   sudo -u dimitri-mint-dev env | grep TERMLINK_RUNTIME_DIR
-   ```
+4. ~~Confirm whether the Codex session has `TERMLINK_RUNTIME_DIR` set (§1.2).~~
+   **Resolved 2026-08-18 — no decision needed.** Measured from the running process:
+   `TERMLINK_RUNTIME_DIR=/var/lib/termlink`, i.e. correctly aimed. Cause is
+   §1.1 permissions only.
 5. **Do not** add a NOPASSWD sudo rule to work around the password prompt (§1.6) —
    that prompt is the only thing currently keeping the agent's root access
    non-ambient.

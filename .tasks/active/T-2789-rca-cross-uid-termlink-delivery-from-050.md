@@ -106,14 +106,20 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 - [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
 - [x] Recommendation written with rationale
-- [ ] RCA names the refusing layer with live evidence, not inference (`docs/reports/T-2789-cross-uid-delivery-rca.md` §1.1, §1.6)
-- [ ] At least two fix options carry an explicit "authority actually granted" column, so
+- [x] RCA names the refusing layer with live evidence, not inference (`docs/reports/T-2789-cross-uid-delivery-rca.md` §1.1, §1.6)
+      — verified: `Permission denied` ×1, `server.rs:813` ×3, `server.rs:873` ×1 present in the report.
+- [x] At least two fix options carry an explicit "authority actually granted" column, so
       options that look narrow but are not are visibly distinguished (§2)
-- [ ] Every IW question carries a disposition and a `file:line` or measured-output rationale
-- [ ] The report states what was NOT done and why (§7) — in particular that no live
+      — verified: report line 263, `| | Option | Authority actually granted | Meets constraints? |`.
+- [x] Every IW question carries a disposition and a `file:line` or measured-output rationale
+      — verified: 7 `disposition: answered` entries, 5 filed by this task (IW-1..IW-5).
+- [x] The report states what was NOT done and why (§7) — in particular that no live
       cross-UID delivery proof was produced, because producing one requires granting the
       authority the report recommends against
-- [ ] No permission, group, secret, or config on this host was modified by this task
+      — verified: `No live cross-UID delivery proof` ×1 present.
+- [x] No permission, group, secret, or config on this host was modified by this task
+      — verified post-hoc, not asserted: `/var/lib/termlink` 700, `hub.secret` 600,
+      `hub.sock` 755 — byte-identical to the values recorded at §1.1 before any work began.
 
 ### Human
 <!-- @auto-tick-on-decide -->
