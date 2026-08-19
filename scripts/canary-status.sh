@@ -21,6 +21,13 @@
 #                    heartbeat mtime (cron is firing AND finding problems).
 #   STALE          — heartbeat older than max-age-hours (cron may have stopped
 #                    firing — protection silently degraded).
+#   ON_DEMAND      — registered in .context/cron/ondemand-checks.conf as a
+#                    deliberately non-cron check (the source-level static checks:
+#                    T-2527 alloc-sink, T-2531 drain-sink, T-2666 silent-exit,
+#                    T-2672 busy-spin) AND its log is empty. Heartbeat age is not
+#                    a health signal for these, so it is not graded — but a
+#                    registered check WITH findings still reports FIRING (T-2688).
+#                    Not counted as a problem; excluded from --quiet.
 #   NO_HEARTBEAT   — log file present but no .heartbeat companion. Some
 #                    canaries don't track heartbeats; classified by log content
 #                    alone (empty=HEALTHY, non-empty=FIRING).
@@ -86,6 +93,22 @@ fi
 MAX_AGE_SECS=$((MAX_AGE_HOURS * 3600))
 NOW=$(date +%s)
 
+# T-2688: on-demand checks — canaries that are deliberately NOT cron-backed, so
+# heartbeat age says nothing about their health. Registered in a git-tracked conf
+# (override with ONDEMAND_CHECKS_CONF for fixtures). Registration suppresses
+# STALENESS ONLY; a registered check whose log carries findings still FIREs.
+ONDEMAND_CHECKS_CONF="${ONDEMAND_CHECKS_CONF:-.context/cron/ondemand-checks.conf}"
+
+ONDEMAND_NAMES=""
+if [ -r "$ONDEMAND_CHECKS_CONF" ]; then
+    ONDEMAND_NAMES=$(sed -e 's/#.*//' -e 's/[[:space:]]//g' "$ONDEMAND_CHECKS_CONF" 2>/dev/null | grep -v '^$' || true)
+fi
+
+is_ondemand() {
+    [ -n "$ONDEMAND_NAMES" ] || return 1
+    printf '%s\n' "$ONDEMAND_NAMES" | grep -qxF "$1"
+}
+
 # Discover canary log files. Pattern: any `.context/working/.*-canary.log`,
 # plus the meta-canary aliveness log (uses different naming), plus the
 # `.log` path SYNTHESIZED from any `.*-canary.heartbeat` so we surface
@@ -146,7 +169,14 @@ classify() {
         fi
     else
         local heartbeat_age=$((NOW - heartbeat_mtime))
-        if [ "$heartbeat_age" -gt "$MAX_AGE_SECS" ]; then
+        # T-2688: a registered on-demand check is graded on findings only. Its
+        # heartbeat is touched when a human runs it, so age is not a health signal
+        # and grading it STALE pinned /canaries permanently red. Findings are NOT
+        # suppressed — the FIRING branches below are reached exactly as before, so
+        # an on-demand check that found something still exits 1.
+        if [ "$heartbeat_age" -gt "$MAX_AGE_SECS" ] && is_ondemand "$name" && [ "$log_size" = "0" ]; then
+            status="ON_DEMAND"
+        elif [ "$heartbeat_age" -gt "$MAX_AGE_SECS" ] && ! is_ondemand "$name"; then
             status="STALE"
         elif [ "$log_size" = "0" ]; then
             status="HEALTHY"
@@ -197,6 +227,7 @@ HEALTHY=0
 FIRING=0
 STALE=0
 NO_HB=0
+ONDEMAND=0
 
 while IFS= read -r log_path; do
     [ -n "$log_path" ] || continue
@@ -209,17 +240,21 @@ while IFS= read -r log_path; do
         FIRING) FIRING=$((FIRING + 1)) ;;
         STALE) STALE=$((STALE + 1)) ;;
         NO_HEARTBEAT) NO_HB=$((NO_HB + 1)) ;;
+        ON_DEMAND) ONDEMAND=$((ONDEMAND + 1)) ;;
     esac
 done <<EOF
 $(discover_canaries)
 EOF
 
+# T-2688: ON_DEMAND is deliberately absent here — a registered ad-hoc check with an
+# empty log is not an operator problem, and counting it kept /canaries permanently
+# non-zero. Its FIRING path is untouched, so findings still land in PROBLEMS.
 PROBLEMS=$((FIRING + STALE))
 
 # JSON rendering.
 if [ "$JSON" = "1" ]; then
-    printf '{"ok":true,"summary":{"total":%d,"healthy":%d,"firing":%d,"stale":%d,"no_heartbeat":%d,"max_age_hours":%d},"canaries":[' \
-        "$TOTAL" "$HEALTHY" "$FIRING" "$STALE" "$NO_HB" "$MAX_AGE_HOURS"
+    printf '{"ok":true,"summary":{"total":%d,"healthy":%d,"firing":%d,"stale":%d,"no_heartbeat":%d,"on_demand":%d,"max_age_hours":%d},"canaries":[' \
+        "$TOTAL" "$HEALTHY" "$FIRING" "$STALE" "$NO_HB" "$ONDEMAND" "$MAX_AGE_HOURS"
     first=1
     while IFS=$'\t' read -r name status log_size log_mtime hb_mtime latest_entry; do
         [ -n "$name" ] || continue
@@ -242,6 +277,8 @@ render_status() {
         HEALTHY) printf '\033[0;32m%-12s\033[0m' "HEALTHY" ;;
         FIRING)  printf '\033[0;31m%-12s\033[0m' "FIRING" ;;
         STALE)   printf '\033[0;33m%-12s\033[0m' "STALE" ;;
+        # T-2688: dim, not yellow — an on-demand check is informational by design.
+        ON_DEMAND) printf '\033[0;36m%-12s\033[0m' "ON_DEMAND" ;;
         *)       printf '%-12s' "$1" ;;
     esac
 }
@@ -283,7 +320,9 @@ EOF
 fi
 
 # Full human render.
-echo "canary-status: $TOTAL canary(ies) — $HEALTHY healthy, $FIRING firing, $STALE stale (threshold ${MAX_AGE_HOURS}h)"
+ONDEMAND_NOTE=""
+[ "$ONDEMAND" != "0" ] && ONDEMAND_NOTE=", $ONDEMAND on-demand"
+echo "canary-status: $TOTAL canary(ies) — $HEALTHY healthy, $FIRING firing, $STALE stale${ONDEMAND_NOTE} (threshold ${MAX_AGE_HOURS}h)"
 echo ""
 printf '  %-12s %-32s %s\n' "STATUS" "NAME" "LAST FIRED / LATEST ENTRY"
 printf '  %-12s %-32s %s\n' "------" "----" "-------------------------"

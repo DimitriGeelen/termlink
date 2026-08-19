@@ -3,7 +3,7 @@
 The **"are my canaries firing AND clean?"** verb. Wraps
 `scripts/canary-status.sh` — scans `.context/working/.*-canary.log` +
 companion `.heartbeat` files and reports per-canary status (HEALTHY /
-FIRING / STALE / NO_HEARTBEAT) with a summary footer.
+FIRING / STALE / ON_DEMAND / NO_HEARTBEAT) with a summary footer.
 
 Read-only, no auth side-effects, no state mutation. Safe anywhere.
 
@@ -43,7 +43,19 @@ first time their log file is written.
 | `HEALTHY` | Log empty (or all entries older than latest heartbeat) AND heartbeat fresh | None — cron firing, no problems |
 | `FIRING` | Log has entries newer than latest heartbeat | Read the log; fix the underlying drift |
 | `STALE` | Heartbeat older than threshold (default 48h) | Check cron is loaded; verify the script runs |
+| `ON_DEMAND` | Registered in `.context/cron/ondemand-checks.conf` as deliberately non-cron, AND log empty (T-2688) | None — heartbeat age is not a health signal for these |
 | `NO_HEARTBEAT` | Log present but no `.heartbeat` companion | Classified by log content only |
+
+**`ON_DEMAND` suppresses staleness only, never findings.** A registered check whose log
+carries entries still reports `FIRING` and still exits 1 — an ad-hoc check that found
+something is exactly as actionable as a cron one. The registry exists because the four
+source-level static checks (T-2527 alloc-sink, T-2531 drain-sink, T-2666 silent-exit,
+T-2672 busy-spin) are documented as *not* cron canaries, yet they write
+`.*-canary.heartbeat` files and so were graded on an axis that is meaningless for them —
+pinning `/canaries` at "4 stale" forever, so it could never report a healthy tree.
+Before adding an entry, ask whether the check *should* be on a cron instead: this file is
+for checks whose design is ad-hoc, not for canaries whose cron install was forgotten
+(that is `scripts/check-cron-install-drift.sh`'s job).
 
 ## Invocation
 
@@ -152,7 +164,7 @@ and fix the underlying drift per its runbook.
 ## Exit codes
 
 - 0 — all canaries healthy
-- 1 — at least one canary is FIRING or STALE (operator action required)
+- 1 — at least one canary is FIRING or STALE (operator action required). ON_DEMAND rows never contribute (T-2688).
 - 2 — tooling error (working dir missing, malformed flag)
 
 The skill surfaces the script's exit code via the Bash tool — agents
