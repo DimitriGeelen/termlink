@@ -1,10 +1,13 @@
 ---
 id: T-2694
-name: "Narrow the stale .agentic-framework gitignore rule so the vendored subset is trackable"
+name: "Narrow the stale .agentic-framework gitignore rule so the vendored subset is
+  trackable"
 description: >
   .gitignore:21 blanket-ignores `.agentic-framework` under a label that predates vendoring.
-  1565 files are already tracked so nothing looks broken, but every framework file added
-  since is silently untrackable — `lib/bvp.sh` and all of `policy/` among them, which is why
+  1565 files are already tracked so nothing looks broken, but every framework file
+  added
+  since is silently untrackable — `lib/bvp.sh` and all of `policy/` among them, which
+  is why
   `fw bvp` fails in any clean clone. Replace the blanket rule with
   ignore-contents-plus-re-include-the-vendored-subset.
 status: started-work
@@ -12,8 +15,31 @@ workflow_type: build
 horizon: now
 owner: claude-code
 created: 2026-08-20
-last_update: 2026-08-20T01:05:50Z
+last_update: '2026-08-20T15:21:22Z'
 tags: [governance, gitignore, vendoring, clean-clone, bvp]
+bvp_scores_proposed:
+  - ts: '2026-08-20T15:20:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 4
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=4 (body:rubric-routable)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-20T15:21:22Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2694: Narrow the stale `.agentic-framework` gitignore rule

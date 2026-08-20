@@ -2,7 +2,11 @@
 id: T-1291
 name: "Declarative heal manifest — bootstrap_from per profile in hubs.toml"
 description: >
-  Extend hubs.toml schema with optional bootstrap_from per profile (e.g. 'ssh:user@host:/path/to/hub.secret'). termlink fleet reauth <profile> --bootstrap-from auto then reads the declared channel and runs the existing T-1055 fetch path. Lowers the floor on heal for every hub: today operator must remember the SSH command per profile; tomorrow it is one declared field. Captured 2026-04-26 after .122 rotation cascade exposed the chicken-and-egg.
+  Extend hubs.toml schema with optional bootstrap_from per profile (e.g. 'ssh:user@host:/path/to/hub.secret').
+  termlink fleet reauth <profile> --bootstrap-from auto then reads the declared channel
+  and runs the existing T-1055 fetch path. Lowers the floor on heal for every hub:
+  today operator must remember the SSH command per profile; tomorrow it is one declared
+  field. Captured 2026-04-26 after .122 rotation cascade exposed the chicken-and-egg.
 
 status: started-work
 workflow_type: build
@@ -12,8 +16,32 @@ tags: [auth, fleet, hub, G-011]
 components: []
 related_tasks: [T-1054, T-1055, T-1284, T-1290, T-1051]
 created: 2026-04-26T11:36:32Z
-last_update: 2026-04-26T15:25:19Z
-date_finished: null
+last_update: '2026-08-20T15:21:20Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-20T15:20:35Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 3
+      D2: 0
+      D3: 1
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=3 (body:test-or-audit-check); D2=0 (no-signal); D3=1 
+      (body:error-msg-improved); D4=0 (no-signal); F-RECALL=0 (no-signal); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-20T15:21:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 6
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=6 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-1291: Declarative heal manifest — bootstrap_from per profile in hubs.toml

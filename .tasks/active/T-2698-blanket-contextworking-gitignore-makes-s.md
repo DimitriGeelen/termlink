@@ -2,9 +2,11 @@
 id: T-2698
 name: "Blanket .context/working gitignore makes static-check allowlists untrackable"
 description: >
-  .gitignore:113 blanket-ignores `.context/working/` while 115 files under it are tracked.
+  .gitignore:113 blanket-ignores `.context/working/` while 115 files under it are
+  tracked.
   Every file added there since is silently untrackable — the four static-check allowlists
-  among them, so alloc-sink and drain-sink both FIRE in any clean clone or worktree despite
+  among them, so alloc-sink and drain-sink both FIRE in any clean clone or worktree
+  despite
   CLAUDE.md documenting both as clean. Narrow the rule to contents-plus-re-include.
 
 status: started-work
@@ -15,8 +17,32 @@ tags: [governance, gitignore, clean-clone, static-checks]
 components: []
 related_tasks: [T-2694, T-2689, T-2692, T-2527, T-2531, T-2666, T-2672, T-2697]
 created: 2026-08-20
-last_update: 2026-08-20T07:07:33Z
-date_finished: null
+last_update: '2026-08-20T15:21:22Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-20T15:20:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 1
+      D2: 1
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=1 (body:fix-without-learning); D2=1 (body:log-or-error-line); 
+      D3=0 (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-20T15:21:22Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2698: Blanket `.context/working` gitignore makes static-check allowlists untrackable

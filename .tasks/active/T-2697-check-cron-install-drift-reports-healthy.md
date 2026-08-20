@@ -2,9 +2,12 @@
 id: T-2697
 name: "check-cron-install-drift reports healthy while crontabs diverge from git"
 description: >
-  DRIFT is a non-firing WARNING by default, so the check exits 0 and prints "healthy" while
-  installed crontabs differ from their git source. It reported 3 matching / 21 drifting —
-  and said "healthy" — while that drift concealed a real uncommitted fix (T-2696) for an
+  DRIFT is a non-firing WARNING by default, so the check exits 0 and prints "healthy"
+  while
+  installed crontabs differ from their git source. It reported 3 matching / 21 drifting
+  —
+  and said "healthy" — while that drift concealed a real uncommitted fix (T-2696)
+  for an
   unknown period. Make DRIFT fire by default, with an allowlist for deliberate host-local
   variation, matching the four existing static-check allowlist precedents.
 
@@ -16,8 +19,31 @@ tags: [governance, cron, drift, reliability]
 components: []
 related_tasks: [T-2561, T-2696, T-2527, T-2531, T-2666, T-2672]
 created: 2026-08-20
-last_update: 2026-08-20T07:04:31Z
-date_finished: null
+last_update: '2026-08-20T15:21:22Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-20T15:20:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=0
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-20T15:21:22Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2697: `check-cron-install-drift` reports healthy while crontabs diverge from git

@@ -2,11 +2,16 @@
 id: T-2803
 name: "One-line remediation script for the main-checkout steps, executed via TermLink"
 description: >
-  The three mechanical main-checkout steps (track the vendored framework subset, track the
-  static-check allowlists, clear stale task files) required the operator to hand-run six
-  commands and eyeball a file list for secrets. Ship one idempotent script that performs the
-  safety review mechanically, refuses on anything suspicious, never touches the Tier 0 push,
-  and writes a machine-readable report — then execute it in the main checkout through a
+  The three mechanical main-checkout steps (track the vendored framework subset, track
+  the
+  static-check allowlists, clear stale task files) required the operator to hand-run
+  six
+  commands and eyeball a file list for secrets. Ship one idempotent script that performs
+  the
+  safety review mechanically, refuses on anything suspicious, never touches the Tier
+  0 push,
+  and writes a machine-readable report — then execute it in the main checkout through
+  a
   TermLink session rather than handing it back as homework.
 
 status: started-work
@@ -17,8 +22,32 @@ tags: [governance, remediation, termlink, operator-ux]
 components: []
 related_tasks: [T-2694, T-2698, T-2690, T-559]
 created: 2026-08-20
-last_update: 2026-08-20T09:58:55Z
-date_finished: null
+last_update: '2026-08-20T15:21:22Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-20T15:20:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 1
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=1 
+      (body:hand-wired-dispatch)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-20T15:21:22Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2803: One-line remediation script for the main-checkout steps

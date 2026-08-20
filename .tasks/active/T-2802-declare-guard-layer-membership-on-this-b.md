@@ -3,9 +3,12 @@ id: T-2802
 name: "Declare guard-layer membership on this branch's new source checks"
 description: >
   charter-review's `run-guard-layer.sh` (T-2684) discovers members via a
-  `# guard-layer: source` header marker. The three run-anywhere checks added on this branch
-  carry no marker, so on merge they would join the tree as SKIP(unclassified) — visible but
-  never executed by the one command meant to run the layer. Declare membership, and fix a
+  `# guard-layer: source` header marker. The three run-anywhere checks added on this
+  branch
+  carry no marker, so on merge they would join the tree as SKIP(unclassified) — visible
+  but
+  never executed by the one command meant to run the layer. Declare membership, and
+  fix a
   stale reference to a conf file removed during the T-2698 reshaping.
 
 status: started-work
@@ -16,8 +19,31 @@ tags: [governance, guard-layer, interop, pl-168]
 components: []
 related_tasks: [T-2684, T-2800, T-2801, T-2689, T-2692, T-2698]
 created: 2026-08-20
-last_update: 2026-08-20T09:42:28Z
-date_finished: null
+last_update: '2026-08-20T15:21:22Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-20T15:20:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-20T15:21:22Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2802: Declare guard-layer membership on this branch's new source checks

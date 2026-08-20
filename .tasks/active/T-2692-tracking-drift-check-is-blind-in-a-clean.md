@@ -2,18 +2,44 @@
 id: T-2692
 name: "Tracking-drift check is blind in a clean clone — add dangling-reference detection"
 description: >
-  check-framework-tracking-drift.sh compares on-disk files against git, so it only sees
-  drift in the checkout where the untracked files physically exist. In a worktree or a
+  check-framework-tracking-drift.sh compares on-disk files against git, so it only
+  sees
+  drift in the checkout where the untracked files physically exist. In a worktree
+  or a
   clean clone the files are simply absent and it reports clean — the exact environment
-  where the breakage bites. `fw bvp` is broken in this worktree right now while the check
+  where the breakage bites. `fw bvp` is broken in this worktree right now while the
+  check
   says everything is fine.
 status: started-work
 workflow_type: build
 horizon: now
 owner: claude-code
 created: 2026-08-20
-last_update: 2026-08-20T00:32:44Z
+last_update: '2026-08-20T15:21:22Z'
 tags: [governance, tooling, clean-clone, detection-gap]
+bvp_scores_proposed:
+  - ts: '2026-08-20T15:20:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 4
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=4 (body:rubric-routable)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-20T15:21:22Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2692: Tracking-drift check is blind in a clean clone

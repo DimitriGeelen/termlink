@@ -2,7 +2,13 @@
 id: T-1633
 name: "TERMLINK_RUNTIME_DIR default regression — root no longer selects /var/lib/termlink"
 description: >
-  Regression discovered during T-1166 .122 swap (2026-05-12). Pre-cut hub binary 0.9.1702 defaulted to /var/lib/termlink when running as root with TERMLINK_RUNTIME_DIR unset. Post-cut binary 0.9.2093 requires explicit env to use that path. ring20-management-agent caught this on .122; hub came up correctly only after setting env explicitly. Fleet rollout to other hubs without explicit env will fall back to /tmp/termlink-0 (volatile, PL-021 territory). Need: search 0.9.1702..0.9.2093 commit range for runtime_dir selection logic changes; restore root-uid-0 default OR document the new contract.
+  Regression discovered during T-1166 .122 swap (2026-05-12). Pre-cut hub binary 0.9.1702
+  defaulted to /var/lib/termlink when running as root with TERMLINK_RUNTIME_DIR unset.
+  Post-cut binary 0.9.2093 requires explicit env to use that path. ring20-management-agent
+  caught this on .122; hub came up correctly only after setting env explicitly. Fleet
+  rollout to other hubs without explicit env will fall back to /tmp/termlink-0 (volatile,
+  PL-021 territory). Need: search 0.9.1702..0.9.2093 commit range for runtime_dir
+  selection logic changes; restore root-uid-0 default OR document the new contract.
 
 status: started-work
 workflow_type: build
@@ -12,8 +18,32 @@ tags: [T-1166, runtime-dir, regression, G-009]
 components: []
 related_tasks: [T-1166, T-1310, T-1290, T-1294]
 created: 2026-05-12T21:55:22Z
-last_update: 2026-06-01T06:46:29Z
-date_finished: null
+last_update: '2026-08-20T15:21:21Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-20T15:20:36Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-20T15:21:21Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-1633: TERMLINK_RUNTIME_DIR default regression — root no longer selects /var/lib/termlink

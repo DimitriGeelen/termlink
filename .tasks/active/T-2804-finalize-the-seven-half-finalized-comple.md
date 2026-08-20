@@ -1,11 +1,13 @@
 ---
 id: T-2804
-name: "Finalize the seven half-finalized completed tasks and generate their missing episodics"
+name: "Finalize the seven half-finalized completed tasks and generate their missing
+  episodics"
 description: >
   Seven tasks in `completed/` carry `horizon: now` (audit CTL-030). Four share one
   move-commit timestamp — the G-066 bulk-sweep signature — and also have empty
   `date_finished` and no episodic. The other three were moved individually by Watchtower's
-  inception-decide path, which sets status and date but never clears horizon. Repair the
+  inception-decide path, which sets status and date but never clears horizon. Repair
+  the
   frontmatter from the authoritative git move-commit, generate the four missing episodics,
   and write the summaries the git-mining path leaves blank.
 
@@ -17,8 +19,31 @@ tags: [governance, task-system, g-066, episodic-memory]
 components: []
 related_tasks: [T-2290, T-2203, T-2160, T-2304, T-1665]
 created: 2026-08-20
-last_update: 2026-08-20T12:19:25Z
-date_finished: null
+last_update: '2026-08-20T15:21:22Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-20T15:20:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 1
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=0
+      (no-signal); F-RECALL=1 (body:episodic-only); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-20T15:21:22Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2804: Finalize the seven half-finalized completed tasks

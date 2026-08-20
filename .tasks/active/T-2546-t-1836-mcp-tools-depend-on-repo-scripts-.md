@@ -2,7 +2,17 @@
 id: T-2546
 name: "T-1836 MCP tools depend on repo scripts absent from consumer installs (portability)"
 description: >
-  Portability lens (T-2468, Directive #4). Verified in code: ~18 T-1836 MCP tools (resolve_t1836_script, tools.rs:29098) shell out via Command::new(bash) (tools.rs:29121) to scripts under ${TERMLINK_SCRIPTS_DIR:-/opt/termlink/scripts}. The default is this repo's dev-host checkout path AND the scripts do not ship with an installed (brew/cargo) binary, so every non-repo consumer sees all 18 tools fail (loudly, with a set-TERMLINK_SCRIPTS_DIR hint) until they clone the repo and point the env var at it. Crux question (human product-scope): are these operator-host canary/heartbeat tools in-scope for consumer installs at all? If YES -> fix by embedding scripts (include_str! -> tempdir) or in-process rewrite. If NO (operator-host-only by design, per PL-185 shell-out decision) -> no code change; document the scope. Owner human: product-scope + distribution-architecture decision.
+  Portability lens (T-2468, Directive #4). Verified in code: ~18 T-1836 MCP tools
+  (resolve_t1836_script, tools.rs:29098) shell out via Command::new(bash) (tools.rs:29121)
+  to scripts under ${TERMLINK_SCRIPTS_DIR:-/opt/termlink/scripts}. The default is
+  this repo's dev-host checkout path AND the scripts do not ship with an installed
+  (brew/cargo) binary, so every non-repo consumer sees all 18 tools fail (loudly,
+  with a set-TERMLINK_SCRIPTS_DIR hint) until they clone the repo and point the env
+  var at it. Crux question (human product-scope): are these operator-host canary/heartbeat
+  tools in-scope for consumer installs at all? If YES -> fix by embedding scripts
+  (include_str! -> tempdir) or in-process rewrite. If NO (operator-host-only by design,
+  per PL-185 shell-out decision) -> no code change; document the scope. Owner human:
+  product-scope + distribution-architecture decision.
 
 status: started-work
 workflow_type: inception
@@ -12,8 +22,8 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-08-08T18:30:55Z
-last_update: 2026-08-08T18:33:35Z
-date_finished: null
+last_update: '2026-08-20T15:21:21Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -22,6 +32,29 @@ target_blast_radius: 3            # int 0..9. Anticipated component count of the
                                   # Guide: 0=docs only, 1=single file, 3=small subsystem (S), 5=cross-subsystem (M), 7=multi-arc (L), 9=framework-wide (XL).
 voi_score: 0.5                    # float 0..1. Value of Information — expected value of resolving this question,
                                   # independent of build cost. Higher when answer affects many tasks or unblocks a strategic decision. Required.
+bvp_scores_proposed:
+  - ts: '2026-08-20T15:20:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 2
+    rationale: D1=2 (no-signal); D2=2 (no-signal); D3=2 (no-signal); D4=2 
+      (no-signal); F-RECALL=2 (no-signal); F-ORCH=2 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-20T15:21:21Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 3
+      tier: 4
+      effort: 8
+    rationale: blast_radius=3 (no-signal); tier=4 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2546: T-1836 MCP tools depend on repo scripts absent from consumer installs (portability)

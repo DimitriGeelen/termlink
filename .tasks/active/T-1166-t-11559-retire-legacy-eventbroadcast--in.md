@@ -2,7 +2,9 @@
 id: T-1166
 name: "T-1155/9 Retire legacy event.broadcast + inbox + file.send/receive primitives"
 description: >
-  After N months of parallel operation + deprecation warnings (T-1155 S-5 phase 4). Remove hub router handlers for event.broadcast, inbox.*, file.* once all callers migrated. Protocol bump + version diversity check (T-1132) gates removal.
+  After N months of parallel operation + deprecation warnings (T-1155 S-5 phase 4).
+  Remove hub router handlers for event.broadcast, inbox.*, file.* once all callers
+  migrated. Protocol bump + version diversity check (T-1132) gates removal.
 
 status: started-work
 workflow_type: decommission
@@ -12,8 +14,33 @@ tags: [T-1155, bus, deprecation]
 components: []
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:20Z
-last_update: 2026-07-02T23:14:38Z
-date_finished: null
+last_update: '2026-08-20T15:21:20Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-20T15:20:35Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 2
+      D3: 4
+      D4: 3
+      F-RECALL: 2
+      F-ORCH: 3
+    rationale: D1=4 (body:structural-gate); D2=2 
+      (body:telemetry-or-audit-entry); D3=4 (body:framework-level-ux); D4=3 
+      (body:portability-abstraction); F-RECALL=2 (body:lightly-promoted); 
+      F-ORCH=3 (body:typed-io-or-gate)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-20T15:21:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-1166: T-1155/9 Retire legacy event.broadcast + inbox + file.send/receive primitives

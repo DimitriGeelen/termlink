@@ -2,18 +2,50 @@
 id: T-1296
 name: "Migrate ring20-dashboard hub runtime_dir (.121) — same as T-1294"
 description: >
-  Mirror of T-1294 for the OTHER ring20 hub at .121 (proxmox4 ct 101 ring20-dashboard). T-1294 fixed .122 by moving runtime_dir from /tmp/termlink-0/ to /var/lib/termlink/ in ring20-watchdog.sh. .121 still runs on /tmp/termlink-0/ with the same systemd-tmpfiles 'D /tmp' wipe behavior, so it has the same G-011 cascade pattern (every CT 101 reboot wipes hub.secret, all peer caches go stale). Bonus: T-1294 introduced a regression where .122's watchdog peer-refresh function expands TERMLINK_RUNTIME_DIR to OUR local path (/var/lib/termlink/) but tries to extract from .121 — currently broken until .121 is also on /var/lib/termlink/. Completing this task heals both: .121 cascade prevention AND restores cross-host peer-refresh.
+  Mirror of T-1294 for the OTHER ring20 hub at .121 (proxmox4 ct 101 ring20-dashboard).
+  T-1294 fixed .122 by moving runtime_dir from /tmp/termlink-0/ to /var/lib/termlink/
+  in ring20-watchdog.sh. .121 still runs on /tmp/termlink-0/ with the same systemd-tmpfiles
+  'D /tmp' wipe behavior, so it has the same G-011 cascade pattern (every CT 101 reboot
+  wipes hub.secret, all peer caches go stale). Bonus: T-1294 introduced a regression
+  where .122's watchdog peer-refresh function expands TERMLINK_RUNTIME_DIR to OUR
+  local path (/var/lib/termlink/) but tries to extract from .121 — currently broken
+  until .121 is also on /var/lib/termlink/. Completing this task heals both: .121
+  cascade prevention AND restores cross-host peer-refresh.
 
 status: started-work
 workflow_type: build
 owner: human
 horizon: now
-tags: [auth, infrastructure, ring20-dashboard, G-011, runtime_dir, T-1294-followup]
+tags: [auth, infrastructure, ring20-dashboard, G-011, runtime_dir, 
+      T-1294-followup]
 components: []
 related_tasks: [T-1294, T-1290, T-1291, T-935]
 created: 2026-04-26T14:27:17Z
-last_update: 2026-05-31T21:19:29Z
-date_finished: null
+last_update: '2026-08-20T15:21:20Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-20T15:20:35Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=0
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-20T15:21:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 7
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=7 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-1296: Migrate ring20-dashboard hub runtime_dir (.121) — same as T-1294

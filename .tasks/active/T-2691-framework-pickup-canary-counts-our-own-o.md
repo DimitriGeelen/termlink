@@ -3,16 +3,41 @@ id: T-2691
 name: "framework-pickup canary counts our own outbound filings as unprocessed inbound"
 description: >
   The canary's stated contract is to surface filings from PEER projects, but it counts
-  every filing on the topic including our own outbound posts. 10 of 14 current filings are
-  ours. Posting a bug report to AEF makes our own canary fire at us, and the only way to
+  every filing on the topic including our own outbound posts. 10 of 14 current filings
+  are
+  ours. Posting a bug report to AEF makes our own canary fire at us, and the only
+  way to
   quiet it (--ack) also acks genuine inbound filings that arrived in the meantime.
 status: started-work
 workflow_type: build
 horizon: now
 owner: claude-code
 created: 2026-08-20
-last_update: 2026-08-20T00:26:52Z
+last_update: '2026-08-20T15:21:22Z'
 tags: [governance, canary, g-063, signal-quality]
+bvp_scores_proposed:
+  - ts: '2026-08-20T15:20:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=0
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-20T15:21:22Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2691: framework-pickup canary counts our own outbound filings

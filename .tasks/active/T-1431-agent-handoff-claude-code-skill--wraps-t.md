@@ -2,7 +2,13 @@
 id: T-1431
 name: "/agent-handoff claude-code skill — wraps T-1429 verb (T-1425 pick #5)"
 description: >
-  From T-1425 fast-forward synthesis. Plugin-level skill, NOT in CLAUDE.md. Lives in .claude/skills/agent-handoff.md (or in a plugin file if we have one). Sequence: verify task exists → termlink whoami (lock identity) → termlink agent contact <target> --thread <task-id> --message <summary> → verify offset returned → update task with posted=offset, status hint=awaiting-reply. CLAUDE.md cost: ONE line — 'for cross-host handoffs use /agent-handoff'. Depends on T-1429 (the verb being wrapped) and T-1427 (identity binding the skill enforces). Independent of T-1430 (topic self-doc).
+  From T-1425 fast-forward synthesis. Plugin-level skill, NOT in CLAUDE.md. Lives
+  in .claude/skills/agent-handoff.md (or in a plugin file if we have one). Sequence:
+  verify task exists → termlink whoami (lock identity) → termlink agent contact <target>
+  --thread <task-id> --message <summary> → verify offset returned → update task with
+  posted=offset, status hint=awaiting-reply. CLAUDE.md cost: ONE line — 'for cross-host
+  handoffs use /agent-handoff'. Depends on T-1429 (the verb being wrapped) and T-1427
+  (identity binding the skill enforces). Independent of T-1430 (topic self-doc).
 
 status: started-work
 workflow_type: build
@@ -12,8 +18,32 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-01T07:02:51Z
-last_update: 2026-05-31T15:29:13Z
-date_finished: null
+last_update: '2026-08-20T15:21:21Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-20T15:20:35Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=0 
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (body:wrap-phrase-without-substrate)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-20T15:21:21Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-1431: /agent-handoff claude-code skill — wraps T-1429 verb (T-1425 pick #5)

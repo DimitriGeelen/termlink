@@ -1,8 +1,17 @@
 ---
 id: T-1429
-name: "termlink agent contact <name> — high-level cross-host contact verb (T-1425 pick #2)"
+name: "termlink agent contact <name> — high-level cross-host contact verb (T-1425
+  pick #2)"
 description: >
-  From T-1425 inception solo synthesis 2026-04-30. Wraps the discover -> resolve-DM-topic -> post pattern into one verb so vendored agents stop improvising primitives. Replaces the broken pattern that produced the .107-to-.122 ZoneEdit handoff incident. Decisions baked in per T-1425 §Decisions: Q1=A auto-create dm:<sorted>:<sorted>, Q2=C opt-in --ack-required, Q3=C default-queue with --require-online flag, Q5=A retention=forever. Q4 (identity binding) ships in T-1427 separately; this verb relies on it via channel.post when T-1427 lands but works without strict-reject in the meantime. Lives in crates/termlink-cli/src/commands/agent.rs alongside cmd_agent_ask/listen/negotiate. Provisional pending peer replies on T-1425 thread (14d amendment window).
+  From T-1425 inception solo synthesis 2026-04-30. Wraps the discover -> resolve-DM-topic
+  -> post pattern into one verb so vendored agents stop improvising primitives. Replaces
+  the broken pattern that produced the .107-to-.122 ZoneEdit handoff incident. Decisions
+  baked in per T-1425 §Decisions: Q1=A auto-create dm:<sorted>:<sorted>, Q2=C opt-in
+  --ack-required, Q3=C default-queue with --require-online flag, Q5=A retention=forever.
+  Q4 (identity binding) ships in T-1427 separately; this verb relies on it via channel.post
+  when T-1427 lands but works without strict-reject in the meantime. Lives in crates/termlink-cli/src/commands/agent.rs
+  alongside cmd_agent_ask/listen/negotiate. Provisional pending peer replies on T-1425
+  thread (14d amendment window).
 
 status: started-work
 workflow_type: build
@@ -12,8 +21,32 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-30T21:26:39Z
-last_update: 2026-05-19T22:13:54Z
-date_finished: null
+last_update: '2026-08-20T15:21:21Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-20T15:20:35Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 3
+      D2: 1
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=3 (body:test-or-audit-check); D2=1 (body:log-or-error-line); 
+      D3=0 (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-20T15:21:21Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-1429: termlink agent contact <name> — high-level cross-host contact verb (T-1425 pick #2)

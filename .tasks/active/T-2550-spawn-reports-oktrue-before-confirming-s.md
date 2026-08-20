@@ -1,8 +1,14 @@
 ---
 id: T-2550
-name: "spawn reports ok:true before confirming session registered (silent false-success on a core verb)"
+name: "spawn reports ok:true before confirming session registered (silent false-success
+  on a core verb)"
 description: >
-  Reliability gap from T-2468 charter-verb-completeness review (control-terminal-sessions lens): termlink spawn default path (no --wait) returns {ok:true} the instant the launcher process starts (execution.rs:382-388); the actual 'termlink register' runs inside the spawned shell and can fail (hub down, bad runtime_dir, tmux missing) while spawn still reports ok:true. Only --wait polls find_session. Silent false-success / shipped-neq-live class the codebase guards against elsewhere.
+  Reliability gap from T-2468 charter-verb-completeness review (control-terminal-sessions
+  lens): termlink spawn default path (no --wait) returns {ok:true} the instant the
+  launcher process starts (execution.rs:382-388); the actual 'termlink register' runs
+  inside the spawned shell and can fail (hub down, bad runtime_dir, tmux missing)
+  while spawn still reports ok:true. Only --wait polls find_session. Silent false-success
+  / shipped-neq-live class the codebase guards against elsewhere.
 
 status: started-work
 workflow_type: build
@@ -16,8 +22,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-08T19:41:06Z
-last_update: 2026-08-08T19:43:15Z
-date_finished: null
+last_update: '2026-08-20T15:21:21Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,6 +34,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-20T15:20:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 1
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=1 (body:hand-wired-dispatch)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-20T15:21:21Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2550: spawn reports ok:true before confirming session registered (silent false-success on a core verb)

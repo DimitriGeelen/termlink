@@ -5,8 +5,10 @@ description: >
   P-043, a detailed two-bug report against the framework, has sat in
   .context/pickup/auto-deferred/ since 2026-06-08 with no breadcrumb — so
   `fw pickup promote-deferred` cannot evaluate it and `fw pickup auto-deferred list`
-  prints `blocked-by=?` with no warning. Nothing surfaces a stuck envelope. One of its two
-  bugs was independently re-discovered and fixed as T-2304; the other is still live today.
+  prints `blocked-by=?` with no warning. Nothing surfaces a stuck envelope. One of
+  its two
+  bugs was independently re-discovered and fixed as T-2304; the other is still live
+  today.
 
 status: started-work
 workflow_type: build
@@ -16,8 +18,31 @@ tags: [governance, pickup, g-063, observability]
 components: []
 related_tasks: [T-1425, T-2072, T-2304, T-2231, T-2691]
 created: 2026-08-20
-last_update: 2026-08-20T09:35:31Z
-date_finished: null
+last_update: '2026-08-20T15:21:22Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-20T15:20:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=0
+      (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-20T15:21:22Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2801: Auto-deferred pickup envelopes can stick forever with no breadcrumb

@@ -2,7 +2,12 @@
 id: T-2325
 name: "arc-004 S3 live E2E — dm-rail push-wake (blocked on hub restart)"
 description: >
-  Live end-to-end validation of the arc-004 Candidate-A dm-rail push-wake (S1 T-2323 hub emit + S2 T-2324 waker/self-fp). PRECONDITION: the local hub must be restarted onto a binary >= S1 (d905c367) — the running hub (pid observed 3933629, started Jun 24) predates dm.queued (grep /proc/PID/exe for dm.queued = 0; on-disk exe shows (deleted)). Restart is operator-gated (disrupts live sessions). Deferred until an operator restarts the hub.
+  Live end-to-end validation of the arc-004 Candidate-A dm-rail push-wake (S1 T-2323
+  hub emit + S2 T-2324 waker/self-fp). PRECONDITION: the local hub must be restarted
+  onto a binary >= S1 (d905c367) — the running hub (pid observed 3933629, started
+  Jun 24) predates dm.queued (grep /proc/PID/exe for dm.queued = 0; on-disk exe shows
+  (deleted)). Restart is operator-gated (disrupts live sessions). Deferred until an
+  operator restarts the hub.
 
 status: started-work
 workflow_type: test
@@ -16,8 +21,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-03T07:26:49Z
-last_update: 2026-07-04T08:36:49Z
-date_finished: null
+last_update: '2026-08-20T15:21:21Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,6 +33,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-20T15:20:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=2 
+      (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-20T15:21:21Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 1
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=1 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2325: arc-004 S3 live E2E — dm-rail push-wake (blocked on hub restart)

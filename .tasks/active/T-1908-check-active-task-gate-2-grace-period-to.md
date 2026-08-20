@@ -1,8 +1,10 @@
 ---
 id: T-1908
-name: "check-active-task Gate 2 grace-period: tolerate completed-task ref within 30min (T-1906 defence-in-depth)"
+name: "check-active-task Gate 2 grace-period: tolerate completed-task ref within 30min
+  (T-1906 defence-in-depth)"
 description: >
-  check-active-task Gate 2 grace-period: tolerate completed-task ref within 30min (T-1906 defence-in-depth)
+  check-active-task Gate 2 grace-period: tolerate completed-task ref within 30min
+  (T-1906 defence-in-depth)
 
 status: started-work
 workflow_type: build
@@ -12,8 +14,32 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-06-01T10:12:14Z
-last_update: 2026-06-01T10:12:14Z
-date_finished: null
+last_update: '2026-08-20T15:21:21Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-20T15:20:36Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 1
+      D3: 0
+      D4: 0
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=1 (body:log-or-error-line); D3=0 
+      (no-signal); D4=0 (no-signal); F-RECALL=2 (body:lightly-promoted); 
+      F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-20T15:21:21Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-1908: check-active-task Gate 2 grace-period: tolerate completed-task ref within 30min (T-1906 defence-in-depth)

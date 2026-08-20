@@ -2,8 +2,10 @@
 id: T-2695
 name: "Register 4 unregistered Rust modules in the component fabric"
 description: >
-  retention_sweeper.rs, fleet_presence.rs, identity_dir.rs and ws_consumer.rs have no
-  fabric cards, so `fw fabric deps/impact/blast-radius` cannot reason about them — impact
+  retention_sweeper.rs, fleet_presence.rs, identity_dir.rs and ws_consumer.rs have
+  no
+  fabric cards, so `fw fabric deps/impact/blast-radius` cannot reason about them —
+  impact
   analysis is silently incomplete for four modules, including two that sit on charter-core
   paths.
 status: started-work
@@ -11,8 +13,32 @@ workflow_type: build
 horizon: now
 owner: claude-code
 created: 2026-08-20
-last_update: 2026-08-20T01:05:18Z
+last_update: '2026-08-20T15:21:22Z'
 tags: [governance, fabric, impact-analysis]
+bvp_scores_proposed:
+  - ts: '2026-08-20T15:20:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=3 
+      (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-20T15:21:22Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 5
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=5 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2695: Register 4 unregistered Rust modules in the component fabric

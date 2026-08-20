@@ -2,10 +2,14 @@
 id: T-2800
 name: "Detect cross-branch task-ID collisions and duplicate work before it happens"
 description: >
-  T-229 renumbered colliding task IDs in March 2026 and noted the counter is not safe for
-  concurrent work. Nothing was built. It recurred in August at 12x — and the expensive half
-  was not the IDs but three agents independently solving the same two defects. Add a
-  deploy-time check with three axes: IDs claimed by more than one branch, the same new file
+  T-229 renumbered colliding task IDs in March 2026 and noted the counter is not safe
+  for
+  concurrent work. Nothing was built. It recurred in August at 12x — and the expensive
+  half
+  was not the IDs but three agents independently solving the same two defects. Add
+  a
+  deploy-time check with three axes: IDs claimed by more than one branch, the same
+  new file
   created on more than one branch, and near-duplicate task titles across branches.
 
 status: started-work
@@ -16,8 +20,31 @@ tags: [governance, concurrency, task-system, duplicate-work]
 components: []
 related_tasks: [T-229, T-2696, T-2697, T-2698, T-2561]
 created: 2026-08-20
-last_update: 2026-08-20T09:27:01Z
-date_finished: null
+last_update: '2026-08-20T15:21:22Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-20T15:20:38Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 0
+      F-RECALL: 1
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=0
+      (no-signal); F-RECALL=1 (body:episodic-only); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-20T15:21:22Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2800: Detect cross-branch task-ID collisions and duplicate work before it happens

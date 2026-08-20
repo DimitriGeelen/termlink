@@ -3,9 +3,12 @@ id: T-1137
 name: "Install logrotate on proxmox host .180 — prevent /var/log full cascade (G-009)"
 description: >
   Proxmox host 192.168.10.180 has /var/log on a 224M zram0 filesystem at 100%; pveproxy
-  access.log is 145M. Full /var/log cascades into LXC container reboot loops (CT 200 /
-  ring20-management / .122 rebooted 5× in 5h on 2026-04-19, producing 4 distinct TLS cert
-  rotations observed from termlink clients). Structural fix: logrotate config on the pve
+  access.log is 145M. Full /var/log cascades into LXC container reboot loops (CT 200
+  /
+  ring20-management / .122 rebooted 5× in 5h on 2026-04-19, producing 4 distinct TLS
+  cert
+  rotations observed from termlink clients). Structural fix: logrotate config on the
+  pve
   host for /var/log/pveproxy/access.log — rotate daily, keep 3, compressed. Short-term
   mitigation (truncate) is a separate operator action.
 
@@ -17,8 +20,32 @@ tags: [infrastructure, proxmox, operations]
 components: []
 related_tasks: [T-1064, T-1028, T-1053]
 created: 2026-04-19T08:43:09Z
-last_update: 2026-04-28T08:32:56Z
-date_finished: null
+last_update: '2026-08-20T15:21:20Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-20T15:20:35Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 0
+      D4: 4
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=4
+      (body:cross-machine); F-RECALL=2 (body:lightly-promoted); F-ORCH=0 
+      (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-20T15:21:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 5
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=5 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-1137: Install logrotate on proxmox host .180 — prevent /var/log full cascade (G-009)

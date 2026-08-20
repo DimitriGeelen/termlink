@@ -1,10 +1,14 @@
 ---
 id: T-2690
-name: "Audit cron-drift slug uses worktree basename — blocks push, mitigation installs stray cron"
+name: "Audit cron-drift slug uses worktree basename — blocks push, mitigation installs
+  stray cron"
 description: >
-  audit.sh derives the expected /etc/cron.d unit name from basename(PROJECT_ROOT). In a
-  git worktree that basename is the ephemeral worktree name, so the check FAILs on a cron
-  that must never exist, and the pre-push hook blocks every worktree session. The printed
+  audit.sh derives the expected /etc/cron.d unit name from basename(PROJECT_ROOT).
+  In a
+  git worktree that basename is the ephemeral worktree name, so the check FAILs on
+  a cron
+  that must never exist, and the pre-push hook blocks every worktree session. The
+  printed
   mitigation ("Run: fw cron install") installs a duplicate cron set keyed to the ephemeral
   worktree path — which has already happened on this host.
 status: started-work
@@ -12,8 +16,32 @@ workflow_type: build
 horizon: now
 owner: claude-code
 created: 2026-08-20
-last_update: 2026-08-20T00:19:38Z
+last_update: '2026-08-20T15:21:22Z'
 tags: [governance, framework-defect, cross-repo, cron, worktree]
+bvp_scores_proposed:
+  - ts: '2026-08-20T15:20:37Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 3
+      D3: 0
+      D4: 4
+      F-RECALL: 1
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=3 (body:component-silent-failure); 
+      D3=0 (no-signal); D4=4 (body:cross-machine); F-RECALL=1 
+      (body:episodic-only); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-20T15:21:22Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2690: Audit cron-drift slug uses worktree basename

@@ -2,7 +2,10 @@
 id: T-1453
 name: "fw task revisit-due CLI verb (T-1449 Phase-1 #3)"
 description: >
-  T-1449 Phase-1 deliverable #3: fw task revisit-due CLI lists ripe revisits on demand (no cron dependency). Reuses scan logic from T-1452. Independent of T-1452 — can ship in either order once T-1451 lands. ~40 LOC. Channel-1 mirror to upstream framework needed.
+  T-1449 Phase-1 deliverable #3: fw task revisit-due CLI lists ripe revisits on demand
+  (no cron dependency). Reuses scan logic from T-1452. Independent of T-1452 — can
+  ship in either order once T-1451 lands. ~40 LOC. Channel-1 mirror to upstream framework
+  needed.
 
 status: started-work
 workflow_type: build
@@ -12,8 +15,32 @@ tags: [framework, governance, T-1449, phase-1, channel-1-mirror, cli]
 components: []
 related_tasks: [T-1449, T-1451, T-1452]
 created: 2026-05-02T22:21:42Z
-last_update: 2026-05-15T22:02:26Z
-date_finished: null
+last_update: '2026-08-20T15:21:21Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-20T15:20:35Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 0
+      D3: 3
+      D4: 0
+      F-RECALL: 1
+      F-ORCH: 1
+    rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=0 (no-signal); F-RECALL=1 
+      (body:episodic-only); F-ORCH=1 (body:hand-wired-dispatch)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-20T15:21:21Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-1453: fw task revisit-due CLI verb (T-1449 Phase-1 #3)

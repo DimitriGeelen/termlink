@@ -1,8 +1,16 @@
 ---
 id: T-1432
-name: "fw fleet doctor --legacy-usage — telemetry for T-1166 cut readiness (T-1425 pick #6)"
+name: "fw fleet doctor --legacy-usage — telemetry for T-1166 cut readiness (T-1425
+  pick #6)"
 description: >
-  From T-1425 fast-forward synthesis. Walks each reachable hub's last-N-day event log (default 7d), counts inbox.push / file.send / event.broadcast invocations per session per host, renders as a table + summary in the doctor output. T-1166 cut readiness signal: when all reachable hubs report 0 legacy invocations for 7+ days, the cut is safe. Independent of every other pick — can ship anytime. Synergizes with T-1426 (deprecation print) but doesn't require it (counts are derivable from event log directly). Watchtower visualization is a nice-to-have follow-up, NOT in scope here — table output via doctor is sufficient for cut-readiness decision.
+  From T-1425 fast-forward synthesis. Walks each reachable hub's last-N-day event
+  log (default 7d), counts inbox.push / file.send / event.broadcast invocations per
+  session per host, renders as a table + summary in the doctor output. T-1166 cut
+  readiness signal: when all reachable hubs report 0 legacy invocations for 7+ days,
+  the cut is safe. Independent of every other pick — can ship anytime. Synergizes
+  with T-1426 (deprecation print) but doesn't require it (counts are derivable from
+  event log directly). Watchtower visualization is a nice-to-have follow-up, NOT in
+  scope here — table output via doctor is sufficient for cut-readiness decision.
 
 status: started-work
 workflow_type: build
@@ -12,8 +20,32 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-01T07:02:56Z
-last_update: 2026-06-06T16:25:55Z
-date_finished: null
+last_update: '2026-08-20T15:21:21Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-20T15:20:35Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 2
+      D2: 2
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=2 (body:concern-ref); D2=2 (body:telemetry-or-audit-entry); 
+      D3=0 (no-signal); D4=0 (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-20T15:21:21Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-1432: fw fleet doctor --legacy-usage — telemetry for T-1166 cut readiness (T-1425 pick #6)
