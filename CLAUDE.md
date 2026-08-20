@@ -815,6 +815,56 @@ sleep-on-error before the next iteration (the T-2670/T-2671/T-2673 remediation) 
 error path provably exits the loop — add the loop's signature to the allowlist with a cited
 reason.
 
+### Vendored-framework recoverability check (T-2689 + T-2692)
+
+`.gitignore:21` carries a blanket `.agentic-framework` rule labelled "Framework symlink
+(machine-specific)". That label predates vendoring: the tree is now vendored with ~1565
+files tracked, and ignore rules do not apply to already-tracked files — so everything
+already in git keeps working and nothing looks broken, while every framework file added
+*after* the rule landed is silently untrackable (`git add -A` skips it, `git status` never
+mentions it). The result is invisible drift between the framework that RUNS and the
+framework that is RECOVERABLE. Live casualties: `lib/bvp.sh` and the whole `policy/`
+directory (`value-drivers.yaml`, `bvp-scoring-rubric.md`) are untracked, so the §ACD
+sovereignty-gated BVP driver weights exist only on one host's disk, and `fw bvp` fails
+outright in any clean clone.
+
+`scripts/check-framework-tracking-drift.sh` is a **deploy-time / ad-hoc check, NOT a cron
+canary** — the same tier as `check-cron-install-drift.sh` (T-2561). It runs **two
+complementary axes**, because each is blind exactly where the other fires:
+
+- **Axis A — UNTRACKED** (T-2689): a file is on disk but absent from `git ls-files`. Only
+  visible in the checkout that CREATED the drift. Fires on `bin/ lib/ policy/ agents/`
+  (clean-clone-breaking); untracked `docs/`/`web/` is informational; `__pycache__/`,
+  `*.pyc`, `*.pyo`, `.git/` are excluded.
+- **Axis B — DANGLING** (T-2692): tracked framework code SOURCES or EXECUTES a
+  `"$FRAMEWORK_ROOT/<path>"` that does not resolve. Only visible where the file is
+  MISSING — a clean clone, a fresh deploy, or a git worktree (which materialises tracked
+  files only).
+
+Axis A alone reports a worktree as clean while `fw bvp` is broken in it — that is how
+T-2692 was found, the detector saying "no drift" seconds after the tool it protects failed
+in the same directory. Axis B is the axis that matters for anyone who did not create the
+drift. **Axis B's anchor is deliberately narrow**: matching every `"$FRAMEWORK_ROOT/..."`
+occurrence yielded 47 hits of which ~44 were noise (bare `$VAR` interpolations,
+`path/to/script.sh` usage examples, and the framework's own `tests/`/`tools/`/`.git/` which
+a vendored copy legitimately omits); restricting to source-or-execute position
+(`.`/`source`/`bash`/`sh`/`python3`/`python`) and dropping comment lines took it to 2 real
+hits with zero false positives. Same precision-over-recall trade as the sibling static
+checks above. Paths still carrying a `$` in the tail are skipped and counted, never guessed.
+
+Exit codes: 0 = neither axis fires, 1 = untracked load-bearing file OR dangling reference,
+2 = tooling (not a git repo / framework dir absent). `--json` carries both axes separately
+(`firing[]`/`firing_count` for A, `dangling[]`/`dangling_count`/`refs_checked`/
+`refs_skipped_dynamic` for B); `--quiet` drops the remediation block; `--root DIR` points
+the scan at a fixture tree (PL-213). Ad-hoc: `bash scripts/check-framework-tracking-drift.sh`.
+Fixtures (no real framework): `bash tests/framework-tracking-drift-fixtures.sh` (axis A) +
+`bash tests/framework-dangling-ref-fixtures.sh` (axis B). Operator action differs per axis:
+**UNTRACKED** — narrow the `.gitignore` rule and `git add -f` the load-bearing subtrees,
+reviewing for anything machine-local or secret-bearing; **DANGLING** — you cannot fix it in
+the checkout that fires, because the files were never committed and there is nothing to
+pull; fix it in the checkout that still HAS them (run the check there, it reports them as
+UNTRACKED), commit, then update.
+
 ## Project-Specific Rules
 
 ### Hub Auth Rotation Protocol
