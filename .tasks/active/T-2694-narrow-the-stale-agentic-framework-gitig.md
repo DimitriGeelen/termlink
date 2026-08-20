@@ -12,7 +12,7 @@ workflow_type: build
 horizon: now
 owner: claude-code
 created: 2026-08-20
-last_update: 2026-08-20T01:01:52Z
+last_update: 2026-08-20T01:02:47Z
 tags: [governance, gitignore, vendoring, clean-clone, bvp]
 ---
 
@@ -49,10 +49,22 @@ DANGLING   $FRAMEWORK_ROOT/lib/arc_membership.sh
 
 Plus the whole of `policy/` (`value-drivers.yaml`, `bvp-scoring-rubric.md`) per T-2689.
 
-Concretely: **`fw bvp` does not run in this worktree**, and would not run in a clean clone.
-The §ACD sovereignty-gated BVP driver weights and the scoring rubric exist only on one
-host's disk — one `rm -rf` from being unrecoverable. The BVP estimator has been requested
-as routine tooling; it currently cannot be routine anywhere but one machine.
+Both are load-bearing, and **two `fw` subcommands are broken in this worktree** as a result:
+
+```
+$ fw bvp --quadrant hv-lc
+.../.agentic-framework/bin/fw: line 3223: .../lib/bvp.sh: No such file or directory
+
+$ fw arc list
+.../.agentic-framework/lib/arc.sh: line 78: .../lib/arc_membership.sh: No such file or directory
+```
+
+Neither would run in a clean clone either. The §ACD sovereignty-gated BVP driver weights and
+the scoring rubric exist only on one host's disk — one `rm -rf` from being unrecoverable. The
+BVP estimator has been requested as routine tooling; it currently cannot be routine anywhere
+but one machine. And `fw arc` being dead is what stopped this session investigating the
+`arc-substrate-fitness` stale-arc WARN the audit raised — the gap is already costing
+governance work, not just theoretical recoverability.
 
 ## Approach
 
