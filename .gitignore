@@ -17,8 +17,41 @@ Thumbs.db
 # Tier-0 approval ledger — resolved-*.yaml may embed command_preview with secrets (T-1799)
 .context/approvals/
 
-# Framework symlink (machine-specific)
-.agentic-framework
+# Vendored framework (T-2694).
+#
+# This was `.agentic-framework` under the label "Framework symlink (machine-specific)".
+# That was correct when the path WAS a symlink; the tree is now VENDORED with ~1565 files
+# tracked, including bin/fw itself. Ignore rules do not apply to already-tracked files, so
+# everything committed before vendoring kept working and nothing looked broken — while every
+# framework file added AFTER the rule landed was silently untrackable (`git add -A` skips it,
+# `git status` never mentions it). lib/bvp.sh and all of policy/ were lost that way, which is
+# why `fw bvp` fails in a clean clone.
+#
+# Form matters: `!` negations under a blanket `.agentic-framework` rule would silently do
+# NOTHING, because git cannot re-include a path whose parent directory is excluded. Excluding
+# the CONTENTS (`/*`) leaves the directory itself un-excluded so the negations bind.
+#
+# The re-included list is exactly what `git ls-files .agentic-framework` already tracks, plus
+# policy/ (the casualty). Enumerated rather than blanket-un-ignored so the framework's own
+# .context/, tests/, tools/ and .git/ — deliberately not vendored here — stay out.
+.agentic-framework/*
+!.agentic-framework/agents/
+!.agentic-framework/bin/
+!.agentic-framework/docs/
+!.agentic-framework/lib/
+!.agentic-framework/policy/
+!.agentic-framework/web/
+!.agentic-framework/.tasks/
+!.agentic-framework/.fw-not-a-project
+!.agentic-framework/.gitignore
+!.agentic-framework/FRAMEWORK.md
+!.agentic-framework/VERSION
+!.agentic-framework/metrics.sh
+
+# ...but never the generated artefacts inside the re-included subtrees.
+.agentic-framework/**/__pycache__/
+.agentic-framework/**/*.pyc
+.agentic-framework/**/*.pyo
 
 # fw upgrade rollback backup — machine-local, never tracked
 .agentic-framework.rollback/
