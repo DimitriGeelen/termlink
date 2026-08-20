@@ -36,6 +36,18 @@ TOPIC="${FW_PICKUP_TOPIC:-framework:pickup}"
 MARKER="${FW_PICKUP_CANARY_MARKER:-.context/working/.framework-pickup-canary.seen-offset}"
 HEARTBEAT_FILE="${HEARTBEAT_FILE:-.context/working/.framework-pickup-canary.heartbeat}"
 
+# T-2691: who WE are, for the own-filing filter below.
+#
+# Deliberately a CONSTANT, not `basename "$PROJECT_ROOT"`. A path-derived slug is wrong
+# the moment this runs inside a git worktree (it yields the worktree name), which is
+# exactly the defect filed upstream as T-2690 — repeating it here would silently disable
+# the filter in precisely the sessions that post the most filings.
+#
+# Failure direction is safe: if the project is ever renamed and this constant is not
+# updated, the filter stops matching and our own posts merely become visible again —
+# noisy, never silent.
+SELF_PROJECT="${FW_PICKUP_SELF_PROJECT:-010-termlink}"
+
 FORMAT=human
 QUIET=0
 HEARTBEAT=1
@@ -62,7 +74,11 @@ if [ "$HEARTBEAT" = 1 ]; then
     touch -- "$HEARTBEAT_FILE" 2>/dev/null || true
 fi
 
-if ! command -v termlink >/dev/null 2>&1; then
+# Test seam (PL-213): feed canned `channel subscribe --json` NDJSON so the fixtures can
+# exercise the filter without a live hub. Only consulted when the file is readable.
+TEST_NDJSON="${FW_PICKUP_TEST_NDJSON:-}"
+
+if [ -z "$TEST_NDJSON" ] && ! command -v termlink >/dev/null 2>&1; then
     echo "framework-pickup canary: termlink not on PATH (cannot read $TOPIC)" >&2
     exit 2
 fi
@@ -77,10 +93,17 @@ NOW_S="$(date +%s)"
 SINCE_MS=$(( (NOW_S - WINDOW_DAYS * 86400) * 1000 ))
 
 # Fetch NDJSON. A read failure = canary blind = tooling error (exit 2).
-RAW="$(termlink channel subscribe "$TOPIC" --since "$SINCE_MS" --json 2>/dev/null)" || {
-    echo "framework-pickup canary: failed to read topic '$TOPIC' (hub down?)" >&2
-    exit 2
-}
+if [ -n "$TEST_NDJSON" ]; then
+    RAW="$(cat -- "$TEST_NDJSON" 2>/dev/null)" || {
+        echo "framework-pickup canary: cannot read test NDJSON: $TEST_NDJSON" >&2
+        exit 2
+    }
+else
+    RAW="$(termlink channel subscribe "$TOPIC" --since "$SINCE_MS" --json 2>/dev/null)" || {
+        echo "framework-pickup canary: failed to read topic '$TOPIC' (hub down?)" >&2
+        exit 2
+    }
+fi
 
 # Parse + render via python. Emits the rendered report on stdout, and on a
 # trailing line: "MAXOFF=<n>\tNEW=<count>" for the shell to act on.
@@ -88,8 +111,10 @@ PARSED="$(printf '%s' "$RAW" | python3 -c "
 import sys, json, base64
 seen = int('''$SEEN''')
 fmt = '''$FORMAT'''
+self_project = '''$SELF_PROJECT'''
 lines = [l for l in sys.stdin if l.strip()]
 entries = []
+own = []
 maxoff = seen
 for l in lines:
     try:
@@ -106,7 +131,9 @@ for l in lines:
         continue
     md = m.get('metadata', {}) or {}
     mt = m.get('msg_type', '?')
-    proj = md.get('from_project') or md.get('source_project') or '?'
+    # T-2691 attribution chain. agent_id is accepted as a fallback because some of our
+    # own filings set that key instead of from_project; both carry the project name.
+    proj = md.get('from_project') or md.get('source_project') or md.get('agent_id') or '?'
     # best-effort: decode payload + sniff a severity keyword (annotation only)
     body = ''
     if m.get('payload_b64'):
@@ -128,14 +155,27 @@ for l in lines:
         if bl:
             first = bl[:100]
             break
-    entries.append({'offset': off, 'msg_type': mt, 'from_project': proj,
-                    'severity_hint': sev, 'first_line': first})
+    rec = {'offset': off, 'msg_type': mt, 'from_project': proj,
+           'severity_hint': sev, 'first_line': first}
+    # T-2691: our OWN outbound filings are not inbound work. They are counted and
+    # reported, but never fire — otherwise filing a bug report upstream makes this
+    # canary fire at us, and the --ack needed to clear the echo also acks any genuine
+    # inbound filing that landed in between (the G-063 failure, via its own mitigation).
+    #
+    # Unknown attribution ('?') deliberately still fires: we cannot prove it is ours,
+    # and a false fire is cheap while a false silence is the whole reason G-063 exists.
+    if proj == self_project:
+        own.append(rec)
+    else:
+        entries.append(rec)
 
 entries.sort(key=lambda e: e['offset'])
+own.sort(key=lambda e: e['offset'])
 
 if fmt == 'json':
     out = {'ok': len(entries) == 0, 'topic': '''$TOPIC''', 'seen_offset': seen,
-           'max_offset': maxoff, 'unprocessed': entries}
+           'max_offset': maxoff, 'unprocessed': entries,
+           'own_count': len(own), 'self_project': self_project, 'own': own}
     print(json.dumps(out))
 else:
     if entries:
@@ -146,13 +186,33 @@ else:
             if e['first_line']:
                 print('     %s' % e['first_line'])
         print('  → process them, then: bash scripts/check-framework-pickup-freshness.sh --ack')
+    # T-2691: ALWAYS report suppression, including on the healthy path. A quiet canary
+    # must never be ambiguous between 'nothing inbound' and 'the filter ate something'.
+    #
+    # NOTE: this whole python program is embedded in a DOUBLE-QUOTED shell string, so a
+    # literal double quote anywhere in it -- comments included -- closes that string and
+    # silently truncates the program from that point on. It fails quietly: the truncated
+    # prefix still runs, so the counts look right while the tail of the report vanishes.
+    # Use single quotes in this block, always.
+    if own:
+        print('  (%d own filing(s) from %s not counted — outbound, not inbound work)'
+              % (len(own), self_project))
 
 " 2>/dev/null )" || { echo "framework-pickup canary: parse error" >&2; exit 2; }
 
-# Recover MAXOFF / NEW from the python stderr line (captured separately).
+# Recover MAXOFF / NEW from a second parse.
+#
+# T-2691: this pass is the actual FIRING GATE (NEW==0 -> exit 0), so it must apply the
+# same own-filing filter as the report above. It previously counted every new offset
+# regardless of author, which is why filtering the report alone would have changed what
+# the canary SAYS without changing what it DOES.
+#
+# MAXOFF still tracks the true maximum across ALL filings, own ones included — --ack must
+# advance past our own posts too, or they would be re-counted forever.
 META="$(printf '%s' "$RAW" | python3 -c "
 import sys, json
 seen=int('''$SEEN''')
+self_project='''$SELF_PROJECT'''
 maxoff=seen; new=0
 for l in sys.stdin:
     if not l.strip(): continue
@@ -162,7 +222,11 @@ for l in sys.stdin:
     if off is None: continue
     off=int(off)
     if off>maxoff: maxoff=off
-    if off>seen: new+=1
+    if off<=seen: continue
+    md=m.get('metadata') or {}
+    proj=md.get('from_project') or md.get('source_project') or md.get('agent_id') or '?'
+    if proj==self_project: continue
+    new+=1
 print('%d %d' % (maxoff, new))
 ")"
 MAXOFF="${META%% *}"

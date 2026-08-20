@@ -104,7 +104,24 @@ so they go quiet. Ad-hoc check: `bash scripts/check-framework-pickup-freshness.s
 `[HIGH]` hint sniffed from the payload body — it is an annotation, NOT the
 firing gate (the gate is "newer than last-acked"); gating on a parsed
 severity field would be fragile given the free-form YAML payloads (T-2225
-false-positive lesson). Pair with the mirror-drift and substrate-preflight
+false-positive lesson).
+
+**Own filings do not fire (T-2691).** The topic is bidirectional — termlink is a
+prolific *poster* to it, not only a reader — so the canary attributes each filing
+via `metadata.from_project` → `source_project` → `agent_id` and excludes anything
+matching `FW_PICKUP_SELF_PROJECT` (default `010-termlink`) from the firing set.
+Without this, filing a bug report upstream made the canary fire at us, and the
+`--ack` needed to clear that echo *also* acked any genuine inbound filing that
+landed in between — reintroducing the exact G-063 miss the canary exists to
+prevent. Suppressed filings are always counted and reported (`N own filing(s)
+… not counted`), so a quiet canary is never ambiguous between "nothing inbound"
+and "the filter ate something". Attribution is a **constant**, deliberately not
+`basename $PROJECT_ROOT` — a path-derived slug is wrong inside a git worktree
+(that is the T-2690 defect filed upstream). **Unknown attribution still fires**:
+we cannot prove an unattributed filing is ours, and a false fire is cheap while
+a false silence is the whole point of G-063. Test seam
+`FW_PICKUP_TEST_NDJSON=<file>` feeds canned `channel subscribe --json` NDJSON;
+fixtures: `bash tests/pickup-canary-selffilter-fixtures.sh`. Pair with the mirror-drift and substrate-preflight
 canaries above — all three follow the same "empty-log = healthy" convention.
 
 ### Frozen-husk canary (T-2239, G-019 prevention for T-2230/T-2235)
