@@ -109,8 +109,27 @@ agents/session-capture
 agents/resume
 agents/fabric
 
-# Session-local working state (large vector index, etc.) — never commit
-.context/working/
+# Session-local working state (large vector index, etc.) — never commit.
+#
+# T-2698: this is the CONTENTS form (`/*`), not the directory form. The directory
+# form excluded `.context/working/` itself, and git cannot re-include a path whose
+# parent directory is excluded — so a `!` negation under it is a SILENT no-op, not
+# an error. Excluding the contents leaves the directory un-excluded, which is what
+# makes the negation below bind at all.
+#
+# Why a negation is needed: 115 files under here are tracked. Ignore rules do not
+# apply to already-tracked files, so nothing looked broken while every file added
+# afterwards was silently untrackable. The casualties were the static-check
+# allowlists (T-2527 alloc-sink, T-2531 drain-sink, T-2666 silent-exit, T-2672
+# busy-spin, T-2697 cron-drift) — records of governance decisions that existed only
+# on one host's disk, so both alloc-sink and drain-sink fired in every clean clone
+# on sites a human had already reviewed and acknowledged.
+#
+# Re-included BY PATTERN, not by filename: the casualty is the whole class of checks
+# following that convention, so the next one is trackable without another edit here.
+# Everything else — vector index, session state, counters, logs — stays ignored.
+.context/working/*
+!.context/working/.*-allowlist
 
 # Background-session git worktrees (T-2219: prevent accidental gitlink commits)
 .claude/worktrees/
