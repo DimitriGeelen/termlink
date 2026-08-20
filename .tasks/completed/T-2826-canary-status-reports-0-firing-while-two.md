@@ -4,16 +4,16 @@ name: "canary-status reports 0 firing while two canaries are firing — strict >
 description: >
   canary-status.sh classifies FIRING as `log_mtime -gt heartbeat_mtime`. A canary touches its heartbeat BEFORE doing work and the cron appends the log after, so a fast canary lands both in the SAME second and strict `>` fails. Measured: charter-drift and waker-liveness both delta=0, both actively firing, both reported HEALTHY.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [governance, canary, directive-2, pl-168]
-components: []
+components: [scripts/canary-status.sh]
 related_tasks: [T-2172, T-2180, T-1723, T-2810]
 created: 2026-08-21
-last_update: 2026-08-21
-date_finished: null
+last_update: 2026-08-20T22:21:14Z
+date_finished: 2026-08-20T22:21:14Z
 ---
 
 # T-2826: the verb that answers "are my canaries firing?" cannot say yes
@@ -173,3 +173,19 @@ historical firing into a permanent red light.
 charter-review question, `waker-liveness` is T-2389's operator-timing decision, and
 `substrate-preflight`'s warn is a one-line environment check. Making them visible was the
 deliverable.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-c51023de
+- **Timestamp:** 2026-08-20T22:21:15Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** yes
+- **Findings:** none
+
+- **Layer-1 escalations:** 1
+  1. **destructive-action** (high) — Destructive operation in verification or AC
+     - matched: `rm -f`
+
+### 2026-08-20T22:21:14Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

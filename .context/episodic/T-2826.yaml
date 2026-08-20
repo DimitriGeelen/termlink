@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2826: canary-status reports 0 firing while two canaries are firing — strict > on same-second mtimes
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-20T22:21:18Z
+# ============================================================================
+
+task_id: T-2826
+task_name: "canary-status reports 0 firing while two canaries are firing — strict > on same-second mtimes"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-21
+completed: 2026-08-20T22:21:14Z
+duration_days: -1
+updates_count: 0
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - '`canary-status.sh` classifies a canary as FIRING when its log mtime **equals** its'
+  - 'A canary whose log predates its heartbeat is still HEALTHY — the historical-entries case'
+  - 'Fixtures pin both, including the same-second case that the bug consists of'
+  - 'Run against the live checkout, `charter-drift` and `waker-liveness` are reported FIRING'
+  - 'Exit code becomes 1 when a canary fires, so `--quiet` in cron stops being silent'
+  - 'No change to the taxonomy, signal-line heuristic, stale threshold or discovery'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-08-21 — `-ge`, not a tolerance window'
+    chose: 'change the comparison to `-ge`.'
+    rationale: 'the obvious alternative — "treat a log within N seconds of the heartbeat as firing"'
+  - decision: '2026-08-21 — Fix it here even though both branches carry the bug'
+    chose: 'fix here anyway.'
+    rationale: 'it is a one-character defect in a non-vendored script that currently reports two'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 21 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [governance, canary, directive-2, pl-168]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 21
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2826-canary-status-reports-0-firing-while-two.md
+generated_by: context-agent-hybrid

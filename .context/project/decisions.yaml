@@ -1102,3 +1102,17 @@ decisions:
     date: 2026-08-20
     task: T-2804
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-137
+    decision: "change the comparison to `-ge`."
+    scope: project
+    date: 2026-08-20
+    task: T-2826
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-138
+    decision: "fix here anyway."
+    scope: project
+    date: 2026-08-20
+    task: T-2826
+    rationale: "Auto-captured from task file on completion"

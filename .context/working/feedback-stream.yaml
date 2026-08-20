@@ -8370,3 +8370,21 @@ scan_id: R-b7355244
 task_id: T-2804
 payload:
   task_file: .tasks/active/T-2804-finalize-the-seven-half-finalized-comple.md
+---
+kind: scan_emitted
+timestamp: '2026-08-20T22:21:15Z'
+scan_id: R-c51023de
+task_id: T-2826
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-20T22:21:15Z'
+scan_id: R-c51023de
+task_id: T-2826
+payload:
+  task_file: .tasks/active/T-2826-canary-status-reports-0-firing-while-two.md
