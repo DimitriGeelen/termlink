@@ -107,6 +107,29 @@ fi
 is_load_bearing() {
     case "$1" in
         "$FW_ROOT"/bin/*|"$FW_ROOT"/lib/*|"$FW_ROOT"/policy/*|"$FW_ROOT"/agents/*) return 0 ;;
+        # T-2811: web/ was originally lumped with docs/ as "informational", on the
+        # reasoning that a missing page is a gap rather than a broken install. That
+        # is true of docs/ and it is false of most of web/, which this checker was
+        # asked to prove the hard way: it reported this worktree CLEAN while
+        # `fw serve` could not start in it.
+        #
+        #   web/**/*.py       — Flask registers every blueprint in create_app(), so
+        #                       a missing module is ModuleNotFoundError before the
+        #                       app binds a port. Not a degraded page: no app.
+        #   web/templates/**  — base.html `{% include %}`s partials, so ONE missing
+        #                       template is HTTP 500 on every route that extends it.
+        #                       Found via `TemplateNotFound: _pins.html`, which took
+        #                       Watchtower from "won't start" to "starts, serves 500".
+        #
+        # web/static/** stays informational, and that line is drawn from the same
+        # evidence rather than from taste: a missing font or stylesheet renders an
+        # ugly page, not a broken one. Promoting it too would fire on cosmetics, and
+        # a check that fires on cosmetics is one people learn to skip — which is how
+        # the original over-broad "informational" call survived until it cost the
+        # whole app.
+        "$FW_ROOT"/web/static/*) return 1 ;;
+        "$FW_ROOT"/web/templates/*) return 0 ;;
+        "$FW_ROOT"/web/*.py|"$FW_ROOT"/web/*/*.py|"$FW_ROOT"/web/*/*/*.py) return 0 ;;
         *) return 1 ;;
     esac
 }

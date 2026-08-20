@@ -1118,8 +1118,22 @@ complementary axes**, because each is blind exactly where the other fires:
 
 - **Axis A — UNTRACKED** (T-2689): a file is on disk but absent from `git ls-files`. Only
   visible in the checkout that CREATED the drift. Fires on `bin/ lib/ policy/ agents/`
-  (clean-clone-breaking); untracked `docs/`/`web/` is informational; `__pycache__/`,
-  `*.pyc`, `*.pyo`, `.git/` are excluded.
+  (clean-clone-breaking) **and, since T-2811, on `web/**/*.py` and `web/templates/**`**;
+  untracked `docs/` and `web/static/**` are informational; `__pycache__/`, `*.pyc`, `*.pyo`,
+  `.git/` are excluded.
+
+  **The `web/` half was originally wrong, and the checker proved it the hard way (T-2811).**
+  `web/` was lumped in with `docs/` as informational, on the reasoning that a missing page is
+  a gap rather than a broken install. True for `docs/`; false for most of `web/`. Asked for
+  Watchtower links, `fw serve` would not start — `ModuleNotFoundError: web.blueprints.bvp` —
+  and the drift checker was reporting the same tree **clean**. Fixing that produced HTTP 500
+  on every route: `TemplateNotFound: _pins.html`, because `base.html` includes it. **39
+  untracked `web/` files** (4 blueprints, 17 templates, 11 fonts, 6 JS, 1 CSS). Flask
+  registers blueprints in `create_app()`, so a missing module is a crash before the app binds
+  a port; `base.html` includes partials, so one missing template is a 500 on every route that
+  extends it. `web/static/**` stays informational for the symmetric reason — a missing font
+  renders an ugly page, not a broken one, and firing on cosmetics is how a check earns being
+  ignored.
 - **Axis B — DANGLING** (T-2692): tracked framework code SOURCES or EXECUTES a
   `"$FRAMEWORK_ROOT/<path>"` that does not resolve. Only visible where the file is
   MISSING — a clean clone, a fresh deploy, or a git worktree (which materialises tracked

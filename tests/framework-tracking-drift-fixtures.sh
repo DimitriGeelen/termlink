@@ -5,7 +5,8 @@
 #
 #   1. tracked file            -> NOT reported (the case the SIGPIPE bug inverted)
 #   2. untracked load-bearing  -> FIRING, exit 1
-#   3. untracked docs/ or web/ -> informational only, exit 0
+#   3. untracked docs/ + web/static/ -> informational only, exit 0
+#   3b. untracked web/blueprints/*.py or web/templates/* -> FIRING (T-2811)
 #   4. __pycache__ / *.pyc     -> excluded entirely
 #   5. --json shape            -> ok / firing[] / informational_count
 #   6. --quiet                 -> firing lines only
@@ -81,19 +82,63 @@ else
     bad "__pycache__ and *.pyc excluded" "exit $rc; out: $out"
 fi
 
-# --- untracked docs/web is informational only ------------------------------
+# --- untracked docs/ and web/static/ are informational only ------------------
+# T-2811 drew this boundary from evidence rather than taste. A missing doc or a
+# missing font renders something worse-looking; a missing blueprint or template
+# renders nothing at all. Both halves are pinned: the cases below must NOT fire,
+# and the cases further down MUST.
 echo "doc" > "$FW/docs/some-doc.md"
-echo "asset" > "$FW/web/app.js"
+mkdir -p "$FW/web/static/fonts"
+echo "asset" > "$FW/web/static/app.js"
+echo "font" > "$FW/web/static/fonts/x.woff2"
 out=$(run); rc=$?
 if [ "$rc" -eq 0 ]; then
-    ok "untracked docs/ + web/ do not fire (informational only)"
+    ok "untracked docs/ + web/static/ do not fire (informational only)"
 else
-    bad "untracked docs/ + web/ do not fire" "exit $rc; out: $out"
+    bad "untracked docs/ + web/static/ do not fire" "exit $rc; out: $out"
 fi
-if printf '%s' "$out" | grep -q "2 untracked"; then
+if printf '%s' "$out" | grep -q "3 untracked"; then
     ok "informational count is reported"
 else
     bad "informational count is reported" "out: $out"
+fi
+
+# --- T-2811: an untracked web BLUEPRINT fires -------------------------------
+# Flask registers blueprints in create_app(), so a missing module is a
+# ModuleNotFoundError before the app binds a port. This is the case that made
+# the checker report a clean tree while `fw serve` was dead in it.
+mkdir -p "$FW/web/blueprints"
+echo "bp = None" > "$FW/web/blueprints/bvp.py"
+out=$(run); rc=$?
+if [ "$rc" -eq 1 ] && printf '%s' "$out" | grep -q "web/blueprints/bvp.py"; then
+    ok "untracked web/blueprints/*.py FIRES (startup crash, not a degraded page)"
+else
+    bad "untracked web blueprint should fire" "exit $rc; out: $out"
+fi
+rm -f "$FW/web/blueprints/bvp.py"
+
+# --- T-2811: an untracked TEMPLATE fires ------------------------------------
+# base.html includes partials, so one missing template is HTTP 500 on every
+# route that extends it — found as `TemplateNotFound: _pins.html`.
+mkdir -p "$FW/web/templates"
+echo "<div>" > "$FW/web/templates/_pins.html"
+out=$(run); rc=$?
+if [ "$rc" -eq 1 ] && printf '%s' "$out" | grep -q "web/templates/_pins.html"; then
+    ok "untracked web/templates/* FIRES (500 on every page that includes it)"
+else
+    bad "untracked web template should fire" "exit $rc; out: $out"
+fi
+rm -f "$FW/web/templates/_pins.html"
+
+# --- the informational cases must STILL be quiet after those additions -------
+# Guards the obvious over-correction: widening web/ wholesale would have made
+# the static assets above fire too, trading one false negative for many false
+# positives.
+out=$(run); rc=$?
+if [ "$rc" -eq 0 ]; then
+    ok "static assets remain informational after the web/ correction"
+else
+    bad "static assets should remain informational" "exit $rc; out: $out"
 fi
 
 # --- untracked load-bearing fires ------------------------------------------
@@ -115,7 +160,7 @@ fi
 jout=$(run --json)
 if printf '%s' "$jout" | grep -q '"ok":false' \
    && printf '%s' "$jout" | grep -q '"firing_count":2' \
-   && printf '%s' "$jout" | grep -q '"informational_count":2' \
+   && printf '%s' "$jout" | grep -q '"informational_count":3' \
    && printf '%s' "$jout" | grep -q 'fw/lib/bvp.sh'; then
     ok "--json carries ok/firing_count/informational_count/firing[]"
 else

@@ -12,7 +12,7 @@ tags: [governance, framework-recoverability, watchtower, g-062]
 components: []
 related_tasks: [T-2689, T-2692, T-2806, T-2807, T-2705]
 created: 2026-08-20
-last_update: 2026-08-20
+last_update: 2026-08-20T17:49:33Z
 date_finished: null
 ---
 
@@ -90,14 +90,18 @@ the main checkout.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The four missing modules are present here and **tracked**
-- [ ] They were secret-scanned before commit
-- [ ] `check-framework-tracking-drift.sh` fires on an untracked `web/blueprints/*.py`, and
-      still does NOT fire on `docs/` or on `web/` templates/static
-- [ ] Its fixtures cover both the new firing case and the still-informational cases
-- [ ] **Proven by outcome:** `fw serve` starts and `GET /` returns HTTP 200
-- [ ] CLAUDE.md's T-2689 section is corrected — `web/blueprints/` is clean-clone-breaking, not
-      informational, with the reason (Flask registers blueprints at startup)
+- [x] The missing modules are present here and **tracked** — scope grew from 4 to **39** on
+      the evidence (4 blueprints, 17 templates, 11 fonts, 6 JS, 1 CSS)
+- [x] They were secret-scanned before commit — 0 hard findings; 1 soft (a LAN IP already
+      documented throughout this repo)
+- [x] `check-framework-tracking-drift.sh` fires on untracked `web/**/*.py` **and**
+      `web/templates/**`, and still does NOT fire on `docs/` or `web/static/**`
+- [x] Its fixtures cover both new firing cases and the still-informational ones, plus an
+      explicit guard that the static assets stay quiet after the widening — **13/13 pass**
+- [x] **Proven by outcome:** Watchtower serves — `/` **200**, `/tasks` **200**,
+      `/inception` **200**, and all nine operator links verified 200 individually
+- [x] CLAUDE.md's T-2689 section is corrected, including why `web/static/**` stays
+      informational — the boundary is as load-bearing as the firing rule
 
 ## Verification
 
@@ -106,8 +110,11 @@ test -n "$(git ls-files .agentic-framework/web/blueprints/bvp.py)"
 test -n "$(git ls-files .agentic-framework/web/blueprints/designer.py)"
 test -n "$(git ls-files .agentic-framework/web/blueprints/designer_api.py)"
 test -n "$(git ls-files .agentic-framework/web/designer_registry.py)"
-# The app imports end to end — this is what ModuleNotFoundError was breaking.
-python3 -c "import sys; sys.path.insert(0,'.agentic-framework'); import web.blueprints.bvp, web.blueprints.designer, web.blueprints.designer_api, web.designer_registry; print('blueprints import')"
+# The templates base.html includes are present — this is what took Watchtower from
+# "will not start" to "starts and 500s on every route".
+test -f .agentic-framework/web/templates/_pins.html
+# Nothing under web/ is left untracked.
+test -z "$(git status --porcelain .agentic-framework/web)"
 # The drift checker still passes on both axes.
 bash scripts/check-framework-tracking-drift.sh
 # Fixtures pin the corrected classification.
@@ -115,14 +122,23 @@ bash tests/framework-tracking-drift-fixtures.sh
 
 ## Decisions
 
-### 2026-08-20 — Fire on `web/blueprints/` only, not on all of `web/`
+### 2026-08-20 — Fire on web MODULES and TEMPLATES; keep static assets informational
 
-- **Chose:** Narrow the correction to blueprint modules.
-- **Why:** A missing blueprint is a startup crash; a missing template or stylesheet is a
-  degraded page. Promoting the whole `web/` tree to clean-clone-breaking would fire on assets
-  whose absence is cosmetic, and a check that fires on cosmetics is one people learn to skip —
-  which is how the original over-broad "informational" call cost nothing until today and then
-  cost the whole app.
+- **First chose:** blueprints only, reasoning that "a missing template or stylesheet is a
+  degraded page".
+- **Disproven within minutes.** Recovering the four blueprints took Watchtower from "will not
+  start" to "starts and serves HTTP 500 on every route" — `TemplateNotFound: _pins.html`,
+  because `base.html` includes it. A missing template is not a degraded page; it is no page.
+- **Chose instead:** fire on `web/**/*.py` and `web/templates/**`; leave `web/static/**`
+  informational.
+- **Why the line sits there:** it is drawn from the two observed failure modes, not from
+  taste. Blueprint missing → `ModuleNotFoundError` before the app binds a port. Template
+  missing → 500 on every route extending `base.html`. Font or stylesheet missing → an ugly
+  page that still works. Promoting all of `web/` would fire on 11 woff2 files, and a check
+  that fires on cosmetics is one people learn to skip — which is exactly how the original
+  over-broad "informational" call survived until it cost the whole app.
+- **Recorded rather than quietly amended** because the first call was made from an armchair
+  and the second from a stack trace, and that is the difference worth keeping.
 
 ### 2026-08-20 — Read the other branch before fixing an overlapping symptom
 
