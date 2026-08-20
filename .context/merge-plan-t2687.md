@@ -223,14 +223,16 @@ G-053 revisit scan keeps finding nothing.
 
 ## Reproducing this
 
-The scratch worktree at `/root/.claude/jobs/d638a35c/tmp/merge-trial` holds the fully-resolved
-merge, uncommitted. Scripts that produced it, in order:
+The scripts that produced this are committed at **`scripts/merge-t2687/`** — see its README
+for the order and for the two worth keeping past this merge. They were written in a scratch job
+directory that is deleted with the session, and a plan pointing at files that will not exist is
+the same failure this branch spent the day documenting.
 
+They hardcode a scratch path; point it at your own:
+
+```bash
+git worktree add --detach /tmp/merge-trial HEAD
 ```
-trial-merge.sh        merge --no-commit origin/main; capture the 37
-classify-conflicts.sh how each side differs (sizes + content hashes)
-resolve.sh            the mechanical take-ours / take-main calls
-union-registers.py    collision-safe register union (--apply)
-union-claudemd.py     heading-set union, refuses if anything would be lost (--apply)
-verify-trial.sh       fixture suites + YAML sanity on the result
-```
+
+A fully-resolved tree also still exists at `/root/.claude/jobs/d638a35c/tmp/merge-trial`,
+uncommitted — **ephemeral**, so treat it as a convenience rather than the record.
