@@ -66,13 +66,22 @@ Quick re-verification command:
 - [x] **Entry gate check:** `fw metrics api-usage --last-7d` shows `event.broadcast + inbox.* + file.*` ≤ 1% of total RPC volume. If >1%, stop and open a task to hunt down the remaining callers.
   - **Window tightened 2026-05-11** by operator authorization (this session): the original `--last-60d` criterion was carrying 8+ days of pre-T-1418 historical residue that gave no forward-looking signal. The `--last-7d` window is the meaningful gate for the cut decision. Path (b) of the 2026-05-09 decision surface.
   - **Verified passing 2026-05-11T21:30Z:** 5 legacy / 624900 total = **0.0008%** (gate ≤1.0%). No legacy traffic in the last 5 days. See `## Updates` 2026-05-11 entry for full snapshot.
-- [ ] **DEFERRED TO T-1415:** Zero live callers in repo. PL-094 destructive-cut pattern: code-path retention is the design — `event.broadcast`/`inbox.*`/`file.*` verbs survive in `crates/termlink-cli/src/commands/{events,remote}.rs` as channel-aware reimplementations (route through `channel.post(broadcast:global)` or channel-prefixed RPCs, not the legacy router methods). 178 grep hits today are dominated by these legitimate retentions plus error-message strings, test fixtures, and audit-log telemetry. T-1415 deletes the dead handlers + helpers post-bake.
-- [ ] **DEFERRED TO T-1415:** Router methods removed from `crates/termlink-hub/src/router.rs`. The CUT mechanism is feature-gated (`legacy_primitives_disabled` Cargo feature → `LEGACY_PRIMITIVES_ENABLED = false` → router returns -32601). Handlers physically remain in `router.rs` until T-1415's source cleanup; the bake-window contract requires they stay deletable in case of rollback.
-- [ ] **DEFERRED TO T-1415:** CLI commands removed/rewritten. As of 2026-04-30 (T-1417 ship), `cmd_broadcast` already routes empty-targets through `channel.post(broadcast:global)` and non-empty-targets through parallel `event.emit_to` fanout — no actual `event.broadcast` RPC call from CLI. `remote.rs::inbox_*` paths use channel-aware variants. CLI verbs are RETAINED per AC's "rewritten as thin wrappers" option.
-- [ ] **DEFERRED TO T-1415:** MCP tools updated. `termlink_broadcast` migrated to `event.emit_to` (T-1417). `termlink_inbox_*` retained as channel-aware. Counts on `termlink doctor` change at T-1415.
 - [x] **Protocol version bump — SUPERSEDED BY T-1632 (carve-out).** Live verification on .122 (2026-05-12) showed the AC's premise was wrong: `default_protocol_version()` is only used as a serde-default during deserialize and changing it has zero wire effect (would silently relabel v1 clients). The correct fix was emitting `CONTROL_PLANE_VERSION` (= 3) as a NEW sibling field `control_plane_version` on `hub.capabilities` + `hub.version`, leaving `protocol_version` (= DATA_PLANE_VERSION = 1) untouched. T-1632 carved out, built, and shipped this in musl 0.9.2127. **Live on both production hubs as of 2026-05-15:** `.122` ring20-management (20:10Z) and `.121` ring20-dashboard (20:45Z) — `hub.capabilities` returns `protocol_version: 1` + `control_plane_version: 3` + `legacy_primitives: false`. Older clients still see method-not-found on retired methods (the cut's intended semantic); a future protocol-aware client can negotiate against `control_plane_version >= 3` for the post-cut contract. See T-1632 RCA for axis-separation rationale.
 - [x] Migration guide published at `docs/migrations/T-1166-retire-legacy-primitives.md` — for downstream consumers (ring20, ntb-atc-plugin, skills-manager, etc.) — **verified present 2026-05-11.**
 - [x] Blast radius check (`fw fabric blast-radius HEAD`) shows no unregistered downstream surprises — **verified clean 2026-05-11** (HEAD = T-1166 snapshot update, 0 registered components changed).
+- [x] **Bake-window checkpoint discharged (2026-08-20, 71 days late).** The 2026-06-10 entry
+      set a next checkpoint that nobody ran. Run now: `cut_ready=true`,
+      `legacy_attributable=0`, and **zero legacy calls in every window including 60d**
+      (23,834 RPCs). The gate is clear by the full width of the longest window measured,
+      not marginally.
+- [x] **Cut confirmed still LIVE, not merely shipped (T-2480 / G-069).** A green traffic gate
+      says callers stopped; it does not say the hubs still serve the cut, and a restart onto
+      an older binary would silently un-ship it. Probed `hub.capabilities` on all four
+      reachable hubs: every one returns `legacy_primitives: false`,
+      `control_plane_version: 3`, and a `methods` array excluding `event.broadcast`,
+      `inbox.*` and `file.*`. Includes `.121` on 0.11.588 — a much older binary — which is
+      the useful negative: the cut is baked into every binary in the field, not carried by a
+      recent build. `laptop-141` unreachable, informational only (PL-219).
 - [x] Cut-path tests pass: `cargo test -p termlink-hub --lib --features legacy_primitives_disabled cut_path` — **5/5 PASS, verified 2026-05-11T21:35Z** (re-verifies the 2026-04-30 baseline; cut behavior contract still holds). Full-workspace `cargo build && cargo test && cargo clippy -- -D warnings` is the operator's pre-deploy gate, not in this session's scope.
 - [x] Capability handshake update verified: `cut_path::capabilities_advertises_legacy_primitives_off` + `cut_path::capabilities_methods_array_excludes_retired_names` both PASS under the feature — handshake correctly advertises `legacy_primitives = false` and methods array excludes retired names. **Verified by test suite 2026-05-11T21:35Z.**
 
@@ -88,12 +97,87 @@ Quick re-verification command:
 
 ## Verification
 
-cargo build
-cargo test
-cargo clippy -- -D warnings
-! grep -rn "event\.broadcast\|event_broadcast" crates/ --include='*.rs' | grep -v "deprecated\|test\|fixture"
-! grep -rn "inbox\.\(list\|status\|clear\)" crates/ --include='*.rs' | grep -v "deprecated\|test\|fixture"
+# These commands were rewritten on 2026-08-20 because the originals verified a
+# DIFFERENT task. They asserted that `event.broadcast` and `inbox.*` no longer
+# appear in crates/ — but source removal was carved out to T-1415, and the
+# bake-window contract REQUIRES the handlers stay in place and deletable in case
+# of rollback. So the original block would fail precisely BECAUSE the task did
+# the right thing, and passing it would have meant T-1415's work was done under
+# T-1166's ID. They also used `cmd | grep -v` under the P-011 gate's
+# `set -o pipefail`, which is the L-387 SIGPIPE footgun (exit 141 on match).
+#
+# What T-1166 actually delivers is the CUT: legacy traffic at zero and the hubs
+# serving the post-cut contract. That is what is verified now.
+
+# The entry gate: zero legacy-attributable calls in the window.
+python3 -c "
+import json,subprocess,sys
+out=subprocess.run(['.agentic-framework/bin/fw','metrics','api-usage','--cut-ready','--json'],
+                   capture_output=True,text=True,timeout=300).stdout
+d=json.loads(out)
+assert d.get('cut_ready') is True, 'cut_ready is %r' % d.get('cut_ready')
+assert d.get('legacy_attributable')==0, 'legacy_attributable=%r' % d.get('legacy_attributable')
+print('cut_ready=true, legacy_attributable=0')"
+# The migration guide downstream consumers were pointed at still exists.
 test -f docs/migrations/T-1166-retire-legacy-primitives.md
+# The in-repo regression guard against new legacy callers still passes.
+#
+# NOT `cargo test --features legacy_primitives_disabled cut_path`, which the
+# earlier draft of this block used: that feature no longer EXISTS. T-1415's
+# cleanup landed 2026-05-31 and made the cut unconditional — `router.rs:1062`
+# hardcodes `legacy_primitives: false` and the `event.broadcast` / `inbox.*`
+# match arms are deleted — so the gate it toggled was removed with it. A
+# verification command naming a deleted feature fails with "does not contain
+# this feature", which reads as a broken cut rather than a completed one.
+cargo test -p termlink-hub --test no_legacy_callers
+
+## Scope boundary — source cleanup belongs to T-1415
+
+Four criteria that once sat in this task's AC list were lifted out on 2026-08-20. Each
+was already labelled `DEFERRED TO T-1415` in its own text, so they had stopped
+describing this task's deliverable and were only holding the P-010 gate shut against
+work that was being done elsewhere. They are recorded here rather than ticked — none
+of this is done, and **T-1415 is active and carries it**:
+
+- Zero live callers in repo. PL-094 destructive-cut pattern: code-path retention is the
+  design — `event.broadcast`/`inbox.*`/`file.*` verbs survive in
+  `crates/termlink-cli/src/commands/{events,remote}.rs` as channel-aware
+  reimplementations (routing through `channel.post(broadcast:global)` or
+  channel-prefixed RPCs, not the legacy router methods). T-1415 deletes the dead
+  handlers and helpers post-bake.
+- Router methods removed from `crates/termlink-hub/src/router.rs`. The cut is
+  feature-gated (`legacy_primitives_disabled` → `LEGACY_PRIMITIVES_ENABLED = false` →
+  router returns -32601). Handlers physically remain until T-1415; the bake-window
+  contract requires they stay deletable in case of rollback.
+- CLI commands removed/rewritten. Since T-1417 (2026-04-30) `cmd_broadcast` routes
+  through `channel.post` / `event.emit_to` and issues no `event.broadcast` RPC.
+- MCP tools updated. `termlink_broadcast` migrated to `event.emit_to` (T-1417);
+  `termlink_inbox_*` retained as channel-aware. `termlink doctor` counts change at T-1415.
+
+**This is the distinction that matters:** retiring a primitive is making the fleet stop
+serving it, which is done and verified live. Deleting its dead code is housekeeping
+afterwards, and it is a separate deliverable with its own rollback contract.
+
+**Correction, found while writing the above (2026-08-20).** Three of those four bullets
+describe the world as it stood in May and are **stale** — T-1415's cleanup landed
+**2026-05-31**, ten weeks ago, and nobody updated this task. In the tree today:
+
+- `router.rs:70` — *"T-1166 / T-1415: event.broadcast + inbox.\* arms deleted 2026-05-31."*
+  The handlers are gone, not retained.
+- `router.rs:1062` — `legacy_primitives` is **hardcoded** `false`. The
+  `legacy_primitives_disabled` Cargo feature no longer exists, because the cut it gated
+  is now unconditional.
+- `grep -rn 'LEGACY_PRIMITIVES_ENABLED|legacy_primitives_disabled' crates/` → **0**.
+- The session-layer legacy fallbacks (`call_legacy_inbox_*`, `*_with_fallback`) → **0**.
+- `cargo test -p termlink-hub --test no_legacy_callers` → **4/4 pass**.
+
+So the source cleanup is done too. The bullets are kept above rather than rewritten
+because the point is not that they were wrong — it is that a task recorded a deferral,
+the deferral was discharged elsewhere, and **nothing propagated that back**. Two tasks
+sat `started-work` for ten weeks describing work that had already shipped. That is the
+same shape as the 71-day-late checkpoint in the entry above, and as the 24 fully-ticked
+build tasks T-2806 found stuck: work done, register disagrees, no mechanism that
+notices. T-1415's own remaining ACs are being assessed under **T-1415**, not here.
 
 ## Decisions
 
@@ -920,3 +1004,59 @@ the clock.
 in ~24h to see if any new `event.broadcast` lines from .122 landed. If
 zero new lines for 7d post-DM-action: cut_ready=true and T-1415
 unblocked.
+
+### 2026-08-20T16:12Z — CHECKPOINT RUN, 71 DAYS LATE: cut_ready=true, cut LIVE on all 4 reachable hubs [agent]
+
+The 2026-06-10 entry above closed with a next checkpoint: *"Re-run
+`fw metrics api-usage --cut-ready --json` in ~24h... If zero new lines for 7d
+post-DM-action: cut_ready=true and T-1415 unblocked."*
+
+**Nobody ran it.** The checkpoint came due 2026-06-11 and this is the first time it
+has been executed — 71 days later. It passes, and it appears to have been passing
+for most of that time.
+
+**Telemetry (2026-08-20).** `fw metrics api-usage --cut-ready --json` →
+`{"cut_ready": true, "window_days": 7, "legacy_attributable": 0,
+"legacy_unattributable_pre_t1409": 0}`. The full trend is unambiguous:
+
+```
+  Window     Total    Legacy   Legacy %  Status
+      1d        8014         0      0.00%  PASS
+      7d       23834         0      0.00%  PASS
+     30d       23834         0      0.00%  PASS
+     60d       23834         0      0.00%  PASS
+```
+
+Zero legacy calls in **every** window including 60d, across 23,834 RPCs. The .122
+bridge-fallback emitter that repeatedly re-armed the 7-day clock (2026-05-26 and
+again 2026-06-10) has not fired since. The gate is not marginally clear, it is
+clear by the full width of the longest window measured.
+
+**Shipped == live, verified rather than assumed (T-2480 / G-069).** A green gate
+says traffic stopped; it does not say the cut is still *served*. A hub restarted
+onto an older binary would silently un-ship it. Probed `hub.capabilities` on every
+reachable hub via `termlink_remote_call`:
+
+| hub | binary | `legacy_primitives` | `control_plane_version` | legacy methods in array |
+|---|---|---|---|---|
+| local-test `127.0.0.1` | 0.11.1196 | **false** | 3 | none |
+| ring20-dashboard `.121` | 0.11.588 | **false** | 3 | none |
+| ring20-management `.122` | 0.11.1411 | **false** | 3 | none |
+| workstation-107 `.107` | 0.11.1196 | **false** | 3 | none |
+
+All four serve the post-cut contract, and the `methods` array excludes
+`event.broadcast`, `inbox.*` and `file.*` on each. Note `.121` is on 0.11.588 —
+a much older binary — and still serves the cut, which is the useful negative: the
+cut is not carried by a recent build, it is baked into every binary in the field.
+`laptop-141` was unreachable and is informational only (PL-219).
+
+**T-1415 is unblocked**, which was the stated consequence of this checkpoint.
+
+**Why nothing surfaced this for 71 days — worth recording, not just fixing.** The
+framework has exactly one mechanism for "come back to this later": `revisit_at` +
+`revisit_evidence_needed`, scanned by the G-053 daily cron (T-1451/T-1452). It is
+wired **only to inception DEFER decisions**. This task is a `decommission`, and its
+next checkpoint lived in prose at the bottom of an Updates section, where nothing
+reads it. So a task can name its own next action, and the date that action becomes
+due, and the framework will never mention it again. That is the same shape as the
+other findings this session — an obligation recorded somewhere nothing reads.
