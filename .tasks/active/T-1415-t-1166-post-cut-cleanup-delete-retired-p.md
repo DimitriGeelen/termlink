@@ -14,7 +14,7 @@ tags: []
 components: []
 related_tasks: [T-1166, T-1411, T-1413]
 created: 2026-04-30T07:07:28Z
-last_update: 2026-08-20T16:27:43Z
+last_update: 2026-08-20T16:29:22Z
 date_finished:
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:35Z'
@@ -171,11 +171,29 @@ delete any remaining references.
 
 ## Verification
 
-# When this task fires, verification will run automatically. The greps below
-# would all pass once the cleanup is correct.
-# (Can't run pre-cut — these would currently FAIL because the code still exists.)
+# Rewritten 2026-08-20. The previous block was two `test -f` lines: one checking
+# the migration doc existed, one checking THIS TASK'S OWN FILE existed in either
+# active/ or completed/ — which is true by construction and can never fail. Its
+# own comment said the real checks "can't run pre-cut", and that was accurate in
+# April; the cleanup landed 2026-05-31 and nobody came back to switch them on. So
+# the gate that guards deleting retired primitives has been asserting nothing
+# about whether they were deleted. Same shape as T-2805's audit checking that an
+# episodic file EXISTS rather than PARSES.
+#
+# These now assert the actual post-cleanup invariants, and all pass today.
+# Grep-into-file rather than `grep | wc`: under the gate's `set -o pipefail`,
+# `cmd | grep -q` exits 141 when the pattern MATCHES (L-387).
+
+# The cut mechanism itself is gone — no const, no cargo feature.
+f=$(mktemp); grep -rn 'LEGACY_PRIMITIVES_ENABLED\|legacy_primitives_disabled' crates/ --include='*.rs' > "$f" 2>/dev/null; n=$(wc -l < "$f"); rm -f "$f"; test "$n" -eq 0
+# The session-layer legacy fallback helpers are gone.
+f=$(mktemp); grep -rn 'call_legacy_inbox_\|status_with_fallback\|list_with_fallback\|clear_with_fallback' crates/ --include='*.rs' > "$f" 2>/dev/null; n=$(wc -l < "$f"); rm -f "$f"; test "$n" -eq 0
+# The hub no longer routes the retired methods, and still says so to consumers.
+f=$(mktemp); grep -n '"legacy_primitives": false' crates/termlink-hub/src/router.rs > "$f" 2>/dev/null; n=$(wc -l < "$f"); rm -f "$f"; test "$n" -ge 1
+# The regression guard against NEW direct callers still passes.
+cargo test -p termlink-hub --test no_legacy_callers
+# Consumers still have the migration guide they were pointed at.
 test -f docs/migrations/T-1166-retire-legacy-primitives.md
-test -f .tasks/active/T-1415-t-1166-post-cut-cleanup-delete-retired-p.md || test -f .tasks/completed/T-1415-t-1166-post-cut-cleanup-delete-retired-p.md
 
 ## Decisions
 
