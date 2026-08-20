@@ -12,7 +12,7 @@ workflow_type: build
 horizon: now
 owner: claude-code
 created: 2026-08-20
-last_update: 2026-08-20T00:31:33Z
+last_update: 2026-08-20T00:32:44Z
 tags: [governance, tooling, clean-clone, detection-gap]
 ---
 

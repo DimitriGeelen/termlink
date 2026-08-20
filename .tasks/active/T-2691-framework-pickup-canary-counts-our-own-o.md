@@ -11,7 +11,7 @@ workflow_type: build
 horizon: now
 owner: claude-code
 created: 2026-08-20
-last_update: 2026-08-20
+last_update: 2026-08-20T00:26:52Z
 tags: [governance, canary, g-063, signal-quality]
 ---
 

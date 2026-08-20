@@ -12,7 +12,7 @@ workflow_type: build
 horizon: now
 owner: claude-code
 created: 2026-08-20
-last_update: 2026-08-20
+last_update: 2026-08-20T00:19:38Z
 tags: [governance, framework-defect, cross-repo, cron, worktree]
 ---
 
