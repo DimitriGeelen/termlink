@@ -153,3 +153,9 @@ bypasses:
     authorized_by: human
     reason: "T-2690 pre-push audit cron-drift FAIL on worktree-derived unit name; operator-approved Tier 0"
     retroactive_task: null
+  - timestamp: 2026-08-20T12:52:07Z
+    action: "T-2804: finalize 13 half-finalized completed tasks and write the 4 missing episodics"
+    commit: 8107fccf1
+    authorized_by: human
+    reason: "T-2690 pre-push audit cron-drift FAIL on worktree-derived unit name; operator-approved Tier 0 (third)"
+    retroactive_task: null
