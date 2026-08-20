@@ -178,8 +178,16 @@ REFS_CHECKED=0
 while IFS= read -r rel; do
     [ -n "$rel" ] || continue
     # A path still carrying a shell interpolation cannot be resolved statically.
+    # Nor can a documentation placeholder: `lib/<name>.py` in a usage string is a
+    # template for the reader to fill in, not a file anyone expects to exist.
+    # T-2807 surfaced this — recovering 92 files brought in help text containing
+    # `. "$FRAMEWORK_ROOT/lib/<name>.py"`, which the source-position anchor
+    # matched correctly and which is still not a real reference. Both are
+    # "cannot be resolved statically", so both are skipped and counted rather
+    # than guessed; the alternative is one permanent false positive, and a check
+    # that is never clean is a check nobody reads.
     case "$rel" in
-        *'$'*)
+        *'$'*|*'<'*|*'>'*)
             DANGLING_SKIPPED=$((DANGLING_SKIPPED + 1))
             continue
             ;;

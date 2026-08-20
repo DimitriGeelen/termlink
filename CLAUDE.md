@@ -1082,6 +1082,24 @@ static can detect. When T-2806 measured the whole subtree the true figure was **
 files out of 326** on disk under `lib/ bin/ policy/ agents/` — 35% of the framework's
 executable surface, 19 of them hook scripts — against the 2 axis B had named.
 
+**Three of four pre-commit guards were failing open in every worktree (T-2807).** Claude Code
+hooks are fine — `.claude/settings.json` invokes them as an absolute path into the MAIN
+checkout's `bin/fw`, so `check-active-task`, `check-tier0` and the rest all run. **Git hooks are
+not.** `.git/hooks/pre-commit` is shared across worktrees but resolves `FRAMEWORK_ROOT` to
+`$PROJECT_ROOT/.agentic-framework` — the worktree's own copy — and gates each scanner on `-f`.
+Measured against this branch's HEAD before recovery: `secret-scan.sh` was tracked and **did**
+run, but `large-file-scan.sh` (T-1845, the G-058 gate), `master-guard.sh` (blocks commits to
+master) and `dup-task-scan.sh` were all untracked, therefore absent, therefore silently skipped.
+The fail-open is deliberate (T-2061, working around the T-2052 chmod gap) and is right for a
+missing optional tool; it is wrong when the file is missing because it was never committed, and
+the hook cannot tell those apart. T-2807 recovered the remaining 92 files, taking `lib/ bin/
+policy/ agents/` to fully tracked. **Recovering more code can surface new false positives in
+axis B** — the 92 files included help text carrying `. "$FRAMEWORK_ROOT/lib/<name>.py"`, a
+documentation placeholder that the source-position anchor matches correctly and which is still
+not a real reference; angle-bracket placeholders now join `$`-interpolations in the
+skipped-and-counted set, for the same reason (cannot be resolved statically, and one permanent
+false positive makes a check nobody reads).
+
 **The deadlock, and how T-2806 broke it.** The checkout that HAS the files cannot `git add`
 them (the blanket rule is still in force there; `git add` on an ignored path exits 1 with its
 message on **stderr** — T-2803 reported false success for a while by reading stdout only). The

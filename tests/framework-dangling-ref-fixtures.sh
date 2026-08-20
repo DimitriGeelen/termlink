@@ -150,6 +150,27 @@ else
     bad "dynamic path is skipped and reported" "exit $rc; out: $out"
 fi
 
+# --- 6b. documentation placeholder is skipped, not reported as dangling ------
+# T-2807: recovering 92 framework files brought in help text carrying
+# `. "$FRAMEWORK_ROOT/lib/<name>.py"`. The source-position anchor matches it
+# correctly and it is still not a real reference — it is a template for the
+# reader to fill in. Same category as the `$`-interpolation case above: cannot
+# be resolved statically, so counted rather than guessed. Without this the check
+# has one permanent false positive, and a check that is never clean is a check
+# nobody reads.
+cat > "$FW/bin/fw" <<'EOS'
+#!/usr/bin/env bash
+# usage: . "$FRAMEWORK_ROOT/lib/<name>.py"
+python3 "$FRAMEWORK_ROOT/lib/<name>.py"
+EOS
+seed
+out=$(run); rc=$?
+if [ "$rc" -eq 0 ] && printf '%s' "$out" | grep -q "dynamic reference(s) skipped"; then
+    ok "angle-bracket placeholder is skipped, not reported as dangling"
+else
+    bad "angle-bracket placeholder is skipped" "exit $rc; out: $out"
+fi
+
 # --- 7. both axes can fire together -----------------------------------------
 cat > "$FW/bin/fw" <<'EOS'
 #!/usr/bin/env bash
