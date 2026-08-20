@@ -16,7 +16,7 @@ tags: [governance, guard-layer, interop, pl-168]
 components: []
 related_tasks: [T-2684, T-2800, T-2801, T-2689, T-2692, T-2698]
 created: 2026-08-20
-last_update: 2026-08-20
+last_update: 2026-08-20T09:42:28Z
 date_finished: null
 ---
 
