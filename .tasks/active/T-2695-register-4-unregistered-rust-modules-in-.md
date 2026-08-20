@@ -11,7 +11,7 @@ workflow_type: build
 horizon: now
 owner: claude-code
 created: 2026-08-20
-last_update: 2026-08-20
+last_update: 2026-08-20T01:05:18Z
 tags: [governance, fabric, impact-analysis]
 ---
 

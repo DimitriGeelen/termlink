@@ -12,7 +12,7 @@ workflow_type: build
 horizon: now
 owner: claude-code
 created: 2026-08-20
-last_update: 2026-08-20T00:37:22Z
+last_update: 2026-08-20T01:06:26Z
 tags: [governance, l-387, verification-gate, peer-request, static-check]
 ---
 

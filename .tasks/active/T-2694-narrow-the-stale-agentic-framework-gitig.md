@@ -12,7 +12,7 @@ workflow_type: build
 horizon: now
 owner: claude-code
 created: 2026-08-20
-last_update: 2026-08-20T01:02:47Z
+last_update: 2026-08-20T01:05:50Z
 tags: [governance, gitignore, vendoring, clean-clone, bvp]
 ---
 
