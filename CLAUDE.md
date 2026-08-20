@@ -907,6 +907,64 @@ absent `auto-deferred/` is healthy — nothing was ever deferred). `--json`, `--
 `PICKUP_DEFERRED_THRESHOLD_DAYS`. Fixtures: `bash tests/pickup-deferred-freshness-fixtures.sh`
 (18 assertions).
 
+### Episodic-store readability check (T-2805, G-063 for the memory layer)
+
+Episodic memory is one of the framework's three memory types and it is the only one whose
+corruption nothing would report. Three layers are silent, and each one alone would have been
+survivable:
+
+- **Write.** `agents/context/lib/episodic.sh::mine_git_timeline` writes mined git subjects into
+  a **double-quoted** YAML scalar escaping only `"`. Every other backslash arrives raw, and a
+  double-quoted scalar accepts only a fixed escape set — so an ordinary commit subject
+  containing a regex class, a glob or a version string emits `\-` / `\|` / `\*` / `\.` / `\[`
+  and the file is unparseable from that line on. The `ScannerError` is raised once, to whoever
+  was watching that terminal; the task still completes and the file is still written.
+- **Audit.** The `episodic` section runs **hourly on cron** and checks only that the file
+  **EXISTS**. It never opens it. A corrupt episodic is reported as *"All completed tasks have
+  episodic summaries"* — which is worse than no check, because a check that names the artefact
+  and inspects only its filename consumes the attention a real one would have got.
+- **Read.** The one real consumer, `web/shared.py::get_episodic_tags`, ends its parse in
+  `except yaml.YAMLError: continue`. No log line, no counter, no degraded mode. The task simply
+  has no tags and the page renders 200.
+
+Reported upstream by `832-Workflow-designer` (`framework:pickup` offset 18), who found the
+generator bug and correctly identified the blindness as the more valuable half but did not have
+the reader defect or the audit's existence-only check. Measured here the first time anyone
+looked: **29 of 2259 files**, the oldest dead since March.
+
+`scripts/check-episodic-parse.sh` is the reader that was missing — a **deploy-time / ad-hoc
+check, NOT a cron canary**, same tier as `check-cron-install-drift.sh` (T-2561) and
+`check-task-id-collisions.sh` (T-2800). It asserts **the real consumer's property**, not a
+weaker one that is easier to pass: every episodic must `yaml.safe_load` into a **mapping** —
+byte-identical to what `get_episodic_tags` requires, so a file this check calls unreadable *is*
+being dropped by Watchtower today. Files that parse to a non-mapping are included for the same
+reason: the reader's `isinstance(edata, dict)` guard discards them just as quietly.
+
+It **classifies**, because the repair differs sharply per class and a flat list of 29 would not
+tell an operator what to do. All classes fire — a legacy-format file is exactly as invisible to
+the reader as a corrupt one, so calling it healthy would be false — but each carries its own
+remediation: `CORRUPT-ESCAPE` (the generator bug; 4 here), `CORRUPT-OTHER` (3), `LEGACY-MULTIDOC`
+(`---` frontmatter plus a body, `safe_load_all` reads it whole; 8), `LEGACY-MARKDOWN` (an older
+generator's `summary:` line then markdown; 14), `NOT-A-MAPPING`. The two legacy classes have
+**fully intact content** and want a format migration; only the 7 corrupt ones are damaged.
+Classifying is what keeps 29 findings from becoming a wall people learn to force past — the
+fatigue lesson T-2693 documented from the other direction.
+
+**It detects and never repairs.** Regenerating a `CORRUPT-ESCAPE` file *before* the vendored
+generator is fixed reproduces the identical bytes, so an auto-repair would report success while
+changing nothing — converting a visible backlog into a silent one, the exact trade this exists
+to reverse. Exit codes: 0 = all readable · 1 = one or more are not · 2 = tooling. **Fail-closed:**
+missing `python3`, missing PyYAML, or an absent directory all exit **2**, never 0 — a checker
+reporting clean because it failed to load is the same disease. `--json`, `--quiet`, `--dir PATH`;
+test hook `EPISODIC_DIR`. Fixtures: `bash tests/episodic-parse-check-fixtures.sh` (31 assertions,
+each class built from a real failure shape in this corpus; three mutants pinned — disabling
+escape-recognition reddens 5, weakening `safe_load` to `safe_load_all` reddens 5, failing open on
+an absent dir reddens 1).
+
+The generator, the audit's existence-only check, and the reader's swallowed exception are all
+**vendored** (G-062) — a local edit is erased on the next re-vendor — so they were filed back at
+`framework:pickup` offset 20 rather than patched here.
+
 ### Cross-branch task-ID collision + duplicate-work check (T-2800)
 
 Every worktree allocates task IDs by scanning its **own** `.tasks/` for the highest ID and

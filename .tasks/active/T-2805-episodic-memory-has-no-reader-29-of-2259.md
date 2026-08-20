@@ -12,7 +12,7 @@ tags: [governance, episodic-memory, g-019, g-063, directive-2]
 components: []
 related_tasks: [T-2800, T-2801, T-2561, T-2693, T-2231]
 created: 2026-08-20T14:45:29Z
-last_update: 2026-08-20T14:46:32Z
+last_update: 2026-08-20T14:52:12Z
 date_finished: null
 ---
 
@@ -110,23 +110,23 @@ that is a separate deliverable and the corrupt ones are blocked on the generator
 ## Acceptance Criteria
 
 ### Agent
-- [ ] `scripts/check-episodic-parse.sh` exists, is executable, and carries the
+- [x] `scripts/check-episodic-parse.sh` exists, is executable, and carries the
       `# guard-layer: source` marker (T-2802) so it runs after merge
-- [ ] Asserts the real consumer's property: `safe_load` to a mapping, matching
+- [x] Asserts the real consumer's property: `safe_load` to a mapping, matching
       `get_episodic_tags`
-- [ ] Classifies each unreadable file as `CORRUPT-ESCAPE` / `CORRUPT-OTHER` /
+- [x] Classifies each unreadable file as `CORRUPT-ESCAPE` / `CORRUPT-OTHER` /
       `LEGACY-MULTIDOC` / `LEGACY-MARKDOWN` / `NOT-A-MAPPING`, each with its own remediation
-- [ ] Fails **closed**: missing python3, missing PyYAML, or an absent directory exit **2**,
+- [x] Fails **closed**: missing python3, missing PyYAML, or an absent directory exit **2**,
       never 0
-- [ ] Exit codes: 0 = all readable, 1 = one or more unreadable, 2 = tooling
-- [ ] `--json` carries `scanned`, `unreadable_count`, per-class counts, and `findings[]`
-- [ ] `--dir` / `EPISODIC_DIR` retarget the scan at a fixture tree (PL-213)
-- [ ] Run against this repo it reports the 29, split 4 / 3 / 8 / 14 across the classes
-- [ ] A fixture suite covers each class, both fail-closed paths, and a clean tree
-- [ ] The upstream filing is posted to `framework:pickup` with the reader defect
+- [x] Exit codes: 0 = all readable, 1 = one or more unreadable, 2 = tooling
+- [x] `--json` carries `scanned`, `unreadable_count`, per-class counts, and `findings[]`
+- [x] `--dir` / `EPISODIC_DIR` retarget the scan at a fixture tree (PL-213)
+- [x] Run against this repo it reports the 29, split 4 / 3 / 8 / 14 across the classes
+- [x] A fixture suite covers each class, both fail-closed paths, and a clean tree
+- [x] The upstream filing is posted to `framework:pickup` with the reader defect
       (`shared.py` swallowed exception) and the audit's existence-only check named —
       the two the reporting project had not found
-- [ ] CLAUDE.md documents the check alongside its sibling deploy-time checks
+- [x] CLAUDE.md documents the check alongside its sibling deploy-time checks
 
 ## Verification
 
