@@ -1,96 +1,200 @@
-# Audit Results - 2026-08-20-1758
-timestamp: 2026-08-20T15:58:41Z
-sections: "structure"
+# Audit Results - 2026-08-20-1855
+timestamp: 2026-08-20T16:55:58Z
+sections: "compliance"
 summary:
-  pass: 38
-  warn: 2
-  fail: 2
+  pass: 3
+  warn: 62
+  fail: 0
 findings:
-  - level: PASS
-    check: "Tasks directory exists"
-  - level: PASS
-    check: "Tasks/active directory exists"
-  - level: PASS
-    check: "Tasks/completed directory exists"
-  - level: PASS
-    check: "Tasks/templates directory exists"
-  - level: PASS
-    check: "Task template exists"
-  - level: PASS
-    check: "No duplicate task IDs across active/ and completed/"
-  - level: PASS
-    check: "All 15 project YAML files parse correctly"
-  - level: PASS
-    check: "All 6 arc anchor_task references resolve to existing tasks"
   - level: WARN
-    check: "Arc 'arc-substrate-fitness' has no task commits in the last 30 days (8 task(s) in arc)"
-    mitigation: "Either close/abandon the arc via 'fw arc close' or run 'fw task update T-XXX --last-update $(date -u +%FT%TZ)' on a relevant task. Configurable via FW_STALE_ARC_DAYS (default 30)."
-  - level: PASS
-    check: "No inline arc:<slug> tag-only scans outside canonical lib (T-1881)"
-  - level: PASS
-    check: "No stale-slice-references (L-417)"
-  - level: PASS
-    check: "No GO-scope-not-propagated inception(s) (sibling to L-417)"
-  - level: PASS
-    check: "Fabric: 178 registered, 0 unregistered"
+    check: "Task T-2690-audit-cron-drift-slug-uses-worktree-base.md missing Updates section"
+    mitigation: "Fix missing Updates section in T-2690-audit-cron-drift-slug-uses-worktree-base.md"
   - level: WARN
-    check: "Fabric: 47/166 cards have no edges"
-    mitigation: "Run: fw fabric enrich"
+    check: "Task T-2691-framework-pickup-canary-counts-our-own-o.md missing Updates section"
+    mitigation: "Fix missing Updates section in T-2691-framework-pickup-canary-counts-our-own-o.md"
+  - level: WARN
+    check: "Task T-2692-tracking-drift-check-is-blind-in-a-clean.md missing Updates section"
+    mitigation: "Fix missing Updates section in T-2692-tracking-drift-check-is-blind-in-a-clean.md"
+  - level: WARN
+    check: "Task T-2693-repo-wide-l-387-verification-pipefail-au.md missing Updates section"
+    mitigation: "Fix missing Updates section in T-2693-repo-wide-l-387-verification-pipefail-au.md"
+  - level: WARN
+    check: "Task T-2694-narrow-the-stale-agentic-framework-gitig.md missing Updates section"
+    mitigation: "Fix missing Updates section in T-2694-narrow-the-stale-agentic-framework-gitig.md"
+  - level: WARN
+    check: "Task T-2695-register-4-unregistered-rust-modules-in-.md missing Updates section"
+    mitigation: "Fix missing Updates section in T-2695-register-4-unregistered-rust-modules-in-.md"
+  - level: WARN
+    check: "Task T-2697-check-cron-install-drift-reports-healthy.md missing Updates section"
+    mitigation: "Fix missing Updates section in T-2697-check-cron-install-drift-reports-healthy.md"
+  - level: WARN
+    check: "Task T-2698-blanket-contextworking-gitignore-makes-s.md missing Updates section"
+    mitigation: "Fix missing Updates section in T-2698-blanket-contextworking-gitignore-makes-s.md"
+  - level: WARN
+    check: "Task T-2800-detect-cross-branch-task-id-collisions-a.md missing Updates section"
+    mitigation: "Fix missing Updates section in T-2800-detect-cross-branch-task-id-collisions-a.md"
+  - level: WARN
+    check: "Task T-2801-auto-deferred-pickup-envelopes-can-stick.md missing Updates section"
+    mitigation: "Fix missing Updates section in T-2801-auto-deferred-pickup-envelopes-can-stick.md"
+  - level: WARN
+    check: "Task T-2802-declare-guard-layer-membership-on-this-b.md missing Updates section"
+    mitigation: "Fix missing Updates section in T-2802-declare-guard-layer-membership-on-this-b.md"
+  - level: WARN
+    check: "Task T-2803-one-line-remediation-script-for-the-main.md missing Updates section"
+    mitigation: "Fix missing Updates section in T-2803-one-line-remediation-script-for-the-main.md"
+  - level: WARN
+    check: "Task T-2804-finalize-the-seven-half-finalized-comple.md missing Updates section"
+    mitigation: "Fix missing Updates section in T-2804-finalize-the-seven-half-finalized-comple.md"
   - level: PASS
-    check: "Fabric drift: All watched source files registered (178 cards)"
-  - level: FAIL
-    check: "Cron drift: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.context/cron-registry.yaml is ahead of /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.context/cron/agentic-audit.crontab (registry edited but not generated)"
-    mitigation: "Run: fw cron generate"
-  - level: FAIL
-    check: "Cron drift: generated but not installed at /etc/cron.d/agentic-audit-t2687-pickup-failopen"
-    mitigation: "Run: fw cron install"
+    check: "CTL-026: Human sovereignty gate present (completion + owner protection)"
   - level: PASS
-    check: "cron(charter-drift-canary): USER-field syntax installed at /etc/cron.d/termlink-charter-drift-canary"
+    check: "CTL-028: All completed/ tasks have frontmatter status: work-completed"
   - level: PASS
-    check: "cron(charter-sentence-drift-canary): USER-field syntax installed at /etc/cron.d/termlink-charter-sentence-drift-canary"
-  - level: PASS
-    check: "cron(dead-letter-canary): USER-field syntax installed at /etc/cron.d/termlink-dead-letter-canary"
-  - level: PASS
-    check: "cron(fleet-adoption-snapshot): USER-field syntax installed at /etc/cron.d/termlink-fleet-adoption-snapshot"
-  - level: PASS
-    check: "cron(fleet-binary-canary): USER-field syntax installed at /etc/cron.d/termlink-fleet-binary-canary"
-  - level: PASS
-    check: "cron(fleet-capability-canary): USER-field syntax installed at /etc/cron.d/termlink-fleet-capability-canary"
-  - level: PASS
-    check: "cron(fleet-doorbell-mail-canary): USER-field syntax installed at /etc/cron.d/termlink-fleet-doorbell-mail-canary"
-  - level: PASS
-    check: "cron(forever-archival-canary): USER-field syntax installed at /etc/cron.d/termlink-forever-archival-canary"
-  - level: PASS
-    check: "cron(framework-pickup-canary): USER-field syntax installed at /etc/cron.d/termlink-framework-pickup-canary"
-  - level: PASS
-    check: "cron(frozen-husk-canary): USER-field syntax installed at /etc/cron.d/termlink-frozen-husk-canary"
-  - level: PASS
-    check: "cron(heartbeat): USER-field syntax installed at /etc/cron.d/termlink-heartbeat"
-  - level: PASS
-    check: "cron(preflight-doc-set-drift-canary): USER-field syntax installed at /etc/cron.d/termlink-preflight-doc-set-drift-canary"
-  - level: PASS
-    check: "cron(presence-sweep): USER-field syntax installed at /etc/cron.d/termlink-presence-sweep"
-  - level: PASS
-    check: "cron(release-mirror-canary): USER-field syntax installed at /etc/cron.d/termlink-release-mirror-canary"
-  - level: PASS
-    check: "cron(session-control-canary): USER-field syntax installed at /etc/cron.d/termlink-session-control-canary"
-  - level: PASS
-    check: "cron(stale-waker-code-canary): USER-field syntax installed at /etc/cron.d/termlink-stale-waker-code-canary"
-  - level: PASS
-    check: "cron(stuck-claims-canary): USER-field syntax installed at /etc/cron.d/termlink-stuck-claims-canary"
-  - level: PASS
-    check: "cron(substrate-preflight-canary): USER-field syntax installed at /etc/cron.d/termlink-substrate-preflight-canary"
-  - level: PASS
-    check: "cron(task-finalization-canary): USER-field syntax installed at /etc/cron.d/termlink-task-finalization-canary"
-  - level: PASS
-    check: "cron(topic-growth-canary): USER-field syntax installed at /etc/cron.d/termlink-topic-growth-canary"
-  - level: PASS
-    check: "cron(unconfirmed-delivery-canary): USER-field syntax installed at /etc/cron.d/termlink-unconfirmed-delivery-canary"
-  - level: PASS
-    check: "cron(waker-liveness-canary): USER-field syntax installed at /etc/cron.d/termlink-waker-liveness-canary"
-  - level: PASS
-    check: "cron(woken-silent-triage): USER-field syntax installed at /etc/cron.d/termlink-woken-silent-triage"
-  - level: PASS
-    check: "Hook threshold: no hooks failing over threshold"
-  - level: PASS
-    check: "Secret scan: tracked tree clean"
+    check: "CTL-030: All completed/ tasks have null/absent stored horizon (arc-009)"
+  - level: WARN
+    check: "CTL-029: T-1291 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-1291 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-1294 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-1294 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-1415 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-1415 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-1420 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-1420 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-1423 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-1423 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-1426 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-1426 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-1427 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-1427 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-1428 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-1428 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-1430 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-1430 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-1431 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-1431 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-1432 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-1432 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-1451 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-1451 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-1452 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-1452 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-1453 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-1453 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-1632 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-1632 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-1633 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-1633 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-1799 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-1799 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-1885 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-1885 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-212 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-212 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-2194 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2194 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-2197 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2197 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-2258 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2258 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-2259 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2259 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-2276 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2276 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-2325 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2325 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-2409 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2409 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-2470 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2470 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-2564 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2564 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-2687 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2687 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-2689 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2689 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-2690 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2690 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-2691 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2691 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-2692 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2692 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-2693 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2693 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-2694 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2694 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-2695 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2695 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-2697 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2697 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-2698 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2698 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-2800 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2800 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-2801 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2801 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-2802 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2802 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-2803 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2803 --status work-completed"
+  - level: WARN
+    check: "CTL-029: T-2804 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2804 --status work-completed"
+  - level: WARN
+    check: "CTL-012: Completed task T-1450 has unchecked AC"
+    mitigation: "Review task completion — AC gate may have been bypassed"
+  - level: WARN
+    check: "CTL-012: Completed task T-1497 has unchecked AC"
+    mitigation: "Review task completion — AC gate may have been bypassed"
+  - level: WARN
+    check: "CTL-012-MISSING-DECIDE: Inception task T-1993 flipped without decide ceremony"
+    mitigation: "Auto-tick markers present but ## Decision section empty — run: fw inception decide T-1993 go"
+  - level: WARN
+    check: "CTL-012-MISSING-DECIDE: Inception task T-2012 flipped without decide ceremony"
+    mitigation: "Auto-tick markers present but ## Decision section empty — run: fw inception decide T-2012 go"
+  - level: WARN
+    check: "CTL-012: Completed task T-2263 has unchecked AC"
+    mitigation: "Review task completion — AC gate may have been bypassed"
+  - level: WARN
+    check: "CTL-012: Completed task T-2264 has unchecked AC"
+    mitigation: "Review task completion — AC gate may have been bypassed"

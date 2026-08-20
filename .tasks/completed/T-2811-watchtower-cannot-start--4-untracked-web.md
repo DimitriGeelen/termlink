@@ -4,16 +4,16 @@ name: "Watchtower cannot start — 4 untracked web blueprints, and my drift chec
 description: >
   `fw serve` dies at create_app with ModuleNotFoundError web.blueprints.bvp. Four web/*.py modules are untracked and absent here. T-2689's drift checker classifies untracked web/ as informational, never firing — but Flask registers blueprints at startup, so a missing one is fatal, not cosmetic. Recover the four and correct the classification.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [governance, framework-recoverability, watchtower, g-062]
-components: []
+components: [scripts/check-framework-tracking-drift.sh, tests/framework-tracking-drift-fixtures.sh]
 related_tasks: [T-2689, T-2692, T-2806, T-2807, T-2705]
 created: 2026-08-20
-last_update: 2026-08-20T17:49:33Z
-date_finished: null
+last_update: 2026-08-20T17:58:58Z
+date_finished: 2026-08-20T17:58:58Z
 ---
 
 # T-2811: Watchtower cannot start — four untracked web blueprints
@@ -147,3 +147,15 @@ bash tests/framework-tracking-drift-fixtures.sh
   one week. The collision checker flagged this overlap; ignoring its own output would be the
   clearest possible way to prove the tool useless. Their `lib/` half is already resolved here
   by T-2807, so the remaining work genuinely does not intersect.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-5092f413
+- **Timestamp:** 2026-08-20T17:59:00Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-20T17:58:58Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

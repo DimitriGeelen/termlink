@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2811: Watchtower cannot start — 4 untracked web blueprints, and my drift checker calls web/ informational
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-20T17:59:03Z
+# ============================================================================
+
+task_id: T-2811
+task_name: "Watchtower cannot start — 4 untracked web blueprints, and my drift checker calls web/ informational"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-20
+completed: 2026-08-20T17:58:58Z
+duration_days: 0
+updates_count: 0
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - 'The missing modules are present here and **tracked** — scope grew from 4 to **39** on'
+  - 'They were secret-scanned before commit — 0 hard findings; 1 soft (a LAN IP already'
+  - '`check-framework-tracking-drift.sh` fires on untracked `web/**/*.py` **and**'
+  - 'Its fixtures cover both new firing cases and the still-informational ones, plus an'
+  - '**Proven by outcome:** Watchtower serves — `/` **200**, `/tasks` **200**,'
+  - 'CLAUDE.md''s T-2689 section is corrected, including why `web/static/**` stays'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-08-20 — Fire on web MODULES and TEMPLATES; keep static assets informational'
+  - decision: '2026-08-20 — Read the other branch before fixing an overlapping symptom'
+    chose: 'Check T-2705 on `worktree-charter-review-2026-0814` first, and stay out of its half.'
+    rationale: 'T-2800 exists because three agents independently implemented the same two fixes in'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1198 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [governance, framework-recoverability, watchtower, g-062]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1198
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2811-watchtower-cannot-start--4-untracked-web.md
+generated_by: context-agent-hybrid

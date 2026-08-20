@@ -4,16 +4,16 @@ name: "The G-053 revisit cron has run daily for months and found nothing — wro
 description: >
   revisit-due-scan.sh walks up for `.framework.yaml` OR `FRAMEWORK.md`; the vendored framework carries its own FRAMEWORK.md, so PROJECT_ROOT resolves to `.agentic-framework/`, `.tasks/active` is absent, and the script exits 0. The cron line does not set PROJECT_ROOT. Two revisits are overdue and unsurfaced: T-1898 by 45 days, T-2250 by 26.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [governance, g-053, g-062, pl-168, directive-2]
 components: []
 related_tasks: [T-1451, T-1452, T-1868, T-2197, T-1898, T-2250]
 created: 2026-08-20
-last_update: 2026-08-20
-date_finished: null
+last_update: 2026-08-20T17:22:32Z
+date_finished: 2026-08-20T17:22:32Z
 ---
 
 # T-2810: The revisit cron runs daily and finds nothing
@@ -173,3 +173,24 @@ bash tests/revisit-due-cron-fixtures.sh
 - **Why:** Both are inception DEFER decisions. `fw inception decide` is the human's call
   (Authority Model: agents hold initiative, not authority), and a broad "proceed as you see
   fit" does not extend to deciding whether a deferred piece of work should now go ahead.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-3e0b4297
+- **Timestamp:** 2026-08-20T17:22:34Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** yes
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — The generated `/etc/cron.d/` line carries `PROJECT_ROOT=` so the marker collision cannot
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=etc/cron.d in: The generated `/etc/cron.d/` line carries `PROJECT_ROOT=` so the marker collision cannot`
+
+- **Layer-1 escalations:** 1
+  1. **destructive-action** (high) — Destructive operation in verification or AC
+     - matched: `rm -f`
+
+### 2026-08-20T17:22:32Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

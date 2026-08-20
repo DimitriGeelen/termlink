@@ -8010,3 +8010,129 @@ scan_id: R-13be09ed
 task_id: T-2808
 payload:
   task_file: .tasks/active/T-2808-run-the-bvp-estimator-across-active-task.md
+---
+kind: scan_emitted
+timestamp: '2026-08-20T16:16:45Z'
+scan_id: R-32b3cb70
+task_id: T-1166
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-20T16:16:45Z'
+scan_id: R-32b3cb70
+task_id: T-1166
+payload:
+  task_file: .tasks/active/T-1166-t-11559-retire-legacy-eventbroadcast--in.md
+---
+kind: scan_emitted
+timestamp: '2026-08-20T17:04:50Z'
+scan_id: R-3af0cd68
+task_id: T-2809
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-20T17:04:50Z'
+scan_id: R-3af0cd68
+task_id: T-2809
+payload:
+  task_file: .tasks/active/T-2809-file-the-bvp-estimator-old-format-frontm.md
+---
+kind: scan_emitted
+timestamp: '2026-08-20T17:22:34Z'
+scan_id: R-3e0b4297
+task_id: T-2810
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-20T17:22:34Z'
+scan_id: R-3e0b4297
+task_id: T-2810
+payload:
+  task_file: .tasks/active/T-2810-the-g-053-revisit-cron-has-run-daily-for.md
+---
+kind: scan_emitted
+timestamp: '2026-08-20T17:54:17Z'
+scan_id: R-7e50a2a2
+task_id: T-2540
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-20T17:54:17Z'
+scan_id: R-7e50a2a2
+task_id: T-2540
+payload:
+  task_file: .tasks/active/T-2540-charter-non-goal-4-violation-orchestrato.md
+---
+kind: scan_emitted
+timestamp: '2026-08-20T17:54:29Z'
+scan_id: R-061c07bc
+task_id: T-2548
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-20T17:54:29Z'
+scan_id: R-061c07bc
+task_id: T-2548
+payload:
+  task_file: .tasks/active/T-2548-charter-non-goal-4-conversation-analytic.md
+---
+kind: scan_emitted
+timestamp: '2026-08-20T17:54:39Z'
+scan_id: R-5d8b5a95
+task_id: T-2549
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-20T17:54:39Z'
+scan_id: R-5d8b5a95
+task_id: T-2549
+payload:
+  task_file: .tasks/active/T-2549-charter-non-goal-4-termlink-dispatch-orc.md
+---
+kind: scan_emitted
+timestamp: '2026-08-20T17:59:00Z'
+scan_id: R-5092f413
+task_id: T-2811
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-20T17:59:00Z'
+scan_id: R-5092f413
+task_id: T-2811
+payload:
+  task_file: .tasks/active/T-2811-watchtower-cannot-start--4-untracked-web.md

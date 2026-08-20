@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2810: The G-053 revisit cron has run daily for months and found nothing — wrong PROJECT_ROOT, fails open
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-20T17:22:37Z
+# ============================================================================
+
+task_id: T-2810
+task_name: "The G-053 revisit cron has run daily for months and found nothing — wrong PROJECT_ROOT, fails open"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-20
+completed: 2026-08-20T17:22:32Z
+duration_days: 0
+updates_count: 0
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - '`.context/cron-registry.yaml`''s `revisit-due-scan` entry sets `PROJECT_ROOT` explicitly'
+  - 'The generated `/etc/cron.d/` line carries `PROJECT_ROOT=` so the marker collision cannot'
+  - '**Proven by outcome:** with `PROJECT_ROOT` set, the scan writes'
+  - 'The two overdue revisits are surfaced to the human rather than silently fixed — reported'
+  - 'Marker collision + fail-open filed upstream on `framework:pickup` **offset 24**, with the'
+  - 'CLAUDE.md records that a `revisit_at` reminder only works when the cron sets PROJECT_ROOT,'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-08-20 — Fix the invocation, not the script'
+    chose: 'Set `PROJECT_ROOT` in the cron registry entry.'
+    rationale: 'G-062 — the script is vendored and a local patch disappears on re-vendor, giving a'
+  - decision: '2026-08-20 — Assert the outcome, not the installation'
+    chose: 'The acceptance criterion is that the scan names T-1898 and T-2250.'
+    rationale: 'T-1452 was 9/9 ticked with a correct AC that checked the crontab contained a line,'
+  - decision: '2026-08-20 — Surface the two overdue revisits, do not resolve them'
+    chose: 'Report T-1898 and T-2250 to the human; make no decision on either.'
+    rationale: 'Both are inception DEFER decisions. `fw inception decide` is the human''s call'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1162 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [governance, g-053, g-062, pl-168, directive-2]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1162
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2810-the-g-053-revisit-cron-has-run-daily-for.md
+generated_by: context-agent-hybrid
