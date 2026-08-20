@@ -2,7 +2,7 @@ audit: orchestrator-mcp-scan
 task: T-1646
 parent_arc: T-1644
 origin: T-1641
-last_run: '2026-08-20T11:44:28Z'
+last_run: '2026-08-20T19:38:23Z'
 baseline_count: 272
 current_count: 260
 gated_baseline: 4
@@ -44,7 +44,7 @@ findings:
     mutators_ungated: []
     readonly_exempt: []
 apply_result: null
-sessions_scanned: 12
+sessions_scanned: 19
 sessions_probe_error: null
 warnings:
 - 'REMOVED: 12 tool(s) gone from /opt/termlink (likely renamed or T-1166 deprecation

@@ -1,50 +1,744 @@
-# Audit Results - 2026-08-20-1855
-timestamp: 2026-08-20T16:55:58Z
-sections: "compliance"
+# Audit Results - 2026-08-20-2131
+timestamp: 2026-08-20T19:31:58Z
 summary:
-  pass: 3
-  warn: 62
-  fail: 0
+  pass: 316
+  warn: 88
+  fail: 3
 findings:
+  - level: PASS
+    check: "Tasks directory exists"
+  - level: PASS
+    check: "Tasks/active directory exists"
+  - level: PASS
+    check: "Tasks/completed directory exists"
+  - level: PASS
+    check: "Tasks/templates directory exists"
+  - level: PASS
+    check: "Task template exists"
+  - level: PASS
+    check: "No duplicate task IDs across active/ and completed/"
+  - level: PASS
+    check: "All 15 project YAML files parse correctly"
+  - level: PASS
+    check: "All 6 arc anchor_task references resolve to existing tasks"
   - level: WARN
-    check: "Task T-2690-audit-cron-drift-slug-uses-worktree-base.md missing Updates section"
-    mitigation: "Fix missing Updates section in T-2690-audit-cron-drift-slug-uses-worktree-base.md"
+    check: "Arc 'arc-substrate-fitness' has no task commits in the last 30 days (8 task(s) in arc)"
+    mitigation: "Either close/abandon the arc via 'fw arc close' or run 'fw task update T-XXX --last-update $(date -u +%FT%TZ)' on a relevant task. Configurable via FW_STALE_ARC_DAYS (default 30)."
+  - level: PASS
+    check: "No inline arc:<slug> tag-only scans outside canonical lib (T-1881)"
+  - level: PASS
+    check: "No stale-slice-references (L-417)"
+  - level: PASS
+    check: "No GO-scope-not-propagated inception(s) (sibling to L-417)"
+  - level: PASS
+    check: "Fabric: 178 registered, 0 unregistered"
   - level: WARN
-    check: "Task T-2691-framework-pickup-canary-counts-our-own-o.md missing Updates section"
-    mitigation: "Fix missing Updates section in T-2691-framework-pickup-canary-counts-our-own-o.md"
+    check: "Fabric: 47/166 cards have no edges"
+    mitigation: "Run: fw fabric enrich"
+  - level: PASS
+    check: "Fabric drift: All watched source files registered (178 cards)"
+  - level: FAIL
+    check: "Cron drift: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.context/cron-registry.yaml is ahead of /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.context/cron/agentic-audit.crontab (registry edited but not generated)"
+    mitigation: "Run: fw cron generate"
+  - level: FAIL
+    check: "Cron drift: generated but not installed at /etc/cron.d/agentic-audit-t2687-pickup-failopen"
+    mitigation: "Run: fw cron install"
+  - level: PASS
+    check: "cron(charter-drift-canary): USER-field syntax installed at /etc/cron.d/termlink-charter-drift-canary"
+  - level: PASS
+    check: "cron(charter-sentence-drift-canary): USER-field syntax installed at /etc/cron.d/termlink-charter-sentence-drift-canary"
+  - level: PASS
+    check: "cron(dead-letter-canary): USER-field syntax installed at /etc/cron.d/termlink-dead-letter-canary"
+  - level: PASS
+    check: "cron(fleet-adoption-snapshot): USER-field syntax installed at /etc/cron.d/termlink-fleet-adoption-snapshot"
+  - level: PASS
+    check: "cron(fleet-binary-canary): USER-field syntax installed at /etc/cron.d/termlink-fleet-binary-canary"
+  - level: PASS
+    check: "cron(fleet-capability-canary): USER-field syntax installed at /etc/cron.d/termlink-fleet-capability-canary"
+  - level: PASS
+    check: "cron(fleet-doorbell-mail-canary): USER-field syntax installed at /etc/cron.d/termlink-fleet-doorbell-mail-canary"
+  - level: PASS
+    check: "cron(forever-archival-canary): USER-field syntax installed at /etc/cron.d/termlink-forever-archival-canary"
+  - level: PASS
+    check: "cron(framework-pickup-canary): USER-field syntax installed at /etc/cron.d/termlink-framework-pickup-canary"
+  - level: PASS
+    check: "cron(frozen-husk-canary): USER-field syntax installed at /etc/cron.d/termlink-frozen-husk-canary"
+  - level: PASS
+    check: "cron(heartbeat): USER-field syntax installed at /etc/cron.d/termlink-heartbeat"
+  - level: PASS
+    check: "cron(preflight-doc-set-drift-canary): USER-field syntax installed at /etc/cron.d/termlink-preflight-doc-set-drift-canary"
+  - level: PASS
+    check: "cron(presence-sweep): USER-field syntax installed at /etc/cron.d/termlink-presence-sweep"
+  - level: PASS
+    check: "cron(release-mirror-canary): USER-field syntax installed at /etc/cron.d/termlink-release-mirror-canary"
+  - level: PASS
+    check: "cron(session-control-canary): USER-field syntax installed at /etc/cron.d/termlink-session-control-canary"
+  - level: PASS
+    check: "cron(stale-waker-code-canary): USER-field syntax installed at /etc/cron.d/termlink-stale-waker-code-canary"
+  - level: PASS
+    check: "cron(stuck-claims-canary): USER-field syntax installed at /etc/cron.d/termlink-stuck-claims-canary"
+  - level: PASS
+    check: "cron(substrate-preflight-canary): USER-field syntax installed at /etc/cron.d/termlink-substrate-preflight-canary"
+  - level: PASS
+    check: "cron(task-finalization-canary): USER-field syntax installed at /etc/cron.d/termlink-task-finalization-canary"
+  - level: PASS
+    check: "cron(topic-growth-canary): USER-field syntax installed at /etc/cron.d/termlink-topic-growth-canary"
+  - level: PASS
+    check: "cron(unconfirmed-delivery-canary): USER-field syntax installed at /etc/cron.d/termlink-unconfirmed-delivery-canary"
+  - level: PASS
+    check: "cron(waker-liveness-canary): USER-field syntax installed at /etc/cron.d/termlink-waker-liveness-canary"
+  - level: PASS
+    check: "cron(woken-silent-triage): USER-field syntax installed at /etc/cron.d/termlink-woken-silent-triage"
+  - level: PASS
+    check: "Hook threshold: no hooks failing over threshold"
+  - level: PASS
+    check: "Secret scan: tracked tree clean"
   - level: WARN
-    check: "Task T-2692-tracking-drift-check-is-blind-in-a-clean.md missing Updates section"
-    mitigation: "Fix missing Updates section in T-2692-tracking-drift-check-is-blind-in-a-clean.md"
+    check: "Task T-2815-audit-cron-drift-slug-uses-worktree-base.md missing Updates section"
+    mitigation: "Fix missing Updates section in T-2815-audit-cron-drift-slug-uses-worktree-base.md"
   - level: WARN
-    check: "Task T-2693-repo-wide-l-387-verification-pipefail-au.md missing Updates section"
-    mitigation: "Fix missing Updates section in T-2693-repo-wide-l-387-verification-pipefail-au.md"
+    check: "Task T-2819-narrow-the-stale-agentic-framework-gitig.md missing Updates section"
+    mitigation: "Fix missing Updates section in T-2819-narrow-the-stale-agentic-framework-gitig.md"
   - level: WARN
-    check: "Task T-2694-narrow-the-stale-agentic-framework-gitig.md missing Updates section"
-    mitigation: "Fix missing Updates section in T-2694-narrow-the-stale-agentic-framework-gitig.md"
+    check: "Task T-2822-blanket-contextworking-gitignore-makes-s.md missing Updates section"
+    mitigation: "Fix missing Updates section in T-2822-blanket-contextworking-gitignore-makes-s.md"
+  - level: PASS
+    check: "All active tasks meet quality thresholds"
+  - level: PASS
+    check: "Git traceability: 99% (6452/6499 commits reference tasks)"
   - level: WARN
-    check: "Task T-2695-register-4-unregistered-rust-modules-in-.md missing Updates section"
-    mitigation: "Fix missing Updates section in T-2695-register-4-unregistered-rust-modules-in-.md"
+    check: "Uncommitted changes present"
+    mitigation: "Commit changes with task reference or stash"
   - level: WARN
-    check: "Task T-2697-check-cron-install-drift-reports-healthy.md missing Updates section"
-    mitigation: "Fix missing Updates section in T-2697-check-cron-install-drift-reports-healthy.md"
+    check: "Commit 1f0a93aaf references non-existent task T-2687"
+    mitigation: "Create task or fix commit reference"
   - level: WARN
-    check: "Task T-2698-blanket-contextworking-gitignore-makes-s.md missing Updates section"
-    mitigation: "Fix missing Updates section in T-2698-blanket-contextworking-gitignore-makes-s.md"
+    check: "Commit 960d723ce references non-existent task T-2687"
+    mitigation: "Create task or fix commit reference"
   - level: WARN
-    check: "Task T-2800-detect-cross-branch-task-id-collisions-a.md missing Updates section"
-    mitigation: "Fix missing Updates section in T-2800-detect-cross-branch-task-id-collisions-a.md"
+    check: "Commit 9daee5fcb references non-existent task T-2690"
+    mitigation: "Create task or fix commit reference"
   - level: WARN
-    check: "Task T-2801-auto-deferred-pickup-envelopes-can-stick.md missing Updates section"
-    mitigation: "Fix missing Updates section in T-2801-auto-deferred-pickup-envelopes-can-stick.md"
+    check: "Commit cb6e6151a references non-existent task T-2690"
+    mitigation: "Create task or fix commit reference"
   - level: WARN
-    check: "Task T-2802-declare-guard-layer-membership-on-this-b.md missing Updates section"
-    mitigation: "Fix missing Updates section in T-2802-declare-guard-layer-membership-on-this-b.md"
+    check: "Commit e7b7254f3 references non-existent task T-2698"
+    mitigation: "Create task or fix commit reference"
   - level: WARN
-    check: "Task T-2803-one-line-remediation-script-for-the-main.md missing Updates section"
-    mitigation: "Fix missing Updates section in T-2803-one-line-remediation-script-for-the-main.md"
+    check: "Commit aad7b6660 references non-existent task T-2698"
+    mitigation: "Create task or fix commit reference"
   - level: WARN
-    check: "Task T-2804-finalize-the-seven-half-finalized-comple.md missing Updates section"
-    mitigation: "Fix missing Updates section in T-2804-finalize-the-seven-half-finalized-comple.md"
+    check: "Commit 1558ab9ed references non-existent task T-2697"
+    mitigation: "Create task or fix commit reference"
+  - level: WARN
+    check: "Commit 2175d92b4 references non-existent task T-2696"
+    mitigation: "Create task or fix commit reference"
+  - level: WARN
+    check: "Commit 8ec536a6a references non-existent task T-2693"
+    mitigation: "Create task or fix commit reference"
+  - level: WARN
+    check: "Commit 78cb234ec references non-existent task T-2694"
+    mitigation: "Create task or fix commit reference"
+  - level: WARN
+    check: "Commit cfd60d165 references non-existent task T-2695"
+    mitigation: "Create task or fix commit reference"
+  - level: WARN
+    check: "Commit 6175a129b references non-existent task T-2694"
+    mitigation: "Create task or fix commit reference"
+  - level: WARN
+    check: "Commit ccc7124e8 references non-existent task T-2694"
+    mitigation: "Create task or fix commit reference"
+  - level: WARN
+    check: "Commit c3e5c6ed6 references non-existent task T-2693"
+    mitigation: "Create task or fix commit reference"
+  - level: WARN
+    check: "Commit 8d73ea515 references non-existent task T-2692"
+    mitigation: "Create task or fix commit reference"
+  - level: WARN
+    check: "Commit 71d0b8390 references non-existent task T-2692"
+    mitigation: "Create task or fix commit reference"
+  - level: WARN
+    check: "Commit 4f1c45cb9 references non-existent task T-2692"
+    mitigation: "Create task or fix commit reference"
+  - level: WARN
+    check: "Commit d5038f826 references non-existent task T-2691"
+    mitigation: "Create task or fix commit reference"
+  - level: WARN
+    check: "Commit df488f9d7 references non-existent task T-2691"
+    mitigation: "Create task or fix commit reference"
+  - level: WARN
+    check: "Commit 292e75fb9 references non-existent task T-2690"
+    mitigation: "Create task or fix commit reference"
+  - level: WARN
+    check: "Commit 365d5cca7 references non-existent task T-2689"
+    mitigation: "Create task or fix commit reference"
+  - level: WARN
+    check: "Commit 02ed6099f references non-existent task T-2688"
+    mitigation: "Create task or fix commit reference"
+  - level: WARN
+    check: "Commit 4b63b0402 references non-existent task T-2687"
+    mitigation: "Create task or fix commit reference"
+  - level: WARN
+    check: "Commit ed60a64ea references non-existent task T-2687"
+    mitigation: "Create task or fix commit reference"
+  - level: PASS
+    check: "OneDev → GitHub mirror in sync (origin=github=447b8b63)"
+  - level: PASS
+    check: "Bypass log exists"
+  - level: PASS
+    check: "Gate-bypass log: 3 safety + 0 drift in last 7 days (436 total)"
+  - level: WARN
+    check: "No commit-msg hook"
+    mitigation: "Install hooks: ./agents/git/git.sh install-hooks"
+  - level: PASS
+    check: "No Tier 0 violations detected"
+  - level: PASS
+    check: "Practices documented: 22 practice(s) in practices.yaml"
+  - level: PASS
+    check: "Bugfix-learning coverage: 46% (138/295 bugfixes have learnings)"
+  - level: PASS
+    check: "All completed tasks have episodic summaries"
+  - level: PASS
+    check: "All 2283 episodic summaries have quality content"
+  - level: PASS
+    check: "No orphaned episodic files"
+  - level: PASS
+    check: "No observation inbox (not yet initialized)"
+  - level: PASS
+    check: "Gaps register: 23 watching, no triggers fired"
+  - level: PASS
+    check: "Handover open questions: none (section empty or template placeholder)"
+  - level: PASS
+    check: "Graduation pipeline: 0 learnings (threshold: 20)"
+  - level: WARN
+    check: "Inception task T-1692 has no research artifact in docs/reports/"
+    mitigation: "Save research findings: docs/reports/T-1692-*.md"
+  - level: WARN
+    check: "Inception task T-1693 has no research artifact in docs/reports/"
+    mitigation: "Save research findings: docs/reports/T-1693-*.md"
+  - level: WARN
+    check: "Inception task T-1793 has no research artifact in docs/reports/"
+    mitigation: "Save research findings: docs/reports/T-1793-*.md"
+  - level: WARN
+    check: "Inception task T-1830 has no research artifact in docs/reports/"
+    mitigation: "Save research findings: docs/reports/T-1830-*.md"
+  - level: WARN
+    check: "Inception task T-2054 has no research artifact in docs/reports/"
+    mitigation: "Save research findings: docs/reports/T-2054-*.md"
+  - level: WARN
+    check: "Inception task T-2288 has no research artifact in docs/reports/"
+    mitigation: "Save research findings: docs/reports/T-2288-*.md"
+  - level: WARN
+    check: "C-001: Inception T-2276 has artifact but task doesn't reference it"
+    mitigation: "Add artifact reference to ## Updates section of T-2276"
+  - level: WARN
+    check: "C-001: Inception T-2486 has no research artifact in docs/reports/"
+    mitigation: "Create docs/reports/T-2486-*.md — the thinking trail IS the artifact"
+  - level: WARN
+    check: "C-001: Inception T-2546 has no research artifact in docs/reports/"
+    mitigation: "Create docs/reports/T-2546-*.md — the thinking trail IS the artifact"
+  - level: WARN
+    check: "C-002: commit-msg hook missing research artifact check"
+    mitigation: "Reinstall hooks: fw git install-hooks (or manually add C-002)"
+  - level: PASS
+    check: "C-002: No research warnings logged (clean or first run)"
+  - level: PASS
+    check: "C-003: Research checkpoint logic present in checkpoint.sh"
+  - level: PASS
+    check: "C-006: All active inceptions have a real Recommendation block"
+  - level: PASS
+    check: "CTL-001: Focus file has active task (T-2015)"
+  - level: PASS
+    check: "CTL-003: Budget status file stale (309min — no active session)"
+  - level: PASS
+    check: "CTL-004: Tool counter at 16 (last commit: 29 minutes ago)"
+  - level: PASS
+    check: "CTL-018: Budget status valid JSON (level: ok)"
+  - level: PASS
+    check: "CTL-008: Task reference traceability 100% (0/20 without T-XXX)"
+  - level: WARN
+    check: "CTL-020: Cron audit directory missing (/opt/termlink/.claude/worktrees/t2687-pickup-failopen/.context/audits/cron)"
+    mitigation: "Run: fw audit schedule install"
+  - level: PASS
+    check: "CTL-002: Tier 0 guard installed and wired in settings.json"
+  - level: PASS
+    check: "CTL-005: Error watchdog installed and wired in settings.json"
+  - level: PASS
+    check: "CTL-006: Handover coverage for compactions (1496 handovers, 404 compactions)"
+  - level: PASS
+    check: "CTL-007: Post-compact resume hook configured in settings.json"
+  - level: PASS
+    check: "CTL-009: Inception T-1635 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1898 has decision (8 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2022 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2024 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2026 has decision (7 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2090 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2276 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2486 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-002 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-003 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-006 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-008 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-009 has decision (8 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-010 has decision (6 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-011 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-012 has decision (1332 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-066 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-073 has decision (9 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-079 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-094 has decision (9 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-099 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-100 has decision (29 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1016 has decision (7 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-101 has decision (40 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-102 has decision (35 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-103 has decision (35 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-104 has decision (22 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1051 has decision (16 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-105 has decision (45 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-106 has decision (51 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1070 has decision (8 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1071 has decision (8 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1074 has decision (12 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-107 has decision (41 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1112 has decision (6 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1122 has decision (13 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-114 has decision (21 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1155 has decision (25 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1169 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-118 has decision (48 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1192 has decision (8 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1194 has decision (7 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-119 has decision (40 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1207 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1208 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1209 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1210 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1220 has decision (10 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1223 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1229 has decision (17 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1230 has decision (15 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-123 has decision (42 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1253 has decision (6 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1290 has decision (7 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1297 has decision (8 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-136 has decision (21 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1384 has decision (7 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1425 has decision (15 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-142 has decision (100 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1444 has decision (6 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1448 has decision (18 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1449 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-144 has decision (58 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-149 has decision (28 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-155 has decision (21 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-163 has decision (54 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1693 has decision (10 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1698 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-176 has decision (15 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1791 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1793 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-179 has decision (34 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1800 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-180 has decision (28 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1830 has decision (14 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-186 has decision (33 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1884 has decision (6 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1904 has decision (7 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1906 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-192 has decision (20 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-196 has decision (36 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1991 has decision (15 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-1993 has decision (8 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2012 has decision (6 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2019 has decision (15 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2020 has decision (15 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2021 has decision (10 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2023 has decision (7 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2025 has decision (10 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2027 has decision (8 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2028 has decision (24 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-205 has decision (37 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-206 has decision (39 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-207 has decision (36 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2089 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-208 has decision (26 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-209 has decision (30 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2144 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2155 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2229 has decision (11 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2285 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2288 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2291 has decision (8 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2303 has decision (7 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2312 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2322 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-232 has decision (35 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2331 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2338 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2339 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-233 has decision (60 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2348 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-235 has decision (43 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2380 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2393 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2397 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2419 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2425 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2430 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-243 has decision (38 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2454 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-245 has decision (21 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2468 has decision (21 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-247 has decision (23 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2540 has decision (6 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2548 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-2549 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-258 has decision (28 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-261 has decision (19 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-262 has decision (23 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-280 has decision (26 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-283 has decision (6 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-287 has decision (11 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-292 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-534 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-690 has decision (6 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-789 has decision (6 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-908 has decision (9 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-909 has decision (19 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-912 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-921 has decision (9 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-922 has decision (10 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-930 has decision (11 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-936 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-940 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-941 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-945 has decision (7 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-947 has decision (7 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-950 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-952 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-953 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-956 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-957 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-959 has decision (5 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-967 has decision (7 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-968 has decision (3 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-972 has decision (9 commits)"
+  - level: PASS
+    check: "CTL-009: Inception T-984 has decision (4 commits)"
+  - level: PASS
+    check: "CTL-027: Inception T-1635 has Recommendation + Decision sections"
+  - level: PASS
+    check: "CTL-027: Inception T-1898 has Recommendation + Decision sections"
+  - level: PASS
+    check: "CTL-027: Inception T-1899 has Recommendation + Decision sections"
+  - level: PASS
+    check: "CTL-027: Inception T-2007 has Recommendation + Decision sections"
+  - level: PASS
+    check: "CTL-027: Inception T-2022 has Recommendation + Decision sections"
+  - level: PASS
+    check: "CTL-027: Inception T-2024 has Recommendation + Decision sections"
+  - level: PASS
+    check: "CTL-027: Inception T-2026 has Recommendation + Decision sections"
+  - level: PASS
+    check: "CTL-027: Inception T-2090 has Recommendation + Decision sections"
+  - level: PASS
+    check: "CTL-027: Inception T-2250 has Recommendation + Decision sections"
+  - level: PASS
+    check: "CTL-027: Inception T-2276 has Recommendation + Decision sections"
+  - level: PASS
+    check: "CTL-027: Inception T-2422 has Recommendation + Decision sections"
+  - level: PASS
+    check: "CTL-027: Inception T-2423 has Recommendation + Decision sections"
+  - level: PASS
+    check: "CTL-027: Inception T-2486 has Recommendation + Decision sections"
+  - level: PASS
+    check: "CTL-027: Inception T-2546 has Recommendation + Decision sections"
+  - level: PASS
+    check: "CTL-010: Bypass log has 3 entries (post-commit detector working)"
+  - level: WARN
+    check: "CTL-011: pre-push hook missing or not executable"
+    mitigation: "Run: fw git install-hooks"
+  - level: PASS
+    check: "CTL-013: T-1958 verification re-run: 3/3 pass"
+  - level: PASS
+    check: "CTL-013: T-1959 verification re-run: 2/2 pass"
+  - level: PASS
+    check: "CTL-019: claude-fw wrapper installed and executable"
+  - level: PASS
+    check: "CTL-025: T-1417 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1419 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1435 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1442 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1482 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1483 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1484 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1485 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1486 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1487 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1488 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1489 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1490 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1491 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1492 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1493 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1494 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1495 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1496 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1498 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1499 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1500 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1501 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1502 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1506 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1529 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1530 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1531 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1532 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1533 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1534 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1535 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1536 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1537 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1557 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1558 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1559 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1570 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1635 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1673 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1691 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1695 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1696 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1722 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1723 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-1795 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-2013 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-2014 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-2209 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-2210 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-2211 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-2212 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-2213 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-2297 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-2385 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-2402 partial-complete with owner:human ✓"
+  - level: PASS
+    check: "CTL-025: T-2408 partial-complete with owner:human ✓"
+  - level: WARN
+    check: "CTL-029: 1 stuck partial-complete task(s) — all ACs ticked, in active/ — run: bin/fw task archive-eligible"
+    mitigation: "Sweep with: bin/fw task archive-eligible (origin: T-1903, L-403)"
   - level: PASS
     check: "CTL-026: Human sovereignty gate present (completion + owner protection)"
   - level: PASS
@@ -115,6 +809,9 @@ findings:
     check: "CTL-029: T-2197 has all Agent ACs ticked but status='started-work' — completable, not closed"
     mitigation: "Run: bin/fw task update T-2197 --status work-completed"
   - level: WARN
+    check: "CTL-029: T-2203 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2203 --status work-completed"
+  - level: WARN
     check: "CTL-029: T-2258 has all Agent ACs ticked but status='started-work' — completable, not closed"
     mitigation: "Run: bin/fw task update T-2258 --status work-completed"
   - level: WARN
@@ -136,50 +833,14 @@ findings:
     check: "CTL-029: T-2564 has all Agent ACs ticked but status='started-work' — completable, not closed"
     mitigation: "Run: bin/fw task update T-2564 --status work-completed"
   - level: WARN
-    check: "CTL-029: T-2687 has all Agent ACs ticked but status='started-work' — completable, not closed"
-    mitigation: "Run: bin/fw task update T-2687 --status work-completed"
+    check: "CTL-029: T-2815 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2815 --status work-completed"
   - level: WARN
-    check: "CTL-029: T-2689 has all Agent ACs ticked but status='started-work' — completable, not closed"
-    mitigation: "Run: bin/fw task update T-2689 --status work-completed"
+    check: "CTL-029: T-2819 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2819 --status work-completed"
   - level: WARN
-    check: "CTL-029: T-2690 has all Agent ACs ticked but status='started-work' — completable, not closed"
-    mitigation: "Run: bin/fw task update T-2690 --status work-completed"
-  - level: WARN
-    check: "CTL-029: T-2691 has all Agent ACs ticked but status='started-work' — completable, not closed"
-    mitigation: "Run: bin/fw task update T-2691 --status work-completed"
-  - level: WARN
-    check: "CTL-029: T-2692 has all Agent ACs ticked but status='started-work' — completable, not closed"
-    mitigation: "Run: bin/fw task update T-2692 --status work-completed"
-  - level: WARN
-    check: "CTL-029: T-2693 has all Agent ACs ticked but status='started-work' — completable, not closed"
-    mitigation: "Run: bin/fw task update T-2693 --status work-completed"
-  - level: WARN
-    check: "CTL-029: T-2694 has all Agent ACs ticked but status='started-work' — completable, not closed"
-    mitigation: "Run: bin/fw task update T-2694 --status work-completed"
-  - level: WARN
-    check: "CTL-029: T-2695 has all Agent ACs ticked but status='started-work' — completable, not closed"
-    mitigation: "Run: bin/fw task update T-2695 --status work-completed"
-  - level: WARN
-    check: "CTL-029: T-2697 has all Agent ACs ticked but status='started-work' — completable, not closed"
-    mitigation: "Run: bin/fw task update T-2697 --status work-completed"
-  - level: WARN
-    check: "CTL-029: T-2698 has all Agent ACs ticked but status='started-work' — completable, not closed"
-    mitigation: "Run: bin/fw task update T-2698 --status work-completed"
-  - level: WARN
-    check: "CTL-029: T-2800 has all Agent ACs ticked but status='started-work' — completable, not closed"
-    mitigation: "Run: bin/fw task update T-2800 --status work-completed"
-  - level: WARN
-    check: "CTL-029: T-2801 has all Agent ACs ticked but status='started-work' — completable, not closed"
-    mitigation: "Run: bin/fw task update T-2801 --status work-completed"
-  - level: WARN
-    check: "CTL-029: T-2802 has all Agent ACs ticked but status='started-work' — completable, not closed"
-    mitigation: "Run: bin/fw task update T-2802 --status work-completed"
-  - level: WARN
-    check: "CTL-029: T-2803 has all Agent ACs ticked but status='started-work' — completable, not closed"
-    mitigation: "Run: bin/fw task update T-2803 --status work-completed"
-  - level: WARN
-    check: "CTL-029: T-2804 has all Agent ACs ticked but status='started-work' — completable, not closed"
-    mitigation: "Run: bin/fw task update T-2804 --status work-completed"
+    check: "CTL-029: T-2822 has all Agent ACs ticked but status='started-work' — completable, not closed"
+    mitigation: "Run: bin/fw task update T-2822 --status work-completed"
   - level: WARN
     check: "CTL-012: Completed task T-1450 has unchecked AC"
     mitigation: "Review task completion — AC gate may have been bypassed"
@@ -198,3 +859,54 @@ findings:
   - level: WARN
     check: "CTL-012: Completed task T-2264 has unchecked AC"
     mitigation: "Review task completion — AC gate may have been bypassed"
+  - level: PASS
+    check: "D1: Episodic quality — 0% [TODO] (10/2283)"
+  - level: FAIL
+    check: "D2: Human review queue — 57 task(s) waiting >30d: T-1417(112d) T-1419(112d) T-1435(111d) T-1442(110d) T-1482(108d) T-1483(108d) T-1484(108d) T-1485(108d) T-1486(108d) T-1487(108d) T-1488(108d) T-1489(108d) T-1490(108d) T-1491(108d) T-1492(108d) T-1493(108d) T-1494(108d) T-1495(108d) T-1496(108d) T-1498(107d) T-1499(107d) T-1500(107d) T-1501(107d) T-1502(107d) T-1506(107d) T-1529(107d) T-1530(107d) T-1531(107d) T-1532(107d) T-1533(107d) T-1534(107d) T-1535(107d) T-1536(107d) T-1537(107d) T-1557(107d) T-1558(107d) T-1559(107d) T-1570(107d) T-1635(96d) T-1673(94d) T-1691(94d) T-1695(68d) T-1696(94d) T-1722(85d) T-1723(85d) T-1795(90d) T-2013(68d) T-2014(68d) T-2209(68d) T-2210(68d) T-2211(68d) T-2212(68d) T-2213(68d) T-2297(49d) T-2385(42d) T-2402(40d) T-2408(39d)"
+    mitigation: "Review with: fw task verify (lists unchecked Human ACs)"
+  - level: PASS
+    check: "D8: Handover quality — no [TODO] in LATEST.md"
+  - level: PASS
+    check: "D8b: Handover archive — 0/10 recent handovers have [TODO]s"
+  - level: PASS
+    check: "D10: Decision-without-dialogue — none detected"
+  - level: PASS
+    check: "D11: Gap register staleness — all gaps fresh"
+  - level: PASS
+    check: "D4: Audit trend — insufficient history (<3 entries)"
+  - level: WARN
+    check: "D5: Task lifecycle — 52 anomaly(s): T-1137(123d-active) T-1291(116d-active) T-1294(116d-active) T-1296(116d-active) T-1420(112d-active) T-1423(111d-active) T-1426(111d-active) T-1427(111d-active) T-1428(111d-active) T-1429(111d-active) (+42 more)"
+    mitigation: "Review flagged tasks for process issues"
+  - level: WARN
+    check: "D13: Inception limbo — 2 task(s): A=1/B=1 T-1635(A:1hu) T-2276(B)"
+    mitigation: "Recover both classes with: bin/fw inception sweep (T-1514)"
+  - level: PASS
+    check: "D3: Commit velocity — normal (PASS today=75 avg=54 ratio=1.4x)"
+  - level: PASS
+    check: "D7: Commit bunching — detected (INFO 1_bunch(es) 75_commits_24h)"
+  - level: PASS
+    check: "D6: Completion velocity — normal (PASS recent=8.0 earlier=8.0)"
+  - level: PASS
+    check: "D12: Bypass log — no log file"
+  - level: PASS
+    check: "D9: Control drift — normal (PASS insufficient_audits)"
+  - level: PASS
+    check: "D14: Empty inception Recommendation — none (PASS no_empty_recommendations)"
+  - level: PASS
+    check: "D15: Inception limbo state — none (PASS no_limbo)"
+  - level: PASS
+    check: "CTL-016: No failure patterns recorded"
+  - level: WARN
+    check: "Orchestrator-arc MCP scan: drift detected"
+    mitigation: "Update .context/audits/orchestrator-mcp-baseline.yaml or investigate ratchet/new-tool"
+  - level: PASS
+    check: "Workflow dispatcher coverage: all 0 workflows route to a registered dispatcher and pi workflows declare a provider; declarable-but-unroutable: ['Task']"
+  - level: WARN
+    check: "Arc 'arc-001': 42/45 tasks completed (0.9333) but arc still in-progress"
+    mitigation: "Capture wire-evidence of the arc's headline_mechanic firing, then: fw arc close arc-001 --demo <path"
+  - level: WARN
+    check: "Arc 'arc-002': 11/12 tasks completed (0.9167) but arc still in-progress"
+    mitigation: "Capture wire-evidence of the arc's headline_mechanic firing, then: fw arc close arc-002 --demo <path"
+  - level: WARN
+    check: "Arc 'arc-005': 2/2 tasks completed (1.0000) but arc still in-progress"
+    mitigation: "Capture wire-evidence of the arc's headline_mechanic firing, then: fw arc close arc-005 --demo <path"
