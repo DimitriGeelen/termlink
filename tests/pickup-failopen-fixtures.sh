@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tests/pickup-failopen-fixtures.sh — T-2687 regression fixtures.
+# tests/pickup-failopen-fixtures.sh — T-2813 regression fixtures.
 #
 # Pins the four fail-open refusals added to .agentic-framework/lib/pickup.sh:
 #
@@ -23,7 +23,7 @@ set -uo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PICKUP_LIB="$REPO_ROOT/.agentic-framework/lib/pickup.sh"
 
-# The exact digest the pre-T-2687 code emitted for an all-empty extraction:
+# The exact digest the pre-T-2813 code emitted for an all-empty extraction:
 # sha256("||"). If this ever comes back out of pickup_dedup_hash, the fail-open
 # path has been reintroduced.
 POISON_DIGEST="565d240f5343e625ae579a4d45a770f1f02c6368b5ed4d06da4fbe6f47c28866"
@@ -106,7 +106,7 @@ EOF
 
 MISSING="$PICKUP_INBOX/does-not-exist.yaml"
 
-echo "T-2687 pickup fail-open fixtures"
+echo "T-2813 pickup fail-open fixtures"
 echo
 
 # --- 1. pickup_dedup_hash refuses an unreadable envelope ---------------------

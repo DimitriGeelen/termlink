@@ -29,7 +29,7 @@ outcomes:
   - '`fw task update --status work-completed` finalizes a build task: it moves to'
   - '`fw bvp` runs instead of failing on a missing library'
   - 'The unguarded `source` at `evolution_log.sh:52` is filed upstream on `framework:pickup`'
-  - 'CLAUDE.md''s T-2692 section records that DANGLING also breaks task finalization, not only'
+  - 'CLAUDE.md''s T-2817 section records that DANGLING also breaks task finalization, not only'
 
 # Challenges (auto-detected from git: commits with fix/revert/bug/error)
 challenges:

@@ -9,7 +9,7 @@
 # that nobody has registered?" — which, before `.vendor-divergence.yaml` existed,
 # could only be answered by reading 124 commit messages.
 #
-# It was found the hard way: T-2687 was about to close as complete, 12/12
+# It was found the hard way: T-2813 was about to close as complete, 12/12
 # fixtures green, with its fix to vendored `lib/pickup.sh` unfiled and one
 # `fw update` from deletion — while a re-vendor was being proposed on another
 # branch.

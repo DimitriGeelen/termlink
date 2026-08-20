@@ -18,7 +18,7 @@ owner: agent
 horizon: now
 tags: [governance, concurrency, task-system, duplicate-work]
 components: []
-related_tasks: [T-229, T-2696, T-2697, T-2698, T-2561]
+related_tasks: [T-229, T-2696, T-2821, T-2822, T-2561]
 created: 2026-08-20
 last_update: '2026-08-20T15:21:22Z'
 date_finished:
@@ -83,12 +83,12 @@ Measured across all local branches against their common base (`main`, max T-2677
 
 ```
 worktree-charter-review-2026-0814      117 new  T-2678..T-2794
-worktree-governance-canary-signal        3 new  T-2690..T-2692
-worktree-t2687-pickup-failopen          12 new  T-2687..T-2698
+worktree-governance-canary-signal        3 new  T-2815..T-2817
+worktree-t2687-pickup-failopen          12 new  T-2813..T-2822
                                 colliding IDs:  12
 ```
 
-Every collision holds a **different** task. T-2690 is simultaneously "termlink purpose review
+Every collision holds a **different** task. T-2815 is simultaneously "termlink purpose review
 4", "canary stderr sink severs detection", and "audit cron-drift slug uses worktree basename".
 
 ### The expensive half is not the IDs
@@ -97,8 +97,8 @@ Renumbering twelve tasks is mechanical. What is not recoverable is this:
 
 | Defect | governance-canary-signal | charter-review | t2687-pickup-failopen |
 |---|---|---|---|
-| Canary stderr merged into findings log | T-2690 `work-completed` 08-18 | T-2685 started | T-2696 (this session) |
-| Static-check allowlists untracked | T-2692 `work-completed` 08-18 | T-2681 started | T-2698 (this session) |
+| Canary stderr merged into findings log | T-2815 `work-completed` 08-18 | T-2685 started | T-2696 (this session) |
+| Static-check allowlists untracked | T-2817 `work-completed` 08-18 | T-2681 started | T-2822 (this session) |
 
 Three agents, two defects, six tasks. One pair finished two days before the third was started.
 Nothing warned anyone — not `fw work-on`, not the handover, not the audit.
@@ -198,11 +198,11 @@ dormant script (PL-168). Left as a follow-up rather than assumed here.
 
 - **Context:** running the finished two-axis check against the real repo, then using it to
   screen the next candidate task, surfaced a third duplicate the title heuristic had missed:
-  `scripts/check-verification-pipefail.sh` exists on BOTH this branch (T-2693) and
+  `scripts/check-verification-pipefail.sh` exists on BOTH this branch (T-2818) and
   charter-review (T-2775) — same path, different implementations, and theirs measured the
   problem more thoroughly (1490 lines across 802 tasks, plus empirical testing of which
   idioms are actually SIGPIPE-safe). Their task titles and mine share no rare term, so axis B
-  was silent. Four `.fabric/components/*.yaml` cards from T-2695 turned out to be duplicated
+  was silent. Four `.fabric/components/*.yaml` cards from T-2820 turned out to be duplicated
   the same way.
 - **Chose:** Add axis C — the same new path created on more than one branch, with differing
   content. Fires alongside axis A.

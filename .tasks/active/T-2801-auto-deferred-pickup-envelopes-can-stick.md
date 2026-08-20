@@ -16,7 +16,7 @@ owner: agent
 horizon: now
 tags: [governance, pickup, g-063, observability]
 components: []
-related_tasks: [T-1425, T-2072, T-2304, T-2231, T-2691]
+related_tasks: [T-1425, T-2072, T-2304, T-2231, T-2816]
 created: 2026-08-20
 last_update: '2026-08-20T15:21:22Z'
 date_finished:
@@ -96,7 +96,7 @@ stranded envelope stated precisely — not "a report was late" but "the same bug
 twice and its sibling is still open".
 
 This is the G-063 class (a write-only sink nobody notices) turned inward. T-2231 built a
-canary for the *inbound* `framework:pickup` topic and T-2691 stopped it firing on our own
+canary for the *inbound* `framework:pickup` topic and T-2816 stopped it firing on our own
 filings; both guard the rail. Nothing guards the queue behind it.
 
 ## Approach

@@ -9,7 +9,7 @@ description: >
   but
   never executed by the one command meant to run the layer. Declare membership, and
   fix a
-  stale reference to a conf file removed during the T-2698 reshaping.
+  stale reference to a conf file removed during the T-2822 reshaping.
 
 status: started-work
 workflow_type: build
@@ -17,7 +17,7 @@ owner: agent
 horizon: now
 tags: [governance, guard-layer, interop, pl-168]
 components: []
-related_tasks: [T-2684, T-2800, T-2801, T-2689, T-2692, T-2698]
+related_tasks: [T-2684, T-2800, T-2801, T-2814, T-2817, T-2822]
 created: 2026-08-20
 last_update: '2026-08-20T15:21:22Z'
 date_finished:
@@ -86,9 +86,9 @@ to the two that do not.
 |---|---|---|
 | `check-task-id-collisions.sh` (T-2800) | **yes** | pure `git ls-tree` / `git diff` reads; no hub, no network, no host state |
 | `check-pickup-deferred-freshness.sh` (T-2801) | **yes** | reads in-repo `.context/pickup/` only |
-| `check-framework-tracking-drift.sh` (T-2689/T-2692) | **yes** | git plus the vendored framework dir, both in-tree |
-| `check-cron-install-drift.sh` (T-2697) | **no** | reads `/etc/cron.d` — host state by definition, so not `source`. Their own copy carries no marker either; this agrees with them rather than diverging |
-| `check-verification-pipefail.sh` (T-2693) | **no** | duplicate of charter-review's T-2775 implementation, which already carries the marker. Theirs wins at merge; marking mine would just create a second marked copy of the same check |
+| `check-framework-tracking-drift.sh` (T-2814/T-2817) | **yes** | git plus the vendored framework dir, both in-tree |
+| `check-cron-install-drift.sh` (T-2821) | **no** | reads `/etc/cron.d` — host state by definition, so not `source`. Their own copy carries no marker either; this agrees with them rather than diverging |
+| `check-verification-pipefail.sh` (T-2818) | **no** | duplicate of charter-review's T-2775 implementation, which already carries the marker. Theirs wins at merge; marking mine would just create a second marked copy of the same check |
 
 None of the three write a cron heartbeat, so no `--no-heartbeat` argument is needed — that
 flag exists so a check invoked from the runner cannot mask a dead cron from the T-1723
@@ -101,7 +101,7 @@ green — would be scoring the metric instead of fixing the problem, which is th
 whole session has been about.
 
 Also fixes a stale pointer: `check-framework-tracking-drift.sh` instructed the reader to
-"Register it in `.context/cron/ondemand-checks.conf`" — a registry removed in the T-2698
+"Register it in `.context/cron/ondemand-checks.conf`" — a registry removed in the T-2822
 reshaping, when the canary-status work was yielded to governance-canary-signal (their
 `crontab_declares` derives the same fact from the crontabs themselves). The instruction is
 replaced by the guard-layer marker that now actually governs this check, with a line saying

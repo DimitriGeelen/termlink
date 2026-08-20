@@ -131,7 +131,7 @@ being handed an absent file, correctly.
 - [x] The generated `/etc/cron.d/` line carries `PROJECT_ROOT=` so the marker collision cannot
       bite regardless of where the script is invoked from — **pending `fw cron install` from the
       MAIN checkout**, which is deliberate: run from this worktree it would write
-      `agentic-audit-<worktree-name>` rather than update `agentic-audit-termlink` (T-2690)
+      `agentic-audit-<worktree-name>` rather than update `agentic-audit-termlink` (T-2815)
 - [x] **Proven by outcome:** with `PROJECT_ROOT` set, the scan writes
       `.context/working/.revisits-due.txt` naming **T-1898 (fires 2026-07-06)** and
       **T-2250 (fires 2026-07-25)**. Fixtures also pin the `$(pwd)` form under `sh`, the shell

@@ -8158,7 +8158,7 @@ payload:
 kind: scan_emitted
 timestamp: '2026-08-20T18:12:07Z'
 scan_id: R-17f04e2c
-task_id: T-2687
+task_id: T-2813
 payload:
   overall: PASS
   finding_count: 0
@@ -8169,6 +8169,6 @@ payload:
 kind: verdict_recorded
 timestamp: '2026-08-20T18:12:07Z'
 scan_id: R-17f04e2c
-task_id: T-2687
+task_id: T-2813
 payload:
-  task_file: .tasks/active/T-2687-pickup-dedup-hash-fails-open-to-constant.md
+  task_file: .tasks/active/T-2813-pickup-dedup-hash-fails-open-to-constant.md

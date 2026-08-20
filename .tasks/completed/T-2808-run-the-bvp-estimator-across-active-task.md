@@ -112,7 +112,7 @@ Resulting quadrants: **32 tasks HV/LC**, **6 HV/HC**.
 Top of HV/LC: T-1166 (BVP 106, cost 1.4) — retire the legacy `event.broadcast` / inbox /
 `file.send-receive` primitives. Independently the same task the handover named as Suggested
 First Action, which is mild corroboration that the heuristic is tracking something real rather
-than keyword noise. Then T-2687 (99), T-2197 (81), T-2203 (80), T-2016 (78).
+than keyword noise. Then T-2813 (99), T-2197 (81), T-2203 (80), T-2016 (78).
 
 HV/HC is six tasks clustered at BVP 70 / cost ~3.7, four of them charter non-goal #4 violations.
 

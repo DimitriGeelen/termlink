@@ -106,7 +106,7 @@ firing gate (the gate is "newer than last-acked"); gating on a parsed
 severity field would be fragile given the free-form YAML payloads (T-2225
 false-positive lesson).
 
-**Own filings do not fire (T-2691).** The topic is bidirectional — termlink is a
+**Own filings do not fire (T-2816).** The topic is bidirectional — termlink is a
 prolific *poster* to it, not only a reader — so the canary attributes each filing
 via `metadata.from_project` → `source_project` → `agent_id` and excludes anything
 matching `FW_PICKUP_SELF_PROJECT` (default `010-termlink`) from the firing set.
@@ -117,7 +117,7 @@ prevent. Suppressed filings are always counted and reported (`N own filing(s)
 … not counted`), so a quiet canary is never ambiguous between "nothing inbound"
 and "the filter ate something". Attribution is a **constant**, deliberately not
 `basename $PROJECT_ROOT` — a path-derived slug is wrong inside a git worktree
-(that is the T-2690 defect filed upstream). **Unknown attribution still fires**:
+(that is the T-2815 defect filed upstream). **Unknown attribution still fires**:
 we cannot prove an unattributed filing is ours, and a false fire is cheap while
 a false silence is the whole point of G-063. Test seam
 `FW_PICKUP_TEST_NDJSON=<file>` feeds canned `channel subscribe --json` NDJSON;
@@ -815,7 +815,7 @@ sleep-on-error before the next iteration (the T-2670/T-2671/T-2673 remediation) 
 error path provably exits the loop — add the loop's signature to the allowlist with a cited
 reason.
 
-### Verification-block pipefail auditor (T-2693, L-387 at repo scale)
+### Verification-block pipefail auditor (T-2818, L-387 at repo scale)
 
 L-387: under `set -o pipefail`, `cmd | grep -q PATTERN` exits **141** when the pattern
 MATCHES — `grep -q` exits on first match and closes the pipe, SIGPIPE kills the upstream,
@@ -856,7 +856,7 @@ test -z "$(git status --porcelain <path>)"           # for emptiness checks
 ```
 
 The check flagged **its own author** one commit after shipping — a `... | wc -l | grep -qx 0`
-line in T-2694's Verification block took active findings 150 → 151. That is the intended
+line in T-2819's Verification block took active findings 150 → 151. That is the intended
 behaviour and the best available evidence it is load-bearing.
 
 ### Stranded auto-deferred pickup envelope check (T-2801, G-063 for the queue)
@@ -948,7 +948,7 @@ remediation: `CORRUPT-ESCAPE` (the generator bug; 4 here), `CORRUPT-OTHER` (3), 
 generator's `summary:` line then markdown; 14), `NOT-A-MAPPING`. The two legacy classes have
 **fully intact content** and want a format migration; only the 7 corrupt ones are damaged.
 Classifying is what keeps 29 findings from becoming a wall people learn to force past — the
-fatigue lesson T-2693 documented from the other direction.
+fatigue lesson T-2818 documented from the other direction.
 
 **It detects and never repairs.** Regenerating a `CORRUPT-ESCAPE` file *before* the vendored
 generator is fixed reproduces the identical bytes, so an auto-repair would report success while
@@ -972,7 +972,7 @@ events** — `fw upgrade`, `bootstrap-replace`, `fw update v1.6.7 → v1.6.295 (
 is roughly **one every two months**, and each replaces the tree: any local fix upstream does
 not carry is deleted, silently, by a routine maintenance operation.
 
-Found the hard way. **T-2687** (top HV/LC, BVP 99) was about to close as complete — 12/12
+Found the hard way. **T-2813** (top HV/LC, BVP 99) was about to close as complete — 12/12
 fixtures green against the real `lib/pickup.sh` — with its fix unfiled upstream and one
 `fw update` from deletion, while a re-vendor was being proposed on another branch (T-2705).
 
@@ -988,7 +988,7 @@ fixtures green against the real `lib/pickup.sh` — with its fix unfiled upstrea
   as much as the firing set** — without the distinction the register grows to include
   everything touching the vendored tree and becomes as unreadable as the commit log it replaces.
 
-Currently registered: **T-2687** (pickup fail-open), **T-2304** (`update-task.sh` sys.path —
+Currently registered: **T-2813** (pickup fail-open), **T-2304** (`update-task.sh` sys.path —
 a defect that has already cost this project twice: reported in a pickup envelope that sat
 stranded 73 days, then independently re-discovered and re-fixed), **T-2469** (budget-gate
 wrap-up deadlock, PL-265). All three filed upstream at `framework:pickup` offset 27.
@@ -1050,7 +1050,7 @@ collision and the `exit 0` were filed upstream at `framework:pickup` offset 24, 
 nothing" must not share an exit code.
 
 **Registry changes need installing from the main checkout**, not from a worktree:
-`fw cron install` derives the `/etc/cron.d` filename from the checkout's basename (the T-2690
+`fw cron install` derives the `/etc/cron.d` filename from the checkout's basename (the T-2815
 defect), so running it here would write `agentic-audit-<worktree-name>` instead of updating
 `agentic-audit-termlink`. Fixtures: `bash tests/revisit-due-cron-fixtures.sh` (6 assertions;
 the load-bearing one *reproduces* the defect against a fixture project carrying both markers —
@@ -1159,7 +1159,7 @@ renamed to T-2800 by hand. The check detects the collision; it cannot prevent it
 allocation is vendored framework code — filed upstream per G-062 at `framework:pickup`
 offsets 15–16.
 
-### Vendored-framework recoverability check (T-2689 + T-2692)
+### Vendored-framework recoverability check (T-2814 + T-2817)
 
 `.gitignore:21` carries a blanket `.agentic-framework` rule labelled "Framework symlink
 (machine-specific)". That label predates vendoring: the tree is now vendored with ~1565
@@ -1176,7 +1176,7 @@ outright in any clean clone.
 canary** — the same tier as `check-cron-install-drift.sh` (T-2561). It runs **two
 complementary axes**, because each is blind exactly where the other fires:
 
-- **Axis A — UNTRACKED** (T-2689): a file is on disk but absent from `git ls-files`. Only
+- **Axis A — UNTRACKED** (T-2814): a file is on disk but absent from `git ls-files`. Only
   visible in the checkout that CREATED the drift. Fires on `bin/ lib/ policy/ agents/`
   (clean-clone-breaking) **and, since T-2811, on `web/**/*.py` and `web/templates/**`**;
   untracked `docs/` and `web/static/**` are informational; `__pycache__/`, `*.pyc`, `*.pyo`,
@@ -1194,13 +1194,13 @@ complementary axes**, because each is blind exactly where the other fires:
   extends it. `web/static/**` stays informational for the symmetric reason — a missing font
   renders an ugly page, not a broken one, and firing on cosmetics is how a check earns being
   ignored.
-- **Axis B — DANGLING** (T-2692): tracked framework code SOURCES or EXECUTES a
+- **Axis B — DANGLING** (T-2817): tracked framework code SOURCES or EXECUTES a
   `"$FRAMEWORK_ROOT/<path>"` that does not resolve. Only visible where the file is
   MISSING — a clean clone, a fresh deploy, or a git worktree (which materialises tracked
   files only).
 
 Axis A alone reports a worktree as clean while `fw bvp` is broken in it — that is how
-T-2692 was found, the detector saying "no drift" seconds after the tool it protects failed
+T-2817 was found, the detector saying "no drift" seconds after the tool it protects failed
 in the same directory. Axis B is the axis that matters for anyone who did not create the
 drift.
 

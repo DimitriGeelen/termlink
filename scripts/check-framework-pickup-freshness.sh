@@ -36,11 +36,11 @@ TOPIC="${FW_PICKUP_TOPIC:-framework:pickup}"
 MARKER="${FW_PICKUP_CANARY_MARKER:-.context/working/.framework-pickup-canary.seen-offset}"
 HEARTBEAT_FILE="${HEARTBEAT_FILE:-.context/working/.framework-pickup-canary.heartbeat}"
 
-# T-2691: who WE are, for the own-filing filter below.
+# T-2816: who WE are, for the own-filing filter below.
 #
 # Deliberately a CONSTANT, not `basename "$PROJECT_ROOT"`. A path-derived slug is wrong
 # the moment this runs inside a git worktree (it yields the worktree name), which is
-# exactly the defect filed upstream as T-2690 — repeating it here would silently disable
+# exactly the defect filed upstream as T-2815 — repeating it here would silently disable
 # the filter in precisely the sessions that post the most filings.
 #
 # Failure direction is safe: if the project is ever renamed and this constant is not
@@ -131,7 +131,7 @@ for l in lines:
         continue
     md = m.get('metadata', {}) or {}
     mt = m.get('msg_type', '?')
-    # T-2691 attribution chain. agent_id is accepted as a fallback because some of our
+    # T-2816 attribution chain. agent_id is accepted as a fallback because some of our
     # own filings set that key instead of from_project; both carry the project name.
     proj = md.get('from_project') or md.get('source_project') or md.get('agent_id') or '?'
     # best-effort: decode payload + sniff a severity keyword (annotation only)
@@ -157,7 +157,7 @@ for l in lines:
             break
     rec = {'offset': off, 'msg_type': mt, 'from_project': proj,
            'severity_hint': sev, 'first_line': first}
-    # T-2691: our OWN outbound filings are not inbound work. They are counted and
+    # T-2816: our OWN outbound filings are not inbound work. They are counted and
     # reported, but never fire — otherwise filing a bug report upstream makes this
     # canary fire at us, and the --ack needed to clear the echo also acks any genuine
     # inbound filing that landed in between (the G-063 failure, via its own mitigation).
@@ -186,7 +186,7 @@ else:
             if e['first_line']:
                 print('     %s' % e['first_line'])
         print('  → process them, then: bash scripts/check-framework-pickup-freshness.sh --ack')
-    # T-2691: ALWAYS report suppression, including on the healthy path. A quiet canary
+    # T-2816: ALWAYS report suppression, including on the healthy path. A quiet canary
     # must never be ambiguous between 'nothing inbound' and 'the filter ate something'.
     #
     # NOTE: this whole python program is embedded in a DOUBLE-QUOTED shell string, so a
@@ -202,7 +202,7 @@ else:
 
 # Recover MAXOFF / NEW from a second parse.
 #
-# T-2691: this pass is the actual FIRING GATE (NEW==0 -> exit 0), so it must apply the
+# T-2816: this pass is the actual FIRING GATE (NEW==0 -> exit 0), so it must apply the
 # same own-filing filter as the report above. It previously counted every new offset
 # regardless of author, which is why filtering the report alone would have changed what
 # the canary SAYS without changing what it DOES.

@@ -2,7 +2,7 @@
 id: T-2812
 name: "Three local fixes to vendored code will be erased by the next re-vendor, and one is being proposed now"
 description: >
-  T-2304 (update-task.sh sys.path), T-2469 (budget-gate hotfix) and T-2687 (pickup fail-open) are local modifications to vendored framework code with no recorded upstream landing. This repo has no .vendor-divergence.yaml. History shows a wholesale vendor event roughly every two months, and T-2705 on worktree-charter-review proposes `fw update` now.
+  T-2304 (update-task.sh sys.path), T-2469 (budget-gate hotfix) and T-2813 (pickup fail-open) are local modifications to vendored framework code with no recorded upstream landing. This repo has no .vendor-divergence.yaml. History shows a wholesale vendor event roughly every two months, and T-2705 on worktree-charter-review proposes `fw update` now.
 
 status: work-completed
 workflow_type: build
@@ -10,7 +10,7 @@ owner: agent
 horizon: null
 tags: [governance, g-062, vendor-divergence, directive-2]
 components: []
-related_tasks: [T-2687, T-2304, T-2469, T-2705, T-2807, T-2053]
+related_tasks: [T-2813, T-2304, T-2469, T-2705, T-2807, T-2053]
 created: 2026-08-20
 last_update: 2026-08-20T18:11:32Z
 date_finished: 2026-08-20T18:11:32Z
@@ -20,7 +20,7 @@ date_finished: 2026-08-20T18:11:32Z
 
 ## Context
 
-Found while closing **T-2687** (top HV/LC, BVP 99). Its work is genuinely done — 12/12 fixture
+Found while closing **T-2813** (top HV/LC, BVP 99). Its work is genuinely done — 12/12 fixture
 assertions pass against the real `lib/pickup.sh`, exercising every refusal path. But
 `lib/pickup.sh` is **vendored**, and the task records no upstream filing. So the fix is
 one `fw update` away from being deleted, and the task would have closed as "complete".
@@ -56,7 +56,7 @@ files), **12 commits** touch vendored code since. Triaging them:
 | T-2204, T-2194..2201, T-2155 | artifacts / chmod / episodic capture | negligible |
 | **T-2304** | real fix: `update-task.sh` sys.path so `fw inception decide` finalizes | **yes** |
 | **T-2469** | real fix: budget-gate hotfix, PL-265 | **yes** |
-| **T-2687** | real fix: two fail-open paths in the pickup ingest rail | **yes** |
+| **T-2813** | real fix: two fail-open paths in the pickup ingest rail | **yes** |
 
 Three. Small enough to act on properly, which is why it was worth narrowing rather than
 reporting "95 local modifications" — the first number this scan produced, and true but useless.
@@ -88,7 +88,7 @@ with no forward value.
 ## Acceptance Criteria
 
 ### Agent
-- [x] `.vendor-divergence.yaml` exists, registering T-2304, T-2469 and T-2687 with file,
+- [x] `.vendor-divergence.yaml` exists, registering T-2304, T-2469 and T-2813 with file,
       symptom, and upstream status (`filed-upstream`, offset 27)
 - [x] It also records the non-divergence classes — recovery, upstream ports, artifacts, and a
       **mode-only** class the detector surfaced that I had described in prose but never recorded
@@ -107,7 +107,7 @@ with no forward value.
 # The register exists and parses.
 python3 -c "import yaml,sys; d=yaml.safe_load(open('.vendor-divergence.yaml')); sys.exit(0 if isinstance(d,dict) and d.get('divergences') else 'register missing or empty')"
 # All three at-risk fixes are registered.
-python3 -c "import yaml,sys; d=yaml.safe_load(open('.vendor-divergence.yaml')); ids={x.get('task') for x in d['divergences']}; missing={'T-2304','T-2469','T-2687'}-ids; sys.exit('unregistered: %s' % sorted(missing) if missing else 0)"
+python3 -c "import yaml,sys; d=yaml.safe_load(open('.vendor-divergence.yaml')); ids={x.get('task') for x in d['divergences']}; missing={'T-2304','T-2469','T-2813'}-ids; sys.exit('unregistered: %s' % sorted(missing) if missing else 0)"
 # The detector runs clean now that they are registered.
 bash scripts/check-vendor-divergence.sh
 # Fixtures pin it.

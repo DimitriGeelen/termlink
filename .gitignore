@@ -17,7 +17,7 @@ Thumbs.db
 # Tier-0 approval ledger — resolved-*.yaml may embed command_preview with secrets (T-1799)
 .context/approvals/
 
-# Vendored framework (T-2694).
+# Vendored framework (T-2819).
 #
 # This was `.agentic-framework` under the label "Framework symlink (machine-specific)".
 # That was correct when the path WAS a symlink; the tree is now VENDORED with ~1565 files
@@ -111,7 +111,7 @@ agents/fabric
 
 # Session-local working state (large vector index, etc.) — never commit.
 #
-# T-2698: this is the CONTENTS form (`/*`), not the directory form. The directory
+# T-2822: this is the CONTENTS form (`/*`), not the directory form. The directory
 # form excluded `.context/working/` itself, and git cannot re-include a path whose
 # parent directory is excluded — so a `!` negation under it is a SILENT no-op, not
 # an error. Excluding the contents leaves the directory un-excluded, which is what
@@ -121,7 +121,7 @@ agents/fabric
 # apply to already-tracked files, so nothing looked broken while every file added
 # afterwards was silently untrackable. The casualties were the static-check
 # allowlists (T-2527 alloc-sink, T-2531 drain-sink, T-2666 silent-exit, T-2672
-# busy-spin, T-2697 cron-drift) — records of governance decisions that existed only
+# busy-spin, T-2821 cron-drift) — records of governance decisions that existed only
 # on one host's disk, so both alloc-sink and drain-sink fired in every clean clone
 # on sites a human had already reviewed and acknowledged.
 #

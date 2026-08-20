@@ -1,5 +1,6 @@
 ---
-id: T-2689
+id: T-2814
+renumbered_from: T-2689  # T-2823 cross-branch collision
 name: "stale gitignore silently untracks new vendored-framework files — fw bvp and
   the whole scoring policy are unrecoverable from git"
 description: >
@@ -56,7 +57,7 @@ cost_estimate_proposed:
     rubric_sha: e4a00f38e801
 ---
 
-# T-2689: stale gitignore silently untracks new vendored-framework files — fw bvp and the whole scoring policy are unrecoverable from git
+# T-2814: stale gitignore silently untracks new vendored-framework files — fw bvp and the whole scoring policy are unrecoverable from git
 
 ## Context
 
@@ -82,7 +83,7 @@ operator uses to decide what to work on:
 | `.agentic-framework/agents/termlink/bvp-estimator/*` | yes | **no** |
 
 The entire `policy/` directory has **0** tracked files. Reproduced directly: in a
-worktree checked out from `HEAD`, `fw bvp estimate T-2687` fails with
+worktree checked out from `HEAD`, `fw bvp estimate T-2813` fails with
 `.agentic-framework/lib/bvp.sh: No such file or directory` — `bin/fw` is tracked and
 still routes the `bvp` subcommand, but the library it routes to is not there.
 
@@ -200,7 +201,7 @@ bash tests/framework-tracking-drift-fixtures.sh
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
-**Symptom:** `fw bvp estimate T-2687` in a `HEAD` worktree dies with
+**Symptom:** `fw bvp estimate T-2813` in a `HEAD` worktree dies with
 `.agentic-framework/lib/bvp.sh: No such file or directory`. `bin/fw` is present and
 still routes the subcommand; the library it routes to was never committed. Widening the
 check: `policy/` has 0 tracked files, so the scoring rubric and the §ACD-gated driver
@@ -284,5 +285,5 @@ fixture assertion 1 now pins it.
 
 ### 2026-08-19T23:46:16Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/active/T-2689-stale-gitignore-silently-untracks-new-ve.md
+- **Output:** /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/active/T-2814-stale-gitignore-silently-untracks-new-ve.md
 - **Context:** Initial task creation

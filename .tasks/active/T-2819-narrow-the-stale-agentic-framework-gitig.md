@@ -1,5 +1,6 @@
 ---
-id: T-2694
+id: T-2819
+renumbered_from: T-2694  # T-2823 cross-branch collision
 name: "Narrow the stale .agentic-framework gitignore rule so the vendored subset is
   trackable"
 description: >
@@ -42,7 +43,7 @@ cost_estimate_proposed:
     rubric_sha: e4a00f38e801
 ---
 
-# T-2694: Narrow the stale `.agentic-framework` gitignore rule
+# T-2819: Narrow the stale `.agentic-framework` gitignore rule
 
 ## Context
 
@@ -65,7 +66,7 @@ framework that is RECOVERABLE have been diverging invisibly.
 
 ### Confirmed casualties
 
-`scripts/check-framework-tracking-drift.sh` axis B (T-2692) names them from the consumer
+`scripts/check-framework-tracking-drift.sh` axis B (T-2817) names them from the consumer
 side — tracked code that sources a path which is not there:
 
 ```
@@ -73,7 +74,7 @@ DANGLING   $FRAMEWORK_ROOT/lib/bvp.sh
 DANGLING   $FRAMEWORK_ROOT/lib/arc_membership.sh
 ```
 
-Plus the whole of `policy/` (`value-drivers.yaml`, `bvp-scoring-rubric.md`) per T-2689.
+Plus the whole of `policy/` (`value-drivers.yaml`, `bvp-scoring-rubric.md`) per T-2814.
 
 Both are load-bearing, and **two `fw` subcommands are broken in this worktree** as a result:
 
@@ -145,7 +146,7 @@ reviews the list before committing rather than trusting a blind sweep from here.
       2. Read that list — confirm nothing machine-local, host-specific or secret-bearing
       appears (host paths, tokens, per-machine config, `*.local.*`).
       3. `cd /opt/termlink && git add .agentic-framework/lib .agentic-framework/policy .agentic-framework/bin .agentic-framework/agents`
-      4. `cd /opt/termlink && git commit -m "T-2694: track the vendored framework subset that the stale ignore rule hid"`
+      4. `cd /opt/termlink && git commit -m "T-2819: track the vendored framework subset that the stale ignore rule hid"`
       5. `cd /opt/termlink && bash scripts/check-framework-tracking-drift.sh` → expect exit 0.
       **Expected:** step 5 reports no load-bearing drift and no dangling references, and
       `fw bvp --quadrant hv-lc` runs from a fresh worktree.
@@ -154,7 +155,7 @@ reviews the list before committing rather than trusting a blind sweep from here.
 ## Verification
 
 bash tests/gitignore-framework-scope-fixtures.sh
-# NOT `... | wc -l | grep -qx 0` — that is the L-387 shape T-2693 detects, and the T-2693
+# NOT `... | wc -l | grep -qx 0` — that is the L-387 shape T-2818 detects, and the T-2818
 # auditor caught it here while this very task was being written (active findings went
 # 150 -> 151). Left as a note because it is the most convincing demonstration available
 # that the check is load-bearing: it flagged its own author, one commit after shipping.

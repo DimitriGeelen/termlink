@@ -20,7 +20,7 @@ owner: agent
 horizon: now
 tags: [governance, remediation, termlink, operator-ux]
 components: []
-related_tasks: [T-2694, T-2698, T-2690, T-559]
+related_tasks: [T-2819, T-2822, T-2815, T-559]
 created: 2026-08-20
 last_update: '2026-08-20T15:21:22Z'
 date_finished:
@@ -57,11 +57,11 @@ cost_estimate_proposed:
 Three fixes shipped on this branch are only half-done, because each needs a commit in the
 main checkout at `/opt/termlink` and this session is confined to a worktree by T-559:
 
-1. **T-2694** — the `.gitignore` rule was narrowed so the vendored framework subset is
+1. **T-2819** — the `.gitignore` rule was narrowed so the vendored framework subset is
    trackable, but the files themselves (`lib/bvp.sh`, `policy/`) are still uncommitted. Until
    they are, `fw bvp` fails in every worktree and every clean clone, which is why the BVP
    estimator could not be run this session despite being asked for repeatedly.
-2. **T-2698** — same shape for `.context/working/.*-allowlist`. Until committed,
+2. **T-2822** — same shape for `.context/working/.*-allowlist`. Until committed,
    `check-alloc-sink-clamps` and `check-drain-sink-caps` fire in any fresh checkout on eleven
    sites a human already reviewed and cleared.
 3. Stale task files in `/opt/termlink/.tasks/active/` that make the task gate refuse to let
@@ -84,7 +84,7 @@ legitimately discusses `192.168.10.x` throughout. The human judgement is preserv
 mechanical gate that cannot be skimmed.
 
 **Never touch the push.** Item 4 on the operator's list — `git push --no-verify` past the
-failing pre-push audit (T-2690) — is Tier 0 and stays out. The script reports the unpushed
+failing pre-push audit (T-2815) — is Tier 0 and stays out. The script reports the unpushed
 commit count and prints the command; it does not run it, and no flag makes it.
 
 **Idempotent.** Every step is a no-op when already applied, so re-running is safe and the

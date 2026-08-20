@@ -1,12 +1,12 @@
 # ============================================================================
-# EPISODIC MEMORY - T-2687: pickup dedup hash fails open to constant sha256 and pickup_create_inception
+# EPISODIC MEMORY - T-2813: pickup dedup hash fails open to constant sha256 and pickup_create_inception
 # ============================================================================
 # STATUS: AUTO-GENERATED
 # Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
 # Generated: 2026-08-20T18:12:10Z
 # ============================================================================
 
-task_id: T-2687
+task_id: T-2813
 task_name: "pickup dedup hash fails open to constant sha256 and pickup_create_inception"
 workflow_type: build
 enrichment_status: complete  # AC checked + decisions recorded
@@ -72,5 +72,5 @@ metrics:
   lines_removed: 0
 
 # Metadata
-source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2687-pickup-dedup-hash-fails-open-to-constant.md
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2813-pickup-dedup-hash-fails-open-to-constant.md
 generated_by: context-agent-hybrid

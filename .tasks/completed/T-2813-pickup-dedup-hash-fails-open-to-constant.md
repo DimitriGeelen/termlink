@@ -1,5 +1,6 @@
 ---
-id: T-2687
+id: T-2813
+renumbered_from: T-2687  # T-2823 cross-branch collision
 name: "pickup dedup hash fails open to constant sha256 and pickup_create_inception
   mints empty-name tasks"
 description: >
@@ -57,7 +58,7 @@ cost_estimate_proposed:
     rubric_sha: e4a00f38e801
 ---
 
-# T-2687: pickup dedup hash fails open to constant sha256 and pickup_create_inception mints empty-name tasks
+# T-2813: pickup dedup hash fails open to constant sha256 and pickup_create_inception mints empty-name tasks
 
 ## Context
 
@@ -263,7 +264,7 @@ future re-introduction of a bare `|| true` on these paths fails the suite.
 
 ### 2026-08-19T23:32:30Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/active/T-2687-pickup-dedup-hash-fails-open-to-constant.md
+- **Output:** /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/active/T-2813-pickup-dedup-hash-fails-open-to-constant.md
 - **Context:** Initial task creation
 
 ### 2026-08-20 — verified and closed; the fix is vendored, so durability was the missing half [agent]

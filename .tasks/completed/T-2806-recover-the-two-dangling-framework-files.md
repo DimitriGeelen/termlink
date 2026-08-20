@@ -2,7 +2,7 @@
 id: T-2806
 name: "Recover the two dangling framework files: task finalization dies on every build task in a worktree"
 description: >
-  arc_membership.sh and bvp.sh are untracked (T-2689 blanket gitignore) so they are absent from every worktree and clean clone. evolution_log.sh:52 sources arc_membership.sh with no existence guard, so `fw task update --status work-completed` exits 1 AFTER passing every gate. 24 active build tasks are fully ticked and stuck, including every task this session completed. Also unblocks `fw bvp`.
+  arc_membership.sh and bvp.sh are untracked (T-2814 blanket gitignore) so they are absent from every worktree and clean clone. evolution_log.sh:52 sources arc_membership.sh with no existence guard, so `fw task update --status work-completed` exits 1 AFTER passing every gate. 24 active build tasks are fully ticked and stuck, including every task this session completed. Also unblocks `fw bvp`.
 
 status: work-completed
 workflow_type: build
@@ -10,7 +10,7 @@ owner: agent
 horizon: null
 tags: [governance, framework-recoverability, g-019, g-062, directive-2]
 components: []
-related_tasks: [T-2689, T-2692, T-2698, T-2803, T-2804, T-2805]
+related_tasks: [T-2814, T-2817, T-2822, T-2803, T-2804, T-2805]
 created: 2026-08-20
 last_update: 2026-08-20T15:05:06Z
 date_finished: 2026-08-20T15:05:06Z
@@ -20,7 +20,7 @@ date_finished: 2026-08-20T15:05:06Z
 
 ## Context
 
-T-2692 built the DANGLING axis to detect tracked framework code that sources a path which is
+T-2817 built the DANGLING axis to detect tracked framework code that sources a path which is
 not present, and reported two: `lib/arc_membership.sh` and `lib/bvp.sh`. At the time the known
 cost was that `fw bvp` fails in a clean clone.
 
@@ -61,8 +61,8 @@ inception or refactor task finalizes fine, and a build task dies.
 ### Blast radius, measured
 
 **24 active build tasks have every acceptance criterion ticked and are still `started-work`** —
-including **every task completed in this session and the previous one** (T-2687, T-2689, T-2691,
-T-2692, T-2693, T-2695, T-2697, T-2800 through T-2805). The work is committed; the task records
+including **every task completed in this session and the previous one** (T-2813, T-2814, T-2816,
+T-2817, T-2818, T-2820, T-2821, T-2800 through T-2805). The work is committed; the task records
 say it never finished.
 
 This is a third, distinct mechanism for the half-finalized class T-2804 repaired 13 instances
@@ -80,7 +80,7 @@ exclusively in worktrees and clean clones — and the framework creates those wo
 
 - **Main** has the files and cannot `git add` them: its `.gitignore` still carries the blanket
   rule, and `git add` on an ignored path fails (T-2803 measured this and now BLOCKs on it).
-- **This branch** carries the narrowed rule (T-2698) and can add them — but does not have them,
+- **This branch** carries the narrowed rule (T-2822) and can add them — but does not have them,
   because they were never committed and there is nothing to pull.
 
 Neither checkout can fix it alone. The break is to move the bytes from the checkout that has
@@ -106,7 +106,7 @@ Recovers these two files and files the unguarded-source defect upstream. Does **
 `evolution_log.sh` — it is vendored (G-062) and a local edit is erased on the next re-vendor;
 and with the file present the code path is correct anyway. Does **not** finalize the 24 stuck
 tasks: most are not mine, several are `owner: human`, and completing a human-owned task is
-outside autonomous authority. Does **not** widen the `.gitignore` further than T-2698 already did.
+outside autonomous authority. Does **not** widen the `.gitignore` further than T-2822 already did.
 
 ## Acceptance Criteria
 
@@ -119,7 +119,7 @@ outside autonomous authority. Does **not** widen the `.gitignore` further than T
 - [x] `fw bvp` runs instead of failing on a missing library
 - [x] The unguarded `source` at `evolution_log.sh:52` is filed upstream on `framework:pickup`
       with the reproduction and the blast-radius measurement
-- [x] CLAUDE.md's T-2692 section records that DANGLING also breaks task finalization, not only
+- [x] CLAUDE.md's T-2817 section records that DANGLING also breaks task finalization, not only
       `fw bvp`
 
 ## Verification

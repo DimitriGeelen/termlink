@@ -1,5 +1,6 @@
 ---
-id: T-2695
+id: T-2820
+renumbered_from: T-2695  # T-2823 cross-branch collision
 name: "Register 4 unregistered Rust modules in the component fabric"
 description: >
   retention_sweeper.rs, fleet_presence.rs, identity_dir.rs and ws_consumer.rs have
@@ -41,7 +42,7 @@ cost_estimate_proposed:
     rubric_sha: e4a00f38e801
 ---
 
-# T-2695: Register 4 unregistered Rust modules in the component fabric
+# T-2820: Register 4 unregistered Rust modules in the component fabric
 
 ## Context
 

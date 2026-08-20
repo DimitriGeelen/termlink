@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # guard-layer: source
-# check-framework-tracking-drift.sh — T-2689.
+# check-framework-tracking-drift.sh — T-2814.
 #
 # Reports files present under the vendored framework directory that are UNREACHABLE
 # FROM GIT, i.e. present on this host's disk but absent from version control.
@@ -24,11 +24,11 @@
 # `check-cron-install-drift.sh` (T-2561). It carries the `# guard-layer: source`
 # marker above (T-2802), so `run-guard-layer.sh` executes it: git plus the vendored
 # framework dir are both in-tree, so it is safe to run anywhere. An earlier draft
-# pointed at `.context/cron/ondemand-checks.conf`, a registry removed in T-2698 when
+# pointed at `.context/cron/ondemand-checks.conf`, a registry removed in T-2822 when
 # the canary-status work was yielded to governance-canary-signal — their
 # `crontab_declares` derives the same fact from the crontabs themselves.
 #
-# Two detection axes (T-2692)
+# Two detection axes (T-2817)
 # ---------------------------
 # The two are complementary because each is blind where the other fires:
 #
@@ -42,7 +42,7 @@
 #
 # Axis A alone reports a worktree as clean while `fw bvp` is broken in it, because the
 # untracked lib/bvp.sh simply is not there to be noticed. That is not hypothetical: it is
-# how T-2692 was found. Axis B catches the same defect from the consumer side, and is the
+# how T-2817 was found. Axis B catches the same defect from the consumer side, and is the
 # axis that matters for anyone who did not create the drift.
 #
 # Firing policy
@@ -174,7 +174,7 @@ $(find "$FW_ROOT" -type f \
     2>/dev/null | sort)
 EOF
 
-# --- Axis B: dangling "$FRAMEWORK_ROOT/<path>" references (T-2692) -----------
+# --- Axis B: dangling "$FRAMEWORK_ROOT/<path>" references (T-2817) -----------
 #
 # Scan shell sources under the framework root for the literal interpolation shape and
 # test each resolved path. A reference carrying a FURTHER interpolation (a `${` after the

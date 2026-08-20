@@ -1,5 +1,6 @@
 ---
-id: T-2692
+id: T-2817
+renumbered_from: T-2692  # T-2823 cross-branch collision
 name: "Tracking-drift check is blind in a clean clone — add dangling-reference detection"
 description: >
   check-framework-tracking-drift.sh compares on-disk files against git, so it only
@@ -42,11 +43,11 @@ cost_estimate_proposed:
     rubric_sha: e4a00f38e801
 ---
 
-# T-2692: Tracking-drift check is blind in a clean clone
+# T-2817: Tracking-drift check is blind in a clean clone
 
 ## Context
 
-T-2689 shipped `scripts/check-framework-tracking-drift.sh` to detect vendored-framework
+T-2814 shipped `scripts/check-framework-tracking-drift.sh` to detect vendored-framework
 files unreachable from git. It works by listing files on disk and testing each against
 `git ls-files`.
 
@@ -67,20 +68,20 @@ check-framework-tracking-drift: no load-bearing drift (1565 file(s) scanned, 0 i
 
 The tool is broken and the detector says clean, in the same directory, seconds apart. This
 is exactly the "clean clone has a tracked `bin/fw` routing to a library that is not there"
-scenario T-2689's own header predicted — and T-2689's check cannot see it.
+scenario T-2814's own header predicted — and T-2814's check cannot see it.
 
 ### Why this matters more than the original axis
 
 The person who *created* the drift is the least likely to be hurt by it: their machine has
 the files. The people hurt are everyone who clones, deploys, or spins up a worktree — and
-for all of them, T-2689's axis is silent. The axis that matters for the consumer was the
+for all of them, T-2814's axis is silent. The axis that matters for the consumer was the
 one missing.
 
 ## Approach
 
 Add a second, complementary detection axis to the same script:
 
-- **Axis A (existing, T-2689)** — file on disk, absent from git. Fires where the drift was
+- **Axis A (existing, T-2814)** — file on disk, absent from git. Fires where the drift was
   created.
 - **Axis B (new)** — a `"$FRAMEWORK_ROOT/<path>"` reference in tracked framework code whose
   target does not resolve on disk. Fires where the file is missing.
@@ -112,7 +113,7 @@ specific RPC method strings).
 ### Agent
 - [x] Axis B detects a `$FRAMEWORK_ROOT/...` reference whose target is missing
 - [x] Axis B fires (exit 1) in this worktree, where `lib/bvp.sh` is genuinely absent
-- [x] Axis A behaviour is unchanged — T-2689's fixtures still pass unmodified
+- [x] Axis A behaviour is unchanged — T-2814's fixtures still pass unmodified
 - [x] Dynamic references (a `$` remaining in the tail) are skipped and counted, not guessed
 - [x] References in a comment line are ignored
 - [x] References NOT in source-or-execute position (assignment, `echo`, `ls`) are ignored —

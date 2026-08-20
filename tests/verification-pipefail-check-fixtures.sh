@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tests/verification-pipefail-check-fixtures.sh — T-2693 regression fixtures.
+# tests/verification-pipefail-check-fixtures.sh — T-2818 regression fixtures.
 #
 # Pins scripts/check-verification-pipefail.sh against a scratch .tasks tree:
 #
@@ -40,7 +40,7 @@ bad() { FAIL=$((FAIL + 1)); printf '  FAIL  %s\n' "$1" >&2; [ -n "${2:-}" ] && p
 
 [ -r "$SCRIPT" ] || { echo "verification-pipefail-check-fixtures: cannot read $SCRIPT" >&2; exit 2; }
 
-echo "T-2693 verification-pipefail check fixtures"
+echo "T-2818 verification-pipefail check fixtures"
 echo
 
 if [ ! -r "$FW/lib/reviewer/static_scan.py" ]; then

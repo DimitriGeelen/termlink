@@ -1,5 +1,6 @@
 ---
-id: T-2690
+id: T-2815
+renumbered_from: T-2690  # T-2823 cross-branch collision
 name: "Audit cron-drift slug uses worktree basename — blocks push, mitigation installs
   stray cron"
 description: >
@@ -44,7 +45,7 @@ cost_estimate_proposed:
     rubric_sha: e4a00f38e801
 ---
 
-# T-2690: Audit cron-drift slug uses worktree basename
+# T-2815: Audit cron-drift slug uses worktree basename
 
 ## Context
 

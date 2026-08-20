@@ -2,7 +2,7 @@
 id: T-2811
 name: "Watchtower cannot start — 4 untracked web blueprints, and my drift checker calls web/ informational"
 description: >
-  `fw serve` dies at create_app with ModuleNotFoundError web.blueprints.bvp. Four web/*.py modules are untracked and absent here. T-2689's drift checker classifies untracked web/ as informational, never firing — but Flask registers blueprints at startup, so a missing one is fatal, not cosmetic. Recover the four and correct the classification.
+  `fw serve` dies at create_app with ModuleNotFoundError web.blueprints.bvp. Four web/*.py modules are untracked and absent here. T-2814's drift checker classifies untracked web/ as informational, never firing — but Flask registers blueprints at startup, so a missing one is fatal, not cosmetic. Recover the four and correct the classification.
 
 status: work-completed
 workflow_type: build
@@ -10,7 +10,7 @@ owner: agent
 horizon: null
 tags: [governance, framework-recoverability, watchtower, g-062]
 components: [scripts/check-framework-tracking-drift.sh, tests/framework-tracking-drift-fixtures.sh]
-related_tasks: [T-2689, T-2692, T-2806, T-2807, T-2705]
+related_tasks: [T-2814, T-2817, T-2806, T-2807, T-2705]
 created: 2026-08-20
 last_update: 2026-08-20T17:58:58Z
 date_finished: 2026-08-20T17:58:58Z
@@ -53,7 +53,7 @@ via `fw update`; that is theirs and is not duplicated here.
 
 ### The part that is mine to fix: a wrong classification
 
-T-2689's drift checker splits untracked framework files into two classes, and CLAUDE.md
+T-2814's drift checker splits untracked framework files into two classes, and CLAUDE.md
 records the split as:
 
 > Fires on `bin/ lib/ policy/ agents/` (clean-clone-breaking); untracked `docs/`/`web/` is
@@ -65,7 +65,7 @@ the app binds a port. The reasoning behind "informational" was sound for `docs/`
 is a gap, not a broken install) and got over-applied to `web/` by adjacency.
 
 The evidence is that the checker reported this tree clean while `fw serve` was dead in it —
-the same failure mode T-2692 was built to close, and it recurred one directory over.
+the same failure mode T-2817 was built to close, and it recurred one directory over.
 
 ## Approach
 
@@ -100,7 +100,7 @@ the main checkout.
       explicit guard that the static assets stay quiet after the widening — **13/13 pass**
 - [x] **Proven by outcome:** Watchtower serves — `/` **200**, `/tasks` **200**,
       `/inception` **200**, and all nine operator links verified 200 individually
-- [x] CLAUDE.md's T-2689 section is corrected, including why `web/static/**` stays
+- [x] CLAUDE.md's T-2814 section is corrected, including why `web/static/**` stays
       informational — the boundary is as load-bearing as the firing rule
 
 ## Verification

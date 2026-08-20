@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# T-2803 — one-shot remediation for the main-checkout half of T-2694 / T-2698.
+# T-2803 — one-shot remediation for the main-checkout half of T-2819 / T-2822.
 #
 # Three fixes shipped on worktree-t2687-pickup-failopen are only half-done: each
 # narrowed a .gitignore rule so previously-hidden files became trackable, but the
@@ -49,7 +49,7 @@ Usage: remediate-main-checkout.sh [OPTIONS]
   --dry-run       Show exactly what would happen; change nothing
   -h, --help      This help
 
-Never pushes. See T-2690 — the pre-push audit fails for an unrelated framework
+Never pushes. See T-2815 — the pre-push audit fails for an unrelated framework
 bug, and getting past it is Tier 0.
 EOF
 }
@@ -187,7 +187,7 @@ def stage_and_commit(name, paths, message, purpose):
             say("           Fix the RULE here first (merge the branch, or apply the")
             say("           .gitignore change), then re-run. Do NOT `git add -f`: that")
             say("           tracks today's files and leaves tomorrow's invisible again,")
-            say("           which is the defect T-2698 exists to close.")
+            say("           which is the defect T-2822 exists to close.")
             return
         failed = True
         steps.append({"step": name, "result": "failed",
@@ -262,22 +262,22 @@ say("%sremediate-main-checkout%s  root=%s%s" % (BOLD, OFF, ROOT, "  [DRY RUN]" i
 say("")
 
 # --- STEP 1 ---------------------------------------------------------------
-say("%sStep 1%s  track the vendored framework subset (T-2694)" % (BOLD, OFF))
+say("%sStep 1%s  track the vendored framework subset (T-2819)" % (BOLD, OFF))
 stage_and_commit(
     "framework-subset",
     [".agentic-framework/lib", ".agentic-framework/policy",
      ".agentic-framework/bin", ".agentic-framework/agents"],
-    "T-2694: track the vendored framework subset that the stale ignore rule hid",
+    "T-2819: track the vendored framework subset that the stale ignore rule hid",
     "unblocks `fw bvp` and `fw arc` in every worktree and clean clone")
 
 # --- STEP 2 ---------------------------------------------------------------
 say("")
-say("%sStep 2%s  track the static-check allowlists (T-2698)" % (BOLD, OFF))
+say("%sStep 2%s  track the static-check allowlists (T-2822)" % (BOLD, OFF))
 stage_and_commit(
     "static-check-allowlists",
     [".context/working/.alloc-sink-allowlist", ".context/working/.drain-sink-allowlist",
      ".context/working/.silent-exit-allowlist", ".context/working/.busy-spin-allowlist"],
-    "T-2698: track the static-check allowlists the blanket ignore rule hid",
+    "T-2822: track the static-check allowlists the blanket ignore rule hid",
     "stops alloc-sink and drain-sink firing in every fresh clone on reviewed sites")
 
 # --- STEP 3 ---------------------------------------------------------------
@@ -335,7 +335,7 @@ say("%sNot done here — Tier 0%s" % (BOLD, OFF))
 branch = run("git", "rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
 ahead = run("git", "rev-list", "--count", "main..HEAD").stdout.strip() or "?"
 say("  %s commit(s) on %s have never left this machine." % (ahead, branch))
-say("  The pre-push audit fails for an unrelated framework bug (T-2690), so getting")
+say("  The pre-push audit fails for an unrelated framework bug (T-2815), so getting")
 say("  past it needs --no-verify, which is Tier 0 and is yours alone to approve:")
 say("      cd %s && .agentic-framework/bin/fw tier0 approve" % ROOT)
 say("  This script will never do that, and no flag makes it.")

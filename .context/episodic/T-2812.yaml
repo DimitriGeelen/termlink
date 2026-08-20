@@ -23,7 +23,7 @@ summary: |
 
 # Key outcomes
 outcomes:
-  - '`.vendor-divergence.yaml` exists, registering T-2304, T-2469 and T-2687 with file,'
+  - '`.vendor-divergence.yaml` exists, registering T-2304, T-2469 and T-2813 with file,'
   - 'It also records the non-divergence classes — recovery, upstream ports, artifacts, and a'
   - 'All three defects filed upstream on `framework:pickup` **offset 27**, each with the file,'
   - '`scripts/check-vendor-divergence.sh` surfaces unregistered local modifications since the'

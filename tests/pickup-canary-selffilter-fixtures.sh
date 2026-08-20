@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tests/pickup-canary-selffilter-fixtures.sh — T-2691 regression fixtures.
+# tests/pickup-canary-selffilter-fixtures.sh — T-2816 regression fixtures.
 #
 # Pins scripts/check-framework-pickup-freshness.sh against canned topic NDJSON:
 #
@@ -79,7 +79,7 @@ FALLBACK="$SCRATCH/fallback.ndjson"
 env_line 0 '{"source_project":"010-termlink"}' "ours via source_project" >> "$FALLBACK"
 env_line 1 '{"agent_id":"010-termlink"}'       "ours via agent_id"       >> "$FALLBACK"
 
-echo "T-2691 pickup-canary self-filter fixtures"
+echo "T-2816 pickup-canary self-filter fixtures"
 echo
 
 run() { # ndjson-file, extra args...

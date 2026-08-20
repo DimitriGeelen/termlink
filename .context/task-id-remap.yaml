@@ -1,0 +1,73 @@
+# Task-ID remap — cross-branch collision resolution, 2026-08-20.
+#
+# WHY
+# ---
+# Every worktree allocates task IDs by scanning its OWN .tasks/ for the highest
+# ID and incrementing. Worktrees materialise only their own branch's files, so no
+# branch can see another's allocations — and the framework creates those
+# worktrees itself. Ten IDs ended up claimed twice (three of them three times).
+# Detected by scripts/check-task-id-collisions.sh (T-2800), whose whole reason
+# for existing is that this was understood in March 2026 (T-229, G-007) and never
+# structurally fixed.
+#
+# WHICH SIDE MOVED
+# ----------------
+# Ours. That is the only half actionable from here — another branch's tasks are
+# not this branch's to rewrite. New IDs start at T-2813, above the ceiling across
+# EVERY branch including local ones (T-2812 at the time), so they cannot collide
+# with anything currently allocated.
+#
+# WHAT THIS FILE IS FOR
+# ---------------------
+# Git history is immutable: 71 commits on this branch reference the OLD ids in
+# their subjects, and they cannot be rewritten. Dated records — handovers, audits,
+# the bypass log, pickup envelopes — were deliberately NOT rewritten either, for
+# the same reason a dated Updates entry is not backdated: they are snapshots of
+# what was true then, and 325 of the 594 references live there.
+#
+# So a reader of commit "T-2687: close two fail-open paths..." or of a handover
+# naming T-2692 needs this table. Each renumbered task also carries a
+# `renumbered_from:` field, so the lookup works in both directions.
+#
+# Live surfaces (.tasks/, episodic, CLAUDE.md, scripts/, tests/, the registers)
+# WERE rewritten — there a stale ID sends a reader to a task that does not exist.
+
+resolved: 2026-08-20
+detector: scripts/check-task-id-collisions.sh
+precedent: T-229 (2026-03) renumbered six colliding tasks by hand; cause recorded as G-007
+ceiling_at_time: T-2812
+collided_with:
+  - worktree-charter-review-2026-0814   # all ten
+  - worktree-governance-canary-signal   # T-2690, T-2691, T-2692 (three-way)
+
+remap:
+  T-2687: T-2813   # pickup dedup hash fails open to constant sha256
+  T-2689: T-2814   # stale gitignore silently untracks new vendored files
+  T-2690: T-2815   # audit cron-drift slug uses worktree basename
+  T-2691: T-2816   # framework-pickup canary counts our own outbound filings
+  T-2692: T-2817   # tracking-drift check is blind in a clean clone
+  T-2693: T-2818   # repo-wide L-387 verification pipefail auditor
+  T-2694: T-2819   # narrow the stale .agentic-framework gitignore rule
+  T-2695: T-2820   # register 4 unregistered rust modules
+  T-2697: T-2821   # check-cron-install-drift reports healthy on drift
+  T-2698: T-2822   # blanket .context/working gitignore hides allowlists
+
+not_rewritten:
+  reason: >
+    Dated records are snapshots of what was true when written. Rewriting them
+    would falsify history to tidy a reference, which is the same objection as
+    backdating an Updates entry. Use the remap table above.
+  paths:
+    - .context/handovers/     # 325 of the 594 references
+    - .context/audits/
+    - .context/bypass-log.yaml
+    - .context/pickup/
+    - git commit subjects     # immutable; 71 commits on this branch
+
+residual_risk: >
+  charter-review sits at T-2794 and allocates upward; this branch already holds
+  T-2800..T-2822. So their next ~6 allocations run into our existing block, and
+  the renumber above does not prevent that — it only clears what had ALREADY
+  collided. The real fix is in the allocator (vendored framework code), filed
+  upstream at framework:pickup offsets 15-16 under G-062. Until then, run
+  scripts/check-task-id-collisions.sh before starting work and before merging.

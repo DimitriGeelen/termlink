@@ -1,5 +1,6 @@
 ---
-id: T-2698
+id: T-2822
+renumbered_from: T-2698  # T-2823 cross-branch collision
 name: "Blanket .context/working gitignore makes static-check allowlists untrackable"
 description: >
   .gitignore:113 blanket-ignores `.context/working/` while 115 files under it are
@@ -15,7 +16,7 @@ owner: agent
 horizon: now
 tags: [governance, gitignore, clean-clone, static-checks]
 components: []
-related_tasks: [T-2694, T-2689, T-2692, T-2527, T-2531, T-2666, T-2672, T-2697]
+related_tasks: [T-2819, T-2814, T-2817, T-2527, T-2531, T-2666, T-2672, T-2821]
 created: 2026-08-20
 last_update: '2026-08-20T15:21:22Z'
 date_finished:
@@ -45,7 +46,7 @@ cost_estimate_proposed:
     rubric_sha: e4a00f38e801
 ---
 
-# T-2698: Blanket `.context/working` gitignore makes static-check allowlists untrackable
+# T-2822: Blanket `.context/working` gitignore makes static-check allowlists untrackable
 
 ## Context
 
@@ -57,7 +58,7 @@ cost_estimate_proposed:
 ```
 
 The intent is right — a large vector index does not belong in git. The *form* is the bug,
-and it is the same one T-2694 just fixed for `.agentic-framework`: a blanket directory rule
+and it is the same one T-2819 just fixed for `.agentic-framework`: a blanket directory rule
 under which files are nevertheless tracked. **115 files under `.context/working/` are in
 git** right now. Ignore rules do not apply to already-tracked files, so those keep working
 and nothing looks broken, while everything added afterwards is silently untrackable —
@@ -98,24 +99,24 @@ decisions, complete with cited reasons — exist only on one host's disk.
 
 Two distinct harms, and the second is the one that matters.
 
-The first is recoverability: the same class as T-2689/T-2692 (`lib/bvp.sh` running but
+The first is recoverability: the same class as T-2814/T-2817 (`lib/bvp.sh` running but
 untracked) and T-2696 (the canary stderr-split deployed but never committed). This is now the
 **third** instance found in as many sessions, all sharing one mechanism — a rule that hides
 files so well that nobody notices they are being hidden.
 
 The second is what it does to the checks. A reviewer in a clean clone sees eleven findings on
 a tree CLAUDE.md calls clean. They either re-review all eleven (paying the cost twice), or
-conclude the checks are noisy. That is the erosion T-2693 documented for P-011 and T-2696 for
+conclude the checks are noisy. That is the erosion T-2818 documented for P-011 and T-2696 for
 the canaries: a check that reports known-acknowledged findings teaches people to skim it, and
 a check people skim is not a check. The allowlist mechanism exists precisely to prevent that,
 and the ignore rule disables the mechanism everywhere but one machine.
 
-It also affects T-2697 immediately: the `.cron-drift-allowlist` shipped there would be born
+It also affects T-2821 immediately: the `.cron-drift-allowlist` shipped there would be born
 untrackable.
 
 ## Approach
 
-Same shape as T-2694, and deliberately narrower.
+Same shape as T-2819, and deliberately narrower.
 
 `.context/working/` excludes the **directory**, and git cannot re-include a path whose parent
 directory is excluded — so `!` negations under the current rule are a silent no-op. The
@@ -170,7 +171,7 @@ committing; an allowlist is a record of governance decisions and deserves that l
       4. `cd /opt/termlink && git add .context/working/.alloc-sink-allowlist .context/working/.drain-sink-allowlist .context/working/.silent-exit-allowlist .context/working/.busy-spin-allowlist`
          (skip any that do not exist — silent-exit and busy-spin are documented as having
          zero entries, so they may legitimately be absent)
-      5. `cd /opt/termlink && git commit -m "T-2698: track the static-check allowlists the blanket ignore rule hid"`
+      5. `cd /opt/termlink && git commit -m "T-2822: track the static-check allowlists the blanket ignore rule hid"`
       6. `cd /opt/termlink && bash scripts/check-alloc-sink-clamps.sh && bash scripts/check-drain-sink-caps.sh`
       **Expected:** step 6 exits 0 for both — and, more to the point, they will now exit 0 in
       a fresh clone too.
@@ -196,7 +197,7 @@ the vector index out) and nothing re-examined it when `.context/working/` later 
 home for load-bearing governance records. A blanket directory ignore is specifically
 self-concealing: the files it hides never appear in `git status`, so the divergence between
 what runs and what is recoverable produces no signal at all. The same mechanism produced
-T-2689 (`lib/bvp.sh`), T-2692 (dangling refs) and T-2696 (the uncommitted canary fix) — three
+T-2814 (`lib/bvp.sh`), T-2817 (dangling refs) and T-2696 (the uncommitted canary fix) — three
 prior instances, one mechanism.
 
 **Prevention:** the re-include is by pattern (`.*-allowlist`), so future checks adopting the
@@ -214,17 +215,17 @@ opposite one.
 ### 2026-08-20 — This is the mechanism half; another branch already did the files
 
 - **Context:** `worktree-governance-canary-signal` found the same defect independently and
-  closed it as their T-2692 on 2026-08-18, measuring it more carefully than I did — 15 false
+  closed it as their T-2817 on 2026-08-18, measuring it more carefully than I did — 15 false
   positives across four checks, where I counted 11 across two. They fixed it by getting the
   four allowlist files tracked. Their `.gitignore` still carries the blanket
   `.context/working/` rule, so the files were force-added.
 - **Chose:** Keep this task, narrowed to the mechanism only.
 - **Why:** Force-adding the four files fixes today and leaves tomorrow broken — the fifth
-  allowlist (T-2697's `.cron-drift-allowlist`, written this session) would be untrackable
+  allowlist (T-2821's `.cron-drift-allowlist`, written this session) would be untrackable
   again, and nobody would notice, because that is precisely what a blanket ignore does. The
   two fixes compose: theirs recovers the existing acknowledgements, this one stops the next
   one going missing.
-- **Superseded from this branch:** my duplicate implementations of their T-2690 and T-2692
+- **Superseded from this branch:** my duplicate implementations of their T-2815 and T-2817
   (canary-status TOOLING state, `.context/cron/ondemand-checks.conf` registry) were removed
   rather than merged. Theirs is better on both — they fixed the heartbeat-touched-
   unconditionally problem across ~22 canary scripts, which I had noticed and not fixed, and
@@ -235,7 +236,7 @@ opposite one.
 
 - **Chose:** `!.context/working/.*-allowlist`.
 - **Why:** The casualty is a *class* — every check following the four-sibling allowlist
-  convention, including T-2697's new one and any future check. Enumerating today's four
+  convention, including T-2821's new one and any future check. Enumerating today's four
   filenames would make the fifth silently untrackable again, reproducing the exact defect one
   file later.
 - **Rejected:** Listing the four names explicitly. More precise about today, wrong about

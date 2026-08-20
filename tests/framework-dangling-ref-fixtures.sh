@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# tests/framework-dangling-ref-fixtures.sh — T-2692 regression fixtures (axis B).
+# tests/framework-dangling-ref-fixtures.sh — T-2817 regression fixtures (axis B).
 #
-# T-2689 gave check-framework-tracking-drift.sh axis A: "file on disk, absent from git".
-# T-2692 added axis B: "tracked code sources/executes a $FRAMEWORK_ROOT path that is not
+# T-2814 gave check-framework-tracking-drift.sh axis A: "file on disk, absent from git".
+# T-2817 added axis B: "tracked code sources/executes a $FRAMEWORK_ROOT path that is not
 # here". The two are complementary — axis A is blind in a clean clone (the file is simply
 # not there to notice), which is precisely where the breakage bites.
 #
@@ -58,7 +58,7 @@ git config user.name fixture
 # Everything we create is TRACKED, so axis A stays silent and axis B is isolated.
 seed() { git add -f fw >/dev/null 2>&1; git commit -qm seed >/dev/null 2>&1; }
 
-echo "T-2692 framework dangling-reference fixtures (axis B)"
+echo "T-2817 framework dangling-reference fixtures (axis B)"
 echo
 
 run() { bash "$SCRIPT" --root fw "$@" 2>&1; }

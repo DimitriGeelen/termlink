@@ -1,5 +1,6 @@
 ---
-id: T-2693
+id: T-2818
+renumbered_from: T-2693  # T-2823 cross-branch collision
 name: "Repo-wide L-387 verification-pipefail auditor (Pen request + 150 live hits
   here)"
 description: >
@@ -42,7 +43,7 @@ cost_estimate_proposed:
     rubric_sha: e4a00f38e801
 ---
 
-# T-2693: Repo-wide L-387 verification-pipefail auditor
+# T-2818: Repo-wide L-387 verification-pipefail auditor
 
 ## Context
 
@@ -133,7 +134,7 @@ function both projects already ship keeps a single source of truth.
 never 0. A detector that silently reports clean because it could not load is worse than no
 detector — it converts an unknown into a false assurance. (This repo's own
 `lib/reviewer/static_scan.py` is tracked, but a consumer's may not be — that is exactly the
-T-2689/T-2692 vendoring gap.)
+T-2814/T-2817 vendoring gap.)
 
 **Active-only is opt-in, not the default.** Completed tasks still carry the shape and are
 the best evidence of how widespread it is; hiding them by default would understate the

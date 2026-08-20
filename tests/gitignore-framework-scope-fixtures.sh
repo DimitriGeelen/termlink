@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tests/gitignore-framework-scope-fixtures.sh — T-2694 regression fixtures.
+# tests/gitignore-framework-scope-fixtures.sh — T-2819 regression fixtures.
 #
 # Pins the `.agentic-framework` scoping rules in this repo's .gitignore.
 #
@@ -54,7 +54,7 @@ git config user.email fixture@example.invalid
 git config user.name fixture
 cp "$GITIGNORE" "$REPO/.gitignore"
 
-echo "T-2694 .gitignore framework-scope fixtures"
+echo "T-2819 .gitignore framework-scope fixtures"
 echo
 
 # git check-ignore does not require the path to exist.

@@ -28,7 +28,7 @@ outcomes:
   - '`check-framework-tracking-drift.sh` fires on untracked `web/**/*.py` **and**'
   - 'Its fixtures cover both new firing cases and the still-informational ones, plus an'
   - '**Proven by outcome:** Watchtower serves — `/` **200**, `/tasks` **200**,'
-  - 'CLAUDE.md''s T-2689 section is corrected, including why `web/static/**` stays'
+  - 'CLAUDE.md''s T-2814 section is corrected, including why `web/static/**` stays'
 
 # Challenges (auto-detected from git: commits with fix/revert/bug/error)
 challenges:

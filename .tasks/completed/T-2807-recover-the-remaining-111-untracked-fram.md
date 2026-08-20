@@ -10,7 +10,7 @@ owner: agent
 horizon: null
 tags: [governance, framework-recoverability, g-019, g-062, directive-2]
 components: [scripts/check-framework-tracking-drift.sh, tests/framework-dangling-ref-fixtures.sh]
-related_tasks: [T-2689, T-2692, T-2698, T-2803, T-2806, T-1845, T-2052]
+related_tasks: [T-2814, T-2817, T-2822, T-2803, T-2806, T-1845, T-2052]
 created: 2026-08-20
 last_update: 2026-08-20T15:14:34Z
 date_finished: 2026-08-20T15:14:34Z
@@ -76,7 +76,7 @@ this session's commits scanned?" deserves an answer rather than an assumption.
 
 ### Why nothing reported it
 
-The same asymmetry as T-2692. In the main checkout the files are present on disk, so every
+The same asymmetry as T-2817. In the main checkout the files are present on disk, so every
 scanner fires and everything is green; they are merely untracked, which no surface mentions. A
 worktree materialises only tracked files, so the scanners are silently absent — and the hook
 **fails open by design**: it gates on `-f` and skips, with a note in commit output that nobody
@@ -84,7 +84,7 @@ reads. That leniency is deliberate (T-2061, and the T-2052 install-time chmod ga
 around), and it is correct for a missing optional tool. It is the wrong behaviour when the file
 is missing because it was never committed, and the hook cannot tell those apart.
 
-The T-2692 DANGLING axis structurally cannot see this class: it matches `source`/`exec`-position
+The T-2817 DANGLING axis structurally cannot see this class: it matches `source`/`exec`-position
 references in tracked shell, and a hook named as a path inside `settings.json` is neither. That
 blind spot is real and was filed upstream at `framework:pickup` offset 21; closing it locally is
 T-2808, kept separate so this task stays a reviewable repair.
@@ -94,7 +94,7 @@ T-2808, kept separate so this task stays a reviewable repair.
 Recover the remaining files the same way T-2806 did: enumerate from the checkout that has them,
 move the bytes across through a **TermLink session rooted there** (T-559 project boundary, so
 that checkout's governance runs in its own process), scan, then commit here where the narrowed
-`.gitignore` (T-2698) permits tracking.
+`.gitignore` (T-2822) permits tracking.
 
 **Scan before committing, and treat the scan as advisory input rather than a verdict.** 111
 files from another disk is exactly where a machine-local path or a credential enters permanent
@@ -115,7 +115,7 @@ acceptance criterion is that every hook script `settings.json` names resolves on
 
 Recovers files that already exist in the sibling checkout. Does **not** write or modify any
 framework code — every byte committed is bytes that already run today. Does **not** add the
-settings.json-reference detection axis (T-2808). Does **not** widen `.gitignore` beyond T-2698.
+settings.json-reference detection axis (T-2808). Does **not** widen `.gitignore` beyond T-2822.
 Does **not** touch `.context/` or `.tasks/`, which are project data, not framework source.
 
 ## Acceptance Criteria

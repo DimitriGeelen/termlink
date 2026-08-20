@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# check-verification-pipefail.sh — T-2693.
+# check-verification-pipefail.sh — T-2818.
 #
 # Repo-wide auditor for the L-387 SIGPIPE shape inside task `## Verification` blocks.
 #

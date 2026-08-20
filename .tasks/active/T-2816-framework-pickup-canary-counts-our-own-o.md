@@ -1,5 +1,6 @@
 ---
-id: T-2691
+id: T-2816
+renumbered_from: T-2691  # T-2823 cross-branch collision
 name: "framework-pickup canary counts our own outbound filings as unprocessed inbound"
 description: >
   The canary's stated contract is to surface filings from PEER projects, but it counts
@@ -40,7 +41,7 @@ cost_estimate_proposed:
     rubric_sha: e4a00f38e801
 ---
 
-# T-2691: framework-pickup canary counts our own outbound filings
+# T-2816: framework-pickup canary counts our own outbound filings
 
 ## Context
 
@@ -64,7 +65,7 @@ At the time of filing, 14 filings sit on the topic. Ten carry
 Pen (050-email-archive). Only offsets 0, 2, 3 and 7 are genuinely inbound.
 
 The perverse consequence: **filing a bug report upstream makes our own canary fire at us.**
-Posting T-2690 to `framework:pickup` this session immediately added another "unprocessed
+Posting T-2815 to `framework:pickup` this session immediately added another "unprocessed
 filing" that termlink is instructed to go and process.
 
 ### Why this is worse than noise
@@ -86,7 +87,7 @@ canary's own contract — that what it reports is what its header claims it repo
 
 1. Self-attribution is an **explicit constant**, `FW_PICKUP_SELF_PROJECT` (default
    `010-termlink`), env-overridable. Deliberately **not** derived from `basename $PWD` —
-   that is precisely the T-2690 defect filed upstream this session, and repeating it here
+   that is precisely the T-2815 defect filed upstream this session, and repeating it here
    would make the filter silently wrong inside a worktree.
 2. Attribution order: `from_project` → `source_project` → `agent_id` → unknown.
 3. A filing attributed to self is classified `own`: counted and reported, but **not firing**.
@@ -104,7 +105,7 @@ canary's own contract — that what it reports is what its header claims it repo
 - [x] Unknown-attribution filings still fire (fail-safe direction proven by fixture)
 - [x] Suppression count is always reported, never silent
 - [x] JSON envelope carries `own_count` alongside `unprocessed`
-- [x] Self-identity is not derived from a path basename (T-2690 class not repeated)
+- [x] Self-identity is not derived from a path basename (T-2815 class not repeated)
 - [x] Regression fixtures cover: own-only topic reads healthy; inbound fires; unknown fires;
       mixed reports both counts
 - [x] Fixtures are host-independent (PL-213 test seam, no live hub required)
@@ -116,7 +117,7 @@ bash tests/pickup-canary-selffilter-fixtures.sh
 ## Decisions
 
 **Constant, not derived, self-identity.** A derived slug (`basename $PROJECT_ROOT`) would be
-wrong in a worktree and would silently disable the filter — the same class as T-2690. An
+wrong in a worktree and would silently disable the filter — the same class as T-2815. An
 explicit constant fails in the safe direction: if the project is ever renamed, the filter
 stops matching and our own posts merely become visible again (noisy, not dangerous).
 
@@ -124,11 +125,11 @@ stops matching and our own posts merely become visible again (noisy, not dangero
 canary blind to any peer that omits the metadata key — reintroducing G-063 for exactly the
 least-careful callers. Firing on unknown is the fail-safe direction.
 
-**Fixed here rather than filed upstream.** Unlike T-2690, this script is termlink's own
+**Fixed here rather than filed upstream.** Unlike T-2815, this script is termlink's own
 (`scripts/`), so it is ours to fix.
 
 ## Notes
 
-Our own filings should consistently set `metadata.from_project`. The T-2690 filing posted
+Our own filings should consistently set `metadata.from_project`. The T-2815 filing posted
 this session used `agent_id` instead, which is why it shows `from=?`. The attribution chain
 added here accepts `agent_id` as a fallback so both conventions attribute correctly.

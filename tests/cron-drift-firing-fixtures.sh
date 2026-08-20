@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# T-2697 — fixtures for check-cron-install-drift's firing behaviour.
+# T-2821 — fixtures for check-cron-install-drift's firing behaviour.
 #
 # Pins the property the change exists for: an installed crontab that differs from
 # its git source must FIRE, not print "healthy" and exit 0. And pins the escape
@@ -49,11 +49,11 @@ run_check() {
         bash "$CHECK" "$@" 2>&1
 }
 
-echo "T-2697 cron-drift firing fixtures"
+echo "T-2821 cron-drift firing fixtures"
 echo ""
 
 # ---------------------------------------------------------------------------
-# 1. THE LOAD-BEARING ONE. Drift must fire by default. Before T-2697 this exact
+# 1. THE LOAD-BEARING ONE. Drift must fire by default. Before T-2821 this exact
 #    input printed "healthy" and exited 0 — 21 times over, on the real host.
 # ---------------------------------------------------------------------------
 D="$TMP/t1"; make_case "$D" "alpha" "0 7 * * * root echo a" "0 7 * * * root echo DIFFERENT"
@@ -100,7 +100,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 4. --lenient restores the pre-T-2697 behaviour for anyone who depended on it.
+# 4. --lenient restores the pre-T-2821 behaviour for anyone who depended on it.
 # ---------------------------------------------------------------------------
 D="$TMP/t4"; make_case "$D" "alpha" "0 7 * * * root echo a" "0 7 * * * root echo DIFFERENT"
 out=$(run_check "$D" --lenient); rc=$?
@@ -188,6 +188,6 @@ fi
 
 echo ""
 echo "----------------------------------------"
-printf 'T-2697 fixtures: %d passed, %d failed\n' "$PASS" "$FAIL"
+printf 'T-2821 fixtures: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" = "0" ] || exit 1
 exit 0

@@ -10,7 +10,7 @@
 #
 # Until this file existed, "what have we changed locally, and did it land
 # upstream?" could only be answered by reading 124 commit messages. It was found
-# the hard way: T-2687 was about to be closed as complete with 12/12 fixtures
+# the hard way: T-2813 was about to be closed as complete with 12/12 fixtures
 # green, and its fix — to vendored `lib/pickup.sh` — had no upstream filing and
 # was one `fw update` from deletion. A re-vendor was being proposed on another
 # branch at that moment (T-2705).
@@ -75,7 +75,7 @@ last_vendor_event:
 #   7. Update `last_vendor_event` here.
 
 divergences:
-  - task: T-2687
+  - task: T-2813
     commit: ed60a64ea
     date: 2026-08-20
     file: .agentic-framework/lib/pickup.sh
@@ -132,7 +132,7 @@ not_divergence:
     tasks: [T-2806, T-2807, T-2811]
     reason: >
       These ADD files that already exist upstream but were untracked here (the
-      T-2689 blanket .gitignore). A re-vendor restores them from upstream, so
+      T-2814 blanket .gitignore). A re-vendor restores them from upstream, so
       erasure costs nothing. They are recovery of our own tracking, not a change
       to framework behaviour.
   - kind: upstream-port

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tests/framework-tracking-drift-fixtures.sh — T-2689 regression fixtures.
+# tests/framework-tracking-drift-fixtures.sh — T-2814 regression fixtures.
 #
 # Pins scripts/check-framework-tracking-drift.sh against a scratch git repo:
 #
@@ -54,7 +54,7 @@ echo "tracked" > "$FW/lib/tracked-lib.sh"
 git add -f fw/bin/fw fw/lib/tracked-lib.sh
 git commit -qm fixture
 
-echo "T-2689 framework-tracking-drift fixtures"
+echo "T-2814 framework-tracking-drift fixtures"
 echo
 
 run() { bash "$SCRIPT" --root fw "$@" 2>&1; }

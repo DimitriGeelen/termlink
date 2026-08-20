@@ -10,7 +10,7 @@ owner: agent
 horizon: null
 tags: [governance, episodic-memory, g-019, g-063, directive-2]
 components: []
-related_tasks: [T-2800, T-2801, T-2561, T-2693, T-2231]
+related_tasks: [T-2800, T-2801, T-2561, T-2818, T-2231]
 created: 2026-08-20T14:45:29Z
 last_update: 2026-08-20T15:03:01Z
 date_finished: 2026-08-20T15:03:01Z
@@ -155,7 +155,7 @@ bash scripts/check-episodic-parse.sh --dir /nonexistent-episodic-dir >/dev/null 
 - **Chose:** All 29 fire; the class carries the remediation.
 - **Why:** Calling 22 files healthy because their content is intact would be false — they are
   invisible to the reader either way. But firing on 29 undifferentiated files invites exactly
-  the fatigue the pipefail auditor (T-2693) documented, where a gate that blocks incorrectly
+  the fatigue the pipefail auditor (T-2818) documented, where a gate that blocks incorrectly
   teaches people to force past it. Classifying keeps the count honest and the response cheap.
 
 ### 2026-08-20 — Detect, never repair

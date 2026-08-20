@@ -76,7 +76,7 @@ if [ "$rc" = "1" ]; then ok "PEM key: exits 1"
 else bad "PEM key exits 1" "rc=$rc: $out"; fi
 if echo "$out" | grep -q "REFUSED"; then ok "PEM key: step is REFUSED"
 else bad "PEM key step refused" "$out"; fi
-if ! ( cd "$D" && git log --oneline | grep -q 'T-2694' ); then ok "PEM key: nothing was committed"
+if ! ( cd "$D" && git log --oneline | grep -q 'T-2819' ); then ok "PEM key: nothing was committed"
 else bad "nothing committed on refusal" "a commit was made anyway"; fi
 if [ -z "$( cd "$D" && git diff --cached --name-only )" ]; then ok "PEM key: nothing left staged"
 else bad "nothing left staged" "$( cd "$D" && git diff --cached --name-only )"; fi

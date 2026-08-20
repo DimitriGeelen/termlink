@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# T-2698 — fixtures for the .context/working gitignore scope.
+# T-2822 — fixtures for the .context/working gitignore scope.
 #
 # Pins the property the change exists for: a static-check allowlist under
 # .context/working/ must be trackable by a plain `git add`, so the governance
@@ -46,7 +46,7 @@ OLD_RULE='.context/working/'
 NEW_RULE='.context/working/*
 !.context/working/.*-allowlist'
 
-echo "T-2698 .context/working gitignore-scope fixtures"
+echo "T-2822 .context/working gitignore-scope fixtures"
 echo ""
 
 # ---------------------------------------------------------------------------
@@ -139,6 +139,6 @@ fi
 
 echo ""
 echo "----------------------------------------"
-printf 'T-2698 fixtures: %d passed, %d failed\n' "$PASS" "$FAIL"
+printf 'T-2822 fixtures: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" = "0" ] || exit 1
 exit 0

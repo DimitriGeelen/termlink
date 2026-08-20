@@ -1,5 +1,6 @@
 ---
-id: T-2697
+id: T-2821
+renumbered_from: T-2697  # T-2823 cross-branch collision
 name: "check-cron-install-drift reports healthy while crontabs diverge from git"
 description: >
   DRIFT is a non-firing WARNING by default, so the check exits 0 and prints "healthy"
@@ -46,7 +47,7 @@ cost_estimate_proposed:
     rubric_sha: e4a00f38e801
 ---
 
-# T-2697: `check-cron-install-drift` reports healthy while crontabs diverge from git
+# T-2821: `check-cron-install-drift` reports healthy while crontabs diverge from git
 
 ## Context
 
@@ -175,7 +176,7 @@ acknowledged one tolerates, so the firing path cannot be quietly disabled again.
 ### 2026-08-20 — Rebased onto governance-canary-signal's version of this file
 
 - **Context:** `worktree-governance-canary-signal` independently found the same defect and
-  closed it as their T-2690 on 2026-08-18, two days before this session. They reached a
+  closed it as their T-2815 on 2026-08-18, two days before this session. They reached a
   different conclusion: keep drift non-firing (honouring T-2561's original intent) and fix
   only the summary WORD, so the line now reads `DRIFT (...)` instead of `healthy (...)`.
 - **Chose:** Take their file as the base and apply the firing change on top, preserving

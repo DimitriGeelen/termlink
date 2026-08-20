@@ -22,9 +22,9 @@
 # ACKNOWLEDGED (drift allowlisted with a reason) reported, not firing;
 # OK (present + byte-identical).
 #
-# T-2697 (building on T-2690's honest-wording fix below). Drift was a non-firing
+# T-2821 (building on T-2815's honest-wording fix below). Drift was a non-firing
 # warning, on the reasoning that a host-local edit should not paint the check
-# permanently red. T-2690 corrected the summary WORD but deliberately kept the
+# permanently red. T-2815 corrected the summary WORD but deliberately kept the
 # exit code. The remaining cost: exit 0 is what automation and a skimming human
 # both read, and the state it was reporting was 21 of 24 installed crontabs
 # diverged from source — carrying a real fix nobody had committed. A warning
@@ -34,7 +34,7 @@
 # T-2666 silent-exit, T-2672 busy-spin) had already settled the same tension the
 # other way: fire by default, and acknowledge a confirmed-safe instance in an
 # allowlist with a cited reason. This check now follows that convention.
-# `--lenient` restores the pre-T-2697 behaviour; `--strict` is kept as an accepted
+# `--lenient` restores the pre-T-2821 behaviour; `--strict` is kept as an accepted
 # alias of the new default so existing invocations keep working.
 #
 # Exit codes: 0 healthy · 1 firing (missing, or unacknowledged drift) · 2 tooling error
@@ -52,7 +52,7 @@ usage() {
     cat <<'EOF'
 
 Usage: check-cron-install-drift.sh [OPTIONS]
-  --lenient    Do NOT fire on DRIFT (pre-T-2697 behaviour); MISSING still fires
+  --lenient    Do NOT fire on DRIFT (pre-T-2821 behaviour); MISSING still fires
   --strict     Accepted alias of the default (kept for back-compat)
   --json       Emit a JSON envelope
   --quiet      Print only on firing (cron-friendly)
@@ -75,7 +75,7 @@ EOF
 while [ $# -gt 0 ]; do
     case "$1" in
         --lenient) LENIENT=1; shift ;;
-        # T-2697: --strict was the flag that made DRIFT fire; that is now the
+        # T-2821: --strict was the flag that made DRIFT fire; that is now the
         # default, so it is a no-op. Kept accepted rather than rejected — it is in
         # the docs and in muscle memory, and turning a documentation lag into an
         # unknown-arg failure helps nobody.
@@ -185,7 +185,7 @@ if [ "$skip_n" -gt 0 ] && [ "$QUIET" -ne 1 ]; then
     for s in "${skipped[@]}"; do echo "  skipped: $s"; done
 fi
 if [ "$fired" -eq 0 ]; then
-    # Word the summary honestly (T-2690). T-2697 then made unacknowledged drift
+    # Word the summary honestly (T-2815). T-2821 then made unacknowledged drift
     # fire outright, so this branch is now reached only under --lenient or with a
     # clean tree — but the wording rule still holds and still matters: "healthy" is
     # claimed only when nothing is missing and nothing drifts unacknowledged. It
