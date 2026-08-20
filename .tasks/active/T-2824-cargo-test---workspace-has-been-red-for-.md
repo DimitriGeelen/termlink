@@ -1,8 +1,13 @@
 ---
 id: T-2824
-name: "cargo test --workspace has been red for 8 days — MCP termlink_topics lost parity with the CLI at T-2624"
+name: "cargo test --workspace has been red for 8 days — MCP termlink_topics lost parity
+  with the CLI at T-2624"
 description: >
-  parity_topics fails: CLI `topics --json` emits sessions_probed/skipped/unreachable/bad_result (added by T-2624, 2026-08-12, correctly — no silent partial inventory) and the MCP termlink_topics tool was never updated to match. Pre-existing, not from this branch: zero files touched in termlink-mcp or termlink-cli here. The parity harness is doing its job; nobody was running it.
+  parity_topics fails: CLI `topics --json` emits sessions_probed/skipped/unreachable/bad_result
+  (added by T-2624, 2026-08-12, correctly — no silent partial inventory) and the MCP
+  termlink_topics tool was never updated to match. Pre-existing, not from this branch:
+  zero files touched in termlink-mcp or termlink-cli here. The parity harness is doing
+  its job; nobody was running it.
 
 status: started-work
 workflow_type: build
@@ -12,8 +17,32 @@ tags: [mcp, parity, directive-2]
 components: []
 related_tasks: [T-2624]
 created: 2026-08-20T19:30:47Z
-last_update: 2026-08-20T22:12:34Z
-date_finished: null
+last_update: '2026-08-20T22:14:47Z'
+date_finished:
+bvp_scores_proposed:
+  - ts: '2026-08-20T22:14:42Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 0
+      D2: 0
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=0 (no-signal); D2=0 (no-signal); D3=0 (no-signal); D4=3 
+      (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-20T22:14:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2824: MCP termlink_topics lost parity with the CLI

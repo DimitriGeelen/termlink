@@ -150,8 +150,27 @@ classify() {
             status="STALE"
         elif [ "$log_size" = "0" ]; then
             status="HEALTHY"
-        elif [ "$log_mtime" -gt "$heartbeat_mtime" ]; then
-            # Log entries newer than heartbeat: cron fired AND found problems.
+        elif [ "$log_mtime" -ge "$heartbeat_mtime" ]; then
+            # Log at-or-newer than heartbeat: cron fired AND found problems.
+            #
+            # T-2826: this was `-gt`, and equality is the COMMON case, not an
+            # edge one. Every canary touches its heartbeat near the TOP of the
+            # run (T-1723 — prove it ran even on a healthy cycle) and the
+            # crontab appends its stdout to the log when it finishes. A canary
+            # whose work takes under a second writes both in the SAME second,
+            # so strict `>` was false and it was reported HEALTHY while firing.
+            #
+            # Measured on the live checkout when this was found: charter-drift
+            # and waker-liveness both had log-minus-heartbeat = 0, both were
+            # actively firing (40 off-charter tools; rail dark with 4 dead
+            # wakers), and the summary line read "0 firing". Slower canaries got
+            # a 1s delta and classified correctly, which is why it survived —
+            # it appeared to work, for reasons unrelated to whether anything
+            # was wrong.
+            #
+            # Equality is not an approximation: a healthy run writes NOTHING to
+            # the log, so its log keeps an old mtime while the heartbeat
+            # advances. Only a run that actually appended can tie.
             status="FIRING"
         else
             # Log non-empty but no new entries since last heartbeat: prior
