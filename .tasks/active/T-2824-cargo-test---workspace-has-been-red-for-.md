@@ -12,7 +12,7 @@ tags: [mcp, parity, directive-2]
 components: []
 related_tasks: [T-2624]
 created: 2026-08-20T19:30:47Z
-last_update: 2026-08-20T22:00:11Z
+last_update: 2026-08-20T22:01:36Z
 date_finished: null
 ---
 
