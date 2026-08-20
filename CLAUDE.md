@@ -1058,7 +1058,42 @@ complementary axes**, because each is blind exactly where the other fires:
 Axis A alone reports a worktree as clean while `fw bvp` is broken in it — that is how
 T-2692 was found, the detector saying "no drift" seconds after the tool it protects failed
 in the same directory. Axis B is the axis that matters for anyone who did not create the
-drift. **Axis B's anchor is deliberately narrow**: matching every `"$FRAMEWORK_ROOT/..."`
+drift.
+
+**What DANGLING actually costs (T-2806).** The known price was "`fw bvp` fails in a clean
+clone". It is worse than that: `lib/evolution_log.sh:52` sources `lib/arc_membership.sh`
+**unguarded**, and `update-task.sh::check_evolution_log` guards only the outer file — so with
+`arc_membership.sh` absent, **`fw task update --status work-completed` exits 1 AFTER passing
+every gate**. The run prints all ACs checked and all verification commands PASS, then dies and
+leaves the task `started-work` in `active/`. Scoped to `workflow_type: build`, which is why
+inception and refactor tasks finalize fine and the failure looks intermittent. Measured when
+first checked: **24 active build tasks fully ticked and stuck**, including every task two
+consecutive sessions had completed. Note this produces the same end state as the G-066
+finalization-bypass class (work done, register disagrees) by a different route, so the T-2290
+canary — which gates on `status != work-completed` in `completed/` — structurally cannot see
+it: these files never leave `active/`.
+
+**Axis B's count is a LOWER BOUND, and should be read as one.** Recovering the two reported
+files exposed a third, `agents/termlink/bvp-estimator/estimator.py`, which was invisible while
+its parent was missing — dependencies chain, so expect to converge over a couple of rounds
+rather than one. More importantly, axis B can only see `source`/`exec`-position references in
+TRACKED code: a hook that `settings.json` invokes by path is a real dependency that nothing
+static can detect. When T-2806 measured the whole subtree the true figure was **113 untracked
+files out of 326** on disk under `lib/ bin/ policy/ agents/` — 35% of the framework's
+executable surface, 19 of them hook scripts — against the 2 axis B had named.
+
+**The deadlock, and how T-2806 broke it.** The checkout that HAS the files cannot `git add`
+them (the blanket rule is still in force there; `git add` on an ignored path exits 1 with its
+message on **stderr** — T-2803 reported false success for a while by reading stdout only). The
+checkout with the corrected rule does not HAVE the files, because they were never committed and
+there is nothing to pull. Neither finishes alone. The break is to move the bytes across — via a
+session rooted in the other checkout, so T-559's project boundary is respected and that
+checkout's own governance runs in its own process — then commit where the corrected rule
+applies. **Scan before committing:** framework files from another disk can carry machine-local
+paths or credentials, and a commit is permanent. T-2806's scan flagged a bare 64-hex in
+`policy/designer-pin.yaml` which on inspection is a `sha256:` reproducibility pin, not a secret
+— a true pattern match and a false risk, which is exactly the judgement the scan exists to
+surface rather than resolve on its own. **Axis B's anchor is deliberately narrow**: matching every `"$FRAMEWORK_ROOT/..."`
 occurrence yielded 47 hits of which ~44 were noise (bare `$VAR` interpolations,
 `path/to/script.sh` usage examples, and the framework's own `tests/`/`tools/`/`.git/` which
 a vendored copy legitimately omits); restricting to source-or-execute position

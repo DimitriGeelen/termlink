@@ -4,16 +4,16 @@ name: "Episodic memory has no reader: 29 of 2259 files do not parse, and nothing
 description: >
   Build a classifying parse check over .context/episodic/*.yaml. Inbound pickup filing (offset 18, 832-Workflow-designer) reports a generator escaping defect and notes the more valuable half is the blindness: nothing ever reads the store. Measured here: 29/2259 unparseable, four distinct corruption classes, oldest dead since March.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [governance, episodic-memory, g-019, g-063, directive-2]
 components: []
 related_tasks: [T-2800, T-2801, T-2561, T-2693, T-2231]
 created: 2026-08-20T14:45:29Z
-last_update: 2026-08-20T14:52:12Z
-date_finished: null
+last_update: 2026-08-20T15:03:01Z
+date_finished: 2026-08-20T15:03:01Z
 ---
 
 # T-2805: Episodic memory has no reader
@@ -173,3 +173,19 @@ bash scripts/check-episodic-parse.sh --dir /nonexistent-episodic-dir >/dev/null 
   (`except yaml.YAMLError: continue`) or the audit's existence-only check. Those are the
   mechanism. Sending them back is what makes the topic bidirectional rather than a sink —
   the G-063 failure the framework-pickup canary exists to prevent.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-aef1a505
+- **Timestamp:** 2026-08-20T15:03:04Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** yes
+- **Findings:** none
+
+- **Layer-1 escalations:** 1
+  1. **destructive-action** (high) — Destructive operation in verification or AC
+     - matched: `rm -f`
+
+### 2026-08-20T15:03:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

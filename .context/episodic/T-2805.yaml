@@ -1,0 +1,87 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2805: Episodic memory has no reader: 29 of 2259 files do not parse, and nothing would ever notice
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-20T15:03:07Z
+# ============================================================================
+
+task_id: T-2805
+task_name: "Episodic memory has no reader: 29 of 2259 files do not parse, and nothing would ever notice"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-20T14:45:29Z
+completed: 2026-08-20T15:03:01Z
+duration_days: 0
+updates_count: 0
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-episodic-parse.sh` exists, is executable, and carries the'
+  - 'Asserts the real consumer''s property: `safe_load` to a mapping, matching'
+  - 'Classifies each unreadable file as `CORRUPT-ESCAPE` / `CORRUPT-OTHER` /'
+  - 'Fails **closed**: missing python3, missing PyYAML, or an absent directory exit **2**,'
+  - 'Exit codes: 0 = all readable, 1 = one or more unreadable, 2 = tooling'
+  - '`--json` carries `scanned`, `unreadable_count`, per-class counts, and `findings[]`'
+  - '`--dir` / `EPISODIC_DIR` retarget the scan at a fixture tree (PL-213)'
+  - 'Run against this repo it reports the 29, split 4 / 3 / 8 / 14 across the classes'
+  - 'A fixture suite covers each class, both fail-closed paths, and a clean tree'
+  - 'The upstream filing is posted to `framework:pickup` with the reader defect'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-08-20 — Assert the consumer''s property, not a friendlier one'
+    chose: '`safe_load` into a mapping — byte-identical to what `get_episodic_tags` does.'
+    rationale: 'A check may only claim a file is readable if the code that reads it can read it.'
+  - decision: '2026-08-20 — Fire on the legacy classes too, but name them separately'
+    chose: 'All 29 fire; the class carries the remediation.'
+    rationale: 'Calling 22 files healthy because their content is intact would be false — they are'
+  - decision: '2026-08-20 — Detect, never repair'
+    chose: 'No auto-regeneration.'
+    rationale: 'Regenerating a `CORRUPT-ESCAPE` file before the vendored generator is fixed'
+  - decision: '2026-08-20 — Report the two defects upstream that the filing had not reached'
+    chose: 'File back on `framework:pickup` rather than only consuming the report.'
+    rationale: 'The reporting project found the generator bug and correctly identified the'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 17 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [governance, episodic-memory, g-019, g-063, directive-2]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 17
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2805-episodic-memory-has-no-reader-29-of-2259.md
+generated_by: context-agent-hybrid
