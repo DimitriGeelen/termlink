@@ -139,3 +139,17 @@ bypasses:
   command_hash: 432b0c6c61b490b97c5c3352ac362b51d2632ed3f6d293cd263e42b58ae89233
   authorized_by: human
   mechanism: fw tier0 approve
+- timestamp: '2026-08-20T11:41:55Z'
+  tier: 0
+  risk: 'HOOK BYPASS: --no-verify skips ALL git hooks (task ref, inception gate, audit)'
+  command_preview: timeout 120 git push --no-verify origin worktree-t2687-pickup-failopen
+    2>&1 | tail -20
+  command_hash: 38536851bdf37078144adee9aac6a1942f5d9bee8ccd04c61e2d9ee5afb6102b
+  authorized_by: human
+  mechanism: fw tier0 approve
+  - timestamp: 2026-08-20T11:42:27Z
+    action: "T-2803: block instead of falsely reporting success when the ignore rule has not reached the checkout"
+    commit: 72f59a902
+    authorized_by: human
+    reason: "T-2690 pre-push audit cron-drift FAIL on worktree-derived unit name; operator-approved Tier 0"
+    retroactive_task: null
