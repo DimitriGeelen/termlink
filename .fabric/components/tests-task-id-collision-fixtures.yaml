@@ -1,0 +1,21 @@
+id: tests/task-id-collision-fixtures.sh
+name: task-id-collision-fixtures
+type: script
+subsystem: governance
+location: tests/task-id-collision-fixtures.sh
+tags: [governance, fixtures, concurrency, T-2800]
+
+purpose: >-
+  Fixtures for check-task-id-collisions.sh (T-2800). Builds a scratch git repo with real branches; pins both axes and the false-positive guard that a cherry-picked task (same ID, same file) must not fire.
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-08-20
+created_by: T-2800

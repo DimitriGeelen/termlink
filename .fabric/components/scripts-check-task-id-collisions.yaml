@@ -1,0 +1,21 @@
+id: scripts/check-task-id-collisions.sh
+name: check-task-id-collisions
+type: script
+subsystem: governance
+location: scripts/check-task-id-collisions.sh
+tags: [governance, concurrency, task-system, duplicate-work, T-2800, T-229]
+
+purpose: >-
+  Deploy-time cross-branch check (T-2800). Axis A fires on a task ID claimed by more than one branch for different tasks; axis B warns on near-duplicate task titles across branches, scored on shared rare terms. Exists because T-229 renumbered colliding IDs in March 2026, routed the counter fix upstream as G-007, and nothing landed - by August twelve IDs collided and three agents had duplicated the same two fixes.
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-08-20
+created_by: T-2800

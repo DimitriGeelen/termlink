@@ -859,6 +859,57 @@ The check flagged **its own author** one commit after shipping — a `... | wc -
 line in T-2694's Verification block took active findings 150 → 151. That is the intended
 behaviour and the best available evidence it is load-bearing.
 
+### Cross-branch task-ID collision + duplicate-work check (T-2800)
+
+Every worktree allocates task IDs by scanning its **own** `.tasks/` for the highest ID and
+incrementing. Worktrees materialise only their own branch's files, so no branch can see any
+other branch's allocations — and the framework creates those worktrees itself (bgIsolation),
+so this is a framework-made race, not an operator oversight.
+
+It was understood in March 2026. T-229 renumbered six colliding tasks by hand and recorded
+the cause verbatim — *"task counter not safe for concurrent work"* — routing the fix upstream
+as G-007. Nothing landed. By August 2026 twelve IDs collided across three branches, and
+**three agents had independently implemented fixes for the same two defects** (the canary
+stderr sink and the untracked static-check allowlists). The duplicate-ID check T-229 left
+behind reads a single working tree and is structurally incapable of seeing any of it; it had
+been passing cleanly throughout.
+
+`scripts/check-task-id-collisions.sh` is a **deploy-time / ad-hoc check, NOT a cron canary** —
+same tier as `check-cron-install-drift.sh`. Two axes:
+
+- **Axis A — COLLIDING IDS.** An ID claimed by two or more branches beyond the merge base.
+  **FIRES** (exit 1), printing each branch's filename so a cherry-pick (same ID, *same* task —
+  not reported) is distinguishable from the real defect (same ID, different tasks).
+- **Axis B — NEAR-DUPLICATE TITLES.** Titles across *different* branches sharing rare terms.
+  **WARNS, never fires.** This is the axis that matters — renumbering is mechanical, three
+  agents solving one problem is not recoverable — but title similarity is a judgement, and a
+  heuristic that blocks on a judgement gets switched off the first time it is wrong.
+
+Axis B scores on **shared rare words, not set overlap**, for two reasons found the hard way.
+The filename slug is truncated at ~40 chars, which is exactly where the discriminating words
+live (`blanket-contextworking-gitignore-makes-s` and `static-check-allowlists-live-under-a-git`
+describe the same defect and share no token), so titles are read from the `name:` frontmatter.
+And plain Jaccard is the wrong measure even on full titles — the real August pair scores
+~0.19, and any threshold low enough to catch it drowns in noise. What identifies it is that
+both say ALLOWLISTS and STATIC, terms rare across the corpus. Tunables:
+`TASK_COLLISION_RARE_DF` (default 4 — a word in ≤4 titles counts as rare) and
+`TASK_COLLISION_MIN_SHARED` (default 2 rare words to report a pair).
+
+Exit codes: 0 clean · 1 colliding ID(s) · 2 tooling (not a git repo / bad base ref — never a
+false clean). `--json` carries both axes with separate counts; `--quiet` prints only when
+axis A fires; `--no-titles` skips axis B (and the summary then says so rather than claiming
+titles are clean); `--base REF` sets the merge base (default `main`). Test hooks:
+`TASK_COLLISION_BASE`, `TASK_COLLISION_BRANCHES`, `TASK_COLLISION_SIMILARITY`. Fixtures:
+`bash tests/task-id-collision-fixtures.sh` (17 assertions, scratch repo with real branches).
+
+**Run it before starting work and before a merge.** On firing, renumber before merging (T-229
+is the worked example) and pick new IDs above the highest claimed on ANY branch — note that
+`fw task create` has **no `--id` flag**, so the rename is manual. This task hit that itself:
+the allocator handed it T-2699, which charter-review already held, so it was created and then
+renamed to T-2800 by hand. The check detects the collision; it cannot prevent it, because
+allocation is vendored framework code — filed upstream per G-062 at `framework:pickup`
+offsets 15–16.
+
 ### Vendored-framework recoverability check (T-2689 + T-2692)
 
 `.gitignore:21` carries a blanket `.agentic-framework` rule labelled "Framework symlink
