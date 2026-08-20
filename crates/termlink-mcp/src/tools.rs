@@ -13877,22 +13877,52 @@ impl TermLinkTools {
         let timeout = std::time::Duration::from_secs(5);
         let mut session_topics: std::collections::BTreeMap<String, Vec<String>> = std::collections::BTreeMap::new();
 
+        // T-2824: classify every probe outcome explicitly instead of letting all
+        // four failure modes fall through one chained `if let`. The previous form
+        //
+        //     if let Ok(Ok(resp)) = timeout(..).await
+        //         && let Ok(result) = unwrap_result(resp)
+        //         && let Some(topics) = result["topics"].as_array()
+        //
+        // swallowed a timeout, a transport error, an error response and a missing
+        // `topics` array identically and silently, so a caller received a topic
+        // inventory with no way to know it was PARTIAL. T-2624 fixed exactly this
+        // on the CLI side; the MCP tool was never brought along, which left
+        // `cargo test --workspace` red on `parity_topics` for 8 days.
+        //
+        // The arms mirror the CLI's `TopicsProbe` match (events.rs::cmd_topics)
+        // one-for-one. Duplicated rather than shared: the CLI's helpers live in
+        // termlink-cli and the convention for tiny pure helpers is duplication
+        // over a cross-crate dep (T-2069). The parity test is what keeps the two
+        // copies honest — it compares the OUTPUTS, not the implementations.
+        let sessions_probed = registrations.len();
+        let mut sessions_unreachable = 0usize;
+        let mut sessions_bad_result = 0usize;
+
         for reg in &registrations {
             let rpc_future = client::rpc_call(reg.socket_path(), "event.topics", serde_json::json!({}));
-            if let Ok(Ok(resp)) = tokio::time::timeout(timeout, rpc_future).await
-                && let Ok(result) = client::unwrap_result(resp)
-                && let Some(topics) = result["topics"].as_array()
-            {
-                let topic_list: Vec<String> = topics
-                    .iter()
-                    .filter_map(|t| t.as_str().map(String::from))
-                    .collect();
-                if !topic_list.is_empty() {
-                    session_topics.insert(reg.display_name.clone(), topic_list);
-                }
+            match tokio::time::timeout(timeout, rpc_future).await {
+                Ok(Ok(resp)) => match client::unwrap_result(resp) {
+                    Ok(result) => match result["topics"].as_array() {
+                        Some(topics) => {
+                            let topic_list: Vec<String> = topics
+                                .iter()
+                                .filter_map(|t| t.as_str().map(String::from))
+                                .collect();
+                            if !topic_list.is_empty() {
+                                session_topics.insert(reg.display_name.clone(), topic_list);
+                            }
+                        }
+                        None => sessions_bad_result += 1,
+                    },
+                    Err(_) => sessions_bad_result += 1,
+                },
+                // Transport error or timeout — the session did not answer.
+                Ok(Err(_)) | Err(_) => sessions_unreachable += 1,
             }
         }
 
+        let sessions_skipped = sessions_unreachable + sessions_bad_result;
         let total: usize = session_topics.values().map(|v| v.len()).sum();
         let total_sessions = session_topics.len();
         let sessions: Vec<serde_json::Value> = session_topics
@@ -13905,6 +13935,12 @@ impl TermLinkTools {
             "sessions": sessions,
             "total_topics": total,
             "total_sessions": total_sessions,
+            // Partial-inventory signal, matching the CLI (T-2624): a consumer can
+            // now tell the topic set excludes sessions that timed out or errored.
+            "sessions_unreachable": sessions_unreachable,
+            "sessions_bad_result": sessions_bad_result,
+            "sessions_skipped": sessions_skipped,
+            "sessions_probed": sessions_probed,
         });
         serde_json::to_string_pretty(&result).unwrap_or_else(json_err)
     }

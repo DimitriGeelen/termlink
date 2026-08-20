@@ -2,175 +2,155 @@
 id: T-2824
 name: "cargo test --workspace has been red for 8 days — MCP termlink_topics lost parity with the CLI at T-2624"
 description: >
-  CAPTURED, not worked (landing session). parity_topics fails: CLI topics --json emits sessions_probed/skipped/unreachable/bad_result (added by T-2624, 2026-08-12, correctly — no silent partial inventory) and the MCP termlink_topics tool was never updated to match. Pre-existing, not from this branch: zero files touched in termlink-mcp or termlink-cli here. The parity harness is doing its job; nobody was running it. Fix = add the four fields to the MCP tool.
+  parity_topics fails: CLI `topics --json` emits sessions_probed/skipped/unreachable/bad_result (added by T-2624, 2026-08-12, correctly — no silent partial inventory) and the MCP termlink_topics tool was never updated to match. Pre-existing, not from this branch: zero files touched in termlink-mcp or termlink-cli here. The parity harness is doing its job; nobody was running it.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
-tags: []
+tags: [mcp, parity, directive-2]
 components: []
-related_tasks: []
-# arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
-#                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
-#                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
-#                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
+related_tasks: [T-2624]
 created: 2026-08-20T19:30:47Z
-last_update: 2026-08-20T19:30:47Z
+last_update: 2026-08-20T21:33:21Z
 date_finished: null
-# revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
-# revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
-# ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
-# bvp_scores:                     # confirmed per-driver scores 0-5, set by `fw bvp confirm` (T-1924).
-#                                 # Sovereignty boundary — only set after human or agent confirmation.
-#                                 # Shape: {D1: <int 0-5>, D2: <int 0-5>, D3: <int 0-5>, D4: <int 0-5>, [<free-driver-id>: <int>]...}
-# bvp_scores_proposed:            # estimator-proposed scores (T-1922 worker). Persists when ≥2 delta
-#                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
-# cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
-#                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2824: cargo test --workspace has been red for 8 days — MCP termlink_topics lost parity with the CLI at T-2624
+# T-2824: MCP termlink_topics lost parity with the CLI
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+Found by running the full suite during the landing pass. One failure out of ~2880:
+
+```
+thread 'parity_topics' panicked at crates/termlink-mcp/tests/parity.rs:220
+  MCP: {ok, sessions:[], total_sessions:0, total_topics:0}
+  CLI: {ok, sessions:[], total_sessions:0, total_topics:0,
+        sessions_probed:1, sessions_skipped:1, sessions_unreachable:1, sessions_bad_result:0}
+```
+
+**T-2624 (2026-08-12) was right.** It changed the CLI's `topics` loop from silently
+`continue`-ing past a session that timed out or returned garbage, to classifying each probe
+and reporting the counts — so a consumer can tell that the topic inventory is PARTIAL rather
+than complete. That is a Directive #2 fix.
+
+The MCP tool was not updated with it. Its loop is still the silent form:
+
+```rust
+if let Ok(Ok(resp)) = tokio::time::timeout(timeout, rpc_future).await
+    && let Ok(result) = client::unwrap_result(resp)
+    && let Some(topics) = result["topics"].as_array()
+{ ... }
+```
+
+Every failure mode — timeout, transport error, error response, missing `topics` array —
+falls through the same chained condition and vanishes. An agent calling `termlink_topics`
+gets a topic list with no way to know a session was skipped.
+
+**The workspace suite has therefore been red for 8 days** and nothing surfaced it. The parity
+harness exists precisely to catch this and it did; it just was not being run.
+
+## Approach
+
+Mirror the CLI's classification in the MCP handler. The CLI's `TopicsProbe` /
+`aggregate_topics_probes` helpers live in `termlink-cli`, and the established convention for
+small pure helpers is to duplicate rather than share across crates (T-2069, recorded in
+CLAUDE.md) — so the classification is written inline here, matching the CLI's arms exactly:
+
+| probe outcome | CLI arm | count |
+|---|---|---|
+| `Ok(Ok(resp))` → `unwrap_result` Ok → `topics` array present | `Topics` | contributes topics |
+| `topics` not an array, or `unwrap_result` Err | `BadResult` | `sessions_bad_result` |
+| timeout, or transport `Err` | `Unreachable` | `sessions_unreachable` |
+
+with `sessions_skipped = unreachable + bad_result` and `sessions_probed = registrations.len()`.
+
+## Scope boundary
+
+Adds the four counters to the MCP handler's main path. Does **not** touch the CLI. Does **not**
+change the MCP tool's existing fields. Does **not** reconcile the empty-registrations early
+return — see Decisions; that is a second, separate divergence which the parity test does not
+exercise and which cannot be fixed from the MCP side alone.
 
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
-
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-
-     ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
-     If your Expected clause is grep-able / file-exists / structural (a deterministic
-     shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
-     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
-     verification genuinely needs human taste (tone, feel, layout rhythm).
-     See CLAUDE.md §AC Classification Guidance for the conversion rule.
-
-     [REVIEW] example (genuine human judgment):
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
-
-     [REVIEWER] example (static-scan-verifiable — convert to Agent AC + Verification):
-       - [ ] [REVIEWER] Block message names both bypass mechanisms
-         **Steps:**
-         1. Run `bin/fw reviewer T-XXX`
-         **Expected:** Verdict: PASS; no findings on `block-message-completeness`
-         **If not:** Inspect hook block-message string and add missing mechanism
-       Conversion: this AC should be moved to ### Agent and
-       `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` added to ## Verification.
--->
+- [x] `termlink_topics` emits `sessions_probed`, `sessions_skipped`, `sessions_unreachable`,
+      `sessions_bad_result` with the same semantics as the CLI
+- [x] Each probe outcome is classified explicitly — the chained `if let` is replaced by the
+      CLI's three-arm match, so a timeout, a transport error, an error response and a missing
+      `topics` array are now counted rather than swallowed
+- [x] Existing fields (`ok`, `sessions`, `total_topics`, `total_sessions`) are unchanged
+- [ ] **NOT DONE — stopped deliberately.** `parity` is 23 passed / 1 failed, the same count as
+      before the change (no regression), and `parity_topics` is now much closer: every field
+      matches except the reachability counts. See the 2026-08-20 decision below.
+- [ ] **NOT DONE** — blocked on the same remaining delta.
+- [x] The remaining divergences are recorded, not silently left — both the empty-registrations
+      one and the reachability asymmetry found while fixing this
 
 ## Verification
 
-# Shell commands that MUST pass before work-completed. One per line.
-# Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
-#
-# Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
-# *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
-# pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
-# past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
-#
-# Pipefail/SIGPIPE hint (L-387): P-011 runs each command under `set -eo pipefail`.
-# `cmd | grep -q PATTERN` exits 141 (SIGPIPE) when grep matches and closes stdin
-# while the upstream is still writing — verification then "fails" even though
-# the pattern was present. Safe pattern: capture first, grep the capture:
-#     out=$(cmd 2>&1); echo "$out" | grep -q "PATTERN"
-# Or:
-#     cmd > /tmp/.out 2>&1 && grep -q "PATTERN" /tmp/.out
-# Origin: L-387, captured 4× (T-1716, T-1838, T-1862, T-1863) before this hint.
-#
-# Single pipe only — no intermediate tail/awk/sed stages between capture and grep
-# (T-2090): `echo "$out" | tail -3 | grep -q PAT` re-introduces the SIGPIPE risk
-# the capture step closed off — the middle stage is what `grep -q` slams its
-# stdin on. `echo "$out"` is small and immediate; grep scans the whole captured
-# string anyway, so the tail-3 was cosmetic. Drop it: `echo "$out" | grep -q PAT`.
-#
-# Enforcement-baseline hint (L-398, T-1886): if you edited `.claude/settings.json`
-# (added/removed/reorganised hooks), add `bin/fw enforcement baseline` to your
-# Verification block. Otherwise the canonical hash diverges and `fw doctor`
-# reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
-# Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
-# the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
-
-## RCA
-
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
-
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
-
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
-
-## Evolution
-
-<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
-     understanding evolved during build — what was learned that wasn't known at
-     filing, what in the original plan no longer fits, what triggered pivots
-     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
-     before --status work-completed.
-
-     Origin: T-1717 grill Q4 — "the understanding of what we need and want
-     evolves with the process of materialisation." Structural counter to §ACD:
-     spec-vs-build divergence is logged as soon as it happens, not lost as
-     folklore.
-
-     Format (one entry per slice boundary or significant insight):
-       ### YYYY-MM-DD — [topic]
-       - **What changed:** [what we learned that we didn't know at filing]
-       - **Plan impact:** [what in the plan no longer fits]
-       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
-
-     The completion gate (T-1718) blocks --status work-completed when this
-     section exists but is empty/template-only. Use --skip-evolution to bypass
-     (logged Tier-2). Non-arc tasks may leave this empty.
--->
+# The change compiles. `cargo test --workspace` is NOT listed: parity_topics still
+# fails on the reachability delta described in the update below, and listing a
+# command known to fail would either block this task forever or invite --force.
+cargo build -p termlink-mcp
+# The four counters are emitted by the handler.
+f=$(mktemp); grep -n 'sessions_unreachable' crates/termlink-mcp/src/tools.rs > "$f" 2>/dev/null; n=$(wc -l < "$f"); rm -f "$f"; test "$n" -ge 1
+# No regression: parity is no redder than before (23 passed / 1 failed).
+f=$(mktemp); cargo test -p termlink-mcp --test parity > "$f" 2>&1 || true; grep -q '23 passed' "$f"; rc=$?; rm -f "$f"; test $rc -eq 0
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-08-20 — Duplicate the classification rather than share the helper
 
-## Decision
+- **Chose:** Write the probe classification inline in `termlink-mcp`.
+- **Why:** `TopicsProbe` and `aggregate_topics_probes` live in `termlink-cli`, and this repo's
+  convention for tiny pure helpers is duplication over a cross-crate dependency (T-2069, in
+  CLAUDE.md). Making `termlink-mcp` depend on `termlink-cli` to reach a three-arm match would
+  be a much larger change than the defect warrants.
+- **Cost, stated plainly:** two copies of the classification can now drift. The parity test is
+  what stops that — it compares the two outputs directly, which is exactly the round-trip
+  assertion 832-Workflow-designer argued for over comparing implementations.
 
-<!-- Filled at completion of inception tasks via:
-     fw inception decide T-XXX go|no-go|defer --rationale "..."
+### 2026-08-20 — Leave the empty-registrations divergence, and say so
 
-     For non-inception tasks this section is ignored. Kept in template
-     so `fw inception decide` (lib/inception.sh) finds the anchor heading
-     without auto-creating; T-1832 added auto-create as fallback for
-     legacy tasks lacking this section. -->
+- **Context:** the two sides also disagree when there are NO sessions at all. CLI returns
+  `{ok, sessions, total_topics}`; MCP returns those plus `total_sessions`.
+- **Chose:** Not fixed here.
+- **Why:** Removing `total_sessions` from the MCP empty path to match would be a breaking
+  change to a field consumers may read, and adding it to the CLI is out of this task's scope.
+  The parity test does not exercise the case (it registers a session first), so this is a
+  latent divergence rather than a live failure. Recording it beats fixing it silently in a
+  direction nobody asked for.
 
-## Updates
+## Update — 2026-08-20: partial fix landed, remaining delta is NOT the field shape
 
-### 2026-08-20T19:30:47Z — task-created [task-create-agent]
-- **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/active/T-2824-cargo-test---workspace-has-been-red-for-.md
-- **Context:** Initial task creation
+**Done and worth keeping regardless.** The MCP handler no longer swallows probe failures. The
+chained `if let` became the CLI's explicit three-arm match, and the four counters are emitted.
+That is a real Directive #2 improvement on its own: before this, an agent calling
+`termlink_topics` could not tell a partial inventory from a complete one.
+
+**The parity test still fails, for a different reason.** After the change:
+
+```
+MCP: sessions_probed:1  sessions_unreachable:0  sessions_bad_result:0  sessions_skipped:0
+CLI: sessions_probed:1  sessions_unreachable:1  sessions_bad_result:0  sessions_skipped:1
+```
+
+Every field is present and identically named. Both clients find the SAME single registration.
+The MCP client reaches it and gets an empty topics array (the fixture session registers no
+topics, so `topic_list.is_empty()` and it is correctly not listed). The CLI client, probing the
+same session, times out or errors and classifies it `Unreachable`.
+
+So the two clients disagree about whether the fixture session is reachable. That is either a
+real difference in how the two resolve/connect to a session socket, or an artifact of the
+harness (the session is served by the test's own in-process runtime; MCP shares that process,
+the CLI is a subprocess). Distinguishing those is a genuine investigation, not a field edit.
+
+**Stopped here on purpose.** The task was scoped as "add the four fields the CLI has"; that is
+done. The remaining work is "find out why two clients see different reachability", which is a
+different question with an unknown floor — and the caveat agreed before starting was to stop
+rather than widen. Three things today looked two lines deep and were not.
+
+**No regression:** `parity` was 23 passed / 1 failed before this change and is 23 passed /
+1 failed after. The suite is no redder than it was.
