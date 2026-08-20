@@ -8,6 +8,7 @@ horizon: null
 owner: agent
 created: 2026-08-03
 last_update: 2026-08-02T22:20:52Z
+date_finished: 2026-08-02T22:20:52Z
 tags: [reliability, silent-failure, data-corruption, inbox, no-silent-failures]
 components: [crates/termlink-hub/src/inbox.rs]
 ---

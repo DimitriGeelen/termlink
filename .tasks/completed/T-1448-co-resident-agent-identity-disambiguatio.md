@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-05-02T17:26:31Z
 last_update: 2026-05-20T14:12:51Z
-date_finished: null
+date_finished: 2026-05-20T14:12:51Z
 ---
 
 # T-1448: co-resident agent identity disambiguation

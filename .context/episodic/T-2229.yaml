@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2229: Triage ring20 cross-hub federation + heartbeat-freeze RCA (framework:pickup)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-20T12:14:02Z
+# ============================================================================
+
+task_id: T-2229
+task_name: "Triage ring20 cross-hub federation + heartbeat-freeze RCA (framework:pickup)"
+workflow_type: inception
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-06-21T09:37:18Z
+completed: 2026-07-02T15:40:51Z
+duration_days: 11
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Inception triaging a ring20 RCA filed on framework:pickup covering cross-hub “federation”
+  and a heartbeat freeze. Outcome GO, and the triage closed out across three findings: fault 1
+  was working-as-designed (there is no inter-hub federation primitive — topics are per-hub
+  state, G-060), fault 2 was a real heartbeat-freeze bug fixed under T-2230, and the fact that
+  the RCA sat ~27h unread became G-063 — the write-only-sink class — closed by the
+  framework-pickup canary in T-2231.
+summary_source: hand-written  # generator found no commits referencing this task
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 16203 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 16203
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2229-triage-ring20-cross-hub-federation--hear.md
+generated_by: context-agent-hybrid

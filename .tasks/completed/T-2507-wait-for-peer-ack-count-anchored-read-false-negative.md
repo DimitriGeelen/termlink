@@ -8,6 +8,7 @@ horizon: null
 owner: agent
 created: 2026-08-03
 last_update: 2026-08-02T23:05:17Z
+date_finished: 2026-08-02T23:05:17Z
 tags: [reliability, correctness, delivery-confirmation, ack, retention-sweep, count-vs-offset]
 components: [crates/termlink-cli/src/commands/channel.rs]
 ---

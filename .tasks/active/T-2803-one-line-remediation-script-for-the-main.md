@@ -17,7 +17,7 @@ tags: [governance, remediation, termlink, operator-ux]
 components: []
 related_tasks: [T-2694, T-2698, T-2690, T-559]
 created: 2026-08-20
-last_update: 2026-08-20T09:54:27Z
+last_update: 2026-08-20T09:58:55Z
 date_finished: null
 ---
 

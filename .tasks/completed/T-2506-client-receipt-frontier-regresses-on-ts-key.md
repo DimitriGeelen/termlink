@@ -8,6 +8,7 @@ horizon: null
 owner: agent
 created: 2026-08-03
 last_update: 2026-08-02T22:41:26Z
+date_finished: 2026-08-02T22:41:26Z
 tags: [reliability, correctness, receipts, delivery-confirmation, regression]
 components: [crates/termlink-cli/src/commands/channel.rs, crates/termlink-mcp/src/tools.rs]
 ---

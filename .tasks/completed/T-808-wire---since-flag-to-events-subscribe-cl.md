@@ -13,7 +13,7 @@ components: []
 related_tasks: []
 created: 2026-03-30T17:53:48Z
 last_update: 2026-03-30T17:55:28Z
-date_finished: null
+date_finished: 2026-03-30T17:55:28Z
 ---
 
 # T-808: Wire --since flag to events subscribe CLI command
