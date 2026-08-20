@@ -965,6 +965,45 @@ The generator, the audit's existence-only check, and the reader's swallowed exce
 **vendored** (G-062) — a local edit is erased on the next re-vendor — so they were filed back at
 `framework:pickup` offset 20 rather than patched here.
 
+### BVP estimator — safe to run, with one caveat that is about ruamel, not corruption (T-2809)
+
+A June 2026 commit message (`444a7e9b3`) recorded, and never filed, that `fw bvp estimate all`
+corrupted old-format task frontmatter into unparseable YAML across 106 files. **Checked
+2026-08-20: it does not reproduce.** On scratch copies — never live task files, since the
+reported defect destroys what it writes to — `estimate all` + `cost-all` across 25 anchor-less
+old-format tasks wrote all 25 with 0 errors and 0 malformed frontmatter, and the no-`ruamel`
+fallback branch (forced `_HAS_RUAMEL=False`) also produced valid YAML with the key present.
+The vendored estimator had no git history to diff against before T-2807 committed it, so
+"fixed upstream" is the inference that fits, not a proven bisect. Reported at
+`framework:pickup` offset 23.
+
+**This is recorded as an outcome, deliberately not as a warning.** Documenting a hazard that
+no longer reproduces is cargo-culting: it taxes every future reader and cannot be falsified by
+anyone who trusts it. Run the estimator normally.
+
+**The one real caveat.** Without `ruamel` installed, the estimator rewrites frontmatter via
+`yaml.safe_dump`, which **silently strips every comment** — and the task template documents its
+own fields in comments (`# bvp_scores:`, `# revisit_at:`, the BVP block's semantics). Valid
+YAML, exit 0, no warning. `ruamel` IS present on this host (0.19.1), so the good path is the
+one that runs here; check `python3 -c "import ruamel.yaml"` before running the estimator on a
+host you have not used it on. Exposure if it does fire: 1792 of 2460 task files (73%) lack the
+`bvp_scores_proposed` anchor and an unscoped `estimate all` writes to all of them.
+
+**Cost estimates need the estimator directly.** `fw bvp` surfaces `estimate` but **not** the
+`cost-*` subcommands, so `fw bvp estimate all` populates BVP scores and leaves the COST axis
+empty — and a quadrant is BVP-median × COST-median, so `--quadrant hv-lc` silently returns
+"No tasks match" rather than saying the axis is missing. To get quadrants, run both:
+
+```bash
+.agentic-framework/bin/fw bvp estimate all --statuses started-work
+PROJECT_ROOT="$PWD" FRAMEWORK_ROOT="$PWD/.agentic-framework" \
+  python3 .agentic-framework/agents/termlink/bvp-estimator/estimator.py cost-all --statuses started-work
+.agentic-framework/bin/fw bvp --quadrant hv-lc --include-proposed
+```
+
+Confirmed scores are **§ACD sovereignty-gated** (`fw bvp confirm --i-am-human`): an agent can
+propose, only a human can confirm, and the `SOURCE` column keeps the two distinguishable.
+
 ### Cross-branch task-ID collision + duplicate-work check (T-2800)
 
 Every worktree allocates task IDs by scanning its **own** `.tasks/` for the highest ID and
