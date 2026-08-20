@@ -16,7 +16,7 @@
 //!   - `identity_fingerprint` = envelope top-level `sender_id` (T-2270)
 //!   - `pty_session` = `metadata.pty_session`
 //!   - status from age vs `metadata.interval_secs` (default 30):
-//!       age <= 2*interval => LIVE, <= 5*interval => STALE, else OFFLINE
+//!     age <= 2*interval => LIVE, <= 5*interval => STALE, else OFFLINE
 
 use serde_json::Value;
 

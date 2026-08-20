@@ -160,7 +160,6 @@ mod tests {
     // that bricks the whole topic's replay for every consumer forever.
     use super::*;
     use crate::meta::RecordLoc;
-    use std::io::Write as _;
 
     fn valid_payload(marker: &str) -> Vec<u8> {
         encode_envelope(&Envelope {

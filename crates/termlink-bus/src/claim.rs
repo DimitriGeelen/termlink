@@ -11,7 +11,7 @@
 //! Per T-2019 inception (GO 2026-06-07): chose §4.2 lease-with-renewal +
 //! lazy expiry over §4.1 (dying-worker hole) and §4.3 (cursor-independence
 //! + non-idempotent work hole). T-1155 invariant: no background threads —
-//! reapers run inline on access.
+//!   reapers run inline on access.
 
 /// Successful claim of `(topic, offset)` by `claimer`.
 #[derive(Debug, Clone)]

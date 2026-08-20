@@ -197,7 +197,7 @@ where
 
     // --- authenticate (TCP only) ---
     if let Some(token_raw) = token {
-        sink.send(Message::Text(build_ws_auth_request(token_raw).into()))
+        sink.send(Message::Text(build_ws_auth_request(token_raw)))
             .await
             .map_err(WsConsumerError::Stream)?;
         let auth_ack = next_text_frame(&mut source, read_timeout)
@@ -209,7 +209,7 @@ where
     }
 
     // --- subscribe ---
-    sink.send(Message::Text(build_ws_subscribe_request(topics).into()))
+    sink.send(Message::Text(build_ws_subscribe_request(topics)))
         .await
         .map_err(WsConsumerError::Stream)?;
     let _sub_ack = next_text_frame(&mut source, read_timeout)

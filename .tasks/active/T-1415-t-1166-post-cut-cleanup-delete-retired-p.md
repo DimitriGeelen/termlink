@@ -121,6 +121,39 @@ delete any remaining references.
 - [x] No new clippy warnings introduced in T-1415-scope crates (`cargo clippy -p termlink-hub -p termlink-session -- -D warnings`) — **verified 2026-06-06T01:13Z, clean exit. Scope intentionally excludes `termlink` (transitive `termlink-mcp` carries 41 pre-existing warnings unrelated to T-1415; clippy-debt is its own follow-up — see Deferred section).**
 
 ### Human
+
+> **Agent-gathered evidence for both criteria below, 2026-08-20.** These boxes are the
+> human's to tick and are deliberately left unticked. What follows is the evidence the
+> steps ask for, collected so the review is a read rather than a re-run. Step 1 of the
+> first criterion ("SSH to each production hub") was **not** performed as written — the
+> same fact was obtained over the wire via `hub.capabilities`, which is what step 2
+> actually inspects.
+>
+> **Capabilities probed on every reachable hub** (`termlink_remote_call`, `hub.capabilities`):
+>
+> | hub | binary | `legacy_primitives` | `control_plane_version` | retired methods present |
+> |---|---|---|---|---|
+> | local-test `127.0.0.1` | 0.11.1196 | false | 3 | none |
+> | ring20-dashboard `.121` | 0.11.588 | false | 3 | none |
+> | ring20-management `.122` | 0.11.1411 | false | 3 | none |
+> | workstation-107 `.107` | 0.11.1196 | false | 3 | none |
+>
+> `laptop-141` was unreachable and is informational only (PL-219). `.121` runs a
+> markedly older binary and still serves the cut, so this is not a property of a
+> recent build.
+>
+> **"≥7 days" is satisfied with ~14 weeks to spare.** T-1166 records both `.122` and
+> `.121` serving `legacy_primitives: false` on 2026-05-15.
+>
+> **Bake metric** (`fw metrics api-usage`, .107 audit log): `cut_ready: true`,
+> `legacy_attributable: 0`, and **0 legacy calls in every window — 1d / 7d / 30d / 60d**
+> across 23,834 RPCs. The second criterion asks for `--last-Nd 7`; the 60d window is
+> reported because it is stronger and equally clean.
+>
+> **Not covered by this evidence:** the `journalctl` rejection-log check in step 3 of the
+> first criterion. That needs host access this session does not have, and zero
+> attributable calls in 60d is adjacent evidence for it, not the same check.
+
 - [ ] [REVIEW] Verify production hubs have been running flag-off for ≥7 days
   **Steps:**
   1. SSH to each production hub (.107, .121/.143, .122)
@@ -276,10 +309,34 @@ cut at the hub layer.
 - [x] `crates/termlink-hub/Cargo.toml` no longer has `[features]` block
 - [x] `docs/migrations/T-1166-retire-legacy-primitives.md` updated with "CUT LANDED 2026-05-31" status header
 - [x] No new clippy warnings (hub crate)
-- [ ] `grep LEGACY_PRIMITIVES_ENABLED|legacy_primitives_disabled` returns 0 across `crates/` — 2 matches remain in `crates/termlink-hub/tests/no_legacy_callers.rs` (the dedicated regression test referencing the OLD symbols by name in its assertion message — needs a tightening pass, deferred).
-- [ ] `grep call_legacy_inbox_|status_with_fallback|list_with_fallback|clear_with_fallback` returns 0 in non-test code — session-layer fallbacks RETAINED for fleet hosts not yet upgraded (separate follow-up commit after fleet upgrade).
-- [ ] `cargo test -p termlink-cli --lib` passes — `termlink` package is bin-only, no library tests; covered by workspace check (passing).
-- [ ] Workspace-wide clippy — deferred to next pass.
+- [x] `grep LEGACY_PRIMITIVES_ENABLED|legacy_primitives_disabled` returns 0 across `crates/`
+      — **re-measured 2026-08-20: 0 matches.** The AC text above said "2 matches remain in
+      `no_legacy_callers.rs`"; those are gone. The note was stale by ten weeks.
+- [x] `grep call_legacy_inbox_|status_with_fallback|list_with_fallback|clear_with_fallback`
+      returns 0 in non-test code — **re-measured 2026-08-20: 0 matches anywhere.** The AC text
+      said the session-layer fallbacks were "RETAINED for fleet hosts not yet upgraded"; they
+      were in fact deleted (`no_legacy_callers.rs` header dates it to the 2026-06-05 parallel
+      cleanup). The retention condition has also since expired independently: all four
+      reachable hubs are confirmed post-cut (see T-1166's 2026-08-20 entry).
+- [x] ~~`cargo test -p termlink-cli --lib`~~ — **the AC was unsatisfiable as written.** There
+      is no `termlink-cli` package; cargo answers `package ID specification 'termlink-cli' did
+      not match any packages`. The crate is `termlink`, and it is bin-only, so it has no lib
+      tests to run. Recorded rather than silently dropped — an AC that cannot pass is a
+      permanently-open task, and the correct fix is to say so, not to tick it.
+- [ ] **Workspace-wide clippy — still open, now MEASURED rather than "deferred to next pass".**
+      Partially advanced on 2026-08-20: `termlink-bus` (2) and `termlink-session` (7) are clean
+      — 9 error-level lints fixed (unused import, doc list indentation ×3, collapsible-if ×2 via
+      edition-2024 let-chains, useless String conversion ×2). `cargo test` after: session
+      **428/428**, bus **112/112**, so the fixes are behaviour-preserving. That unmasked
+      **24 error-level lints in `termlink-hub` lib tests**, which are NOT fixed and are the
+      remaining backlog.
+      **Why it stopped there.** `cargo clippy --fix` was tried and reverted: it applied
+      warning-level lints workspace-wide, producing 17 changed files and a 227-line rewrite of
+      `termlink-mcp/src/tools.rs` — an unreviewable refactor inside a decommission task. And
+      the value is genuinely modest: only **2 active tasks** carry `cargo clippy` in a
+      Verification block, so a broken workspace clippy is not the systemic blocker it first
+      looked like. The backlog is now a number instead of an adjective, which is the useful
+      change.
 
 **Deferred to subsequent commits (T-1415 continuation OR new sub-task):**
 1. `crates/termlink-session/src/inbox_channel.rs` — `*_with_fallback` paths.

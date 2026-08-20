@@ -236,10 +236,10 @@ where
     if let Some(dir) = get_env("TERMLINK_IDENTITY_DIR") {
         return identity_path(Path::new(&dir));
     }
-    if let Some(agent_id) = get_env("TERMLINK_AGENT_ID").filter(|s| !s.trim().is_empty()) {
-        if let Some(home) = get_env("HOME") {
-            return per_agent_identity_path(&PathBuf::from(home).join(".termlink"), &agent_id);
-        }
+    if let Some(agent_id) = get_env("TERMLINK_AGENT_ID").filter(|s| !s.trim().is_empty())
+        && let Some(home) = get_env("HOME")
+    {
+        return per_agent_identity_path(&PathBuf::from(home).join(".termlink"), &agent_id);
     }
     identity_path(fallback_base)
 }

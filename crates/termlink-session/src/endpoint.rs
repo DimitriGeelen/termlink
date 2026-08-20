@@ -183,10 +183,10 @@ async fn heartbeat_loop(shared: Arc<RwLock<SessionContext>>) {
     loop {
         ticker.tick().await;
         let mut ctx = shared.write().await;
-        if let Some(path) = ctx.registration_path.clone() {
-            if let Err(e) = ctx.registration.touch_heartbeat(&path) {
-                tracing::warn!(error = %e, "T-2235: endpoint heartbeat touch failed");
-            }
+        if let Some(path) = ctx.registration_path.clone()
+            && let Err(e) = ctx.registration.touch_heartbeat(&path)
+        {
+            tracing::warn!(error = %e, "T-2235: endpoint heartbeat touch failed");
         }
     }
 }

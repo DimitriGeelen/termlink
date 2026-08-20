@@ -21,8 +21,8 @@
 //!   2. `$XDG_STATE_HOME/termlink`   — XDG Base Directory spec
 //!   3. `$HOME/.termlink`            — conventional
 //!   4. last resort (all unset):     — loud, UID-namespaced, NOT world-writable
-//!        `<tmpdir>/termlink-<uid>`  created `0700`, with a one-time
-//!        `tracing::error!` warning that pins will not survive reboot.
+//!      `<tmpdir>/termlink-<uid>`  created `0700`, with a one-time
+//!      `tracing::error!` warning that pins will not survive reboot.
 //!
 //! Step 4 never uses the shared world-writable `/tmp/.termlink`; it mirrors the
 //! UID-namespaced [`crate::discovery`] `runtime_dir()` fallback so a mis-configured
