@@ -899,3 +899,52 @@ decisions:
     date: 2026-08-20
     task: T-2808
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-108
+    decision: "Reproduce on scratch copies across 26 old-format tasks before writing any report."
+    scope: project
+    date: 2026-08-20
+    task: T-2809
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-109
+    decision: "Scratch `PROJECT_ROOT` trees."
+    scope: project
+    date: 2026-08-20
+    task: T-2809
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-110
+    decision: "File upstream even though the answer is \"does not reproduce\"."
+    scope: project
+    date: 2026-08-20
+    task: T-2809
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-111
+    decision: "Record the outcome; do not add a hazard note."
+    scope: project
+    date: 2026-08-20
+    task: T-2809
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-112
+    decision: "Set `PROJECT_ROOT` in the cron registry entry."
+    scope: project
+    date: 2026-08-20
+    task: T-2810
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-113
+    decision: "The acceptance criterion is that the scan names T-1898 and T-2250."
+    scope: project
+    date: 2026-08-20
+    task: T-2810
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-114
+    decision: "Report T-1898 and T-2250 to the human; make no decision on either."
+    scope: project
+    date: 2026-08-20
+    task: T-2810
+    rationale: "Auto-captured from task file on completion"

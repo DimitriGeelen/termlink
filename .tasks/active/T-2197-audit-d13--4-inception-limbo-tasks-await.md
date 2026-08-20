@@ -79,6 +79,14 @@ cost_estimate_proposed:
   - **T-2028** → GO retroactively (all three tracks shipped; closure-as-superseded equivalent)
 
 ### Human
+> **Re-checked 2026-08-20 — this is now two review ticks, not four decisions.**
+> T-2025 (NO-GO) and T-2028 (GO) are decided and archived in `completed/`. T-1635's GO is
+> recorded and it is partial-complete, waiting only on its own seam-doc `[REVIEW]`.
+> T-1898 remains DEFER with `revisit_at: 2026-07-06` — **45 days ripe**, and it never
+> surfaced because the G-053 daily scan was resolving the wrong PROJECT_ROOT and exiting 0
+> (diagnosed + fixed under T-2810; a second overdue deferral, T-2250, came out with it).
+> No `fw inception decide` was run on anything — those are yours.
+>
 - [ ] [REVIEW] Make GO/NO-GO/DEFER decision on each of the 4 inceptions per agent recommendations. **Steps:** read each task's Recommendation; run `fw inception decide T-XXX go|no-go|defer --rationale "..."`. **Expected:** all 4 transition out of limbo. **If not:** defer with explicit revisit_at date so G-053 daily scan picks them up later
 
 ### Human
@@ -215,3 +223,49 @@ cost_estimate_proposed:
 
 ### 2026-06-12T12:06:59Z — status-update [task-update-agent]
 - **Change:** status: started-work → started-work
+
+### 2026-08-20 — the limbo list is down to two, and one of them was invisible by mechanism [agent]
+
+Picked up as the #3 HV/LC task (BVP 81). All five Agent ACs were already ticked; the single
+Human `[REVIEW]` asks for a GO/NO-GO/DEFER on four inceptions. Re-checked all four before
+leaving that decision on the table, because the task was written on 2026-06-16 and the state
+has moved.
+
+| task | where it is now | decision on record | still needs a human? |
+|---|---|---|---|
+| **T-2025** | `completed/` | **NO-GO** | no — closed |
+| **T-2028** | `completed/` | **GO** | no — closed |
+| **T-1635** | `active/`, `status: work-completed` | **GO** | yes — 1 unticked `[REVIEW]` on the seam doc |
+| **T-1898** | `active/`, `status: captured` | **DEFER**, `revisit_at: 2026-07-06` | yes — and see below |
+
+So two of the four are resolved and archived. T-1635 is not in limbo either — its GO is
+recorded and it is partial-complete, waiting on a seam-document review that is pure human
+judgement. The honest remaining ask is **two review ticks, not four decisions.**
+
+**T-1898 is the one that mattered.** Its `revisit_at` fell on 2026-07-06 — **45 days ago** —
+and nothing surfaced it. That should not have been possible: T-1451 added `revisit_at` for
+exactly this, and T-1452 wired a daily cron plus a handover banner to read it. Both shipped,
+the cron is installed, and it has been firing every morning.
+
+It has also been finding nothing, every morning, for months. `revisit-due-scan.sh` resolves
+`PROJECT_ROOT` by walking up for `.framework.yaml` **or `FRAMEWORK.md`**, and the vendored
+framework carries its own `FRAMEWORK.md` — so the walk stops at `.agentic-framework/`, the
+tasks directory it then looks for does not exist, and it `exit 0`s. Silent, and identical from
+the outside to "no revisits are due".
+
+Run with `PROJECT_ROOT` set correctly it immediately names **two** overdue deferrals:
+
+```
+T-1898 fires 2026-07-06: Vendored Agent Runner — inception
+T-2250 fires 2026-07-25: R5 telemetry plane design
+```
+
+Diagnosed and fixed under **T-2810** (explicit `PROJECT_ROOT` in the cron registry, fixtures
+that reproduce the defect, filed upstream at `framework:pickup` offset 24, learning PL-328).
+That is why this task had been sitting: part of its remaining work was waiting on a reminder
+that could never arrive.
+
+**Not decided here, deliberately.** T-1898's DEFER and T-2250's are inception decisions —
+`fw inception decide` is the human's call under the Authority Model, and "proceed as you see
+fit" delegates initiative, not that authority. Both are now visible, which is the part that
+was missing.

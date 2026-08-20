@@ -3053,3 +3053,10 @@ learnings:
   date: 2026-08-13
   context: Added via context agent
   application: TBD
+- id: PL-328
+  learning: "A cron job that is installed and firing daily can still be doing nothing. revisit-due-scan.sh resolved PROJECT_ROOT by walking up for .framework.yaml OR FRAMEWORK.md; a vendored framework ships its own FRAMEWORK.md, so the walk stopped at .agentic-framework/, found no .tasks/active there, and exit 0'd — silence indistinguishable from 'nothing due'. Two revisits sat ripe 45 and 26 days. Two lessons: (1) assert OUTCOME not INSTALLATION — the shipping task was 9/9 ticked on an AC verifying the crontab CONTAINED the line, which was true and irrelevant; (2) when a script cannot find its input, exit non-zero. 'I could not look' and 'I looked and found nothing' must not share an exit code."
+  source: P-001
+  task: T-2810
+  date: 2026-08-20
+  context: Added via context agent
+  application: TBD
