@@ -109,8 +109,21 @@ jobs:
   - id: revisit-due-scan
     name: "Revisit-due scan (daily 07:00, G-053)"
     schedule: "0 7 * * *"
-    command: ".agentic-framework/agents/context/revisit-due-scan.sh"
+    # PROJECT_ROOT is set EXPLICITLY and is load-bearing (T-2810). Without it the
+    # script walks up from its own location looking for `.framework.yaml` OR
+    # `FRAMEWORK.md`, and the vendored framework ships its own FRAMEWORK.md — so
+    # PROJECT_ROOT resolves to `.agentic-framework/`, `.tasks/active` is absent
+    # there, and the script exits 0. That is indistinguishable from "nothing is
+    # due", and it is why this job ran daily for months while T-1898 (45 days)
+    # and T-2250 (26 days) sat ripe and unsurfaced. The `cd` in the generated
+    # cron line does NOT help: the walk starts at ${BASH_SOURCE[0]}, not at cwd.
+    # The script's own comment names the env var as the intended override
+    # ("prefer env var (set by cron line)"), so this is the supported path, not a
+    # workaround. `$(pwd)` rather than a hardcoded path keeps it machine-agnostic
+    # — the generator emits `cd "<project_root>" && <command>`, so pwd is already
+    # the project root by the time this runs.
+    command: "PROJECT_ROOT=\"$(pwd)\" .agentic-framework/agents/context/revisit-due-scan.sh"
     source_file: agentic-audit-termlink
     origin_task: T-1452
     status: active
-    description: "Daily scan of .tasks/active for revisit_at <= today; ripe deferrals are written to .context/working/.revisits-due.txt and surfaced by the handover banner. Closes G-053 (DEFER decisions previously had no structural revisit reminder)."
+    description: "Daily scan of .tasks/active for revisit_at <= today; ripe deferrals are written to .context/working/.revisits-due.txt and surfaced by the handover banner. Closes G-053 (DEFER decisions previously had no structural revisit reminder). PROJECT_ROOT is explicit per T-2810 — without it the scan silently finds nothing in a vendored consumer."

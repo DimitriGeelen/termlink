@@ -965,6 +965,37 @@ The generator, the audit's existence-only check, and the reader's swallowed exce
 **vendored** (G-062) — a local edit is erased on the next re-vendor — so they were filed back at
 `framework:pickup` offset 20 rather than patched here.
 
+### `revisit_at` reminders only fire if the cron sets PROJECT_ROOT (T-2810, G-053)
+
+`revisit_at` + `revisit_evidence_needed` (T-1451) are the framework's **only** structural
+"come back to this later" mechanism, and the daily scan that reads them
+(`agents/context/revisit-due-scan.sh`, wired by T-1452) **silently found nothing for months**
+in this repo.
+
+`revisit-due-scan.sh` resolves `PROJECT_ROOT` by walking up from its own location for
+`.framework.yaml` **or `FRAMEWORK.md`** — and a vendored framework ships its own
+`FRAMEWORK.md`. So the walk stops at `.agentic-framework/`, `TASKS_DIR` becomes
+`.agentic-framework/.tasks/active` which does not exist, and the script `exit 0`s. That is
+indistinguishable from "no revisits are due". The `cd` in the generated cron line does **not**
+help: the walk starts at `${BASH_SOURCE[0]}`, not at cwd. Cost when finally checked: **T-1898
+ripe 45 days, T-2250 ripe 26 days**, neither ever surfaced.
+
+**The fix is in `.context/cron-registry.yaml`, and it is load-bearing.** That entry now sets
+`PROJECT_ROOT="$(pwd)"` before the script — the script's own comment names the env var as the
+intended override ("prefer env var (set by cron line)"), so this is the supported path, not a
+workaround. Do not remove it, and set it the same way for any new job invoking a vendored
+`agents/` script. The script itself is vendored (G-062) and was not patched; the marker
+collision and the `exit 0` were filed upstream at `framework:pickup` offset 24, with the
+`exit 0` flagged as the more serious of the two — "I could not look" and "I looked and found
+nothing" must not share an exit code.
+
+**Registry changes need installing from the main checkout**, not from a worktree:
+`fw cron install` derives the `/etc/cron.d` filename from the checkout's basename (the T-2690
+defect), so running it here would write `agentic-audit-<worktree-name>` instead of updating
+`agentic-audit-termlink`. Fixtures: `bash tests/revisit-due-cron-fixtures.sh` (6 assertions;
+the load-bearing one *reproduces* the defect against a fixture project carrying both markers —
+without that leg the fix proves nothing).
+
 ### BVP estimator — safe to run, with one caveat that is about ruamel, not corruption (T-2809)
 
 A June 2026 commit message (`444a7e9b3`) recorded, and never filed, that `fw bvp estimate all`
