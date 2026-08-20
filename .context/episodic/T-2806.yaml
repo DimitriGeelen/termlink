@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2806: Recover the two dangling framework files: task finalization dies on every build task in a worktree
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-20T15:05:11Z
+# ============================================================================
+
+task_id: T-2806
+task_name: "Recover the two dangling framework files: task finalization dies on every build task in a worktree"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-20
+completed: 2026-08-20T15:05:06Z
+duration_days: 0
+updates_count: 0
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - '`lib/arc_membership.sh` and `lib/bvp.sh` are present in this worktree and **tracked**'
+  - 'Both were scanned for secrets and machine-local paths before being committed'
+  - '`check-framework-tracking-drift.sh` reports **0 dangling references** (was 2)'
+  - '`fw task update --status work-completed` finalizes a build task: it moves to'
+  - '`fw bvp` runs instead of failing on a missing library'
+  - 'The unguarded `source` at `evolution_log.sh:52` is filed upstream on `framework:pickup`'
+  - 'CLAUDE.md''s T-2692 section records that DANGLING also breaks task finalization, not only'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-08-20 — Move the bytes rather than widen the ignore rule again'
+    chose: 'Copy from the checkout that has the files; commit here where tracking is allowed.'
+    rationale: 'The two checkouts are each missing a different half of what a fix needs, and neither'
+  - decision: '2026-08-20 — Do not patch the vendored guard, even though it is a one-line fix'
+    chose: 'File it upstream; recover the file locally.'
+    rationale: 'G-062 — a local edit to `evolution_log.sh` is erased on the next re-vendor, so it'
+  - decision: '2026-08-20 — Prove it by finalizing a task, not by `test -f`'
+    chose: 'The acceptance criterion is that a build task actually moves to `completed/`.'
+    rationale: 'The file being present is the input, not the outcome. This session has repeatedly'
+  - decision: '2026-08-20 — Leave the 24 stuck tasks alone'
+    chose: 'Fix the mechanism; do not bulk-finalize the backlog.'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1025 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [governance, framework-recoverability, g-019, g-062, directive-2]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1025
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2806-recover-the-two-dangling-framework-files.md
+generated_by: context-agent-hybrid

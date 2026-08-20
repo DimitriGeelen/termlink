@@ -4,16 +4,16 @@ name: "Recover the two dangling framework files: task finalization dies on every
 description: >
   arc_membership.sh and bvp.sh are untracked (T-2689 blanket gitignore) so they are absent from every worktree and clean clone. evolution_log.sh:52 sources arc_membership.sh with no existence guard, so `fw task update --status work-completed` exits 1 AFTER passing every gate. 24 active build tasks are fully ticked and stuck, including every task this session completed. Also unblocks `fw bvp`.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [governance, framework-recoverability, g-019, g-062, directive-2]
 components: []
 related_tasks: [T-2689, T-2692, T-2698, T-2803, T-2804, T-2805]
 created: 2026-08-20
-last_update: 2026-08-20T15:02:57Z
-date_finished: null
+last_update: 2026-08-20T15:05:06Z
+date_finished: 2026-08-20T15:05:06Z
 ---
 
 # T-2806: Recover the two dangling framework files
@@ -165,3 +165,15 @@ bash -c 'FRAMEWORK_ROOT=.agentic-framework; . .agentic-framework/lib/evolution_l
 - **Why:** Several are `owner: human`, and completing a human-owned task is explicitly outside
   autonomous authority. A bulk sweep over tasks whose acceptance criteria I did not verify is
   also precisely how the G-066 finalization-bypass class was created in the first place.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-52b1b2cf
+- **Timestamp:** 2026-08-20T15:05:08Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-20T15:05:06Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
