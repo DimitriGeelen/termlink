@@ -6,20 +6,20 @@ description: >
   pickup dedup hash fails open to constant sha256 and pickup_create_inception mints
   empty-name tasks
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/commands/events.rs, crates/termlink-mcp/src/tools.rs, scripts/check-framework-tracking-drift.sh, tests/framework-tracking-drift-fixtures.sh, tests/pickup-failopen-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-19T23:32:30Z
-last_update: '2026-08-20T15:21:22Z'
-date_finished:
+last_update: 2026-08-20T18:12:06Z
+date_finished: 2026-08-20T18:12:06Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -291,3 +291,15 @@ if a local change to vendored code goes unregistered.
 
 Nothing about the fix itself changed. What changed is that it will survive the next re-vendor,
 or be noticed if it does not.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-17f04e2c
+- **Timestamp:** 2026-08-20T18:12:07Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-20T18:12:06Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
