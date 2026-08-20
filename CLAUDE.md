@@ -815,6 +815,50 @@ sleep-on-error before the next iteration (the T-2670/T-2671/T-2673 remediation) 
 error path provably exits the loop — add the loop's signature to the allowlist with a cited
 reason.
 
+### Verification-block pipefail auditor (T-2693, L-387 at repo scale)
+
+L-387: under `set -o pipefail`, `cmd | grep -q PATTERN` exits **141** when the pattern
+MATCHES — `grep -q` exits on first match and closes the pipe, SIGPIPE kills the upstream,
+and pipefail propagates the upstream's status. **The pipeline fails on success.** The P-011
+gate runs every `## Verification` line under `set -euo pipefail`, so a command in that shape
+blocks completion of a task whose verification actually passed.
+
+The framework already ships the detector — `lib/reviewer/static_scan.py::detect_l387_sigpipe_risk`
+— and fires it as a **non-blocking advisory at `started-work`, one task at a time** (T-2059).
+Nothing ever asked the repo-wide question. The answer, first time it was asked: **150
+findings across 189 active task files** (1142 across all 2442 including `completed/`).
+
+Read the failure direction carefully, because it is what makes this urgent rather than
+cosmetic. In isolation it looks like the *safe* direction — the gate blocks rather than waves
+through. In aggregate it is not: a gate that blocks incorrectly 150 times teaches the
+operator that P-011 failures are noise and that `--force` is the normal way past them, and a
+verification gate people routinely force is a verification gate that no longer verifies.
+
+`scripts/check-verification-pipefail.sh` is a **deploy-time / ad-hoc REVIEW list**, not a cron
+canary. It **wraps** the framework's detector rather than reimplementing it — two copies of a
+subtle SIGPIPE heuristic drift, and the copy that drifts is the one that quietly stops
+catching things. Exit 0 = clean, 1 = findings, 2 = tooling. **Fail-closed:** if the detector
+cannot be imported it exits **2, never 0** — a checker that reports clean because it failed to
+load converts an unknown into a false assurance, which is worse than no checker. `--json` for
+scripting, `--quiet` for cron-style use, `--active-only` to scope to `.tasks/active/`
+(completed tasks are included by default because they are the best evidence of how widespread
+the shape is), `--tasks-dir` / `--framework-root` for fixtures (PL-213). Ad-hoc:
+`bash scripts/check-verification-pipefail.sh --active-only`. Fixtures:
+`bash tests/verification-pipefail-check-fixtures.sh` (8 assertions; pins the wrapper's
+scoping, exit codes and fail-closed contract — not the heuristic, which belongs upstream).
+
+Safe rewrites, and the ones to use in every new `## Verification` block:
+
+```
+out=$(cmd 2>&1); echo "$out" | grep -q "PATTERN"     # echo upstream is SIGPIPE-immune
+cmd > /tmp/.out 2>&1; grep -q "PATTERN" /tmp/.out    # no pipe at all
+test -z "$(git status --porcelain <path>)"           # for emptiness checks
+```
+
+The check flagged **its own author** one commit after shipping — a `... | wc -l | grep -qx 0`
+line in T-2694's Verification block took active findings 150 → 151. That is the intended
+behaviour and the best available evidence it is load-bearing.
+
 ### Vendored-framework recoverability check (T-2689 + T-2692)
 
 `.gitignore:21` carries a blanket `.agentic-framework` rule labelled "Framework symlink
