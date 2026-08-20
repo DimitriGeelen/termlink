@@ -1,10 +1,10 @@
-# Audit Results - 2026-08-20-0211
-timestamp: 2026-08-20T00:11:21Z
+# Audit Results - 2026-08-20-1758
+timestamp: 2026-08-20T15:58:41Z
 sections: "structure"
 summary:
-  pass: 37
-  warn: 3
-  fail: 1
+  pass: 38
+  warn: 2
+  fail: 2
 findings:
   - level: PASS
     check: "Tasks directory exists"
@@ -32,13 +32,15 @@ findings:
   - level: PASS
     check: "No GO-scope-not-propagated inception(s) (sibling to L-417)"
   - level: PASS
-    check: "Fabric: 166 registered, 0 unregistered"
+    check: "Fabric: 178 registered, 0 unregistered"
   - level: WARN
-    check: "Fabric: 35/154 cards have no edges"
+    check: "Fabric: 47/166 cards have no edges"
     mitigation: "Run: fw fabric enrich"
-  - level: WARN
-    check: "Fabric drift: 4 source file(s) have no fabric card"
-    mitigation: "Run: fw fabric scan"
+  - level: PASS
+    check: "Fabric drift: All watched source files registered (178 cards)"
+  - level: FAIL
+    check: "Cron drift: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.context/cron-registry.yaml is ahead of /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.context/cron/agentic-audit.crontab (registry edited but not generated)"
+    mitigation: "Run: fw cron generate"
   - level: FAIL
     check: "Cron drift: generated but not installed at /etc/cron.d/agentic-audit-t2687-pickup-failopen"
     mitigation: "Run: fw cron install"

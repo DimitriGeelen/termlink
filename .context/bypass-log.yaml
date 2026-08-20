@@ -159,3 +159,9 @@ bypasses:
     authorized_by: human
     reason: "T-2690 pre-push audit cron-drift FAIL on worktree-derived unit name; operator-approved Tier 0 (third)"
     retroactive_task: null
+  - timestamp: 2026-08-20T16:00:14Z
+    action: "T-2808: finalize — BVP estimator operational, 32 HV/LC and 6 HV/HC identified"
+    commit: 082d9adc8
+    authorized_by: human
+    reason: "T-2690 cron-drift FAIL: audit derives /etc/cron.d/agentic-audit-<worktree-basename>, a path that cannot exist in a worktree. Filed upstream at framework:pickup offset 13. Operator authorized the push."
+    retroactive_task: null

@@ -801,3 +801,101 @@ decisions:
     date: 2026-08-13
     task: T-2676
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-094
+    decision: "`safe_load` into a mapping — byte-identical to what `get_episodic_tags` does."
+    scope: project
+    date: 2026-08-20
+    task: T-2805
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-095
+    decision: "All 29 fire; the class carries the remediation."
+    scope: project
+    date: 2026-08-20
+    task: T-2805
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-096
+    decision: "No auto-regeneration."
+    scope: project
+    date: 2026-08-20
+    task: T-2805
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-097
+    decision: "File back on `framework:pickup` rather than only consuming the report."
+    scope: project
+    date: 2026-08-20
+    task: T-2805
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-098
+    decision: "Copy from the checkout that has the files; commit here where tracking is allowed."
+    scope: project
+    date: 2026-08-20
+    task: T-2806
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-099
+    decision: "File it upstream; recover the file locally."
+    scope: project
+    date: 2026-08-20
+    task: T-2806
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-100
+    decision: "The acceptance criterion is that a build task actually moves to `completed/`."
+    scope: project
+    date: 2026-08-20
+    task: T-2806
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-101
+    decision: "Fix the mechanism; do not bulk-finalize the backlog."
+    scope: project
+    date: 2026-08-20
+    task: T-2806
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-102
+    decision: "Everything under `lib/ bin/ policy/ agents/` that exists in the sibling checkout."
+    scope: project
+    date: 2026-08-20
+    task: T-2807
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-103
+    decision: "No edits to any recovered file, including obvious ones."
+    scope: project
+    date: 2026-08-20
+    task: T-2807
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-104
+    decision: "Copy with mode preserved and assert it afterwards."
+    scope: project
+    date: 2026-08-20
+    task: T-2807
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-105
+    decision: "revert all 72 writes, install the framework's own rubric template at"
+    scope: project
+    date: 2026-08-20
+    task: T-2808
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-106
+    decision: "score the whole corpus in memory first and look at the distribution."
+    scope: project
+    date: 2026-08-20
+    task: T-2808
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-107
+    decision: "`--include-proposed` for the ranking; no `fw bvp confirm`."
+    scope: project
+    date: 2026-08-20
+    task: T-2808
+    rationale: "Auto-captured from task file on completion"

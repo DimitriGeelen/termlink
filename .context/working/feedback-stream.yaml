@@ -7938,3 +7938,75 @@ scan_id: R-c5f9a739
 task_id: T-2676
 payload:
   task_file: .tasks/active/T-2676-bound-circuitbreakerregistrystates--per-.md
+---
+kind: scan_emitted
+timestamp: '2026-08-20T15:03:04Z'
+scan_id: R-aef1a505
+task_id: T-2805
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-20T15:03:04Z'
+scan_id: R-aef1a505
+task_id: T-2805
+payload:
+  task_file: .tasks/active/T-2805-episodic-memory-has-no-reader-29-of-2259.md
+---
+kind: scan_emitted
+timestamp: '2026-08-20T15:05:08Z'
+scan_id: R-52b1b2cf
+task_id: T-2806
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-20T15:05:08Z'
+scan_id: R-52b1b2cf
+task_id: T-2806
+payload:
+  task_file: .tasks/active/T-2806-recover-the-two-dangling-framework-files.md
+---
+kind: scan_emitted
+timestamp: '2026-08-20T15:14:39Z'
+scan_id: R-2b86f768
+task_id: T-2807
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-20T15:14:39Z'
+scan_id: R-2b86f768
+task_id: T-2807
+payload:
+  task_file: .tasks/active/T-2807-recover-the-remaining-111-untracked-fram.md
+---
+kind: scan_emitted
+timestamp: '2026-08-20T15:22:44Z'
+scan_id: R-13be09ed
+task_id: T-2808
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-20T15:22:44Z'
+scan_id: R-13be09ed
+task_id: T-2808
+payload:
+  task_file: .tasks/active/T-2808-run-the-bvp-estimator-across-active-task.md
