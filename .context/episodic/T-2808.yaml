@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2808: Run the BVP estimator across active tasks and surface the HV/LC and HV/HC quadrants
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-20T15:22:46Z
+# ============================================================================
+
+task_id: T-2808
+task_name: "Run the BVP estimator across active tasks and surface the HV/LC and HV/HC quadrants"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-20
+completed: 2026-08-20T15:22:38Z
+duration_days: 0
+updates_count: 0
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - '`fw bvp` runs without error in this worktree, proving the T-2806/T-2807 recovery'
+  - 'The ranking is produced with `--include-proposed`, and the confirmed/proposed'
+  - 'Both quadrant views (`--quadrant hv-lc`, `--quadrant hv-hc`) are run and reported'
+  - 'No task is scored or confirmed by the agent — the §ACD gate is left intact'
+  - 'The result is reported to the operator with an explicit statement of what the estimator'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-08-20 — Install the scoring rubric before trusting the run, and redo the first one'
+    chose: 'revert all 72 writes, install the framework''s own rubric template at'
+    rationale: 'the rubric is provenance, not a scoring input — the scores are byte-identical either'
+  - decision: '2026-08-20 — Measure whether the estimator discriminates before writing 200 files'
+    chose: 'score the whole corpus in memory first and look at the distribution.'
+    rationale: 'the three pre-existing scored tasks all tied at BVP 48, which is consistent both with'
+  - decision: '2026-08-20 — Report proposed scores; never confirm them'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1042 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [governance, bvp, prioritisation]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1042
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2808-run-the-bvp-estimator-across-active-task.md
+generated_by: context-agent-hybrid

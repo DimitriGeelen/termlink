@@ -7,16 +7,16 @@ description: >
   recovered them. Run it, produce a ranked view, and say which active work is genuinely
   high-value.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [governance, bvp, prioritisation]
 components: []
 related_tasks: [T-2806, T-2807, T-1918, T-1924, T-2223]
 created: 2026-08-20
-last_update: '2026-08-20T15:21:22Z'
-date_finished:
+last_update: 2026-08-20T15:22:38Z
+date_finished: 2026-08-20T15:22:38Z
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:38Z'
     estimator: bvp-estimator-v1-heuristic
@@ -149,3 +149,20 @@ Every score is `proposed`. **Nothing is confirmed**, and the `SOURCE` column say
 - **Why:** Confirmation is §ACD sovereignty-gated behind `--i-am-human`. The session's standing
   instruction delegates initiative — which task to pick up — not authority. Producing confirmed
   scores would make the register say a human had valued this work when none had.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-13be09ed
+- **Timestamp:** 2026-08-20T15:22:44Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **empty-output-success** (partial, heuristic) @ Verification:line 2
+     - evidence: `.agentic-framework/bin/fw bvp >/dev/null 2>&1`
+
+### 2026-08-20T15:22:38Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
