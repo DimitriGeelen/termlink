@@ -17,7 +17,7 @@ tags: [governance, remediation, termlink, operator-ux]
 components: []
 related_tasks: [T-2694, T-2698, T-2690, T-559]
 created: 2026-08-20
-last_update: 2026-08-20
+last_update: 2026-08-20T09:54:27Z
 date_finished: null
 ---
 
@@ -74,24 +74,48 @@ the operator copying terminal output back.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] One script performs all three mechanical steps and is safe to re-run (idempotent)
-- [ ] It scans every file it would stage and REFUSES to commit if a high-confidence secret
+- [x] One script performs all three mechanical steps and is safe to re-run (idempotent)
+- [x] It scans every file it would stage and REFUSES to commit if a high-confidence secret
       marker is found, naming file and line
-- [ ] Soft signals (home paths, host addresses) are reported but do not block
-- [ ] It never pushes, and no flag makes it push — Tier 0 stays with the human
-- [ ] It reports the unpushed commit count and prints the push command without running it
-- [ ] `--dry-run` shows exactly what would happen and changes nothing
-- [ ] It writes a machine-readable JSON report this session can read back
-- [ ] Each step reports applied / already-done / skipped-with-reason — never silent success
-- [ ] Verification of the outcome is part of the run (the tracking-drift and static checks are
+- [x] Soft signals (home paths, host addresses) are reported but do not block
+- [x] It never pushes, and no flag makes it push — Tier 0 stays with the human
+- [x] It reports the unpushed commit count and prints the push command without running it
+- [x] `--dry-run` shows exactly what would happen and changes nothing
+- [x] It writes a machine-readable JSON report this session can read back
+- [x] Each step reports applied / already-done / skipped-with-reason — never silent success
+- [x] Verification of the outcome is part of the run (the tracking-drift and static checks are
       re-run afterwards and their exit codes recorded)
-- [ ] Fixtures prove the secret-refusal path on a scratch repo, host-independent (PL-213)
-- [ ] Executed against the real main checkout via TermLink, with the report read back here
+- [x] Fixtures prove the secret-refusal path on a scratch repo, host-independent (PL-213)
+- [x] Executed against the real main checkout via TermLink, with the report read back here
 
 ## Verification
 
 bash tests/remediate-main-checkout-fixtures.sh
 bash scripts/remediate-main-checkout.sh --dry-run --root .
+
+## Evolution
+
+### 2026-08-20 — the first live dry-run found a false success in this script
+
+- **What changed:** run against the real `/opt/termlink`, the script reported steps 1 and 2 as
+  "already done (nothing new to track)". They were not done. `git add --dry-run` on a path
+  that is still ignored exits **1** and writes "The following paths are ignored by one of your
+  .gitignore files" to **stderr**, printing nothing on stdout — and this script read stdout
+  only, ignoring the return code. Empty output was interpreted as success.
+- **Plan impact:** two things, and the second is larger than the script.
+  First, the script now distinguishes ignored-and-blocked from already-tracked from
+  nothing-there, and BLOCKS with the active rule quoted. Second — and this invalidates the
+  instructions the operator was given three turns ago — **steps 1 and 2 cannot run in the
+  main checkout at all yet.** The `.gitignore` narrowing that makes those paths trackable
+  lives on this branch; `main` still carries the blanket rules at `.gitignore:21` and
+  `.gitignore:80`. The `git add` commands the operator was handed would have failed for them
+  exactly as they failed here.
+- **Triggered:** steps 1 and 2 are downstream of the merge, which is downstream of the Tier 0
+  push. Only step 3 was actionable, and it has been applied.
+- **Worth noting:** a dry run against reality caught a false-success bug that 21 green
+  fixtures did not, because every fixture built a repo where the paths were stageable. The
+  case that mattered was the one the fixtures could not imagine — the precondition being
+  absent. It is now assertion 8b.
 
 ## Decisions
 

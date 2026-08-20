@@ -157,14 +157,62 @@ def stage_and_commit(name, paths, message, purpose):
         return
 
     # What would staging actually add? Ask git rather than guessing.
+    #
+    # The return code matters as much as the output. `git add --dry-run` on a path
+    # that is still ignored exits 1 and writes "The following paths are ignored by
+    # one of your .gitignore files" to STDERR, printing nothing on stdout. An
+    # earlier version of this script read stdout only and treated the empty result
+    # as "already done" — reporting success while doing nothing, which is the exact
+    # failure class the rest of this branch exists to remove. The dry run against
+    # the real checkout is what caught it.
     r = run("git", "add", "--dry-run", "--", *existing)
     would = [l.split(None, 1)[1].strip().strip("'\"")
              for l in r.stdout.splitlines() if l.startswith("add ")]
+
+    if r.returncode != 0:
+        if "ignored by one of your" in (r.stderr or ""):
+            failed = True
+            rules = run("git", "check-ignore", "-v", "--", *existing).stdout.strip().splitlines()
+            steps.append({"step": name, "result": "BLOCKED",
+                          "reason": "the ignore rule that hid these files is still active "
+                                    "in this checkout",
+                          "ignore_rules": rules, "purpose": purpose})
+            say("  %sBLOCKED%s %s — these paths are STILL IGNORED here, so nothing can be"
+                % (RED, OFF, name))
+            say("           staged. The .gitignore narrowing that makes them trackable is")
+            say("           on worktree-t2687-pickup-failopen and has not reached this")
+            say("           checkout. Active rule(s):")
+            for line in rules[:6]:
+                say("             %s" % line)
+            say("           Fix the RULE here first (merge the branch, or apply the")
+            say("           .gitignore change), then re-run. Do NOT `git add -f`: that")
+            say("           tracks today's files and leaves tomorrow's invisible again,")
+            say("           which is the defect T-2698 exists to close.")
+            return
+        failed = True
+        steps.append({"step": name, "result": "failed",
+                      "reason": (r.stderr or r.stdout).strip(), "purpose": purpose})
+        say("  %sFAIL%s  %s — git add --dry-run: %s"
+            % (RED, OFF, name, (r.stderr or r.stdout).strip()[:200]))
+        return
+
     if not would:
-        steps.append({"step": name, "result": "already-done",
-                      "reason": "every target path is already tracked and unmodified",
-                      "purpose": purpose})
-        say("  %sOK%s    %s — already done (nothing new to track)" % (GRN, OFF, name))
+        tracked = run("git", "ls-files", "--", *existing).stdout.strip()
+        if tracked:
+            steps.append({"step": name, "result": "already-done",
+                          "reason": "every target path is already tracked and unmodified",
+                          "purpose": purpose})
+            say("  %sOK%s    %s — already done (already tracked)" % (GRN, OFF, name))
+        else:
+            failed = True
+            steps.append({"step": name, "result": "BLOCKED",
+                          "reason": "nothing to stage and nothing tracked — paths exist but "
+                                    "git will not take them",
+                          "purpose": purpose})
+            say("  %sBLOCKED%s %s — paths exist, nothing tracked, nothing stageable."
+                % (RED, OFF, name))
+            say("           Not a no-op: git is declining for a reason this script did")
+            say("           not anticipate. Investigate before assuming it is done.")
         return
 
     hard, soft = scan(would)

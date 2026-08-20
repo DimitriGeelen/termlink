@@ -148,6 +148,36 @@ if echo "$out" | grep -q "Tier 0"; then ok "reports the push as Tier 0 rather th
 else bad "reports push as Tier 0" "$out"; fi
 
 # ---------------------------------------------------------------------------
+# 8b. THE FALSE-SUCCESS GUARD. If the ignore rule that hid these files is still
+#     active in the checkout, `git add --dry-run` exits 1 with the "ignored"
+#     message on STDERR and nothing on stdout. An earlier version read stdout
+#     only and called that "already done" — reporting success while doing
+#     nothing. It must BLOCK, and say why.
+# ---------------------------------------------------------------------------
+D="$TMP/stillignored"; mk_repo "$D"
+echo '.agentic-framework' > "$D/.gitignore"
+( cd "$D" && git add .gitignore >/dev/null && git commit -qm ignore )
+out=$(run "$D"); rc=$?
+if [ "$rc" = "1" ]; then ok "still-ignored paths: exits 1, not 0"
+else bad "still-ignored exits 1" "rc=$rc — a false success: $out"; fi
+if echo "$out" | grep -q "BLOCKED"; then ok "still-ignored paths: reports BLOCKED"
+else bad "still-ignored reports BLOCKED" "$out"; fi
+# Scope this to the step itself: "already done" legitimately appears for the
+# unrelated stale-task-files step in the same run.
+if python3 -c "
+import json,sys
+d=json.load(open('$D/report.json'))
+s=[x for x in d['steps'] if x['step']=='framework-subset'][0]
+sys.exit(0 if s['result']=='BLOCKED' else 1)"; then
+    ok "still-ignored step records BLOCKED, never 'already-done'"
+else bad "still-ignored step records BLOCKED" "$(python3 -c "
+import json;d=json.load(open('$D/report.json'));print([x for x in d['steps'] if x['step']=='framework-subset'])")"; fi
+if echo "$out" | grep -q "STILL IGNORED"; then ok "explains that the rule has not reached this checkout"
+else bad "explains the precondition" "$out"; fi
+if echo "$out" | grep -q 'git add -f'; then ok "warns against the -f shortcut that leaves the rule broken"
+else bad "warns against git add -f" "$out"; fi
+
+# ---------------------------------------------------------------------------
 # 9. Report is machine-readable and carries per-step results.
 # ---------------------------------------------------------------------------
 D="$TMP/report"; mk_repo "$D"
