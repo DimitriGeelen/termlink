@@ -183,3 +183,9 @@ bypasses:
     authorized_by: human
     reason: "Standing session-scoped Tier 0 authorization, this branch only: T-2815 cron-drift audit FAIL (worktree-basename path). Filed upstream framework:pickup offset 13."
     retroactive_task: null
+  - timestamp: 2026-08-20T22:12:58Z
+    action: "T-2824: confirm 832's gate defect and find a second in the same lines; add scripts/check-verification-legs.py (filed at offset 31)"
+    commit: afe755c2d
+    authorized_by: human
+    reason: "Standing session-scoped Tier 0 authorization, this branch only: T-2815 cron-drift audit FAIL (worktree-basename path). Filed upstream framework:pickup offset 13."
+    retroactive_task: null
