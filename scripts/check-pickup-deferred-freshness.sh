@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# guard-layer: source
 # T-2801 — stranded / stale auto-deferred pickup envelope check.
 #
 # The pickup pipeline routes an inbound envelope to .context/pickup/auto-deferred/
@@ -54,7 +55,7 @@ QUIET=0
 FORMAT=human
 
 usage() {
-    sed -n '2,45p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '3,46p' "$0" | sed 's/^# \{0,1\}//'
     cat <<'EOF'
 
 Usage: check-pickup-deferred-freshness.sh [OPTIONS]

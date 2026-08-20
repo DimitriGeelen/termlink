@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# guard-layer: source
 # T-2800 — cross-branch task-ID collision + duplicate-work check.
 #
 # Every worktree allocates task IDs by scanning its OWN .tasks/ for the highest ID
@@ -56,7 +57,7 @@ FORMAT=human
 NO_TITLES=0
 
 usage() {
-    sed -n '2,49p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '3,50p' "$0" | sed 's/^# \{0,1\}//'
     cat <<'EOF'
 
 Usage: check-task-id-collisions.sh [OPTIONS]

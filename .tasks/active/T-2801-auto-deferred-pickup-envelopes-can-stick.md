@@ -16,7 +16,7 @@ tags: [governance, pickup, g-063, observability]
 components: []
 related_tasks: [T-1425, T-2072, T-2304, T-2231, T-2691]
 created: 2026-08-20
-last_update: 2026-08-20
+last_update: 2026-08-20T09:35:31Z
 date_finished: null
 ---
 

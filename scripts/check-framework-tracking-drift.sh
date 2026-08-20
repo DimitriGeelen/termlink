@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# guard-layer: source
 # check-framework-tracking-drift.sh — T-2689.
 #
 # Reports files present under the vendored framework directory that are UNREACHABLE
@@ -20,8 +21,12 @@
 # the §ACD sovereignty-gated driver weights exist only on one host's disk.
 #
 # This is a DEPLOY-TIME / ad-hoc check, not a cron canary — the same tier as
-# `check-cron-install-drift.sh` (T-2561). Register it in
-# `.context/cron/ondemand-checks.conf` if it ever grows a heartbeat.
+# `check-cron-install-drift.sh` (T-2561). It carries the `# guard-layer: source`
+# marker above (T-2802), so `run-guard-layer.sh` executes it: git plus the vendored
+# framework dir are both in-tree, so it is safe to run anywhere. An earlier draft
+# pointed at `.context/cron/ondemand-checks.conf`, a registry removed in T-2698 when
+# the canary-status work was yielded to governance-canary-signal — their
+# `crontab_declares` derives the same fact from the crontabs themselves.
 #
 # Two detection axes (T-2692)
 # ---------------------------
