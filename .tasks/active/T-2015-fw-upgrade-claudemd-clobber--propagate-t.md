@@ -83,6 +83,16 @@ This task is the TermLink-side tracker. The fix lands upstream in `agentic-engin
 - [ ] After upstream fix lands in vendored `.agentic-framework/lib/upgrade.sh`, re-run `fw upgrade` and confirm CLAUDE.md is left intact (or only the framework-template block within it is updated, leaving project-specific blocks unchanged)
 
 ### Human
+> **2026-08-20 — overtaken; filed directly instead.** The artifact existed so an operator
+> could relay it. That did not happen in 76 days, so it was posted to `framework:pickup`
+> (**offset 29**) with the exposure measured rather than described: CLAUDE.md is 2493 lines,
+> `## Core Principle` sits at 1650, so **844 lines are in the half `fw upgrade` replaces**,
+> including the whole Quick Reference table. The filing also flags an ordering constraint the
+> artifact could not know: the tertiary `--accept-clobber` fix would be a NEW flag, and the
+> replay allowlist filed at offset 28 drops any flag it does not name — so that fix must not
+> land first, or the operator's acknowledgement is silently discarded.
+> A pre-re-vendor checklist is now at the top of `.vendor-divergence.yaml`.
+>
 - [ ] [REVIEW] Framework-agent prompt at `docs/reports/T-2015-fw-upgrade-claudemd-clobber-framework-prompt.md` is operator-ready
   **Steps:**
   1. Open the file
@@ -247,3 +257,40 @@ Operator typed `fw upgrade` on `/opt/termlink` (root@.107). Pre-upgrade state ca
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2015-fw-upgrade-claudemd-clobber--propagate-t.md
 - **Context:** Initial task creation
+
+### 2026-08-20 — filed upstream (offset 29); the exposure is 844 lines and a re-vendor is on the table [agent]
+
+Reached from T-2016, which is the same defect class in the same vendored file, filed the same
+day. Both had a ticked AC reading "framework-agent prompt artifact written to `docs/reports/…`
+for operator copy-paste". Neither was ever pasted. The reports sat in that directory for 76 days
+while the code stayed byte-identical.
+
+**Measured rather than recalled, because a re-vendor is being proposed on another branch
+(T-2705).** `fw upgrade` step 1/10:
+
+```bash
+current_governance=$(sed -n '/^## Core Principle$/,$ p' "$project_claude")
+printf '%s\n%s\n' "$project_header" "$governance" > "$project_claude"
+```
+
+Everything from `## Core Principle` to EOF is replaced with the template; everything above
+survives. The boundary is a single sed address and **nothing in CLAUDE.md marks it**. This file
+is 2493 lines and that heading is at 1650 — so **844 lines are in the destroyed half**, including
+the entire Quick Reference table and its 29 project-specific operator entry points.
+
+The framework does diff against the `.bak` and print a lost-line count. Then it proceeds. Its own
+comment says the check exists because the regression went silent before — but a count printed
+inside a 10-step run, with the `.bak` pruned at the next commit, is observation rather than
+prevention. Third occurrence in this lineage.
+
+**An ordering constraint the original artifact could not have known**, because the sibling defect
+was diagnosed independently: the RCA's tertiary fix is `--accept-clobber`, a NEW flag. The replay
+allowlist filed at offset 28 drops every flag it does not explicitly name. Land the tertiary fix
+first and the operator's explicit acknowledgement vanishes through the bare-from-consumer handoff
+— an acknowledgement given and discarded. Flagged in the filing: if both are taken, the replay
+fix goes first.
+
+**Mitigated locally without touching vendored code.** A pre-re-vendor checklist now sits at the
+top of `.vendor-divergence.yaml` (`cp CLAUDE.md CLAUDE.md.prevendor` before, `diff` after), and
+CLAUDE.md records the hazard next to the divergence register. The remaining Agent AC stays
+unticked — it waits on an upstream fix, and filing is not fixing.

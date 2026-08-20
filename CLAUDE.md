@@ -1008,6 +1008,23 @@ marked `filed-upstream`.
 
 **Run it before proposing or accepting a re-vendor.** That is the moment it exists for.
 
+**A re-vendor also rewrites this file, and the boundary is positional (T-2015).** `fw upgrade`
+step 1/10 takes everything from `## Core Principle` to **end of file** as framework-managed and
+replaces it with the template; everything above survives. Nothing in CLAUDE.md marks that line.
+Measured 2026-08-20: this file is 2493 lines, `## Core Principle` is at 1650, so **844 lines are
+in the destroyed half — including the entire Quick Reference table** and its 29 project-specific
+operator entry points. The framework does diff against `CLAUDE.md.bak` and print a lost-line
+count, then proceeds: observation, not prevention, and the `.bak` is gone at the next commit
+prune. It has fired three times in this lineage. Filed upstream at `framework:pickup` offset 29.
+**The pre-re-vendor checklist lives at the top of `.vendor-divergence.yaml`** — the short version
+is `cp CLAUDE.md CLAUDE.md.prevendor` first and `diff` after.
+
+**Two `lib/upgrade.sh` defects were filed on 2026-08-20 (offsets 28 and 29), 76 days after both
+were diagnosed.** Each had an acceptance criterion reading "framework-agent prompt artifact
+written to `docs/reports/…` for operator copy-paste" — both ticked, neither ever pasted. If you
+find yourself writing a report to a file so a human can relay it, post it to `framework:pickup`
+instead; the rail has been there the whole time.
+
 ### `revisit_at` reminders only fire if the cron sets PROJECT_ROOT (T-2810, G-053)
 
 `revisit_at` + `revisit_evidence_needed` (T-1451) are the framework's **only** structural

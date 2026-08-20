@@ -38,6 +38,42 @@ last_vendor_event:
     "re-vendor recommended" — recommended, not performed — so it is NOT a vendor
     event, and treating it as one understates the window.
 
+# READ THIS BEFORE RUNNING fw upgrade / fw update / any re-vendor.
+#
+# The registered divergences below are not the only thing a re-vendor destroys.
+# `fw upgrade` step 1/10 rewrites CLAUDE.md, and the boundary is POSITIONAL:
+#
+#     current_governance=$(sed -n '/^## Core Principle$/,$ p' "$project_claude")
+#     printf '%s\n%s\n' "$project_header" "$governance" > "$project_claude"
+#
+# Everything from `## Core Principle` to END OF FILE is replaced wholesale with
+# the framework template. Everything above it survives. Nothing in CLAUDE.md
+# marks that boundary.
+#
+# MEASURED 2026-08-20 on this repo: CLAUDE.md is 2493 lines, `## Core Principle`
+# is at 1650, so **844 lines sit in the destroyed half** — including the entire
+# Quick Reference table and its 29 project-specific operator entry points
+# (/find-idle, /claims, /queue-status, /governor, /be-reachable, /agent-handoff,
+# /check-arc, the substrate-primitive catalogue).
+#
+# The framework DOES notice: after writing, it diffs against CLAUDE.md.bak and
+# prints "N line(s) ... are absent from the new CLAUDE.md", then proceeds. That
+# is observation, not prevention, and the operator must catch it inside a
+# 10-step run before the next commit prunes the .bak. It has fired at least
+# three times in this lineage (upstream PL-124 twice in a week, then here,
+# losing an entire skills table). Filed upstream at framework:pickup offset 29;
+# tracked locally as T-2015.
+#
+# PRE-RE-VENDOR CHECKLIST
+#   1. bash scripts/check-vendor-divergence.sh      # nothing unclassified
+#   2. Confirm every `status: filed-upstream` below is now carried upstream,
+#      or accept losing it.
+#   3. cp CLAUDE.md CLAUDE.md.prevendor              # the 844 lines
+#   4. Run the re-vendor.
+#   5. diff CLAUDE.md.prevendor CLAUDE.md            # re-apply what was dropped
+#   6. Re-check the modes listed under `mode-only` (PL-205 fail-open).
+#   7. Update `last_vendor_event` here.
+
 divergences:
   - task: T-2687
     commit: ed60a64ea
