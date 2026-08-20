@@ -12,7 +12,7 @@ workflow_type: build
 horizon: now
 owner: claude-code
 created: 2026-08-20
-last_update: 2026-08-20
+last_update: 2026-08-20T01:01:52Z
 tags: [governance, gitignore, vendoring, clean-clone, bvp]
 ---
 
@@ -116,7 +116,11 @@ reviews the list before committing rather than trusting a blind sweep from here.
 ## Verification
 
 bash tests/gitignore-framework-scope-fixtures.sh
-git status --porcelain .agentic-framework/ | wc -l | grep -qx 0
+# NOT `... | wc -l | grep -qx 0` — that is the L-387 shape T-2693 detects, and the T-2693
+# auditor caught it here while this very task was being written (active findings went
+# 150 -> 151). Left as a note because it is the most convincing demonstration available
+# that the check is load-bearing: it flagged its own author, one commit after shipping.
+test -z "$(git status --porcelain .agentic-framework/)"
 
 ## Decisions
 
