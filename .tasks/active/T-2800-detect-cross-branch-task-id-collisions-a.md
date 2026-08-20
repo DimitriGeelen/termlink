@@ -5,8 +5,8 @@ description: >
   T-229 renumbered colliding task IDs in March 2026 and noted the counter is not safe for
   concurrent work. Nothing was built. It recurred in August at 12x — and the expensive half
   was not the IDs but three agents independently solving the same two defects. Add a
-  deploy-time check with two axes: IDs claimed by more than one branch, and near-duplicate
-  task titles across branches.
+  deploy-time check with three axes: IDs claimed by more than one branch, the same new file
+  created on more than one branch, and near-duplicate task titles across branches.
 
 status: started-work
 workflow_type: build
@@ -16,7 +16,7 @@ tags: [governance, concurrency, task-system, duplicate-work]
 components: []
 related_tasks: [T-229, T-2696, T-2697, T-2698, T-2561]
 created: 2026-08-20
-last_update: 2026-08-20T09:23:33Z
+last_update: 2026-08-20T09:27:01Z
 date_finished: null
 ---
 
@@ -86,8 +86,9 @@ upstream (`framework:pickup` offsets 15–16, G-062).
 
 ## Approach
 
-One script, two axes — the shape `check-framework-tracking-drift.sh` already uses, because
-each axis is blind exactly where the other fires.
+One script, three axes — the shape `check-framework-tracking-drift.sh` already uses, because
+each axis is blind exactly where the others fire. (Axis C was added after the two-axis version
+found a duplicate its title heuristic could not see; see Decisions.)
 
 **Axis A — colliding IDs.** For each local branch, the set of task IDs not present in the
 merge base. Any ID claimed by two or more branches fires, and the differing filenames are
@@ -100,8 +101,14 @@ similarity threshold on *different* branches is reported. Deliberately a WARNING
 firing condition: title similarity is a heuristic and a false positive must never block, only
 prompt a look. Axis A fires; axis B advises.
 
-Same-branch pairs are excluded (a branch is allowed to have related tasks), as are pairs
-already sharing an ID (axis A owns those).
+**Axis C — duplicate new files.** The same path created on more than one branch with
+differing content. Fires, because it is a fact rather than a judgement: two branches adding
+the same path is duplicated work and the merge conflicts either way. Identical blobs are
+excluded as shared history, and per-session artifacts (handovers, episodic, audits, pickup)
+are skipped since those legitimately differ per branch.
+
+Same-branch pairs are excluded from axis B (a branch is allowed to have related tasks), as
+are pairs already sharing an ID (axis A owns those).
 
 Deploy-time / ad-hoc, **not** a cron canary — the same tier as `check-cron-install-drift.sh`.
 Run it before starting work, and before a merge.
@@ -118,7 +125,10 @@ Run it before starting work, and before a merge.
       warning
 - [x] Axis B excludes same-branch pairs and pairs already reported by axis A
 - [x] Axis B's similarity threshold is tunable
-- [x] `--json` carries both axes separately with their own counts
+- [x] `--json` carries all three axes separately with their own counts
+- [x] Axis C fires on the same new path created on two branches with differing content
+- [x] Axis C does NOT fire when the blobs are identical (shared history / cherry-pick)
+- [x] Axis C skips per-session artifacts (handovers, episodic, audits, pickup)
 - [x] Exit codes: 0 clean, 1 collision, 2 tooling (not a git repo)
 - [x] Fixtures build a scratch repo with real branches and prove each axis independently,
       host-independent (PL-213)
