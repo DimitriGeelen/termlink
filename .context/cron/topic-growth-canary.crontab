@@ -24,4 +24,4 @@ PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 05:11 UTC — offset from the :13 mirror, :37 framework-pickup, 06:43
 # frozen-husk canaries and the :23/:53 heartbeats.
-11 5 * * * root cd /opt/termlink && bash scripts/check-topic-growth-freshness.sh --quiet >> .context/working/.topic-growth-canary.log 2>&1
+11 5 * * * root cd /opt/termlink && bash scripts/check-topic-growth-freshness.sh --quiet >> .context/working/.topic-growth-canary.log 2>> .context/working/.topic-growth-canary.log.stderr

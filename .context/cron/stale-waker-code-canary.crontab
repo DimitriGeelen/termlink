@@ -26,4 +26,4 @@ PATH=/usr/local/bin:/usr/bin:/bin
 
 # Daily at 08:13 UTC — offset from the :13/:17/:23/:43 canaries and the
 # 07:43 task-finalization / 07:53 waker-liveness / 08:33 fleet-binary neighbours.
-13 8 * * * root cd /opt/termlink && bash scripts/check-stale-waker-code-freshness.sh --quiet >> .context/working/.stale-waker-code-canary.log 2>&1
+13 8 * * * root cd /opt/termlink && bash scripts/check-stale-waker-code-freshness.sh --quiet >> .context/working/.stale-waker-code-canary.log 2>> .context/working/.stale-waker-code-canary.log.stderr
