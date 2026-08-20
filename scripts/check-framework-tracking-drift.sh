@@ -23,10 +23,29 @@
 # `check-cron-install-drift.sh` (T-2561). Register it in
 # `.context/cron/ondemand-checks.conf` if it ever grows a heartbeat.
 #
+# Two detection axes (T-2692)
+# ---------------------------
+# The two are complementary because each is blind where the other fires:
+#
+#   A. UNTRACKED  — a file is on disk but absent from git. Visible only in the checkout
+#                   where the untracked file physically lives (i.e. the machine that
+#                   created it).
+#   B. DANGLING   — tracked framework code references "$FRAMEWORK_ROOT/<path>" and that
+#                   path does not exist. Visible only where the file is MISSING — a clean
+#                   clone, a fresh deploy, or a git worktree (which materialises tracked
+#                   files only).
+#
+# Axis A alone reports a worktree as clean while `fw bvp` is broken in it, because the
+# untracked lib/bvp.sh simply is not there to be noticed. That is not hypothetical: it is
+# how T-2692 was found. Axis B catches the same defect from the consumer side, and is the
+# axis that matters for anyone who did not create the drift.
+#
 # Firing policy
 # -------------
 #   FIRES (exit 1)  — an untracked file under a LOAD-BEARING subtree: bin/ lib/ policy/
-#                     agents/. These are what break a clean clone.
+#                     agents/. These are what break a clean clone.       [axis A]
+#   FIRES (exit 1)  — a "$FRAMEWORK_ROOT/<path>" reference in tracked framework code that
+#                     does not resolve on disk.                          [axis B]
 #   informational   — untracked files under docs/ or web/ (bulk content; a missing doc
 #                     is a gap, not a broken install). Counted, never firing.
 #   excluded        — __pycache__/, *.pyc, *.pyo, .git/ (generated; tracking them would
@@ -127,9 +146,60 @@ $(find "$FW_ROOT" -type f \
     2>/dev/null | sort)
 EOF
 
+# --- Axis B: dangling "$FRAMEWORK_ROOT/<path>" references (T-2692) -----------
+#
+# Scan shell sources under the framework root for the literal interpolation shape and
+# test each resolved path. A reference carrying a FURTHER interpolation (a `${` after the
+# leading $FRAMEWORK_ROOT) cannot be resolved statically, so it is skipped and counted
+# rather than guessed — a false positive in a check that gates nothing just teaches people
+# to ignore it.
+DANGLING=""
+DANGLING_COUNT=0
+DANGLING_SKIPPED=0
+REFS_CHECKED=0
+
+# The anchor is deliberately NARROW: only a reference in SOURCE-or-EXECUTE position
+# counts. A first pass matched every "$FRAMEWORK_ROOT/..." string and produced 47 hits of
+# which ~44 were noise — bare $VAR interpolations, `path/to/script.sh` usage examples in
+# help text, and the framework's own tests/ and .git/ which a vendored copy legitimately
+# omits. Those are not broken installs, and a check that cries wolf 44 times out of 47 is
+# a check nobody reads.
+#
+# A reference that is sourced or executed, by contrast, is load-bearing by construction:
+# if it is missing the command fails at runtime. That is exactly the `. "$FRAMEWORK_ROOT/
+# lib/bvp.sh"` shape that broke `fw bvp` here. Same philosophy as the sibling static
+# checks (T-2666 anchors on a precise preceding-line shape, T-2672 on specific RPC method
+# strings) — a narrow anchor with few false positives beats a broad one nobody trusts.
+while IFS= read -r rel; do
+    [ -n "$rel" ] || continue
+    # A path still carrying a shell interpolation cannot be resolved statically.
+    case "$rel" in
+        *'$'*)
+            DANGLING_SKIPPED=$((DANGLING_SKIPPED + 1))
+            continue
+            ;;
+    esac
+    REFS_CHECKED=$((REFS_CHECKED + 1))
+    [ -e "$FW_ROOT/$rel" ] && continue
+    case "$DANGLING" in
+        *"$rel"$'\n'*) continue ;;   # already reported
+    esac
+    DANGLING="${DANGLING}${rel}"$'\n'
+    DANGLING_COUNT=$((DANGLING_COUNT + 1))
+done <<EOF
+$(grep -rhE '(^|[;&|]|[[:space:]])(\.|source|bash|sh|python3|python)[[:space:]]+"\$FRAMEWORK_ROOT/[^"]*"' \
+    "$FW_ROOT/bin" "$FW_ROOT/lib" "$FW_ROOT/agents" 2>/dev/null \
+  | grep -vE '^[[:space:]]*#' \
+  | grep -oE '"\$FRAMEWORK_ROOT/[^"]*"' \
+  | sed -e 's|^"\$FRAMEWORK_ROOT/||' -e 's|"$||' \
+  | sort -u)
+EOF
+
+TOTAL_FIRING=$((FIRING_COUNT + DANGLING_COUNT))
+
 if [ "$JSON" = "1" ]; then
     printf '{"ok":%s,"checked":%d,"firing_count":%d,"informational_count":%d,"firing":[' \
-        "$([ "$FIRING_COUNT" -eq 0 ] && echo true || echo false)" \
+        "$([ "$TOTAL_FIRING" -eq 0 ] && echo true || echo false)" \
         "$CHECKED" "$FIRING_COUNT" "$INFO_COUNT"
     first=1
     while IFS= read -r f; do
@@ -140,39 +210,76 @@ if [ "$JSON" = "1" ]; then
     done <<EOF
 $FIRING
 EOF
+    printf '],"refs_checked":%d,"refs_skipped_dynamic":%d,"dangling_count":%d,"dangling":[' \
+        "$REFS_CHECKED" "$DANGLING_SKIPPED" "$DANGLING_COUNT"
+    first=1
+    while IFS= read -r r; do
+        [ -n "$r" ] || continue
+        [ "$first" = "1" ] || printf ','
+        first=0
+        printf '"%s"' "$r"
+    done <<EOF
+$DANGLING
+EOF
     printf ']}\n'
-    [ "$FIRING_COUNT" -eq 0 ] && exit 0 || exit 1
+    [ "$TOTAL_FIRING" -eq 0 ] && exit 0 || exit 1
 fi
 
-if [ "$FIRING_COUNT" -eq 0 ]; then
+if [ "$TOTAL_FIRING" -eq 0 ]; then
     if [ "$QUIET" != "1" ]; then
-        echo "check-framework-tracking-drift: no load-bearing drift ($CHECKED file(s) scanned, $INFO_COUNT informational)"
+        echo "check-framework-tracking-drift: no load-bearing drift ($CHECKED file(s) scanned, $REFS_CHECKED reference(s) resolved, $INFO_COUNT informational)"
         if [ "$INFO_COUNT" -gt 0 ]; then
             echo "  ($INFO_COUNT untracked file(s) under docs/ or web/ — content drift, not clean-clone-breaking)"
+        fi
+        if [ "$DANGLING_SKIPPED" -gt 0 ]; then
+            echo "  ($DANGLING_SKIPPED dynamic reference(s) skipped — not statically resolvable)"
         fi
     fi
     exit 0
 fi
 
-echo "check-framework-tracking-drift: $FIRING_COUNT untracked load-bearing file(s) — a clean clone would be missing them:"
-while IFS= read -r f; do
-    [ -n "$f" ] || continue
-    printf '  UNTRACKED  %s\n' "$f"
-done <<EOF
+if [ "$FIRING_COUNT" -gt 0 ]; then
+    echo "check-framework-tracking-drift: $FIRING_COUNT untracked load-bearing file(s) — a clean clone would be missing them:"
+    while IFS= read -r f; do
+        [ -n "$f" ] || continue
+        printf '  UNTRACKED  %s\n' "$f"
+    done <<EOF
 $FIRING
 EOF
+fi
+
+if [ "$DANGLING_COUNT" -gt 0 ]; then
+    echo "check-framework-tracking-drift: $DANGLING_COUNT dangling reference(s) — tracked code points at paths that are not here:"
+    while IFS= read -r r; do
+        [ -n "$r" ] || continue
+        printf '  DANGLING   %s\n' "\$FRAMEWORK_ROOT/$r"
+    done <<EOF
+$DANGLING
+EOF
+fi
 
 if [ "$QUIET" != "1" ]; then
     echo ""
     echo "  $INFO_COUNT further untracked file(s) under docs/ or web/ (informational)."
+    if [ "$DANGLING_SKIPPED" -gt 0 ]; then
+        echo "  $DANGLING_SKIPPED dynamic reference(s) skipped (not statically resolvable)."
+    fi
     echo ""
     echo "Remediation:"
-    echo "  The blanket \`.agentic-framework\` rule in .gitignore predates vendoring — it is"
-    echo "  labelled \"Framework symlink (machine-specific)\" but the tree is vendored and"
-    echo "  largely tracked. Narrow that rule, then add the load-bearing files:"
-    echo "    git add -f $FW_ROOT/bin $FW_ROOT/lib $FW_ROOT/policy $FW_ROOT/agents"
-    echo "  Review before committing — confirm nothing machine-local or secret-bearing is"
-    echo "  swept in (host paths, tokens, per-machine config)."
+    if [ "$FIRING_COUNT" -gt 0 ]; then
+        echo "  UNTRACKED — the blanket \`.agentic-framework\` rule in .gitignore predates"
+        echo "  vendoring: it is labelled \"Framework symlink (machine-specific)\" but the tree"
+        echo "  is vendored and largely tracked. Narrow that rule, then add the files:"
+        echo "    git add -f $FW_ROOT/bin $FW_ROOT/lib $FW_ROOT/policy $FW_ROOT/agents"
+        echo "  Review before committing — confirm nothing machine-local or secret-bearing is"
+        echo "  swept in (host paths, tokens, per-machine config)."
+    fi
+    if [ "$DANGLING_COUNT" -gt 0 ]; then
+        echo "  DANGLING — this checkout is MISSING files that tracked framework code needs."
+        echo "  You cannot fix it here by adding files: they were never committed, so there is"
+        echo "  nothing to pull. Fix it in the checkout that still HAS them (run this check"
+        echo "  there; it will report them as UNTRACKED), commit them, then update this one."
+    fi
 fi
 
 exit 1
