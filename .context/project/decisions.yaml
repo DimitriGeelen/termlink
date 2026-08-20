@@ -955,3 +955,17 @@ decisions:
     date: 2026-08-20
     task: T-2811
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-116
+    decision: "Triage 12 commits to 3, rather than report the 95 the first scan produced."
+    scope: project
+    date: 2026-08-20
+    task: T-2812
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-117
+    decision: "File upstream and record the divergence; leave the re-vendor decision alone."
+    scope: project
+    date: 2026-08-20
+    task: T-2812
+    rationale: "Auto-captured from task file on completion"

@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2812: Three local fixes to vendored code will be erased by the next re-vendor, and one is being proposed now
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-20T18:11:37Z
+# ============================================================================
+
+task_id: T-2812
+task_name: "Three local fixes to vendored code will be erased by the next re-vendor, and one is being proposed now"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-20
+completed: 2026-08-20T18:11:32Z
+duration_days: 0
+updates_count: 0
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - '`.vendor-divergence.yaml` exists, registering T-2304, T-2469 and T-2687 with file,'
+  - 'It also records the non-divergence classes — recovery, upstream ports, artifacts, and a'
+  - 'All three defects filed upstream on `framework:pickup` **offset 27**, each with the file,'
+  - '`scripts/check-vendor-divergence.sh` surfaces unregistered local modifications since the'
+  - 'Fixtures pin the check — **10/10**, weighted toward the FIRING cases, plus three'
+  - 'CLAUDE.md records the register, the erasure cadence, why the baseline is declared rather'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-08-20 — Narrow before reporting'
+    chose: 'Triage 12 commits to 3, rather than report the 95 the first scan produced.'
+    rationale: '"95 local modifications to vendored code" is true, unactionable, and would have been'
+  - decision: '2026-08-20 — Register, do not re-vendor'
+    chose: 'File upstream and record the divergence; leave the re-vendor decision alone.'
+    rationale: 'T-2705 owns that call on another branch, and pre-empting it would be exactly the'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1211 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [governance, g-062, vendor-divergence, directive-2]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1211
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2812-three-local-fixes-to-vendored-code-will-.md
+generated_by: context-agent-hybrid

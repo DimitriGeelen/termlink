@@ -4,16 +4,16 @@ name: "Three local fixes to vendored code will be erased by the next re-vendor, 
 description: >
   T-2304 (update-task.sh sys.path), T-2469 (budget-gate hotfix) and T-2687 (pickup fail-open) are local modifications to vendored framework code with no recorded upstream landing. This repo has no .vendor-divergence.yaml. History shows a wholesale vendor event roughly every two months, and T-2705 on worktree-charter-review proposes `fw update` now.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [governance, g-062, vendor-divergence, directive-2]
 components: []
 related_tasks: [T-2687, T-2304, T-2469, T-2705, T-2807, T-2053]
 created: 2026-08-20
-last_update: 2026-08-20
-date_finished: null
+last_update: 2026-08-20T18:11:32Z
+date_finished: 2026-08-20T18:11:32Z
 ---
 
 # T-2812: Local fixes to vendored code have no survival mechanism
@@ -130,3 +130,15 @@ bash tests/vendor-divergence-fixtures.sh
 - **Why:** T-2705 owns that call on another branch, and pre-empting it would be exactly the
   duplicated work T-2800 exists to prevent. The problem is not that a re-vendor is wrong — it
   is that it currently costs three fixes silently. Making the cost visible is the deliverable.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-36ac3b3f
+- **Timestamp:** 2026-08-20T18:11:35Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-20T18:11:32Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

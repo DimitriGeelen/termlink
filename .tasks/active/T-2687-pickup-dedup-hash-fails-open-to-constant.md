@@ -265,3 +265,29 @@ future re-introduction of a bare `|| true` on these paths fails the suite.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/active/T-2687-pickup-dedup-hash-fails-open-to-constant.md
 - **Context:** Initial task creation
+
+### 2026-08-20 — verified and closed; the fix is vendored, so durability was the missing half [agent]
+
+Picked up as the top HV/LC task (BVP 99). Every Agent AC was already ticked and the work was
+genuinely done — `bash tests/pickup-failopen-fixtures.sh` runs **12/12** against the real
+`lib/pickup.sh`, exercising each refusal path and each happy path. Re-verified today, not
+taken on trust.
+
+It had been sitting `started-work` since 2026-08-19 for a mechanical reason, now understood:
+`fw task update --status work-completed` was **failing on every build task in a worktree**
+(unguarded source of an untracked file — diagnosed and fixed under T-2806). This task was one
+of 24 in that state.
+
+**What the verification pass found, which is why this did not just close.** `lib/pickup.sh` is
+**vendored**, and this task records no upstream filing. So the fix was one `fw update` from
+deletion — and a re-vendor is being proposed on another branch right now (T-2705). Closing it
+as "complete" would have been true of the code and false of the outcome.
+
+Handled under **T-2812**: the fix is registered in `.vendor-divergence.yaml` as
+`status: filed-upstream` and reported to 999-AEF at `framework:pickup` **offset 27**, with the
+fail-safe directions spelled out — the WRITE paths refuse, the READ path admits, because a
+dedup check that failed closed would drop mail. `scripts/check-vendor-divergence.sh` now fires
+if a local change to vendored code goes unregistered.
+
+Nothing about the fix itself changed. What changed is that it will survive the next re-vendor,
+or be noticed if it does not.
