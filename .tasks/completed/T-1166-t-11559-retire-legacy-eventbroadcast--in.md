@@ -6,16 +6,16 @@ description: >
   Remove hub router handlers for event.broadcast, inbox.*, file.* once all callers
   migrated. Protocol bump + version diversity check (T-1132) gates removal.
 
-status: started-work
+status: work-completed
 workflow_type: decommission
 owner: agent
-horizon: now
+horizon: null
 tags: [T-1155, bus, deprecation]
-components: []
+components: [crates/termlink-bus/src/artifact_store.rs, crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/commands/events.rs, crates/termlink-cli/src/commands/file.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/commands/mod.rs, crates/termlink-cli/src/commands/push.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/main.rs, crates/termlink-cli/tests/cli_integration.rs, crates/termlink-hub/build.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/inbox.rs, crates/termlink-hub/src/lib.rs, crates/termlink-hub/src/router.rs, crates/termlink-hub/src/rpc_audit.rs, crates/termlink-hub/src/server.rs, crates/termlink-hub/tests/no_legacy_callers.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-protocol/src/control.rs, crates/termlink-protocol/src/lib.rs, crates/termlink-session/src/bus_client.rs, crates/termlink-session/src/inbox_channel.rs, crates/termlink-session/src/tofu.rs, crates/termlink-session/tests/bus_client_integration.rs, scripts/agent-chat-arc-recent.sh, scripts/check-vendored-arc-rollout.sh, scripts/orchestrator-backlog-drain.sh]
 related_tasks: [T-1155, T-1158]
 created: 2026-04-20T14:12:20Z
-last_update: '2026-08-20T15:21:20Z'
-date_finished:
+last_update: 2026-08-20T16:16:41Z
+date_finished: 2026-08-20T16:16:41Z
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:35Z'
     estimator: bvp-estimator-v1-heuristic
@@ -110,14 +110,11 @@ Quick re-verification command:
 # serving the post-cut contract. That is what is verified now.
 
 # The entry gate: zero legacy-attributable calls in the window.
-python3 -c "
-import json,subprocess,sys
-out=subprocess.run(['.agentic-framework/bin/fw','metrics','api-usage','--cut-ready','--json'],
-                   capture_output=True,text=True,timeout=300).stdout
-d=json.loads(out)
-assert d.get('cut_ready') is True, 'cut_ready is %r' % d.get('cut_ready')
-assert d.get('legacy_attributable')==0, 'legacy_attributable=%r' % d.get('legacy_attributable')
-print('cut_ready=true, legacy_attributable=0')"
+# ONE LINE deliberately — the P-011 gate executes each non-comment line as its
+# own command, so a multi-line heredoc is torn into fragments that each fail.
+# Via a temp file rather than a pipe: `cmd | python3` under `set -o pipefail`
+# is the L-387 SIGPIPE shape, and mktemp keeps parallel runs apart.
+f=$(mktemp); .agentic-framework/bin/fw metrics api-usage --cut-ready --json > "$f" 2>/dev/null; python3 -c "import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if (d.get('cut_ready') is True and d.get('legacy_attributable')==0) else 'cut gate NOT clear: %r' % d)" "$f"; rc=$?; rm -f "$f"; test $rc -eq 0
 # The migration guide downstream consumers were pointed at still exists.
 test -f docs/migrations/T-1166-retire-legacy-primitives.md
 # The in-repo regression guard against new legacy callers still passes.
@@ -1060,3 +1057,21 @@ next checkpoint lived in prose at the bottom of an Updates section, where nothin
 reads it. So a task can name its own next action, and the date that action becomes
 due, and the framework will never mention it again. That is the same shape as the
 other findings this session — an obligation recorded somewhere nothing reads.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-32b3cb70
+- **Timestamp:** 2026-08-20T16:16:45Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** yes
+- **Findings:** none
+
+- **Layer-1 escalations:** 2
+  1. **destructive-action** (high) — Destructive operation in verification or AC
+     - matched: `rm -f`
+  2. **external-publish** (high) — External publish or release
+     - matched: `broadcast`
+
+### 2026-08-20T16:16:41Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

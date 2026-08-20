@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1166: T-1155/9 Retire legacy event.broadcast + inbox + file.send/receive primitives
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-20T16:16:49Z
+# ============================================================================
+
+task_id: T-1166
+task_name: "T-1155/9 Retire legacy event.broadcast + inbox + file.send/receive primitives"
+workflow_type: decommission
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-04-20T14:12:20Z
+completed: 2026-08-20T16:16:41Z
+duration_days: 122
+updates_count: 51
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - '**Entry gate check:** `fw metrics api-usage --last-7d` shows `event.broadcast + inbox.* + file.*` ≤ 1% of total RPC volume. If >1%, stop and open a task to hunt down the remaining callers.'
+  - '**Protocol version bump — SUPERSEDED BY T-1632 (carve-out).** Live verification on .122 (2026-05-12) showed the AC''s premise was wrong: `default_protocol_version()` is only used as a serde-default during deserialize and changing it has zero wire effect (would silently relabel v1 clients). The correct fix was emitting `CONTROL_PLANE_VERSION` (= 3) as a NEW sibling field `control_plane_version` on `hub.capabilities` + `hub.version`, leaving `protocol_version` (= DATA_PLANE_VERSION = 1) untouched. T-1632 carved out, built, and shipped this in musl 0.9.2127. **Live on both production hubs as of 2026-05-15:** `.122` ring20-management (20:10Z) and `.121` ring20-dashboard (20:45Z) — `hub.capabilities` returns `protocol_version: 1` + `control_plane_version: 3` + `legacy_primitives: false`. Older clients still see method-not-found on retired methods (the cut''s intended semantic); a future protocol-aware client can negotiate against `control_plane_version >= 3` for the post-cut contract. See T-1632 RCA for axis-separation rationale.'
+  - 'Migration guide published at `docs/migrations/T-1166-retire-legacy-primitives.md` — for downstream consumers (ring20, ntb-atc-plugin, skills-manager, etc.) — **verified present 2026-05-11.**'
+  - 'Blast radius check (`fw fabric blast-radius HEAD`) shows no unregistered downstream surprises — **verified clean 2026-05-11** (HEAD = T-1166 snapshot update, 0 registered components changed).'
+  - '**Bake-window checkpoint discharged (2026-08-20, 71 days late).** The 2026-06-10 entry'
+  - '**Cut confirmed still LIVE, not merely shipped (T-2480 / G-069).** A green traffic gate'
+  - 'Cut-path tests pass: `cargo test -p termlink-hub --lib --features legacy_primitives_disabled cut_path` — **5/5 PASS, verified 2026-05-11T21:35Z** (re-verifies the 2026-04-30 baseline; cut behavior contract still holds). Full-workspace `cargo build && cargo test && cargo clippy -- -D warnings` is the operator''s pre-deploy gate, not in this session''s scope.'
+  - 'Capability handshake update verified: `cut_path::capabilities_advertises_legacy_primitives_off` + `cut_path::capabilities_methods_array_excludes_retired_names` both PASS under the feature — handshake correctly advertises `legacy_primitives = false` and methods array excludes retired names. **Verified by test suite 2026-05-11T21:35Z.**'
+  - '[REVIEW] Approve retirement timing — ticked by user direction 2026-04-23. Evidence: User direction 2026-04-23 — legacy primitive retirement timing approved.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 175804 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [T-1155, bus, deprecation]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 175804
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-1166-t-11559-retire-legacy-eventbroadcast--in.md
+generated_by: context-agent-hybrid
