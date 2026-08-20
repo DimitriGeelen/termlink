@@ -1,0 +1,21 @@
+id: crates/termlink-session/src/identity_dir.rs
+name: identity_dir
+type: module
+subsystem: session
+location: crates/termlink-session/src/identity_dir.rs
+tags: [session, identity, trust-plane, tofu, T-2607]
+
+purpose: >-
+  Unified identity/trust-plane directory resolution (T-2607). The TOFU known_hubs store, the durable offline outbound queue, and the await-ack retry DB must all live in ONE private per-user directory; this module is the single place that decides where that is.
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-08-20
+created_by: T-2695

@@ -1,0 +1,21 @@
+id: crates/termlink-hub/src/retention_sweeper.rs
+name: retention_sweeper
+type: module
+subsystem: hub
+location: crates/termlink-hub/src/retention_sweeper.rs
+tags: [hub, retention, sweep, T-2427, T-1991]
+
+purpose: >-
+  Opt-in in-process periodic retention sweep for the hub (T-2427). The bus runs no background sweep thread by design (T-1155: enforcement is explicit, never implicit), which pushed enforcement onto per-host operator crons - empirically the least reliable part of the estate (T-1991 recurred on .121 because the cron was never installed). Gated on TERMLINK_SWEEP_INTERVAL_SECS.
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-08-20
+created_by: T-2695
