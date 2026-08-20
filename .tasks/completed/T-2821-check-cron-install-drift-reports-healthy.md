@@ -12,16 +12,16 @@ description: >
   unknown period. Make DRIFT fire by default, with an allowlist for deliberate host-local
   variation, matching the four existing static-check allowlist precedents.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [governance, cron, drift, reliability]
 components: []
 related_tasks: [T-2561, T-2696, T-2527, T-2531, T-2666, T-2672]
 created: 2026-08-20
-last_update: '2026-08-20T15:21:22Z'
-date_finished:
+last_update: 2026-08-20T18:54:53Z
+date_finished: 2026-08-20T18:54:53Z
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:38Z'
     estimator: bvp-estimator-v1-heuristic
@@ -194,3 +194,15 @@ acknowledged one tolerates, so the firing path cannot be quietly disabled again.
 - **Chose:** Accept `--strict` as a no-op alias of the new default.
 - **Why:** It appears in documentation and possibly in operator muscle memory; making it an
   unknown-flag error would turn a documentation lag into a hard failure for no benefit.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-5f1363c7
+- **Timestamp:** 2026-08-20T18:54:55Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-20T18:54:53Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

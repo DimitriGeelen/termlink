@@ -11,16 +11,16 @@ description: >
   fix a
   stale reference to a conf file removed during the T-2822 reshaping.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [governance, guard-layer, interop, pl-168]
-components: []
+components: [scripts/check-framework-tracking-drift.sh, scripts/check-pickup-deferred-freshness.sh, scripts/check-task-id-collisions.sh]
 related_tasks: [T-2684, T-2800, T-2801, T-2814, T-2817, T-2822]
 created: 2026-08-20
-last_update: '2026-08-20T15:21:22Z'
-date_finished:
+last_update: 2026-08-20T18:38:58Z
+date_finished: 2026-08-20T18:38:58Z
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:38Z'
     estimator: bvp-estimator-v1-heuristic
@@ -152,3 +152,15 @@ test "$(grep -c '^# guard-layer: source' scripts/check-task-id-collisions.sh scr
   red for a stated reason.
 - **Noted:** whoever sequences the merge should expect the layer to go red on these two, and
   the remedy is to resolve the findings, not to unmark the checks.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-01fb681d
+- **Timestamp:** 2026-08-20T18:39:03Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-20T18:38:58Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

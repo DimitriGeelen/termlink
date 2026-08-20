@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2803: One-line remediation script for the main-checkout steps, executed via TermLink
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-20T18:39:28Z
+# ============================================================================
+
+task_id: T-2803
+task_name: "One-line remediation script for the main-checkout steps, executed via TermLink"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-20
+completed: 2026-08-20T18:39:06Z
+duration_days: 0
+updates_count: 0
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - 'One script performs all three mechanical steps and is safe to re-run (idempotent)'
+  - 'It scans every file it would stage and REFUSES to commit if a high-confidence secret'
+  - 'Soft signals (home paths, host addresses) are reported but do not block'
+  - 'It never pushes, and no flag makes it push — Tier 0 stays with the human'
+  - 'It reports the unpushed commit count and prints the push command without running it'
+  - '`--dry-run` shows exactly what would happen and changes nothing'
+  - 'It writes a machine-readable JSON report this session can read back'
+  - 'Each step reports applied / already-done / skipped-with-reason — never silent success'
+  - 'Verification of the outcome is part of the run (the tracking-drift and static checks are'
+  - 'Fixtures prove the secret-refusal path on a scratch repo, host-independent (PL-213)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-08-20 — Mechanise the secret review rather than dropping it'
+    chose: 'A blocking scan for high-confidence markers; soft signals reported only.'
+    rationale: 'I asked the operator three times to eyeball a file list. A review that is requested'
+    alternatives_rejected: ['Blocking on any occurrence of the word "secret". This repo''s framework code is']
+  - decision: '2026-08-20 — TermLink executes; the script is still committed'
+    chose: 'Ship the script as a repo artifact, then run it through a TermLink session rooted'
+    rationale: 'Doing it as an ad-hoc command stream would get it done and leave nothing to review;'
+  - decision: '2026-08-20 — The push stays out'
+    chose: 'Report it, print the command, never execute.'
+    rationale: 'Tier 0 is not delegable by a broad "get it done" instruction. The framework''s own'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1239 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [governance, remediation, termlink, operator-ux]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1239
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2803-one-line-remediation-script-for-the-main.md
+generated_by: context-agent-hybrid

@@ -10,16 +10,16 @@ description: >
   bugs was independently re-discovered and fixed as T-2304; the other is still live
   today.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [governance, pickup, g-063, observability]
-components: []
+components: [scripts/check-pickup-deferred-freshness.sh, tests/pickup-deferred-freshness-fixtures.sh]
 related_tasks: [T-1425, T-2072, T-2304, T-2231, T-2816]
 created: 2026-08-20
-last_update: '2026-08-20T15:21:22Z'
-date_finished:
+last_update: 2026-08-20T18:38:52Z
+date_finished: 2026-08-20T18:38:52Z
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:38Z'
     estimator: bvp-estimator-v1-heuristic
@@ -196,3 +196,15 @@ upstream's; filed with BUG 1.
 - **Noted:** the last framework fix routed upstream from this repo without a local detector
   (G-007, via T-229) was still unfixed five months later. That is the argument for building
   the detector alongside the filing rather than trusting the filing alone.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-8f4d03a9
+- **Timestamp:** 2026-08-20T18:38:55Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-20T18:38:52Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2800: Detect cross-branch task-ID collisions and duplicate work before it happens
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-20T18:38:52Z
+# ============================================================================
+
+task_id: T-2800
+task_name: "Detect cross-branch task-ID collisions and duplicate work before it happens"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-20
+completed: 2026-08-20T18:38:45Z
+duration_days: 0
+updates_count: 0
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - 'Axis A reports every task ID claimed by more than one branch, with the differing'
+  - 'Axis A does NOT fire when two branches carry the same ID for the *same* task'
+  - 'Axis A fires (exit 1) on a genuine collision'
+  - 'Axis B reports near-duplicate task titles across different branches as a non-firing'
+  - 'Axis B excludes same-branch pairs and pairs already reported by axis A'
+  - 'Axis B''s similarity threshold is tunable'
+  - '`--json` carries all three axes separately with their own counts'
+  - 'Axis C fires on the same new path created on two branches with differing content'
+  - 'Axis C does NOT fire when the blobs are identical (shared history / cherry-pick)'
+  - 'Axis C skips per-session artifacts (handovers, episodic, audits, pickup)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-08-20 — Axis C added after the first run found what axis B could not'
+    chose: 'Add axis C — the same new path created on more than one branch, with differing'
+  - decision: '2026-08-20 — Two axes, only one of them fires'
+    chose: 'Axis A (IDs) fires; axis B (titles) warns.'
+    rationale: 'An ID collision is a fact — two files, one identifier, provable. Title similarity'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1238 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [governance, concurrency, task-system, duplicate-work]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1238
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2800-detect-cross-branch-task-id-collisions-a.md
+generated_by: context-agent-hybrid

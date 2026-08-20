@@ -11,16 +11,16 @@ description: >
   frontmatter from the authoritative git move-commit, generate the four missing episodics,
   and write the summaries the git-mining path leaves blank.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [governance, task-system, g-066, episodic-memory]
 components: []
 related_tasks: [T-2290, T-2203, T-2160, T-2304, T-1665]
 created: 2026-08-20
-last_update: '2026-08-20T15:21:22Z'
-date_finished:
+last_update: 2026-08-20T19:06:44Z
+date_finished: 2026-08-20T19:06:44Z
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:38Z'
     estimator: bvp-estimator-v1-heuristic
@@ -160,12 +160,13 @@ out=$(grep -l '^horizon: now' .tasks/completed/*.md 2>/dev/null || true); test -
 # The canary counts absent as unfinalized, and it is right.
 bash scripts/check-task-finalization-freshness.sh --strict
 # Every repaired episodic parses and carries a non-empty summary.
-python3 -c "
-import yaml,sys
-for t in ['T-2025','T-2229','T-2303','T-2677']:
-    d=yaml.safe_load(open('.context/episodic/%s.yaml'%t))
-    assert (d.get('summary') or '').strip(), t+' has an empty summary'
-print('4 episodics parse with non-empty summaries')"
+#
+# ONE LINE, deliberately. The P-011 gate executes each non-comment line as its
+# own command, so the multi-line form this replaced was torn into fragments —
+# and the first fragment, a bare `python3 -c "` with an unterminated quote,
+# waited on stdin until the 900s timeout killed it (rc=124). A verification that
+# HANGS is worse than one that fails: it looks like a slow build.
+python3 -c "import yaml,sys; [sys.exit('%s has an empty summary' % t) for t in ['T-2025','T-2229','T-2303','T-2677'] if not (yaml.safe_load(open('.context/episodic/%s.yaml' % t)).get('summary') or '').strip()]; print('4 episodics parse with non-empty summaries')"
 
 ## RCA
 
@@ -258,3 +259,15 @@ deliverables and one of them is vendored. Filed rather than bundled — see Deci
   bundling three prevention changes into a repair task is how a task stops being reviewable.
 - **Noted:** the strongest of the three is making empty `date_finished` fire rather than
   inform. It is the signal that would have caught this in July.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-b7355244
+- **Timestamp:** 2026-08-20T19:06:46Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-20T19:06:44Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

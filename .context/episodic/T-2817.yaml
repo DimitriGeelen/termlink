@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2817: Tracking-drift check is blind in a clean clone — add dangling-reference detection
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-20T18:54:43Z
+# ============================================================================
+
+task_id: T-2817
+task_name: "Tracking-drift check is blind in a clean clone — add dangling-reference detection"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-20
+completed: 2026-08-20T18:54:39Z
+duration_days: 0
+updates_count: 0
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - 'Axis B detects a `$FRAMEWORK_ROOT/...` reference whose target is missing'
+  - 'Axis B fires (exit 1) in this worktree, where `lib/bvp.sh` is genuinely absent'
+  - 'Axis A behaviour is unchanged — T-2814''s fixtures still pass unmodified'
+  - 'Dynamic references (a `$` remaining in the tail) are skipped and counted, not guessed'
+  - 'References in a comment line are ignored'
+  - 'References NOT in source-or-execute position (assignment, `echo`, `ls`) are ignored —'
+  - '`--json` carries the axis-B findings separately from axis A'
+  - 'Regression fixtures cover: missing target fires; present target clears; dynamic'
+  - 'Fixtures are host-independent (build their own scratch tree, no real framework)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1254 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [governance, tooling, clean-clone, detection-gap]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1254
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2817-tracking-drift-check-is-blind-in-a-clean.md
+generated_by: context-agent-hybrid

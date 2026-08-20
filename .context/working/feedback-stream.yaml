@@ -8172,3 +8172,201 @@ scan_id: R-17f04e2c
 task_id: T-2813
 payload:
   task_file: .tasks/active/T-2813-pickup-dedup-hash-fails-open-to-constant.md
+---
+kind: scan_emitted
+timestamp: '2026-08-20T18:38:49Z'
+scan_id: R-d2245b8b
+task_id: T-2800
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-20T18:38:49Z'
+scan_id: R-d2245b8b
+task_id: T-2800
+payload:
+  task_file: .tasks/active/T-2800-detect-cross-branch-task-id-collisions-a.md
+---
+kind: scan_emitted
+timestamp: '2026-08-20T18:38:55Z'
+scan_id: R-8f4d03a9
+task_id: T-2801
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-20T18:38:55Z'
+scan_id: R-8f4d03a9
+task_id: T-2801
+payload:
+  task_file: .tasks/active/T-2801-auto-deferred-pickup-envelopes-can-stick.md
+---
+kind: scan_emitted
+timestamp: '2026-08-20T18:39:03Z'
+scan_id: R-01fb681d
+task_id: T-2802
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-20T18:39:03Z'
+scan_id: R-01fb681d
+task_id: T-2802
+payload:
+  task_file: .tasks/active/T-2802-declare-guard-layer-membership-on-this-b.md
+---
+kind: scan_emitted
+timestamp: '2026-08-20T18:39:26Z'
+scan_id: R-dc38d322
+task_id: T-2803
+payload:
+  overall: FAIL
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-20T18:39:26Z'
+scan_id: R-dc38d322
+task_id: T-2803
+payload:
+  task_file: .tasks/active/T-2803-one-line-remediation-script-for-the-main.md
+---
+kind: scan_emitted
+timestamp: '2026-08-20T18:54:30Z'
+scan_id: R-c71f1441
+task_id: T-2814
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-20T18:54:30Z'
+scan_id: R-c71f1441
+task_id: T-2814
+payload:
+  task_file: .tasks/active/T-2814-stale-gitignore-silently-untracks-new-ve.md
+---
+kind: scan_emitted
+timestamp: '2026-08-20T18:54:36Z'
+scan_id: R-54748e99
+task_id: T-2816
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-20T18:54:36Z'
+scan_id: R-54748e99
+task_id: T-2816
+payload:
+  task_file: .tasks/active/T-2816-framework-pickup-canary-counts-our-own-o.md
+---
+kind: scan_emitted
+timestamp: '2026-08-20T18:54:40Z'
+scan_id: R-8affea85
+task_id: T-2817
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-20T18:54:40Z'
+scan_id: R-8affea85
+task_id: T-2817
+payload:
+  task_file: .tasks/active/T-2817-tracking-drift-check-is-blind-in-a-clean.md
+---
+kind: scan_emitted
+timestamp: '2026-08-20T18:54:45Z'
+scan_id: R-597878fc
+task_id: T-2818
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-20T18:54:45Z'
+scan_id: R-597878fc
+task_id: T-2818
+payload:
+  task_file: .tasks/active/T-2818-repo-wide-l-387-verification-pipefail-au.md
+---
+kind: scan_emitted
+timestamp: '2026-08-20T18:54:50Z'
+scan_id: R-fd454f0f
+task_id: T-2820
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-20T18:54:50Z'
+scan_id: R-fd454f0f
+task_id: T-2820
+payload:
+  task_file: .tasks/active/T-2820-register-4-unregistered-rust-modules-in-.md
+---
+kind: scan_emitted
+timestamp: '2026-08-20T18:54:55Z'
+scan_id: R-5f1363c7
+task_id: T-2821
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-20T18:54:55Z'
+scan_id: R-5f1363c7
+task_id: T-2821
+payload:
+  task_file: .tasks/active/T-2821-check-cron-install-drift-reports-healthy.md
+---
+kind: scan_emitted
+timestamp: '2026-08-20T19:06:46Z'
+scan_id: R-b7355244
+task_id: T-2804
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-20T19:06:46Z'
+scan_id: R-b7355244
+task_id: T-2804
+payload:
+  task_file: .tasks/active/T-2804-finalize-the-seven-half-finalized-comple.md

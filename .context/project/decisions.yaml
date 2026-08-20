@@ -969,3 +969,136 @@ decisions:
     date: 2026-08-20
     task: T-2812
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-118
+    decision: "Add axis C — the same new path created on more than one branch, with differing"
+    scope: project
+    date: 2026-08-20
+    task: T-2800
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-119
+    decision: "Axis A (IDs) fires; axis B (titles) warns."
+    scope: project
+    date: 2026-08-20
+    task: T-2800
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-120
+    decision: "Build only the detection locally; file the allocation fix."
+    scope: project
+    date: 2026-08-20
+    task: T-2800
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-121
+    decision: "Report stranded and stale envelopes; never move or delete one."
+    scope: project
+    date: 2026-08-20
+    task: T-2801
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-122
+    decision: "Post upstream; do not edit `update-task.sh` locally."
+    scope: project
+    date: 2026-08-20
+    task: T-2801
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-123
+    decision: "Read `run-guard-layer.sh` on charter-review and conform to its marker contract."
+    scope: project
+    date: 2026-08-20
+    task: T-2802
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-124
+    decision: "Mark `check-task-id-collisions` and `check-pickup-deferred-freshness` even though"
+    scope: project
+    date: 2026-08-20
+    task: T-2802
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-125
+    decision: "A blocking scan for high-confidence markers; soft signals reported only."
+    scope: project
+    date: 2026-08-20
+    task: T-2803
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-126
+    decision: "Ship the script as a repo artifact, then run it through a TermLink session rooted"
+    scope: project
+    date: 2026-08-20
+    task: T-2803
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-127
+    decision: "Report it, print the command, never execute."
+    scope: project
+    date: 2026-08-20
+    task: T-2803
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-128
+    decision: "The four-sibling allowlist pattern (fire by default, acknowledge with a cited"
+    scope: project
+    date: 2026-08-20
+    task: T-2821
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-129
+    decision: "Take their file as the base and apply the firing change on top, preserving"
+    scope: project
+    date: 2026-08-20
+    task: T-2821
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-130
+    decision: "Accept `--strict` as a no-op alias of the new default."
+    scope: project
+    date: 2026-08-20
+    task: T-2821
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-131
+    decision: "The git move-commit timestamp."
+    scope: project
+    date: 2026-08-20
+    task: T-2804
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-132
+    decision: "Hand-write the four blank summaries, marked as hand-written."
+    scope: project
+    date: 2026-08-20
+    task: T-2804
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-133
+    decision: "Repair the three (inserting the field), and replace the grep in this task's"
+    scope: project
+    date: 2026-08-20
+    task: T-2804
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-134
+    decision: "Repair them as well."
+    scope: project
+    date: 2026-08-20
+    task: T-2804
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-135
+    decision: "`last_update` when it is at or before the move-commit; the move-commit"
+    scope: project
+    date: 2026-08-20
+    task: T-2804
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-136
+    decision: "Fix the seven; do not touch the canary, the sweep path, or the generator."
+    scope: project
+    date: 2026-08-20
+    task: T-2804
+    rationale: "Auto-captured from task file on completion"

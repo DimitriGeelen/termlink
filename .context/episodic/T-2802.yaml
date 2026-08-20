@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2802: Declare guard-layer membership on this branch's new source checks
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-20T18:39:06Z
+# ============================================================================
+
+task_id: T-2802
+task_name: "Declare guard-layer membership on this branch's new source checks"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-20
+completed: 2026-08-20T18:38:58Z
+duration_days: 0
+updates_count: 0
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - 'The three run-anywhere checks carry `# guard-layer: source` in their header'
+  - 'The marker is placed where the runner looks for it (header, matching the convention on'
+  - '`check-cron-install-drift.sh` is deliberately NOT marked — it reads host state'
+  - '`check-verification-pipefail.sh` is deliberately NOT marked — superseded at merge'
+  - 'The dangling `Register it in` sentence is gone — the removed conf is now referenced'
+  - 'Every marked check still runs correctly and its fixtures still pass'
+  - 'A marked check invoked with no arguments still behaves as before (the marker is a'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-08-20 — Join their runner rather than build one'
+    chose: 'Read `run-guard-layer.sh` on charter-review and conform to its marker contract.'
+    rationale: 'The residual risk I had logged four times (PL-168, dormant tooling) already had an'
+    alternatives_rejected: ['Wiring my checks into a session-start hook independently. It would work, and']
+  - decision: '2026-08-20 — Mark the checks that fire, anyway'
+    chose: 'Mark `check-task-id-collisions` and `check-pickup-deferred-freshness` even though'
+    rationale: 'They fire because there are 10 real ID collisions and 1 real stranded envelope. A'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1238 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [governance, guard-layer, interop, pl-168]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1238
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2802-declare-guard-layer-membership-on-this-b.md
+generated_by: context-agent-hybrid

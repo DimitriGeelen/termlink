@@ -11,12 +11,13 @@ description: >
   where the breakage bites. `fw bvp` is broken in this worktree right now while the
   check
   says everything is fine.
-status: started-work
+status: work-completed
 workflow_type: build
-horizon: now
+horizon: null
 owner: claude-code
 created: 2026-08-20
-last_update: '2026-08-20T15:21:22Z'
+last_update: 2026-08-20T18:54:39Z
+date_finished: 2026-08-20T18:54:39Z
 tags: [governance, tooling, clean-clone, detection-gap]
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:38Z'
@@ -145,3 +146,20 @@ is an accepted trade: this check gates nothing and is read by humans, so its val
 entirely in being trusted. The broad version was *more complete and less useful* — 47 hits
 that an operator would learn to scroll past. Two hits they will act on beats forty-seven
 they will not.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-8affea85
+- **Timestamp:** 2026-08-20T18:54:40Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — Axis B fires (exit 1) in this worktree, where `lib/bvp.sh` is genuinely absent
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=lib/bvp.sh in: Axis B fires (exit 1) in this worktree, where `lib/bvp.sh` is genuinely absent`
+
+### 2026-08-20T18:54:39Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

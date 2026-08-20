@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2821: check-cron-install-drift reports healthy while crontabs diverge from git
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-20T18:54:57Z
+# ============================================================================
+
+task_id: T-2821
+task_name: "check-cron-install-drift reports healthy while crontabs diverge from git"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-20
+completed: 2026-08-20T18:54:53Z
+duration_days: 0
+updates_count: 0
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - 'DRIFT fires (exit 1) by default, without `--strict`'
+  - '`--lenient` restores the pre-change non-firing DRIFT behaviour'
+  - '`--strict` is still accepted and behaves the same as the new default (no breakage)'
+  - 'An allowlisted crontab is reported as ACKNOWLEDGED and does not fire'
+  - 'Allowlisted entries remain visible in the output and counts — acknowledged, not hidden'
+  - 'The verdict prints "healthy" only when nothing is missing and nothing is unacknowledged'
+  - '`--json` carries the allowlist state and an `acknowledged` count'
+  - 'MISSING still fires regardless of allowlist or `--lenient` — a dark canary is never'
+  - 'Fixtures prove each class from a scratch tree, host-independent (PL-213)'
+  - 'Fixture proves the load-bearing property: drift with an empty allowlist fires, and the'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-08-20 — Fire on drift, allowlist deliberate variation'
+    chose: 'The four-sibling allowlist pattern (fire by default, acknowledge with a cited'
+    rationale: 'It resolves the exact tension that motivated the soft default — legitimate'
+    alternatives_rejected: ['Keeping DRIFT non-firing but changing only the verdict word. Cheaper and it']
+    alternatives_rejected: ['Firing with no allowlist. Would put permanent red on any host with a']
+  - decision: '2026-08-20 — Rebased onto governance-canary-signal''s version of this file'
+    chose: 'Take their file as the base and apply the firing change on top, preserving'
+    rationale: 'Their fix is correct and came first; discarding it to re-land my own version of'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1254 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [governance, cron, drift, reliability]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1254
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2821-check-cron-install-drift-reports-healthy.md
+generated_by: context-agent-hybrid

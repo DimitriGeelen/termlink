@@ -11,12 +11,13 @@ description: >
   Peer
   project 050-email-archive asked for a standalone detector as their Option D structural
   control.
-status: started-work
+status: work-completed
 workflow_type: build
-horizon: now
+horizon: null
 owner: claude-code
 created: 2026-08-20
-last_update: '2026-08-20T15:21:22Z'
+last_update: 2026-08-20T18:54:43Z
+date_finished: 2026-08-20T18:54:43Z
 tags: [governance, l-387, verification-gate, peer-request, static-check]
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:38Z'
@@ -139,3 +140,15 @@ T-2814/T-2817 vendoring gap.)
 **Active-only is opt-in, not the default.** Completed tasks still carry the shape and are
 the best evidence of how widespread it is; hiding them by default would understate the
 problem on first run.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-597878fc
+- **Timestamp:** 2026-08-20T18:54:45Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-20T18:54:43Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,0 +1,81 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2801: Auto-deferred pickup envelopes can stick forever with no breadcrumb
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-20T18:38:57Z
+# ============================================================================
+
+task_id: T-2801
+task_name: "Auto-deferred pickup envelopes can stick forever with no breadcrumb"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-20
+completed: 2026-08-20T18:38:52Z
+duration_days: 0
+updates_count: 0
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - 'The check classifies an envelope with no breadcrumb as STRANDED and fires'
+  - 'The check classifies an envelope older than the threshold as STALE and fires'
+  - 'An envelope with a fresh breadcrumb is healthy and does not fire'
+  - 'Firing output prints each envelope''s `summary:` so the operator sees what is stuck'
+  - 'The threshold is tunable'
+  - '`--json` carries per-envelope class plus counts'
+  - 'An absent or empty `auto-deferred/` directory is healthy, not an error'
+  - 'Exit codes: 0 healthy, 1 firing, 2 tooling — a missing pickup dir is never a false clean'
+  - 'Fixtures build a scratch pickup directory and prove each class, host-independent (PL-213)'
+  - 'Run against this repo, it reports P-043 as STRANDED'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-08-20 — Detect, do not drain'
+    chose: 'Report stranded and stale envelopes; never move or delete one.'
+    rationale: 'Promotion is `promote-deferred`''s job and discarding is a human judgement about'
+  - decision: '2026-08-20 — File BUG 1 rather than patch it'
+    chose: 'Post upstream; do not edit `update-task.sh` locally.'
+    rationale: 'G-062 — vendored framework code, so a local edit is erased on the next re-vendor,'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1238 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [governance, pickup, g-063, observability]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1238
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2801-auto-deferred-pickup-envelopes-can-stick.md
+generated_by: context-agent-hybrid
