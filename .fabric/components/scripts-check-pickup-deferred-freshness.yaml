@@ -1,0 +1,21 @@
+id: scripts/check-pickup-deferred-freshness.sh
+name: check-pickup-deferred-freshness
+type: script
+subsystem: governance
+location: scripts/check-pickup-deferred-freshness.sh
+tags: [governance, pickup, g-063, observability, T-2801]
+
+purpose: >-
+  Deploy-time check (T-2801) for the pickup auto-deferred queue. Fires on STRANDED (no .breadcrumb.yaml sibling, so fw pickup promote-deferred can never evaluate it) and STALE (breadcrumbed but deferred beyond the threshold). Exists because P-043, a two-bug framework report, sat stranded for 73 days while one of its bugs was independently re-discovered and re-fixed as T-2304. Ages envelopes by recorded timestamp, never mtime.
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-08-20
+created_by: T-2801

@@ -1,0 +1,21 @@
+id: tests/pickup-deferred-freshness-fixtures.sh
+name: pickup-deferred-freshness-fixtures
+type: script
+subsystem: governance
+location: tests/pickup-deferred-freshness-fixtures.sh
+tags: [governance, fixtures, pickup, T-2801]
+
+purpose: >-
+  Fixtures for check-pickup-deferred-freshness.sh (T-2801). Scratch pickup directory; pins each class and the load-bearing property that age comes from the recorded timestamp rather than file mtime, which resets on checkout and would silently disable the STALE class.
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-08-20
+created_by: T-2801

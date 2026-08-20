@@ -859,6 +859,54 @@ The check flagged **its own author** one commit after shipping — a `... | wc -
 line in T-2694's Verification block took active findings 150 → 151. That is the intended
 behaviour and the best available evidence it is load-bearing.
 
+### Stranded auto-deferred pickup envelope check (T-2801, G-063 for the queue)
+
+The pickup pipeline routes an inbound envelope to `.context/pickup/auto-deferred/` when it is
+blocked on a local inception task (G-059). T-1425 added `pickup_write_breadcrumb()`, dropping
+a `<envelope>.breadcrumb.yaml` naming the blocking task — explicitly so operators and
+`fw pickup auto-deferred list` could trace *why*. T-2072 then made `fw pickup
+promote-deferred` resolve the blocking task from that same file in order to promote the
+envelope once the blocker ships.
+
+**Both halves depend on the breadcrumb; neither checks that it exists.** With no breadcrumb
+there is no blocking task to re-evaluate, so the envelope is not delayed — it is permanently
+stranded. The only surface that shows it degrades silently: `fw pickup auto-deferred list`
+prints `blocked-by=? reason=? at=?` and says nothing is wrong, while `fw pickup status` counts
+it as one more deferred item, indistinguishable from one deferred yesterday for a good reason.
+
+The cost, measured on the one envelope that was stuck: **P-043** (2026-06-08) is a careful
+report of two framework bugs blocking every inception decision, with file:line references and
+recommended fixes. It was never filed. Seventy-three days later **BUG 2 had been independently
+re-discovered and re-fixed as T-2304** — with the fix P-043 already recommended — and **BUG 1
+was still live** at `update-task.sh:791`. So the real cost of a stranded envelope is not a late
+report; it is the same bug solved twice while its sibling stayed open. (BUG 1 is now filed at
+`framework:pickup` offset 17, along with the breadcrumb hole itself, which is in vendored
+`lib/pickup.sh` and therefore upstream's to close — G-062.)
+
+`scripts/check-pickup-deferred-freshness.sh` is a **deploy-time / ad-hoc check, NOT a cron
+canary** — same tier as `check-cron-install-drift.sh`. It pairs with the framework-pickup
+canary (T-2231), which guards the inbound **rail**; this guards the **queue** behind it.
+Classes: **STRANDED** (no breadcrumb — un-promotable by construction, FIRES), **STALE**
+(breadcrumbed but deferred beyond `--threshold-days`, default 30 — either the blocker shipped
+and promotion missed it, or it never will, FIRES), **deferred** (breadcrumbed and within the
+window — healthy, the mechanism working). Both firing classes print the envelope's `summary:`,
+because the entire failure mode is that nobody knows what is in the file.
+
+**Age is read from the recorded timestamp, never file mtime** — the breadcrumb's
+`deferred_at:`, else the envelope's `source.timestamp:`, and only then mtime with an explicit
+"unreliable" label. A checkout, clone or worktree stamps every file with the checkout time, so
+an mtime-based age reports every envelope as brand new and STALE silently stops working
+(PL-213): P-043 is 73 days old and mtime called it 0.
+
+**It detects and never drains.** Promotion belongs to `fw pickup promote-deferred`; discarding
+is a human judgement about whether the work still matters. A checker that auto-drained would
+turn a visible backlog into a silent one — the exact trade this exists to reverse. Exit codes:
+0 healthy · 1 stranded/stale · 2 tooling (a missing pickup tree is never a false clean; an
+absent `auto-deferred/` is healthy — nothing was ever deferred). `--json`, `--quiet`,
+`--threshold-days N`, `--dir PATH`; test hooks `PICKUP_DEFERRED_DIR` /
+`PICKUP_DEFERRED_THRESHOLD_DAYS`. Fixtures: `bash tests/pickup-deferred-freshness-fixtures.sh`
+(18 assertions).
+
 ### Cross-branch task-ID collision + duplicate-work check (T-2800)
 
 Every worktree allocates task IDs by scanning its **own** `.tasks/` for the highest ID and
