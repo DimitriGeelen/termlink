@@ -14,7 +14,7 @@ tags: []
 components: []
 related_tasks: [T-1166, T-1411, T-1413]
 created: 2026-04-30T07:07:28Z
-last_update: 2026-08-20T16:29:22Z
+last_update: 2026-08-20T16:30:38Z
 date_finished:
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:35Z'

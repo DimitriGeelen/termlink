@@ -1,0 +1,85 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2809: Chase the unfiled BVP-estimator corruption note — it no longer reproduces, and the fallback path strips comments instead
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-20T17:04:53Z
+# ============================================================================
+
+task_id: T-2809
+task_name: "Chase the unfiled BVP-estimator corruption note — it no longer reproduces, and the fallback path strips comments instead"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-20
+completed: 2026-08-20T17:04:45Z
+duration_days: 0
+updates_count: 0
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - 'Reproduction attempted on **copies**, never live task files — scratch `PROJECT_ROOT`'
+  - '**The reported corruption does NOT reproduce.** `estimate all` + `cost-all` over 25'
+  - 'The no-`ruamel` fallback tested separately (forced `_HAS_RUAMEL=False`): also produces'
+  - '**A different, real defect found in that fallback:** `yaml.safe_dump` silently strips'
+  - 'Blast radius measured: **1792 of 2460** task files (73%) lack the anchor'
+  - 'No live task file corrupted — all 2459 re-scanned afterwards, 0 malformed'
+  - 'Filed upstream on `framework:pickup` **offset 23** with what was tested, the negative'
+  - 'CLAUDE.md records the outcome — explicitly NOT a warning about the corruption; it also'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-08-20 — Test the claim before filing it'
+    chose: 'Reproduce on scratch copies across 26 old-format tasks before writing any report.'
+    rationale: 'The note was ten weeks old and described a specific, checkable symptom. Filing it'
+  - decision: '2026-08-20 — Reproduce on a copy, never in place'
+    chose: 'Scratch `PROJECT_ROOT` trees.'
+    rationale: 'The reported defect destroys the file it writes to. In a repo where 2459 task files'
+  - decision: '2026-08-20 — Report the negative result rather than quietly dropping it'
+    chose: 'File upstream even though the answer is "does not reproduce".'
+    rationale: 'A negative is information: it tells upstream the fix held, and it tells the next'
+  - decision: '2026-08-20 — No CLAUDE.md warning about the corruption'
+    chose: 'Record the outcome; do not add a hazard note.'
+    rationale: 'Documenting a defect that no longer reproduces is cargo-culting. It taxes every'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1144 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [governance, bvp, g-062, directive-2]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1144
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2809-file-the-bvp-estimator-old-format-frontm.md
+generated_by: context-agent-hybrid

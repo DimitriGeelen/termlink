@@ -4,16 +4,16 @@ name: "Chase the unfiled BVP-estimator corruption note — it no longer reproduc
 description: >
   Commit 444a7e9b3 (2026-06-13) ends "Framework bug to file", describing the bvp estimator corrupting old-format task frontmatter across 106 files. It was never filed. Attempted to file it: across 26 real old-format tasks the corruption does NOT reproduce and appears fixed upstream. A different defect does exist — the no-ruamel fallback silently strips every frontmatter comment. Report both, and do not document a warning for a bug that is gone.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [governance, bvp, g-062, directive-2]
 components: []
 related_tasks: [T-2203, T-2808, T-2801, T-1166]
 created: 2026-08-20
-last_update: 2026-08-20
-date_finished: null
+last_update: 2026-08-20T17:04:45Z
+date_finished: 2026-08-20T17:04:45Z
 ---
 
 # T-2809: Chase the unfiled estimator-corruption note
@@ -143,3 +143,19 @@ f=$(mktemp); grep -n 'does not reproduce' CLAUDE.md > "$f" 2>/dev/null; n=$(wc -
 - **Why:** Documenting a defect that no longer reproduces is cargo-culting. It taxes every
   future reader, cannot be falsified by anyone who trusts it, and this repo's CLAUDE.md is
   already long enough that adding unfalsifiable folklore has a real cost.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-3af0cd68
+- **Timestamp:** 2026-08-20T17:04:50Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** yes
+- **Findings:** none
+
+- **Layer-1 escalations:** 1
+  1. **destructive-action** (high) — Destructive operation in verification or AC
+     - matched: `rm -f`
+
+### 2026-08-20T17:04:45Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
