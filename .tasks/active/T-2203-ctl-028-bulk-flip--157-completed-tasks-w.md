@@ -75,14 +75,23 @@ cost_estimate_proposed:
 - [x] Extract complete list: `grep -oE "CTL-028: T-[0-9]+" .context/audits/2026-06-12.yaml | awk '{print $2}' > /tmp/ctl028-list.txt` → confirmed count 157
 - [x] Sample inspect 10 random tasks: T-2095 / T-1983 / T-1938 / T-1956 / T-1974 / T-2009 / T-1977 / T-1968 / T-1919 / T-2001 — ALL same class (in completed/ + status=started-work + date_finished=null + 3-4 update entries showing substantive work). Bulk-flip is safe
 - [x] **Mechanism discovery — Tier-0 block on `--force`.** The `fw task update --force --skip-rca` path classified as Tier-0 destructive ("Bypasses sovereignty gate R-033, AC verification P-010, or verification gate P-011"). Per-call human approval required. For 157 calls this is impractical; need either (a) one-shot `fw tier0 approve` covering the whole sweep, OR (b) direct frontmatter sed/python edit (skip the fw helper). Option (b) is structurally identical to what the helper does for this class — frontmatter status flip + date_finished stamp — but bypasses 157× Tier-0 prompts. The agent cannot self-authorize either path
-- [ ] **(HUMAN AUTHORIZATION REQUIRED)** Approve the bulk-flip approach via one of:
+- [x] **(HUMAN AUTHORIZATION REQUIRED)** Approve the bulk-flip approach — **granted and acted on 2026-06-13; Path B was taken** (direct frontmatter edit, `date_finished` git-mined from each task's move-into-completed commit rather than stamped with the sweep date). Original options retained below for the record:
   - **Path A — `fw tier0 approve` session-wide grant:** run `cd /opt/termlink && .agentic-framework/bin/fw tier0 approve` to grant per-session approval, then `for tid in $(cat /tmp/ctl028-list.txt); do FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw task update "$tid" --status work-completed --force --skip-rca 2>&1 | tail -1; done` (test if approval covers loop calls or only ONE)
   - **Path B — direct frontmatter sed sweep:** python script that walks `/tmp/ctl028-list.txt`, sets `status: work-completed` + `date_finished: 2026-06-12T<commit-ts>Z` per file, leaves all other content (Updates/RCA/Decisions/episodic-references) untouched. Single Tier-2 bypass (skipping the canonical close path) is acceptable for this class — the work is done, frontmatter is stale; the helper would do exactly this
-- [ ] After human-authorized sweep: re-run `fw audit | grep -c CTL-028` to confirm zero remaining
-- [ ] Commit as one atomic sweep — single commit so the structural sweep is bisectable as one change rather than 157 individual ones
-- [ ] No completed/ task's substantive content (Updates, RCA, Decisions, Evolution) was modified — only frontmatter `status` + `date_finished`
+- [x] After human-authorized sweep: confirm zero remaining — **verified 2026-08-20: `fw audit --section compliance` reports `[PASS] CTL-028`, 0 FAIL / 0 WARN; independent scan of all 2263 `completed/` files finds 0 with `status != work-completed` and 0 with empty `date_finished`.** (Not via `| grep -c`, which counts CTL-029's evidence lines mentioning CTL-028 and returns a misleading 44.)
+- [x] Commit as one atomic sweep — **done: `444a7e9b3` (2026-06-13), exactly 157 files in one commit, bisectable as a single change.**
+- [x] No completed/ task's substantive content was modified — **`git show --stat 444a7e9b3` shows every one of the 157 files at `4 ++--`: two lines changed per file, i.e. `status` and `date_finished` only.**
 
 ### Human
+> **Agent-gathered evidence, 2026-08-20 — this decision appears already to have been made
+> and acted on.** Commit `444a7e9b3` (2026-06-13T20:49Z) executed **Path B** across exactly
+> 157 files, one atomic commit, two frontmatter lines changed per file. Its own message says
+> `Owner:human — agent did the remediation; human verifies + closes T-2203`, so the
+> authorization this box asks for was given at the time; only the tick was missed.
+> Current state re-verified today: CTL-028 `[PASS]`, 0/2263 `completed/` tasks stale.
+> Left unticked because it is a `[REVIEW]` box and confirming your own prior authorization
+> is yours to do, not mine to infer.
+>
 - [ ] [REVIEW] Choose Path A (`fw tier0 approve` + loop) or Path B (direct frontmatter sed). **Steps:** read AC 3's mechanism discovery, decide which path. Path A is cleaner ceremonially but may require per-call approval (untested). Path B is faster + structurally equivalent for this class. **Expected:** authorization granted, agent runs the sweep. **If not:** defer — CTL-028 noise is bookkeeping, not load-bearing
 
 ### Human
@@ -117,6 +126,20 @@ cost_estimate_proposed:
 -->
 
 ## Verification
+
+# Added 2026-08-20. This block previously held only comment lines — no command —
+# so the P-011 gate passed it trivially. A task whose whole point is "157 completed
+# tasks carry a stale status" should be gated on that invariant, not on nothing.
+#
+# Asserted directly rather than through `fw audit | grep -c CTL-028`: that pipeline
+# is both the L-387 SIGPIPE shape AND semantically wrong here — it counts CTL-029's
+# evidence lines, which mention CTL-028 as their active/-side mirror, and returns a
+# misleading 44 when the real failure count is 0.
+
+# No task in completed/ carries a non-final status, and none is missing its finish date.
+python3 -c "import glob,re,sys; bad=[f for f in glob.glob('.tasks/completed/*.md') for h in [open(f,errors='replace').read().split(chr(10)+'---'+chr(10))[0]] if (re.search(r'^status:[ \t]*(.*)$',h,re.M) or [None]) and (lambda m: not m or m.group(1).strip().strip(chr(34)+chr(39))!='work-completed')(re.search(r'^status:[ \t]*(.*)$',h,re.M))]; sys.exit('CTL-028 stale: %d file(s): %s' % (len(bad), bad[:5]) if bad else 0)"
+# The framework's own finalization canary agrees, under its strictest setting.
+bash scripts/check-task-finalization-freshness.sh --strict
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -216,3 +239,59 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2203-ctl-028-bulk-flip--157-completed-tasks-w.md
 - **Context:** Initial task creation
+
+### 2026-08-20 — the sweep ran on 2026-06-13; only the bookkeeping was outstanding [agent]
+
+Picked up as the #4 HV/LC task (BVP 80). The task reads as blocked on human authorization
+for a 157-file bulk flip. It is not — **the sweep was authorized and executed the day after
+this task was created**, and the record was never updated.
+
+**Evidence: commit `444a7e9b3`, 2026-06-13T20:49:02+0200, 157 files.**
+
+> T-2203: CTL-028 finalize 157 stale-state completed tasks (status + git-mined date_finished)
+>
+> 157 tasks sat in completed/ with status:started-work + empty date_finished (archived
+> without finalization). Set status:work-completed and git-mined each task's
+> move-into-completed commit date (UTC) into date_finished. Frontmatter line-edits only;
+> verified 0 corrupt / 0 stale / 1878 frontmatters parse as YAML.
+
+That is Path B from AC 4, and `date_finished` was derived from each task's git move-commit
+rather than stamped with the sweep date — the same discipline T-2804 later applied to its 13.
+
+**Verified in the tree today, two independent ways:**
+
+- `fw audit --section compliance` → `[PASS] CTL-028: All completed/ tasks have frontmatter
+  status: work-completed`. **0 FAIL, 0 WARN** on CTL-028.
+- Direct scan of all **2263** files in `completed/`: **0** with `status != work-completed`,
+  **0** with empty or absent `date_finished`.
+
+A caution on measuring this, because I got it wrong first: `grep -c 'CTL-028'` on the audit
+output returns 44, which looks like 44 surviving instances. It is not — those are evidence
+lines belonging to **CTL-029** entries, which name CTL-028 as their `active/`-side mirror.
+Counting string mentions instead of findings inverts the result of this check.
+
+**The successor finding, which is live: `CTL-029` × 43.** "T-XXXX has all Agent ACs ticked but
+status='started-work' — completable, not closed." That is the `active/`-side mirror of the
+same disease, and it is not bookkeeping noise: T-2806 established that
+`fw task update --status work-completed` was *failing* on every build task in a worktree
+(unguarded source of an untracked file), which is a mechanism that manufactures exactly this
+state. The mechanism is fixed; the 43 accumulated instances are not, and they are **not**
+mine to bulk-close — CLAUDE.md is explicit that each needs individual evidence, and a sweep
+over tasks whose ACs nobody verified is how CTL-028 was created in the first place.
+
+**One thing this commit was carrying that nobody read.** Its message ends:
+
+> NOTE: bvp recalc (estimate all + estimate-cost all) was reverted this session — the bvp
+> estimator corrupts OLD-format frontmatter (no template anchor): it wrote proposed-score
+> list items WITHOUT the `bvp_scores_proposed:`/`cost_estimate_proposed:` key, producing
+> orphaned-list malformed YAML in 106 files. **Framework bug to file.**
+
+It was never filed. A G-062 obligation recorded in a commit message is recorded where nothing
+reads it — the same shape as the 71-day-late checkpoint in T-1166 and the stranded pickup
+envelope in T-2801. Filed upstream under T-2809.
+
+This mattered immediately rather than academically: **T-2808 ran `estimate all` and `cost-all`
+earlier in this same session.** Re-checked on discovering the note — **0 malformed frontmatter
+across all 2459 task files**. The run was safe because it was scoped `--statuses started-work`,
+which is entirely modern-template files; the June run covered old-format tasks too. That is a
+usage constraint nobody had written down, and it is now in the upstream filing.
