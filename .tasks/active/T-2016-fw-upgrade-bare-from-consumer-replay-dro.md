@@ -76,6 +76,14 @@ This task is the TermLink-side tracker. The fix lands upstream in `agentic-engin
 ### Agent
 - [x] RCA captured in `## RCA` block below
 - [x] Framework-agent prompt artifact written to `docs/reports/T-2016-fw-upgrade-replay-arg-drop-framework-prompt.md` for operator copy-paste
+> **2026-08-20:** still blocked, correctly. No upstream fix has landed — the code is
+> byte-identical to the 2026-06-06 diagnosis. What HAD been missing was the filing itself:
+> AC 2 wrote a report to `docs/reports/` "for operator copy-paste" and nobody pasted it.
+> Now filed at `framework:pickup` **offset 28**, with the scope corrected — **three** live
+> flags are dropped (`--force-downgrade`, `--strict`, `--no-self-vendor`), not one.
+> This AC stays unticked: filing is not fixing, and ticking it would be the
+> installation-vs-outcome error logged four times this session.
+>
 - [ ] After upstream fix lands in vendored `.agentic-framework/lib/upgrade.sh`, re-run `fw upgrade --force-downgrade` and confirm the flag survives through the bare-from-consumer handoff (split-brain refusal no longer fires when --force-downgrade is on)
 
 ### Human
@@ -108,6 +116,16 @@ This task is the TermLink-side tracker. The fix lands upstream in `agentic-engin
        Conversion: this AC should be moved to ### Agent and
        `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` added to ## Verification.
 -->
+> **2026-08-20 — this criterion has been overtaken, and is left for you to dispose of.**
+> The artifact exists so an operator could copy-paste it to the framework agent. That relay
+> did not happen in 76 days, so the report was filed directly over `framework:pickup`
+> (**offset 28**) instead — with a wider and more accurate scope than the artifact carries:
+> three dropped flags rather than one, plus a corrected non-finding (`--dry-run` is NOT
+> dropped; a guard at `:460` returns before the handoff).
+> So "is the artifact operator-ready?" is no longer the question that matters, and the
+> artifact is now the less accurate of the two records. Tick it, or retire it in favour of
+> the filing — either is reasonable and both are yours.
+>
 - [ ] [REVIEW] Framework-agent prompt at `docs/reports/T-2016-fw-upgrade-replay-arg-drop-framework-prompt.md` is operator-ready
   **Steps:**
   1. Open the file
@@ -267,3 +285,56 @@ Operator nudge: "why not send a pickup note?" — taken. Posted structured `pick
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2016-fw-upgrade-bare-from-consumer-replay-dro.md
 - **Context:** Initial task creation
+
+### 2026-08-20 — filed upstream, 76 days after the report was written to a file nobody read [agent]
+
+Picked up as the top actionable HV/LC task (BVP 78). Its remaining Agent AC waits on "after
+upstream fix lands in vendored `lib/upgrade.sh`, re-run and confirm the flag survives". No fix
+has landed. The code is byte-identical to the 2026-06-06 diagnosis.
+
+**Why it never landed.** AC 2, ticked, reads:
+
+> Framework-agent prompt artifact written to
+> `docs/reports/T-2016-fw-upgrade-replay-arg-drop-framework-prompt.md` for operator copy-paste
+
+A carefully-prepared report was written to a file, the AC was marked done, and the relay never
+happened. Filed today over `framework:pickup` — **offset 28** — the rail that was available the
+whole time. This is the third instance logged this session of an obligation recorded in a place
+with no reader (the others: T-1166's bake checkpoint in prose, 71 days unrun; the "Framework bug
+to file" note at the end of commit `444a7e9b3`, never filed).
+
+**Re-measured before filing, and the scope is wider than the title.** The parser accepts
+**seven** flags; `_replay_args` replays **two**:
+
+| flag | replayed? | |
+|---|---|---|
+| `--force` | yes | |
+| `--dedupe-user-hooks` | yes | |
+| `--from-upstream` | no | **correct** — deliberate, with a comment; upstream IS the source by then |
+| `--force-downgrade` | **no** | the reported symptom |
+| `--strict` | **no** | behaviour-changing (`:847`, `:1542`) |
+| `--no-self-vendor` | **no** | behaviour-changing (`:519`) |
+| `--dry-run` | **no** | but **unreachable** — see below |
+
+So **three** live flags are silently dropped, not one.
+
+**A wrong hypothesis, checked before it became a claim.** I believed `--dry-run` was dropped
+too, which would have been much worse — a preview invocation performing a real upgrade. It is
+not: a `dry_run` guard at `:460` returns before the clone, so the handoff is never reached. I
+was one step from filing that as the headline and it would have been false.
+
+The guard does print `[dry-run] would re-invoke: ... upgrade $target_dir --dry-run`, describing
+an argv the live path does not construct. Harmless while the paths are disjoint; a lie rather
+than an inaccuracy if they ever converge. Reported as cosmetic, four lines above the real bug.
+
+**The allowlist is the defect, not the missing entries.** `_replay_args` enumerates what to
+KEEP, so every flag added later is dropped by default and nothing says so. Carrying the
+operator's argv forward and subtracting the single flag that must not be replayed fails safe in
+the direction that matters, and makes `--from-upstream`'s exclusion explicit rather than
+implicit in what the list omits. Suggested as a shape, not a patch — `lib/upgrade.sh` is
+vendored (G-062) and a local edit is erased by the next re-vendor, which is precisely what
+T-2812 registered this week.
+
+**Remaining AC unchanged and still unticked.** "Confirm the flag survives" needs an upstream fix
+to exist first. Filing does not satisfy it, and ticking it would be the installation-vs-outcome
+error this session has now found four times.
