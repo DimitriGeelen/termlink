@@ -21,54 +21,24 @@
 #                    heartbeat mtime (cron is firing AND finding problems).
 #   STALE          — heartbeat older than max-age-hours (cron may have stopped
 #                    firing — protection silently degraded).
-#   ON_DEMAND      — registered in .context/cron/ondemand-checks.conf as a
-#                    deliberately non-cron check (the source-level static checks:
-#                    T-2527 alloc-sink, T-2531 drain-sink, T-2666 silent-exit,
-#                    T-2672 busy-spin) AND its log is empty. Heartbeat age is not
-#                    a health signal for these, so it is not graded — but a
-#                    registered check WITH findings still reports FIRING (T-2688).
-#                    Not counted as a problem; excluded from --quiet.
-#   TOOLING        — the `.log.stderr` companion has content no older than the heartbeat
-#                    while the findings log is clean: the check exited 2 (could
-#                    not RUN) rather than 1 (ran, found something). T-2696.
-#                    Reachable only from HEALTHY — FIRING and STALE both dominate,
-#                    so a tooling error can never mask a real finding or a dead
-#                    cron. Counted as a problem: a canary that cannot run is dark,
-#                    which is worse than the drift it was watching for.
 #   NO_HEARTBEAT   — log file present but no .heartbeat companion. Some
 #                    canaries don't track heartbeats; classified by log content
 #                    alone (empty=HEALTHY, non-empty=FIRING).
 #
 # Exit codes:
 #   0 — all canaries healthy (cron firing AND no entries)
-#   1 — at least one canary is FIRING, STALE or TOOLING (operator action required)
+#   1 — at least one canary is FIRING or STALE (operator action required)
 #   2 — tooling error (missing dir, jq missing in --json mode, etc.)
 #
 # Usage:
 #   canary-status.sh                     # human-readable summary, all canaries
 #   canary-status.sh --json              # machine envelope (jq-friendly)
-#   canary-status.sh --quiet             # only render problems (cron-friendly)
+#   canary-status.sh --quiet             # only render FIRING/STALE (cron-friendly)
 #   canary-status.sh --max-age-hours 72  # custom stale threshold (default 48)
 #
 # Discovery: globs `.context/working/.*-canary.log` and `.canary-aliveness.log`
 # (the meta-canary), then pairs each with `.context/working/<stem>.heartbeat`
-# and `<log>.stderr` if present. No hard-coded canary list — new canaries appear
-# automatically.
-#
-# The `.log.stderr` companion (T-2696). Canary crontabs originally wired
-# `>> <log> 2>&1`, merging the exit-2 tooling-error stream into the log whose
-# sole documented meaning is "a real problem was detected". One unreachable-
-# network cron run then pinned a canary FIRING permanently, with no documented
-# way to clear it — and a canary set that cries wolf stops being read, which is
-# how the thing it guards goes unwatched.
-#
-# The split itself was already live: every installed /etc/cron.d copy routes
-# `2>> <log>.stderr`. But that edit was made on the deployed files only and never
-# committed, so git still carried the merged form (the T-2689/T-2692 class: a fix
-# that runs but is not recoverable), and NOTHING read the .stderr files — a
-# write-only sink, the G-063 class. T-2696 committed the wiring back to git and
-# made this script the reader. A canary with no .stderr companion classifies
-# exactly as before.
+# if present. No hard-coded canary list — new canaries appear automatically.
 #
 # See also:
 #   /substrate   — runtime-state digest (T-2096)
@@ -115,22 +85,6 @@ fi
 # Stale threshold in seconds.
 MAX_AGE_SECS=$((MAX_AGE_HOURS * 3600))
 NOW=$(date +%s)
-
-# T-2688: on-demand checks — canaries that are deliberately NOT cron-backed, so
-# heartbeat age says nothing about their health. Registered in a git-tracked conf
-# (override with ONDEMAND_CHECKS_CONF for fixtures). Registration suppresses
-# STALENESS ONLY; a registered check whose log carries findings still FIREs.
-ONDEMAND_CHECKS_CONF="${ONDEMAND_CHECKS_CONF:-.context/cron/ondemand-checks.conf}"
-
-ONDEMAND_NAMES=""
-if [ -r "$ONDEMAND_CHECKS_CONF" ]; then
-    ONDEMAND_NAMES=$(sed -e 's/#.*//' -e 's/[[:space:]]//g' "$ONDEMAND_CHECKS_CONF" 2>/dev/null | grep -v '^$' || true)
-fi
-
-is_ondemand() {
-    [ -n "$ONDEMAND_NAMES" ] || return 1
-    printf '%s\n' "$ONDEMAND_NAMES" | grep -qxF "$1"
-}
 
 # Discover canary log files. Pattern: any `.context/working/.*-canary.log`,
 # plus the meta-canary aliveness log (uses different naming), plus the
@@ -182,17 +136,6 @@ classify() {
     log_mtime=$(file_mtime "$log_path")
     heartbeat_mtime=$(file_mtime "$heartbeat_path")
 
-    # T-2696: the `.log.stderr` companion. Canary crontabs route findings
-    # (stdout) to the .log and tooling errors (stderr, exit 2) here, instead of
-    # merging both with `2>&1`. The suffix is not a new invention — it is what
-    # the installed /etc/cron.d copies have been writing all along; this reads
-    # what already exists. Absent companion means err_size=0, no TOOLING branch
-    # is reachable, and classification is identical to pre-T-2696 behaviour.
-    local err_path err_size err_mtime
-    err_path="${log_path}.stderr"
-    err_size=$(file_size "$err_path")
-    err_mtime=$(file_mtime "$err_path")
-
     local status
     if [ "$heartbeat_mtime" = "0" ]; then
         # No heartbeat companion. Classify by log content.
@@ -203,14 +146,7 @@ classify() {
         fi
     else
         local heartbeat_age=$((NOW - heartbeat_mtime))
-        # T-2688: a registered on-demand check is graded on findings only. Its
-        # heartbeat is touched when a human runs it, so age is not a health signal
-        # and grading it STALE pinned /canaries permanently red. Findings are NOT
-        # suppressed — the FIRING branches below are reached exactly as before, so
-        # an on-demand check that found something still exits 1.
-        if [ "$heartbeat_age" -gt "$MAX_AGE_SECS" ] && is_ondemand "$name" && [ "$log_size" = "0" ]; then
-            status="ON_DEMAND"
-        elif [ "$heartbeat_age" -gt "$MAX_AGE_SECS" ] && ! is_ondemand "$name"; then
+        if [ "$heartbeat_age" -gt "$MAX_AGE_SECS" ]; then
             status="STALE"
         elif [ "$log_size" = "0" ]; then
             status="HEALTHY"
@@ -222,18 +158,6 @@ classify() {
             # firings are now resolved (healthy current state, historical
             # entries remain in log).
             status="HEALTHY"
-        fi
-    fi
-
-    # T-2696: TOOLING — the check could not RUN (exit 2), as opposed to running
-    # and finding something (exit 1). Reachable ONLY from HEALTHY: a live finding
-    # (FIRING) or a cron that stopped firing at all (STALE) both dominate, so a
-    # tooling error can never mask either. The `.log.stderr` must be no older than the
-    # heartbeat, mirroring the log rule directly above — an error followed by
-    # later clean runs is history, not a current fault.
-    if [ "$status" = "HEALTHY" ] && [ "$err_size" != "0" ]; then
-        if [ "$heartbeat_mtime" = "0" ] || [ "$err_mtime" -ge "$heartbeat_mtime" ]; then
-            status="TOOLING"
         fi
     fi
 
@@ -249,21 +173,10 @@ classify() {
     # latest match. Falls back to the first non-empty line of the recent
     # tail when no signal found — typically the per-run header (e.g.
     # `Fleet doorbell+mail health: DRIFT`).
-    # T-2696: for TOOLING the actionable text lives in the .log.stderr companion, not
-    # the (clean) findings log — read the entry from whichever file carries the
-    # signal for this status.
-    local entry_src entry_size
-    entry_src="$log_path"
-    entry_size="$log_size"
-    if [ "$status" = "TOOLING" ]; then
-        entry_src="$err_path"
-        entry_size="$err_size"
-    fi
-
     local latest_entry=""
-    if [ "$entry_size" != "0" ]; then
+    if [ "$log_size" != "0" ]; then
         local recent_tail
-        recent_tail=$(tail -n 50 "$entry_src" 2>/dev/null)
+        recent_tail=$(tail -n 50 "$log_path" 2>/dev/null)
         local signal
         signal=$(printf '%s\n' "$recent_tail" | grep -E -i 'fail|drift|stale|warn|error|behind' | tail -n 1 | head -c 120)
         if [ -n "$signal" ]; then
@@ -273,8 +186,8 @@ classify() {
         fi
     fi
 
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-        "$name" "$status" "$log_size" "$log_mtime" "$heartbeat_mtime" "$err_size" "$latest_entry"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$name" "$status" "$log_size" "$log_mtime" "$heartbeat_mtime" "$latest_entry"
 }
 
 # Build the result set.
@@ -284,8 +197,6 @@ HEALTHY=0
 FIRING=0
 STALE=0
 NO_HB=0
-ONDEMAND=0
-TOOLING=0
 
 while IFS= read -r log_path; do
     [ -n "$log_path" ] || continue
@@ -298,34 +209,26 @@ while IFS= read -r log_path; do
         FIRING) FIRING=$((FIRING + 1)) ;;
         STALE) STALE=$((STALE + 1)) ;;
         NO_HEARTBEAT) NO_HB=$((NO_HB + 1)) ;;
-        ON_DEMAND) ONDEMAND=$((ONDEMAND + 1)) ;;
-        TOOLING) TOOLING=$((TOOLING + 1)) ;;
     esac
 done <<EOF
 $(discover_canaries)
 EOF
 
-# T-2688: ON_DEMAND is deliberately absent here — a registered ad-hoc check with an
-# empty log is not an operator problem, and counting it kept /canaries permanently
-# non-zero. Its FIRING path is untouched, so findings still land in PROBLEMS.
-# T-2696: TOOLING counts. A canary that cannot RUN is dark, which is strictly
-# worse than the drift it was watching for — making it quiet would trade a loud
-# wrong answer for a silent one.
-PROBLEMS=$((FIRING + STALE + TOOLING))
+PROBLEMS=$((FIRING + STALE))
 
 # JSON rendering.
 if [ "$JSON" = "1" ]; then
-    printf '{"ok":true,"summary":{"total":%d,"healthy":%d,"firing":%d,"stale":%d,"no_heartbeat":%d,"on_demand":%d,"tooling":%d,"max_age_hours":%d},"canaries":[' \
-        "$TOTAL" "$HEALTHY" "$FIRING" "$STALE" "$NO_HB" "$ONDEMAND" "$TOOLING" "$MAX_AGE_HOURS"
+    printf '{"ok":true,"summary":{"total":%d,"healthy":%d,"firing":%d,"stale":%d,"no_heartbeat":%d,"max_age_hours":%d},"canaries":[' \
+        "$TOTAL" "$HEALTHY" "$FIRING" "$STALE" "$NO_HB" "$MAX_AGE_HOURS"
     first=1
-    while IFS=$'\t' read -r name status log_size log_mtime hb_mtime err_size latest_entry; do
+    while IFS=$'\t' read -r name status log_size log_mtime hb_mtime latest_entry; do
         [ -n "$name" ] || continue
         [ "$first" = "1" ] || printf ','
         first=0
         # JSON-escape the latest_entry (minimal: quotes + backslashes + newlines).
         esc=$(printf '%s' "$latest_entry" | sed 's/\\/\\\\/g; s/"/\\"/g; s/	/\\t/g')
-        printf '{"name":"%s","status":"%s","log_size":%s,"log_mtime":%s,"heartbeat_mtime":%s,"err_size":%s,"latest_entry":"%s"}' \
-            "$name" "$status" "$log_size" "$log_mtime" "$hb_mtime" "$err_size" "$esc"
+        printf '{"name":"%s","status":"%s","log_size":%s,"log_mtime":%s,"heartbeat_mtime":%s,"latest_entry":"%s"}' \
+            "$name" "$status" "$log_size" "$log_mtime" "$hb_mtime" "$esc"
     done <<EOF
 $RESULTS
 EOF
@@ -339,11 +242,6 @@ render_status() {
         HEALTHY) printf '\033[0;32m%-12s\033[0m' "HEALTHY" ;;
         FIRING)  printf '\033[0;31m%-12s\033[0m' "FIRING" ;;
         STALE)   printf '\033[0;33m%-12s\033[0m' "STALE" ;;
-        # T-2688: dim, not yellow — an on-demand check is informational by design.
-        ON_DEMAND) printf '\033[0;36m%-12s\033[0m' "ON_DEMAND" ;;
-        # T-2696: magenta — actionable like FIRING, but a different problem
-        # (the check could not run), so it must not read as drift at a glance.
-        TOOLING) printf '\033[0;35m%-12s\033[0m' "TOOLING" ;;
         *)       printf '%-12s' "$1" ;;
     esac
 }
@@ -369,11 +267,11 @@ fi
 
 if [ "$QUIET" = "1" ]; then
     # Quiet mode WITH problems: render only the FIRING/STALE rows.
-    echo "canary-status: $PROBLEMS canary(ies) need attention ($FIRING firing, $STALE stale, $TOOLING tooling, threshold ${MAX_AGE_HOURS}h)"
-    while IFS=$'\t' read -r name status log_size log_mtime hb_mtime err_size latest_entry; do
+    echo "canary-status: $PROBLEMS canary(ies) need attention ($FIRING firing, $STALE stale, threshold ${MAX_AGE_HOURS}h)"
+    while IFS=$'\t' read -r name status log_size log_mtime hb_mtime latest_entry; do
         [ -n "$name" ] || continue
         case "$status" in
-            FIRING|STALE|TOOLING) ;;
+            FIRING|STALE) ;;
             *) continue ;;
         esac
         printf '  %s %s\n' "$(render_status "$status")" "$name"
@@ -385,15 +283,11 @@ EOF
 fi
 
 # Full human render.
-ONDEMAND_NOTE=""
-[ "$ONDEMAND" != "0" ] && ONDEMAND_NOTE=", $ONDEMAND on-demand"
-TOOLING_NOTE=""
-[ "$TOOLING" != "0" ] && TOOLING_NOTE=", $TOOLING tooling"
-echo "canary-status: $TOTAL canary(ies) — $HEALTHY healthy, $FIRING firing, $STALE stale${TOOLING_NOTE}${ONDEMAND_NOTE} (threshold ${MAX_AGE_HOURS}h)"
+echo "canary-status: $TOTAL canary(ies) — $HEALTHY healthy, $FIRING firing, $STALE stale (threshold ${MAX_AGE_HOURS}h)"
 echo ""
 printf '  %-12s %-32s %s\n' "STATUS" "NAME" "LAST FIRED / LATEST ENTRY"
 printf '  %-12s %-32s %s\n' "------" "----" "-------------------------"
-while IFS=$'\t' read -r name status log_size log_mtime hb_mtime err_size latest_entry; do
+while IFS=$'\t' read -r name status log_size log_mtime hb_mtime latest_entry; do
     [ -n "$name" ] || continue
     printf '  %s %-32s ' "$(render_status "$status")" "$name"
     # Show most-recent timestamp (heartbeat or log mtime, whichever is newer).
@@ -417,17 +311,6 @@ if [ "$PROBLEMS" != "0" ]; then
         echo "  FIRING — a canary is detecting a real problem. Read the log:"
         echo "    cat $WORKING_DIR/.<name>-canary.log"
         echo "  Then fix the underlying drift (rotation, mirror sync, etc.) per the relevant runbook."
-    fi
-    if [ "$TOOLING" != "0" ]; then
-        echo "  TOOLING — the check could not RUN (exit 2). This is NOT drift: the canary"
-        echo "            never got far enough to have an opinion. Read the error:"
-        echo "    cat $WORKING_DIR/.<name>-canary.log.stderr"
-        echo "  Re-run it ad-hoc to see whether the fault persists:"
-        echo "    bash scripts/<canary-script>.sh"
-        echo "  Exit 0 means the error was transient (network blip, hub restarting) and the"
-        echo "  companion can be cleared:  : > $WORKING_DIR/.<name>-canary.log.stderr"
-        echo "  A fault that persists means the canary is DARK — fix it before trusting the"
-        echo "  empty log of the thing it was watching."
     fi
     if [ "$STALE" != "0" ]; then
         echo "  STALE  — a canary cron hasn't fired in >${MAX_AGE_HOURS}h. Check that cron is loaded:"

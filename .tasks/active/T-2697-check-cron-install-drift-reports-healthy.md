@@ -16,7 +16,7 @@ tags: [governance, cron, drift, reliability]
 components: []
 related_tasks: [T-2561, T-2696, T-2527, T-2531, T-2666, T-2672]
 created: 2026-08-20
-last_update: 2026-08-20
+last_update: 2026-08-20T07:04:31Z
 date_finished: null
 ---
 
@@ -145,6 +145,22 @@ acknowledged one tolerates, so the firing path cannot be quietly disabled again.
 - **Rejected:** Firing with no allowlist. Would put permanent red on any host with a
   legitimate local variation, which is how a check gets ignored — the failure this task is
   correcting.
+
+### 2026-08-20 — Rebased onto governance-canary-signal's version of this file
+
+- **Context:** `worktree-governance-canary-signal` independently found the same defect and
+  closed it as their T-2690 on 2026-08-18, two days before this session. They reached a
+  different conclusion: keep drift non-firing (honouring T-2561's original intent) and fix
+  only the summary WORD, so the line now reads `DRIFT (...)` instead of `healthy (...)`.
+- **Chose:** Take their file as the base and apply the firing change on top, preserving
+  their comment and their honest-wording branch (now reached under `--lenient`).
+- **Why:** Their fix is correct and came first; discarding it to re-land my own version of
+  the same block would create a conflict for no gain. Their wording change is also strictly
+  needed by mine — `--lenient` still has to not say "healthy".
+- **Where we differ:** they judged exit 0 acceptable so long as the word was honest; this
+  task judges that exit 0 is what automation reads, so the word alone is half a fix. That is
+  a real disagreement, resolved by the operator in favour of firing. If it proves noisy in
+  the field, `--lenient` is one flag away from their behaviour.
 
 ### 2026-08-20 — Keep `--strict` working
 

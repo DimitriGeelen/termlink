@@ -19,21 +19,23 @@
 #
 # Classes: MISSING (declared path absent) FIRES (exit 1 — the G-069 class);
 # DRIFT (present but content differs from git) FIRES unless acknowledged;
-# ACKNOWLEDGED (drift listed in the allowlist with a reason) reported, not firing;
+# ACKNOWLEDGED (drift allowlisted with a reason) reported, not firing;
 # OK (present + byte-identical).
 #
-# T-2697: DRIFT used to be a non-firing warning, on the reasoning that a local
-# host-specific edit should not paint the check permanently red. The cost of that
-# default showed up as "healthy (3 installed + matching, 21 drift-warning)" —
-# twenty-one crontabs diverged from their source of truth, reported every run and
-# actioned by nobody, concealing a real uncommitted fix (T-2696) the whole time.
-# A warning nobody must act on is indistinguishable from no warning once it has
-# scrolled past. The four source-level static checks (T-2527 alloc-sink, T-2531
-# drain-sink, T-2666 silent-exit, T-2672 busy-spin) had already settled the same
-# tension the other way: fire by default, and acknowledge a confirmed-safe instance
-# in an allowlist with a cited reason. This check now follows that convention.
-# `--lenient` restores the old behaviour; `--strict` is kept as an accepted alias
-# of the new default so existing invocations keep working.
+# T-2697 (building on T-2690's honest-wording fix below). Drift was a non-firing
+# warning, on the reasoning that a host-local edit should not paint the check
+# permanently red. T-2690 corrected the summary WORD but deliberately kept the
+# exit code. The remaining cost: exit 0 is what automation and a skimming human
+# both read, and the state it was reporting was 21 of 24 installed crontabs
+# diverged from source — carrying a real fix nobody had committed. A warning
+# nobody must act on is indistinguishable from no warning once it scrolls past.
+#
+# The four source-level static checks (T-2527 alloc-sink, T-2531 drain-sink,
+# T-2666 silent-exit, T-2672 busy-spin) had already settled the same tension the
+# other way: fire by default, and acknowledge a confirmed-safe instance in an
+# allowlist with a cited reason. This check now follows that convention.
+# `--lenient` restores the pre-T-2697 behaviour; `--strict` is kept as an accepted
+# alias of the new default so existing invocations keep working.
 #
 # Exit codes: 0 healthy · 1 firing (missing, or unacknowledged drift) · 2 tooling error
 set -u
@@ -46,7 +48,7 @@ FORMAT=human
 LENIENT=0
 
 usage() {
-    sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,40p' "$0" | sed 's/^# \{0,1\}//'
     cat <<'EOF'
 
 Usage: check-cron-install-drift.sh [OPTIONS]
@@ -183,14 +185,16 @@ if [ "$skip_n" -gt 0 ] && [ "$QUIET" -ne 1 ]; then
     for s in "${skipped[@]}"; do echo "  skipped: $s"; done
 fi
 if [ "$fired" -eq 0 ]; then
-    # "healthy" is claimed only when nothing is missing and nothing drifts
-    # unacknowledged. Saying it while 21 crontabs diverged is the T-2697 defect.
-    if [ "$QUIET" -ne 1 ]; then
-        if [ "$drift_n" -gt 0 ]; then
-            echo "check-cron-install-drift: $drift_n drifting, NOT firing (--lenient) — $ok_count matching, $ack_n acknowledged, $skip_n skipped"
-        else
-            echo "check-cron-install-drift: healthy ($ok_count installed + matching, $ack_n acknowledged, $skip_n skipped)"
-        fi
+    # Word the summary honestly (T-2690). T-2697 then made unacknowledged drift
+    # fire outright, so this branch is now reached only under --lenient or with a
+    # clean tree — but the wording rule still holds and still matters: "healthy" is
+    # claimed only when nothing is missing and nothing drifts unacknowledged. It
+    # was once printed while 21 installed crontabs had their canaries' stderr
+    # rerouted to a `.log.stderr` sink that nothing read.
+    if [ "$drift_n" -gt 0 ]; then
+        [ "$QUIET" -eq 1 ] || echo "check-cron-install-drift: DRIFT ($ok_count installed + matching, $drift_n drifting, $ack_n acknowledged, $skip_n skipped) — NOT firing (--lenient); installed crontabs differ from the git source of truth, reconcile before trusting them"
+    else
+        [ "$QUIET" -eq 1 ] || echo "check-cron-install-drift: healthy ($ok_count installed + matching, $ack_n acknowledged, $skip_n skipped)"
     fi
     exit 0
 fi

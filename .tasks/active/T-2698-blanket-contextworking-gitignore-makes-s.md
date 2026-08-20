@@ -15,7 +15,7 @@ tags: [governance, gitignore, clean-clone, static-checks]
 components: []
 related_tasks: [T-2694, T-2689, T-2692, T-2527, T-2531, T-2666, T-2672, T-2697]
 created: 2026-08-20
-last_update: 2026-08-20
+last_update: 2026-08-20T07:07:33Z
 date_finished: null
 ---
 
@@ -184,6 +184,26 @@ is to keep scratch state out, and widening it further would trade this defect fo
 opposite one.
 
 ## Decisions
+
+### 2026-08-20 — This is the mechanism half; another branch already did the files
+
+- **Context:** `worktree-governance-canary-signal` found the same defect independently and
+  closed it as their T-2692 on 2026-08-18, measuring it more carefully than I did — 15 false
+  positives across four checks, where I counted 11 across two. They fixed it by getting the
+  four allowlist files tracked. Their `.gitignore` still carries the blanket
+  `.context/working/` rule, so the files were force-added.
+- **Chose:** Keep this task, narrowed to the mechanism only.
+- **Why:** Force-adding the four files fixes today and leaves tomorrow broken — the fifth
+  allowlist (T-2697's `.cron-drift-allowlist`, written this session) would be untrackable
+  again, and nobody would notice, because that is precisely what a blanket ignore does. The
+  two fixes compose: theirs recovers the existing acknowledgements, this one stops the next
+  one going missing.
+- **Superseded from this branch:** my duplicate implementations of their T-2690 and T-2692
+  (canary-status TOOLING state, `.context/cron/ondemand-checks.conf` registry) were removed
+  rather than merged. Theirs is better on both — they fixed the heartbeat-touched-
+  unconditionally problem across ~22 canary scripts, which I had noticed and not fixed, and
+  they derive "is this check cron-scheduled?" from the crontabs themselves rather than from
+  my hand-maintained conf, which was itself a drift source.
 
 ### 2026-08-20 — Re-include by pattern, not by filename
 
