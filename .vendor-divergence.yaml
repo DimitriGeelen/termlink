@@ -1,0 +1,131 @@
+# Local modifications to VENDORED framework code (.agentic-framework/).
+#
+# Why this file exists (T-2812)
+# -----------------------------
+# The framework is vendored, and `git log -- .agentic-framework/` shows a
+# WHOLESALE vendor event roughly every two months — `fw upgrade`,
+# `bootstrap-replace`, `fw update v1.6.7 -> v1.6.295 (444 files)`. Each one
+# replaces the tree. Any local fix that upstream does not carry is deleted, in
+# silence, by a routine maintenance operation.
+#
+# Until this file existed, "what have we changed locally, and did it land
+# upstream?" could only be answered by reading 124 commit messages. It was found
+# the hard way: T-2687 was about to be closed as complete with 12/12 fixtures
+# green, and its fix — to vendored `lib/pickup.sh` — had no upstream filing and
+# was one `fw update` from deletion. A re-vendor was being proposed on another
+# branch at that moment (T-2705).
+#
+# Convention borrowed from peer project 832-Workflow-designer, which cites its
+# own `.vendor-divergence.yaml` in cross-project filings.
+#
+# status values:
+#   filed-upstream   — reported, not yet confirmed carried. Still at risk.
+#   landed-upstream  — confirmed present upstream; the local copy is redundant
+#                      and a re-vendor is safe for it.
+#   local-only       — not filed. A re-vendor DELETES this.
+#
+# Check: bash scripts/check-vendor-divergence.sh
+
+schema_version: 1
+last_vendor_event:
+  commit: 8c1cca561
+  date: 2026-06-08
+  description: "fw update v1.6.7 -> v1.6.295 (444 files)"
+  note: >
+    The baseline for "at risk". Commits touching .agentic-framework/ BEFORE this
+    were either carried by the update or already lost; only later ones are
+    pending destruction by the next event. Note that T-2469's message says
+    "re-vendor recommended" — recommended, not performed — so it is NOT a vendor
+    event, and treating it as one understates the window.
+
+divergences:
+  - task: T-2687
+    commit: ed60a64ea
+    date: 2026-08-20
+    file: .agentic-framework/lib/pickup.sh
+    status: filed-upstream
+    kind: fix
+    generality: GENERIC
+    symptom: >
+      Two fail-open paths on the pickup ingest rail. pickup_dedup_hash emitted the
+      CONSTANT digest sha256("||") when all three hash inputs extracted empty, so
+      every unreadable envelope collided with every other and was treated as an
+      already-seen duplicate. pickup_create_inception minted tasks with an empty
+      name when payload.summary or source.project extracted empty.
+    evidence: tests/pickup-failopen-fixtures.sh — 12 assertions, all refusal paths
+    upstream_ref: "framework:pickup offset 27"
+
+  - task: T-2304
+    commit: 78a7a6de1
+    date: 2026-07-02
+    file: .agentic-framework/agents/task-create/update-task.sh
+    status: filed-upstream
+    kind: fix
+    generality: GENERIC
+    symptom: >
+      inception-scope-trace runs python via heredoc, where __file__ is '<stdin>',
+      so sys.path could not be derived and `import lib.inception_decisions`
+      failed — breaking `fw inception decide` finalization. Fixed by passing
+      FRAMEWORK_ROOT through the environment.
+    note: >
+      This defect has already cost the project twice. A pickup envelope (P-043,
+      2026-06-08) reported it; the envelope was stranded unread for 73 days, and
+      the bug was independently re-discovered and re-fixed as T-2304 in the
+      interim. Losing it to a re-vendor would be the third time.
+    upstream_ref: "framework:pickup offset 27"
+
+  - task: T-2469
+    commit: a46e8e726
+    date: 2026-07-31
+    file: .agentic-framework/agents/context/budget-gate.sh
+    status: filed-upstream
+    kind: fix
+    generality: GENERIC
+    symptom: >
+      Wrap-up deadlock: budget-gate.sh's allowed-command list omitted
+      'context focus', so at critical budget the agent could not set focus — and
+      focus is required by the task gate for the very wrap-up actions the budget
+      gate permits. On-disk hotfix applied; recorded as PL-265.
+    upstream_ref: "framework:pickup offset 27"
+
+# Deliberately NOT divergence. Recorded so the register does not grow to include
+# everything that touches the vendored tree, which would make it as unreadable as
+# the commit log it replaces.
+not_divergence:
+  - kind: recovery
+    tasks: [T-2806, T-2807, T-2811]
+    reason: >
+      These ADD files that already exist upstream but were untracked here (the
+      T-2689 blanket .gitignore). A re-vendor restores them from upstream, so
+      erasure costs nothing. They are recovery of our own tracking, not a change
+      to framework behaviour.
+  - kind: upstream-port
+    tasks: [T-2418, T-2061, T-2365]
+    reason: >
+      Ports OF an upstream fix, or targeted re-vendors. Upstream already carries
+      the change, so a full re-vendor is a no-op for them. T-2061's commit message
+      records "(landed upstream)" explicitly.
+  - kind: artifact
+    tasks: [T-2204, T-2155]
+    reason: >
+      Touch .agentic-framework/ only via episodic capture or committed session
+      artifacts — no behavioural change to framework code.
+
+  - kind: mode-only
+    tasks: [T-2194]
+    file: .agentic-framework/agents/audit/orchestrator-mcp-scan.sh
+    reason: >
+      Commit f5065d6aa ("T-2194..T-2201 ... + chmod fix") changes the file MODE
+      and nothing else — `git show --numstat` reports 0 insertions, 0 deletions.
+      No framework behaviour was modified locally.
+    caveat: >
+      A re-vendor restores UPSTREAM's mode for this file. If upstream ships it
+      non-executable, the chmod is silently undone — and per PL-205 the framework's
+      pre-commit gates fail OPEN on a non-executable scanner ("scanner not found
+      (skipping)"). So this is the cheapest entry in the register and still not
+      free. Re-check the mode after any re-vendor.
+    found_by: >
+      The T-2812 detector, on its first run, against a register its own author had
+      just written. The task prose listed "T-2194..2201" among the artifact class
+      and the register did not — which is precisely the gap between describing a
+      decision and recording it.

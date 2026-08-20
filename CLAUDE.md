@@ -965,6 +965,49 @@ The generator, the audit's existence-only check, and the reader's swallowed exce
 **vendored** (G-062) — a local edit is erased on the next re-vendor — so they were filed back at
 `framework:pickup` offset 20 rather than patched here.
 
+### Local fixes to vendored code are deleted by the next re-vendor (T-2812, G-062)
+
+`git log -- .agentic-framework/` carries 124 commits, of which **8 are wholesale vendor
+events** — `fw upgrade`, `bootstrap-replace`, `fw update v1.6.7 → v1.6.295 (444 files)`. That
+is roughly **one every two months**, and each replaces the tree: any local fix upstream does
+not carry is deleted, silently, by a routine maintenance operation.
+
+Found the hard way. **T-2687** (top HV/LC, BVP 99) was about to close as complete — 12/12
+fixtures green against the real `lib/pickup.sh` — with its fix unfiled upstream and one
+`fw update` from deletion, while a re-vendor was being proposed on another branch (T-2705).
+
+**`.vendor-divergence.yaml` is the register** (convention borrowed from peer project
+832-Workflow-designer, who cite theirs in filings). It records the declared
+`last_vendor_event` baseline plus every local change since, in two classes:
+
+- `divergences:` — a real local fix. `status:` is `local-only` (a re-vendor DELETES it),
+  `filed-upstream` (reported, not yet confirmed carried — still at risk), or `landed-upstream`
+  (confirmed; the local copy is redundant and a re-vendor is safe for it).
+- `not_divergence:` — recovery of files untracked on our side, ports OF upstream fixes,
+  committed artifacts, mode-only changes. A re-vendor costs nothing. **Recording these matters
+  as much as the firing set** — without the distinction the register grows to include
+  everything touching the vendored tree and becomes as unreadable as the commit log it replaces.
+
+Currently registered: **T-2687** (pickup fail-open), **T-2304** (`update-task.sh` sys.path —
+a defect that has already cost this project twice: reported in a pickup envelope that sat
+stranded 73 days, then independently re-discovered and re-fixed), **T-2469** (budget-gate
+wrap-up deadlock, PL-265). All three filed upstream at `framework:pickup` offset 27.
+
+`scripts/check-vendor-divergence.sh` surfaces local changes since the baseline that nobody has
+classified. **The baseline is DECLARED in the register, never detected** — the first
+implementation grepped commit subjects for vendor-event keywords and picked one saying
+"re-vendor *recommended*" as though it had happened, silently shortening the at-risk window
+from 12 commits to 4. A heuristic that can quietly understate the answer is worse than a
+constant someone must update deliberately. Exit 0 = all classified · 1 = unregistered change ·
+2 = tooling. **Fail-closed**: a missing, baseline-less, or unparseable register exits 2, never
+0. Fixtures: `bash tests/vendor-divergence-fixtures.sh` (10 assertions, weighted toward the
+FIRING cases — a register-driven check is trivially green when everything is registered, and a
+green check that cannot go red is not a check). **After any re-vendor**: update
+`last_vendor_event`, re-check the modes flagged under `mode-only`, and re-verify anything still
+marked `filed-upstream`.
+
+**Run it before proposing or accepting a re-vendor.** That is the moment it exists for.
+
 ### `revisit_at` reminders only fire if the cron sets PROJECT_ROOT (T-2810, G-053)
 
 `revisit_at` + `revisit_evidence_needed` (T-1451) are the framework's **only** structural
