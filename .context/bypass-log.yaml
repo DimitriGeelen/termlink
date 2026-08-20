@@ -165,3 +165,9 @@ bypasses:
     authorized_by: human
     reason: "T-2690 cron-drift FAIL: audit derives /etc/cron.d/agentic-audit-<worktree-basename>, a path that cannot exist in a worktree. Filed upstream at framework:pickup offset 13. Operator authorized the push."
     retroactive_task: null
+  - timestamp: 2026-08-20T19:40:01Z
+    action: "T-2015: capture T-2823 (finalize skips absent date_finished) and T-2824 (workspace tests red 8d on MCP topics parity)"
+    commit: 028d4265c
+    authorized_by: human
+    reason: "Standing session-scoped Tier 0 authorization from operator, this branch only: T-2815 cron-drift audit FAIL derives /etc/cron.d/agentic-audit-<worktree-basename>, a path that cannot exist in a worktree. Filed upstream framework:pickup offset 13."
+    retroactive_task: null
