@@ -12,7 +12,7 @@ workflow_type: build
 horizon: now
 owner: claude-code
 created: 2026-08-20
-last_update: 2026-08-20
+last_update: 2026-08-20T00:31:33Z
 tags: [governance, tooling, clean-clone, detection-gap]
 ---
 
@@ -62,11 +62,24 @@ Add a second, complementary detection axis to the same script:
 Neither subsumes the other; each is blind exactly where the other fires. Both firing sets
 feed the same exit code, so a single invocation is correct in both environments.
 
-Axis B scans tracked shell sources under the framework root for the literal
-`"$FRAMEWORK_ROOT/..."` interpolation shape and tests each resolved path with `-e`. Paths
-ending in `/` are directory references and are tested as directories. References containing
-a further shell interpolation (`${...}` beyond the leading `$FRAMEWORK_ROOT`) are skipped —
-they cannot be resolved statically, and guessing would produce false positives.
+Axis B scans framework sources under `bin/`, `lib/` and `agents/` and tests each resolved
+path with `-e`. References still carrying a shell interpolation in the tail cannot be
+resolved statically, so they are skipped and counted rather than guessed.
+
+**The anchor is narrow by necessity.** The first implementation matched *every*
+`"$FRAMEWORK_ROOT/..."` occurrence and reported **47** dangling references, of which ~44
+were noise: bare `$VAR` interpolations, `path/to/script.sh` usage examples in help text,
+and the framework's own `tests/`, `tools/`, `.git/` and `.context/` — all of which a
+vendored copy legitimately omits. A check that is wrong 44 times out of 47 is a check
+nobody reads.
+
+Narrowing to references in **source-or-execute position** (`.` / `source` / `bash` / `sh` /
+`python3` / `python` immediately preceding the quoted path), and dropping comment lines,
+took it to **2** — `lib/bvp.sh` and `lib/arc_membership.sh`, both genuinely missing, zero
+false positives. A sourced or executed path is load-bearing by construction: if it is
+absent the command fails at runtime. This mirrors the sibling static checks, which also buy
+precision with a narrow anchor (T-2666 keys on an exact preceding-line shape, T-2672 on
+specific RPC method strings).
 
 ## Acceptance Criteria
 
@@ -74,8 +87,10 @@ they cannot be resolved statically, and guessing would produce false positives.
 - [x] Axis B detects a `$FRAMEWORK_ROOT/...` reference whose target is missing
 - [x] Axis B fires (exit 1) in this worktree, where `lib/bvp.sh` is genuinely absent
 - [x] Axis A behaviour is unchanged — T-2689's fixtures still pass unmodified
-- [x] Dynamic references (containing a nested `${...}`) are skipped, not false-positived
-- [x] Directory references (trailing `/`) are tested as directories
+- [x] Dynamic references (a `$` remaining in the tail) are skipped and counted, not guessed
+- [x] References in a comment line are ignored
+- [x] References NOT in source-or-execute position (assignment, `echo`, `ls`) are ignored —
+      the anchor-narrowness property that took the false-positive count 47 → 0
 - [x] `--json` carries the axis-B findings separately from axis A
 - [x] Regression fixtures cover: missing target fires; present target clears; dynamic
       reference skipped; both axes can fire together
@@ -93,6 +108,13 @@ question — "is the framework on this machine actually complete and recoverable
 operator should not have to know which of two commands matches their environment. Splitting
 them would reproduce the original failure: a check that is correct only where you are not.
 
-**Static-only resolution.** References carrying a nested interpolation are skipped rather
-than guessed. A false positive in a check that gates nothing would train people to ignore
-it; skipping is honest and the skipped count is reported.
+**Static-only resolution.** References carrying an interpolation in the tail are skipped
+rather than guessed. A false positive in a check that gates nothing would train people to
+ignore it; skipping is honest and the skipped count is reported.
+
+**Precision over recall.** The narrow source-or-execute anchor will miss a genuinely
+missing file that is only referenced indirectly (built into a variable, then invoked). That
+is an accepted trade: this check gates nothing and is read by humans, so its value is
+entirely in being trusted. The broad version was *more complete and less useful* — 47 hits
+that an operator would learn to scroll past. Two hits they will act on beats forty-seven
+they will not.
