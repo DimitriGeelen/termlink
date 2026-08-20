@@ -171,3 +171,9 @@ bypasses:
     authorized_by: human
     reason: "Standing session-scoped Tier 0 authorization from operator, this branch only: T-2815 cron-drift audit FAIL derives /etc/cron.d/agentic-audit-<worktree-basename>, a path that cannot exist in a worktree. Filed upstream framework:pickup offset 13."
     retroactive_task: null
+  - timestamp: 2026-08-20T21:59:56Z
+    action: "T-2824: merge plan (37 conflicts resolved + verified) and the axis-C decision brief"
+    commit: fc0c72de3
+    authorized_by: human
+    reason: "Standing session-scoped Tier 0 authorization, this branch only: T-2815 cron-drift audit FAIL derives /etc/cron.d/agentic-audit-<worktree-basename>. Filed upstream framework:pickup offset 13."
+    retroactive_task: null
