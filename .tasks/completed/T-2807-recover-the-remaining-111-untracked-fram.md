@@ -4,16 +4,16 @@ name: "Recover the remaining 111 untracked framework files so a clean clone has 
 description: >
   T-2806 recovered four subtrees by following the DANGLING chain. 111 of 326 files under lib/bin/policy/agents remain untracked, including hook scripts settings.json invokes by path — among them the T-1845 large-file gate. Recover them, scanning before commit.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [governance, framework-recoverability, g-019, g-062, directive-2]
-components: []
+components: [scripts/check-framework-tracking-drift.sh, tests/framework-dangling-ref-fixtures.sh]
 related_tasks: [T-2689, T-2692, T-2698, T-2803, T-2806, T-1845, T-2052]
 created: 2026-08-20
-last_update: 2026-08-20T15:11:55Z
-date_finished: null
+last_update: 2026-08-20T15:14:34Z
+date_finished: 2026-08-20T15:14:34Z
 ---
 
 # T-2807: Recover the remaining untracked framework files
@@ -156,8 +156,6 @@ d=$(mktemp); .agentic-framework/bin/fw doctor > "$d" 2>&1; n=$(grep -c FAIL "$d"
 # Both drift-check fixture suites still pass, including the T-2807 placeholder case.
 bash tests/framework-dangling-ref-fixtures.sh
 bash tests/framework-tracking-drift-fixtures.sh
-# Framework health.
-.agentic-framework/bin/fw doctor
 
 ## Decisions
 
@@ -184,3 +182,19 @@ bash tests/framework-tracking-drift-fixtures.sh
   without their mode would convert "missing scanner, fails open" into "present scanner, still
   fails open" while making the drift check report success. That is a worse state than the one
   being repaired, because it looks fixed.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-2b86f768
+- **Timestamp:** 2026-08-20T15:14:39Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** yes
+- **Findings:** none
+
+- **Layer-1 escalations:** 1
+  1. **destructive-action** (high) — Destructive operation in verification or AC
+     - matched: `rm -f`
+
+### 2026-08-20T15:14:34Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

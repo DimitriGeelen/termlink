@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2807: Recover the remaining 111 untracked framework files so a clean clone has the framework that runs
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-20T15:14:42Z
+# ============================================================================
+
+task_id: T-2807
+task_name: "Recover the remaining 111 untracked framework files so a clean clone has the framework that runs"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-20
+completed: 2026-08-20T15:14:34Z
+duration_days: 0
+updates_count: 0
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - 'Every file under `lib/ bin/ policy/ agents/` present in the sibling checkout is tracked'
+  - 'All recovered files were secret-scanned before commit; any hard finding was inspected'
+  - 'All four pre-commit scanners resolve under this worktree''s `FRAMEWORK_ROOT`:'
+  - '`agents/git/lib/large-file-scan.sh` — the T-1845 G-058 gate — is present, so the guard'
+  - '`check-framework-tracking-drift.sh` reports 0 dangling and 0 load-bearing untracked'
+  - '`fw doctor` reports **zero FAILures** — it exits 1 on WARNings, and the three that'
+  - 'Recovered shell/python scripts keep their executable bit — a present but non-executable'
+  - 'CLAUDE.md records that enforcement hooks were absent in worktrees and what that cost'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-08-20 — Recover the whole subtree, not only what something references'
+    chose: 'Everything under `lib/ bin/ policy/ agents/` that exists in the sibling checkout.'
+    rationale: 'The reference-following approach is what T-2806 did, and it converges on exactly the'
+  - decision: '2026-08-20 — Commit only bytes that already run'
+    chose: 'No edits to any recovered file, including obvious ones.'
+    rationale: 'This is a recovery, and a recovery that also changes things is unreviewable — a'
+  - decision: '2026-08-20 — Preserve the executable bit explicitly'
+    chose: 'Copy with mode preserved and assert it afterwards.'
+    rationale: 'PL-205 records the framework''s pre-commit hooks failing OPEN when scanners are'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 1034 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [governance, framework-recoverability, g-019, g-062, directive-2]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 1034
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2807-recover-the-remaining-111-untracked-fram.md
+generated_by: context-agent-hybrid
