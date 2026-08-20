@@ -875,15 +875,26 @@ behind reads a single working tree and is structurally incapable of seeing any o
 been passing cleanly throughout.
 
 `scripts/check-task-id-collisions.sh` is a **deploy-time / ad-hoc check, NOT a cron canary** —
-same tier as `check-cron-install-drift.sh`. Two axes:
+same tier as `check-cron-install-drift.sh`. Three axes:
 
 - **Axis A — COLLIDING IDS.** An ID claimed by two or more branches beyond the merge base.
   **FIRES** (exit 1), printing each branch's filename so a cherry-pick (same ID, *same* task —
   not reported) is distinguishable from the real defect (same ID, different tasks).
+- **Axis C — DUPLICATE NEW FILES.** The same path created independently on more than one
+  branch with different content. **FIRES.** Precise where axis B is a heuristic: two branches
+  both adding `scripts/check-verification-pipefail.sh` is duplicated work, full stop, and one
+  implementation is about to be discarded. Identical blobs (shared history / cherry-pick) are
+  excluded, as are per-session artifacts under `.context/handovers|episodic|audits|pickup`.
 - **Axis B — NEAR-DUPLICATE TITLES.** Titles across *different* branches sharing rare terms.
-  **WARNS, never fires.** This is the axis that matters — renumbering is mechanical, three
-  agents solving one problem is not recoverable — but title similarity is a judgement, and a
-  heuristic that blocks on a judgement gets switched off the first time it is wrong.
+  **WARNS, never fires.** It catches duplication *before* either branch has written the file —
+  earlier than C, at the cost of being a judgement. A heuristic that blocks on a judgement
+  gets switched off the first time it is wrong, so this one only advises.
+
+A and C are facts and fire; B is a hint and does not. They are genuinely complementary, and
+the August incident proves it in both directions: **axis B** found the two branches that both
+fixed the untracked-allowlist bug, and **axis C** found the two that both wrote
+`check-verification-pipefail.sh` — whose task titles share no rare term, so B missed it
+entirely. Axis C also surfaced four `.fabric/components/*.yaml` cards written twice.
 
 Axis B scores on **shared rare words, not set overlap**, for two reasons found the hard way.
 The filename slug is truncated at ~40 chars, which is exactly where the discriminating words
@@ -895,12 +906,14 @@ both say ALLOWLISTS and STATIC, terms rare across the corpus. Tunables:
 `TASK_COLLISION_RARE_DF` (default 4 — a word in ≤4 titles counts as rare) and
 `TASK_COLLISION_MIN_SHARED` (default 2 rare words to report a pair).
 
-Exit codes: 0 clean · 1 colliding ID(s) · 2 tooling (not a git repo / bad base ref — never a
-false clean). `--json` carries both axes with separate counts; `--quiet` prints only when
-axis A fires; `--no-titles` skips axis B (and the summary then says so rather than claiming
-titles are clean); `--base REF` sets the merge base (default `main`). Test hooks:
-`TASK_COLLISION_BASE`, `TASK_COLLISION_BRANCHES`, `TASK_COLLISION_SIMILARITY`. Fixtures:
-`bash tests/task-id-collision-fixtures.sh` (17 assertions, scratch repo with real branches).
+Exit codes: 0 clean · 1 colliding ID(s) or duplicate file(s) · 2 tooling (not a git repo / bad
+base ref — never a false clean). `--json` carries all three axes with separate counts;
+`--quiet` prints only when something fires; `--no-titles` skips axis B (and the summary then
+says so rather than claiming titles are clean); `--base REF` sets the merge base (default
+`main`). Test hooks: `TASK_COLLISION_BASE`, `TASK_COLLISION_BRANCHES`,
+`TASK_COLLISION_SIMILARITY`. Fixtures: `bash tests/task-id-collision-fixtures.sh` (23
+assertions, scratch repo with real branches; pins both false-positive guards — a cherry-picked
+task and an identical file must never fire).
 
 **Run it before starting work and before a merge.** On firing, renumber before merging (T-229
 is the worked example) and pick new IDs above the highest claimed on ANY branch — note that

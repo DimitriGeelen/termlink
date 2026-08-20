@@ -154,6 +154,65 @@ if echo "$js" | grep -q '"collision_count": *1'; then ok "--json carries collisi
 else bad "--json carries collision_count" "$js"; fi
 if echo "$js" | grep -q '"duplicate_title_count"'; then ok "--json carries duplicate_title_count"
 else bad "--json carries duplicate_title_count" "$js"; fi
+if echo "$js" | grep -q '"duplicate_file_count"'; then ok "--json carries duplicate_file_count"
+else bad "--json carries duplicate_file_count" "$js"; fi
+
+# ---------------------------------------------------------------------------
+# 8b. Axis C — the same NEW file created on two branches with different content
+#     is duplicated work and FIRES. This is the case axis B cannot see: in the
+#     real incident both branches wrote scripts/check-verification-pipefail.sh
+#     under task titles that share no rare term.
+# ---------------------------------------------------------------------------
+D="$TMP/dupfile"; mk_repo "$D"
+branch_with "$D" alpha
+add_task "$D" "T-0100" "a" "Alpha writes an auditor"
+mkdir -p "$D/scripts"; echo "alpha implementation" > "$D/scripts/check-thing.sh"
+commit_all "$D" a
+( cd "$D" && git checkout -q main )
+branch_with "$D" beta
+add_task "$D" "T-0200" "b" "Beta writes an unrelated-sounding checker"
+mkdir -p "$D/scripts"; echo "beta implementation" > "$D/scripts/check-thing.sh"
+commit_all "$D" b
+out=$(run_check "$D"); rc=$?
+if [ "$rc" = "1" ]; then ok "axis C fires on the same new file from two branches"
+else bad "axis C fires on duplicate new file" "rc=$rc: $out"; fi
+if echo "$out" | grep -q "DUPLICATE FILE: scripts/check-thing.sh"; then
+    ok "axis C names the duplicated path"
+else bad "axis C names the duplicated path" "$out"; fi
+if echo "$out" | grep -q "near-duplicate task title"; then
+    bad "axis C catches what axis B misses" "axis B also fired — pick titles that share no rare term"
+else ok "axis C catches a duplicate axis B cannot see (titles share no rare term)"; fi
+
+# ---------------------------------------------------------------------------
+# 8c. THE AXIS-C FALSE-POSITIVE GUARD. Same path, IDENTICAL content = shared
+#     history or a cherry-pick, not duplicated work. Must not fire.
+# ---------------------------------------------------------------------------
+D="$TMP/samefile"; mk_repo "$D"
+branch_with "$D" alpha
+mkdir -p "$D/scripts"; echo "one implementation" > "$D/scripts/check-thing.sh"
+commit_all "$D" a
+( cd "$D" && git checkout -q main )
+branch_with "$D" beta
+mkdir -p "$D/scripts"; echo "one implementation" > "$D/scripts/check-thing.sh"
+commit_all "$D" b
+out=$(run_check "$D"); rc=$?
+if [ "$rc" = "0" ]; then ok "identical file on both branches => does NOT fire"
+else bad "identical file on both branches => does NOT fire" "rc=$rc: $out"; fi
+
+# ---------------------------------------------------------------------------
+# 8d. Axis C ignores per-session artifacts that legitimately differ.
+# ---------------------------------------------------------------------------
+D="$TMP/artifacts"; mk_repo "$D"
+branch_with "$D" alpha
+mkdir -p "$D/.context/handovers"; echo "alpha" > "$D/.context/handovers/S-1.md"
+commit_all "$D" a
+( cd "$D" && git checkout -q main )
+branch_with "$D" beta
+mkdir -p "$D/.context/handovers"; echo "beta" > "$D/.context/handovers/S-1.md"
+commit_all "$D" b
+out=$(run_check "$D"); rc=$?
+if [ "$rc" = "0" ]; then ok "handovers/episodic artifacts are excluded from axis C"
+else bad "handovers excluded from axis C" "rc=$rc: $out"; fi
 
 # ---------------------------------------------------------------------------
 # 9. Tooling errors are exit 2 — never a false "clean".

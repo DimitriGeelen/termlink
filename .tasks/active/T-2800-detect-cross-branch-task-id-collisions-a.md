@@ -16,7 +16,7 @@ tags: [governance, concurrency, task-system, duplicate-work]
 components: []
 related_tasks: [T-229, T-2696, T-2697, T-2698, T-2561]
 created: 2026-08-20
-last_update: 2026-08-20
+last_update: 2026-08-20T09:23:33Z
 date_finished: null
 ---
 
@@ -156,6 +156,25 @@ therefore worth wiring into the session-start path rather than leaving it as ano
 dormant script (PL-168). Left as a follow-up rather than assumed here.
 
 ## Decisions
+
+### 2026-08-20 — Axis C added after the first run found what axis B could not
+
+- **Context:** running the finished two-axis check against the real repo, then using it to
+  screen the next candidate task, surfaced a third duplicate the title heuristic had missed:
+  `scripts/check-verification-pipefail.sh` exists on BOTH this branch (T-2693) and
+  charter-review (T-2775) — same path, different implementations, and theirs measured the
+  problem more thoroughly (1490 lines across 802 tasks, plus empirical testing of which
+  idioms are actually SIGPIPE-safe). Their task titles and mine share no rare term, so axis B
+  was silent. Four `.fabric/components/*.yaml` cards from T-2695 turned out to be duplicated
+  the same way.
+- **Chose:** Add axis C — the same new path created on more than one branch, with differing
+  content. Fires alongside axis A.
+- **Why it fires rather than warns:** it is not a heuristic. Two branches independently adding
+  the same path is duplicated work by definition, and the merge will conflict regardless.
+  Identical blobs are excluded, so ordinary cherry-picks stay quiet.
+- **Why B is still worth having:** C can only see duplication after someone has written the
+  file. B sees it while the tasks are still just titles, which is the cheaper moment to find
+  out. Neither subsumes the other — the incident produced one example of each.
 
 ### 2026-08-20 — Two axes, only one of them fires
 
