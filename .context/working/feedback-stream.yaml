@@ -8388,3 +8388,21 @@ scan_id: R-c51023de
 task_id: T-2826
 payload:
   task_file: .tasks/active/T-2826-canary-status-reports-0-firing-while-two.md
+---
+kind: scan_emitted
+timestamp: '2026-08-22T10:12:41Z'
+scan_id: R-9e010339
+task_id: T-2827
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-22T10:12:41Z'
+scan_id: R-9e010339
+task_id: T-2827
+payload:
+  task_file: .tasks/active/T-2827-refresh-merge-readiness-report--branch-m.md

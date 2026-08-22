@@ -3060,3 +3060,10 @@ learnings:
   date: 2026-08-20
   context: Added via context agent
   application: TBD
+- id: PL-329
+  learning: "A duplicated-work detector that examines only ADDED files (git diff --diff-filter=A) is blind to the more common shape: two branches independently FIXING the same existing file. check-task-id-collisions.sh axis C missed T-2687/T-2824 fixing the identical termlink_topics defect for exactly this reason, and compounds it by excluding BASE from its branch set, so duplication against main is invisible too. Cheap mitigation until a real axis exists: before implementing a fix on a long-lived branch, run 'git log origin/main -- <path>' on the file you are about to change."
+  source: T-2827
+  task: T-2828
+  date: 2026-08-22
+  context: Added via context agent
+  application: TBD

@@ -1,0 +1,73 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2827: Refresh merge-readiness report — branch moved to 87 commits, tools.rs now conflicts and main already has the fix
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-22T10:12:44Z
+# ============================================================================
+
+task_id: T-2827
+task_name: "Refresh merge-readiness report — branch moved to 87 commits, tools.rs now conflicts and main already has the fix"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-22T10:07:32Z
+completed: 2026-08-22T10:12:40Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - 'The report states the CURRENT branch head, merge base, commit count and conflict'
+  - '`crates/termlink-mcp/src/tools.rs` — the one conflict that is new since the trial —'
+  - 'The report records that main already carries an equivalent fix for the same defect,'
+  - 'The stale figures in the existing report are corrected in place, so a reader cannot'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2827-refresh-merge-readiness-report--branch-m.md
+generated_by: context-agent-hybrid

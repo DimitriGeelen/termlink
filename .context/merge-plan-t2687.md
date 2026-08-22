@@ -4,14 +4,34 @@
 `main` or to the branch. Every resolution below was actually applied in the scratch tree, and
 the result **builds (`cargo build` clean) and passes 37/37 fixture suites**.
 
+**What was re-measured on 2026-08-22 and what was carried forward.** Re-measured against
+the current heads: the conflict set (38, listed below), both sides' content for the new
+conflict, and main's position. **Carried forward from the 2026-08-20 trial: the build and
+the 37/37 fixture run.** That carry-forward is sound rather than lazy —
+`crates/termlink-mcp/src/tools.rs` is the *only* Rust file touched by the nine commits
+added since, and it resolves to main's copy, so the tree that compiles is byte-identical to
+the one that was built and tested. The fixture count will read 38 after the merge, not 37,
+because this branch adds `tests/canary-status-firing-fixtures.sh`; it is a new file on one
+side and does not conflict.
+
 | | |
 |---|---|
-| branch | `worktree-t2687-pickup-failopen` @ `c8607a501` |
+| branch | `worktree-t2687-pickup-failopen` @ `fdb70a144` |
 | merge base | `19ba70a33` (2026-08-13) |
-| commits landing | 78 |
-| files changed | 377 |
-| conflicts | **37** |
+| main | `447b8b638` — 230 commits ahead of base, **unchanged since the 2026-08-20 trial** |
+| commits landing | 87 |
+| files changed | 395 |
+| conflicts | **38** |
 | needs your judgement | **1** (see §Flagged) |
+
+**Refreshed 2026-08-22.** The trial was run at `c8607a501` / 78 commits / 37 conflicts;
+nine commits have landed on this branch since, so those figures are superseded and the
+numbers above were re-measured with `git merge-tree --write-tree` against the current
+heads. Main has **not** moved (still exactly 230 ahead of the same base), so every
+resolution below still applies to the same content on main's side — only the branch grew.
+
+Exactly one conflict is new (`crates/termlink-mcp/src/tools.rs`) and none of the previous
+37 went away. Its resolution is in §Resolution table under *take MAIN — the duplicate fix*.
 
 ---
 
@@ -50,6 +70,58 @@ merge, main wins every one.
 **Does this undo T-2810?** No. Main's `revisit-due-scan.sh` still has the marker-collision bug
 (line 54: `.framework.yaml` **or** `FRAMEWORK.md`). The mitigation lives in
 `.context/cron-registry.yaml`, which does **not** conflict and merges cleanly.
+
+### take MAIN — the duplicate fix (1 file)
+
+```
+crates/termlink-mcp/src/tools.rs
+```
+
+**This is the one conflict that is new since the trial, and it is not a merge inconvenience
+— it is duplicated work.** Both branches fixed the same defect in `termlink_topics`: a
+chained `if let` that swallowed a timeout, a transport error, an error response and a
+missing `topics` array identically, so a caller received a partial topic inventory with no
+way to know it was partial. Main fixed it as **T-2687**; this branch fixed it again as
+**T-2824**, eight days later.
+
+I compared the two rather than assuming the larger diff was better. They are **functionally
+identical** — same four JSON keys (`sessions_unreachable`, `sessions_bad_result`,
+`sessions_skipped`, `sessions_probed`), same semantics, same three-way probe
+classification. The difference is structural: main extracts a pure
+`aggregate_topics_probes_mcp` helper that is unit-testable and mirrors the CLI's
+`aggregate_topics_probes`; ours classifies inline in the handler. **Main's is the better
+shape, so main wins.**
+
+Ours is not additive in any respect I could find, so nothing is lost by dropping it.
+
+**One thing to re-check after merging.** T-2824 closed with two ACs deliberately left
+unchecked, because `parity_topics` still failed on a reachability delta it said "cannot be
+fixed from the MCP side alone" — specifically the empty-registrations early return. Main's
+version *does* populate that early return with explicit zeros. So main's implementation may
+already satisfy what T-2824 could not. Run `cargo test -p termlink-mcp --test parity` after
+the merge: if it is 24/24, T-2824's two open ACs are satisfied by main's code and the task
+can be closed honestly instead of carrying permanent unchecked boxes.
+
+**Why nothing caught this.** `check-task-id-collisions.sh` axis C exists precisely to catch
+duplicated work, and it did not see this one. Two reasons, both structural:
+
+- Axis C runs `git diff --diff-filter=A`, so it only considers files **added** on a branch.
+  `tools.rs` existed at the merge base and both sides *modified* it — that class is never
+  examined. It catches duplicated new files; it cannot catch duplicated **fixes to existing
+  files**.
+- The branch list is `[b for b in git branch ... if b != BASE]`, so **main is excluded**.
+  Duplication between a feature branch and main is invisible — and main is where the other
+  230 commits live.
+
+The cost here was one task's effort, which is small. But this is the second instance of the
+same class in this repo (the first being the two `check-verification-pipefail.sh`
+implementations in §Flagged), and that one *was* caught only because it happened to be a new
+file on two feature branches. Captured as a task rather than fixed here — the fix is a new
+axis, not a tweak, and it needs a false-positive story before it can fire on "two branches
+touched the same file".
+
+Practical mitigation until then: before implementing a fix on a long-lived branch, run
+`git log origin/main -- <path>` on the file you are about to change.
 
 ### take MAIN — session scratch + trivia (14 files)
 

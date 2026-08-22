@@ -189,3 +189,9 @@ bypasses:
     authorized_by: human
     reason: "Standing session-scoped Tier 0 authorization, this branch only: T-2815 cron-drift audit FAIL (worktree-basename path). Filed upstream framework:pickup offset 13."
     retroactive_task: null
+  - timestamp: 2026-08-22T10:04:31Z
+    action: "T-1452: Session handover S-2026-0822-1155"
+    commit: fdb70a144
+    authorized_by: human
+    reason: "T-2815 worktree-basename cron-drift audit defect: audit demands /etc/cron.d/agentic-audit-t2687-pickup-failopen (derived from worktree basename); installing it would shadow the real agentic-audit-termlink. Standing session-scoped human authorization for --no-verify pushes to origin on this branch."
+    retroactive_task: null
