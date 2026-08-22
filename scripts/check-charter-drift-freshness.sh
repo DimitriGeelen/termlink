@@ -70,6 +70,43 @@ if [ "$HEARTBEAT" -eq 1 ]; then
     touch "$HEARTBEAT_FILE" 2>/dev/null || true
 fi
 
+# --- record WHICH binary answered (T-2829) ----------------------------------
+# This check asks "has the LIVE tool surface drifted from the charter?" but it can
+# only ever see the binary `$TERMLINK` resolves to. `TERMLINK_BIN` defaults to a
+# bare `termlink`, so under cron's PATH (/usr/local/bin:/usr/bin:/bin) it reads
+# whatever build sits in /usr/local/bin — NOT the binary this project builds and
+# installs to ~/.cargo/bin.
+#
+# That is not hypothetical. From 2026-08-02 to 2026-08-22 this canary appended a
+# 40-tool FIRING entry every single day. All 40 were false: /usr/local/bin/termlink
+# was a Jul-31 build (0.11.693) reporting them deprecated==false, while the
+# binary on the developer's PATH (0.11.1196) reports every one of them
+# deprecated==true. Twenty consecutive days of alarms about an already-clean
+# surface, and nothing in the output said which binary had been asked.
+#
+# A version FLOOR was considered and rejected. Deprecation here is monotonic —
+# diffing the two catalogs shows 6 deprecated at 0.11.693, 46 at 0.11.1196, and
+# NOTHING un-deprecated in between — so the 40 tools that separate the builds are
+# exactly this canary's firing set. The staleness discriminator and the drift
+# verdict are the same 40 names, and no threshold over them can tell "stale
+# binary" from "genuine re-accretion". That is the T-2415 lesson in miniature:
+# a version floor is provably blind to a capability question. Worse, VERSION is
+# stamped per-commit while the installed binary always trails it, so a
+# `>= VERSION` gate would refuse on every healthy run.
+#
+# What the check CAN always do honestly is say what it looked at. Naming the
+# resolved path and version turns an ambiguous 40-tool alarm into a one-line
+# diagnosis, and the crontab pins TERMLINK_BIN so the daily run stops resolving
+# to a stale /usr/local/bin copy in the first place.
+if [ -n "${TERMLINK_CHARTER_DRIFT_TEST_JSON:-}" ]; then
+    probe_binary="(test hook: $TERMLINK_CHARTER_DRIFT_TEST_JSON)"
+    probe_version="n/a"
+else
+    probe_binary="$(command -v "$TERMLINK" 2>/dev/null || printf '%s' "$TERMLINK")"
+    probe_version="$("$TERMLINK" --version 2>/dev/null | awk '{print $NF}')"
+    [ -n "$probe_version" ] || probe_version="unknown"
+fi
+
 # --- read the tool catalog (test hook wins; else live binary) ---------------
 if [ -n "${TERMLINK_CHARTER_DRIFT_TEST_JSON:-}" ]; then
     catalog="$(cat "$TERMLINK_CHARTER_DRIFT_TEST_JSON" 2>/dev/null || true)"
@@ -94,9 +131,11 @@ if [ -z "$firing" ]; then
     # healthy
     if [ "$WANT_JSON" -eq 1 ]; then
         jq -cn --argjson checked "${checked_count:-0}" \
-            '{ok:true, firing:[], checked:$checked, live_off_charter:0}'
+            --arg pb "$probe_binary" --arg pv "$probe_version" \
+            '{ok:true, firing:[], checked:$checked, live_off_charter:0, probe_binary:$pb, probe_version:$pv}'
     elif [ "$QUIET" -eq 0 ]; then
         echo "check-charter-drift: healthy — 0 live off-charter tools (${checked_count:-0} live tools scanned)."
+        echo "  (read from $probe_binary, version $probe_version)"
     fi
     exit 0
 fi
@@ -106,10 +145,12 @@ fire_count="$(printf '%s' "$firing" | grep -c .)"
 if [ "$WANT_JSON" -eq 1 ]; then
     firing_arr="$(printf '%s' "$firing" | jq -R '{name:., category:"social-analytics", reason:"live (deprecated==false) tool matches charter-untraceable pattern"}' | jq -sc '.')"
     jq -cn --argjson f "$firing_arr" --argjson checked "${checked_count:-0}" --argjson fc "$fire_count" \
-        '{ok:false, firing:$f, checked:$checked, live_off_charter:$fc}'
+        --arg pb "$probe_binary" --arg pv "$probe_version" \
+        '{ok:false, firing:$f, checked:$checked, live_off_charter:$fc, probe_binary:$pb, probe_version:$pv}'
 else
     echo "=== $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
     echo "check-charter-drift: FIRING — $fire_count live tool(s) drift from the charter (off-charter social-analytics, not deprecated):"
+    echo "  probed: $probe_binary (version $probe_version)"
     printf '%s\n' "$firing" | sed 's/^/  ↳ /'
     echo "  These re-accrete the 'over-built breadth' the T-2468 review flagged. Either deprecate them"
     echo "  (mirror the remote_inbox_* pattern per docs/operations/p4-surface-reduction.md) or, if one"

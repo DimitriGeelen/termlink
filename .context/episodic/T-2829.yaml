@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2829: Charter-drift canary has fired 20 days of false positives — it measures whatever termlink cron PATH finds, a Jul-31 binary
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-22T11:38:12Z
+# ============================================================================
+
+task_id: T-2829
+task_name: "Charter-drift canary has fired 20 days of false positives — it measures whatever termlink cron PATH finds, a Jul-31 binary"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-22T11:33:44Z
+completed: 2026-08-22T11:38:08Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  >
+
+# Key outcomes
+outcomes:
+  - '**Revised mid-task — a version floor was the wrong instrument and was rejected.** Both'
+  - 'The rejection is reasoned in the script: deprecation here is monotonic (6 deprecated at'
+  - 'Provenance is reported on BOTH verdicts, not just firing: a clean run from the wrong'
+  - 'The crontab pins `TERMLINK_BIN` (or PATH) to the binary the project actually ships, so'
+  - 'Fixtures cover both verdicts carrying provenance, both JSON envelopes carrying'
+  - 'Mutation-tested: removing the firing-path provenance line takes the suite 8/8 → 7/8,'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 4 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 4
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2829-charter-drift-canary-has-fired-20-days-o.md
+generated_by: context-agent-hybrid

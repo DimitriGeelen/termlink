@@ -195,3 +195,9 @@ bypasses:
     authorized_by: human
     reason: "T-2815 worktree-basename cron-drift audit defect: audit demands /etc/cron.d/agentic-audit-t2687-pickup-failopen (derived from worktree basename); installing it would shadow the real agentic-audit-termlink. Standing session-scoped human authorization for --no-verify pushes to origin on this branch."
     retroactive_task: null
+  - timestamp: 2026-08-22T10:20:45Z
+    action: "T-2815: the stray cron is not garbage — worktree exists, ~36 jobs work, one line is broken (T-2819 + T-2815 routed to human review)"
+    commit: 20b6f6bfc
+    authorized_by: human
+    reason: "T-2815 worktree-basename cron-drift audit defect (same cause as every push this session). Standing session-scoped human authorization for --no-verify pushes to origin on this branch."
+    retroactive_task: null

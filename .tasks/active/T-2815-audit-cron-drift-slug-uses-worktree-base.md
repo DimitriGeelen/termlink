@@ -17,7 +17,7 @@ workflow_type: build
 horizon: now
 owner: human
 created: 2026-08-20
-last_update: 2026-08-22T10:20:17Z
+last_update: 2026-08-22T10:20:27Z
 tags: [governance, framework-defect, cross-repo, cron, worktree]
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:37Z'

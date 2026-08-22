@@ -21,6 +21,15 @@
 SHELL=/bin/bash
 PATH=/usr/local/bin:/usr/bin:/bin
 
+# T-2829: pin the binary this canary probes. Without this, `termlink` resolves via
+# the PATH above to /usr/local/bin/termlink, which on this host was a Jul-31 build
+# (0.11.693) predating the P4 deprecations — so the canary appended a 40-tool
+# FIRING entry every day from 2026-08-02 to 2026-08-22, all of them false. The
+# developer's PATH finds ~/.cargo/bin/termlink instead, which reports the same 40
+# as deprecated, so the check passed by hand and failed on cron for twenty days.
+# Keep this pointing at the binary the project actually builds and installs.
+TERMLINK_BIN=/root/.cargo/bin/termlink
+
 # Daily at 08:17 UTC — offset from the :13 stale-waker-code / :33 fleet-binary
 # neighbours in the 08:00 hour.
 17 8 * * * root cd /opt/termlink && bash scripts/check-charter-drift-freshness.sh --quiet >> .context/working/.charter-drift-canary.log 2>> .context/working/.charter-drift-canary.log.stderr
