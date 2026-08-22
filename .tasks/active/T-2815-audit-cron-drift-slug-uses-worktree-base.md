@@ -15,9 +15,9 @@ description: >
 status: started-work
 workflow_type: build
 horizon: now
-owner: claude-code
+owner: human
 created: 2026-08-20
-last_update: '2026-08-20T15:21:22Z'
+last_update: 2026-08-22T10:20:17Z
 tags: [governance, framework-defect, cross-repo, cron, worktree]
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:37Z'
@@ -120,14 +120,40 @@ the next framework sync.
       (40+ jobs pointing at another project's ephemeral worktree; the audit job has been
       failing every 30 min). It belongs to 002-Claude-Partner-Network, so removing it is a
       cross-project action this session must not take unilaterally.
-      **Steps:** 1. Check whether the worktree still exists (its path is in the cron file's
-      `# Project:` header). 2. If absent, the cron is pure garbage:
-      `sudo rm /etc/cron.d/agentic-audit-agent-a1edeca4dc54e9ac7`
-      3. `journalctl -t agentic-cron --since "1 hour ago" | grep -c "No such file"` → expect 0
-      after the next half-hour.
-      **Expected:** no `agentic-cron` "No such file" lines in syslog.
-      **If not:** another stray worktree-keyed cron exists; list `/etc/cron.d/agentic-audit-*`
-      and check each `# Project:` header for a `.claude/worktrees/` path.
+      **Steps:** 1. (Already answered — see the 2026-08-22 evidence below. The worktree
+      EXISTS and most jobs in the file WORK, so do not `rm` the file.) 2. Decide with
+      002-Claude-Partner-Network whether to repair line 51 — repoint
+      `/root/.agentic-framework/bin/fw` at a real `fw` — or delete that single line.
+      3. Confirm the repair: `journalctl -t agentic-cron --since "40 min ago" > /tmp/.ac; grep -c 'agentic-framework/bin/fw: No such file' /tmp/.ac` → expect 0.
+      **Expected:** the half-hourly `bin/fw: No such file or directory` line stops appearing.
+      **If not:** the path is still wrong; read line 51 of the cron file for its current value.
+
+**2026-08-22 evidence — the premise of this AC was wrong, and acting on it would have caused
+damage.** The AC assumed the worktree was gone and the file was "pure garbage" to be `rm`'d.
+Measured from syslog, which answers it without crossing the project boundary (T-559 blocks
+`ls` on that path):
+
+- The failing line is **line 51 only**:
+  `*/30 * * * * root cd "<worktree>" && PROJECT_ROOT="<worktree>" "/root/.agentic-framework/bin/fw" audit ... | logger -t agentic-cron`
+- syslog carries `/root/.agentic-framework/bin/fw: No such file or directory` under the
+  `agentic-cron` tag every 30 minutes — 10:30, 11:00, 11:30, 12:00. So the **right-hand side
+  of the `&&` ran**, which means the **`cd` succeeded**, which means the **worktree still
+  exists**. The real defect is the missing `fw` binary at `/root/.agentic-framework`, not a
+  dead worktree.
+- The file's other ~36 jobs emit nothing under `agentic-cron`. Since `cd` demonstrably
+  succeeds, and a missing script would itself log "No such file", their silence means they
+  run and produce no output — i.e. they are **working**.
+
+**So `rm`-ing the file would break ~36 live jobs belonging to another project.** One line is
+broken; the rest are load-bearing.
+
+**Also: step 3 as originally written could not fail.** It grepped `-t agentic-cron` for
+"No such file" and expected 0 — but these jobs are shaped `cd "X" && cmd 2>&1 | logger`, so
+whenever `cd` fails the `&&` short-circuits and `logger` never runs. The check therefore
+returns 0 both when the cron is healthy and when it is entirely dead, and cannot distinguish
+them. Rewritten above to grep the specific binary-missing string, which is the signal that
+actually separates the two states. (Same shape as the `-gt`/`-ge` defect in T-2826: a check
+that reports success in both the working and the broken state.)
 
 ## Verification
 
@@ -148,3 +174,6 @@ host still blocked. G-062 routes cross-repo defects through `framework:pickup`.
 human approval; the Autonomous Mode Boundaries rule explicitly withholds gate-bypass from
 a broad "proceed as you see fit" directive. The branch stays unpushed, and the blocked push
 is itself the clearest evidence of the defect's severity.
+
+### 2026-08-22T10:20:17Z — status-update [task-update-agent]
+- **Change:** owner: claude-code → human

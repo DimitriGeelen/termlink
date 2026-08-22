@@ -14,9 +14,9 @@ description: >
 status: started-work
 workflow_type: build
 horizon: now
-owner: claude-code
+owner: human
 created: 2026-08-20
-last_update: '2026-08-20T15:21:22Z'
+last_update: 2026-08-22T10:16:52Z
 tags: [governance, gitignore, vendoring, clean-clone, bvp]
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:38Z'
@@ -176,3 +176,6 @@ checkout: no tracked path can become ignored, so nothing can silently drop out o
 boundary: T-559 exists so a worktree session cannot reach into the parent checkout, and the
 `git add` deserves a human reading the list first — which is precisely the review I could
 not perform from here.
+
+### 2026-08-22T10:16:52Z — status-update [task-update-agent]
+- **Change:** owner: claude-code → human
