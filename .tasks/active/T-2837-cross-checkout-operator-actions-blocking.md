@@ -124,6 +124,18 @@ queue, and both items had already been re-derived more than once.
 
   **If not:** do not merge. Merging a collision silently discards one of the two tasks, which is the failure T-229 recorded in March 2026 and that recurred in August because nothing enforced it. Note also that this task's own ID was allocated by the same racing counter — verify T-2837 is not itself colliding.
 
+- [ ] [REVIEW] P-043 is disposed of deliberately — acted on or dropped, not left stranded
+
+  **Steps:**
+  1. `cd /opt/termlink/.claude/worktrees/t2687-pickup-failopen && cat .context/pickup/auto-deferred/P-043-bug-report.yaml`
+  2. It reports two framework bugs blocking every inception decision, with file:line references. **Both are already resolved:** BUG 2 was independently re-discovered and re-fixed as T-2304, and BUG 1 (`update-task.sh:791`) is filed upstream at `framework:pickup` offset 17. So its content is spent.
+  3. My recommendation is therefore to **drop it** — delete the envelope — rather than file anything new from it.
+  4. This is your call, not mine: `check-pickup-deferred-freshness.sh` detects and never drains, precisely because discarding is a judgement about whether the work still matters. An agent auto-draining would turn a visible backlog into a silent one, which is the trade the check exists to reverse.
+
+  **Expected:** `bash scripts/check-pickup-deferred-freshness.sh` exits 0, and the guard layer drops from 3 firing to 2.
+
+  **If not:** if you would rather keep it, that is fine — but it should then carry a breadcrumb naming a real blocking task, otherwise `fw pickup promote-deferred` can never promote it and it is stranded again by construction. The cost of leaving it is measured: this envelope sat 76 days while one of the bugs it named was solved twice.
+
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.
