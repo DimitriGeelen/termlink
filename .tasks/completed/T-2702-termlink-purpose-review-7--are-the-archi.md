@@ -6,16 +6,16 @@ description: >
   Inception: TermLink purpose review #7 — are the architecture doc's declared invariants
   enforced?
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-08-14T11:26:58Z
-last_update: '2026-08-23T19:13:47Z'
-date_finished:
+last_update: 2026-08-23T21:14:00Z
+date_finished: 2026-08-23T21:14:00Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -153,15 +153,15 @@ Research artifact: `docs/reports/T-2702-architecture-invariants-review.md` (C-00
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -218,7 +218,17 @@ Seventh pass. Prior axes: breadth (T-2468), non-goal guards (T-2678), guard exec
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale:
+
+Seventh pass. Prior axes: breadth (T-2468), non-goal guards (T-2678), guard execution (T-2683), Usability+Portability (T-2690), positive claims vs provers (T-2694), refusal taxonomy (T-2698). This pass audits the one document the charter explicitly DELEGATES AUTHORITY TO — docs/architecture/parallel-execution-substrate.md, which the charter calls 'the authoritative statement of the substrate design and its invariants'. Its section 10 declares five invariants 'must not be violated'. Two findings. (F1) The decisive one — 'Strict star; spokes never connect to one another' — is guarded by NOTHING. T-2569's tripwire looks like it covers this but guards a DIFFERENT EDGE: it scans only crates/termlink-hub/src and forbids the HUB from building a hub-speaking client, i.e. hub-to-hub federation, which is charter non-goal #1. The invariant here is spoke-to-spoke mesh, and termlink-session ships a generic client (client.rs) that connects to either a unix path or a TCP host:port with nothing constraining the target, so a direct spoke-to-spoke channel could be introduced in termlink-session or termlink-cli and no test would fail. Section 3 spends forty lines rejecting exactly that mesh and calls the fragility argument decisive. (F2) 'Producer != judge at the seam' is UNFALSIFIABLE AS WRITTEN. Section 9 declares that neither side self-certifies the boundary and the AEF layer signs off each hard-dependency primitive — and the same section explicitly rejects a sign-off ceremony as 'enterprise scaffolding for a workshop'. Grep finds zero sign-off records anywhere; the only occurrence of the phrase in the doc is the sentence rejecting the ceremony. CLAUDE.md separately records G-063: the cross-repo seam channel framework:pickup sat at 36-sent / 0-received, a write-only sink. An invariant whose only possible evidence was deliberately removed is not an invariant, it is a value. Also checked and NOT findings, recorded for calibration: append-log ordering/durability is well covered (88 tests in termlink-bus lib.rs, monotonic cursor semantics documented across meta.rs), and the CLI connecting directly to a LOCAL session socket is an operator tool reaching a local session, not the agent-to-agent mesh the invariant forbids — both were investigated and cleared rather than counted. GO on F1 which is buildable and testable here; F2 is a doc/governance change to an authoritative artifact and is human-sovereign.
+
+Evidence:
+
+**Date**: 2026-08-23T21:14:00Z
 
 ## Updates
 
@@ -227,3 +237,51 @@ Seventh pass. Prior axes: breadth (T-2468), non-goal guards (T-2678), guard exec
 
 ### 2026-08-14T11:27:13Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-08-23T21:14:00Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale:
+
+Seventh pass. Prior axes: breadth (T-2468), non-goal guards (T-2678), guard execution (T-2683), Usability+Portability (T-2690), positive claims vs provers (T-2694), refusal taxonomy (T-2698). This pass audits the one document the charter explicitly DELEGATES AUTHORITY TO — docs/architecture/parallel-execution-substrate.md, which the charter calls 'the authoritative statement of the substrate design and its invariants'. Its section 10 declares five invariants 'must not be violated'. Two findings. (F1) The decisive one — 'Strict star; spokes never connect to one another' — is guarded by NOTHING. T-2569's tripwire looks like it covers this but guards a DIFFERENT EDGE: it scans only crates/termlink-hub/src and forbids the HUB from building a hub-speaking client, i.e. hub-to-hub federation, which is charter non-goal #1. The invariant here is spoke-to-spoke mesh, and termlink-session ships a generic client (client.rs) that connects to either a unix path or a TCP host:port with nothing constraining the target, so a direct spoke-to-spoke channel could be introduced in termlink-session or termlink-cli and no test would fail. Section 3 spends forty lines rejecting exactly that mesh and calls the fragility argument decisive. (F2) 'Producer != judge at the seam' is UNFALSIFIABLE AS WRITTEN. Section 9 declares that neither side self-certifies the boundary and the AEF layer signs off each hard-dependency primitive — and the same section explicitly rejects a sign-off ceremony as 'enterprise scaffolding for a workshop'. Grep finds zero sign-off records anywhere; the only occurrence of the phrase in the doc is the sentence rejecting the ceremony. CLAUDE.md separately records G-063: the cross-repo seam channel framework:pickup sat at 36-sent / 0-received, a write-only sink. An invariant whose only possible evidence was deliberately removed is not an invariant, it is a value. Also checked and NOT findings, recorded for calibration: append-log ordering/durability is well covered (88 tests in termlink-bus lib.rs, monotonic cursor semantics documented across meta.rs), and the CLI connecting directly to a LOCAL session socket is an operator tool reaching a local session, not the agent-to-agent mesh the invariant forbids — both were investigated and cleared rather than counted. GO on F1 which is buildable and testable here; F2 is a doc/governance change to an authoritative artifact and is human-sovereign.
+
+Evidence:
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-3ec6c49e
+- **Timestamp:** 2026-08-23T21:14:02Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-1
+     - evidence: `IW-1 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  2. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-2
+     - evidence: `IW-2 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+## Recommendation Verdict (v1.0)
+
+- **Scan ID:** RC-d40e4a91
+- **Timestamp:** 2026-08-23T21:14:02Z
+- **Overall:** CONFIRMED
+- **Claims:** 7
+
+| Claim | Type | Status |
+|-------|------|--------|
+| `T-2468` | task | ✓ pass |
+| `T-2678` | task | ✓ pass |
+| `T-2683` | task | ✓ pass |
+| `T-2690` | task | ✓ pass |
+| `T-2694` | task | ✓ pass |
+| `T-2698` | task | ✓ pass |
+| `T-2569` | task | ✓ pass |
+
+### 2026-08-23T21:14:00Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
