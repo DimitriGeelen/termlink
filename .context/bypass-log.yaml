@@ -213,3 +213,9 @@ bypasses:
     authorized_by: human
     reason: "T-2815 worktree-basename cron-drift audit defect blocks pre-push in every worktree; standing session Tier 0 grant"
     retroactive_task: null
+  - timestamp: 2026-08-23T11:24:10Z
+    action: "T-2830: pre-resolve origin/main into t2687 (39 conflicts) on a trial branch"
+    commit: a25afc4b6
+    authorized_by: human
+    reason: "T-2815 worktree-basename cron-drift audit defect blocks pre-push in every worktree; standing session Tier 0 grant for --no-verify on non-main branches"
+    retroactive_task: null

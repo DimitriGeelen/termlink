@@ -1,5 +1,123 @@
 # Merge plan — `worktree-t2687-pickup-failopen` → `main`
 
+> **2026-08-23 — SUPERSEDED BY A REAL BRANCH. This is no longer a plan.**
+>
+> The merge described below has been **performed** on `integration/t2687-trial`, pushed to
+> OneDev at `a25afc4b6`. All 39 conflicts are resolved, the tree builds, and every suite
+> passes. What follows is kept as the record of how each class was decided.
+>
+> **To land it:**
+>
+> ```
+> https://onedev.docker.ring20.geelenandcompany.com/termlink/~pulls/new?target=30:main&source=30:integration/t2687-trial
+> ```
+>
+> Merging that PR brings the branch's 91 commits onto main with the conflicts already
+> settled. `main` has not been touched.
+
+## Proof on the merged tree
+
+| check | result |
+|---|---|
+| `cargo build --release` | clean |
+| `cargo test --release` | **2,944 passed, 0 failed** (10 suites) |
+| `tests/*.sh` fixture suites | **60 passed, 0 failed** |
+| register union (new check) | 4 registers, **no entry lost from either parent** |
+| conflict markers in tree | 0 |
+| `tools.rs` vs `origin/main` | byte-identical |
+
+## Divergence at merge time
+
+| | |
+|---|---|
+| branch | `worktree-t2687-pickup-failopen` @ `4d577b308` |
+| merge base | `19ba70a33` (2026-08-13) |
+| main | `447b8b638` — 230 commits ahead of base |
+| commits landing | **91** |
+| conflicts | **39** — all resolved |
+| merge commit | `a25afc4b6` on `integration/t2687-trial` |
+
+## How each class was resolved
+
+| class | n | resolution |
+|---|---|---|
+| session churn | 14 | ours; `VERSION` took main's higher stamp |
+| append-only logs | 4 | **union** — see below |
+| episodic records | 4 | ours (hand-enriched vs generator one-liners) |
+| fabric cards | 4 | ours **plus** main's topology edges grafted in |
+| vendored `.agentic-framework/**` | 9 | main (6 strict supersets; 3 keep our logic and add features) |
+| `tools.rs` | 1 | main — T-2687 ≡ our T-2824, ours is the duplicate |
+| `CLAUDE.md` | 1 | **union** — disjoint sections, zero heading overlap |
+| canary scripts + task file | 2 | merged by hand, both designs kept |
+
+**Nothing was resolved by picking a side where both sides held real content.** The two
+places that would have looked like clean side-picks were the ones that cost most:
+
+- **Fabric cards.** A plain `--ours` looks right (ours are the enriched cards; main's are
+  `purpose: 'TODO'` stubs) and would have silently dropped **6 real `depended_by` topology
+  edges** that only main's copies carried. Kept ours, grafted the edges.
+- **`.gate-bypass-log.yaml` / registers.** These are append-only logs. Picking either side
+  compiles, tests green, audit passes, and deletes history — nothing else in the tree would
+  notice. Hence `scripts/verify-register-union.sh`, which asserts every id from **both**
+  parents survives. It goes **red before the merge and green after**, so it is a check that
+  can actually fail.
+
+## Two register ID collisions — the T-2800 class, outside `.tasks/`
+
+Both branches allocated the same ids to **different records**:
+
+| id | ours | main's |
+|---|---|---|
+| `PL-328` | revisit-due-scan silent-nothing (T-2810) | a guard's green result is not evidence (T-2678) |
+| `PL-329` | duplicate-work detector blind to fixes (T-2827) | — |
+| `PD-094`–`PD-103` | T-2805-era decisions | T-2746-era decisions |
+
+Main's numbering is published, so **ours moved**: `PL-358/359`, `PD-139`–`PD-148`. The one
+prose reference (`T-2197`, "learning PL-328") was repointed. This is exactly the concurrent
+allocation race T-2800 documents for task ids — it applies to every counter in
+`.context/project/`, not just `.tasks/`, and nothing checks those.
+
+## The one genuine policy collision — `check-cron-install-drift.sh`
+
+Both branches rewrote the same check to fix the same complaint, incompatibly:
+
+- **Ours (T-2821):** all DRIFT fires; an allowlist acknowledges deliberate host variations.
+- **Main (T-2682):** drift split by *direction* — a git-declared job line absent from the
+  host becomes its own always-firing `UNINSTALLED_JOBS` class; cosmetic drift stays a
+  warning behind `--strict`.
+
+**Main's default won**, because its discriminator is sharper: it fires on the difference
+that actually means "shipped but dark" rather than on any byte change. T-2821's mechanism
+was **not** discarded — the allowlist and `--lenient` are grafted onto main's
+implementation.
+
+Keeping our fixture suite paid for itself immediately: it caught main's script summarising
+a tree with known drift as **"healthy"** — the precise T-2815 wording defect main's own
+header claims to build on. Not firing is a policy choice; calling it healthy is a false
+statement. Fixed. Both suites now pass (13 ours + 24 main's).
+
+## Still needs your judgement
+
+1. **The drift direction neither policy covers.** T-2821's motivating evidence was *21 of
+   24 host crontabs carrying a real fix that had never been committed to git*. That is the
+   **opposite** direction from `UNINSTALLED_JOBS`, and main deliberately treats an extra
+   host-local job as the operator's prerogative. So **neither** policy fires on it, and the
+   21-crontab backlog that started all this is still invisible. Worth its own class.
+
+2. **Episodic records embed an ephemeral worktree path.** Every conflicting episodic carried
+   `source_file: /opt/termlink/.claude/worktrees/<name>/...`. Both sides were wrong; the
+   path names a directory that gets deleted. Cosmetic today, misleading forever.
+
+3. **`.fabric` cards are generated with `created_by: unknown` and `purpose: 'TODO'`** and
+   only become useful when someone enriches them by hand. The stub/enriched split is what
+   made these conflict at all.
+
+---
+
+*Everything below this line is the original 2026-08-20/22 plan, kept as the decision record.*
+
+# Merge plan — `worktree-t2687-pickup-failopen` → `main`
+
 **Prepared 2026-08-20 by trial merge in a scratch worktree.** Nothing here was applied to
 `main` or to the branch. Every resolution below was actually applied in the scratch tree, and
 the result **builds (`cargo build` clean) and passes 37/37 fixture suites**.

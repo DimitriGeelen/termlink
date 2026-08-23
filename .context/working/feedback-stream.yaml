@@ -8424,3 +8424,21 @@ scan_id: R-586d01bd
 task_id: T-2829
 payload:
   task_file: .tasks/active/T-2829-charter-drift-canary-has-fired-20-days-o.md
+---
+kind: scan_emitted
+timestamp: '2026-08-23T11:07:16Z'
+scan_id: R-13ec8296
+task_id: T-2831
+payload:
+  overall: FAIL
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-23T11:07:16Z'
+scan_id: R-13ec8296
+task_id: T-2831
+payload:
+  task_file: .tasks/active/T-2831-g-054-smoke-synthetic.md

@@ -40,14 +40,14 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Integration branch `integration/t2687-trial` exists, created from the t2687 head, and `origin/main` is merged into it
-- [ ] All 39 conflicted paths are resolved — `git diff --check` clean and no conflict markers remain anywhere in the tree
-- [ ] Append-only registers (`.context/project/{decisions,learnings,metrics-history}.yaml`, `.context/episodic/*`) retain every entry from BOTH sides — no id present before the merge is absent after it
-- [ ] `crates/termlink-mcp/src/tools.rs` resolves to main's version (T-2687 and our T-2824 are the same fix; ours is the duplicate)
-- [ ] `cargo build --release` succeeds on the merged tree
-- [ ] The merged tree's test suite passes, with any pre-existing failure identified as pre-existing by checking it against origin/main
-- [ ] Integration branch pushed to origin; each `--no-verify` push logged as a bypass
-- [ ] Merge-readiness report updated with what the PR contains and what remains a human decision
+- [x] Integration branch `integration/t2687-trial` exists, created from the t2687 head, and `origin/main` is merged into it
+- [x] All 39 conflicted paths are resolved — `git diff --check` clean and no conflict markers remain anywhere in the tree
+- [x] Append-only registers (`.context/project/{decisions,learnings,metrics-history}.yaml`, `.context/episodic/*`) retain every entry from BOTH sides — no id present before the merge is absent after it
+- [x] `crates/termlink-mcp/src/tools.rs` resolves to main's version (T-2687 and our T-2824 are the same fix; ours is the duplicate)
+- [x] `cargo build --release` succeeds on the merged tree
+- [x] The merged tree's test suite passes, with any pre-existing failure identified as pre-existing by checking it against origin/main
+- [x] Integration branch pushed to origin; each `--no-verify` push logged as a bypass
+- [x] Merge-readiness report updated with what the PR contains and what remains a human decision
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
