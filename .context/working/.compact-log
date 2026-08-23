@@ -408,3 +408,4 @@
 [pre-compact] [manual] Handover generated at 2026-08-23T16:39:00Z
 [checkpoint] [auto] Handover FAILED at 2026-08-23T17:19:03Z — see /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.context/working/.checkpoint.handover.stderr
 [pre-compact] [manual] Handover generated at 2026-08-23T17:35:52Z
+[checkpoint] [auto] Handover FAILED at 2026-08-23T19:34:05Z — see /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.context/working/.checkpoint.handover.stderr

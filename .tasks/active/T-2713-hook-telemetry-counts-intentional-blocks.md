@@ -17,7 +17,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T18:54:20Z
-last_update: 2026-08-23T19:28:46Z
+last_update: 2026-08-23T19:28:53Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -118,6 +118,47 @@ is exactly when a guard has been blocking often, i.e. when it is most valuable.
 framework files; a local edit is erased on the next re-vendor. Deliverable is an
 upstream report, not an edit under `.agentic-framework/` (same disposition as
 T-2711).
+
+## FINDING (2026-08-23) — the premise inverted under measurement; report FILED at `framework:pickup` offset 33
+
+The conflation at `hook-telemetry.sh:28` is real code and the citation holds
+(verified: `check-human-ac-tick.py:289` `return 2` is the only non-zero return of
+eleven). **But that line is unreachable from the hook dispatch path**, so the
+narrower report this task was opened to file would have been wrong.
+
+`bin/fw:12` is `set -euo pipefail`, and the dispatcher (`bin/fw:~7845`) runs
+`bash "$_hook_script" "$@"` as a simple command in no condition context. Any
+non-zero return aborts `fw` at that line, so `_hook_rc=$?` and
+`fw_record_hook_fire` below it never execute. The status still reaches Claude
+Code — blocking works — only the telemetry is lost.
+
+**Measured, not reasoned.** `fw hook check-project-boundary` against the live tree:
+blocking input → rc=2, FIRE counter 22→22 (not incremented); passing input → rc=0,
+22→23. That is decisive because `.hook-counter` is incremented *unconditionally,
+before* the `if` — a fire that does not increment proves the function was never
+entered, not that the branch went the wrong way. Minimal repro: under
+`set -euo pipefail`, `bash -c "exit 2"` followed by an echo never reaches the echo.
+Corroborating: `.hook-failure-counter` last written 2026-08-20 01:32 despite ~6
+blocks across four gates in this session alone.
+
+**What the counter's entries actually mean.** One writer survives `set -e`: the
+missing-hook branch (`bin/fw:~7834`), which calls `fw_record_hook_fire "$name" 127`
+as a plain statement and then `exit 0`. So this task's own Context was wrong to say
+"the two recorded failures are two occasions on which the guard worked" — a
+successful block cannot reach the counter. The likelier reading is the opposite:
+two occasions on which the hook was ABSENT and the call was allowed through. Not
+provable from here (the counter stores a name and a tally, no timestamp, no code),
+and that ambiguity IS the defect: "blocked", "errored" and "was not there" are three
+different conditions this file cannot distinguish.
+
+**Remedy is now ordered** (all upstream, G-062): (1) capture the rc without tripping
+`set -e` — `_hook_rc=0; bash "$_hook_script" "$@" || _hook_rc=$?` — nothing else
+works until this does; (2) then split exit 2 into a blocks counter and threshold only
+on genuine failures; (3) consider a third class for missing-hook, which fails OPEN.
+
+**Remaining for next session:** tick the ACs below (all seven are satisfied by the
+filed report), add the Verification block, finalize. The deliverable itself — the
+report — is filed and confirmed present at offset 33.
 
 ## Acceptance Criteria
 
