@@ -6,16 +6,16 @@ description: >
   Inception: Charter guard-coverage review — non-goal guards, canary false-assurance,
   unnamed surfaces
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-hub/tests/no_federation_tripwire.rs, crates/termlink-protocol/src/control.rs, crates/termlink-session/src/handler.rs, scripts/check-alloc-sink-clamps.sh, scripts/check-busy-spin.sh, scripts/check-charter-drift-freshness.sh, scripts/check-cron-install-drift.sh, scripts/check-drain-sink-caps.sh, scripts/check-silent-exit.sh, tests/charter-drift-check-fixtures.sh, tests/cron-install-drift-fixtures.sh]
 related_tasks: []
 created: 2026-08-13T23:06:57Z
-last_update: '2026-08-23T19:13:47Z'
-date_finished:
+last_update: 2026-08-23T21:13:13Z
+date_finished: 2026-08-23T21:13:13Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -160,15 +160,15 @@ Research artifact: `docs/reports/T-2678-charter-guard-coverage-review.md` (C-001
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -225,7 +225,17 @@ Three evidenced gaps in how the charter is made load-bearing. (1) The four chart
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale:
+
+Three evidenced gaps in how the charter is made load-bearing. (1) The four charter VERBS have complete prover+canary coverage (4/4 each, T-2482/T-2485/T-2151 provers; T-2556/T-2557 closed the canary axis), but the five NON-GOALS are guarded 2/5: NG2 by T-2562, NG3 partially by T-2483; NG1 (no federation) has zero test — T-2569 was filed 2026-08-09 and has sat at horizon:later ever since; NG4 is human-DEFER (T-2570). Nothing tracks that matrix, so the gap is invisible — the G-019 shape. (2) The T-2483 charter-drift canary is false-assurance by construction: it emits {checked:214, live_off_charter:0} — a full-surface clean bill — while its 6-family name regex structurally cannot see 28 LIVE tools in categories literally named agent_rankings / agent_stats / channel_engagement / agent_thread_health. Proven with its own test hook: termlink_agent_top_reacted FIRES, termlink_agent_top_repliers (a functionally identical leaderboard) passes clean. That is the exact family T-2548 is incepting to subtract, reported as clean. (3) kv.set inserts into an uncapped HashMap<String,Value> in the session daemon that owns real PTYs, reachable at Interact scope — the same unbounded-peer-driven-growth class fixed twice last session (T-2675 PresenceTracker, T-2676 circuit-breaker map). GO on the in-authority subset: bound kv, make the drift canary honest via category-awareness plus an acknowledgement allowlist citing T-2548, build the NG1 federation tripwire, and make the non-goal guard matrix load-bearing. The off-charter DELETION decision stays human (T-2548); none of this pre-empts it.
+
+Evidence:
+
+**Date**: 2026-08-23T21:13:13Z
 
 ## Updates
 
@@ -234,3 +244,54 @@ Three evidenced gaps in how the charter is made load-bearing. (1) The four chart
 
 ### 2026-08-13T23:08:22Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-08-23T21:13:13Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale:
+
+Three evidenced gaps in how the charter is made load-bearing. (1) The four charter VERBS have complete prover+canary coverage (4/4 each, T-2482/T-2485/T-2151 provers; T-2556/T-2557 closed the canary axis), but the five NON-GOALS are guarded 2/5: NG2 by T-2562, NG3 partially by T-2483; NG1 (no federation) has zero test — T-2569 was filed 2026-08-09 and has sat at horizon:later ever since; NG4 is human-DEFER (T-2570). Nothing tracks that matrix, so the gap is invisible — the G-019 shape. (2) The T-2483 charter-drift canary is false-assurance by construction: it emits {checked:214, live_off_charter:0} — a full-surface clean bill — while its 6-family name regex structurally cannot see 28 LIVE tools in categories literally named agent_rankings / agent_stats / channel_engagement / agent_thread_health. Proven with its own test hook: termlink_agent_top_reacted FIRES, termlink_agent_top_repliers (a functionally identical leaderboard) passes clean. That is the exact family T-2548 is incepting to subtract, reported as clean. (3) kv.set inserts into an uncapped HashMap<String,Value> in the session daemon that owns real PTYs, reachable at Interact scope — the same unbounded-peer-driven-growth class fixed twice last session (T-2675 PresenceTracker, T-2676 circuit-breaker map). GO on the in-authority subset: bound kv, make the drift canary honest via category-awareness plus an acknowledgement allowlist citing T-2548, build the NG1 federation tripwire, and make the non-goal guard matrix load-bearing. The off-charter DELETION decision stays human (T-2548); none of this pre-empts it.
+
+Evidence:
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-2366476f
+- **Timestamp:** 2026-08-23T21:13:14Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-4
+     - evidence: `IW-4 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+## Recommendation Verdict (v1.0)
+
+- **Scan ID:** RC-91df3549
+- **Timestamp:** 2026-08-23T21:13:14Z
+- **Overall:** CONFIRMED
+- **Claims:** 12
+
+| Claim | Type | Status |
+|-------|------|--------|
+| `T-2482` | task | ✓ pass |
+| `T-2485` | task | ✓ pass |
+| `T-2151` | task | ✓ pass |
+| `T-2556` | task | ✓ pass |
+| `T-2557` | task | ✓ pass |
+| `T-2562` | task | ✓ pass |
+| `T-2483` | task | ✓ pass |
+| `T-2569` | task | ✓ pass |
+| `T-2570` | task | ✓ pass |
+| `T-2548` | task | ✓ pass |
+| `T-2675` | task | ✓ pass |
+| `T-2676` | task | ✓ pass |
+
+### 2026-08-23T21:13:13Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO
