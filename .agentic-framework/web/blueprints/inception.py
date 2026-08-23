@@ -377,6 +377,10 @@ def inception_detail(task_id):
             continue
         if heading.startswith("Reviewer Verdict"):
             continue
+        # T-100188: claims-validator verdict (T-100187) — surfaced structurally
+        # beside the recommendation, not as a generic card.
+        if heading.startswith("Recommendation Verdict"):
+            continue
         if content:
             extra_sections.append({"heading": heading, "content": _md(content)})
 
@@ -436,8 +440,12 @@ def inception_detail(task_id):
 
     # T-1585: surface reviewer's mechanical verdict structurally — cross-surface
     # parity with /approvals (T-1569), /review (T-1583), /tasks (T-1584).
-    from web.shared import extract_reviewer_verdict
+    from web.shared import extract_recommendation_claims_verdict, extract_reviewer_verdict
     reviewer = extract_reviewer_verdict(task_body)
+
+    # T-100188: claims-validator verdict (T-100187) — mechanical check of the
+    # evidence claims inside ## Recommendation, rendered beside it.
+    claims_verdict = extract_recommendation_claims_verdict(task_body)
 
     return render_page(
         "inception_detail.html",
@@ -453,6 +461,7 @@ def inception_detail(task_id):
         rec_stance=rec_stance,
         decision_matches_recommendation=decision_matches_recommendation,
         reviewer=reviewer,
+        claims_verdict=claims_verdict,
     )
 
 
@@ -704,16 +713,29 @@ def _commit_decision(task_id: str, decision: str):
     Watchtower path has no agent follow-up, so without this the decision is left
     as uncommitted working-tree changes (T-2030).
 
-    Stages ONLY the decision's own files (matched by `_is_decision_file`) — never
-    `git add -A`, which would sweep unrelated churn — and commits with an explicit
-    pathspec so any pre-staged churn is left out. Graceful: returns
-    `(committed: bool, message: str)`; a commit failure (e.g. a commit-msg hook
-    rejecting a DEFER without a research artifact) is non-fatal.
+    T-2708: built entirely against a SCRATCH index (`GIT_INDEX_FILE` seeded from
+    `git read-tree HEAD`), never the operator's real `.git/index`. Two decisions
+    recorded seconds apart in one operator batch are, to each other, the "foreign
+    staged file" a same-index guard would refuse — the old implementation staged
+    into the real index and self-blocked on exactly that (T-2708 RCA). Building
+    off-index removes the shared channel: only `wanted` paths are ever added to
+    the scratch index, so unrelated work (including another in-flight decision)
+    can never leak in — by construction, not by refusal — and a failed commit
+    leaves the real index untouched because it was never written to.
 
-    The active→completed move is a filesystem `mv` (not `git mv`), so git sees a
-    delete + an untracked add (two porcelain lines, no rename arrow).
+    Graceful: returns `(committed: bool, message: str)`; a commit failure (e.g. a
+    commit-msg hook rejecting a DEFER without a research artifact) is non-fatal.
+
+    T-2864: the active→completed move is `git mv` whenever the task file is
+    tracked (update-task.sh, T-1523), so the normal porcelain form is a single
+    RENAME line (`RM old -> new`), NOT the delete + untracked-add pair this
+    docstring previously asserted. Both sides of that arrow must reach `wanted`
+    — see the loop below. The plain-`mv` two-line form only occurs when the file
+    was untracked, and is still handled.
     """
     import subprocess
+    import os  # T-2509: needed for the FW_ALLOW_MASTER_COMMIT env below
+    import tempfile
     try:
         status = subprocess.run(
             ["git", "status", "--porcelain", "--untracked-files=all"],
@@ -727,50 +749,80 @@ def _commit_decision(task_id: str, decision: str):
             if not line.strip():
                 continue
             path = line[3:]  # strip the 2-char XY status + the separating space
-            if " -> " in path:  # defensive: handle rename form if ever produced
-                path = path.split(" -> ", 1)[1]
-            path = path.strip().strip('"')
-            if _is_decision_file(task_id, path):
-                wanted.append(path)
+            # T-2864: a staged rename reports `R  old -> new`, and BOTH sides are
+            # load-bearing. The scratch index below is seeded from HEAD, where
+            # `old` still exists — so naming only `new` leaves the task id under
+            # BOTH .tasks/active/ and .tasks/completed/ in the index we are about
+            # to commit, and the G-052 dup-task-ID pre-commit gate refuses it.
+            # The decision is then recorded on disk and absent from history.
+            #
+            # This is the NORMAL case, not a defensive edge: update-task.sh
+            # archives with `git mv` when the file is tracked (T-1523), which
+            # stages the rename in the real index. Measured, not assumed:
+            #   RM .tasks/active/T-x.md -> .tasks/completed/T-x.md
+            # (Origin: T-2863's GO decision, refused at the commit boundary.)
+            for cand in (path.split(" -> ", 1) if " -> " in path else [path]):
+                cand = cand.strip().strip('"')
+                if _is_decision_file(task_id, cand):
+                    wanted.append(cand)
 
         if not wanted:
             # Nothing of ours to commit (already committed, or no files found).
             return True, "nothing to commit"
 
-        # Guard against bundling unrelated work: if the index already has staged
-        # changes that aren't this decision's files (e.g. an agent session staged
-        # a commit concurrently), skip rather than sweep them into the decision
-        # commit. Graceful — the decision stays on disk for a later commit.
-        pre = subprocess.run(
-            ["git", "diff", "--cached", "--name-only"],
-            cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=30,
-        )
-        foreign = [
-            p for p in pre.stdout.splitlines()
-            if p.strip() and not _is_decision_file(task_id, p.strip())
-        ]
-        if foreign:
-            return False, f"index has {len(foreign)} unrelated staged file(s); skipped to avoid bundling"
+        # T-2509: when the Watchtower serves from a checkout that sits on master
+        # with PROTECT_MASTER=1 (the T-100196 trunk-based flow), the T-2394
+        # master-guard pre-commit hook BLOCKS this direct commit ("master is
+        # merge-only"), leaving every operator decision recorded-but-uncommitted.
+        # A decision made through the Watchtower IS the human's sovereign act via
+        # the sanctioned surface (same principle as the --from-watchtower exemption
+        # for the CLAUDECODE agent-block, T-1262). FW_ALLOW_MASTER_COMMIT=1 is the
+        # master-guard's own documented Tier-2 bypass for exactly this "rare,
+        # deliberate" master write — it WARNs to stderr (auditable) and allows the
+        # commit. Scoped to THIS subprocess only (not os.environ) so agent/session
+        # commits on master stay guarded. Off master / on a feature branch the
+        # guard exits before the bypass matters, so this is a safe no-op there.
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            scratch_index = os.path.join(tmp_dir, "index")
+            _env = {
+                **os.environ,
+                "GIT_INDEX_FILE": scratch_index,
+                "FW_ALLOW_MASTER_COMMIT": "1",
+            }
 
-        add = subprocess.run(
-            ["git", "add", "--"] + wanted,
-            cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=30,
-        )
-        if add.returncode != 0:
-            return False, (add.stderr or add.stdout or "git add failed").strip()[:200]
+            # Seed the scratch index from HEAD — NOT from the operator's real
+            # index — so nothing pre-staged there (by an agent session, or by
+            # another decision landed a moment ago) is ever visible to us.
+            read_tree = subprocess.run(
+                ["git", "read-tree", "HEAD"],
+                cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=30,
+                env=_env,
+            )
+            if read_tree.returncode != 0:
+                return False, (read_tree.stderr or read_tree.stdout
+                               or "git read-tree failed").strip()[:200]
 
-        # Commit the index — now exactly this decision's files, including the
-        # active→completed deletion (a `git commit -- pathspec` cannot capture a
-        # deletion once the path is gone from the working tree; the foreign-staged
-        # guard above keeps a whole-index commit scoped).
-        msg = f"{task_id}: inception decision {decision.upper()} (via Watchtower)"
-        commit = subprocess.run(
-            ["git", "commit", "-m", msg],
-            cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=30,
-        )
-        if commit.returncode != 0:
-            return False, (commit.stderr or commit.stdout or "git commit failed").strip()[:200]
-        return True, msg
+            # `git add` on the scratch index reads the working tree (shared) but
+            # writes only to GIT_INDEX_FILE (not shared) — an explicit pathspec
+            # here stages the active→completed deletion too (git treats a named,
+            # now-missing path as "remove it", unlike a glob).
+            add = subprocess.run(
+                ["git", "add", "--"] + wanted,
+                cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=30,
+                env=_env,
+            )
+            if add.returncode != 0:
+                return False, (add.stderr or add.stdout or "git add failed").strip()[:200]
+
+            msg = f"{task_id}: inception decision {decision.upper()} (via Watchtower)"
+            commit = subprocess.run(
+                ["git", "commit", "-m", msg],
+                cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=30,
+                env=_env,
+            )
+            if commit.returncode != 0:
+                return False, (commit.stderr or commit.stdout or "git commit failed").strip()[:200]
+            return True, msg
     except Exception as e:  # never let a commit problem break the decision response
         return False, str(e)[:200]
 

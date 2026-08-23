@@ -110,6 +110,69 @@ fn cmd_plain() {
 RS
 assert_rc "non-json-gated bare exit outside precise class" 0 "$(run)"
 
+# --- fixture 7 (T-2688): a comment between the block and the exit must NOT hide it ---
+# THE REGRESSION. Pre-T-2688 the anchor took the nearest NON-BLANK line above the
+# exit; a comment is non-blank, so it became the "preceding line", `prevtrim != "}"`,
+# and a genuinely silent exit scanned clean. Found while reverting the real T-2663 fix
+# to prove this check load-bearing — deleting the eprintln! but keeping its explanatory
+# comment produced a silent exit the check could not see.
+rm -f "$SRC"/*.rs
+cat > "$SRC/commented.rs" <<'RS'
+fn cmd_commented() {
+    if display.json {
+        super::json_error_exit(serde_json::json!({"ok": false}));
+    }
+    // text mode falls through to a bare exit — no message is emitted
+    std::process::exit(1);
+}
+RS
+assert_rc "comment between block and exit no longer hides the site" 1 "$(run)"
+
+# --- fixture 8 (T-2688): a comment does not make a genuinely silent site look loud ---
+# The `between` window is comment-stripped, so a comment MENTIONING eprintln! cannot
+# clear a site that never calls it.
+rm -f "$SRC"/*.rs
+cat > "$SRC/mentions.rs" <<'RS'
+fn cmd_mentions() {
+    if display.json {
+        super::json_error_exit(serde_json::json!({"ok": false}));
+    }
+    // TODO: mirror the JSON branch with an eprintln!("No matching sessions.");
+    std::process::exit(1);
+}
+RS
+assert_rc "a comment quoting eprintln! does not clear a silent site" 1 "$(run)"
+
+# --- fixture 9 (T-2688): a loud site with a comment above the print stays clean ------
+# Precision must improve in BOTH directions — skipping comments must not start
+# flagging sites that genuinely emit output.
+rm -f "$SRC"/*.rs
+cat > "$SRC/loud_commented.rs" <<'RS'
+fn cmd_loud_commented() {
+    if display.json {
+        super::json_error_exit(serde_json::json!({"ok": false}));
+    }
+    // T-2663 remediation: name what happened before exiting
+    eprintln!("No matching sessions.");
+    std::process::exit(1);
+}
+RS
+assert_rc "loud site with a comment above the print stays clean" 0 "$(run)"
+
+# --- fixture 10 (T-2688): a comment must not satisfy the json_error_exit gate --------
+# The window grep is comment-stripped, so prose about json_error_exit is not a call.
+rm -f "$SRC"/*.rs
+cat > "$SRC/gate_prose.rs" <<'RS'
+fn cmd_gate_prose() {
+    if something {
+        do_work();
+    }
+    // the sibling branch uses json_error_exit for the JSON case
+    std::process::exit(1);
+}
+RS
+assert_rc "prose mentioning json_error_exit does not satisfy the gate" 0 "$(run)"
+
 echo
 echo "silent-exit-check-fixtures: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

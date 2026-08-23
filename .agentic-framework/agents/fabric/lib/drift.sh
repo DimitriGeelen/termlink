@@ -27,7 +27,17 @@ do_drift() {
         echo -e "${CYAN}Unregistered components:${NC}"
         while IFS= read -r rel_path; do
             [ -z "$rel_path" ] && continue
-            if ! echo "$registered" | grep -qx "$rel_path" 2>/dev/null; then
+            # T-2518: was `echo "$registered" | grep -qx "$rel_path"`. Under the
+            # inherited `set -euo pipefail`, when grep -q short-circuits on an
+            # early match it closes the pipe and `echo` takes SIGPIPE (141);
+            # pipefail then makes the pipeline exit 141, so `! 141` → true and a
+            # genuinely-registered file is falsely flagged. The race is timing-
+            # dependent (files whose location sorts early are hit more often),
+            # which is why drift reported a different random subset of carded
+            # files each run (OBS-092). Herestring has no producer process to
+            # receive SIGPIPE; -F makes the path a fixed string (dots in paths
+            # are no longer regex). Same L-387/L-402 class.
+            if ! grep -qxF "$rel_path" <<<"$registered" 2>/dev/null; then
                 echo "  ! $rel_path"
                 unregistered=$((unregistered + 1))
             fi
@@ -52,6 +62,20 @@ do_drift() {
             resolved="$PROJECT_ROOT/$loc"
         fi
         if [ -n "$loc" ] && [ ! -f "$resolved" ]; then
+            # T-2519: a missing location that is gitignored is a runtime/generated
+            # data artifact (e.g. F-004 budget-gate-counter → .budget-gate-counter,
+            # created lazily by the budget-gate hook, gitignored, absent between
+            # sessions / after a .context/working/ clean). Its transient absence is
+            # expected state, not real drift — the same class the stale-edges check
+            # already exempts (T-2427/G-070, section 3). A genuinely-deleted
+            # *tracked* source file is NOT gitignored, so it still flags. git
+            # check-ignore only runs on the rare missing-file branch → no scan
+            # slowdown. Exit codes: 0 = ignored (skip), 1 = not ignored (flag),
+            # 128 = no git repo / path outside repo (treated as not-ignored →
+            # flag, preserving pre-fix behavior — no regression).
+            if git -C "$PROJECT_ROOT" check-ignore --quiet -- "$loc" 2>/dev/null; then
+                continue
+            fi
             local name
             name=$({ grep "^name:" "$card" 2>/dev/null || true; } | head -1 | sed 's/^name: //')
             echo "  ! $name → $loc (file missing)"
@@ -67,12 +91,16 @@ do_drift() {
     # 508 cards). Stdout = unresolved lines for the operator. The count comes
     # back via a final ##STALE_COUNT=N## sentinel which we strip before
     # printing. Output lines preserved byte-for-byte vs the prior impl.
+    # T-2427/G-070: target-exists-on-disk → silent (data-artifact dep), only
+    # missing-on-disk → stale. Also treats system binaries (no /, no ., found
+    # in $PATH) as resolved. Distinguishes real drift from runtime-data noise.
     echo -e "${CYAN}Stale edges:${NC}"
     local _stale_raw _stale_count=0
-    _stale_raw=$(python3 - "$COMPONENTS_DIR" <<'PYEOF' 2>/dev/null
-import glob, sys, yaml
+    _stale_raw=$(python3 - "$COMPONENTS_DIR" "$PROJECT_ROOT" <<'PYEOF' 2>/dev/null
+import glob, os, shutil, sys, yaml
 
 components_dir = sys.argv[1]
+project_root = sys.argv[2]
 SKIP = {'fw-cli', 'cron-audit', 'transcript',
         'check-active-task', 'check-tier0', 'error-watchdog'}
 
@@ -91,12 +119,48 @@ for cp in sorted(glob.glob(f"{components_dir}/*.yaml")):
     known.add(cd.get('name', ''))
     known.add(cd.get('location', ''))
 
+def _resolves_on_disk(target, root):
+    """T-2427/G-070: True if target points at a real on-disk artifact.
+
+    Data-artifact dependencies (logs, ledgers, runtime files, dirs that
+    receive output) legitimately have no fabric card but reflect real
+    runtime relationships. Only missing-from-disk targets are real drift.
+    """
+    if not target:
+        return False
+    # Absolute path → check verbatim
+    if target.startswith('/'):
+        return os.path.exists(target)
+    # Relative path with slash → join against PROJECT_ROOT
+    if '/' in target:
+        return os.path.exists(os.path.join(root, target))
+    # Bare name with no slash + no extension → check $PATH (system binary)
+    # e.g. `gh`, `jq`, `dotnet`. Bare names WITH extension also try project-relative first.
+    if '.' not in target and shutil.which(target):
+        return True
+    # Bare name (with or without extension) → also check project-relative
+    return os.path.exists(os.path.join(root, target))
+
+# T-2427/G-070: edge types whose semantics make a missing target NOT drift.
+# `writes*` declares the script creates the target lazily on first invocation;
+# the absence-from-disk is expected pre-bootstrap state, not real drift.
+WRITE_TYPES = {'writes', 'writes_data', 'writes_runtime'}
+
 count = 0
 for cd in cards:
     name = cd.get('name', '')
     for dep in cd.get('depends_on', []) or []:
-        target = (dep or {}).get('target', '') if isinstance(dep, dict) else ''
+        if not isinstance(dep, dict):
+            continue
+        target = dep.get('target', '')
+        edge_type = dep.get('type', '')
         if not target or target in known or target.startswith('all ') or target in SKIP:
+            continue
+        # T-2427/G-070: skip if target resolves to a real on-disk artifact
+        if _resolves_on_disk(target, project_root):
+            continue
+        # T-2427/G-070: skip write-targets — script creates them, missing is expected
+        if edge_type in WRITE_TYPES:
             continue
         print(f"  ! {name} → {target} (unresolved)")
         count += 1

@@ -663,7 +663,21 @@ impl Perform for Grid {
                     for &mode in slice.iter() {
                         match mode {
                             25 => self.cursor_visible = set,
-                            1049 => {
+                            // All three DECSET alternate-screen variants (T-2739).
+                            // `?1049` is the modern combined form; `?1047` and the
+                            // original `?47` are what older curses apps emit. Matching
+                            // only `?1049` meant those apps drew their whole alternate
+                            // screen straight over the mirrored primary buffer.
+                            //
+                            // Known simplification: a real terminal pairs these — it
+                            // will not exit on `?1049l` an alt screen entered with
+                            // `?47h` (which is exactly why the T-2731 restore path
+                            // sends all three exit codes). This grid exits on any of
+                            // them, because its job is to keep the primary buffer
+                            // uncorrupted, and no real application mixes an enter of
+                            // one variant with an exit of another. Pinned by
+                            // `decset_alt_screen_exits_on_any_variant`.
+                            47 | 1047 | 1049 => {
                                 if set {
                                     self.enter_alt_screen();
                                 } else {
@@ -758,6 +772,90 @@ mod tests {
         assert_eq!(g.cells[1].ch, '1');
     }
 
+    /// T-2739: the original 6-byte variant must swap buffers too. Before the
+    /// fix this fell through to `unhandled_csi` and "ALT" overwrote the primary.
+    #[test]
+    fn decset_47_swaps_alt_screen() {
+        let mut g = Grid::new(4, 2);
+        feed(&mut g, b"P1");
+        feed(&mut g, b"\x1b[?47h");
+        assert!(g.is_alt_screen(), "?47h enters the alternate screen");
+        feed(&mut g, b"ALT");
+        // `cells` is the ACTIVE buffer, so it shows the alt content here; the
+        // primary is held in the backup and is checked after the exit below.
+        assert_eq!(g.cells[0].ch, 'A');
+        feed(&mut g, b"\x1b[?47l");
+        assert!(!g.is_alt_screen());
+        assert_eq!(g.cells[0].ch, 'P');
+        assert_eq!(g.cells[1].ch, '1');
+    }
+
+    /// T-2739: the switch-only variant.
+    #[test]
+    fn decset_1047_swaps_alt_screen() {
+        let mut g = Grid::new(4, 2);
+        feed(&mut g, b"P1");
+        feed(&mut g, b"\x1b[?1047h");
+        assert!(g.is_alt_screen(), "?1047h enters the alternate screen");
+        feed(&mut g, b"ALT");
+        assert_eq!(g.cells[0].ch, 'A', "active buffer shows the alt content");
+        feed(&mut g, b"\x1b[?1047l");
+        assert!(!g.is_alt_screen());
+        assert_eq!(g.cells[0].ch, 'P', "primary buffer restored intact on exit");
+    }
+
+    /// T-2739: handled, not merely tolerated — the unhandled counter is the
+    /// signal an operator would use to notice the grid is missing a mode, so it
+    /// must go quiet once the mode is actually implemented.
+    #[test]
+    fn decset_alt_screen_variants_are_not_counted_unhandled() {
+        for seq in [
+            &b"\x1b[?47h"[..],
+            &b"\x1b[?47l"[..],
+            &b"\x1b[?1047h"[..],
+            &b"\x1b[?1047l"[..],
+            &b"\x1b[?1049h"[..],
+            &b"\x1b[?1049l"[..],
+        ] {
+            let mut g = Grid::new(4, 2);
+            feed(&mut g, seq);
+            assert_eq!(
+                g.unhandled_csi, 0,
+                "{seq:?} is an implemented alt-screen switch, not an unhandled CSI"
+            );
+        }
+    }
+
+    /// T-2739 (negative): `?1048` saves/restores the cursor and does NOT switch
+    /// screens. A handler matching loosely on `?104x` would corrupt the mirror
+    /// in the opposite direction.
+    #[test]
+    fn decset_1048_is_not_an_alt_screen_switch() {
+        let mut g = Grid::new(4, 2);
+        feed(&mut g, b"P1");
+        feed(&mut g, b"\x1b[?1048h");
+        assert!(!g.is_alt_screen(), "?1048h is a cursor save, not a screen switch");
+    }
+
+    /// T-2739: pins the documented simplification rather than leaving it to
+    /// chance. A real terminal pairs the variants — it will not exit on `?1049l`
+    /// an alt screen entered with `?47h`. This grid deliberately exits on any of
+    /// the three, so that behaviour is asserted here; if it is ever made
+    /// faithful, this test is the one that should change and say so.
+    #[test]
+    fn decset_alt_screen_exits_on_any_variant() {
+        let mut g = Grid::new(4, 2);
+        feed(&mut g, b"P1");
+        feed(&mut g, b"\x1b[?47h");
+        assert!(g.is_alt_screen());
+        feed(&mut g, b"\x1b[?1049l");
+        assert!(
+            !g.is_alt_screen(),
+            "documented simplification: any alt-screen exit code leaves the alt screen"
+        );
+        assert_eq!(g.cells[0].ch, 'P', "primary buffer is restored on exit");
+    }
+
     #[test]
     fn decset_25_toggles_cursor_visibility() {
         let mut g = Grid::new(2, 1);
@@ -766,6 +864,84 @@ mod tests {
         assert!(!g.cursor_visible);
         feed(&mut g, b"\x1b[?25h");
         assert!(g.cursor_visible);
+    }
+
+    // ── Width characterization tests (T-2749, herdr rank 22) ────────────────────
+    //
+    // These four pin what `put_char` DOES TODAY, not what is correct. Two of them
+    // (`combining_mark_is_dropped`, `emoji_presentation_sequence_occupies_one_cell`)
+    // pin behaviour that is arguably WRONG on a real terminal — that is deliberate.
+    //
+    // `put_char` drops every zero-width char (mirror_grid.rs:186-189, "silently drop
+    // for v1") and measures width with `unicode-width = "0.1"`, which predates
+    // emoji-presentation width. So `➡️` (U+27A1 + VS-16) measures 1 and occupies one
+    // cell, while essentially every terminal draws it two columns wide — the mirror
+    // and the real screen disagree by one column from that point on the line.
+    //
+    // A failure here means the BEHAVIOUR CHANGED, which is not the same as something
+    // breaking. If the change was intended (a unicode-width major bump, or composing
+    // combining marks instead of dropping them), update these tests in the same
+    // commit — that is the point of pinning it. See this task's `## Decisions` for
+    // why the dependency bump was not taken here.
+    //
+    // Display-only in every case: the mirrored byte stream is untouched.
+
+    #[test]
+    fn combining_mark_is_dropped_not_composed() {
+        let mut g = Grid::new(4, 1);
+        // "e" followed by U+0301 COMBINING ACUTE ACCENT.
+        feed(&mut g, "e\u{0301}".as_bytes());
+        assert_eq!(g.cells[0].ch, 'e', "base character lands normally");
+        assert_eq!(
+            g.cells[1].ch, ' ',
+            "the combining mark is dropped outright — it is neither composed onto the \
+             base char nor placed in the next cell"
+        );
+    }
+
+    #[test]
+    fn vs16_variation_selector_is_dropped() {
+        let mut g = Grid::new(4, 1);
+        // U+FE0F VARIATION SELECTOR-16 alone: zero width, so it is dropped.
+        feed(&mut g, "\u{FE0F}".as_bytes());
+        assert_eq!(
+            g.cells[0].ch, ' ',
+            "VS-16 is zero-width and dropped, so it never reaches the grid"
+        );
+    }
+
+    #[test]
+    fn emoji_presentation_sequence_occupies_one_cell() {
+        let mut g = Grid::new(4, 1);
+        // "➡️" = U+27A1 BLACK RIGHTWARDS ARROW + U+FE0F VS-16.
+        feed(&mut g, "\u{27A1}\u{FE0F}".as_bytes());
+        assert_eq!(g.cells[0].ch, '\u{27A1}');
+        assert_eq!(
+            g.cells[0].width, 1,
+            "unicode-width 0.1 measures the arrow as 1 and the VS-16 is dropped, so the \
+             mirror reserves ONE cell — terminals draw this two columns wide. Pinned as \
+             current behaviour, not endorsed."
+        );
+        assert_eq!(
+            g.cells[1].ch, ' ',
+            "no continuation cell is marked, because the grid believes the char is narrow"
+        );
+    }
+
+    #[test]
+    fn genuinely_wide_char_occupies_two_cells_with_continuation() {
+        let mut g = Grid::new(4, 1);
+        // U+4E2D is unambiguously wide in unicode-width 0.1 — the control case that
+        // shows the width machinery works, isolating the emoji case above as a
+        // width-DATA problem rather than a width-HANDLING one.
+        feed(&mut g, "\u{4E2D}".as_bytes());
+        assert_eq!(g.cells[0].ch, '\u{4E2D}');
+        assert_eq!(g.cells[0].width, 2, "CJK char measures two columns");
+        assert_eq!(
+            g.cells[1].ch, '\0',
+            "the continuation cell is marked so diff render skips it"
+        );
+        assert_eq!(g.cells[1].width, 0, "continuation cell carries zero width");
     }
 
     #[test]

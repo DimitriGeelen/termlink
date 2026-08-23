@@ -3,19 +3,19 @@ name: fleet_presence
 type: module
 subsystem: session
 location: crates/termlink-session/src/fleet_presence.rs
-tags: [session, presence, resolver, pure, T-2275]
-
-purpose: >-
-  Shared PURE resolver for agent-presence heartbeats (T-2275): maps an agent_id to its identity_fingerprint / pty_session / status from a slice of heartbeat envelopes. The semantic core of cross-hub 'contact a peer by name', consumed by BOTH the CLI (cmd_agent_contact) and the MCP handler (termlink_agent_contact) - transport stays per-crate, only this parse+classify logic is shared.
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+tags:
+- session
+- presence
+- resolver
+- pure
+- T-2275
+purpose: 'Shared PURE resolver for agent-presence heartbeats (T-2275): maps an agent_id to its identity_fingerprint
+  / pty_session / status from a slice of heartbeat envelopes. The semantic core of cross-hub ''contact
+  a peer by name'', consumed by BOTH the CLI (cmd_agent_contact) and the MCP handler (termlink_agent_contact)
+  - transport stays per-crate, only this parse+classify logic is shared.'
+depends_on: []
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: crates/termlink-session/src/lib.rs
+  type: called_by
 last_verified: 2026-08-20
 created_by: T-2820

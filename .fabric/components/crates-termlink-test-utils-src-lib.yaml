@@ -25,6 +25,12 @@ depended_by:
   type: calls
 - target: crates/termlink-cli/tests/cli_integration.rs
   type: called_by
+- target: crates/termlink-mcp/tests/mcp_integration.rs
+  type: called_by
+- target: crates/termlink-mcp/tests/parity.rs
+  type: called_by
+- target: crates/termlink-session/tests/integration.rs
+  type: called_by
 last_verified: 2026-03-11
 created_by: T-072
-last_enriched: '2026-04-21'
+last_enriched: '2026-08-14'

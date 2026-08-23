@@ -1,0 +1,14 @@
+id: tests/e2e/level2-file-task.sh
+name: level2-file-task
+type: script
+subsystem: unknown
+location: tests/e2e/level2-file-task.sh
+tags: []
+purpose: 'TODO: describe what this component does'
+depends_on:
+- target: tests/e2e/setup.sh
+  type: calls
+depended_by: []
+last_verified: 2026-08-14
+created_by: unknown
+last_enriched: '2026-08-14'

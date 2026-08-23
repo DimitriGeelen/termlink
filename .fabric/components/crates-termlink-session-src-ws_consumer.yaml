@@ -3,19 +3,20 @@ name: ws_consumer
 type: module
 subsystem: session
 location: crates/termlink-session/src/ws_consumer.rs
-tags: [session, websocket, push-transport, arc-004, T-2309]
-
-purpose: >-
-  Client-side WebSocket push consumer (T-2309, arc-004 push-transport S3b). The client half of the push rail: connects, authenticates, subscribes via hub.ws_subscribe, and forwards each pushed hub.event's params into an mpsc channel until the socket closes.
-
+tags:
+- session
+- websocket
+- push-transport
+- arc-004
+- T-2309
+purpose: 'Client-side WebSocket push consumer (T-2309, arc-004 push-transport S3b). The client half of
+  the push rail: connects, authenticates, subscribes via hub.ws_subscribe, and forwards each pushed hub.event''s
+  params into an mpsc channel until the socket closes.'
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+- target: crates/termlink-protocol/src/lib.rs
+  type: calls
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: crates/termlink-session/src/lib.rs
+  type: called_by
 last_verified: 2026-08-20
 created_by: T-2820

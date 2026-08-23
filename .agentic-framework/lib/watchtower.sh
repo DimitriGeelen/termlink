@@ -147,6 +147,95 @@ _watchtower_url() {
     return 1
 }
 
+# _watchtower_base_or_placeholder [TASK_ID]
+#
+# T-2922. Same question as _watchtower_url — "what is this project's Watchtower
+# base URL?" — for the callers that must keep going when the answer is "there
+# isn't one running yet". _watchtower_url fails loud by design (Layer 3, exit 1,
+# no stdout) so callers needing a LIVE server can detect it; under `set -e` a
+# bare `x=$(_watchtower_url)` assignment aborts the caller outright. For
+# emit_review that abort happened BEFORE the `.reviewed-<id>` marker write —
+# the only unblock for `fw inception decide` — so on a fresh `fw init` project,
+# where nothing has yet told the user to run `fw serve`, the first inception was
+# uncompletable by any path.
+#
+# Answers on stdout in BOTH cases and distinguishes them by EXIT CODE, never by
+# output shape:
+#
+#   0 — live and identity-verified (delegates to _watchtower_url verbatim)
+#   2 — no Watchtower reachable. stdout is a WOULD-BE base URL built from the
+#       configured port: correct the moment `fw serve` runs, wrong to treat as
+#       reachable now.
+#
+# Two distinct non-empty answers rather than "empty means down", because an
+# empty base silently concatenates into "/review/T-XXX" — a broken relative path
+# that looks like a link. A caller that ignores the exit code gets a URL that is
+# merely premature; a caller that reads it gets the truth. (L-578: a check that
+# can only answer yes/no cannot say which question it answered — so the third
+# state gets its own code, not a sentinel value the caller may not notice.)
+#
+# This lives here, not in the callers, because lib/watchtower.sh is the single
+# source of port resolution (T-974, T-1154) and T-1155's invariant suite pins
+# that: `fw_config "PORT" 3000` inline in lib/review.sh or lib/verify-acs.sh is
+# structurally RED. The placeholder needs the configured port, so the
+# placeholder belongs on this side of that line.
+_watchtower_base_or_placeholder() {
+    local _live
+    if _live=$(_watchtower_url "${1:-}"); then
+        printf '%s\n' "$_live"
+        return 0
+    fi
+
+    # Not reachable. Build the would-be URL from the same configured port
+    # Layer 2 probes, so the printed link matches where `fw serve` will bind.
+    local _port
+    _port=$(fw_config "PORT" 3000 2>/dev/null || echo 3000)
+    printf 'http://localhost:%s\n' "${_port:-3000}"
+    return 2
+}
+
+# fw_task_review_url TASK_ID [TASK_FILE]
+#
+# T-2438: single source of the class-correct Watchtower review URL. Mirrors the
+# routing emit_review applies inline (lib/review.sh) so the two paths can't
+# diverge (the t2247-class staleness lesson):
+#   workflow_type == inception → <base>/inception/<id>
+#   otherwise (build/refactor/test/…) → <base>/review/<id>
+#
+# Echoes the full URL on success. When the Watchtower base can't be resolved
+# (down / unidentifiable), echoes nothing and returns 1 — callers then pass no
+# click_url rather than a broken link. TASK_FILE is a hint; falls back to
+# active/ then completed/ discovery (same as emit_review).
+fw_task_review_url() {
+    local task_id="${1:-}"
+    local task_file="${2:-}"
+    [ -n "$task_id" ] || return 1
+
+    local base_url
+    base_url=$(_watchtower_url "$task_id" 2>/dev/null) || return 1
+    [ -n "$base_url" ] || return 1
+
+    if [ -z "$task_file" ] || [ ! -f "$task_file" ]; then
+        task_file=""
+        local f
+        for f in "$PROJECT_ROOT/.tasks/active/$task_id"*.md "$PROJECT_ROOT/.tasks/completed/$task_id"*.md; do
+            [ -f "$f" ] && { task_file="$f"; break; }
+        done
+    fi
+
+    local workflow_type=""
+    if [ -n "$task_file" ] && [ -f "$task_file" ]; then
+        workflow_type=$(grep -m1 'workflow_type:' "$task_file" 2>/dev/null | sed 's/.*workflow_type:[[:space:]]*//' | tr -d '[:space:]')
+    fi
+
+    if [ "$workflow_type" = "inception" ]; then
+        echo "${base_url}/inception/${task_id}"
+    else
+        echo "${base_url}/review/${task_id}"
+    fi
+    return 0
+}
+
 # _watchtower_open URL
 #
 # Opens a URL in the default browser. When running as root (agent context),

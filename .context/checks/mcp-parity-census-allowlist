@@ -1,0 +1,266 @@
+# mcp-parity-census allowlist (T-2747) — consumed by scripts/check-mcp-parity-census.sh
+#
+# One MCP tool per line: `<tool_name>  # <reason>`.
+#
+# A listed tool is still COUNTED AND REPORTED in the census — it never vanishes from the
+# total — it simply does not fire. This is a LEDGER OF AN OPEN QUESTION, in the same
+# tradition as the charter-drift allowlist's 28 entries pending T-2548. It is not a
+# permanent exemption and it is not a claim that these tools work.
+#
+# WHAT THE ENTRIES BELOW MEAN. The parity suite asserts 24 of 260 MCP tools (9.2%). The
+# remaining 236 have never been compared against their CLI verbs by anything. Before this
+# check existed, that fact was invisible: the suite passed, and nothing distinguished
+# "this pair was checked and agrees" from "nobody has ever looked at this pair".
+#
+# Enumerating them here is the point. Freezing today's gap makes it visible and makes it
+# a ratchet: a NEW MCP tool added tomorrow appears in neither the covered set nor this
+# list, so it fires on the next run and requires a decision. Working the list down is
+# T-2748.
+#
+# HOW TO REMOVE AN ENTRY: add a parity case naming the tool in
+# crates/termlink-mcp/tests/parity.rs, then delete its line here. The census moves it from
+# acknowledged to covered. Deleting a line WITHOUT adding the assertion re-fires it, which
+# is the intended behaviour — there is no way to mark a tool resolved except by asserting it.
+#
+# Per PL-345 the reason on each line has to be true and complete. "unexamined" is the whole
+# truth here: no assertion exists, none has been attempted, and T-2748 tracks the work. It
+# is deliberately NOT phrased as a justification — nothing about these tools has been
+# reviewed and found acceptable, and an entry implying otherwise would convert an open
+# question into a closed one.
+
+termlink_agent_ack  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_ack_history  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_ack_status  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_active_in_thread  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_active_now  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_ancestors  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_ask  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_busiest_threads  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_chat_arc_recent  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_contact  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_describe  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_digest  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_dms  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_edit  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_edits_of  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_emoji_stats  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_emoji_users  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_envelope  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_find_idle  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_find_idle_history  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_first_post_by  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_first_responders  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_followups  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_followups_to  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_forwards_of  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_help  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_history  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_identity  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_idle_threads  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_inbox  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_info  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_listen  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_listeners  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_listeners_fleet  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_mentions  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_on_thread  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_orphan_replies  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_overview  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_peers  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_pin  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_ping  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_pin_history  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_pinned  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_pinned_by  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_pinned_history  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_poll_end  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_poll_start  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_poll_vote  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_post  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_presence_now  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_quiet_threads  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_quote  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_react  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_reaction_rate  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_reactions  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_reactions_by  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_reactions_of  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_reaction_summary  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_recent  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_recent_decisions  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_recent_threads  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_recent_window  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_redact  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_redactions  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_relations  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_replies_of  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_reply  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_response_latency  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_response_received  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_search  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_search_by  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_search_thread  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_self_replies  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_send_auto_discover  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_snippet  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_star  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_starred  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_starred_by  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_starred_history  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_state  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_stats  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_thread  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_thread_authors  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_thread_depth  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_thread_health  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_thread_path  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_threads  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_threads_by  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_thread_summary  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_timeline  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_topic_metadata_history  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_topic_stats  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_topic_summary  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_top_pinners  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_top_reacted  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_top_replied  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_top_repliers  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_top_starrers  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_top_thread_starters  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_typers  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_typing  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_unanswered  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_unread  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_user_summary  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_agent_who_is  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_batch_exec  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_batch_ping  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_batch_run  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_batch_tag  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_broadcast  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_ack  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_ack_history  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_ack_status  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_ancestors  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_claim  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_claim_force_release  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_claims  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_claims_history  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_claims_summary  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_claims_summary_all  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_claim_transfer  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_cv_keys  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_describe  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_digest  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_edit  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_edits_of  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_edit_stats  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_emoji_stats  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_forward  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_forwards_of  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_info  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_members  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_mentions  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_mentions_of  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_pin  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_pin_history  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_pinned  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_poll_end  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_poll_results  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_poll_start  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_poll_vote  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_post  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_queue_history  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_quote  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_quote_stats  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_react  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_reactions_of  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_reactions_on  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_receipts  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_redact  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_redactions  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_relations  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_release  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_renew  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_replies_of  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_reply  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_search  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_set_retention  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_snapshot  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_snapshot_diff  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_snippet  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_star  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_starred  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_state  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_state_since  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_subscribe  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_sweep  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_thread  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_threads  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_topic_stats  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_typing_emit  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_typing_list  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_channel_unread  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_chat_arc_broadcast  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_check_fleet_doorbell_mail_health  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_collect  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_deregister  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_dispatch  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_dispatch_status  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_doctor  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_emit  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_emit_to  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_event_poll  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_events  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_event_subscribe  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_exec  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_file_receive  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_file_send  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_fleet_adoption_snapshot  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_fleet_bootstrap_check  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_fleet_doctor  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_fleet_governor_history  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_fleet_governor_status  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_fleet_reauth  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_fleet_secrets_audit  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_fleet_status  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_help  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_hub_export_secret  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_hub_fingerprint  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_hub_governor_status  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_hub_restart  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_hub_start  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_hub_stop  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_inbox_clear  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_inbox_list  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_inbox_status  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_inject  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_interact  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_kv_watch  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_listener_heartbeat  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_output  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_overview  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_pty_mode  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_recent_dm  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_register  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_remote_call  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_remote_doctor  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_remote_exec  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_remote_inbox_clear  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_remote_inbox_list  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_remote_inbox_status  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_remote_inject  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_remote_list  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_remote_ping  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_request  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_resize  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_run  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_send  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_signal  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_spawn  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_substrate_history  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_substrate_status  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_tag  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_token_create  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_token_inspect  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_wait  # unexamined — no parity assertion exists; expansion tracked in T-2748

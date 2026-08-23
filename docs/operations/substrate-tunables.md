@@ -146,5 +146,8 @@ SQLite file can reach 100MB+.
 - `termlink-hub-runtime-migration.md` — PL-021 prevention
 - `agent-find-idle.md` — capability advertisement consumer
 - T-2154 (`scripts/substrate-preflight.sh`) — deploy-time validation that
-  enforces the categorical tunable (`TERMLINK_RUNTIME_DIR` not on /tmp)
+  enforces the categorical tunable (resolved `runtime_dir` not on a volatile
+  filesystem — T-2729 resolves it by the binary's own order and judges by mount
+  type, so an unset `TERMLINK_RUNTIME_DIR` falling through to a tmpfs
+  `XDG_RUNTIME_DIR` is caught too)
 - `/preflight` (T-2158) — skill-layer wrap of the same

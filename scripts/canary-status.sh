@@ -36,6 +36,18 @@
 #   canary-status.sh --quiet             # only render FIRING/STALE (cron-friendly)
 #   canary-status.sh --max-age-hours 72  # custom stale threshold (default 48)
 #
+# Worktree resolution (T-2763): canary logs/heartbeats are written by host cron,
+# which runs from the MAIN checkout. Inside a linked git worktree this script now
+# resolves to the main checkout's `.context/working/` instead of the worktree's
+# own (empty) copy — otherwise a canary genuinely FIRING reads HEALTHY here, a
+# false all-clear. Detection is `git rev-parse --git-dir` vs `--git-common-dir`
+# (equal in a plain checkout, different in a worktree), never a path string match.
+# If the main checkout's dir is unreadable the script exits 2 rather than falling
+# back. `--working-dir` always wins. Every non-silent output path names the
+# directory actually read and the resolution mode, so "which tree did this look
+# at?" is never a guess. Seams: CANARY_STATUS_TEST_GIT_DIR /
+# CANARY_STATUS_TEST_GIT_COMMON_DIR.
+#
 # Discovery: globs `.context/working/.*-canary.log` and `.canary-aliveness.log`
 # (the meta-canary), then pairs each with `.context/working/<stem>.heartbeat`
 # if present. No hard-coded canary list — new canaries appear automatically.
@@ -48,9 +60,12 @@
 set -eu
 
 WORKING_DIR=".context/working"
+WORKING_DIR_EXPLICIT=0
 MAX_AGE_HOURS=48
 JSON=0
 QUIET=0
+# Set by resolve_canary_dir(): local | worktree->main | explicit
+RESOLUTION="local"
 
 usage() {
     sed -n '2,/^set -eu$/p' "$0" | sed 's/^# \{0,1\}//' | head -n -2
@@ -70,12 +85,98 @@ while [ $# -gt 0 ]; do
             shift
             [ $# -ge 1 ] || { echo "canary-status: --working-dir requires a value" >&2; exit 2; }
             WORKING_DIR="$1"
+            WORKING_DIR_EXPLICIT=1
             ;;
         -h|--help) usage ;;
         *) echo "canary-status: unknown flag: $1" >&2; exit 2 ;;
     esac
     shift
 done
+
+# ── Worktree resolution (T-2763) ──────────────────────────────────────────────
+# Canary logs + heartbeats are written by HOST CRON, which runs from the MAIN
+# checkout. Inside a linked git worktree `.context/working/` is a different,
+# gitignored directory that cron never touches — so every log reads empty and
+# every heartbeat reads ancient. That produces two wrong answers, and the second
+# is the dangerous one:
+#
+#   (a) STALE noise   — heartbeats look ancient though cron is firing fine.
+#   (b) FALSE ALL-CLEAR — a canary genuinely FIRING in the main checkout reads
+#                         HEALTHY here, because this directory's log is empty.
+#
+# (b) is why this cannot be left as cosmetic drift: "empty log = healthy" is a
+# one-bit channel, and reading the wrong file inverts it silently. `fw audit`
+# already knows about worktrees ("Cron drift checks skipped — linked worktree");
+# this script did not.
+#
+# Detection is git's OWN answer: --git-dir and --git-common-dir are equal in a
+# plain checkout and differ in a linked worktree. Deliberately NOT a string match
+# on `.claude/worktrees/` — that naming convention is a habit, not a contract, and
+# `git worktree add` anywhere else must still resolve correctly.
+#
+# An explicit --working-dir always wins (that is the operator saying "I mean THIS
+# directory"), and is also the seam the fixtures use.
+
+# Echo an absolute path for a rev-parse dir selector, or return 1. Prefers
+# --path-format=absolute (git >= 2.31); falls back to absolutising by hand so an
+# older git degrades to a CORRECT answer rather than to the false all-clear.
+_git_dir_abs() {
+    local v
+    if v=$(git rev-parse --path-format=absolute "$1" 2>/dev/null) && [ -n "$v" ]; then
+        printf '%s' "$v"
+        return 0
+    fi
+    v=$(git rev-parse "$1" 2>/dev/null) || return 1
+    [ -n "$v" ] || return 1
+    case "$v" in
+        /*) printf '%s' "$v" ;;
+        *)  printf '%s/%s' "$(pwd -P)" "$v" ;;
+    esac
+}
+
+resolve_canary_dir() {
+    if [ "$WORKING_DIR_EXPLICIT" = "1" ]; then
+        RESOLUTION="explicit"
+        return 0
+    fi
+
+    local gd gc main_root main_dir
+    gd=$(_git_dir_abs --git-dir 2>/dev/null || true)
+    gc=$(_git_dir_abs --git-common-dir 2>/dev/null || true)
+
+    # Test seams (PL-213): feed the two git answers directly so the fixtures
+    # exercise the REAL worktree decision and the REAL main-root derivation,
+    # rather than bypassing them with a pre-computed directory.
+    [ -n "${CANARY_STATUS_TEST_GIT_DIR:-}" ] && gd="$CANARY_STATUS_TEST_GIT_DIR"
+    [ -n "${CANARY_STATUS_TEST_GIT_COMMON_DIR:-}" ] && gc="$CANARY_STATUS_TEST_GIT_COMMON_DIR"
+
+    # Not a repo, or the two agree → plain checkout. Nothing to redirect.
+    [ -n "$gd" ] && [ -n "$gc" ] || return 0
+    [ "$gd" != "$gc" ] || return 0
+
+    # Linked worktree. The main checkout is the parent of the common git dir.
+    main_root=$(dirname "$gc")
+    main_dir="$main_root/$WORKING_DIR"
+
+    if [ -d "$main_dir" ] && [ -r "$main_dir" ]; then
+        WORKING_DIR="$main_dir"
+        RESOLUTION="worktree->main"
+        return 0
+    fi
+
+    # REFUSE. Falling back to this worktree's own empty directory is exactly the
+    # false all-clear this block exists to remove, so it is a tooling error (2),
+    # never a healthy (0).
+    echo "canary-status: running inside a linked git worktree, but the MAIN checkout's canary dir is unreadable:" >&2
+    echo "  $main_dir" >&2
+    echo "  Cron writes canary logs and heartbeats into the main checkout only. This worktree's" >&2
+    echo "  copy is empty, so reporting on it would be a FALSE ALL-CLEAR, not a clean bill." >&2
+    echo "  Refusing to fall back (T-2763). Either run from $main_root, or pass" >&2
+    echo "  --working-dir <path> if you genuinely want this worktree's own copy." >&2
+    exit 2
+}
+
+resolve_canary_dir
 
 if [ ! -d "$WORKING_DIR" ]; then
     echo "canary-status: working dir not found: $WORKING_DIR" >&2
@@ -237,8 +338,9 @@ PROBLEMS=$((FIRING + STALE))
 
 # JSON rendering.
 if [ "$JSON" = "1" ]; then
-    printf '{"ok":true,"summary":{"total":%d,"healthy":%d,"firing":%d,"stale":%d,"no_heartbeat":%d,"max_age_hours":%d},"canaries":[' \
-        "$TOTAL" "$HEALTHY" "$FIRING" "$STALE" "$NO_HB" "$MAX_AGE_HOURS"
+    printf '{"ok":true,"summary":{"total":%d,"healthy":%d,"firing":%d,"stale":%d,"no_heartbeat":%d,"max_age_hours":%d},"canary_dir":"%s","resolution":"%s","canaries":[' \
+        "$TOTAL" "$HEALTHY" "$FIRING" "$STALE" "$NO_HB" "$MAX_AGE_HOURS" \
+        "$(printf '%s' "$WORKING_DIR" | sed 's/\\/\\\\/g; s/"/\\"/g')" "$RESOLUTION"
     first=1
     while IFS=$'\t' read -r name status log_size log_mtime hb_mtime latest_entry; do
         [ -n "$name" ] || continue
@@ -287,6 +389,7 @@ fi
 if [ "$QUIET" = "1" ]; then
     # Quiet mode WITH problems: render only the FIRING/STALE rows.
     echo "canary-status: $PROBLEMS canary(ies) need attention ($FIRING firing, $STALE stale, threshold ${MAX_AGE_HOURS}h)"
+    echo "  read: $WORKING_DIR [$RESOLUTION]"
     while IFS=$'\t' read -r name status log_size log_mtime hb_mtime latest_entry; do
         [ -n "$name" ] || continue
         case "$status" in
@@ -303,6 +406,7 @@ fi
 
 # Full human render.
 echo "canary-status: $TOTAL canary(ies) — $HEALTHY healthy, $FIRING firing, $STALE stale (threshold ${MAX_AGE_HOURS}h)"
+echo "  read: $WORKING_DIR [$RESOLUTION]"
 echo ""
 printf '  %-12s %-32s %s\n' "STATUS" "NAME" "LAST FIRED / LATEST ENTRY"
 printf '  %-12s %-32s %s\n' "------" "----" "-------------------------"

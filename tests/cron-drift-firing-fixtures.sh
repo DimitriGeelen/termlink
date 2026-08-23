@@ -46,8 +46,24 @@ run_check() {
     CRON_DRIFT_SRC_DIR="$d/src" \
     CRON_DRIFT_INSTALLED_DIR="$d/installed" \
     CRON_DRIFT_ALLOWLIST="${ALLOW:-$d/allowlist}" \
-        bash "$CHECK" "$@" 2>&1
+        bash "$CHECK" --strict "$@" 2>&1
 }
+
+# --strict is prepended (T-2830, integration merge). T-2821 made DRIFT fire by
+# DEFAULT on this branch; main meanwhile shipped T-2682, which split drift by
+# direction — a git-declared job line absent from the host became its own always-
+# firing UNINSTALLED_JOBS class, leaving cosmetic drift a warning behind --strict.
+# The two policies collided head-on in the merge. Main's default won because its
+# discriminator is the sharper one: it fires on the specific difference that means
+# "shipped but dark" instead of on any byte change. T-2821's mechanism is NOT lost —
+# the allowlist and --lenient are grafted onto main's implementation — so every
+# assertion below still tests exactly what it was written to test, just with drift
+# firing requested explicitly rather than by default.
+#
+# STILL OPEN, for a human: T-2821's motivating evidence was 21 of 24 host crontabs
+# carrying a real fix that had never been committed. That is the OPPOSITE direction
+# from UNINSTALLED_JOBS, and main deliberately treats an extra host-local job as the
+# operator's prerogative. Neither policy fires on it. See the merge report.
 
 echo "T-2821 cron-drift firing fixtures"
 echo ""
@@ -56,7 +72,7 @@ echo ""
 # 1. THE LOAD-BEARING ONE. Drift must fire by default. Before T-2821 this exact
 #    input printed "healthy" and exited 0 — 21 times over, on the real host.
 # ---------------------------------------------------------------------------
-D="$TMP/t1"; make_case "$D" "alpha" "0 7 * * * root echo a" "0 7 * * * root echo DIFFERENT"
+D="$TMP/t1"; make_case "$D" "alpha" "0 7 * * * root echo a" $'# host-local comment — cosmetic drift, job line identical\n0 7 * * * root echo a'
 out=$(run_check "$D"); rc=$?
 if [ "$rc" = "1" ]; then
     ok "drift fires by default (exit 1)"
@@ -74,7 +90,7 @@ fi
 #    without this would paint legitimately-varied hosts permanently red, which
 #    is how a check gets ignored — the failure being corrected.
 # ---------------------------------------------------------------------------
-D="$TMP/t2"; make_case "$D" "alpha" "0 7 * * * root echo a" "0 7 * * * root echo DIFFERENT"
+D="$TMP/t2"; make_case "$D" "alpha" "0 7 * * * root echo a" $'# host-local comment — cosmetic drift, job line identical\n0 7 * * * root echo a'
 printf 'alpha.crontab  # this host runs it on a different schedule\n' > "$D/allowlist"
 out=$(run_check "$D"); rc=$?
 if [ "$rc" = "0" ]; then
@@ -102,7 +118,7 @@ fi
 # ---------------------------------------------------------------------------
 # 4. --lenient restores the pre-T-2821 behaviour for anyone who depended on it.
 # ---------------------------------------------------------------------------
-D="$TMP/t4"; make_case "$D" "alpha" "0 7 * * * root echo a" "0 7 * * * root echo DIFFERENT"
+D="$TMP/t4"; make_case "$D" "alpha" "0 7 * * * root echo a" $'# host-local comment — cosmetic drift, job line identical\n0 7 * * * root echo a'
 out=$(run_check "$D" --lenient); rc=$?
 if [ "$rc" = "0" ]; then
     ok "--lenient does not fire on drift"
@@ -161,7 +177,7 @@ fi
 # 8. Allowlist parsing: comment lines and blanks must not accidentally
 #    acknowledge anything.
 # ---------------------------------------------------------------------------
-D="$TMP/t8"; make_case "$D" "alpha" "0 7 * * * root echo a" "0 7 * * * root echo DIFFERENT"
+D="$TMP/t8"; make_case "$D" "alpha" "0 7 * * * root echo a" $'# host-local comment — cosmetic drift, job line identical\n0 7 * * * root echo a'
 printf '# just a comment\n\n   \n' > "$D/allowlist"
 out=$(run_check "$D"); rc=$?
 if [ "$rc" = "1" ]; then

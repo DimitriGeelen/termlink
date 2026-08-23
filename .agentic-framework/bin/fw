@@ -14,7 +14,15 @@ set -euo pipefail
 # Version: derived from git tags (major.minor = human tag, patch = commits since tag)
 # Falls back to VERSION file for consumer installs without git history
 _derive_version() {
-    local fw_dir="${BASH_SOURCE[0]%/*}/.."
+    # T-2450/F3: resolve symlinks before deriving fw_dir. fw is invoked via the
+    # global ~/.local/bin/fw symlink; the unresolved BASH_SOURCE[0] makes fw_dir
+    # point at the SYMLINK's parent (~/.local — no .git, no VERSION), so both the
+    # git-describe and VERSION-file branches miss and it falls through to "dev"
+    # → `fw vdev`. Resolve to the real bin/fw (same readlink chain as FW_REAL_PATH
+    # below) so fw_dir is the actual framework dir, then use it for BOTH branches.
+    local _src="${BASH_SOURCE[0]}" _real
+    _real="$(readlink -f "$_src" 2>/dev/null || realpath "$_src" 2>/dev/null || echo "$_src")"
+    local fw_dir="${_real%/*}/.."
     local desc=""
     # G-049: only call `git describe` when $fw_dir has its own .git.
     # In vendored mode, $fw_dir/.git is absent and walking up would
@@ -35,8 +43,8 @@ _derive_version() {
         else
             echo "$desc"
         fi
-    elif [ -f "${BASH_SOURCE[0]%/*}/../VERSION" ]; then
-        cat "${BASH_SOURCE[0]%/*}/../VERSION"
+    elif [ -f "$fw_dir/VERSION" ]; then
+        cat "$fw_dir/VERSION"
     else
         echo "dev"
     fi
@@ -153,9 +161,78 @@ resolve_framework() {
     return 1
 }
 
+# T-2391: An inherited PROJECT_ROOT must be validated, not trusted verbatim.
+# A long-lived parent (the tmux-server daemon, PID 6177) can carry a stale
+# PROJECT_ROOT=$HOME (/root) in its env; every spawned session inherits it, the
+# `-z` guard below short-circuits, and the poison is used as-is — blinding the
+# budget gauge and leaving the T-2390 CLAUDE_PROJECT_DIR block (further down) as
+# dead code (origin: T-2389/T-2390 live-fire, /proc/6177/environ proof).
+# Staleness is deliberately NARROW to preserve the "env wins" contract operators
+# rely on for explicit cross-dir targeting (test_project_root_discovery.py::
+# test_resolve_project_root_env_wins_unconditionally): a real inherited root
+# (marker present, != $HOME) is kept. Only the daemon-poison signature (= $HOME),
+# a non-directory, or a markerless dir is treated as stale → re-resolved below.
+_project_root_is_stale() {
+    local pr="${1:-}"
+    [ -n "$pr" ] || return 1            # empty → handled by the -z branch, not "stale"
+    [ -d "$pr" ] || return 0            # vanished/garbage dir → stale
+    if [ -n "${HOME:-}" ]; then         # = $HOME → the canonical daemon-poison signature
+        local canon_pr canon_home
+        canon_pr="$(cd "$pr" 2>/dev/null && pwd -P)" || return 0
+        canon_home="$(cd "$HOME" 2>/dev/null && pwd -P)" || canon_home="$HOME"
+        [ "$canon_pr" = "$canon_home" ] && return 0
+    fi
+    [ -f "$pr/.framework.yaml" ] || [ -d "$pr/.tasks" ] || return 0   # no marker → stale
+    return 1                            # real project root, not $HOME → keep (env wins)
+}
+
 # Resolve PROJECT_ROOT
-if [ -z "${PROJECT_ROOT:-}" ]; then
-    PROJECT_ROOT=$(find_project_root) || true
+if [ -z "${PROJECT_ROOT:-}" ] || _project_root_is_stale "${PROJECT_ROOT:-}"; then
+    # T-2390: prefer CLAUDE_PROJECT_DIR when set + valid. Claude Code exports it
+    # for hook commands as the session's project root, independent of the hook's
+    # invocation cwd. Without this, find_project_root() walks up from $PWD — and
+    # Claude Code may run hooks with cwd=$HOME (/root), so the walk either fails
+    # or latches onto a stray /root/.tasks, mis-resolving PROJECT_ROOT. That
+    # blinds the budget gauge and fires spurious project-boundary blocks (origin:
+    # T-2389 live-fire: a spawned session resolved "/root" and the continuous-mode
+    # loop never armed). Same spirit as T-2377 — trust what Claude Code hands the
+    # hook rather than reconstructing. Validity-gated (.framework.yaml or .tasks)
+    # so a stale/garbage value falls through to the $PWD walk + git-toplevel
+    # fallback; only kicks in inside a CC hook context, so non-hook fw calls are
+    # unaffected (CLAUDE_PROJECT_DIR unset → identical to pre-T-2390 behavior).
+    if [ -n "${CLAUDE_PROJECT_DIR:-}" ] && \
+       { [ -f "$CLAUDE_PROJECT_DIR/.framework.yaml" ] || [ -d "$CLAUDE_PROJECT_DIR/.tasks" ]; }; then
+        # T-2446: CLAUDE_PROJECT_DIR is trusted ONLY when the cwd is not genuinely
+        # inside a *different* real project. A long-lived CC-spawned daemon (TermLink,
+        # cron) propagates CLAUDE_PROJECT_DIR to every descendant shell; running fw
+        # from inside another project then mis-resolves to the daemon's project
+        # (origin: F10 / T-2441 dogfood — a TermLink shell rooted in /opt/505 inherited
+        # CLAUDE_PROJECT_DIR=/opt/999 and resolved /opt/999's Watchtower). This is the
+        # same daemon-poison class T-2391 fixed for inherited PROJECT_ROOT; extend its
+        # discriminator to CLAUDE_PROJECT_DIR by consulting the cwd-ancestry walk first.
+        # If it finds a real project root (marker present, != $HOME — i.e. NOT stale)
+        # that differs from CLAUDE_PROJECT_DIR, the shell is genuinely inside another
+        # project → cwd wins. Otherwise (cwd=$HOME, a stray $HOME/.tasks, or no marker
+        # above — the canonical CC-hook case from T-2389/T-2390) → CLAUDE_PROJECT_DIR
+        # wins. _project_root_is_stale encodes the =$HOME / no-marker test, so reusing
+        # it keeps the two daemon-poison guards in lockstep.
+        _cwd_root=$(find_project_root) || _cwd_root=""
+        if [ -n "$_cwd_root" ] && ! _project_root_is_stale "$_cwd_root"; then
+            _cwd_canon=$(cd "$_cwd_root" 2>/dev/null && pwd -P) || _cwd_canon="$_cwd_root"
+            _cpd_canon=$(cd "$CLAUDE_PROJECT_DIR" 2>/dev/null && pwd -P) || _cpd_canon="$CLAUDE_PROJECT_DIR"
+            if [ "$_cwd_canon" != "$_cpd_canon" ]; then
+                PROJECT_ROOT="$_cwd_root"        # genuinely inside another project
+            else
+                PROJECT_ROOT="$CLAUDE_PROJECT_DIR"
+            fi
+            unset _cwd_canon _cpd_canon
+        else
+            PROJECT_ROOT="$CLAUDE_PROJECT_DIR"   # CC-hook / $HOME-poison case (T-2390)
+        fi
+        unset _cwd_root
+    else
+        PROJECT_ROOT=$(find_project_root) || true
+    fi
 fi
 
 # T-1346-B2: Detect which framework copy resolved (vendored, framework-repo, global).
@@ -184,6 +261,46 @@ _detect_fw_mode() {
     fi
 
     echo "global"
+}
+
+# T-2849: translate repo-root-relative exclude patterns into the coordinate system
+# a per-include rsync actually uses, and add the source repo's own ignore rules.
+#
+# Args: $1 = include path (e.g. "lib"), $2 = vendor source root, $3.. = patterns
+#       in repo-root form. Emits transfer-root-form patterns, one per line.
+#
+# Two classes of pattern, treated differently because rsync treats them
+# differently:
+#   - no '/'  → matched as a basename at any depth. Passes through unchanged.
+#   - has '/' → anchored to the transfer root. Only meaningful for the include it
+#               names; the leading "<include>/" must be stripped, and patterns
+#               naming a DIFFERENT include must be dropped (leaving them in would
+#               anchor them at the wrong root and silently match nothing, which is
+#               the bug this function exists to fix).
+#
+# Then, when the source is a git checkout, its own ignore rules are appended.
+# That is the authoritative statement of "this is not source", and unlike the
+# hand-maintained list above it cannot drift: a new ignored tree under an include
+# is excluded the day it appears. `--directory` collapses whole ignored dirs to a
+# single pattern (lib/ts/node_modules/ rather than 305 file paths). Silently a
+# no-op when the source is not a git repo (tarball, already-vendored copy).
+_vendor_excludes_for() {
+    local inc="$1" src="$2"
+    shift 2
+    local pat
+    for pat in "$@"; do
+        case "$pat" in
+            */*)  case "$pat" in "$inc"/*) printf '%s\n' "${pat#"$inc"/}" ;; esac ;;
+            *)    printf '%s\n' "$pat" ;;
+        esac
+    done
+    if [ -d "$src/.git" ] || git -C "$src" rev-parse --git-dir >/dev/null 2>&1; then
+        git -C "$src" ls-files -o -i --exclude-standard --directory -- "$inc" 2>/dev/null \
+            | while IFS= read -r ig; do
+                  [ -n "$ig" ] || continue
+                  case "$ig" in "$inc"/*) printf '/%s\n' "${ig#"$inc"/}" ;; esac
+              done
+    fi
 }
 
 # --- Vendor (T-482/T-497, moved before auto-init for T-519) ---
@@ -258,12 +375,67 @@ do_vendor() {
         agents
         web
         docs
+        policy
         .tasks/templates
-        FRAMEWORK.md
+        # T-2805: FRAMEWORK.md is NOT in this list any more — it is copied last,
+        # after every other write below, because it is the completeness sentinel
+        # the router and this CLI both test for. Eighth of twelve here meant a
+        # vendor could carry it and still be missing a third of its files.
         metrics.sh
+        # T-2656 (832 T-276 finding 2): secret-scan DATA files. The scanner
+        # script ships in agents/ but reads its pattern catalogue from the
+        # project root with an .agentic-framework/ fallback — without these
+        # two, a vendored consumer's scanner runs patternless (silent no-op
+        # one layer below the T-2647 missing-scanner class).
+        .secret-scan-patterns
+        .secret-scan-allowlist
+        # T-2674: enum single-source-of-truth. Consumers' FRAMEWORK_ROOT is
+        # .agentic-framework/, so lib/enums.sh reads THIS vendored copy —
+        # omitting it froze consumer enums at vendor-seed time (same
+        # enumeration-divergence class as T-2656). Surfaced when adding
+        # `agent` to owners: a stale vendored copy would make the new
+        # creation-side owner gate reject fw work-on's default owner.
+        status-transitions.yaml
+        # T-2942 (OBS-235): the corpus reader. `fw corpus explain <map>` execs
+        # tools/corpus_explain.py, so without this a consumer gets
+        #   python3: can't open file '<proj>/.agentic-framework/tools/corpus_explain.py'
+        # Third instance of the T-2656 / T-2674 class above — the script ships
+        # and the thing it reads does not, except here it was the reader itself.
+        # Load-bearing for onboarding: arc-017's curriculum is built to ROUTE to
+        # corpus maps rather than embed them, and its eleven operator sections
+        # carry 10 `fw corpus explain` calls. All 10 were dead in every consumer
+        # from the day Half A shipped, because the routes resolve here — in the
+        # only tree they were ever exercised in.
+        tools
+        # T-2942: and the maps the reader reads. corpus_explain resolves its
+        # store from `Path(__file__).parents[1]/.context/designer/projects`, so
+        # a vendored tools/ looks for a vendored store beside it — vendoring one
+        # without the other swaps "no such file" for "no such map".
+        #
+        # Framework-relative, not PROJECT_ROOT-relative, and deliberately so:
+        # the aef-* maps describe the FRAMEWORK's own lifecycles, which is why a
+        # consumer wants them at all. That is the direction audit's T-2648 check
+        # requires for framework-owned assets. A consumer's own maps live in its
+        # own .context/designer/projects and are untouched by this.
+        .context/designer/projects
     )
 
-    # What to exclude within copied dirs
+    # What to exclude within copied dirs.
+    #
+    # These are written RELATIVE TO THE REPO ROOT, which is how a human reads them
+    # and how .gitignore reads. They are NOT what rsync receives — the copy loop
+    # below runs one rsync per include, so each transfer root is
+    # "$vendor_source/<include>/", and rsync anchors any pattern containing a '/'
+    # to the transfer root. `_vendor_excludes_for` translates repo-root form into
+    # transfer-root form at the point of use. Do not pass this array to rsync raw.
+    #
+    # T-2849: it was passed raw for the entire life of this function. Every
+    # slash-bearing entry below was therefore inert — rsync matched
+    # "lib/ts/node_modules" against a tree whose paths began "ts/", so all 305
+    # node_modules files shipped into every consumer. The three slashless entries
+    # DID work (rsync matches a pattern with no '/' as a basename at any depth),
+    # which is exactly why nobody caught it: spot-checking the vendored tree for
+    # __pycache__ returns a clean answer and reads as proof the list works.
     local excludes=(
         __pycache__
         "*.pyc"
@@ -273,6 +445,14 @@ do_vendor() {
         "lib/ts/package.json"
         "lib/ts/package-lock.json"
         "lib/ts/node_modules"
+        # T-2942: consumers get the framework's PUBLISHED lifecycle maps, not our
+        # work in progress. Wholesale-include-minus-drafts rather than an explicit
+        # aef-* list on purpose: an explicit list drifts silently the first time a
+        # seventh map is added, which is the exact shape of the bug this task
+        # fixes. Naming the drafts instead means new aef-* maps vendor themselves.
+        # (636K of drafts excluded, 196K of aef maps shipped.)
+        ".context/designer/projects/draft-*"
+        ".context/designer/projects/t2584-scratch"
     )
 
     if [ "$dry_run" = true ]; then
@@ -288,6 +468,11 @@ do_vendor() {
                 echo -e "  ${GREEN}+${NC} $item ($size)"
             fi
         done
+        # T-2805: not in includes[] — copied last, after every other write. Listed
+        # here so the dry run still describes what a real run does.
+        if [ -e "$vendor_source/FRAMEWORK.md" ]; then
+            echo -e "  ${GREEN}+${NC} FRAMEWORK.md (last — completeness sentinel)"
+        fi
         echo ""
         echo "Would exclude: .git, .context, .tasks/{active,completed}, .fabric, install.sh"
         echo ""
@@ -303,13 +488,10 @@ do_vendor() {
     echo -e "Target:  $dest"
     echo ""
 
-    # Build rsync exclude args as array (SC2086)
-    local -a rsync_args=()
-    for item in "${excludes[@]}"; do
-        rsync_args+=(--exclude="$item")
-    done
-
-    # Copy each include
+    # Copy each include. Exclude patterns are resolved PER INCLUDE (T-2849) —
+    # see _vendor_excludes_for. Building one exclude array up front is what made
+    # every slash-bearing pattern inert, because there is no single transfer root
+    # the repo-root form could have been correct against.
     for item in "${includes[@]}"; do
         if [ -e "$vendor_source/$item" ]; then
             local dest_dir
@@ -317,14 +499,38 @@ do_vendor() {
             mkdir -p "$dest_dir"
 
             if [ -d "$vendor_source/$item" ]; then
+                local -a _item_excludes=()
+                while IFS= read -r _pat; do
+                    [ -n "$_pat" ] && _item_excludes+=("$_pat")
+                done < <(_vendor_excludes_for "$item" "$vendor_source" "${excludes[@]}")
+
                 if command -v rsync &>/dev/null; then
+                    local -a rsync_args=()
+                    local _pat
+                    for _pat in "${_item_excludes[@]}"; do
+                        rsync_args+=(--exclude="$_pat")
+                    done
                     rsync -a --delete --delete-excluded "${rsync_args[@]}" "$vendor_source/$item/" "$dest/$item/"
                 else
+                    # The fallback used to honour only the three slashless patterns,
+                    # via the find calls below — so even after the rsync anchoring
+                    # was fixed, a host without rsync would still ship node_modules.
+                    # Both branches now consume the same resolved list.
                     rm -rf "${dest:?}/${item:?}"
                     cp -r "$vendor_source/$item" "$dest/$item"
-                    find "$dest/$item" -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
-                    find "$dest/$item" -name "*.pyc" -delete 2>/dev/null || true
-                    find "$dest/$item" -name ".DS_Store" -delete 2>/dev/null || true
+                    local _pat _target
+                    for _pat in "${_item_excludes[@]}"; do
+                        case "$_pat" in
+                            /*)  # transfer-root-anchored: an exact path under this include
+                                _target="$dest/$item/${_pat#/}"
+                                rm -rf "${_target%/}" 2>/dev/null || true ;;
+                            */*) # anchored by virtue of containing a slash
+                                _target="$dest/$item/$_pat"
+                                rm -rf "${_target%/}" 2>/dev/null || true ;;
+                            *)   # basename at any depth — matches rsync's semantics
+                                find "$dest/$item" -name "$_pat" -exec rm -rf {} + 2>/dev/null || true ;;
+                        esac
+                    done
                 fi
             else
                 cp "$vendor_source/$item" "$dest/$item"
@@ -362,6 +568,11 @@ __pycache__/
 *.pyc
 *.pyo
 .DS_Store
+
+# T-2896: Watchtower's signing key, if a Watchtower ever runs with this vendored
+# copy as its PROJECT_ROOT. Unanchored so it matches at any depth beneath here.
+# See lib/init.sh for the consumer-side twin and the full rationale.
+.fw-secret-key
 GITIGNORE
     echo -e "  ${GREEN}✓${NC} .gitignore"
 
@@ -376,18 +587,38 @@ GITIGNORE
     # vendored-without-sentinel is a legitimate state (file:// checkouts,
     # detached forks). Origin: ring20-dashboard .121do field failure
     # (T-2231), durable fix for the in-consumer upgrade path class.
+    #
+    # T-2693 / OBS-106: this used to read `origin` verbatim. A credentialed
+    # origin then wrote a live token into a TRACKED file (and echoed it to
+    # stdout below). Resolution now prefers the credential-free public mirror
+    # and strips userinfo regardless — see lib/url-credentials.sh for why the
+    # preference order is load-bearing rather than cosmetic.
     local _vendor_origin=""
     if [ -d "$vendor_source/.git" ]; then
-        _vendor_origin=$(git -C "$vendor_source" remote get-url origin 2>/dev/null) || true
-        if [ -z "$_vendor_origin" ]; then
-            _vendor_origin=$(git -C "$vendor_source" remote -v 2>/dev/null | grep "(push)" | head -1 | awk '{print $2}') || true
+        # FW_LIB_DIR is set unconditionally at top level, but this function is
+        # also reachable from the early init path — resolve defensively.
+        local _urlcred_lib="${FW_LIB_DIR:-$FRAMEWORK_ROOT/lib}/url-credentials.sh"
+        if [ -f "$_urlcred_lib" ]; then
+            # shellcheck source=lib/url-credentials.sh
+            source "$_urlcred_lib"
+            _vendor_origin=$(fw_preferred_upstream_url "$vendor_source") || true
+        else
+            # Fail SAFE, not open. Falling back to a raw `remote get-url origin`
+            # here is precisely how OBS-106 happened, and it would do so
+            # silently. No sentinel is a legitimate state (consumers fall back
+            # to .framework.yaml); a leaked credential is not.
+            echo -e "  ${YELLOW}!${NC} .upstream sentinel skipped — lib/url-credentials.sh not found" >&2
+            echo -e "    Refusing to record an unredacted remote URL (T-2693 / OBS-106)." >&2
         fi
     fi
     if [ -n "$_vendor_origin" ]; then
         cat > "$dest/.upstream" <<UPSTREAM
 # Vendored Agentic Engineering Framework — upstream sentinel (T-2232).
-# Records the framework's git origin URL at vendor-time so an in-consumer
+# Records the framework's upstream git URL at vendor-time so an in-consumer
 # \`fw upgrade\` can self-recover when .framework.yaml has no upstream_repo:.
+# Credential-free by construction (T-2693): resolved via
+# lib/url-credentials.sh, which prefers the public mirror and strips any
+# URL userinfo. Never hand-edit a credential back into this file.
 # Resolution precedence (in lib/upgrade.sh): --from-upstream flag, then
 # .framework.yaml upstream_repo:, then this sentinel. After a successful
 # sentinel-driven recovery, upgrade.sh persists the URL to .framework.yaml
@@ -399,6 +630,30 @@ UPSTREAM
 
     # Ensure bin/fw is executable
     chmod +x "$dest/bin/fw" 2>/dev/null || true
+
+    # T-2805: FRAMEWORK.md LAST — this is the commit point of the whole vendor.
+    #
+    # Three independent places already treat FRAMEWORK.md as "there is a usable
+    # framework here": bin/fw's own FRAMEWORK_ROOT resolution (:96,:128,:155),
+    # install.sh's vendored-consumer scan (:210), and now bin/fw-router's
+    # routability test. That makes it the de-facto sentinel, so it must be the
+    # last thing written — a sentinel that lands mid-copy asserts a state that
+    # has not been reached yet.
+    #
+    # It used to sit eighth in the includes[] array, which is copied in order,
+    # while `bin` sat first. Interrupt an init anywhere in that window and the
+    # directory looked routable, was not, and could not be repaired by `fw init`
+    # because that call routed straight into the broken copy. Only `rm -rf`
+    # recovered it. Copying it here inverts the window: everything a working
+    # framework needs is on disk before anything claims one is.
+    if [ -e "$vendor_source/FRAMEWORK.md" ]; then
+        cp "$vendor_source/FRAMEWORK.md" "$dest/FRAMEWORK.md"
+        echo -e "  ${GREEN}✓${NC} FRAMEWORK.md (written last — completeness sentinel)"
+    else
+        echo -e "  ${RED}ERROR${NC}  FRAMEWORK.md missing from source: $vendor_source" >&2
+        echo -e "         Refusing to leave a vendor that reads as complete." >&2
+        return 1
+    fi
 
     echo ""
     local final_size
@@ -413,12 +668,91 @@ UPSTREAM
 # If no project detected and command is not init/help/version, offer guided initialization
 if [ -z "$PROJECT_ROOT" ]; then
     _cmd="${1:-}"
-    if [ "$_cmd" != "init" ] && [ "$_cmd" != "help" ] && [ "$_cmd" != "-h" ] && \
+
+    # T-2798: a help query is never a mutation, wherever the flag sits.
+    #
+    # The list below inspects $1 ONLY. `fw doctor --help` puts --help in $2, so
+    # it fell straight through to auto-init: from a non-project directory it
+    # created a git repo and vendored ~90MB of framework into the caller's cwd,
+    # having been asked to print a usage string. Non-interactively (the onboarding
+    # agent's case) it does that with no prompt at all — the TTY branch below is
+    # the only one that asks.
+    #
+    # Field report 2026-08-04: an operator's onboarding agent ran `fw doctor
+    # --help` in an empty /opt/2345-test-install to check the verb existed. It
+    # got an init instead, was interrupted mid-vendor, and left the directory
+    # with .git + .agentic-framework/ and no .framework.yaml — a state in which
+    # every subsequent fw call fails "Cannot find framework installation", so
+    # the tool cannot repair what it created. (That second defect — init is not
+    # atomic and its debris is not fw-recoverable — is its own task.)
+    #
+    # Scanning all args rather than extending the $1 allowlist: the allowlist has
+    # to be right for every subcommand that exists now or later, and this one had
+    # already been wrong for every subcommand there is. `-h|--help` only — not
+    # the bare word `help`, which is a legitimate argument VALUE (`fw ask help`)
+    # and is already covered as $1 by the list below.
+    _is_help_query=false
+    for _a in "$@"; do
+        case "$_a" in
+            -h|--help) _is_help_query=true; break ;;
+        esac
+    done
+
+    # T-2835: an UNRECOGNISED verb must never reach auto-init. The condition below
+    # excludes a handful of named commands but never asks whether $_cmd exists at
+    # all, so `fw doctro` (or any verb absent from an older install) ran do_init on
+    # the caller's cwd — git init plus a ~27M vendored tree — and re-execed, while
+    # the `Unknown command:` error further down was never reached because the
+    # mutation happens hundreds of lines earlier. Found from a live onboarding run
+    # where `fw doctor` against an older global install began bootstrapping the
+    # operator's test directory.
+    #
+    # The known set is derived from the dispatch `case` block itself rather than
+    # written out again here: a second list is a second thing to forget, and the
+    # bug being fixed IS an out-of-date list. Same extraction as
+    # tests/lint/help-router-parity.bats, which pins the shape this depends on.
+    # Cost is one awk fork, paid only on the not-a-project path — never on the
+    # common path, where this whole branch is skipped.
+    #
+    # Deliberately NOT deciding T-2770 (should a known read-only verb like
+    # `fw status` auto-init at all?). That question has consumer blast radius and
+    # stays open; this guard only removes the case with no defensible reading.
+    _fw_cmd_is_known() {
+        [ -n "${1:-}" ] || return 1
+        awk '/^case "\$cmd" in/,/^esac/' "$FW_REAL_PATH" 2>/dev/null \
+            | grep -E '^[[:space:]]{4}[a-z][-a-z0-9|]+\)' \
+            | sed 's/[[:space:]]*)//; s/^[[:space:]]*//' \
+            | tr '|' '\n' | grep -qx -- "$1"
+    }
+
+    if [ "$_is_help_query" = false ] && \
+       [ "$_cmd" != "init" ] && [ "$_cmd" != "help" ] && [ "$_cmd" != "-h" ] && \
        [ "$_cmd" != "--help" ] && [ "$_cmd" != "version" ] && [ "$_cmd" != "-v" ] && \
        [ "$_cmd" != "--version" ] && [ "$_cmd" != "update" ] && [ "$_cmd" != "hook" ] && \
-       [ "$_cmd" != "vendor" ] && [ -n "$_cmd" ]; then
+       [ "$_cmd" != "vendor" ] && [ -n "$_cmd" ] && _fw_cmd_is_known "$_cmd"; then
 
-        # Non-TTY: silently use defaults (cwd + claude)
+        # Non-TTY: use defaults (cwd + claude), announcing on stderr only.
+        #
+        # T-2769: this branch used `do_init ... 2>/dev/null` and described
+        # itself as silent. It was not — do_init writes its progress narrative
+        # to STDOUT, so the redirect suppressed the stream the output was not
+        # on. Every `fw <cmd> --json` run from a directory that is not yet a
+        # project therefore emitted "Setting up agentic governance for…" and
+        # "Vendoring framework into project…" ahead of its JSON, with rc=0:
+        # unparseable output that no exit-code check can see. Two tests in
+        # tests/unit/test_orchestrator_status_outcomes.py had been failing on
+        # json.loads(stdout) with no owner until T-2766 traced them here.
+        #
+        # `>&2`, not `>/dev/null`: auto-init writes a project into the caller's
+        # cwd and vendors the framework there. That side effect should stay
+        # announced — just not on the data channel. Discarding it would clean
+        # stdout by making a large mutation invisible, trading one blindness
+        # for another. Whether a read-only query should trigger it at all is a
+        # separate question, deliberately not decided here (T-2770).
+        #
+        # Pinned by tests/unit/test_fw_json_stdout_purity.py, which asserts the
+        # move in both directions (on stderr AND absent from stdout) plus that
+        # the branch actually fires, so the contract cannot pass vacuously.
         if [ ! -t 0 ]; then
             FRAMEWORK_ROOT=$(resolve_framework) || true
             if [ -n "$FRAMEWORK_ROOT" ]; then
@@ -426,7 +760,7 @@ if [ -z "$PROJECT_ROOT" ]; then
                 export FRAMEWORK_ROOT
                 FW_LIB_DIR="$FRAMEWORK_ROOT/lib"
                 source "$FRAMEWORK_ROOT/lib/init.sh"
-                do_init "$PWD" --provider claude 2>/dev/null
+                do_init "$PWD" --provider claude >&2
                 exec "$0" "$@"
             fi
             # Fall through to normal "no framework" error if resolve fails
@@ -568,6 +902,13 @@ FW_LIB_DIR="$FRAMEWORK_ROOT/lib"
 # --- Cross-platform helpers ---
 source "$FW_LIB_DIR/compat.sh" 2>/dev/null || true
 
+# --- Version ordering (T-2713) ---
+# Shared predicate for consumer-vs-framework version relation. Sourced here so
+# both doctor's consumer-fleet check and lib/upgrade.sh's two downgrade guards
+# resolve the SAME function — VERSION is a resetting tag counter, so `sort -V`
+# cannot order it and must not be re-derived per site.
+source "$FW_LIB_DIR/version-relation.sh" 2>/dev/null || true
+
 # --- Help ---
 
 show_help() {
@@ -580,6 +921,7 @@ show_help() {
     echo -e "  ${GREEN}self-audit${NC}           Standalone integrity check (Layers 1-4, no fw dependency)"
     echo -e "  ${GREEN}test-onboarding${NC}     End-to-end onboarding flow test (8 checkpoints)"
     echo -e "  ${GREEN}context${NC} <cmd>        Manage Context Fabric (init, status, focus, ...)"
+    echo -e "  ${GREEN}focus${NC} [T-XXX]        Set or show current focus (alias for context focus)"
     echo -e "  ${GREEN}git${NC} <cmd>            Task-traced git operations (commit, status, log, ...)"
     echo -e "  ${GREEN}push${NC}                Push to all remotes"
     echo -e "  ${GREEN}handover${NC}             Generate session handover document"
@@ -593,8 +935,10 @@ show_help() {
     echo -e "  ${GREEN}tier0${NC} <cmd>          Tier 0 enforcement (approve, status)"
     echo -e "  ${GREEN}approvals${NC} <cmd>      Approval queue (pending, status, expire)"
     echo -e "  ${GREEN}review-queue${NC}         List tasks awaiting human review (with verdicts)"
+    echo -e "  ${GREEN}verify-queue${NC}         Re-run stored Verification for that queue (--all, --task, --json)"
     echo -e "  ${GREEN}work-on${NC} <name|T-XXX> Create task + set focus + start (one-step gate)"
     echo -e "  ${GREEN}bus${NC} <cmd>            Result ledger for sub-agent dispatch (post, read, manifest, clear)"
+    echo -e "  ${GREEN}rail${NC} <cmd>           Rail signing identity (identity, post) — refuses host-signed posts"
     echo -e "  ${GREEN}dispatch${NC} <cmd>       SSH-based cross-machine communication (send, hosts)"
     echo -e "  ${GREEN}pickup${NC} <cmd>        Cross-project pickup pipeline (process, status, list, send)"
     echo -e "  ${GREEN}consolidate${NC} <cmd>   Memory consolidation (scan, apply, report)"
@@ -607,13 +951,54 @@ show_help() {
     echo -e "  ${GREEN}peer${NC} <cmd>            v2 peer-consult (subscribe to TermLink inbox.queued + spawn responders)"
     echo -e "  ${GREEN}config${NC} <cmd>           Project config (set, get, list) — persistent settings in .framework.yaml"
     echo -e "  ${GREEN}scan${NC}                  Run watchtower scan (detect opportunities & issues)"
-    echo -e "  ${GREEN}serve${NC} [--port N]     Start web UI (default port 3000)"
+    # T-2808: this line used to read "(default port 3000)". The port is per-project
+    # (triple-file → FW_PORT → 3000), and stating 3000 as the default here is the
+    # exact literal the T-2732 close gate refuses inside Verification blocks — the
+    # CLI was teaching the anti-pattern the framework gates elsewhere. Origin: an
+    # onboarding agent read it, hard-coded :3000, and hit another project's server.
+    echo -e "  ${GREEN}serve${NC} [--port N]     Start the Watchtower web UI (port: see 'fw watchtower port')"
+    # T-2808: `watchtower` dispatches at bin/fw:5519 and had NO help entry, while
+    # CLAUDE.md instructs agents to resolve the port with exactly this command. The
+    # verb the port rule depends on was undiscoverable from `fw help`.
+    echo -e "  ${GREEN}watchtower${NC} <cmd>      Watchtower control (port, url, status, start, stop, restart)"
     echo -e "  ${GREEN}upstream${NC} <cmd>        Report issues to framework upstream (report, config, status)"
     echo -e "  ${GREEN}deploy${NC} <cmd>          Ring20 deployment (scaffold, status, routes, ports)"
     echo -e "  ${GREEN}ask${NC} <query>           Query project knowledge (RAG search)"
     echo -e "  ${GREEN}docs${NC} <cmd>            Documentation lookup (article, show)"
     echo -e "  ${GREEN}enforcement${NC} <cmd>     Enforcement baseline (status, baseline)"
     echo -e "  ${GREEN}fabric${NC} <cmd>          Component Fabric (overview, deps, impact, search, drift, register)"
+    # T-2836: the 20 entries added across this function dispatched fine but had no
+    # help entry, so `fw help` — the one place an operator or onboarding agent looks
+    # — did not list them. Several are load-bearing in CLAUDE.md (worktree, integrate,
+    # sync, reviewer, arc, write-set, pause, pending), which is the T-2808 shape one
+    # line up: documentation instructing agents to run a verb the CLI never mentions.
+    # tests/lint/help-router-parity.bats derives the expected set from the dispatch
+    # case block and guards this both ways — it was red for the whole interval.
+    echo -e "  ${GREEN}arc${NC} <cmd>             Arc workspace (create, focus, list, show, tag, close, migrate)"
+    echo -e "  ${GREEN}bvp${NC} <cmd>             Business Value Points ranking (rank, arcs, T-XXX, --quadrant)"
+    echo -e "  ${GREEN}reviewer${NC} <cmd>        Anti-pattern static scan (T-XXX, audit, drift, reverify, override)"
+    echo -e "  ${GREEN}pause${NC} <cmd>           Paused-dispatch chain (list, resolve)"
+    echo -e "  ${GREEN}pending${NC} <cmd>         Blocked cross-project actions (register, list, resolve, remind)"
+    echo -e "  ${GREEN}policy${NC} <cmd>          Proxy governance policy (emit, status, install)"
+    echo ""
+    echo -e "${BOLD}Trunk flow & release:${NC}"
+    echo -e "  ${GREEN}worktree${NC} <cmd>       Isolated worktrees (status, create, gc, remove)"
+    echo -e "  ${GREEN}integrate${NC} <cmd>      Land a worktree branch onto master (check, classify, run)"
+    echo -e "  ${GREEN}sync${NC}                 Reconcile the session branch with origin/master (rebase + push)"
+    echo -e "  ${GREEN}go-live${NC}              Safe reconcile with origin/master (refuses a bare merge on a fork)"
+    echo -e "  ${GREEN}mirror${NC} <cmd>         Mirror cascade auto-recovery (sync, status)"
+    echo -e "  ${GREEN}release${NC} <cmd>        Tag + push + GitHub Release (status, major, minor, patch)"
+    echo ""
+    echo -e "${BOLD}Dispatch substrate:${NC}"
+    echo -e "  ${GREEN}orchestrator${NC} <cmd>   Dispatch graph + telemetry (status, next-dispatch, pre-flight, routes, improve)"
+    echo -e "  ${GREEN}resolver${NC} <cmd>       Workflow lookup + prompt assembly (workflows, dispatch, run, explain)"
+    echo -e "  ${GREEN}outcome${NC} <cmd>        Outcome evaluation + back-prop (evaluate, backprop, read, list)"
+    echo -e "  ${GREEN}write-set${NC} check <T-A> <T-B>  Disjoint write-set validator (0=disjoint, 1=overlap, 2=undecidable)"
+    echo ""
+    echo -e "${BOLD}Design & corpus:${NC}"
+    echo -e "  ${GREEN}designer${NC} <cmd>       Vendor + serve the pinned Workflow Designer build"
+    echo -e "  ${GREEN}bpmn${NC} <cmd>           Compile a BPMN diagram into AEF task skeletons"
+    echo -e "  ${GREEN}corpus${NC} <cmd>         Spec-driven corpus authoring (derive, generate, canon, diff, prove, lint, explain)"
     echo ""
     echo -e "${BOLD}Setup:${NC}"
     echo -e "  ${GREEN}init${NC} [dir]           Bootstrap a new project (auto-detects interactive mode)"
@@ -627,6 +1012,7 @@ show_help() {
     echo -e "  ${GREEN}build${NC}                Compile TypeScript sources (lib/ts/src → lib/ts/dist)"
     echo -e "  ${GREEN}harvest${NC} [dir]        Harvest learnings from project to framework"
     echo -e "  ${GREEN}termlink${NC} <cmd>       TermLink integration (check|spawn|exec|status|cleanup|dispatch)"
+    echo -e "  ${GREEN}sessions${NC} [--provider <name>]  List AI-agent sessions grouped by project (T-2417)"
     echo -e "  ${GREEN}onboarding${NC} <cmd>     Onboarding gate (status|skip|reset)"
     echo ""
     echo -e "${BOLD}Discovery:${NC}"
@@ -644,11 +1030,13 @@ show_help() {
     echo ""
     echo -e "${BOLD}Utility:${NC}"
     echo -e "  ${GREEN}plugin-audit${NC}          Audit plugins for task-system awareness"
+    echo -e "  ${GREEN}ux-review${NC} <url>       Browser-driving UX review of an interactive render surface"
+    echo -e "  ${GREEN}gpu${NC} <cmd>             GPU coordination (recover)"
     echo -e "  ${GREEN}gaps${NC}                 Show spec-reality gaps being watched"
     echo -e "  ${GREEN}traceability${NC} baseline Set traceability baseline (imported projects)"
     echo -e "  ${GREEN}preflight${NC}            Check OS dependencies (interactive install)"
     echo -e "  ${GREEN}validate-init${NC}        Verify fw init output is correct and complete"
-    echo -e "  ${GREEN}doctor${NC}               Check framework health and configuration"
+    echo -e "  ${GREEN}doctor${NC} ${CYAN}[--quick]${NC}     Check framework health (--quick: project-only, skip host/network probes)"
     echo -e "  ${GREEN}verify-acs${NC}           Automated Human AC evidence collection"
     echo -e "  ${GREEN}metrics${NC}              Show project metrics dashboard"
     echo -e "  ${GREEN}metrics predict${NC}      Estimate effort from episodic history"
@@ -683,6 +1071,38 @@ show_help() {
 
 show_version() {
     echo "fw v$FW_VERSION"
+
+    # T-2796: print the commit the counter is a DISTANCE FROM.
+    #
+    # $FW_VERSION is major.minor.<commits-since-the-newest-tag-THIS-CLONE-KNOWS>
+    # (_derive_version, top of this file), which discards the tag's own patch:
+    # `v1.6.764-132-g74bade82e` renders as `1.6.132`. So the number resets at
+    # every tag AND depends on which tags the clone happens to have fetched —
+    # two installs of the same history report incomparable numbers.
+    #
+    # Measured 2026-08-04: a global install three commits behind master reported
+    # 1.6.432 while master reported 1.6.132. The bigger number was the stale one.
+    # Both the operator's onboarding agent and this session read the larger
+    # number as "newer" — the string is shaped like a semver patch, so it invites
+    # exactly the comparison it cannot support (OBS-150, OBS-156).
+    #
+    # Line 1 is left byte-identical for anything that greps it. The fix is to
+    # stop shipping a bare number with no anchor: the SHA is the only field here
+    # that answers "am I current?", and it costs one line to print.
+    local _v_sha="" _v_branch=""
+    if [ -d "$FRAMEWORK_ROOT/.git" ] || [ -f "$FRAMEWORK_ROOT/.git" ]; then
+        _v_sha=$(git -C "$FRAMEWORK_ROOT" rev-parse --short=9 HEAD 2>/dev/null || true)
+        _v_branch=$(git -C "$FRAMEWORK_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+    fi
+    if [ -n "$_v_sha" ]; then
+        echo "Commit:    $_v_sha${_v_branch:+ ($_v_branch)}"
+    else
+        # A vendored copy has no .git, so _derive_version fell back to the
+        # VERSION file. Say that rather than printing nothing — "no commit" is
+        # itself the answer to which identity this install is running on.
+        echo "Commit:    (none — vendored copy; VERSION file is the only identity)"
+    fi
+
     echo "Framework: $FRAMEWORK_ROOT"
     echo "Mode:      $(_detect_fw_mode)"
     echo "Project:   $PROJECT_ROOT"
@@ -693,8 +1113,42 @@ show_version() {
         pinned=$(grep "^version:" "$PROJECT_ROOT/.framework.yaml" 2>/dev/null | sed 's/^version:[[:space:]]*//' || true)
         if [ -n "$pinned" ]; then
             echo "Pinned:    $pinned"
-            if [ "$pinned" != "$FW_VERSION" ]; then
-                echo -e "${YELLOW}WARNING: Pinned version ($pinned) differs from installed ($FW_VERSION)${NC}"
+            # T-2713 replaced `pinned != installed -> WARN` at three sites
+            # (bin/fw:2015, lib/upgrade.sh:849, lib/upgrade.sh:1742) because
+            # `sort -V` on a resetting counter is a guess wearing the costume of
+            # a comparison. This was a FOURTH site, still open-coded — and the
+            # most-read one, since it fires on every `fw --version`.
+            #
+            # L-536: a line that PRINTS a direction is a decision site. "differs
+            # from installed" reads as drift and gets acted on, when a pinned
+            # counter that merely resets differs from an identical tree.
+            local _pin_sha=""
+            _pin_sha=$(grep "^version_sha:" "$PROJECT_ROOT/.framework.yaml" 2>/dev/null | sed 's/^version_sha:[[:space:]]*//' || true)
+            if declare -f fw_version_relation >/dev/null 2>&1; then
+                # Bare call, NOT $(...): the reason travels via a global and a
+                # subshell would silently blank it (see lib/version-relation.sh).
+                fw_version_relation "$pinned" "$FW_VERSION" "$_pin_sha" "$FRAMEWORK_ROOT" >/dev/null
+                local _rel_phrase=""
+                case "$FW_VERSION_RELATION" in
+                    same)           _rel_phrase="" ;;
+                    behind)         _rel_phrase="Pinned is BEHIND the installed framework" ;;
+                    ahead)          _rel_phrase="Pinned is AHEAD of the installed framework" ;;
+                    diverged)       _rel_phrase="Pinned has DIVERGED from the installed framework" ;;
+                    foreign-source) _rel_phrase="Pinned records a commit this framework does not contain" ;;
+                    *)              _rel_phrase="Pinned/installed relation undetermined" ;;
+                esac
+                # if/then, not `[ -n ... ] && echo` — this file runs under
+                # `set -e`, so an AND-list whose left side is false returns 1 and
+                # kills the shell on the `same` (no-phrase) path.
+                if [ -n "$_rel_phrase" ]; then
+                    echo -e "${YELLOW}${_rel_phrase}${NC} — ${FW_VERSION_RELATION_REASON}"
+                fi
+            elif [ "$pinned" != "$FW_VERSION" ]; then
+                # version-relation.sh is sourced with `|| true` at the top of this
+                # file, so it can legitimately be absent. Fall back to the old
+                # string compare rather than going silent — a weak signal beats
+                # none — but say plainly that it cannot decide direction.
+                echo -e "${YELLOW}Pinned ($pinned) differs from installed ($FW_VERSION) — direction undecidable (both are resetting counters)${NC}"
             fi
         fi
     fi
@@ -703,12 +1157,57 @@ show_version() {
 # --- Doctor Command ---
 
 do_doctor() {
+    # T-2452/F6: --quick — project-only fast mode. Skips the slow host/network
+    # probes (mirror divergence ls-remote, litellm/ollama/watchtower curls,
+    # global-install du scan) so the onboarding fix-and-rerun loop isn't paying
+    # ~150s per run (T-2441 dogfood: 3 calls timed out a 120s budget). Project
+    # checks are unaffected; full `fw doctor` (no flag) is unchanged.
+    local quick_mode=0
+    local _arg
+    for _arg in "$@"; do
+        case "$_arg" in
+            --quick) quick_mode=1 ;;
+            --help|-h)
+                echo "Usage: fw doctor [--quick]"
+                echo ""
+                echo "  Framework + project health check."
+                echo ""
+                echo "  --quick   Project-only fast mode: skip the slow host/network probes"
+                echo "            (mirror divergence ls-remote, litellm/ollama/watchtower"
+                echo "            curls). For the onboarding fix-and-rerun loop. Project"
+                echo "            checks are unaffected; the project-health verdict still renders."
+                return 0
+                ;;
+        esac
+    done
+
+    # T-100157 (OBS-085): the Consumer Projects checks below call
+    # fw_consumer_yamls (lib/config.sh) — source it once here or every doctor
+    # run prints 'command not found' twice and the consumer checks silently
+    # no-op (empty loop is indistinguishable from "no consumers").
+    source "$FRAMEWORK_ROOT/lib/config.sh"
+
     echo -e "${BOLD}fw doctor${NC} - Framework Health Check"
+    if [ "$quick_mode" = "1" ]; then
+        echo -e "  ${CYAN}--quick${NC}: project-only mode — host/network probes skipped"
+    fi
     echo ""
 
     local issues=0
     local warnings=0
     local host_warnings=0
+
+    # T-2452/F6: returns 0 (true) when a slow host/network probe block should be
+    # skipped under --quick, emitting a one-line SKIP marker. Returns 1 (proceed)
+    # in full mode. Centralises the skip decision so the guarded blocks stay
+    # readable and the SKIP wording is consistent.
+    _doctor_quick_skip() {
+        if [ "$quick_mode" = "1" ]; then
+            echo -e "  ${CYAN}SKIP${NC}  $1 (--quick)"
+            return 0
+        fi
+        return 1
+    }
 
     # T-1707: host-scope findings can't be fixed from this project session —
     # they live at the machine level (system installs, ~/.gitconfig,
@@ -763,16 +1262,17 @@ do_doctor() {
             # T-1097/G-028: Reconcile upstream_repo vs running FRAMEWORK_ROOT
             local upstream_repo
             upstream_repo=$(grep "^upstream_repo:" "$PROJECT_ROOT/.framework.yaml" 2>/dev/null | sed 's/^upstream_repo:[[:space:]]*//' || true)
-            if [ -n "$upstream_repo" ]; then
-                local resolved_upstream resolved_fw
-                resolved_upstream=$(realpath -m "$upstream_repo" 2>/dev/null || echo "$upstream_repo")
-                resolved_fw=$(realpath -m "$FRAMEWORK_ROOT" 2>/dev/null || echo "$FRAMEWORK_ROOT")
-                if [ "$resolved_upstream" != "$resolved_fw" ]; then
-                    echo -e "  ${YELLOW}WARN${NC}  Framework path ambiguity:"
-                    echo -e "         upstream_repo: $upstream_repo"
-                    echo -e "         running fw:    $FRAMEWORK_ROOT"
-                    warnings=$((warnings + 1))
-                fi
+            # T-2843: the predicate moved to lib/doctor-upstream.sh. It is NOT a
+            # plain inequality — in vendored mode (the D-377 default) the running
+            # fw is this project's own .agentic-framework by design, so it can
+            # never equal the pull source and the comparison says nothing. See
+            # that file for why this fired on every consumer for so long.
+            source "$FRAMEWORK_ROOT/lib/doctor-upstream.sh"
+            if doctor_upstream_ambiguous "$upstream_repo" "$FRAMEWORK_ROOT" "$_mode"; then
+                echo -e "  ${YELLOW}WARN${NC}  Framework path ambiguity:"
+                echo -e "         upstream_repo: $upstream_repo"
+                echo -e "         running fw:    $FRAMEWORK_ROOT"
+                warnings=$((warnings + 1))
             fi
         else
             echo -e "  ${RED}FAIL${NC}  .framework.yaml missing in $PROJECT_ROOT"
@@ -873,7 +1373,18 @@ do_doctor() {
     fi
 
     # Check 5: Git hooks
-    local hooks_dir="$PROJECT_ROOT/.git/hooks"
+    # T-2812: resolve via git, not by string-concatenating "$PROJECT_ROOT/.git/hooks" —
+    # that hard-code is wrong for a project nested inside an enclosing repo (no local
+    # .git), a worktree (.git is a file), and a submodule. bin/fw does not source
+    # lib/paths.sh (see T-2466 note above), so this is inlined rather than shared
+    # with agents/git/lib/common.sh's resolve_git_hooks_dir.
+    local hooks_dir
+    hooks_dir=$(git -C "$PROJECT_ROOT" rev-parse --git-path hooks 2>/dev/null)
+    case "$hooks_dir" in
+        /*) ;;
+        "") hooks_dir="$PROJECT_ROOT/.git/hooks" ;;
+        *) hooks_dir="$PROJECT_ROOT/$hooks_dir" ;;
+    esac
     if [ -f "$hooks_dir/commit-msg" ] && grep -q "Task Reference" "$hooks_dir/commit-msg" 2>/dev/null; then
         echo -e "  ${GREEN}OK${NC}  Git commit-msg hook"
     else
@@ -910,13 +1421,53 @@ do_doctor() {
         fi
     fi
 
-    # Check 5b: Git user identity (T-685)
-    local git_email git_name
-    git_email=$(git -C "$PROJECT_ROOT" config user.email 2>/dev/null || true)
-    git_name=$(git -C "$PROJECT_ROOT" config user.name 2>/dev/null || true)
-    if [ -z "$git_email" ] || [ -z "$git_name" ]; then
+    # Check 5b: Git user identity (T-685; probe corrected T-2883)
+    # Asks the question the way `git commit` answers it — see lib/git-identity.sh.
+    # The old `git config user.email` read missed env-supplied identity and warned
+    # "commits will fail" on runs whose commits succeeded.
+    source "$FRAMEWORK_ROOT/lib/git-identity.sh"
+    if ! fw_git_identity_ok "$PROJECT_ROOT"; then
         _doctor_warn_host "Git user identity not configured (commits will fail)"
-        echo -e "         Run: git config --global user.email 'you@example.com' && git config --global user.name 'Your Name'"
+        echo -e "         Run: $(fw_git_identity_remedy "$PROJECT_ROOT")"
+    fi
+
+    # Check 5c: Handover LATEST.md integrity (T-2374)
+    # A dangling LATEST.md symlink means /resume and SessionStart:compact silently
+    # read nothing — the continuous-run loop and post-compact recovery degrade with
+    # no error. Catch it here (prevention is distinct from the handover.sh guard).
+    local latest_link="$PROJECT_ROOT/.context/handovers/LATEST.md"
+    if [ -L "$latest_link" ] || [ -e "$latest_link" ]; then
+        if [ -e "$latest_link" ] && [ -s "$latest_link" ]; then
+            echo -e "  ${GREEN}OK${NC}  Handover LATEST.md resolves to $(readlink "$latest_link" 2>/dev/null || echo 'a file')"
+        else
+            _doctor_warn_host "Handover LATEST.md is dangling (target missing): $(readlink "$latest_link" 2>/dev/null || echo '?')"
+            echo -e "         Repoint to the newest real handover or regenerate: fw handover --commit"
+        fi
+    fi
+
+    # Check 5d: Last auto-handover outcome (T-2506 pre-compact + T-2507 checkpoint)
+    # T-2374 made pre-compact log "Handover FAILED (rc=N)" to .compact-log instead of
+    # lying about success — but that FAILED line surfaced NOWHERE. Both auto-capture
+    # paths — pre-compact (/compact) and checkpoint (budget-critical auto-restart) —
+    # now write [pre-compact]/[checkpoint] Handover generated|FAILED entries here.
+    # Surface the most recent: if it FAILED, memory capture is broken and the next
+    # compaction/restart reinjects a stale handover. (Directive 2 — recorded is not
+    # surfaced.) The budget-critical path (T-2507) was previously echo-to-stderr only.
+    local compact_log="$PROJECT_ROOT/.context/working/.compact-log"
+    if [ -f "$compact_log" ]; then
+        local last_ho_line last_ho_src
+        last_ho_line=$(grep -E '\[(pre-compact|checkpoint)\].*Handover' "$compact_log" 2>/dev/null | tail -1)
+        case "$last_ho_line" in
+            *"[checkpoint]"*) last_ho_src="budget-critical auto-handover" ;;
+            *)                last_ho_src="pre-compact handover" ;;
+        esac
+        if echo "$last_ho_line" | grep -q "FAILED"; then
+            _doctor_warn_host "Last $last_ho_src FAILED — memory capture is broken; the next compaction/restart will reinject a stale handover"
+            echo -e "         Cause: $last_ho_line"
+            echo -e "         Recover: fw handover --no-commit   (repoints LATEST.md to a fresh capture)"
+        elif [ -n "$last_ho_line" ]; then
+            echo -e "  ${GREEN}OK${NC}  Last auto-handover succeeded ($last_ho_src)"
+        fi
     fi
 
     # Check 6: Claude Code hooks — validate paths resolve (G-021 path isolation)
@@ -935,6 +1486,14 @@ for event, entries in data.get('hooks', {}).items():
         for hook in entry.get('hooks', []):
             cmd = hook.get('command', '')
             total += 1
+            # T-2709: Claude Code expands \${CLAUDE_PROJECT_DIR} at hook-INVOCATION
+            # time, so the literal string never exists on disk. doctor must expand it
+            # the same way before statting, or every correctly-portable hook is
+            # counted 'broken' and doctor emits a 25/25 FAIL over a healthy config
+            # (plus contradictory advice: one remedy line says make paths portable,
+            # the next says make them absolute). L-399 producer/consumer parity --
+            # the generator learned the placeholder, this validator had not.
+            cmd = cmd.replace('\${CLAUDE_PROJECT_DIR}', '$PROJECT_ROOT')
             parts = cmd.split()
             # Check for portable 'fw hook' format (bare fw in PATH)
             if len(parts) >= 2 and parts[0] == 'fw':
@@ -969,6 +1528,16 @@ print(f'{total},{broken},{stale_paths}')
         hook_total=$(echo "$hook_validation" | cut -d, -f1)
         hook_broken=$(echo "$hook_validation" | cut -d, -f2)
         hook_stale=$(echo "$hook_validation" | cut -d, -f3)
+
+        # T-2709 (T-2704 RCA): host-portability is a SEPARATE question from the two
+        # above. `broken` asks "does this file exist?" — on the generating host it
+        # always does, by construction, forever. `stale_paths` looks for the
+        # pre-T-496 defect shape. Neither can see a baked-in absolute checkout path,
+        # so doctor printed "all portable" over a 25/25 non-portable state for months.
+        # Shared predicate (same module as lib/upgrade.sh's regenerate trigger).
+        local hook_portability hook_nonportable
+        hook_portability=$(python3 "$FRAMEWORK_ROOT/lib/hook_portability.py" "$settings_file" 2>/dev/null || echo "0|0|0|")
+        hook_nonportable=$(echo "$hook_portability" | cut -d'|' -f2)
         if [ "${hook_broken:-0}" -gt 0 ]; then
             echo -e "  ${RED}FAIL${NC}  Hook path validation: $hook_broken/$hook_total hooks have broken paths"
             echo -e "        Run: fw upgrade (regenerates hooks with portable paths)"
@@ -976,6 +1545,11 @@ print(f'{total},{broken},{stale_paths}')
         elif [ "${hook_stale:-0}" -gt 0 ]; then
             echo -e "  ${YELLOW}WARN${NC}  Hook path isolation: $hook_stale/$hook_total hooks use hardcoded paths (works here, breaks on clone)"
             echo -e "        Run: fw upgrade (migrates to portable 'fw hook' format)"
+            warnings=$((warnings + 1))
+        elif [ "${hook_nonportable:-0}" -gt 0 ]; then
+            echo -e "  ${YELLOW}WARN${NC}  Hook path portability: $hook_nonportable/$hook_total hooks hardcode this host's checkout path (governance is OFF on any other host)"
+            echo -e "        Expected: \${CLAUDE_PROJECT_DIR}/bin/fw hook <name>  (absolute after expansion, host-portable)"
+            echo -e "        Run: fw upgrade (regenerates hooks from the fixed generator), then fw enforcement baseline"
             warnings=$((warnings + 1))
         elif [ "${hook_total:-0}" -ge 10 ]; then
             echo -e "  ${GREEN}OK${NC}  Hook path validation: $hook_total hooks, all portable"
@@ -1053,7 +1627,12 @@ print('|'.join(f'{e}:{n}' for e, n in overlap))
                 echo -e "        Run: fw upgrade (regenerates hook paths to absolute form)"
                 issues=$((issues + 1))
             elif [ "${hex_total:-0}" -gt 0 ]; then
-                echo -e "  ${GREEN}OK${NC}  Hook exercise from /tmp: $hex_total hook(s) resolve from foreign CWD"
+                # T-2714 (OBS-110): name the scope. The probe deliberately covers
+                # PreToolUse+PostToolUse only (see lib/doctor-hook-exercise.py —
+                # PreCompact/SessionStart run heavy work past the 5s budget), so its
+                # total is legitimately lower than the whole-file counts above. Unstated,
+                # the gap reads as hooks that silently failed to be tested.
+                echo -e "  ${GREEN}OK${NC}  Hook exercise from /tmp: $hex_total PreToolUse/PostToolUse hook(s) resolve from foreign CWD"
             fi
         fi
     fi
@@ -1241,6 +1820,105 @@ else:
         fi
     fi
 
+    # Check: framework MCP manifest (T-2265, arc-010 Slice 2)
+    # T-2461: framework ASSETS (manifest, tool-set, manifest.py) live under
+    # FRAMEWORK_ROOT — which equals PROJECT_ROOT in the framework repo, but is
+    # the vendored .agentic-framework/ in a consumer. Using PROJECT_ROOT made
+    # doctor SKIP misleadingly on every consumer (manifest IS present, vendored;
+    # and "fw mcp emit-manifest" can't run there — no tool-set.yaml). The pid
+    # file below is RUNTIME state → stays on PROJECT_ROOT.
+    local _fw_root="${FRAMEWORK_ROOT:-$PROJECT_ROOT}"
+    local _mcp_mf="$_fw_root/agents/mcp/framework-mcp-manifest.json"
+    local _mcp_ts="$_fw_root/policy/capability-overlay/tool-set.yaml"
+    if [ -f "$_mcp_mf" ]; then
+        local _mcp_tools _mcp_gated _mcp_msg
+        _mcp_tools=$(python3 -c "import json; m=json.load(open('$_mcp_mf')); print(len(m.get('tools',[])))" 2>/dev/null || echo "?")
+        _mcp_gated=$(python3 -c "import json; m=json.load(open('$_mcp_mf')); print(sum(1 for t in m.get('tools',[]) if t.get('gated')))" 2>/dev/null || echo "?")
+        local _mcp_pid_f="$PROJECT_ROOT/.context/working/framework-mcp.pid"
+        if [ -f "$_mcp_pid_f" ] && kill -0 "$(cat "$_mcp_pid_f" 2>/dev/null)" 2>/dev/null; then
+            _mcp_msg="running (pid $(cat "$_mcp_pid_f"))"
+        else
+            _mcp_msg="stopped (manifest ready; start: fw mcp start --background)"
+        fi
+        # T-2290: mtime is a cheap fast-path that triggers a content check.
+        # Touch/checkout/vendor-sync update mtime without changing content; the
+        # mtime-only test produced operator-facing WARN false positives. When
+        # mtime suggests staleness, re-emit the manifest in-memory and md5 it
+        # against the on-disk file — content match → still OK, content diff → WARN.
+        if [ -f "$_mcp_ts" ] && [ "$_mcp_ts" -nt "$_mcp_mf" ]; then
+            local _mcp_emitted_md5 _mcp_ondisk_md5
+            _mcp_emitted_md5=$(python3 "$_fw_root/agents/mcp/manifest.py" show 2>/dev/null | md5sum 2>/dev/null | cut -d' ' -f1)
+            _mcp_ondisk_md5=$(md5sum "$_mcp_mf" 2>/dev/null | cut -d' ' -f1)
+            if [ -n "$_mcp_emitted_md5" ] && [ "$_mcp_emitted_md5" = "$_mcp_ondisk_md5" ]; then
+                echo -e "  ${GREEN}OK${NC}  framework MCP $_mcp_tools tools (gated: $_mcp_gated) — $_mcp_msg"
+            else
+                echo -e "  ${YELLOW}WARN${NC}  framework MCP manifest stale relative to tool-set.yaml"
+                echo -e "         Run: fw mcp emit-manifest"
+                warnings=$((warnings + 1))
+            fi
+        else
+            echo -e "  ${GREEN}OK${NC}  framework MCP $_mcp_tools tools (gated: $_mcp_gated) — $_mcp_msg"
+        fi
+    else
+        # Genuinely absent. In the framework repo: emit it. In a consumer
+        # (FRAMEWORK_ROOT vendored under .agentic-framework) the manifest ships
+        # vendored, so absence means a broken/stale vendor → re-vendor via upgrade.
+        if [ "$_fw_root" != "$PROJECT_ROOT" ]; then
+            echo -e "  ${CYAN}SKIP${NC}  framework MCP manifest absent in vendored framework — run: fw upgrade"
+        else
+            echo -e "  ${CYAN}SKIP${NC}  framework MCP manifest absent — run: fw mcp emit-manifest"
+        fi
+    fi
+
+    # Check: designer pin ↔ vendored build drift (T-2524, T-2521 integration hardening)
+    # Sibling of the MCP manifest + cron registry→generated drift classes. Content-compares
+    # (sha256, never mtime — T-2290/T-2432) the vendored Workflow Designer build against
+    # policy/designer-pin.yaml. Catches a pin bump without re-sync, or an edit to the
+    # (read-only) vendored HTML. Designer is an AEF-specific feature → PROJECT_ROOT; SKIPs
+    # gracefully when the pin is absent (consumers) or the vendored file isn't present yet.
+    # FW_DESIGNER_PIN_FILE lets tests point the check at a temp pin copy so the live
+    # tracked policy/designer-pin.yaml is never mutated (T-2547 hermetic-test fix).
+    # vendored_path below still resolves against PROJECT_ROOT, so the real vendor dir
+    # is used regardless of which pin file is read.
+    local _dz_pin="${FW_DESIGNER_PIN_FILE:-$PROJECT_ROOT/policy/designer-pin.yaml}"
+    if [ -f "$_dz_pin" ]; then
+        local _dz_want _dz_vp _dz_file _dz_have
+        _dz_want=$(python3 -c "import yaml;d=yaml.safe_load(open('$_dz_pin'));print(d.get('sha256','') or '')" 2>/dev/null)
+        _dz_vp=$(python3 -c "import yaml;d=yaml.safe_load(open('$_dz_pin'));print(d.get('vendored_path','') or '')" 2>/dev/null)
+        _dz_file="$PROJECT_ROOT/$_dz_vp"
+        if [ -z "$_dz_want" ] || [ -z "$_dz_vp" ]; then
+            echo -e "  ${CYAN}SKIP${NC}  designer pin present but missing sha256/vendored_path"
+        elif [ ! -f "$_dz_file" ]; then
+            echo -e "  ${CYAN}SKIP${NC}  designer not yet vendored — run: fw designer sync --from <build>"
+        else
+            _dz_have=$(sha256sum "$_dz_file" 2>/dev/null | cut -d' ' -f1)
+            if [ "$_dz_have" = "$_dz_want" ]; then
+                echo -e "  ${GREEN}OK${NC}  designer vendored build matches pin (${_dz_want:0:12}...)"
+            else
+                echo -e "  ${YELLOW}WARN${NC}  designer vendored build drifted from pin"
+                echo -e "         pin=${_dz_want:0:12}... vendored=${_dz_have:0:12}... — run: fw designer sync --from <build>"
+                warnings=$((warnings + 1))
+            fi
+        fi
+    fi
+
+    # Check: proxy-policy emitted-but-not-installed drift (T-2432, arc-013)
+    # Sibling of the MCP manifest + cron registry→generated drift classes. Compares the
+    # in-repo SOURCE policy against the DEPLOYED copy by CONTENT (sha256, never mtime).
+    local _pp_src="$PROJECT_ROOT/policy/proxy-policy.yaml"
+    if [ -f "$_pp_src" ]; then
+        local _pp_state
+        _pp_state=$(PYTHONPATH="$FRAMEWORK_ROOT" python3 -c "import lib.govd_policy as p; print(p.drift_status('$_pp_src')['state'])" 2>/dev/null || echo "err")
+        case "$_pp_state" in
+            ok)            echo -e "  ${GREEN}OK${NC}  proxy-policy deployed copy matches source" ;;
+            drift)         echo -e "  ${YELLOW}WARN${NC}  proxy-policy.yaml edited but not installed"
+                           echo -e "         Run: sudo fw policy install   (Lock-1 Part 1, root)"
+                           warnings=$((warnings + 1)) ;;
+            not_installed) echo -e "  ${CYAN}SKIP${NC}  proxy-policy not installed (install is human/root — fw policy emit)" ;;
+            *)             echo -e "  ${CYAN}SKIP${NC}  proxy-policy drift check unavailable" ;;
+        esac
+    fi
+
     # Check: Watchtower discovery triple (T-1292 / T-1284 B4)
     local _wt_pid_f="$PROJECT_ROOT/.context/working/watchtower.pid"
     local _wt_url_f="$PROJECT_ROOT/.context/working/watchtower.url"
@@ -1254,6 +1932,27 @@ else:
             if [ -n "$_wt_ident" ] && echo "$_wt_ident" | grep -q "\"service\"[[:space:]]*:[[:space:]]*\"watchtower\"" \
                 && echo "$_wt_ident" | grep -q "\"project_root\"[[:space:]]*:[[:space:]]*\"$PROJECT_ROOT\""; then
                 echo -e "  ${GREEN}OK${NC}  Watchtower running ($_wt_url, pid $_wt_pid)"
+                # T-2938: alive and identifying correctly is NOT the same as
+                # running current code. Flask serves with debug=False here, so
+                # there is no reloader — a process started before a web/ commit
+                # keeps serving the old bytes indefinitely, and the OK line above
+                # reads as though it had verified otherwise. Origin: T-2925's GO
+                # decision was refused at the commit boundary by the very defect
+                # T-2864 fixed 4 days earlier, because the process was 2 days
+                # older than the fix. See lib/watchtower-staleness.sh.
+                if [ -f "$FRAMEWORK_ROOT/lib/watchtower-staleness.sh" ]; then
+                    # shellcheck source=/dev/null
+                    . "$FRAMEWORK_ROOT/lib/watchtower-staleness.sh"
+                    local _wt_stale _wt_stale_n
+                    if _wt_stale=$(watchtower_stale_sources "$_wt_pid" "$PROJECT_ROOT/web"); then
+                        _wt_stale_n=$(printf '%s\n' "$_wt_stale" | grep -c .)
+                        echo -e "  ${YELLOW}WARN${NC}  Watchtower process predates its own source ($_wt_stale_n file(s) newer than pid $_wt_pid)"
+                        printf '%s\n' "$_wt_stale" | head -3 | sed 's|^|         - |'
+                        echo -e "         Every web/ change since it started is inert, including any awaiting [REVIEW]."
+                        echo -e "         Run: bin/fw watchtower restart"
+                        warnings=$((warnings + 1))
+                    fi
+                fi
             else
                 echo -e "  ${YELLOW}WARN${NC}  Watchtower triple present but identity mismatch or endpoint down"
                 echo -e "         Run: bin/watchtower.sh restart"
@@ -1266,6 +1965,68 @@ else:
         fi
     else
         echo -e "  ${CYAN}SKIP${NC}  Watchtower not running (no triple) — start with: fw serve"
+    fi
+
+    # Check: Session supervision (T-2499) — is the auto-restart loop armed?
+    # The arc-012 continuous-run loop (budget-critical → auto-handover →
+    # .restart-requested → claude-fw restart → directive re-injection) only fires
+    # when the session runs under the `claude-fw` wrapper, which exports
+    # FW_CLAUDE_FW_SUPERVISED=1. Plain `claude` writes the restart signal into the
+    # void — no consumer. This surfaces the unsupervised state OUTSIDE the hook path
+    # so it's visible even on a budget-quiet (all-text, no-tool-call) overrun.
+    # Only meaningful inside a Claude Code session (CLAUDECODE=1); a human running
+    # `fw doctor` in a plain terminal is not under any supervisor and need not care.
+    if [ "${CLAUDECODE:-0}" = "1" ]; then
+        if [ "${FW_CLAUDE_FW_SUPERVISED:-0}" = "1" ]; then
+            echo -e "  ${GREEN}OK${NC}  Session supervised by claude-fw — budget auto-restart armed"
+        else
+            local _bs_tokens=""
+            local _bs_f="$PROJECT_ROOT/.context/working/.budget-status"
+            [ -f "$_bs_f" ] && _bs_tokens=$(grep -o '"tokens"[[:space:]]*:[[:space:]]*[0-9]*' "$_bs_f" 2>/dev/null | grep -o '[0-9]*$' || true)
+            echo -e "  ${YELLOW}WARN${NC}  Unsupervised session (not under claude-fw) — budget auto-restart will NOT fire"
+            if [ -n "$_bs_tokens" ]; then
+                echo -e "         Current budget: ${_bs_tokens} tokens"
+            fi
+            echo -e "         Relaunch via 'claude-fw' for hands-off recovery, or run '/compact' before critical."
+            warnings=$((warnings + 1))
+        fi
+    else
+        echo -e "  ${CYAN}SKIP${NC}  Session supervision (not inside a Claude Code session)"
+    fi
+
+    # Check: on-PATH claude-fw drift (T-2501) — does the wrapper the operator
+    # actually runs match repo source? The supervision check above tells you THIS
+    # session is unsupervised; this tells you WHY — the installed claude-fw can be
+    # a stale clone/copy missing the FW_CLAUDE_FW_SUPERVISED export. claude-fw
+    # lives in up to four places (repo bin/, host clone ~/.agentic-framework,
+    # in-repo vendor, ~/.local/bin symlink) and no other check covers it: the
+    # audit self-vendor find-filter skips no-extension names, CTL-019 checks
+    # existence only, and `fw vendor self` excludes claude-fw. We compare the file
+    # actually on PATH (symlink resolved) against this checkout's bin/claude-fw.
+    # WARN-only; SKIP when claude-fw is not installed (humans who never use it).
+    local _cfw_path _cfw_real _cfw_src="$FRAMEWORK_ROOT/bin/claude-fw"
+    _cfw_path=$(command -v claude-fw 2>/dev/null || true)
+    if [ -n "$_cfw_path" ] && [ -f "$_cfw_src" ]; then
+        _cfw_real=$(readlink -f "$_cfw_path" 2>/dev/null || echo "$_cfw_path")
+        if cmp -s "$_cfw_real" "$_cfw_src"; then
+            echo -e "  ${GREEN}OK${NC}  Installed claude-fw matches repo source"
+        else
+            echo -e "  ${YELLOW}WARN${NC}  Installed claude-fw drifted from repo source — supervision export may be stale"
+            echo -e "         on PATH: $_cfw_real"
+            echo -e "         repo:    $_cfw_src"
+            # T-2807: this used to say `bash ~/.agentic-framework/install.sh`, which
+            # assumes a git checkout in $HOME. It is already fragile (the global may
+            # be absent or not a checkout) and becomes false under T-2800, which
+            # removes the global entirely. Both lines below work with nothing in
+            # $HOME; the direct copy is the one that needs no network.
+            echo -e "         Refresh: rm -f \"$_cfw_path\" && cp \"$_cfw_src\" \"$_cfw_path\" && chmod +x \"$_cfw_path\""
+            echo -e "                  (rm -f first — a bare cp onto a symlink writes through it)"
+            echo -e "         Or:      curl -fsSL https://raw.githubusercontent.com/DimitriGeelen/agentic-engineering-framework/master/install.sh | bash"
+            echo -e "         Then relaunch the session with: claude-fw"
+            warnings=$((warnings + 1))
+        fi
+    elif [ -z "$_cfw_path" ]; then
+        echo -e "  ${CYAN}SKIP${NC}  claude-fw not on PATH (no auto-restart wrapper installed)"
     fi
 
     # Check: Claude Code hook configuration (CTL-R023 — T-199)
@@ -1337,8 +2098,14 @@ for event_type, hook_list in hooks.items():
                         issues.append(f'{event_type}: fw not found in PATH (install framework or add to PATH)')
                         continue
                 else:
+                    # T-2709: expand the portable placeholder the way Claude Code
+                    # does at hook-invocation time. Left literal it is neither
+                    # absolute nor resolvable, so a correct config reports every
+                    # hook as a missing fw binary (third instance of this same
+                    # parity gap in one check-run: static validator, /tmp probe,
+                    # and here).
+                    resolved = script_path.replace('\${CLAUDE_PROJECT_DIR}', os.environ.get('PROJECT_ROOT', ''))
                     # Resolve relative paths against PROJECT_ROOT
-                    resolved = script_path
                     if not os.path.isabs(resolved):
                         resolved = os.path.join(os.environ.get('PROJECT_ROOT', ''), resolved)
                     if not os.path.exists(resolved):
@@ -1374,7 +2141,15 @@ if issues:
 elif warnings:
     print('WARN|' + '; '.join(warnings))
 else:
-    print(f'OK|Hook configuration valid ({sum(len(v) for v in hooks.values())} hooks across {len(hooks)} events)')
+    # T-2714 (OBS-110): count COMMANDS, not matcher entries. Each entry in an
+    # event's list carries a 'hooks' array of 1..n commands, so summing the entry
+    # lists counts matchers and calling them hooks. Live: 19 entries / 25 commands.
+    # The old number also contradicted 'Hook path validation' three lines up, which
+    # counts commands correctly — leaving an operator no way to tell which lied.
+    # State all three denominators so the numbers reconcile instead of competing.
+    entry_count = sum(len(v) for v in hooks.values())
+    cmd_count = sum(len(e.get('hooks') or []) for v in hooks.values() for e in v)
+    print(f'OK|Hook configuration valid ({cmd_count} hooks in {entry_count} matchers across {len(hooks)} events)')
 " 2>/dev/null || echo "WARN|Python3 not available for hook validation")
         local hook_status hook_msg
         hook_status=$(echo "$hook_result" | cut -d'|' -f1)
@@ -1391,11 +2166,19 @@ else:
 
     # Check: Watchtower smoke test (T-486) — run if server is reachable
     # Use _watchtower_url for port detection (T-1154: no hardcoded 3000)
+    if _doctor_quick_skip "Watchtower smoke test (HTTP probes)"; then :; else
     source "$FRAMEWORK_ROOT/lib/watchtower.sh" 2>/dev/null || true
     local _doctor_wt_url _doctor_wt_port
-    _doctor_wt_url=$(_watchtower_url 2>/dev/null || echo "http://localhost:${FW_PORT:-3000}")
+    # F9 (T-2445): gate the smoke verdict on the identity-verified resolver. A bare
+    # `|| echo http://localhost:PORT` fallback re-points at a FOREIGN service holding
+    # the default port and curls its /health (any server answers 200) → false "healthy".
+    # _watchtower_url returns non-zero when no Watchtower of OURS is reachable (T-1803);
+    # honor that contract instead of guessing a URL.
+    if ! _doctor_wt_url=$(_watchtower_url 2>/dev/null); then
+        _doctor_wt_url=""
+    fi
     _doctor_wt_port=$(echo "$_doctor_wt_url" | grep -oP ':\K\d+$' || echo "${FW_PORT:-3000}")
-    if curl -sf "${_doctor_wt_url}/health" >/dev/null 2>&1; then
+    if [ -n "$_doctor_wt_url" ] && curl -sf "${_doctor_wt_url}/health" >/dev/null 2>&1; then
         local smoke_result
         smoke_result=$(python3 "$FRAMEWORK_ROOT/web/smoke_test.py" --port "$_doctor_wt_port" --json 2>/dev/null || echo '{"failed":0,"passed":0,"total":0,"error":"script failed"}')
         local smoke_passed smoke_failed smoke_total
@@ -1417,6 +2200,7 @@ for e in d.get('errors',[])[:3]:
             warnings=$((warnings + 1))
         fi
     fi
+    fi  # T-2452/F6: end --quick guard for Watchtower smoke test
 
     # Check: TermLink (optional cross-terminal session communication)
     if command -v termlink >/dev/null 2>&1; then
@@ -1449,14 +2233,21 @@ for e in d.get('errors',[])[:3]:
     # Skip-if-no-consumer: only fires when a workflow declares
     # ANTHROPIC_BASE_URL: http://localhost:4000 (the litellm proxy port).
     # Mirrors T-1694 pi pattern.
+    #
+    # T-2490/OBS-089: use /health/liveliness, NOT /health. litellm serves /health
+    # as an AUTH-REQUIRED endpoint (HTTP 401 without a key), so `curl -sf /health`
+    # exits non-zero (-f fails on 4xx) even when the proxy is fully up — a false
+    # WARN. /health/liveliness is the unauthenticated liveness probe (HTTP 200).
     local _wf_dir="$PROJECT_ROOT/.context/project/workflows"
+    local _litellm_port="${FW_LITELLM_PORT:-4000}"
+    if _doctor_quick_skip "litellm/ollama reachability curls"; then :; else
     if [ -d "$_wf_dir" ] && \
        grep -lE "ANTHROPIC_BASE_URL:\s*http://localhost:4000" "$_wf_dir"/*.yaml >/dev/null 2>&1; then
-        if curl -sf --max-time 2 http://localhost:4000/health >/dev/null 2>&1; then
-            echo -e "  ${GREEN}OK${NC}  litellm-proxy reachable (http://localhost:4000)"
+        if curl -sf --max-time 2 "http://localhost:${_litellm_port}/health/liveliness" >/dev/null 2>&1; then
+            echo -e "  ${GREEN}OK${NC}  litellm-proxy reachable (http://localhost:${_litellm_port})"
         else
-            _doctor_warn_host "litellm-proxy not reachable on http://localhost:4000; workflow(s) declaring ANTHROPIC_BASE_URL will fail"
-            echo -e "         Start: pipx run litellm --config .context/litellm-config.yaml --port 4000  (or systemd unit)"
+            _doctor_warn_host "litellm-proxy not reachable on http://localhost:${_litellm_port}; workflow(s) declaring ANTHROPIC_BASE_URL will fail"
+            echo -e "         Start: setsid nohup litellm --config .context/litellm-config.yaml --port ${_litellm_port} >.context/working/litellm/proxy.log 2>&1 & (persist: sudo systemctl enable --now litellm-proxy — see deploy/litellm-proxy.service)"
         fi
     fi
 
@@ -1466,13 +2257,14 @@ for e in d.get('errors',[])[:3]:
     # currently target (192.168.10.107:11434). If a workflow points
     # elsewhere, this check needs widening.
     if [ -d "$_wf_dir" ] && \
-       grep -lE "^worker_kind:\s*ollama-loop\b" "$_wf_dir"/*.yaml >/dev/null 2>&1; then
+       grep -lE "^worker_kind:\s*ollama(-thin)?-loop\b" "$_wf_dir"/*.yaml >/dev/null 2>&1; then
         if curl -sf --max-time 2 http://192.168.10.107:11434/api/tags >/dev/null 2>&1; then
             echo -e "  ${GREEN}OK${NC}  ollama reachable (http://192.168.10.107:11434)"
         else
             _doctor_warn_host "ollama not reachable on http://192.168.10.107:11434; ollama-loop workflows will fail"
         fi
     fi
+    fi  # T-2452/F6: end --quick guard for litellm/ollama curls
 
     # Check: TypeScript build health (optional)
     if [ -d "$FRAMEWORK_ROOT/lib/ts/src" ]; then
@@ -1612,14 +2404,22 @@ print(sum(1 for e in entries if (e.get('status') or 'pending') == 'pending'))
             # T-1828 scenario: framework VERSION can be rolled back (tag-counter reset),
             # producing consumer > framework. Suggesting `fw upgrade` in that direction
             # would silently downgrade the consumer's pinned version.
+            # T-2713: relation comes from git ancestry via the shared predicate,
+            # never from `sort -V` — VERSION is a counter that resets, so a
+            # bigger number does not mean newer code.
             local version_ok=true
             local version_relation="match"
             if [ -n "$cversion" ] && [ "$cversion" != "$FW_VERSION" ]; then
-                version_ok=false
-                if [ "$(printf '%s\n%s\n' "$cversion" "$FW_VERSION" | sort -V | tail -1)" = "$cversion" ]; then
-                    version_relation="ahead"
+                local csha
+                csha=$(grep "^version_sha:" "$fw_yaml" 2>/dev/null | sed 's/^version_sha:[[:space:]]*//' || true)
+                # Bare call, NOT $(...): the reason is returned via a global and
+                # a subshell would silently blank it (see lib/version-relation.sh).
+                fw_version_relation "$cversion" "$FW_VERSION" "$csha" "$FRAMEWORK_ROOT" >/dev/null
+                version_relation="$FW_VERSION_RELATION"
+                if [ "$version_relation" = "same" ]; then
+                    version_relation="match"
                 else
-                    version_relation="behind"
+                    version_ok=false
                 fi
             fi
             # Check hooks by type (reuse T-615 logic)
@@ -1661,22 +2461,45 @@ else:
                 echo -e "  ${GREEN}OK${NC}  $cname (v$cversion, $hook_counts hooks)"
             else
                 local reasons=""
-                if [ "$version_relation" = "behind" ]; then
-                    reasons="v$cversion → v$FW_VERSION"
-                elif [ "$version_relation" = "ahead" ]; then
-                    reasons="v$cversion is AHEAD of framework v$FW_VERSION"
-                fi
+                case "$version_relation" in
+                    behind)      reasons="v$cversion → v$FW_VERSION" ;;
+                    ahead)       reasons="v$cversion is AHEAD of framework v$FW_VERSION" ;;
+                    diverged)    reasons="v$cversion has DIVERGED from framework v$FW_VERSION" ;;
+                    undecidable) reasons="v$cversion vs v$FW_VERSION — relation undetermined" ;;
+                    foreign-source) reasons="v$cversion — this framework does not contain the consumer's commit" ;;
+                esac
                 if [[ "$hook_info" == missing* ]]; then
                     [ -n "$reasons" ] && reasons="$reasons, "
                     reasons="$reasons$hook_info"
                 fi
                 echo -e "  ${YELLOW}WARN${NC}  $cname ($reasons)"
-                if [ "$version_relation" = "ahead" ]; then
-                    echo -e "         DO NOT run \`fw upgrade $consumer_dir\` — would downgrade v$cversion → v$FW_VERSION."
-                    echo -e "         Framework VERSION likely rolled back (see T-1828). Wait for framework to catch up."
-                else
-                    echo -e "         Run: fw upgrade $consumer_dir"
-                fi
+                case "$version_relation" in
+                    ahead|diverged)
+                        echo -e "         DO NOT run \`fw upgrade $consumer_dir\` — ${FW_VERSION_RELATION_REASON}."
+                        echo -e "         Upgrading would move the consumer onto code it does not contain."
+                        ;;
+                    undecidable)
+                        # T-2713: this is where the old `sort -V` fabricated "ahead"
+                        # and froze consumers. State the ignorance, don't dress it up.
+                        echo -e "         Cannot order these: ${FW_VERSION_RELATION_REASON}."
+                        echo -e "         Upgrade is NOT blocked on this — it records version_sha, making the next check decidable."
+                        echo -e "         Run: fw upgrade $consumer_dir"
+                        ;;
+                    foreign-source)
+                        # T-2762. Without this branch the relation fell through to
+                        # the default below and doctor printed "Run: fw upgrade" —
+                        # recommending the one command that is about to refuse, from
+                        # the one source that must not perform it. The remedy is to
+                        # change WHICH fw runs, not to run this one harder.
+                        echo -e "         DO NOT run \`fw upgrade $consumer_dir\` from here — ${FW_VERSION_RELATION_REASON}."
+                        echo -e "         Check which fw is running: readlink -f \"\$(command -v fw)\""
+                        echo -e "         Upgrade from the consumer's own .agentic-framework/bin/fw, or from an"
+                        echo -e "         upstream checkout containing the consumer's commit."
+                        ;;
+                    *)
+                        echo -e "         Run: fw upgrade $consumer_dir"
+                        ;;
+                esac
                 warnings=$((warnings + 1))
                 consumer_issues=$((consumer_issues + 1))
             fi
@@ -1765,7 +2588,36 @@ else:
     # installed /etc/cron.d/ file are out of sync — the root cause of
     # T-1112 (pickup-process missing for 5 consumer projects).
     local cron_registry="$PROJECT_ROOT/.context/cron-registry.yaml"
-    if [ -f "$cron_registry" ]; then
+    # T-2435 (OBS-077): cron is host-level (installed once from the canonical main
+    # checkout). In a linked worktree the derived target is worktree-named and never
+    # installed, so the drift checks below are pure worktree artifacts. Detect a linked
+    # worktree inline (bin/fw does not source lib/paths.sh) — git-dir != git-common-dir.
+    local _fw_gd _fw_gcd _fw_is_wt=0
+    _fw_gd=$(git -C "$PROJECT_ROOT" rev-parse --git-dir 2>/dev/null || echo .git)
+    _fw_gcd=$(git -C "$PROJECT_ROOT" rev-parse --git-common-dir 2>/dev/null || echo .git)
+    case "$_fw_gd"  in /*) ;; *) _fw_gd="$PROJECT_ROOT/$_fw_gd" ;; esac
+    case "$_fw_gcd" in /*) ;; *) _fw_gcd="$PROJECT_ROOT/$_fw_gcd" ;; esac
+    [ "$_fw_gd" != "$_fw_gcd" ] && _fw_is_wt=1
+    if [ "$_fw_is_wt" = "1" ]; then
+        # T-2466: surface worktree topology so a session knows whether its branch is
+        # live on this host (hooks run MAIN's bin/fw; merge-to-master ≠ live until
+        # MAIN's branch contains the fix). Reuses lib/worktree.sh (self-contained, git-only).
+        if . "$FRAMEWORK_ROOT/lib/worktree.sh" 2>/dev/null; then
+            local _wt_line
+            _wt_line=$( cd "$PROJECT_ROOT" && do_worktree_doctor_line 2>/dev/null )
+            [ -n "$_wt_line" ] && echo -e "  ${CYAN}INFO${NC}  $_wt_line"
+        fi
+    fi
+    source "$FRAMEWORK_ROOT/lib/cron-registry.sh"
+    if [ -f "$cron_registry" ] && [ "$_fw_is_wt" = "1" ]; then
+        echo -e "  ${CYAN}SKIP${NC}  Cron drift checks skipped — linked worktree (cron is host-level, managed from the main checkout)"
+    elif [ -f "$cron_registry" ] && [ "$(cron_registry_job_count "$cron_registry")" = "0" ]; then
+        # T-2844: `fw init` seeds `jobs: []`. An empty registry has no generated
+        # form, so "not generated" is correct rather than drift — every freshly
+        # initialised project used to WARN here. A malformed registry returns -1,
+        # not 0, and falls through to the checks below on purpose.
+        echo -e "  ${CYAN}SKIP${NC}  Cron drift checks skipped — registry declares no jobs (nothing to generate)"
+    elif [ -f "$cron_registry" ]; then
         local cron_source="$PROJECT_ROOT/.context/cron/agentic-audit.crontab"
         local cron_target_dir="${FW_CRON_INSTALL_DIR:-/etc/cron.d}"
         local cron_slug
@@ -1832,6 +2684,112 @@ else:
         fi
     fi
 
+    # T-2914: Autonomous Dispatch — single surface for "is anything dispatching
+    # unattended right now" (covering the systemd path the cron-registry checks
+    # above cannot see) plus any tasks the loop is currently refusing to
+    # re-dispatch (stalled / zero-outcome). Without this, "Cron registry in
+    # sync" + registry status=paused reads as "nothing autonomous is running"
+    # while a systemd timer dispatches every 30 min (defect 3/5, T-2914 —
+    # found by elimination across root crontab, /etc/cron.d, systemctl).
+    if _doctor_quick_skip "Autonomous Dispatch"; then :; else
+    echo ""
+    echo -e "  ${BOLD}Autonomous Dispatch${NC}"
+    if command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files resolver-loop.timer >/dev/null 2>&1; then
+        if systemctl is-active --quiet resolver-loop.timer 2>/dev/null; then
+            echo -e "  ${GREEN}LIVE${NC}  systemd resolver-loop.timer is active — dispatching unattended every 30m"
+        else
+            echo -e "  ${CYAN}INFO${NC}  systemd resolver-loop.timer is installed but inactive"
+        fi
+    else
+        echo -e "  ${CYAN}INFO${NC}  systemd resolver-loop.timer not installed on this host"
+    fi
+    if [ -f "$cron_registry" ]; then
+        local _auto_cron_status
+        _auto_cron_status=$(python3 -c "
+import yaml
+try:
+    d = yaml.safe_load(open('$cron_registry')) or {}
+except Exception:
+    d = {}
+jobs = d.get('jobs') or []
+m = [j for j in jobs if str(j.get('id','')) == 'resolver-loop-autonomous']
+print(str(m[0].get('status','?')) if m else 'not-registered')
+" 2>/dev/null)
+        echo -e "  ${CYAN}INFO${NC}  cron entry resolver-loop-autonomous: ${_auto_cron_status:-?}"
+    fi
+    if [ -f "$FRAMEWORK_ROOT/lib/resolver.py" ] && [ -d "$PROJECT_ROOT/.tasks/active" ]; then
+        local _stalled_json _stalled_count
+        _stalled_json=$(cd "$PROJECT_ROOT" && PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/resolver.py" stalled --json 2>/dev/null)
+        # T-2915: `${_stalled_json:-{}}` looks like a safe empty-default but
+        # bash's brace-matching in parameter expansion appends a stray `}`
+        # whenever the variable IS set and its value ends in `}` (which JSON
+        # always does) — corrupting valid output into invalid JSON. The
+        # except:d={} swallowed that silently, so this WARN never fired
+        # regardless of real stalled count. printf + explicit empty-check
+        # sidesteps the expansion entirely.
+        [ -z "$_stalled_json" ] && _stalled_json="{}"
+        _stalled_count=$(printf '%s' "$_stalled_json" | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    d = {}
+print(len(d.get('stalled') or {}))
+" 2>/dev/null || echo 0)
+        if [ "${_stalled_count:-0}" -gt 0 ] 2>/dev/null; then
+            echo -e "  ${YELLOW}WARN${NC}  $_stalled_count task(s) stalled — dispatched repeatedly with zero advancement:"
+            echo "$_stalled_json" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+for tid, info in sorted((d.get('stalled') or {}).items()):
+    print(f\"        {tid}  dispatches={info['dispatch_count']}  outcomes={info['outcome_count']}  since={info['since']}\")
+" 2>/dev/null
+            echo -e "        Details: fw resolver stalled --json"
+            warnings=$((warnings + 1))
+        else
+            echo -e "  ${GREEN}OK${NC}  No stalled/zero-outcome tasks"
+        fi
+        # T-2915: stale in-flight latches — dispatch rows with no
+        # terminal_event older than the age bound. These no longer block
+        # picking (the fix), but a nonzero count means a worker died without
+        # writing a terminal event, which is the anomaly this surfaces.
+        local _latched_json _latched_count
+        _latched_json=$(cd "$PROJECT_ROOT" && PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/resolver.py" latched --json 2>/dev/null)
+        # T-2915: see the stalled-block comment above — same fix, same bug class.
+        [ -z "$_latched_json" ] && _latched_json="{}"
+        _latched_count=$(printf '%s' "$_latched_json" | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    d = {}
+print(len(d.get('latched') or {}))
+" 2>/dev/null || echo 0)
+        if [ "${_latched_count:-0}" -gt 0 ] 2>/dev/null; then
+            echo -e "  ${YELLOW}WARN${NC}  $_latched_count dispatch(es) latched stale — no terminal_event, worker presumed dead:"
+            # Cap the listing but never the count. The WARN header above always
+            # carries the full total, and the elision line names what was
+            # dropped — a truncated list that does not say it was truncated
+            # reads as "these are all of them" (no-silent-caps discipline).
+            # 250 latched dispatches were live when this shipped; dumping all
+            # of them buries every other doctor finding.
+            echo "$_latched_json" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+rows = sorted((d.get('latched') or {}).items(), key=lambda kv: -kv[1]['age_min'])
+for tid, info in rows[:5]:
+    print(f\"        {tid}  age={info['age_min']:.0f}m  last_dispatch={info['ts']}\")
+if len(rows) > 5:
+    print(f\"        … and {len(rows) - 5} more (oldest shown first)\")
+" 2>/dev/null
+            echo -e "        Details: fw resolver latched --json"
+            warnings=$((warnings + 1))
+        else
+            echo -e "  ${GREEN}OK${NC}  No stale in-flight latches"
+        fi
+    fi
+    fi
+
     # Doc-drift check: fw subcommands vs CLAUDE.md Quick Reference (T-1147/T-1104/T-1421)
     if [ -f "$FRAMEWORK_ROOT/CLAUDE.md" ]; then
         local _qr_cmds _fw_cmds _missing _miss_count _prose_list
@@ -1890,6 +2848,7 @@ else:
     # mirror push is rejected as non-fast-forward and AEF stops reaching GitHub
     # silently. T-1591 root cause was annotated-vs-lightweight tag mismatch
     # going undetected for 50+ failed mirror builds (~22h).
+    if _doctor_quick_skip "Mirror divergence (origin↔mirror ls-remote)"; then :; else
     set +e  # tolerate ls-remote / comm / wc pipe failures (network, empty refs)
     local _all_remotes _has_origin
     _all_remotes=$(git -C "$PROJECT_ROOT" remote 2>/dev/null)
@@ -1940,6 +2899,7 @@ else:
         rm -f "$_origin_dump"
     fi
     set -e
+    fi  # T-2452/F6: end --quick guard for mirror divergence
 
     # Check: Workflow file schema linter (T-1694 / Q14)
     # Lints all .context/project/workflows/*.yaml against ADR-0003 schema:
@@ -2003,6 +2963,61 @@ else:
             ;;
     esac
 
+    # T-100143 (C2 of T-100139): branch hygiene — WARN-only advisory rail.
+    # merged-but-undeleted local branches, live branches far behind master,
+    # worktrees parked on merged branches, remote refs fully contained in
+    # origin/master. C1 (fw integrate run, T-100142) deletes branches on
+    # verified landings; this surfaces the remaining debris. Threshold via
+    # FW_BRANCH_BEHIND_WARN (default 50, shared with C3/T-100144). Silent
+    # scan on a tidy repo (OK line only).
+    if [ -f "$FRAMEWORK_ROOT/lib/branch-hygiene.sh" ] && git -C "$PROJECT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+        . "$FRAMEWORK_ROOT/lib/branch-hygiene.sh"
+        local _bh_out _bh_count
+        _bh_out=$(fw_branch_hygiene "$PROJECT_ROOT" 2>/dev/null || true)
+        if [ -n "$_bh_out" ]; then
+            _bh_count=$(printf '%s\n' "$_bh_out" | grep -c .)
+            echo -e "  ${YELLOW}WARN${NC}  Branch hygiene: $_bh_count finding(s)"
+            while IFS= read -r _bl; do
+                echo -e "         $_bl"
+            done < <(printf '%s\n' "$_bh_out" | head -12)
+            if [ "$_bh_count" -gt 12 ]; then
+                echo -e "         … $((_bh_count - 12)) more (full list: git branch --merged origin/master)"
+            fi
+            echo -e "         Cleanup: git branch -d <name> (merged); fw integrate run (overdue merge-back)"
+            if printf '%s\n' "$_bh_out" | grep -q '^diverged-fork '; then
+                # T-100195 (RCA T-100194): a fork needs reconcile-while-small, NOT
+                # a one-way `fw integrate` — that cannot absorb what master has.
+                echo -e "         ${YELLOW}FORK${NC}: a diverged-fork branch is BOTH ahead and behind — a go-live \`git merge origin/master\` will conflict. Reconcile now while small (merge origin/master INTO the branch and resolve, or reset if the unique commits already landed). Do NOT use \`fw integrate\` on a fork (one-way). See T-100195."
+            fi
+            warnings=$((warnings + 1))
+        else
+            echo -e "  ${GREEN}OK${NC}  Branch hygiene clean"
+        fi
+    fi
+
+    # T-2516 (T-2121 prong 3): untracked .tasks/ files — early-detection rail for
+    # the active↔completed divergence class (T-2091), which masked an orphaned
+    # untracked completion copy for ~7 days. Silent on a clean tree (OK line).
+    if [ -f "$FRAMEWORK_ROOT/lib/branch-hygiene.sh" ] && git -C "$PROJECT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+        . "$FRAMEWORK_ROOT/lib/branch-hygiene.sh"
+        local _ut_out _ut_count
+        _ut_out=$(fw_untracked_tasks "$PROJECT_ROOT" 2>/dev/null || true)
+        if [ -n "$_ut_out" ]; then
+            _ut_count=$(printf '%s\n' "$_ut_out" | grep -c .)
+            echo -e "  ${YELLOW}WARN${NC}  Untracked task files: $_ut_count under .tasks/{active,completed}/"
+            while IFS= read -r _ul; do
+                echo -e "         $_ul"
+            done < <(printf '%s\n' "$_ut_out" | head -12)
+            if [ "$_ut_count" -gt 12 ]; then
+                echo -e "         … $((_ut_count - 12)) more"
+            fi
+            echo -e "         An untracked completion copy that never got committed is the T-2091 divergence class. Commit it (git add + fw git commit) or remove the orphan. See T-2121 prong 3."
+            warnings=$((warnings + 1))
+        else
+            echo -e "  ${GREEN}OK${NC}  No untracked task files under .tasks/{active,completed}/"
+        fi
+    fi
+
     # T-2185: stale gauge-READY gaps — surface operator-procrastination class.
     # WARN when ≥1 gap has closure_check_command + gauge currently READY for
     # ≥7 days (created/last_reviewed). Mirrors OBS-048 (G-064 READY since
@@ -2038,6 +3053,24 @@ except Exception as e:
         _scope_breakdown=" ($host_warnings host-level)"
     fi
     echo ""
+    # T-2451/F7: project-health verdict, surfaced FIRST. A fresh consumer (e.g.
+    # /opt/505) needs to read THEIR project's health at a glance, independent of
+    # host-level noise (mirror divergence, global-install size, ~/.local/bin
+    # shims) that is not about their project. project_warnings excludes the
+    # [host]-tagged findings counted via _doctor_warn_host; failures are all
+    # project-scope (no host FAIL category exists). The total summary below is
+    # unchanged.
+    local project_warnings=$((warnings - host_warnings))
+    local _proj_label="${PROJECT_ROOT:-$FRAMEWORK_ROOT}"
+    if [ "$issues" -eq 0 ] && [ "$project_warnings" -eq 0 ]; then
+        echo -e "${GREEN}Project ${_proj_label}: healthy${NC} — 0 project warning(s), 0 failure(s)"
+    else
+        echo -e "${BOLD}Project ${_proj_label}:${NC} ${project_warnings} project warning(s), ${issues} failure(s)"
+    fi
+    if [ "$host_warnings" -gt 0 ]; then
+        echo -e "  ${CYAN}↳ ${host_warnings} host-level finding(s) excluded${NC} (not about this project — handle from a session at that root)"
+    fi
+    echo ""
     if [ $issues -eq 0 ] && [ $warnings -eq 0 ]; then
         echo -e "${GREEN}All checks passed${NC}"
     elif [ $issues -eq 0 ]; then
@@ -2046,6 +3079,51 @@ except Exception as e:
         echo -e "${RED}$issues failure(s), $warnings warning(s)$_scope_breakdown${NC}"
         exit 2
     fi
+}
+
+# --- Proxy-policy emit / install / drift (T-2432, arc-013) ---
+# emit (agent-safe) + status (drift) run anywhere; install is human/root (Lock-1 Part 1)
+# and REFUSES under the agent. Sibling of `fw mcp emit-manifest` (emit/deploy split).
+do_policy() {
+    local action="${1:-}"; shift || true
+    local _src="${AEF_PROXY_POLICY:-$PROJECT_ROOT/policy/proxy-policy.yaml}"
+    case "$action" in
+        emit)
+            # T-2649 (OBS-097): lib/ is FRAMEWORK-owned — PROJECT_ROOT resolution
+            # dangles in split-root consumers (source _src stays PROJECT_ROOT: the
+            # proxy-policy is a per-project governance instance).
+            PYTHONPATH="$FRAMEWORK_ROOT" python3 "$FRAMEWORK_ROOT/lib/govd_policy.py" emit --source "$_src" "$@"
+            ;;
+        status)
+            PYTHONPATH="$FRAMEWORK_ROOT" python3 "$FRAMEWORK_ROOT/lib/govd_policy.py" status --source "$_src" "$@"
+            ;;
+        install)
+            # Lock-1 Part 1 boundary: the agent must NOT deploy its own governance policy.
+            if [ "${CLAUDECODE:-}" = "1" ]; then
+                echo -e "${RED}ERROR: 'fw policy install' is Lock-1 Part 1 (human/root) — the agent must not install its own governance policy.${NC}" >&2
+                echo "  The agent emits the spec; the human/root deploys it RO. Run:" >&2
+                echo "    fw policy emit        # review the install spec (agent-safe)" >&2
+                echo "    sudo fw policy install   # human/root only" >&2
+                return 3
+            fi
+            if [ "$(id -u)" != "0" ]; then
+                echo -e "${RED}ERROR: 'fw policy install' must run as root (it deploys the policy RO to the agent uid).${NC}" >&2
+                echo "  Run: sudo fw policy install" >&2
+                return 3
+            fi
+            PYTHONPATH="$FRAMEWORK_ROOT" python3 "$FRAMEWORK_ROOT/lib/govd_policy.py" install --source "$_src" "$@"
+            ;;
+        ""|-h|--help|help)
+            echo "Usage: fw policy {emit|status|install}"
+            echo "  emit      Print the install spec (agent-safe — runs nothing)"
+            echo "  status    Drift: deployed copy vs in-repo source (sha256)"
+            echo "  install   Deploy policy RO — human/root only (Lock-1 Part 1)"
+            ;;
+        *)
+            echo "Unknown: fw policy $action (try: emit|status|install)" >&2
+            return 2
+            ;;
+    esac
 }
 
 # --- Task Subcommand Routing ---
@@ -3207,6 +4285,12 @@ case "$cmd" in
     context)
         exec "$AGENTS_DIR/context/context.sh" "$@"
         ;;
+    focus)
+        # T-2860: alias for `fw context focus` — routes through the same dispatch
+        # so the two verbs cannot drift. `fw focus` (no arg) reports current focus
+        # via do_focus's own no-arg branch, never a false-success.
+        exec "$AGENTS_DIR/context/context.sh" focus "$@"
+        ;;
     arc)
         # T-1661: Arc system — first-class workspace grouping tasks by theme.
         # Verbs: create / focus / list / show / tag / close / migrate / help
@@ -3223,6 +4307,225 @@ case "$cmd" in
         . "$FRAMEWORK_ROOT/lib/bvp.sh"
         bvp_dispatch "$@"
         exit $?
+        ;;
+    write-set)
+        # T-2337 (arc-011 M1 §3): disjoint write-set validator.
+        # Verbs: check <T-A> <T-B> — compare two tasks' declared write_set: frontmatter
+        # Exit codes: 0=disjoint, 1=overlap, 2=undecidable
+        ws_subcmd="${1:-}"
+        shift || true
+        case "$ws_subcmd" in
+            check)
+                if [ $# -lt 2 ]; then
+                    echo "usage: fw write-set check <T-A> <T-B>" >&2
+                    exit 64
+                fi
+                exec env PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/write_set.py" check "$1" "$2"
+                ;;
+            ""|--help|-h|help)
+                cat <<'EOF'
+fw write-set check <T-A> <T-B>
+
+Compare two tasks' declared `write_set:` frontmatter and report whether
+they are disjoint, overlap, or undecidable. Used by the arc-011 orchestrator
+before emitting parallel dispatch (T-2337, arc-011 M1 §3).
+
+Exit codes:
+  0  disjoint    — both write-sets declared, no path overlap
+  1  overlap     — both declared, at least one shared path
+  2  undecidable — at least one task lacks write_set: frontmatter
+
+Examples:
+  fw write-set check T-PAR-A T-PAR-B    # Two disjoint tasks → exit 0
+  fw write-set check T-COL-A T-COL-B    # Two overlapping tasks → exit 1
+EOF
+                exit 0
+                ;;
+            *)
+                echo "ERROR: unknown write-set subcommand: $ws_subcmd" >&2
+                echo "Run 'fw write-set --help' for usage." >&2
+                exit 64
+                ;;
+        esac
+        ;;
+    worktree)
+        # T-2466 (slice 2): worktree topology observability — `status` reports which
+        # branch MAIN is on (live-on-host implication), master-lock holder, per-worktree
+        # merged?/live? state. T-2469 adds `create` (one-step isolated-worktree bootstrap).
+        # merge-back routes to `fw integrate run` (arc-011 / T-2471), not a subcommand here.
+        wt_subcmd="${1:-}"
+        shift || true
+        case "$wt_subcmd" in
+            status)
+                # shellcheck source=lib/worktree.sh
+                . "$FRAMEWORK_ROOT/lib/worktree.sh"
+                ( cd "$PROJECT_ROOT" && do_worktree_status "$@" )
+                exit $?
+                ;;
+            create)
+                # shellcheck source=lib/worktree.sh
+                . "$FRAMEWORK_ROOT/lib/worktree.sh"
+                ( cd "$PROJECT_ROOT" && do_worktree_create "$@" )
+                exit $?
+                ;;
+            gc)
+                # T-100196 slice 2: reclaim landed worktrees/branches by CONTENT
+                # comparison (survives fw-integrate/vendor re-derivation, which defeats
+                # git cherry). Dry-run default; --apply removes landed worktrees;
+                # branch deletes stay Tier-0 (surfaced, never self-run).
+                # shellcheck source=lib/worktree.sh
+                . "$FRAMEWORK_ROOT/lib/worktree.sh"
+                ( cd "$PROJECT_ROOT" && do_worktree_gc "$@" )
+                exit $?
+                ;;
+            remove)
+                # T-2825, G-076: sanctioned teardown -- refuses when the worktree's
+                # branch holds commits absent from every remote (would strand them,
+                # T-2428 origin). --force overrides, logged Tier-2.
+                # shellcheck source=lib/worktree.sh
+                . "$FRAMEWORK_ROOT/lib/worktree.sh"
+                ( cd "$PROJECT_ROOT" && do_worktree_remove "$@" )
+                exit $?
+                ;;
+            ""|--help|-h|help)
+                cat <<'EOF'
+fw worktree status [--json]            topology of the framework checkout (read-only)
+fw worktree create <name> [--from R]   spin up an isolated worktree in one safe step
+fw worktree gc [--apply] [--json]      reclaim landed worktrees/branches (content-verified)
+fw worktree remove <name> [--force]    sanctioned teardown -- refuses if branch is unpushed to every remote
+
+Reports the git-worktree topology so parallel work + merge-back is legible:
+  - which branch the MAIN checkout is on, and whether merging to master goes LIVE
+    on this host (it does NOT while main sits on a session branch — hooks run
+    MAIN's bin/fw, so a fix is live only once MAIN's branch contains it)
+  - which worktree (if any) holds `master` checked out (the master-lock that makes
+    `git checkout master` in main fail → use `git push origin <branch>:master`)
+  - per-worktree merged-into-master? and live-on-this-host? state
+
+create (T-2469) spins up an isolated worktree in one safe step:
+  - creates <main>/.claude/worktrees/<name> on branch `worktree-<name>`
+  - branches from master/main by default (clean divergence -> clean merge-back);
+    override with --from <ref> to branch from somewhere else
+  - vendor-syncs the new worktree's .agentic-framework/ (idempotent confirm)
+  - does NOT touch the +x bit: bin/fw dispatches hooks via `bash` (T-2467), so
+    hook wrappers work without it
+  Folds termlink's worktree-bootstrap.sh prior art (P-047 Q3).
+
+merge-back is `fw integrate run` (T-2471, run from inside the worktree) — not a
+worktree subcommand, to avoid duplicating the arc-011 integrate surface.
+
+remove (T-2825, G-076) is the sanctioned teardown path: `git worktree remove` alone
+has no opinion about whether the branch it points at is reachable anywhere else, so
+tearing down the worktree can silently strand unpushed commits (origin: a 6-commit
+branch sat unpushed for 5 weeks this way). `fw worktree remove` refuses when the
+branch holds commits absent from every configured remote; `--force` proceeds and
+logs a Tier-2 entry. Prefer this over a raw `git worktree remove` for any worktree
+that might hold unlanded commits.
+
+Examples:
+  fw worktree status
+  fw worktree status --json
+  fw worktree create my-feature
+  fw worktree create hotfix --from origin/master
+  fw worktree remove my-feature
+  fw worktree remove my-feature --force
+EOF
+                exit 0
+                ;;
+            *)
+                echo "ERROR: unknown worktree subcommand: $wt_subcmd" >&2
+                echo "Run 'fw worktree --help' for usage." >&2
+                exit 64
+                ;;
+        esac
+        ;;
+    integrate)
+        # T-2399 (arc parallel-exec, T-2397 L2 slice 1, G2): serialized-integration
+        # preflight. Read-only — classifies how a worktree branch would integrate
+        # onto master (FF-ready / auto-resolvable governance files / needs-human).
+        # Verbs: check [target] — preflight current branch against target (default master)
+        #        classify <path>... — show the un-partitionable class for paths
+        # Exit codes (check): 0 ff-ready|clean, 1 auto-resolvable, 2 needs-human,
+        #                     3 not-on-a-branch, 4 usage/git-error
+        int_subcmd="${1:-}"
+        shift || true
+        case "$int_subcmd" in
+            check)
+                exec env PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/integrate.py" check "$@"
+                ;;
+            classify)
+                if [ $# -lt 1 ]; then
+                    echo "usage: fw integrate classify <path>..." >&2
+                    exit 64
+                fi
+                exec env PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/integrate.py" classify "$@"
+                ;;
+            run)
+                # T-2471: mutating merge-back (T-2397 §3). Integrates TARGET's divergence
+                # into the current worktree branch, auto-resolving governance/generated
+                # conflicts via the taxonomy, around regenerable churn. The focus/active-task
+                # gate exemption is VERB-SCOPED in lib/safe-commands.sh (`fw integrate`), not
+                # env-based — an FW_INTEGRATION_IN_PROGRESS gate-honor would reintroduce the
+                # T-2446 inherited-env poison class this arc eliminates. The env below only
+                # marks the python subprocess's own internal git calls (vendor-self etc.).
+                exec env PROJECT_ROOT="$PROJECT_ROOT" FRAMEWORK_ROOT="$FRAMEWORK_ROOT" \
+                    FW_INTEGRATION_IN_PROGRESS=1 \
+                    python3 "$FRAMEWORK_ROOT/lib/integrate.py" run "$@"
+                ;;
+            ""|--help|-h|help)
+                cat <<'EOF'
+fw integrate check [target]        (default target: master)
+fw integrate run [target] [--dry-run] [--push] [--keep-branch]
+fw integrate classify <path>...
+
+Layer-2 serialized-integration PREFLIGHT (read-only). Reports how the current
+worktree branch would integrate onto the target: whether master fast-forwards
+cleanly, whether divergence touches only governance/generated files that L2
+resolves mechanically, or whether real code conflicts need a human.
+
+Encodes the un-partitionable-file taxonomy from T-2397 §3.2 (the framework's
+Cargo.lock set: counters, metrics-history, feedback-stream, reviewer-overrides,
+LATEST audit yamls, episodics, task .md) — files that must be regenerated/unioned
+at the join, never git-merged.
+
+check exit codes:
+  0  ff-ready or clean    — master is an ancestor (FF works), or no both-sided files
+  1  auto-resolvable      — both-sided files are all governance/generated classes
+  2  needs-human          — real code/docs changed on both sides (may conflict)
+  3  not-on-a-branch      — HEAD is master/main; nothing to integrate
+  4  usage / git error
+
+Examples:
+  fw integrate check                 # preflight this branch vs master
+  fw integrate classify .context/working/feedback-stream.yaml lib/foo.sh
+
+run (T-2471) is the MUTATING verb: integrates TARGET's divergence INTO the current
+worktree branch, auto-resolving governance/generated conflicts via the §3.2 taxonomy
+(regenerate/union/take-existing), quiescing regenerable working-tree churn around the
+merge, then refreshing vendored .agentic-framework/. After run, the branch ⊇ target so
+target FFs cleanly (reported, or done server-side with --push). Refuses (clean abort,
+target untouched) on a real both-sided code conflict or uncommitted real code. --dry-run
+prints the plan + check verdict without mutating. The run is exempt from the focus/active-
+task gate via a verb-scoped safe-command entry (lib/safe-commands.sh), not an env honor.
+Deferred: true field/append/id UNION at both-sided conflicts (MVP keeps branch-side "ours"
+for the auto classes).
+
+After a verified landing (--push succeeded, branch tip contained in origin/target),
+run deletes the landed source branch and removes its worktree (T-100142 -- landed
+branches are debris). --keep-branch opts out; unmerged work is never force-deleted;
+without --push the branch is always kept.
+
+Part of the T-2394 structural-remediation (G2). Sibling: fw write-set check (G4,
+arc-011), the master-merge-only guard (G1, T-2396).
+EOF
+                exit 0
+                ;;
+            *)
+                echo "ERROR: unknown integrate subcommand: $int_subcmd" >&2
+                echo "Run 'fw integrate --help' for usage." >&2
+                exit 64
+                ;;
+        esac
         ;;
     cron)
         # T-448: Cron registry management
@@ -3270,7 +4573,7 @@ for job in jobs:
 
     # T-1249: Resolve ALL occurrences of bare 'fw' (not just leading)
     # T-1720: cd into PROJECT_ROOT for fw commands too — fw subcommands that
-    # invoke `python3 -m lib.X` need cwd=PROJECT_ROOT (cron's default cwd is
+    # invoke 'python3 -m lib.X' need cwd=PROJECT_ROOT (cron's default cwd is
     # HOME). Without this the module import fails and the line silently no-ops.
     if 'fw ' in command:
         resolved = re.sub(r'\bfw\b', f'\"{fw_path}\"', command)
@@ -3581,8 +4884,89 @@ print(f'  Run \"fw cron generate\" to update the crontab file')
     fabric)
         exec "$AGENTS_DIR/fabric/fabric.sh" "$@"
         ;;
+    designer)
+        # T-2521: vendor + serve the pinned Workflow Designer build (SoT: 832).
+        exec "$AGENTS_DIR/designer/designer.sh" "$@"
+        ;;
+    bpmn)
+        # T-2533: Child-2 forward compiler — BPMN diagram → AEF task skeletons.
+        exec "$AGENTS_DIR/bpmn/bpmn.sh" "$@"
+        ;;
+    corpus)
+        # T-2603 (T-2602 GO): spec-driven corpus authoring — derive specs from
+        # served maps, generate contract-v0 BPMN via /api/save, canonical diff.
+        # T-2604: `lint` routes to the defect-class linter (per-map + cross-map).
+        if [ "${1:-}" = "lint" ]; then
+            shift
+            exec python3 "$FRAMEWORK_ROOT/tools/corpus_lint.py" "$@"
+        fi
+        # T-2622: `explain` renders an agent-readable walkthrough + authority-
+        # stage provenance footer (cascading-detail model, T-2619).
+        if [ "${1:-}" = "explain" ]; then
+            shift
+            exec python3 "$FRAMEWORK_ROOT/tools/corpus_explain.py" "$@"
+        fi
+        exec python3 "$FRAMEWORK_ROOT/tools/corpus_spec.py" "$@"
+        ;;
     git)
         exec "$AGENTS_DIR/git/git.sh" "$@"
+        ;;
+    sync)
+        # T-100196 slice 1 (keystone): trunk-based session reconcile. In the
+        # session-on-master model the persistent session commits governance state
+        # directly to master; `fw sync` reconciles with origin/master via REBASE
+        # (never a merge — no merge-commit noise, no fork) and pushes. This is the
+        # concurrent-session safety valve: if another session advanced origin/master,
+        # rebase replays local governance commits on top, then push fast-forwards.
+        _sync_branch=$(git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null)
+        echo -e "${BOLD}fw sync${NC} — reconcile ${_sync_branch} with origin/master (rebase + push)"
+        echo ""
+        if [ "$_sync_branch" != "master" ] && [ "$_sync_branch" != "main" ]; then
+            echo -e "  ${YELLOW}⚠${NC} You are on '${_sync_branch}', not master."
+            echo -e "     Trunk-based session flow (T-100196) runs the persistent session ON master."
+            echo -e "     Code changes belong in a worktree landed via ${BOLD}fw integrate${NC};"
+            echo -e "     the session itself should be on master. Switch: ${BOLD}git checkout master${NC}"
+            echo ""
+        fi
+        if ! git -C "$PROJECT_ROOT" remote 2>/dev/null | grep -qx 'origin'; then
+            echo -e "  ${RED}✗${NC} no 'origin' remote — nothing to sync."
+            exit 1
+        fi
+        echo -e "  ${CYAN}→${NC} git fetch origin master"
+        git -C "$PROJECT_ROOT" fetch origin master 2>&1 | sed 's/^/    /'
+        echo -e "  ${CYAN}→${NC} git pull --rebase origin master"
+        git -C "$PROJECT_ROOT" pull --rebase origin master 2>&1 | sed 's/^/    /'
+        if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+            echo -e "  ${RED}✗${NC} rebase blocked/conflicted — commit or stash local changes (or 'git rebase --continue'), then re-run 'fw sync'." >&2
+            exit 1
+        fi
+        echo -e "  ${CYAN}→${NC} git push origin ${_sync_branch}"
+        git -C "$PROJECT_ROOT" push origin "$_sync_branch" 2>&1 | sed 's/^/    /'
+        if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+            echo -e "  ${RED}✗${NC} push failed — inspect above." >&2
+            exit 1
+        fi
+        echo -e "  ${GREEN}✓${NC} in sync with origin/master."
+        exit 0
+        ;;
+    go-live)
+        # T-100196 (Leg 2 of T-100195/T-100194): safe go-live guard. Defense-in-
+        # depth on top of the session-on-master mechanism (Decisions §2026-07-05) —
+        # routes the current checkout's divergence from origin/master to the SAFE
+        # action instead of leaving a bare `git merge origin/master` as the only
+        # suggested command (the T-100194 explosion: a genuine bidirectional fork
+        # producing 100+ conflicts). Never merges a fork automatically; refuses and
+        # names the reconciliation path instead. See lib/branch-hygiene.sh:fw_go_live.
+        if [ ! -f "$FRAMEWORK_ROOT/lib/branch-hygiene.sh" ]; then
+            echo -e "${RED}✗${NC} lib/branch-hygiene.sh not found" >&2
+            exit 2
+        fi
+        # shellcheck disable=SC1091
+        . "$FRAMEWORK_ROOT/lib/branch-hygiene.sh"
+        echo -e "${BOLD}fw go-live${NC} — safe reconcile with origin/master (refuses bare merge on a fork)"
+        echo ""
+        fw_go_live "$PROJECT_ROOT"
+        exit $?
         ;;
     push)
         # T-1153: Push to all remotes with per-remote status.
@@ -3651,6 +5035,20 @@ print(f'  Run \"fw cron generate\" to update the crontab file')
         # claimed by an unrelated feature.
         _orch_subcmd="${1:-}"
         case "$_orch_subcmd" in
+            next-dispatch)
+                # T-2339 (arc-011 M1 §1): build the dispatch graph from the
+                # active task pool and emit (task_id, mode) per line.
+                shift
+                exec env PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/agents/orchestrator/orchestrator-graph.py" next-dispatch "$@"
+                ;;
+            pre-flight)
+                # T-2340 (arc-011 M1 §6): pre-dispatch disjointness gate.
+                # Refuses if any in-flight dispatch has write_set overlap with
+                # the candidate task. Exit codes: 0=allowed, 1=refused,
+                # 2=task-not-found, 64=usage.
+                shift
+                exec env PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/agents/orchestrator/orchestrator-graph.py" pre-flight "$@"
+                ;;
             improve)
                 shift
                 cat <<EOF
@@ -4313,6 +5711,10 @@ EOF
         source "$FW_LIB_DIR/bus.sh"
         do_bus "$@"
         ;;
+    rail)
+        source "$FW_LIB_DIR/rail-identity.sh"
+        do_rail "$@"
+        ;;
     dispatch)
         source "$FW_LIB_DIR/dispatch.sh"
         do_dispatch "$@"
@@ -4335,20 +5737,105 @@ EOF
     mcp)
         mcp_subcmd="${1:-}"
         shift || true
+        # T-2265 (arc-010 Slice 2): framework MCP server lifecycle + manifest.
+        _mcp_pid_file="$PROJECT_ROOT/.context/working/framework-mcp.pid"
+        _mcp_log_file="$PROJECT_ROOT/.context/working/framework-mcp.log"
+        # T-2649 (OBS-097): manifest + fragment are framework ASSETS —
+        # manifest.py emits relative to framework_root() (T-2459), so read
+        # them from the same tree, not PROJECT_ROOT.
+        _mcp_manifest="$AGENTS_DIR/mcp/framework-mcp-manifest.json"
+        _mcp_server="$AGENTS_DIR/mcp/framework_mcp_server.py"
+        _mcp_emitter="$AGENTS_DIR/mcp/manifest.py"
         case "$mcp_subcmd" in
             reap)
                 exec "$AGENTS_DIR/mcp/mcp-reaper.sh" "$@"
                 ;;
+            emit-manifest|manifest)
+                # Emit manifest WITHOUT starting the server. Used by audit + ci.
+                exec python3 "$_mcp_emitter" emit "$@"
+                ;;
+            manifest-show|show)
+                exec python3 "$_mcp_emitter" show "$@"
+                ;;
+            check)
+                # T-2293: focused exit-code drift check (sibling to fw vendor self --dry-run).
+                # 0 → in sync, 1 → drift, 2 → manifest absent. For CI / pre-commit / scripts.
+                exec python3 "$_mcp_emitter" check "$@"
+                ;;
+            wire-fragment)
+                # T-2272: print the .mcp.json fragment operator copies into project .mcp.json.
+                # Contract: agents/mcp/framework-mcp.mcp-fragment.json (static, version-controlled).
+                _frag="$AGENTS_DIR/mcp/framework-mcp.mcp-fragment.json"
+                if [ ! -f "$_frag" ]; then
+                    echo "fragment file missing: $_frag" >&2
+                    exit 2
+                fi
+                cat "$_frag"
+                ;;
+            start)
+                # Foreground stdio server (Claude Code spawns this via .mcp.json).
+                # For background server use: fw mcp start --background
+                _bg=0
+                for _a in "$@"; do
+                    [ "$_a" = "--background" ] || [ "$_a" = "--bg" ] && _bg=1
+                done
+                if [ "$_bg" -eq 1 ]; then
+                    if [ -f "$_mcp_pid_file" ] && kill -0 "$(cat "$_mcp_pid_file" 2>/dev/null)" 2>/dev/null; then
+                        echo "framework MCP server already running (pid $(cat "$_mcp_pid_file"))"
+                        exit 0
+                    fi
+                    mkdir -p "$(dirname "$_mcp_pid_file")"
+                    nohup python3 "$_mcp_server" >"$_mcp_log_file" 2>&1 &
+                    echo "$!" > "$_mcp_pid_file"
+                    sleep 0.2
+                    echo "framework MCP server started (pid $(cat "$_mcp_pid_file")), log: $_mcp_log_file"
+                    exit 0
+                fi
+                exec python3 "$_mcp_server"
+                ;;
+            stop)
+                if [ -f "$_mcp_pid_file" ]; then
+                    _pid=$(cat "$_mcp_pid_file" 2>/dev/null)
+                    if [ -n "$_pid" ] && kill -0 "$_pid" 2>/dev/null; then
+                        kill "$_pid" 2>/dev/null && echo "stopped framework MCP server (pid $_pid)"
+                    else
+                        echo "framework MCP server pid $_pid not running"
+                    fi
+                    rm -f "$_mcp_pid_file"
+                else
+                    echo "framework MCP server not running (no pid file)"
+                fi
+                ;;
+            status)
+                if [ -f "$_mcp_manifest" ]; then
+                    _tools=$(python3 -c "import json; m=json.load(open('$_mcp_manifest')); print(len(m.get('tools',[])))" 2>/dev/null || echo "?")
+                    _gated=$(python3 -c "import json; m=json.load(open('$_mcp_manifest')); print(sum(1 for t in m.get('tools',[]) if t.get('gated')))" 2>/dev/null || echo "?")
+                    echo "manifest:    $_mcp_manifest"
+                    echo "tools:       ${_tools} (gated: ${_gated})"
+                else
+                    echo "manifest:    ABSENT — run 'fw mcp emit-manifest'"
+                fi
+                if [ -f "$_mcp_pid_file" ] && kill -0 "$(cat "$_mcp_pid_file" 2>/dev/null)" 2>/dev/null; then
+                    echo "server:      running (pid $(cat "$_mcp_pid_file"))"
+                else
+                    echo "server:      stopped"
+                fi
+                ;;
             ""|help|-h|--help)
-                echo -e "${BOLD}fw mcp${NC} — MCP server process management"
+                echo -e "${BOLD}fw mcp${NC} — MCP server lifecycle + manifest (T-2265, arc-010)"
                 echo ""
                 echo "Subcommands:"
-                echo "  reap [--dry-run] [--force] [--age N] [--quiet]   Kill orphaned MCP processes"
+                echo "  emit-manifest                          Read tool-set.yaml → write framework-mcp-manifest.json"
+                echo "  manifest-show                          Print manifest JSON to stdout (no file write)"
+                echo "  check                                  Exit 0/1/2 = sync/drift/absent — for CI/pre-commit (T-2293)"
+                echo "  wire-fragment                          Print .mcp.json fragment for operator-side wiring (T-2272)"
+                echo "  start [--background]                   Run server (foreground stdio by default)"
+                echo "  stop                                   Stop background server"
+                echo "  status                                 Show manifest + pid state"
+                echo "  reap [--dry-run] [--force] [--age N]   Kill orphaned MCP processes"
                 echo ""
-                echo "Examples:"
-                echo "  fw mcp reap              # Interactive: detect + confirm"
-                echo "  fw mcp reap --dry-run    # Detection only"
-                echo "  fw mcp reap --force      # Kill without confirmation"
+                echo "Source of truth: policy/capability-overlay/tool-set.yaml (T-2258)"
+                echo "Consumed by:     agents/audit/orchestrator-mcp-scan.sh probe_framework_tools() (T-2260)"
                 ;;
             *)
                 echo -e "${RED}Unknown mcp subcommand: $mcp_subcmd${NC}"
@@ -4744,26 +6231,61 @@ print('0')
     review-queue)
         # T-1536: terminal mirror of Watchtower /approvals "Awaiting Human ACs"
         # Lists active tasks with unchecked Human ACs, prefixed by agent verdict.
-        rq_arg="${1:-}"
-        if [ "$rq_arg" = "--help" ] || [ "$rq_arg" = "-h" ] || [ "$rq_arg" = "help" ]; then
-            echo -e "${BOLD}fw review-queue${NC} — list tasks awaiting human review (T-1536)"
-            echo ""
-            echo "Shows two sections matching Watchtower /approvals:"
-            echo "  DECISIONS — pending inception GO/NO-GO/DEFER decisions (T-1571)"
-            echo "  VERDICT   — active tasks with unchecked Human ACs"
-            echo ""
-            echo "Each row is prefixed by the agent's recommendation verdict (GO/DEFER/"
-            echo "NO-GO/?). Companion to Watchtower /approvals."
-            echo ""
-            echo "Sort: GO first (rubber-stamp), then DEFER, then NO-GO, then unknown."
-            echo "Within each verdict: oldest first (stale > fresh)."
-            echo ""
-            echo "Usage:"
-            echo "  fw review-queue           Show queue"
-            echo "  fw review-queue --help    This message"
-            exit 0
-        fi
-        PROJECT_ROOT="$PROJECT_ROOT" python3 - <<'PYREVQ'
+        # T-2405: --arc <id> filters to tasks tagged with that arc.
+        rq_arc_filter=""
+        rq_ids_only=0
+        while [ $# -gt 0 ]; do
+            case "$1" in
+                --help|-h|help)
+                    echo -e "${BOLD}fw review-queue${NC} — list tasks awaiting human review (T-1536)"
+                    echo ""
+                    echo "Shows two sections matching Watchtower /approvals:"
+                    echo "  DECISIONS — pending inception GO/NO-GO/DEFER decisions (T-1571)"
+                    echo "  VERDICT   — active tasks with unchecked Human ACs"
+                    echo ""
+                    echo "Each row is prefixed by the agent's recommendation verdict (GO/DEFER/"
+                    echo "NO-GO/?). Companion to Watchtower /approvals."
+                    echo ""
+                    echo "Sort: GO first (rubber-stamp), then DEFER, then NO-GO, then unknown."
+                    echo "Within each verdict: oldest first (stale > fresh)."
+                    echo ""
+                    echo "Usage:"
+                    echo "  fw review-queue                  Show queue (corpus-wide)"
+                    echo "  fw review-queue --arc <id>       Filter to tasks tagged with <id>"
+                    echo "                                   Accepts arc-NNN form (arc-003)"
+                    echo "                                   or slug form (orchestrator-rethink)."
+                    echo "                                   Matches frontmatter arc_id: AND"
+                    echo "                                   legacy tags: [arc:<slug>, ...] (T-1849)."
+                    echo "                                   Unknown id → error + exit 1."
+                    echo "  fw review-queue --ids            VERDICT-pass task ids only,"
+                    echo "                                   one per line, oldest first"
+                    echo "                                   (machine-readable; the population"
+                    echo "                                   fw verify-queue runs over)"
+                    echo "  fw review-queue --help           This message"
+                    exit 0
+                    ;;
+                --ids)
+                    rq_ids_only=1
+                    ;;
+                --arc)
+                    shift
+                    rq_arc_filter="${1:-}"
+                    if [ -z "$rq_arc_filter" ]; then
+                        echo "ERROR: --arc requires an argument (arc-NNN or slug)" >&2
+                        exit 1
+                    fi
+                    ;;
+                --arc=*)
+                    rq_arc_filter="${1#--arc=}"
+                    ;;
+                *)
+                    echo "ERROR: unknown argument '$1'. Use --help for usage." >&2
+                    exit 1
+                    ;;
+            esac
+            shift
+        done
+        PROJECT_ROOT="$PROJECT_ROOT" FW_REVQ_ARC="$rq_arc_filter" FW_REVQ_IDS="$rq_ids_only" python3 - <<'PYREVQ'
 import os, re, sys, time
 from pathlib import Path
 from datetime import datetime
@@ -4810,6 +6332,56 @@ if not ACTIVE.is_dir():
     print("No .tasks/active directory.", file=sys.stderr)
     sys.exit(0)
 
+# T-2405: --arc <id> filter. Resolve user input to canonical (arc-NNN, slug)
+# pair by reading .context/arcs/*.yaml. Accepts either form.
+arc_filter_raw = os.environ.get("FW_REVQ_ARC", "").strip()
+arc_filter_canonical = None  # (arc_id, slug) tuple when set
+if arc_filter_raw:
+    ARCS_DIR = ROOT / ".context" / "arcs"
+    if not ARCS_DIR.is_dir():
+        print(f"ERROR: --arc {arc_filter_raw}: no .context/arcs/ directory", file=sys.stderr)
+        sys.exit(1)
+    matched_id = None
+    matched_slug = None
+    for arc_yaml in sorted(ARCS_DIR.glob("*.yaml")):
+        try:
+            content = arc_yaml.read_text(errors="replace")
+        except Exception:
+            continue
+        id_m = re.search(r"^id:\s*(\S+)", content, re.MULTILINE)
+        slug_m = re.search(r"^slug:\s*(\S+)", content, re.MULTILINE)
+        if not id_m:
+            continue
+        a_id = id_m.group(1).strip()
+        a_slug = slug_m.group(1).strip() if slug_m else arc_yaml.stem
+        if arc_filter_raw == a_id or arc_filter_raw == a_slug:
+            matched_id = a_id
+            matched_slug = a_slug
+            break
+    if matched_id is None:
+        print(f"ERROR: --arc {arc_filter_raw}: no matching arc in .context/arcs/", file=sys.stderr)
+        print("Run 'fw arc list' to see available arcs.", file=sys.stderr)
+        sys.exit(1)
+    arc_filter_canonical = (matched_id, matched_slug)
+
+def _task_matches_arc(fm_text, body_text, canonical):
+    """T-2405: True iff task's arc_id frontmatter OR legacy arc:<slug> tag
+    matches the canonical (arc_id, slug) pair. Accepts either form on either
+    side (frontmatter or tag)."""
+    if canonical is None:
+        return True
+    a_id, a_slug = canonical
+    # Frontmatter arc_id: line — accepts either form
+    aid_m = re.search(r"^arc_id:\s*(\S+)", fm_text, re.MULTILINE)
+    if aid_m:
+        v = aid_m.group(1).strip().strip("'\"")
+        if v == a_id or v == a_slug:
+            return True
+    # Legacy: tags: [arc:<slug>, ...] (T-1849 back-compat).
+    if re.search(rf"\barc:({re.escape(a_id)}|{re.escape(a_slug)})\b", fm_text):
+        return True
+    return False
+
 now = time.time()
 rows = []
 decision_rows = []
@@ -4829,6 +6401,10 @@ for f in sorted(ACTIVE.glob("*.md")):
     tid_v = tid_m.group(1).strip() if tid_m else ""
     tname_m = re.search(r'^name:\s*"?(.+?)"?\s*$', fm_text, re.MULTILINE)
     name = tname_m.group(1).strip() if tname_m else ""
+
+    # T-2405: --arc filter — applied to BOTH decision + verdict passes.
+    if not _task_matches_arc(fm_text, text, arc_filter_canonical):
+        continue
 
     # T-1571 / F5: DECISIONS pass — pending inception decisions
     if workflow_type == "inception" and not DECISION_RE.search(text):
@@ -4894,6 +6470,16 @@ try:
     paused_rows = list_paused_dispatches(ROOT)
 except Exception:
     paused_rows = []
+
+# T-2765: --ids — machine-readable VERDICT-pass task ids, one per line, oldest first.
+# Exists so `fw verify-queue` draws the queue population from the ONE predicate that
+# defines it (count_unchecked_human_acs, centralised by T-2075) instead of re-deriving
+# it from status/owner. A second definition of "awaiting human review" is how the
+# populations drift; L-539 is the cost of a rail measured over the wrong set.
+if os.environ.get("FW_REVQ_IDS") == "1":
+    for _r in sorted(rows, key=lambda r: -r[1]):
+        print(_r[2])
+    sys.exit(0)
 
 if not rows and not decision_rows and not paused_rows:
     print("No tasks awaiting human review.")
@@ -4972,6 +6558,41 @@ wt_url = url_file.read_text().strip() if url_file.exists() else f"http://localho
 print(f"\033[2mOpen in Watchtower: {wt_url}/approvals\033[0m")
 PYREVQ
         ;;
+    verify-queue)
+        # T-2765: re-run stored ## Verification for the human review queue.
+        # CTL-013 covers the latest 3 files in completed/; the queue lives in
+        # active/ and was outside every rail's population (L-539).
+        case "${1:-}" in
+            --help|-h|help)
+                echo -e "${BOLD}fw verify-queue${NC} — re-run stored Verification for tasks awaiting human review (T-2765)"
+                echo ""
+                echo "Population comes from 'fw review-queue --ids' — the same predicate that"
+                echo "defines the queue. Block extraction reuses extract_verification_block"
+                echo "from lib/verification-port.sh. Each line runs under 'set -eo pipefail'"
+                echo "from PROJECT_ROOT, exactly as the P-011 close gate runs it."
+                echo ""
+                echo "Usage:"
+                echo "  fw verify-queue                  Check the N least-recently-checked (default 5)"
+                echo "  fw verify-queue --limit N        Check N of them"
+                echo "  fw verify-queue --all            Full sweep (slow — one block per queued task)"
+                echo "  fw verify-queue --task T-XXX     Check one task"
+                echo "  fw verify-queue --json           Machine-readable verdict"
+                echo ""
+                echo "Rotation state: .context/working/.verify-queue-state.json"
+                echo "  (least-recently-checked first, so consecutive runs advance)"
+                echo ""
+                echo "Unsafe lines (nested 'fw audit', 'corpus prove', rm -rf, git push) are"
+                echo "reported SKIPPED, never PASS."
+                echo ""
+                echo "Exit: 0 = no red, 1 = at least one task red."
+                echo "Env: FW_VERIFY_QUEUE_TIMEOUT (per-command seconds, default 180)"
+                exit 0
+                ;;
+        esac
+        PROJECT_ROOT="$PROJECT_ROOT" FRAMEWORK_ROOT="$FRAMEWORK_ROOT" \
+            python3 "$FRAMEWORK_ROOT/lib/verify_queue.py" "$@"
+        exit $?
+        ;;
     work-on)
         # Single-step gate: create/resume task + set focus + start work
         wo_target="${1:-}"
@@ -5026,6 +6647,64 @@ PYREVQ
                 echo -e "${RED}work-on: task $wo_target not found in .tasks/active/ or .tasks/completed/${NC}" >&2
                 exit 1
             fi
+            # T-2286 (OBS-057): demo-target structural guard. Tasks marked
+            # `demo_target: true` are reserved for an orchestrated demo worker
+            # (e.g. arc-010 HM-A via `fw termlink dispatch`). The parent session
+            # MUST NOT consume the captured→started-work transition by running
+            # `fw work-on T-XXX` directly — doing so burns the headline-mechanic
+            # acceptance ("agent dispatches via mcp__fw__work_on") before the
+            # demo worker spawns. Bypass via flag (CLI) or env (git/wrapper)
+            # mirrors the producer/consumer parity discipline of L-399.
+            wo_demo_target=$(awk '/^---$/{c++; next} c==1 && /^demo_target:[[:space:]]*true[[:space:]]*$/{print "true"; exit}' "$wo_active_file" 2>/dev/null)
+            if [ "$wo_demo_target" = "true" ]; then
+                wo_is_demo_orch=false
+                for wo_arg_idx in "$@"; do
+                    [ "$wo_arg_idx" = "--i-am-demo-orchestrator" ] && wo_is_demo_orch=true
+                done
+                unset wo_arg_idx
+                if [ "${FW_I_AM_DEMO_ORCHESTRATOR:-0}" = "1" ]; then
+                    wo_is_demo_orch=true
+                fi
+                if [ "$wo_is_demo_orch" != true ]; then
+                    echo -e "${RED}=== work-on refused: $wo_target is a demo-target task ===${NC}" >&2
+                    echo "" >&2
+                    echo "  File: $wo_active_file" >&2
+                    echo "  Frontmatter: demo_target: true" >&2
+                    echo "" >&2
+                    echo "  This task is reserved for an orchestrated demo worker (e.g. the" >&2
+                    echo "  arc-010 HM-A demo dispatches its target via mcp__fw__work_on)." >&2
+                    echo "  Running 'fw work-on $wo_target' from the parent session would consume" >&2
+                    echo "  the captured→started-work transition that the demo worker expects" >&2
+                    echo "  to drive — burning half the headline-mechanic acceptance condition" >&2
+                    echo "  before the worker spawns (origin OBS-057, prevented by T-2286)." >&2
+                    echo "" >&2
+                    echo "  If you ARE the demo orchestrator, bypass with EITHER:" >&2
+                    echo "    flag (CLI direct):   bin/fw work-on $wo_target --i-am-demo-orchestrator" >&2
+                    echo "    env  (git/wrapper):  FW_I_AM_DEMO_ORCHESTRATOR=1 bin/fw work-on $wo_target" >&2
+                    echo "" >&2
+                    echo "  Both log Tier-2 bypass entries to .context/working/.gate-bypass-log.yaml." >&2
+                    echo "" >&2
+                    exit 1
+                fi
+                # Bypass active — log Tier-2 entry (mirrors lib/review.sh:_log_empty_recommendation_bypass)
+                wo_bypass_log_dir="${PROJECT_ROOT:-.}/.context/working"
+                mkdir -p "$wo_bypass_log_dir" 2>/dev/null || true
+                wo_bypass_log_file="$wo_bypass_log_dir/.gate-bypass-log.yaml"
+                wo_bypass_ts=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+                wo_bypass_mechanism="flag:--i-am-demo-orchestrator"
+                [ "${FW_I_AM_DEMO_ORCHESTRATOR:-0}" = "1" ] && wo_bypass_mechanism="env:FW_I_AM_DEMO_ORCHESTRATOR"
+                {
+                    echo "- timestamp: '${wo_bypass_ts}'"
+                    echo "  task: '${wo_target}'"
+                    echo "  category: 'demo-target-bypass'"
+                    echo "  mechanism: '${wo_bypass_mechanism}'"
+                    echo "  caller: 'fw work-on'"
+                    echo "  file: '${wo_active_file}'"
+                    echo "  reason: 'demo orchestrator bypass'"
+                } >> "$wo_bypass_log_file" 2>/dev/null || true
+                unset wo_bypass_log_dir wo_bypass_log_file wo_bypass_ts wo_bypass_mechanism
+            fi
+            unset wo_demo_target wo_is_demo_orch
             # Resume existing task
             echo -e "${CYAN}=== Resuming $wo_target ===${NC}"
             # T-2036: Surface real update-task.sh failures instead of swallowing them
@@ -5086,7 +6765,19 @@ PYREVQ
             wo_defaults=()
             [ "$wo_has_desc" = false ] && wo_defaults+=(--description "$wo_target")
             [ "$wo_has_owner" = false ] && wo_defaults+=(--owner agent)
-            wo_output=$("$AGENTS_DIR/task-create/create-task.sh" --name "$wo_target" --start "${wo_defaults[@]}" "$@" 2>&1)
+            # T-2830: capture-then-echo is fatal under `set -euo pipefail` (line 12).
+            # When the substitution exits non-zero, set -e terminates fw AT THE
+            # ASSIGNMENT — so the message create-task.sh just wrote into wo_output is
+            # discarded and the caller sees RC=1 with zero bytes on both streams.
+            # Measured live: `fw work-on X --type build --switch-focus` printed nothing
+            # at all, which is what made the (trivial) missing --switch-focus branch
+            # in create-task.sh unfindable. `if !` suppresses set -e for the condition,
+            # so the failure is surfaced and the exit code still propagates.
+            if ! wo_output=$("$AGENTS_DIR/task-create/create-task.sh" --name "$wo_target" --start "${wo_defaults[@]}" "$@" 2>&1); then
+                [ -n "$wo_output" ] && echo "$wo_output" >&2
+                echo -e "${RED}work-on: task creation failed (see above) — no task created, focus unchanged${NC}" >&2
+                exit 1
+            fi
             echo "$wo_output"
 
             # Extract task ID from output
@@ -5150,6 +6841,60 @@ PYREVQ
         ;;
     termlink)
         exec "$AGENTS_DIR/termlink/termlink.sh" "$@"
+        ;;
+    sessions)
+        # T-2417: portable per-project session listing.
+        # Dispatch to provider adapter (autodetect: claude → cursor → aider → cline,
+        # or FW_AGENT_PROVIDER override) and pipe canonical JSONL to the
+        # agent-neutral renderer.
+        case "${1:-}" in
+            -h|--help)
+                echo "Usage: fw sessions [--provider <name>]"
+                echo ""
+                echo "List AI-agent sessions grouped by project, then by state."
+                echo ""
+                echo "Adapter resolution:"
+                echo "  1. --provider <name> flag"
+                echo "  2. FW_AGENT_PROVIDER env var"
+                echo "  3. Autodetect: claude-code → cursor → aider → cline"
+                echo ""
+                echo "Adapters live under agents/sessions/<provider>/list.sh and"
+                echo "emit canonical JSONL per agents/sessions/SCHEMA.md."
+                exit 0
+                ;;
+            --provider)
+                _sess_provider="${2:-}"
+                shift 2 || true
+                ;;
+            *)
+                _sess_provider="${FW_AGENT_PROVIDER:-}"
+                ;;
+        esac
+        if [ -z "$_sess_provider" ]; then
+            # Autodetect chain: probe the binary; first hit wins.
+            if command -v claude >/dev/null 2>&1; then
+                _sess_provider="claude-code"
+            elif command -v cursor >/dev/null 2>&1; then
+                _sess_provider="cursor"
+            elif command -v aider >/dev/null 2>&1; then
+                _sess_provider="aider"
+            elif command -v cline >/dev/null 2>&1; then
+                _sess_provider="cline"
+            fi
+        fi
+        if [ -z "$_sess_provider" ]; then
+            echo "fw sessions: no AI-agent provider detected on PATH (tried: claude, cursor, aider, cline)" >&2
+            echo "             set FW_AGENT_PROVIDER=<name> or --provider <name> to override" >&2
+            exit 2
+        fi
+        _sess_adapter="$AGENTS_DIR/sessions/$_sess_provider/list.sh"
+        if [ ! -x "$_sess_adapter" ]; then
+            echo "fw sessions: adapter not found or not executable: $_sess_adapter" >&2
+            echo "             provider=$_sess_provider — add an adapter at agents/sessions/$_sess_provider/list.sh per agents/sessions/SCHEMA.md" >&2
+            exit 2
+        fi
+        "$_sess_adapter" | python3 "$AGENTS_DIR/sessions/render.py"
+        exit $?
         ;;
     onboarding)
         ONBOARDING_MARKER="$PROJECT_ROOT/.context/working/.onboarding-complete"
@@ -5524,6 +7269,56 @@ PYTIMELINE
             echo "Expected at: .context/project/learnings.yaml"
             exit 0
         fi
+        # T-2901: --unfilled reads the application: field's real state. Absence is
+        # the honest signal now that nothing writes a placeholder at birth, but the
+        # 572 pre-T-2901 rows carry literal "TBD" and are NOT rewritten — they are
+        # a record of what was actually written. So this reads both shapes.
+        export FW_LEARNINGS_UNFILLED=0
+        for _a in "$@"; do [ "$_a" = "--unfilled" ] && FW_LEARNINGS_UNFILLED=1; done
+        if [ "$FW_LEARNINGS_UNFILLED" = "1" ]; then
+            python3 << 'PYUNFILLED'
+import os, re, yaml
+
+BOLD='\033[1m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
+
+# Every shape a generator ever wrote at birth. A value matching one of these
+# tells a reader nothing the learning text does not already say, so it counts as
+# unfilled regardless of being non-empty. Sites removed in T-2901:
+#   agents/context/lib/learning.sh:100,112  "TBD"
+#   lib/harvest.sh:316                      "[Review and refine]"
+#   agents/healing/lib/resolve.sh:137       "Apply when encountering similar X issues"
+PLACEHOLDERS = [
+    re.compile(r'^TBD$', re.I),
+    re.compile(r'^\[Review and refine\]$', re.I),
+    re.compile(r'^Apply when encountering similar .* issues$', re.I),
+]
+
+path = os.path.join(os.environ.get('PROJECT_ROOT','.'), '.context','project','learnings.yaml')
+with open(path) as f:
+    data = yaml.safe_load(f) or {}
+learnings = data.get('learnings', [])
+
+unfilled = []
+for l in learnings:
+    v = (l.get('application') or '').strip()
+    if not v or any(rx.match(v) for rx in PLACEHOLDERS):
+        unfilled.append((l.get('id','?'), l.get('task','?'), v or '<absent>'))
+
+total = len(learnings)
+filled = total - len(unfilled)
+pct = (100.0*filled/total) if total else 0.0
+print(f'{BOLD}Learnings with no application recorded{NC}: {len(unfilled)}/{total} '
+      f'({filled} filled, {pct:.2f}%)')
+print()
+for lid, task, v in unfilled:
+    marker = f'{YELLOW}{v}{NC}' if v != '<absent>' else f'{v}'
+    print(f'  {lid:<10} {task:<10} {marker}')
+if not unfilled:
+    print(f'  {GREEN}none — every learning records how to apply it{NC}')
+print()
+PYUNFILLED
+            exit 0
+        fi
         python3 << 'PYLEARNINGS'
 import os, yaml
 
@@ -5885,6 +7680,15 @@ if total_results == 0:
 else:
     print(f'{total_results} result(s) found')
 PYSEARCH
+        # T-2622: retrieval seam — corpus maps join the searched sources.
+        # Matches on map id/title/node names; pointer + explain command only
+        # (never dumps XML). Silent on no match.
+        _corpus_hits=$(python3 "$FRAMEWORK_ROOT/tools/corpus_explain.py" --search "$SEARCH_TERM" 2>/dev/null || true)
+        if [ -n "$_corpus_hits" ]; then
+            echo ""
+            echo -e "${BOLD}Corpus maps:${NC}"
+            echo "$_corpus_hits"
+        fi
         ;;
     vendor)
         # T-2095 (T-2078 V1-D, F2): `fw vendor self` subcommand routes to the
@@ -5901,11 +7705,20 @@ PYSEARCH
             if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
                 echo "fw vendor self - Refresh framework's vendored copies from FRAMEWORK_ROOT/"
                 echo ""
-                echo "Usage: fw vendor self [--dry-run]"
+                echo "Usage: fw vendor self [--dry-run | --check]"
                 echo ""
-                echo "Refreshes both vendored classes from \$FRAMEWORK_ROOT:"
+                echo "  (no flag)   sync vendored copies from source (mutating)"
+                echo "  --dry-run   print what WOULD sync; never mutates; always exits 0"
+                echo "  --check     read-only drift verifier; never mutates; exits 1 if any"
+                echo "              class is out of sync (CI / pre-push form) — T-2436"
+                echo ""
+                echo "Refreshes vendored classes from \$FRAMEWORK_ROOT:"
                 echo "  - .agentic-framework/lib/                 ← lib/*.sh           (T-2095 V1-D)"
                 echo "  - .agentic-framework/.tasks/templates/    ← .tasks/templates/  (T-2241)"
+                echo "  - .agentic-framework/policy/              ← policy/{value-drivers.yaml,bvp-scoring-rubric.md} (T-2263)"
+                echo "  - .agentic-framework/bin/                 ← bin/fw             (T-2264)"
+                echo "  - .agentic-framework/agents/              ← agents/**/*.{sh,py} (T-2266)"
+                echo "  - .agentic-framework/web/                 ← web/**/*.{sh,py}    (T-2267)"
                 echo ""
                 echo "T-1217 / T-2078 §F2 / T-2095 V1-D / T-2241. Extracted from do_upgrade so it can be"
                 echo "invoked explicitly (cron, pre-push, manual) without firing the full upgrade flow."
@@ -5916,13 +7729,67 @@ PYSEARCH
                 echo "only touches files that diff."
                 exit 0
             fi
+            # T-2436 (OBS-076): `--check` is a READ-ONLY drift verifier — it runs
+            # every helper in dry-run mode (never mutates) and EXITS NON-ZERO when
+            # any class is out of sync. This is the CI/pre-push-friendly form and
+            # the one that AGREES with audit's check_self_vendor_drift.
+            #
+            # Before T-2436 `--check` was silently accepted but matched neither
+            # `--dry-run` nor a real flag → it fell through to _vs_dry=false → a
+            # REAL mutating sync that exited 0. Callers running `vendor self --check`
+            # expecting verification actually mutated the vendored tree and saw a
+            # misleading "clean" (exit 0) — the drift was just made clean, never
+            # committed. That silent-mutation trap is the OBS-076 "they disagree".
+            # `--dry-run` keeps its prior semantics (prints "would sync", exit 0).
             _vs_dry=false
-            [ "${1:-}" = "--dry-run" ] && _vs_dry=true
-            _self_vendor_libs "$_vs_dry"
-            # T-2241: sibling — templates drift class. T-2240 pre-push gate
-            # greps for "would sync" across BOTH helpers' output with one regex.
-            _self_vendor_templates "$_vs_dry"
-            exit $?
+            _vs_check=false
+            case "${1:-}" in
+                --dry-run) _vs_dry=true ;;
+                --check)   _vs_dry=true; _vs_check=true ;;
+            esac
+            # Run all six classes; capture combined output so --check can inspect
+            # it for the dry-run "would sync" marker without re-running.
+            _vs_out=$(
+                _self_vendor_libs "$_vs_dry"
+                # T-2241: templates drift class. T-2240 pre-push gate greps for
+                # "would sync" across all helpers' output with one regex.
+                _self_vendor_templates "$_vs_dry"
+                # T-2263: BVP-policy drift class (arc-006 Slice 2C).
+                _self_vendor_policy "$_vs_dry"
+                # T-2264: bin/fw shim drift class.
+                _self_vendor_shim "$_vs_dry"
+                # T-2266: agents/ drift class (5th class).
+                _self_vendor_agents "$_vs_dry"
+                # T-2267: web/ drift class (6th class).
+                _self_vendor_web "$_vs_dry"
+                # T-2793 (OBS-151): VERSION — the copy's own identity, which the
+                # six content classes never covered.
+                #
+                # SYNC-ONLY, deliberately outside --check. VERSION is rewritten in
+                # the working tree on every commit (it holds the git-derived
+                # major.minor.commits-since-tag), so a checked class would drift
+                # again the instant you commit the sync that cleared it: the
+                # pre-push gate would refuse, `fw vendor self` would fix it, the
+                # commit would re-break it. A gate that cannot be satisfied is
+                # worse than one that does not fire.
+                #
+                # This is knowingly the unwitnessable-check shape (T-2726) — a
+                # sync nothing verifies. It is the lesser evil ONLY because the
+                # drift is guaranteed, benign between vendor runs, and cleared by
+                # every mutating `fw vendor self`. If VERSION ever stops being
+                # per-commit, move this back inside the checked set.
+                [ "$_vs_dry" = true ] || _self_vendor_version false
+            )
+            [ -n "$_vs_out" ] && printf '%s\n' "$_vs_out"
+            if [ "$_vs_check" = true ]; then
+                if printf '%s' "$_vs_out" | grep -q "would sync"; then
+                    echo "Self-vendor: DRIFT — vendored .agentic-framework/ is out of sync. Run 'fw vendor self' to sync." >&2
+                    exit 1
+                fi
+                echo "Self-vendor: vendored .agentic-framework/ in sync with source."
+                exit 0
+            fi
+            exit 0
         fi
         do_vendor "$@"
         ;;
@@ -6000,6 +7867,9 @@ PYSEARCH
         ;;
     doctor)
         do_doctor "$@"
+        ;;
+    policy)
+        do_policy "$@"
         ;;
     verify-acs)
         source "$FW_LIB_DIR/verify-acs.sh"
@@ -6397,6 +8267,30 @@ PYPREDICT
                     echo "  No governance tests found."
                 fi
                 ;;
+            --invariants|invariants)
+                # T-2697: tests/lint/ — the structural guards (router/help parity,
+                # config-registry parity, single-vendor-writer, no-bare-fw). This
+                # directory was globbed by NO runner from its creation until
+                # 2026-07-31, because the obvious verb name was already taken:
+                # `fw test lint` means shellcheck. A guard suite that nothing runs
+                # reports success by silence, which is the failure mode these very
+                # tests exist to catch. Named `invariants` rather than `lint` so the
+                # collision cannot recur.
+                if ! command -v bats >/dev/null 2>&1; then
+                    echo -e "${RED}ERROR: bats is not installed${NC}" >&2
+                    exit 1
+                fi
+                shift
+                [ "${1:-}" = "--" ] && shift
+                echo -e "${BOLD}=== Bats Invariant Tests (tests/lint/) ===${NC}"
+                if [ "$#" -gt 0 ]; then
+                    bats "$@" || _test_exit=1
+                elif [ -d "$FRAMEWORK_ROOT/tests/lint/" ] && ls "$FRAMEWORK_ROOT/tests/lint/"*.bats >/dev/null 2>&1; then
+                    bats "$FRAMEWORK_ROOT/tests/lint/" || _test_exit=1
+                else
+                    echo "  No invariant tests found."
+                fi
+                ;;
             --web|web)
                 # Pytest web tests
                 if ! python3 -c "import pytest" 2>/dev/null; then
@@ -6409,7 +8303,11 @@ PYPREDICT
                 if [ "$#" -gt 0 ]; then
                     cd "$FRAMEWORK_ROOT" && python3 -m pytest "$@" -v || _test_exit=1
                 else
-                    cd "$FRAMEWORK_ROOT" && python3 -m pytest web/test_app.py -v || _test_exit=1
+                    # T-2701: tests/web/ (32 files) was collected by NO runner —
+                    # this branch named web/test_app.py, a single file in the
+                    # APPLICATION directory, so the test directory with the
+                    # matching name was never reached. Both are run now.
+                    cd "$FRAMEWORK_ROOT" && python3 -m pytest web/test_app.py tests/web/ -v || _test_exit=1
                 fi
                 ;;
             --playwright|playwright|ui)
@@ -6468,10 +8366,22 @@ PYPREDICT
                     fi
                 fi
 
+                # 2c. Bats invariant tests (T-2697 — tests/lint/, previously orphaned)
+                if command -v bats >/dev/null 2>&1; then
+                    if [ -d "$FRAMEWORK_ROOT/tests/lint/" ] && ls "$FRAMEWORK_ROOT/tests/lint/"*.bats >/dev/null 2>&1; then
+                        echo -e "${BOLD}--- Bats Invariant Tests (tests/lint/) ---${NC}"
+                        bats "$FRAMEWORK_ROOT/tests/lint/" || _test_exit=1
+                        echo ""
+                    fi
+                fi
+
                 # 3. Pytest web tests
                 if python3 -c "import pytest" 2>/dev/null; then
                     echo -e "${BOLD}--- Web Tests (pytest) ---${NC}"
-                    cd "$FRAMEWORK_ROOT" && python3 -m pytest web/test_app.py -v || _test_exit=1
+                    # T-2701: keep in step with the `web)` branch above — both name
+                    # the target explicitly, so a directory added to one and not the
+                    # other stays invisible in the suite that matters most.
+                    cd "$FRAMEWORK_ROOT" && python3 -m pytest web/test_app.py tests/web/ -v || _test_exit=1
                     echo ""
                 else
                     echo -e "${YELLOW}SKIP: pytest not installed${NC}"
@@ -6538,6 +8448,16 @@ PYPREDICT
             fi
             echo -e "  Config:     $_notify_config"
             echo -e "  Dispatcher: $dispatcher ($dispatcher_ok)"
+            # T-2439: show the RESOLVED ntfy server so the target is visible
+            # before any push — a configured URL forces that instance; an unset
+            # one falls back to the dispatcher's own (possibly host-local) default.
+            local _ntfy_url=""
+            [ -f "$FRAMEWORK_ROOT/lib/notify.sh" ] && { source "$FRAMEWORK_ROOT/lib/notify.sh"; _ntfy_url=$(fw_notify_url 2>/dev/null); }
+            if [ -n "$_ntfy_url" ]; then
+                echo -e "  Server:     ${BOLD}${_ntfy_url}${NC} ${GREEN}(configured: NTFY_URL)${NC}"
+            else
+                echo -e "  Server:     ${YELLOW}<dispatcher default>${NC} — set explicitly: ${CYAN}fw config set NTFY_URL <url>${NC}"
+            fi
             echo ""
             if [ "$enabled" != "true" ]; then
                 echo -e "  Run ${CYAN}fw notify enable${NC} to activate notifications"
@@ -6600,6 +8520,13 @@ YAMLEOF
             fi
 
             source "$FRAMEWORK_ROOT/lib/notify.sh"
+            # T-2439: name the target server up front — no silent host-local push
+            local _test_url; _test_url=$(fw_notify_url 2>/dev/null)
+            if [ -n "$_test_url" ]; then
+                echo -e "Target ntfy server: ${BOLD}${_test_url}${NC}"
+            else
+                echo -e "Target ntfy server: ${YELLOW}<dispatcher default>${NC} (set with: ${CYAN}fw config set NTFY_URL <url>${NC})"
+            fi
             echo -e "Sending test notification..."
             NTFY_ENABLED=true fw_notify \
                 "Framework Test" \

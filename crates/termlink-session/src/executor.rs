@@ -238,52 +238,160 @@ async fn execute_capped(
         .map_err(|_| ExecError::Timeout(timeout_dur))?
 }
 
+/// `CSI <n> ~` — the encoding shared by the navigation keys and F5–F12.
+fn csi_tilde(n: u8) -> Vec<u8> {
+    let mut out = vec![0x1B, 0x5B];
+    out.extend_from_slice(n.to_string().as_bytes());
+    out.push(0x7E);
+    out
+}
+
+/// `CSI 1 ; <modifier> <final>` — a cursor key held with modifiers (T-2740).
+///
+/// The modifier parameter is the conventional bitfield-plus-one: 1 + shift·1 +
+/// alt·2 + ctrl·4, so Ctrl+Up is `CSI 1;5A` and Ctrl+Shift+Up is `CSI 1;6A`.
+fn csi_modified(modifier: u8, final_byte: u8) -> Vec<u8> {
+    let mut out = vec![0x1B, 0x5B, b'1', b';'];
+    out.extend_from_slice(modifier.to_string().as_bytes());
+    out.push(final_byte);
+    out
+}
+
+/// Resolve a modifier-prefixed cursor key, e.g. `ctrl+shift+left`.
+///
+/// Returns `None` unless at least one modifier is present AND the base key is
+/// one that has a modified encoding — so `ctrl+a` (a control character, handled
+/// by the table) and `super+up` (an unsupported modifier) both fall through to
+/// the same loud refusal as any other unknown name.
+fn resolve_modified_key(lower: &str) -> Option<Vec<u8>> {
+    let mut parts = lower.split('+').peekable();
+    let (mut shift, mut alt, mut ctrl) = (false, false, false);
+    let mut base = None;
+
+    while let Some(part) = parts.next() {
+        // The last segment is the base key; everything before it is a modifier.
+        if parts.peek().is_none() {
+            base = Some(part);
+            break;
+        }
+        match part {
+            "shift" => shift = true,
+            "alt" => alt = true,
+            "ctrl" => ctrl = true,
+            _ => return None,
+        }
+    }
+
+    if !(shift || alt || ctrl) {
+        return None;
+    }
+
+    let final_byte = match base? {
+        "up" => b'A',
+        "down" => b'B',
+        "right" => b'C',
+        "left" => b'D',
+        "home" => b'H',
+        "end" => b'F',
+        _ => return None,
+    };
+
+    let modifier = 1 + u8::from(shift) + 2 * u8::from(alt) + 4 * u8::from(ctrl);
+    Some(csi_modified(modifier, final_byte))
+}
+
 /// Resolve a symbolic key name to its raw byte sequence.
+///
+/// Matching is case-insensitive (T-2740): the table previously listed each name
+/// twice, fully-capitalised and fully-lowercase, which meant the natural middle
+/// spelling `Ctrl+a` was refused. Normalising once at the entry point covers
+/// every spelling and keeps the table single-entry.
+///
+/// An unrecognised name returns `None`, which `resolve_key_entry` turns into
+/// `Unknown key: {name}`. That refusal is deliberate and is pinned by
+/// `unknown_key_refuses_loudly` — widening this table must never make it
+/// permissive.
 pub fn resolve_key(name: &str) -> Option<Vec<u8>> {
+    let lower = name.to_ascii_lowercase();
+    resolve_plain_key(&lower).or_else(|| resolve_modified_key(&lower))
+}
+
+fn resolve_plain_key(name: &str) -> Option<Vec<u8>> {
     match name {
         // Control characters
-        "Ctrl+A" | "ctrl+a" => Some(vec![0x01]),
-        "Ctrl+B" | "ctrl+b" => Some(vec![0x02]),
-        "Ctrl+C" | "ctrl+c" => Some(vec![0x03]),
-        "Ctrl+D" | "ctrl+d" => Some(vec![0x04]),
-        "Ctrl+E" | "ctrl+e" => Some(vec![0x05]),
-        "Ctrl+F" | "ctrl+f" => Some(vec![0x06]),
-        "Ctrl+G" | "ctrl+g" => Some(vec![0x07]),
-        "Ctrl+H" | "ctrl+h" => Some(vec![0x08]),
-        "Ctrl+K" | "ctrl+k" => Some(vec![0x0B]),
-        "Ctrl+L" | "ctrl+l" => Some(vec![0x0C]),
-        "Ctrl+N" | "ctrl+n" => Some(vec![0x0E]),
-        "Ctrl+O" | "ctrl+o" => Some(vec![0x0F]),
-        "Ctrl+P" | "ctrl+p" => Some(vec![0x10]),
-        "Ctrl+Q" | "ctrl+q" => Some(vec![0x11]),
-        "Ctrl+R" | "ctrl+r" => Some(vec![0x12]),
-        "Ctrl+S" | "ctrl+s" => Some(vec![0x13]),
-        "Ctrl+T" | "ctrl+t" => Some(vec![0x14]),
-        "Ctrl+U" | "ctrl+u" => Some(vec![0x15]),
-        "Ctrl+V" | "ctrl+v" => Some(vec![0x16]),
-        "Ctrl+W" | "ctrl+w" => Some(vec![0x17]),
-        "Ctrl+X" | "ctrl+x" => Some(vec![0x18]),
-        "Ctrl+Y" | "ctrl+y" => Some(vec![0x19]),
-        "Ctrl+Z" | "ctrl+z" => Some(vec![0x1A]),
-        "Ctrl+\\" | "ctrl+\\" => Some(vec![0x1C]),
+        "ctrl+a" => Some(vec![0x01]),
+        "ctrl+b" => Some(vec![0x02]),
+        "ctrl+c" => Some(vec![0x03]),
+        "ctrl+d" => Some(vec![0x04]),
+        "ctrl+e" => Some(vec![0x05]),
+        "ctrl+f" => Some(vec![0x06]),
+        "ctrl+g" => Some(vec![0x07]),
+        "ctrl+h" => Some(vec![0x08]),
+        // Ctrl+I/J/M and Ctrl+[ alias Tab, LF, Enter and Escape respectively.
+        // They were absent, so a caller naming the control code rather than the
+        // key got a refusal for a binding that plainly exists (T-2740).
+        "ctrl+i" => Some(vec![0x09]),
+        "ctrl+j" => Some(vec![0x0A]),
+        "ctrl+k" => Some(vec![0x0B]),
+        "ctrl+l" => Some(vec![0x0C]),
+        "ctrl+m" => Some(vec![0x0D]),
+        "ctrl+n" => Some(vec![0x0E]),
+        "ctrl+o" => Some(vec![0x0F]),
+        "ctrl+p" => Some(vec![0x10]),
+        "ctrl+q" => Some(vec![0x11]),
+        "ctrl+r" => Some(vec![0x12]),
+        "ctrl+s" => Some(vec![0x13]),
+        "ctrl+t" => Some(vec![0x14]),
+        "ctrl+u" => Some(vec![0x15]),
+        "ctrl+v" => Some(vec![0x16]),
+        "ctrl+w" => Some(vec![0x17]),
+        "ctrl+x" => Some(vec![0x18]),
+        "ctrl+y" => Some(vec![0x19]),
+        "ctrl+z" => Some(vec![0x1A]),
+        "ctrl+[" => Some(vec![0x1B]),
+        "ctrl+\\" => Some(vec![0x1C]),
+        "ctrl+]" => Some(vec![0x1D]),
+        "ctrl+^" => Some(vec![0x1E]),
+        "ctrl+_" => Some(vec![0x1F]),
+        "ctrl+@" | "ctrl+space" => Some(vec![0x00]),
 
         // Special keys
-        "Enter" | "enter" | "Return" | "return" => Some(vec![0x0D]),
-        "Tab" | "tab" => Some(vec![0x09]),
-        "Backspace" | "backspace" => Some(vec![0x7F]),
-        "Escape" | "escape" | "Esc" | "esc" => Some(vec![0x1B]),
-        "Delete" | "delete" | "Del" | "del" => Some(vec![0x1B, 0x5B, 0x33, 0x7E]),
-        "Space" | "space" => Some(vec![0x20]),
+        "enter" | "return" => Some(vec![0x0D]),
+        "tab" => Some(vec![0x09]),
+        "shift+tab" => Some(vec![0x1B, 0x5B, 0x5A]), // CSI Z (back-tab)
+        "backspace" => Some(vec![0x7F]),
+        "escape" | "esc" => Some(vec![0x1B]),
+        "delete" | "del" => Some(csi_tilde(3)),
+        "insert" | "ins" => Some(csi_tilde(2)),
+        "pageup" | "pgup" => Some(csi_tilde(5)),
+        "pagedown" | "pgdn" => Some(csi_tilde(6)),
+        "space" => Some(vec![0x20]),
 
         // Arrow keys (ANSI)
-        "Up" | "up" => Some(vec![0x1B, 0x5B, 0x41]),
-        "Down" | "down" => Some(vec![0x1B, 0x5B, 0x42]),
-        "Right" | "right" => Some(vec![0x1B, 0x5B, 0x43]),
-        "Left" | "left" => Some(vec![0x1B, 0x5B, 0x44]),
+        "up" => Some(vec![0x1B, 0x5B, 0x41]),
+        "down" => Some(vec![0x1B, 0x5B, 0x42]),
+        "right" => Some(vec![0x1B, 0x5B, 0x43]),
+        "left" => Some(vec![0x1B, 0x5B, 0x44]),
 
         // Home/End
-        "Home" | "home" => Some(vec![0x1B, 0x5B, 0x48]),
-        "End" | "end" => Some(vec![0x1B, 0x5B, 0x46]),
+        "home" => Some(vec![0x1B, 0x5B, 0x48]),
+        "end" => Some(vec![0x1B, 0x5B, 0x46]),
+
+        // Function keys. F1-F4 are SS3 (ESC O ..); F5-F12 are CSI <n>~ on the
+        // standard non-contiguous numbering — 16 and 22 are unassigned, which is
+        // why the sequence skips them.
+        "f1" => Some(vec![0x1B, 0x4F, 0x50]),
+        "f2" => Some(vec![0x1B, 0x4F, 0x51]),
+        "f3" => Some(vec![0x1B, 0x4F, 0x52]),
+        "f4" => Some(vec![0x1B, 0x4F, 0x53]),
+        "f5" => Some(csi_tilde(15)),
+        "f6" => Some(csi_tilde(17)),
+        "f7" => Some(csi_tilde(18)),
+        "f8" => Some(csi_tilde(19)),
+        "f9" => Some(csi_tilde(20)),
+        "f10" => Some(csi_tilde(21)),
+        "f11" => Some(csi_tilde(23)),
+        "f12" => Some(csi_tilde(24)),
 
         _ => None,
     }
@@ -655,6 +763,167 @@ mod tests {
         let bytes = resolve_keys(&entries).unwrap();
         assert_eq!(&bytes[..6], b"ls -la");
         assert_eq!(bytes[6], 0x0D); // Enter
+    }
+
+    /// T-2740, pinned FIRST: the loud refusal is the property that makes a
+    /// missing key a usability gap rather than a correctness bug, and it was
+    /// untested. Widening the table must never turn a refusal into a guess.
+    #[test]
+    fn unknown_key_refuses_loudly() {
+        assert_eq!(resolve_key("Frobnicate"), None);
+
+        let err = resolve_key_entry(&KeyEntry::Key("Frobnicate".into()))
+            .expect_err("an unknown key must be refused, not silently dropped");
+        assert!(
+            err.contains("Unknown key") && err.contains("Frobnicate"),
+            "the refusal must name the offending key, got {err:?}"
+        );
+    }
+
+    /// T-2740: widening must not make the matcher permissive. These are the
+    /// plausible-looking names a caller might try; every one must still refuse.
+    #[test]
+    fn widened_table_still_refuses_unreal_keys() {
+        for name in [
+            "F13",       // past the end of the F-key range
+            "F0",        // F-keys are 1-indexed
+            "Ctrl+",     // modifier with no base
+            "+Up",       // base with an empty modifier
+            "Super+Up",  // unsupported modifier
+            "Ctrl+Ctrl", // modifier as a base key
+            "Ctrl+F5",   // no modified encoding defined for F-keys here
+            "",          // empty
+            "up up",     // not a name at all
+        ] {
+            assert_eq!(resolve_key(name), None, "{name:?} must be refused");
+        }
+    }
+
+    /// T-2740: every binding that resolved before the widening must still
+    /// resolve to byte-for-byte the same sequence. This is the regression guard
+    /// for collapsing the duplicate-spelling arms into a normalised lookup.
+    #[test]
+    fn pre_existing_bindings_are_unchanged() {
+        let expected: &[(&str, &[u8])] = &[
+            ("Ctrl+A", &[0x01]),
+            ("Ctrl+C", &[0x03]),
+            ("Ctrl+H", &[0x08]),
+            ("Ctrl+K", &[0x0B]),
+            ("Ctrl+Z", &[0x1A]),
+            ("Ctrl+\\", &[0x1C]),
+            ("Enter", &[0x0D]),
+            ("Return", &[0x0D]),
+            ("Tab", &[0x09]),
+            ("Backspace", &[0x7F]),
+            ("Escape", &[0x1B]),
+            ("Esc", &[0x1B]),
+            ("Delete", &[0x1B, 0x5B, 0x33, 0x7E]),
+            ("Del", &[0x1B, 0x5B, 0x33, 0x7E]),
+            ("Space", &[0x20]),
+            ("Up", &[0x1B, 0x5B, 0x41]),
+            ("Down", &[0x1B, 0x5B, 0x42]),
+            ("Right", &[0x1B, 0x5B, 0x43]),
+            ("Left", &[0x1B, 0x5B, 0x44]),
+            ("Home", &[0x1B, 0x5B, 0x48]),
+            ("End", &[0x1B, 0x5B, 0x46]),
+        ];
+        for (name, bytes) in expected {
+            assert_eq!(
+                resolve_key(name).as_deref(),
+                Some(*bytes),
+                "{name} changed encoding"
+            );
+            // The all-lowercase spelling was the second arm of every old match.
+            assert_eq!(
+                resolve_key(&name.to_ascii_lowercase()).as_deref(),
+                Some(*bytes),
+                "{name} lowercase spelling changed encoding"
+            );
+        }
+    }
+
+    /// T-2740: the spelling gap the backlog did not list — `Ctrl+a` sits between
+    /// the two spellings the old table enumerated and was refused.
+    #[test]
+    fn key_names_are_case_insensitive() {
+        let canonical = resolve_key("Ctrl+A");
+        assert!(canonical.is_some());
+        for spelling in ["ctrl+a", "CTRL+A", "Ctrl+a", "cTrL+A"] {
+            assert_eq!(resolve_key(spelling), canonical, "{spelling} must resolve");
+        }
+        assert_eq!(resolve_key("PAGEUP"), resolve_key("PageUp"));
+    }
+
+    /// T-2740: the control codes that were missing, and the aliasing that makes
+    /// them unambiguous — asserted rather than left to coincidence.
+    #[test]
+    fn missing_control_codes_resolve_and_alias_correctly() {
+        assert_eq!(resolve_key("Ctrl+I").as_deref(), Some(&[0x09][..]));
+        assert_eq!(resolve_key("Ctrl+J").as_deref(), Some(&[0x0A][..]));
+        assert_eq!(resolve_key("Ctrl+M").as_deref(), Some(&[0x0D][..]));
+        assert_eq!(resolve_key("Ctrl+[").as_deref(), Some(&[0x1B][..]));
+        assert_eq!(resolve_key("Ctrl+]").as_deref(), Some(&[0x1D][..]));
+        assert_eq!(resolve_key("Ctrl+^").as_deref(), Some(&[0x1E][..]));
+        assert_eq!(resolve_key("Ctrl+_").as_deref(), Some(&[0x1F][..]));
+        assert_eq!(resolve_key("Ctrl+@").as_deref(), Some(&[0x00][..]));
+        assert_eq!(resolve_key("Ctrl+Space").as_deref(), Some(&[0x00][..]));
+
+        assert_eq!(resolve_key("Ctrl+I"), resolve_key("Tab"));
+        assert_eq!(resolve_key("Ctrl+M"), resolve_key("Enter"));
+        assert_eq!(resolve_key("Ctrl+["), resolve_key("Escape"));
+        // Ctrl+H is BS (0x08) and the Backspace KEY sends DEL (0x7F) — they are
+        // deliberately different, and that difference is easy to "fix" wrongly.
+        assert_ne!(resolve_key("Ctrl+H"), resolve_key("Backspace"));
+    }
+
+    /// T-2740: navigation keys and back-tab.
+    #[test]
+    fn navigation_keys_resolve() {
+        assert_eq!(resolve_key("Insert").as_deref(), Some(&[0x1B, 0x5B, b'2', 0x7E][..]));
+        assert_eq!(resolve_key("PageUp").as_deref(), Some(&[0x1B, 0x5B, b'5', 0x7E][..]));
+        assert_eq!(resolve_key("PageDown").as_deref(), Some(&[0x1B, 0x5B, b'6', 0x7E][..]));
+        assert_eq!(resolve_key("PgUp"), resolve_key("PageUp"));
+        assert_eq!(resolve_key("PgDn"), resolve_key("PageDown"));
+        assert_eq!(resolve_key("Shift+Tab").as_deref(), Some(&[0x1B, 0x5B, 0x5A][..]));
+    }
+
+    /// T-2740: F1-F4 are SS3, F5-F12 are CSI with a non-contiguous numbering
+    /// that is easy to get wrong by assuming F5..F12 are 15..22.
+    #[test]
+    fn function_keys_resolve_with_correct_encodings() {
+        assert_eq!(resolve_key("F1").as_deref(), Some(&[0x1B, 0x4F, 0x50][..]));
+        assert_eq!(resolve_key("F4").as_deref(), Some(&[0x1B, 0x4F, 0x53][..]));
+        assert_eq!(resolve_key("F5").as_deref(), Some(&[0x1B, 0x5B, b'1', b'5', 0x7E][..]));
+        assert_eq!(resolve_key("F10").as_deref(), Some(&[0x1B, 0x5B, b'2', b'1', 0x7E][..]));
+        assert_eq!(resolve_key("F11").as_deref(), Some(&[0x1B, 0x5B, b'2', b'3', 0x7E][..]));
+        assert_eq!(resolve_key("F12").as_deref(), Some(&[0x1B, 0x5B, b'2', b'4', 0x7E][..]));
+        // 16 and 22 are unassigned — nothing may resolve to them.
+        assert_ne!(resolve_key("F6").as_deref(), Some(&[0x1B, 0x5B, b'1', b'6', 0x7E][..]));
+    }
+
+    /// T-2740: modifier arithmetic is 1 + shift·1 + alt·2 + ctrl·4, and it must
+    /// hold for combinations, not just the single-modifier cases.
+    #[test]
+    fn modified_arrows_encode_the_modifier_bitfield() {
+        assert_eq!(resolve_key("Shift+Up").as_deref(), Some(b"\x1b[1;2A".as_ref()));
+        assert_eq!(resolve_key("Alt+Up").as_deref(), Some(b"\x1b[1;3A".as_ref()));
+        assert_eq!(resolve_key("Ctrl+Up").as_deref(), Some(b"\x1b[1;5A".as_ref()));
+        assert_eq!(resolve_key("Ctrl+Shift+Up").as_deref(), Some(b"\x1b[1;6A".as_ref()));
+        assert_eq!(resolve_key("Ctrl+Alt+Up").as_deref(), Some(b"\x1b[1;7A".as_ref()));
+        assert_eq!(
+            resolve_key("Ctrl+Alt+Shift+Up").as_deref(),
+            Some(b"\x1b[1;8A".as_ref())
+        );
+        // Order of modifiers must not matter.
+        assert_eq!(resolve_key("Shift+Ctrl+Up"), resolve_key("Ctrl+Shift+Up"));
+
+        assert_eq!(resolve_key("Ctrl+Left").as_deref(), Some(b"\x1b[1;5D".as_ref()));
+        assert_eq!(resolve_key("Ctrl+Home").as_deref(), Some(b"\x1b[1;5H".as_ref()));
+        assert_eq!(resolve_key("Ctrl+End").as_deref(), Some(b"\x1b[1;5F".as_ref()));
+
+        // Unmodified arrows keep their plain encoding — the modified path must
+        // not hijack them into a CSI 1;1A form no terminal expects.
+        assert_eq!(resolve_key("Up").as_deref(), Some(&[0x1B, 0x5B, 0x41][..]));
     }
 
     #[test]

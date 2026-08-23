@@ -21,6 +21,14 @@
 #   bash scripts/sweep-test-debris.sh --hub ADDR      # target another hub (their maintenance window!)
 #   bash scripts/sweep-test-debris.sh --sleep-ms 100  # pacing between deletes (default 50)
 #   bash scripts/sweep-test-debris.sh --list-only     # print candidate names only (for piping)
+#   bash scripts/sweep-test-debris.sh --explain       # also list the topics it declined to classify
+#
+# SCOPE (T-2756): the reported candidate count is about the debris ALLOWLIST, not
+# about the hub. Every run prints a three-way census — candidates / denied /
+# unclassified — because a bare "debris-candidates=1" against a hub holding ~630
+# test-debris topics reads as "the hub is clean", and it is not. Denied topics are
+# protected deliberately (agent-conv-* carries live conversation threads);
+# unclassified topics matched no allow pattern and are left alone by design.
 #
 # Exit codes: 0 = ok (dry-run or all deletes succeeded), 1 = one or more deletes
 # failed, 2 = tooling error (no termlink / hub unreachable / list failed).
@@ -31,6 +39,7 @@ yes=0
 hub=""
 sleep_ms=50
 list_only=0
+explain=0
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -38,7 +47,8 @@ while [ $# -gt 0 ]; do
         --hub)       hub="${2:?--hub needs an address}"; shift 2 ;;
         --sleep-ms)  sleep_ms="${2:?--sleep-ms needs a value}"; shift 2 ;;
         --list-only) list_only=1; shift ;;
-        -h|--help)   sed -n '2,25p' "$0"; exit 0 ;;
+        --explain)   explain=1; shift ;;
+        -h|--help)   sed -n '2,34p' "$0"; exit 0 ;;
         *) echo "sweep-test-debris: unknown arg '$1' (see --help)" >&2; exit 2 ;;
     esac
 done
@@ -93,22 +103,74 @@ allow_topic() {
     return 1
 }
 
+# ---- classification ---------------------------------------------------------
+# T-2756: every topic lands in exactly one of three classes, and the counts are
+# REPORTED. Previously only the candidate count was printed, so `debris-candidates=1`
+# against a hub holding ~630 test-debris topics read as "the hub is clean". It was
+# not — the tool structurally could not see them and said nothing about it. Same
+# failure as T-2680 (a count over a partially-examined surface, printed bare).
+#
+#   denied       — matched the deny guard. PROTECTED ON PURPOSE (agent-conv-* holds
+#                  live doorbell+mail conversation threads). Never sweepable here.
+#   candidates   — matched the debris allowlist. The set that actually gets deleted.
+#   unclassified — matched neither. The conservative "unknown topics are NOT debris"
+#                  default, which is correct — but it used to be SILENT.
 candidates=()
+unclassified=()
+denied_count=0
 while IFS= read -r n; do
     [ -n "$n" ] || continue
-    deny_topic "$n" && continue
-    allow_topic "$n" || continue
-    candidates+=("$n")
+    if deny_topic "$n"; then
+        denied_count=$((denied_count + 1))
+        continue
+    fi
+    if allow_topic "$n"; then
+        candidates+=("$n")
+    else
+        unclassified+=("$n")
+    fi
 done <<< "$names"
 
 total_topics="$(printf '%s\n' "$names" | grep -c . || true)"
 
+# Census + scope note. Emitted on EVERY path that reports a count — including the
+# clean-looking ones, which is exactly where a bare number misleads.
+print_census() {
+    local stream="${1:-stdout}"
+    local census scope
+    census="sweep-test-debris: hub=${hub:-local}  topics=$total_topics  candidates=${#candidates[@]}  denied=$denied_count (protected)  unclassified=${#unclassified[@]} (not swept)"
+    scope="  scope: this count is about the debris ALLOWLIST, not about the hub. Denied topics are
+         protected deliberately (live conversation data); unclassified topics are left alone by
+         design. Neither is a statement that the hub is clean. Re-run with --explain to list them."
+    if [ "$stream" = "stderr" ]; then
+        echo "$census" >&2
+        echo "$scope" >&2
+    else
+        echo "$census"
+        echo "$scope"
+    fi
+}
+
 if [ "$list_only" -eq 1 ]; then
-    printf '%s\n' "${candidates[@]:-}"
+    # Piping contract: stdout stays a bare name list. Census goes to stderr so a
+    # consumer doing `... --list-only | xargs` is unaffected.
+    print_census stderr
+    if [ "${#candidates[@]}" -gt 0 ]; then
+        printf '%s\n' "${candidates[@]}"
+    fi
     exit 0
 fi
 
-echo "sweep-test-debris: hub=${hub:-local}  topics=$total_topics  debris-candidates=${#candidates[@]}"
+print_census
+
+if [ "$explain" -eq 1 ]; then
+    if [ "${#unclassified[@]}" -gt 0 ]; then
+        echo "unclassified (${#unclassified[@]}) — matched no allow pattern, so NOT swept:"
+        printf '  %s\n' "${unclassified[@]}"
+    else
+        echo "unclassified: none"
+    fi
+fi
 
 if [ "${#candidates[@]}" -eq 0 ]; then
     echo "nothing to sweep — no topics match the debris allowlist"

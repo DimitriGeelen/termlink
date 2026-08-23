@@ -50,3 +50,32 @@ jobs:
 
       - name: Lint env-var doc citations
         run: bash scripts/check-env-var-docs.sh
+
+  # T-2686 (T-2683 F1/G1) — the whole source-level guard layer, per commit.
+  #
+  # Before this, the four static checks (alloc-sink, drain-sink, silent-exit,
+  # busy-spin) and all ten fixture suites were invoked by NOTHING: no CI job, no
+  # cron entry, no git hook, no `fw doctor` step. A tree-wide grep for them
+  # returned only their own fixtures and the episodic records of the tasks that
+  # created them. They were built precisely because "a convention enforced by
+  # discipline is not enforced" — and then left to discipline themselves.
+  #
+  # This job belongs here rather than in release.yml because doc-lint runs on every
+  # push and PR, needs no Rust build, and finishes in seconds. Guarding the code at
+  # release time is too late; guarding it per commit is the point. (release.yml
+  # gains its own copy as a last line of defence before a binary ships.)
+  #
+  # NOTE: the two lints above are themselves guard-layer members, so they run twice
+  # on each commit. That is deliberate — they are seconds each, and keeping their
+  # named checks intact avoids silently changing any branch-protection rule that
+  # references them.
+  guard-layer:
+    name: source-level guard layer (static checks + fixture suites)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run guard layer
+        run: bash scripts/run-guard-layer.sh

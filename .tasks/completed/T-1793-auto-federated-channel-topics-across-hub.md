@@ -20,6 +20,8 @@ date_finished: 2026-05-25T17:27:58Z
 
 # T-1793: Auto-federated channel topics across hubs — does the fleet want it? (T-1791 follow-up #3)
 
+Research artifact: `docs/reports/T-1793-auto-federated-channel-topics.md` (C-001, consolidated retrospectively 2026-08-14 under T-2716).
+
 ## Problem Statement
 
 <!-- What problem are we exploring? For whom? Why now? -->

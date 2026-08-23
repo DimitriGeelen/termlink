@@ -1145,7 +1145,20 @@ pub(crate) async fn cmd_topics(target: Option<&str>, json: bool, timeout_secs: u
 
     if registrations.is_empty() {
         if json {
-            println!("{}", serde_json::json!({"ok": true, "sessions": [], "total_topics": 0}));
+            // T-2687: emit the full field set (zeroed). T-2624 added the
+            // partial-inventory fields to the populated path only, so this early
+            // return silently omitted `total_sessions` and all four counters —
+            // a consumer parsing the shape had to special-case "no sessions".
+            println!("{}", serde_json::json!({
+                "ok": true,
+                "sessions": [],
+                "total_topics": 0,
+                "total_sessions": 0,
+                "sessions_unreachable": 0,
+                "sessions_bad_result": 0,
+                "sessions_skipped": 0,
+                "sessions_probed": 0,
+            }));
         } else {
             println!("No active sessions.");
         }

@@ -33,10 +33,16 @@ recovery.
 
 - **Local-hub only** by ADR §6 design — cross-hub fan-out is an
   orchestrator responsibility.
-- **"Stuck" heuristic** (T-2042): `expired_count > 0` OR
-  `oldest_active_age_ms > 60_000`. A topic is "stuck" if at least one
-  claim has timed out OR the oldest active claim is older than 1
-  minute.
+- **"Stuck" heuristic** (T-2042, narrowed by T-2709): a lease lapsed
+  within the last 15 minutes OR `oldest_active_age_ms > 60_000`. A topic
+  is "stuck" if a worker abandoned a claim RECENTLY, OR the oldest active
+  claim is older than 1 minute.
+  The first arm was `expired_count > 0`, which never cleared: expired rows
+  are reaped only on re-claim of the same `(topic, offset)`, so an
+  abandoned topic stayed flagged forever with `active_count: 0` — nothing
+  held, nothing that could be stuck. It now keys on `newest_expired_at_ms`.
+  Note that a high `expired_count` is therefore NOT a fault signal; it is
+  cumulative history. Read `newest_expired_at_ms` instead.
 - **`--only-stuck`** (T-2076) is presentation-level — the JSON
   envelope still carries fleet-wide `topic_count` + `stuck_count` so
   the operator sees both "1/N stuck" and the raw subset.

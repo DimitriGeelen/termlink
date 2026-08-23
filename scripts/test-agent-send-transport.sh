@@ -16,10 +16,24 @@
 # byte-for-byte).
 set -u
 
+# T-2761: this test drives the real agent-send.sh, whose T-2402 give-up path
+# appends to the operator's woken-but-silent canary log. Redirect it — "empty log
+# = healthy" is a one-bit channel, so test residue leaves the canary permanently
+# FIRING and therefore deaf to a genuine event. Set at top level rather than in
+# the per-case temp dirs below, so every case inherits it.
+TERMLINK_WOKEN_SILENT_LOG="$(mktemp -t woken-silent-XXXXXX.log)"
+export TERMLINK_WOKEN_SILENT_LOG
+
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT="${SCRIPT:-$HERE/agent-send.sh}"
 HEARTBEAT="${HEARTBEAT:-$HERE/listener-heartbeat.sh}"
 TERMLINK="${TERMLINK_BIN:-termlink}"
+
+# T-2754 — reap the minted topic. Both mint sites (the two `ltopic=` assignments)
+# use the SAME name, so one reap covers both.
+# shellcheck source=/dev/null
+. "$HERE/lib/reap-topic.sh"
+trap 'rc=$?; reap_topic "${ltopic:-}"; exit $rc' EXIT INT TERM
 
 PASS=0; FAIL=0; SKIP=0
 pass() { echo "  PASS: $*"; PASS=$((PASS + 1)); }

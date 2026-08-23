@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2757: agent inbox over-reports unread by reading a cursor nothing advances
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-16T13:33:15Z
+# ============================================================================
+
+task_id: T-2757
+task_name: "agent inbox over-reports unread by reading a cursor nothing advances"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-16T07:04:13Z
+completed: 2026-08-16T13:12:40Z
+duration_days: 0
+updates_count: 5
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  termlink agent inbox reports 388 unread on agent-chat-arc and 131 on a DM thread where the receipt frontier says 14 and 1. It reads cursors.json, which only subscribe --resume advances, while every conversation-arc tool (check-arc, reply, agent ack, channel ack) advances the receipt frontier instead. Nothing reconciles the two, so the number never clears no matter how diligently an agent reads and acks.
+
+# Key outcomes
+outcomes:
+  - 'A pure helper reconciles the two frontiers by taking the max of the'
+  - 'The helper is unit-tested for: receipt ahead of cursor (the live bug),'
+  - 'Both `termlink_agent_inbox` (MCP) and the `termlink agent inbox` CLI twin'
+  - 'A topic whose receipt frontier covers every message is omitted from the'
+  - 'Receipt lookup degrades safely: a hub that does not serve the receipts'
+  - 'The reconciliation cannot silently UNDER-report: when the hub gives no'
+  - 'Live proof against the hub that produced the original numbers: the DM'
+  - '`cargo test --workspace` passes'
+  - 'Guard layer passes (`bash scripts/run-guard-layer.sh`)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-08-16 — reconcile the two frontiers rather than document the split'
+    chose: 'compute unread from `max(cursor, receipt up_to)`.'
+    rationale: 'both values are claims by the same identity that it consumed up to'
+    alternatives_rejected: ['*leave it and document the divergence more loudly.* The split']
+    alternatives_rejected: ['*advance `cursors.json` on ack.* That makes acking write to a']
+  - decision: '2026-08-16 — report indeterminate instead of guessing (found by live run)'
+    chose: 'when `latest` came from the `count - 1` fallback AND the receipt'
+    rationale: 'the first version of this fix DROPPED `agent-chat-arc` from the'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 368 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 368
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2757-agent-inbox-over-reports-unread-by-readi.md
+generated_by: context-agent-hybrid

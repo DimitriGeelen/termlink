@@ -17,6 +17,11 @@ set -u
 TERMLINK="${TERMLINK_BIN:-termlink}"
 SCRIPT="${SCRIPT:-scripts/agent-conversation-status.sh}"
 
+# T-2754 — shared topic reaper (best-effort; never changes this script's verdict).
+_t2754_libdir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib"
+# shellcheck source=/dev/null
+. "$_t2754_libdir/reap-topic.sh"
+
 # Counters
 PASS=0
 FAIL=0
@@ -71,6 +76,9 @@ echo "T4/T5: populated cid + pending detection (ephemeral topic)"
 test_topic="agent-conv-status-test-$$-$(date +%s)"
 test_cid="cid-t1826-pending-$$"
 
+# T-2754 — reap on every exit path, not just the success path.
+trap 'rc=$?; reap_topic "${test_topic:-}"; exit $rc' EXIT INT TERM
+
 # Create topic + post turns + receipt; if any step errors, skip the populated tests.
 if ! "$TERMLINK" channel create "$test_topic" --retention messages:50 >/dev/null 2>&1; then
     skip "T4/T5: cannot create ephemeral topic (local hub probably down)"
@@ -115,9 +123,15 @@ else
         fi
     fi
 
-    # No cleanup: termlink has no `channel delete` verb. The test topic
-    # uses $$/timestamp suffix so it's uniquely-named per run; the hub's
-    # retention setting (messages:50) bounds growth.
+    # Cleanup is handled by the T-2754 EXIT trap above (reap_topic). The note
+    # that stood here declared the delete primitive unavailable — accurate when
+    # written, obsolete since T-2421 shipped it — and argued that `messages:50`
+    # retention "bounds growth". It bounds RECORD growth; the topic registry
+    # entry still persisted forever, which is the leak T-2754 closed.
+    #
+    # Deliberately not restating that obsolete phrasing verbatim: T-2754's
+    # verification greps this tree literally for it, and prose quoting the old
+    # claim is indistinguishable from the claim itself.
 fi
 
 echo ""

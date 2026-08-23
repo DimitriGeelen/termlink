@@ -11,7 +11,21 @@
 //! v0.1 scope: session-control thin slice. 3 cases (ping, topics,
 //! hub_status) + 1 negative test that proves the diff actually fires.
 //! v0.2+ expands to channel_* (53 pairs) and chat-arc agent_* (the
-//! divergence-heavy group).
+//! divergence-heavy group). As of T-2683/T-2689 that expansion has still
+//! not happened: 24 cases against 68 distinct `*_mcp` parallel helpers.
+//!
+//! # Do not commit while this suite is running (T-2687)
+//!
+//! `parity_version` and `parity_info` compare `version` and `commit`, which
+//! `build.rs` derives from `git describe`. The MCP side is compiled INTO the
+//! test binary; the CLI side is a separate binary resolved at run time. Making
+//! a git commit mid-run changes the derived version, so a rebuilt CLI reports
+//! e.g. `0.11.1210` / `d19ff4ed2` against the test binary's baked-in
+//! `0.11.1209` / `124a67e35`, and both tests fail with a diff that looks like
+//! real MCP/CLI drift but is purely an artifact of the working tree moving
+//! underneath the run. CI is unaffected (one checkout, no commits mid-run).
+//! If you see ONLY `parity_version` and `parity_info` failing on a
+//! version/commit field, re-run without committing before investigating.
 
 use rmcp::model::CallToolRequestParams;
 use rmcp::{RoleClient, ServiceExt};
@@ -124,6 +138,143 @@ fn diff_json(name: &str, mcp: &Value, cli: &Value, ignore: &HashSet<&'static str
 }
 
 // ---------------------------------------------------------------------------
+// T-2760: build-skew detection for the git-derived `version` / `commit` fields.
+//
+// `version` and `commit` are baked into each crate at COMPILE time by its
+// build.rs, which reads git. The two sides of a parity test are not compiled at
+// the same moment: the MCP side is this test binary (compiled when `cargo test`
+// starts), while the CLI side is `target/release/termlink`, rebuilt by
+// `find_termlink_bin_fresh()` at test RUNTIME — minutes later on a workspace
+// build. Any commit landing in that window makes the two disagree.
+//
+// That is not a product defect, but it fails the test naming `version` — a
+// field neither side got wrong. It blocked T-2757's completion gate at 19/21
+// with MCP f28e9b857/0.11.1403 vs CLI 5859c89ad/0.11.1405. The project's own
+// automation (handover commits, VERSION stamping) commits during long runs, so
+// a workspace test racing a handover is the normal case, not an edge case.
+// Same class as PL-220.
+//
+// Note the T-1912 mitigation (`find_termlink_bin_fresh`) makes this direction
+// strictly WORSE, not better: by guaranteeing the CLI is freshly built while
+// the MCP side stays frozen, it ensures the two builds straddle any intervening
+// commit. Its comment anticipates a STALE binary; it does not anticipate a
+// MOVING HEAD.
+//
+// The fix is to DETECT the skew rather than assume it absent. When the two
+// sides report different commits they were built from different sources, so
+// comparing their versions is meaningless and we exclude those two fields —
+// loudly. When the commits AGREE the comparison is strict, which is what keeps
+// this load-bearing: T-1458 and T-2744 were both real "crate reports a
+// plausible wrong version forever" defects, so unconditionally stripping
+// `version` would trade a false positive for a blind spot in the exact place
+// two real defects have already landed.
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, PartialEq, Eq)]
+struct BuildSkew {
+    skewed: bool,
+    mcp_commit: Option<String>,
+    cli_commit: Option<String>,
+}
+
+/// Compare the `commit` field of two envelopes to decide whether they were
+/// built from the same git HEAD.
+///
+/// A side that reports no `commit` at all yields `skewed: false` — absence of
+/// evidence is not evidence of skew, and failing open here would let a genuine
+/// version defect hide behind a missing field. The separate
+/// `assert_ne!(commit, "unknown")` checks cover the build.rs-did-not-run case.
+fn detect_build_skew(mcp: &Value, cli: &Value) -> BuildSkew {
+    let commit_of = |v: &Value| {
+        v.get("commit")
+            .and_then(|c| c.as_str())
+            .map(|s| s.to_string())
+    };
+    let mcp_commit = commit_of(mcp);
+    let cli_commit = commit_of(cli);
+    let skewed = match (&mcp_commit, &cli_commit) {
+        (Some(a), Some(b)) => a != b,
+        _ => false,
+    };
+    BuildSkew { skewed, mcp_commit, cli_commit }
+}
+
+/// The fields excluded from a diff purely because of build skew. Empty when
+/// the two builds are coherent — deliberately narrow, so skew never widens
+/// into an excuse to skip comparing the rest of the envelope.
+fn skew_ignored_fields(skew: &BuildSkew) -> &'static [&'static str] {
+    if skew.skewed { &["version", "commit"] } else { &[] }
+}
+
+/// Report a detected skew on stdout. Named and explicit: a reader of the test
+/// output must be able to tell "the build environment moved under us" from
+/// "the product disagrees with itself" without reading this file.
+fn report_build_skew(name: &str, skew: &BuildSkew) {
+    println!(
+        "parity[{name}]: BUILD SKEW — MCP built at commit {}, CLI at {}. \
+         `version`/`commit` excluded from this diff; every other field still \
+         compared strictly. This is a build-environment artifact (a commit \
+         landed between the two builds), NOT a product defect. To compare them \
+         strictly, re-run with no commits landing mid-build. See T-2760.",
+        skew.mcp_commit.as_deref().unwrap_or("<absent>"),
+        skew.cli_commit.as_deref().unwrap_or("<absent>"),
+    );
+}
+
+#[test]
+fn build_skew_detected_when_commits_differ() {
+    let mcp = json!({"commit": "f28e9b857", "version": "0.11.1403"});
+    let cli = json!({"commit": "5859c89ad", "version": "0.11.1405"});
+    let skew = detect_build_skew(&mcp, &cli);
+    assert!(skew.skewed, "differing commits must be reported as skew");
+    assert_eq!(skew.mcp_commit.as_deref(), Some("f28e9b857"));
+    assert_eq!(skew.cli_commit.as_deref(), Some("5859c89ad"));
+    assert_eq!(skew_ignored_fields(&skew), &["version", "commit"]);
+}
+
+#[test]
+fn no_skew_when_commits_match_so_version_is_compared_strictly() {
+    let mcp = json!({"commit": "f28e9b857", "version": "0.11.1403"});
+    let cli = json!({"commit": "f28e9b857", "version": "0.11.1403"});
+    let skew = detect_build_skew(&mcp, &cli);
+    assert!(!skew.skewed, "identical commits are not skew");
+    // The load-bearing half: with no skew, nothing is excused, so a genuine
+    // T-1458/T-2744-class version divergence still reaches the diff.
+    assert!(
+        skew_ignored_fields(&skew).is_empty(),
+        "coherent builds must not excuse `version` from the diff"
+    );
+}
+
+#[test]
+fn coherent_commits_still_fail_on_a_genuine_version_divergence() {
+    // Same commit, different version — this is the T-1458 / T-2744 defect
+    // shape (a crate reporting a plausible wrong version). It must NOT be
+    // excused by the skew path.
+    let mcp = json!({"commit": "f28e9b857", "version": "0.9.0"});
+    let cli = json!({"commit": "f28e9b857", "version": "0.11.1403"});
+    let skew = detect_build_skew(&mcp, &cli);
+    assert!(!skew.skewed);
+    let ignore: HashSet<&'static str> = skew_ignored_fields(&skew).iter().copied().collect();
+    assert!(
+        diff_json("version-defect-probe", &mcp, &cli, &ignore).is_err(),
+        "a version divergence under a shared commit must still fail the diff"
+    );
+}
+
+#[test]
+fn absent_commit_is_not_treated_as_skew() {
+    let mcp = json!({"version": "0.11.1403"});
+    let cli = json!({"commit": "f28e9b857", "version": "0.11.1403"});
+    let skew = detect_build_skew(&mcp, &cli);
+    assert!(
+        !skew.skewed,
+        "a missing commit is absence of evidence, not evidence of skew"
+    );
+    assert!(skew_ignored_fields(&skew).is_empty());
+}
+
+// ---------------------------------------------------------------------------
 // PAIR 1: termlink_ping  /  termlink ping <name> --json
 //
 // SECOND CATCH (T-1909 v0.1 — 2026-06-01).
@@ -150,9 +301,19 @@ fn diff_json(name: &str, mcp: &Value, cli: &Value, ignore: &HashSet<&'static str
 // The fix is multi-thread tokio runtime so accept_loop can run on a worker
 // thread while the test thread is blocked in subprocess I/O. Applies to
 // every parity test that needs a socket roundtrip (parity_ping,
-// parity_status). Hub-less tests (parity_topics, parity_list_sessions,
-// parity_discover, parity_clean, parity_tofu_list, parity_info, etc.) do
-// not need the socket so they pass on current_thread too.
+// parity_status, parity_kv_full_cycle, parity_whoami_session_match,
+// parity_topics).
+//
+// T-2687 — `parity_topics` was previously listed here as NOT needing the
+// socket, on the grounds that it is "hub-less". That conflated two different
+// things: it needs no HUB, but it does start a SESSION and the CLI subprocess
+// must RPC `event.topics` to that session's socket. On current_thread the
+// blocking `.output()` in `call_cli` starved the accept loop, the CLI timed
+// out, and the CLI reported `sessions_unreachable: 1` where the in-runtime MCP
+// call reported 0 — a pure harness artifact presented as a parity failure.
+// The remaining hub-less tests genuinely need no socket: parity_list_sessions
+// and parity_discover read registration FILES rather than RPCing, and
+// parity_clean / parity_tofu_list / parity_info touch neither.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn parity_ping() {
     let _lock = ENV_LOCK.lock().await;
@@ -199,7 +360,9 @@ async fn parity_ping() {
 // is useful telemetry for fleet inspection.
 // ---------------------------------------------------------------------------
 
-#[tokio::test]
+// T-2687: multi_thread — the CLI subprocess must RPC `event.topics` to the
+// session started below, and `call_cli` blocks the test thread while it does.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn parity_topics() {
     let _lock = ENV_LOCK.lock().await;
     let dir = TestDir::new("parity-topics");
@@ -291,9 +454,21 @@ async fn parity_version() {
     assert_ne!(cli_json["commit"], "unknown",
         "CLI commit is 'unknown' — termlink-cli/build.rs did not run. Got: {cli_json}");
 
-    let ignore: HashSet<&'static str> = ["ts_ms", "pid", "build_time", "uptime_ms"]
+    let mut ignore: HashSet<&'static str> = ["ts_ms", "pid", "build_time", "uptime_ms"]
         .into_iter()
         .collect();
+
+    // T-2760: if a commit landed between the MCP compile and the CLI rebuild,
+    // the two binaries are from different sources and comparing their
+    // git-derived fields is meaningless. Exclude exactly those two, loudly.
+    // When the commits agree nothing is excused and `version` is compared
+    // strictly — that is what keeps this test load-bearing for the
+    // T-1458/T-2744 wrong-version defect class.
+    let skew = detect_build_skew(&mcp_json, &cli_json);
+    if skew.skewed {
+        report_build_skew("version", &skew);
+        ignore.extend(skew_ignored_fields(&skew).iter().copied());
+    }
 
     diff_json("version", &mcp_json, &cli_json, &ignore).expect("version parity");
 }
@@ -625,7 +800,7 @@ async fn parity_info() {
     // - `registered_endpoints`: dynamic MCP endpoint count (MCP-server-only state)
     // Stripping these from the diff documents that they are NOT bugs, but
     // intentional MCP-side extensions to the shared info envelope.
-    let ignore: HashSet<&'static str> = [
+    let mut ignore: HashSet<&'static str> = [
         // MCP-only (intentional divergence):
         "mcp_tools", "registered_endpoints",
         // Per-process / per-environment (not shape-relevant):
@@ -633,6 +808,16 @@ async fn parity_info() {
     ]
     .into_iter()
     .collect();
+
+    // T-2760: `commit` is already excluded above, but `version` is not — and
+    // `version` is derived from the same git read, so it skews for the same
+    // reason. Detect the skew from the RAW envelopes (before the strip) and
+    // exclude `version` only when the two builds genuinely disagree on commit.
+    let skew = detect_build_skew(&mcp_json, &cli_json);
+    if skew.skewed {
+        report_build_skew("info", &skew);
+        ignore.extend(skew_ignored_fields(&skew).iter().copied());
+    }
 
     diff_json("info", &mcp_json, &cli_json, &ignore)
         .expect("info parity");

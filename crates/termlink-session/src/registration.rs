@@ -647,6 +647,35 @@ mod tests {
         assert!(reg.addr.is_unix());
     }
 
+    // T-2744. `registration.rs` stamps `env!("CARGO_PKG_VERSION")` into every
+    // session's metadata. Without this crate's build.rs that expands to the
+    // Cargo.toml constant — `0.9.0`, never moved — so every session on every
+    // build recorded the same string. Measured before the fix: live sessions
+    // reported `0.9.0` while `termlink --version` reported `0.11.720`.
+    //
+    // The comparison is against a build-script-exported copy of the Cargo.toml
+    // value rather than a literal, so this test cannot go stale the way the
+    // field it guards did.
+    #[test]
+    fn recorded_version_is_the_build_version_not_the_cargo_toml_constant() {
+        // A tarball or shallow build has no git to describe and legitimately
+        // falls back to Cargo.toml. That is not the regression, so only assert
+        // where the derivation actually ran.
+        if option_env!("VERSION_IS_GIT_DERIVED").is_none() {
+            return;
+        }
+
+        let recorded = env!("CARGO_PKG_VERSION");
+        let cargo_toml = env!("CARGO_TOML_VERSION");
+
+        assert_ne!(
+            recorded, cargo_toml,
+            "session metadata would record the frozen Cargo.toml version ({cargo_toml}) \
+             instead of the build version — this crate's build.rs is missing or no longer \
+             emits the git-derived override"
+        );
+    }
+
     #[test]
     fn session_metadata_serde_all_fields() {
         let meta = SessionMetadata {

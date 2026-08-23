@@ -13,3 +13,34 @@ patterns:
   - glob: "bin/*"
   - glob: "**/*.ts"
   - glob: "**/*.go"
+  # T-2712: the guard layer + canaries under scripts/, and the shell/Rust test
+  # suites, already carry fabric cards — 44 of them. Without these globs the
+  # drift check cannot see those files, so card coverage was measured over a
+  # subset while reporting as if complete. Widened so drift covers what the
+  # registry already treats as components.
+  - glob: "scripts/**/*.sh"
+  - glob: "tests/**/*.sh"
+  - glob: "crates/*/tests/**/*.rs"
+  - glob: "scripts/**/*.py"
+  - glob: "crates/*/build.rs"
+  # T-2722: three of the four previously-excluded cards are now covered. The
+  # rule applied — widen to a NATURAL CATEGORY BOUNDARY and register every file
+  # inside it; never hand-shape a glob around one file to dodge the check. That
+  # distinction is what separates honest widening from the PL-341 trap, and it
+  # is why the fourth case below stays open rather than being quietly globbed.
+  - glob: "*.sh"                         # exactly install.sh — the only root-level shell source
+  - glob: "systemd-templates/*.service"  # all 3; the 2 uncarded siblings were registered
+  - glob: "docs/guides/*.md"             # exactly upstream-reporting.md — the only file in the dir
+  #
+  # STILL NOT COVERED, and a real open decision rather than an oversight:
+  #   .claude/commands/*.md — 34 slash-command definitions exist, exactly ONE
+  #   (capture.md) carries a card, and it declares a genuine edge to
+  #   agents/capture/read-transcript.py. Adding the glob would newly flag 33
+  #   uncarded files; hand-shaping a glob around capture.md alone would be the
+  #   fabrication this file exists to warn about. The honest resolutions are to
+  #   register all 34 (they are operator-facing entry points with real
+  #   dependencies) or to drop the singleton card. Both are scope decisions, so
+  #   neither was taken as a side-effect of clearing an audit warning.
+  #
+  # docs/**/*.md generally stays out: hundreds of files, no cards, and the
+  # fabric maps structural topology rather than prose.

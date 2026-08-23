@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# guard-layer: source --no-heartbeat
 # check-alloc-sink-clamps.sh (T-2527, G-019 prevention for the T-2523/T-2526 class)
 #
 # WHY: twice in one window an adversarial hunter found a caller-supplied param
@@ -59,7 +60,21 @@ set -uo pipefail
 
 WANT_JSON=0 QUIET=0 HEARTBEAT=1
 ROOTS=()
-ALLOWLIST="${ALLOC_SINK_ALLOWLIST:-.context/working/.alloc-sink-allowlist}"
+# T-2681 — tracked-first allowlist resolution. The canonical home is the
+# git-tracked `.context/checks/`; `.context/working/` is gitignored, so an
+# allowlist there is invisible to a fresh clone / CI runner / git worktree and the
+# check fires on every acknowledged site there while reporting CLEAN on the one
+# machine that holds the untracked copy. The legacy path is still honoured as a
+# fallback so an un-migrated checkout keeps working. An explicit
+# ALLOC_SINK_ALLOWLIST / --allowlist always wins over both.
+_default_allowlist() {
+    if [ -f ".context/checks/alloc-sink-allowlist" ]; then
+        printf '%s' ".context/checks/alloc-sink-allowlist"
+    else
+        printf '%s' ".context/working/.alloc-sink-allowlist"
+    fi
+}
+ALLOWLIST="${ALLOC_SINK_ALLOWLIST:-$(_default_allowlist)}"
 
 while [ $# -gt 0 ]; do
     case "$1" in

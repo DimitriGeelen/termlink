@@ -18,6 +18,8 @@ date_finished: 2026-05-18T21:02:26Z
 
 # T-1693: Per-agent ed25519 signing identity on shared hosts — provisioning + session-time identity selection (cohort-agent ask B)
 
+Research artifact: `docs/reports/T-1693-per-agent-ed25519-signing-identity.md` (C-001, consolidated retrospectively 2026-08-14 under T-2716).
+
 ## Problem Statement
 
 T-1427 enforcement (envelope sig must match host-derived identity)

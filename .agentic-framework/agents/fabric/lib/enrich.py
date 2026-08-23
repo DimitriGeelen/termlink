@@ -30,10 +30,23 @@ def load_card(path):
 
 
 def save_card(path, data):
-    """Write card YAML preserving readable formatting."""
-    with open(path, "w") as f:
+    """Write card YAML preserving readable formatting.
+
+    Atomic write (T-2457 / OBS-080): serialize to a temp file in the SAME
+    directory, then os.replace() — an atomic rename on POSIX. A non-atomic
+    ``open(path, "w")`` truncates the card first and streams the new content,
+    so a concurrent reader (e.g. ``fw fabric drift`` doing
+    ``grep "^location:" *.yaml`` to build its registered set) can observe the
+    card after truncation but before ``location:`` is written → the card's
+    source path drops out of the registered set → spurious "unregistered"
+    drift FP that clears on re-run once the write completes. os.replace keeps
+    readers seeing either the complete old card or the complete new one.
+    """
+    tmp = path + ".tmp"
+    with open(tmp, "w") as f:
         yaml.dump(data, f, default_flow_style=False, sort_keys=False,
                   allow_unicode=True, width=120)
+    os.replace(tmp, path)
 
 
 # ---------------------------------------------------------------------------
@@ -156,6 +169,40 @@ def detect_bash_sources(content, source_location, framework_root):
             if target != source_location:
                 edges.append((target, "calls"))
 
+    # Pattern: "$FRAMEWORK_ROOT/bin/fw" / "$PROJECT_ROOT/bin/fw" — suffixless
+    # invocation (T-2511). The FRAMEWORK_ROOT/*.sh pattern above requires a
+    # .sh/.py suffix, so an actual `"$FRAMEWORK_ROOT/bin/fw" orchestrator …` call
+    # (single-host-parallel-demo.sh) was missed. This is a real invocation path,
+    # not prose — distinct from the bare `bin/fw` grep-pattern false-positive class.
+    if re.search(r'"\$(?:FRAMEWORK_ROOT|PROJECT_ROOT)/bin/fw"', content) \
+       and source_location != "bin/fw" and os.path.exists(os.path.join(framework_root, "bin/fw")):
+        edges.append(("bin/fw", "calls"))
+
+    # Pattern: exec python3 "$(dirname "$0")/sibling.py"  (T-2511)
+    # The fw hook dispatcher loads a thin .sh that exec's its own-dir .py sibling
+    # (check-inception-schema.sh -> check-inception-schema.py etc.). Resolve
+    # relative to the SOURCE file's directory.
+    for m in re.finditer(r'\$\(\s*dirname\s+"?\$0"?\s*\)/([^"$\s]+\.(?:sh|py))', content):
+        target = os.path.normpath(os.path.join(source_dir, m.group(1)))
+        if os.path.exists(os.path.join(framework_root, target)) and target != source_location:
+            edges.append((target, "calls"))
+
+    return edges
+
+
+def detect_fw_hook_dispatch(content, source_location, framework_root):
+    """Detect `fw hook <name>` dispatcher calls → agents/context/<name>.sh (T-2511).
+
+    `.claude/settings.json` (and some scripts) wire PreToolUse/PostToolUse hooks
+    via `bin/fw hook check-inception-schema`, NOT a direct path to the .sh file —
+    so the literal-path detectors never saw the dependency. The fw dispatcher
+    convention is `fw hook <name>` -> agents/context/<name>.sh. Existence-guarded.
+    """
+    edges = []
+    for m in re.finditer(r'fw\s+hook\s+([\w-]+)', content):
+        target = os.path.join("agents", "context", m.group(1) + ".sh")
+        if os.path.exists(os.path.join(framework_root, target)) and target != source_location:
+            edges.append((target, "calls"))
     return edges
 
 
@@ -233,6 +280,26 @@ def detect_python_imports(content, source_location, framework_root):
             if target != source_location:
                 edges.append((target, "calls"))
 
+    # Pattern: from {web,lib,agents,tools} import NAME  (bare — no dot after prefix)
+    # T-2511: the dotted pattern above misses `from lib import govd_policy` (the
+    # module is a name imported FROM the package, e.g. test_govd_policy.py). Resolve
+    # to prefix/NAME.py. Existence-guarded, additive.
+    for m in re.finditer(r'from\s+(web|lib|agents|tools)\s+import\s+(\w+)', content):
+        target = os.path.join(m.group(1), m.group(2) + ".py")
+        if os.path.exists(os.path.join(framework_root, target)) and target != source_location:
+            edges.append((target, "calls"))
+
+    # Pattern: sys.path.insert(..., ".../lib") then bare `import NAME` → lib/NAME.py
+    # T-2511: unit tests (test_resolver_run, test_ollama_loop, test_pi_worker) prepend
+    # lib/ to sys.path and `import resolver`/`ollama_loop`/`pi_worker`. Only fire when
+    # the file manipulates sys.path into lib/ AND lib/NAME.py exists — double-guarded.
+    if re.search(r'sys\.path\.insert\([^)]*["\']lib["\']', content) or \
+       re.search(r'sys\.path\.insert\([^)]*/\s*["\']lib["\']', content):
+        for m in re.finditer(r'^import\s+(\w+)\s*(?:#.*)?$', content, re.MULTILINE):
+            target = os.path.join("lib", m.group(1) + ".py")
+            if os.path.exists(os.path.join(framework_root, target)) and target != source_location:
+                edges.append((target, "calls"))
+
     # Pattern: render_page("template.html", ...)
     for m in re.finditer(r'render_page\(\s*["\']([^"\']+)["\']', content):
         template = m.group(1)
@@ -284,14 +351,36 @@ def detect_python_path_refs(content, source_location, framework_root):
 
     # Pattern: literal framework paths embedded in any string
     # (matches the detect_bats_deps literal-path branch).
+    # T-2511: added backtick + paren to the prefix class — orchestrator-graph.py
+    # references `agents/dispatch/yield-point.sh` inside a Markdown-style backtick
+    # docstring, which the original ["\'\s/] prefix excluded.
     for m in re.finditer(
-        r'(?:["\'\s/]|^)((?:bin|lib|agents|tools|web|prompts)/[\w./-]+\.(?:sh|py))',
+        r'(?:["\'\s/`(]|^)((?:bin|lib|agents|tools|web|prompts)/[\w./-]+\.(?:sh|py))',
         content,
     ):
         target = os.path.normpath(m.group(1))
         if os.path.exists(os.path.join(framework_root, target)):
             if target != source_location:
                 edges.append((target, "calls"))
+
+    # Pattern: os.path.join(<var>, "seg", ..., "file.py")  and
+    #          <base> / "seg" / ... / "file.{py,sh}" slash-chains with ANY base
+    # T-2511: tests build the module-under-test path via os.path.join or pathlib
+    # slash-chains whose base is a local var (ROOT, repo, Path(...).parents[N]) —
+    # the T-1758 chain_re only matched REPO_ROOT/FRAMEWORK_ROOT/PROJECT_ROOT bases.
+    for m in re.finditer(r'os\.path\.join\(\s*\w+\s*,\s*((?:"[^"]+"\s*,\s*)*"[^"]+")\s*\)', content):
+        segs = re.findall(r'"([^"]+)"', m.group(1))
+        target = os.path.normpath("/".join(segs))
+        if os.path.exists(os.path.join(framework_root, target)) and target != source_location:
+            edges.append((target, "calls"))
+    for m in re.finditer(r'(?:parents\[\d+\]|\b\w+)((?:\s*/\s*"[^"]+")+)', content):
+        segs = re.findall(r'"([^"]+)"', m.group(1))
+        if not segs:
+            continue
+        target = os.path.normpath("/".join(segs))
+        if os.path.exists(os.path.join(framework_root, target)) and target != source_location \
+           and target.split("/")[0] in ("bin", "lib", "agents", "tools", "web", "prompts", "tests"):
+            edges.append((target, "calls"))
 
     # Pattern: bare bin/fw reference (subprocess args, etc.)
     if re.search(r'\bbin/fw\b', content) and "bin/fw" != source_location:
@@ -563,8 +652,43 @@ def detect_ts_js_imports(content, source_location, project_root):
 # Edge resolver
 # ---------------------------------------------------------------------------
 
-def resolve_edges(raw_edges, loc_to_id, source_id):
-    """Convert (location, type) pairs to edge dicts. Deduplicates."""
+def classify_unresolved(loc, project_root):
+    """Why did this target not resolve to a card? (T-2736)
+
+    Returns "ignorable" | "actionable" | "absent".
+
+    The distinction is derived from the target itself, never from an allowlist
+    of known-noisy paths (L-533) — a directory is ignorable *because it is a
+    directory*, not because someone remembered to list it. An allowlist can
+    only ever cover the noise its author had already seen.
+    """
+    path = os.path.join(project_root, loc) if project_root else loc
+    if os.path.isdir(path):
+        return "ignorable"      # a dependency on a directory is not a component
+    if os.path.isfile(path):
+        return "actionable"     # a real file with no card — `fw fabric register`
+    return "absent"             # referenced but not on disk
+
+
+def resolve_edges(raw_edges, loc_to_id, source_id, unresolved=None,
+                  project_root=None):
+    """Convert (location, type) pairs to edge dicts. Deduplicates.
+
+    T-2736: unresolvable targets were dropped by a bare `continue` with no
+    counter, no verbose line and no effect on the summary — so enrichment could
+    only ever draw edges inside the already-registered set, and a run that
+    discarded everything reported identically to one that discarded nothing.
+
+    Measured before the fix: 2419 raw edges detected, 2124 kept, 295 discarded
+    across 117 distinct targets, every one of which existed on disk. The split
+    is what makes the silence expensive — 148 of those edge instances pointed at
+    directories (genuine detector noise, correctly dropped) and 147 at real
+    uncarded files (genuine coverage loss). One mute branch was doing both jobs,
+    so no reader could tell a healthy run from a lossy one.
+
+    Passing `unresolved` (a dict) collects the breakdown for the caller to
+    report. Omitting it preserves the previous signature exactly.
+    """
     seen = set()
     resolved = []
 
@@ -572,6 +696,10 @@ def resolve_edges(raw_edges, loc_to_id, source_id):
         loc = os.path.normpath(loc)
         target_id = loc_to_id.get(loc)
         if not target_id:
+            if unresolved is not None:
+                kind = classify_unresolved(loc, project_root)
+                unresolved.setdefault(kind, {})
+                unresolved[kind][loc] = unresolved[kind].get(loc, 0) + 1
             continue
         if target_id == source_id:
             continue
@@ -588,10 +716,13 @@ def resolve_edges(raw_edges, loc_to_id, source_id):
 # Forward pass — detect depends_on for each card
 # ---------------------------------------------------------------------------
 
-def compute_forward_edges(cards, loc_to_id, framework_root):
+def compute_forward_edges(cards, loc_to_id, framework_root, unresolved=None):
     """Analyze all cards and return new forward edges per card_path.
 
     Returns: dict of card_path -> list of edge dicts to ADD to depends_on
+
+    T-2736: pass `unresolved` (a dict) to collect the breakdown of targets that
+    did not resolve to a card, so the summary can report what was dropped.
     """
     forward = {}  # card_path -> [edge_dicts]
 
@@ -608,7 +739,12 @@ def compute_forward_edges(cards, loc_to_id, framework_root):
 
         try:
             with open(source_path, "r", errors="replace") as f:
-                content = f.read(100_000)
+                # T-2511: was 100_000 — bin/fw (349 KB, the central dispatcher that
+                # exec's nearly every lib/agent script) had all its dispatch routing
+                # past byte 100K truncated away, hiding 65+ real edges and leaving
+                # lib/pause.sh, lib/worktree.sh, orchestrator-graph.py edgeless. 2 MB
+                # covers every realistic source file (largest is ~350 KB) with headroom.
+                content = f.read(2_000_000)
         except (OSError, UnicodeDecodeError):
             continue
 
@@ -643,10 +779,17 @@ def compute_forward_edges(cards, loc_to_id, framework_root):
         elif is_rust:
             raw_edges.extend(detect_rust_deps(content, location, framework_root))
 
+        # T-2511: fw-hook dispatcher edges (`fw hook <name>` → agents/context/<name>.sh)
+        # run on EVERY card regardless of type — the primary source is
+        # .claude/settings.json (a .json file that no type-detector above scans).
+        raw_edges.extend(detect_fw_hook_dispatch(content, location, framework_root))
+
         if not raw_edges:
             continue
 
-        new_edges = resolve_edges(raw_edges, loc_to_id, card_id)
+        new_edges = resolve_edges(raw_edges, loc_to_id, card_id,
+                                  unresolved=unresolved,
+                                  project_root=framework_root)
         if not new_edges:
             continue
 
@@ -864,7 +1007,9 @@ def main():
     print(f"Processing {len(targets)} cards...\n")
 
     # Phase 1: Compute forward edges (depends_on)
-    forward = compute_forward_edges(targets, loc_to_id, project_root)
+    unresolved = {}
+    forward = compute_forward_edges(targets, loc_to_id, project_root,
+                                    unresolved=unresolved)
 
     # Phase 2: Compute reverse edges (depended_by) — uses ALL cards as targets
     reverse = compute_reverse_edges(forward, cards, id_to_card)
@@ -885,6 +1030,31 @@ def main():
     print(f"Forward edges:     {n_fwd}  (depends_on)")
     print(f"Reverse edges:     {n_rev}  (depended_by)")
     print(f"Total edges added: {n_fwd + n_rev}")
+
+    # T-2736: report what did NOT resolve. Before this, unresolvable targets
+    # were dropped by a bare `continue` — so a run that discarded 295 edges
+    # printed the same summary as one that discarded none, and the operator
+    # had no way to tell "nothing to add" from "everything thrown away".
+    #
+    # ACTIONABLE is printed even at zero. An absence has to be representable,
+    # or a clean run and a broken counter look identical (L-525).
+    n_actionable = sum(unresolved.get("actionable", {}).values())
+    n_ignorable = sum(unresolved.get("ignorable", {}).values())
+    n_absent = sum(unresolved.get("absent", {}).values())
+    d_actionable = len(unresolved.get("actionable", {}))
+
+    print(f"\n=== Unresolved edge targets ===")
+    print(f"Actionable:        {n_actionable}  ({d_actionable} real file(s) "
+          f"with no card — run: fw fabric register <path>)")
+    print(f"Ignorable:         {n_ignorable}  (directories — not components)")
+    if n_absent:
+        print(f"Absent:            {n_absent}  (referenced but not on disk)")
+
+    if args.verbose and d_actionable:
+        print(f"\nUncarded files referenced as dependencies:")
+        for loc, count in sorted(unresolved["actionable"].items(),
+                                 key=lambda x: -x[1]):
+            print(f"  x{count:<4d} {loc}")
 
     if sub_stats:
         print(f"\nEdges by subsystem:")

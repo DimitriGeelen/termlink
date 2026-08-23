@@ -121,6 +121,14 @@ do_validate_init() {
                     if [ "$match" = false ]; then
                         skipped=$((skipped + 1))
                         total=$((total + 1))
+                        # T-2726: this skip is legitimate (the check is scoped to
+                        # another provider) but it used to print nothing at all,
+                        # so the summary counted 42 while only 41 rows were
+                        # visible and no reader could tell which check was
+                        # absent. A skip that leaves no row makes an absence
+                        # unrepresentable (L-525); the git-condition branch above
+                        # already prints one.
+                        [ "$quiet" = false ] && echo -e "  ${CYAN}-${NC} ${type_key}  ${desc_line} (skipped: provider '${provider}' not in ${condition})"
                         continue
                     fi
                     ;;
@@ -141,7 +149,13 @@ do_validate_init() {
                 fi
                 ;;
 
-            file)
+            # T-2726: `md` was declared in the manifest (md-3bv
+            # policy/bvp-scoring-rubric.md) with no evaluator, so it fell to the
+            # `*)` fallthrough and was counted-but-never-run. A markdown artifact
+            # wants exactly the file contract — exists and is non-empty — so it
+            # is served here rather than by an alias branch that would add a type
+            # without adding behaviour.
+            file|md)
                 if [ -f "$full_path" ] && [ -s "$full_path" ]; then
                     result="pass"
                 elif [ -f "$full_path" ]; then
@@ -289,8 +303,15 @@ do_validate_init() {
                     continue
                 else
                     local broken
-                    broken=$(VALIDATE_FILE="$full_path" python3 -c "
-import json, os
+                    broken=$(VALIDATE_FILE="$full_path" VALIDATE_ROOT="$target_dir" python3 -c "
+import json, os, shutil
+# T-2724: hook commands are written by fw init as
+# '\${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook <event>'. Without expansion,
+# os.path.exists() is handed that literal and every correct install reports 19 broken
+# hooks named 'fw' (the basename of the unexpanded string). expandvars handles both
+# \$VAR and \${VAR}, and deliberately leaves UNKNOWN variables untouched so an
+# unresolvable path still fails rather than silently passing.
+os.environ['CLAUDE_PROJECT_DIR'] = os.environ['VALIDATE_ROOT']
 with open(os.environ['VALIDATE_FILE']) as f:
     data = json.load(f)
 for event, entries in data.get('hooks', {}).items():
@@ -299,6 +320,15 @@ for event, entries in data.get('hooks', {}).items():
             cmd = hook.get('command', '')
             parts = cmd.split()
             script = next((p for p in parts if '=' not in p), '')
+            script = os.path.expandvars(script) if script else script
+            # T-2725: a bare command with no '/' is an interpreter/wrapper
+            # ('bash \${CLAUDE_PROJECT_DIR}/x.sh'), not a path. Resolve it on PATH —
+            # os.path.exists('bash') is False and would report a valid hook broken,
+            # the same false positive T-2724 fixed for the \${CLAUDE_PROJECT_DIR} form
+            # surviving under a different carrier shape. Unoccupied in this repo today
+            # but reachable, so this is an occupancy zero, not a capability one.
+            if script and '/' not in script:
+                script = shutil.which(script) or script
             if script and not os.path.exists(script):
                 print(f'missing: {os.path.basename(script)}')
             elif script and '/Cellar/' in script:
@@ -320,9 +350,16 @@ for event, entries in data.get('hooks', {}).items():
                 ;;
 
             *)
-                skipped=$((skipped + 1))
-                [ "$quiet" = false ] && echo -e "  ${YELLOW}?${NC} ${type_key}  Unknown check type" >&2
-                continue
+                # T-2726: a declared check the evaluator cannot serve is a defect
+                # in the manifest/evaluator join — not a property of the target
+                # tree, and not a condition-based skip. Absorbing it into
+                # `skipped` left the verdict green (the function returns
+                # `[ "$failed" -eq 0 ]`) while `total` had already been
+                # incremented, so the run reported success about a check it never
+                # ran. Falling through with the default result="fail" turns it red
+                # and prints it on stdout with the other verdict lines; it used to
+                # go to stderr, invisible in any captured log.
+                detail="unknown check type '${check_type}' — no evaluator in validate-init.sh"
                 ;;
         esac
 
@@ -363,8 +400,12 @@ for event, entries in data.get('hooks', {}).items():
     if [ -f "$settings_file" ] && [ "$has_python" = true ]; then
         total=$((total + 1))
         local broken_hooks
-        broken_hooks=$(VALIDATE_FILE="$settings_file" python3 -c "
-import json, os
+        broken_hooks=$(VALIDATE_FILE="$settings_file" VALIDATE_ROOT="$target_dir" python3 -c "
+import json, os, shutil
+# T-2724: see the matching comment on the hookpaths check above — same unexpanded
+# \${CLAUDE_PROJECT_DIR} defect, same fix. Both sites must stay in step; a fix to one
+# alone leaves the other reporting 19 phantom 'fw' entries.
+os.environ['CLAUDE_PROJECT_DIR'] = os.environ['VALIDATE_ROOT']
 with open(os.environ['VALIDATE_FILE']) as f:
     data = json.load(f)
 broken = []
@@ -374,6 +415,15 @@ for event, entries in data.get('hooks', {}).items():
             cmd = hook.get('command', '')
             parts = cmd.split()
             script = next((p for p in parts if '=' not in p), '')
+            script = os.path.expandvars(script) if script else script
+            # T-2725: a bare command with no '/' is an interpreter/wrapper
+            # ('bash \${CLAUDE_PROJECT_DIR}/x.sh'), not a path. Resolve it on PATH —
+            # os.path.exists('bash') is False and would report a valid hook broken,
+            # the same false positive T-2724 fixed for the \${CLAUDE_PROJECT_DIR} form
+            # surviving under a different carrier shape. Unoccupied in this repo today
+            # but reachable, so this is an occupancy zero, not a capability one.
+            if script and '/' not in script:
+                script = shutil.which(script) or script
             if script and not os.path.exists(script):
                 broken.append(os.path.basename(script))
 print(','.join(broken))
@@ -384,6 +434,36 @@ print(','.join(broken))
         else
             failed=$((failed + 1))
             [ "$quiet" = false ] && echo -e "  ${RED}✗${NC} func-paths  Missing hook scripts: $broken_hooks"
+        fi
+    fi
+
+    # 2b-bis. Vendored framework is complete (T-2805)
+    #
+    # Nothing here validated the framework copy itself, so `fw init` over a partial
+    # vendor printed "Validation passed: 42/43" while .agentic-framework/ held no
+    # FRAMEWORK.md and no VERSION. 43 green checks, every one of them about files
+    # init writes, none about the ~90MB of framework they depend on — the checks
+    # were all true and the project was broken.
+    #
+    # FRAMEWORK.md is the sentinel do_vendor writes last and bin/fw resolves
+    # FRAMEWORK_ROOT by; the rest are the pieces whose absence produces a
+    # confusing failure rather than a clear one.
+    if [ -d "$target_dir/.agentic-framework" ]; then
+        total=$((total + 1))
+        local missing_vendor=""
+        for _part in FRAMEWORK.md VERSION bin/fw lib agents; do
+            [ -e "$target_dir/.agentic-framework/$_part" ] || \
+                missing_vendor="${missing_vendor:+$missing_vendor, }$_part"
+        done
+        if [ -z "$missing_vendor" ]; then
+            passed=$((passed + 1))
+            [ "$quiet" = false ] && echo -e "  ${GREEN}✓${NC} func-vendor Vendored framework is complete"
+        else
+            failed=$((failed + 1))
+            [ "$quiet" = false ] && {
+                echo -e "  ${RED}✗${NC} func-vendor Vendored framework INCOMPLETE — missing: $missing_vendor"
+                echo -e "       Re-vendor with: fw init --force  (or: fw vendor)"
+            }
         fi
     fi
 
@@ -438,6 +518,36 @@ print(','.join(bad))
             failed=$((failed + 1))
             [ "$quiet" = false ] && echo -e "  ${RED}✗${NC} func-tasks  Invalid task files: $bad_tasks"
         fi
+    fi
+
+    # 2f. Git identity resolves (T-2818 / OBS-170)
+    #
+    # Without one, `git commit` dies RC=128 "Author identity unknown" before any
+    # framework hook runs, so onboarding task T-003 ("First governed commit") cannot
+    # be completed. The tally is the line operators read as the verdict, and on a
+    # fresh machine it said "Validation passed: 43/44" about a project that could not
+    # commit — 44 checks, none of them about the one condition blocking the next step.
+    #
+    # Warn-shaped, counted as passed, following the sem-fabric precedent below: this
+    # is HOST state, not project state (`fw doctor` scopes it [host] for the same
+    # reason). Re-running after `git config user.email` flips it green with no
+    # re-init, and failing here would redden every CI job that legitimately runs
+    # without an identity — training people to ignore validation output, which is
+    # the exact failure mode this check exists to prevent.
+    total=$((total + 1))
+    passed=$((passed + 1))
+    # T-2883: "resolves" now means what the word says — `git var GIT_COMMITTER_IDENT`,
+    # the same resolution `git commit` performs. The old `git config user.email` read
+    # called an env-supplied identity missing and told a machine that commits fine
+    # that its commits would fail.
+    source "$(dirname "${BASH_SOURCE[0]}")/git-identity.sh"
+    if fw_git_identity_ok "$target_dir"; then
+        [ "$quiet" = false ] && echo -e "  ${GREEN}✓${NC} func-identity Git identity resolves"
+    else
+        [ "$quiet" = false ] && {
+            echo -e "  ${YELLOW}!${NC} func-identity Git identity not set — commits will fail (host, not project)"
+            echo -e "       $(fw_git_identity_remedy "$target_dir")"
+        }
     fi
 
     # --- Tier 3: Semantic Checks (T-462) ---

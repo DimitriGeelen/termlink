@@ -79,6 +79,15 @@ def create_app() -> Flask:
             _key_source,
         )
 
+    # T-2278 (T-2277 Leg A): port-scoped session cookie name.
+    # Multiple Watchtower instances on the same host share Flask's default
+    # SESSION_COOKIE_NAME="session" — RFC 6265 ignores port when scoping
+    # cookies, so visits across instances overwrite each other's session
+    # cookie, breaking CSRF on every cross-tab POST (403 Forbidden).
+    # Scoping the name by port allocates a distinct browser cookie slot
+    # per instance.
+    app.config["SESSION_COOKIE_NAME"] = f"fw_session_{Config.PORT}"
+
     # -------------------------------------------------------------------
     # CSRF protection
     # -------------------------------------------------------------------
@@ -98,6 +107,16 @@ def create_app() -> Flask:
                 return
             # T-409: Search endpoints use JSON + fetch (same-origin only)
             if request.path.startswith("/search/") and request.is_json:
+                return
+            # T-2529: the vendored 832 Workflow Designer gallery client (served
+            # read-only at /designer) POSTs to /api/save|/api/delete with no CSRF
+            # token — its gallery-server contract predates AEF's CSRF layer (T-1343)
+            # and we cannot edit the foreign build to inject one. Exempt its
+            # mutating endpoints: same-origin fetches from the served /designer
+            # page, trusted-LAN dashboard threat model, recoverable map data.
+            # (GET /api/list|/api/versions|/api/version never reach here — CSRF
+            # only fires on state-changing methods.)
+            if (request.endpoint or "").startswith("designer_api."):
                 return
             # T-1343 / G-048: /api/* blanket exemption removed. State-mutating
             # /api/* endpoints now require X-CSRF-Token header or _csrf_token
@@ -340,6 +359,11 @@ def create_app() -> Flask:
             "version": _ver,
             "project_root": str(PROJECT_ROOT),
             "started_at": _started_at,
+            # T-2782: the Playwright fixture adopts an already-listening server rather
+            # than starting its own. To bound how stale an adopted server may be it has
+            # to be able to recycle one, and to recycle a process it did not spawn it
+            # needs the pid. `started_at` alone answers "how old" but not "which one".
+            "pid": os.getpid(),
         })
 
     # -------------------------------------------------------------------
@@ -358,14 +382,30 @@ def create_app() -> Flask:
 
     @app.errorhandler(403)
     def forbidden(e):
+        # T-2309 (P-003 fix): distinguish CSRF token failures from generic 403s.
+        # CSRF failures are recoverable by reloading the page — the generic
+        # "Forbidden" template offers no Reload action and is indistinguishable
+        # from a real permission denial. csrf_protect() raises with description
+        # starting with "CSRF token" (see line 120). Branch on that prefix to
+        # render a friendly Session-expired template with a Reload button.
+        description = (
+            str(e.description) if hasattr(e, "description") else str(e)
+        )
+        is_csrf = description.startswith("CSRF token")
+        if is_csrf:
+            return render_template(
+                "_wrapper.html",
+                _content_template="_error_csrf.html",
+                page_title="Session expired",
+                error_message=description,
+                **_error_context(),
+            ), 403
         return render_template(
             "_wrapper.html",
             _content_template="_error.html",
             page_title="Forbidden",
             error_title="403 Forbidden",
-            error_message=(
-                str(e.description) if hasattr(e, "description") else str(e)
-            ),
+            error_message=description,
             **_error_context(),
         ), 403
 

@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2733: Scrollback cuts mid-UTF-8 character — U+FFFD corruption on --bytes and ring overflow (herdr item 5)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-15T10:56:28Z
+# ============================================================================
+
+task_id: T-2733
+task_name: "Scrollback cuts mid-UTF-8 character — U+FFFD corruption on --bytes and ring overflow (herdr item 5)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-15T10:45:58Z
+completed: 2026-08-15T10:54:18Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Scrollback cuts mid-UTF-8 character — U+FFFD corruption on --bytes and ring overflow (herdr item 5)
+
+# Key outcomes
+outcomes:
+  - 'A boundary helper in `scrollback.rs` advances a start offset FORWARD past'
+  - 'The helper is bounded — it advances at most 3 bytes and then yields the'
+  - 'All three cut sites use it: `last_n_bytes`, the `append` overflow drain,'
+  - '`last_n_lines` is left alone, with a comment stating why (`\n` is ASCII,'
+  - 'Test: a buffer of multi-byte characters read via `last_n_bytes` at an'
+  - 'Test: ring overflow that splits a multi-byte character leaves the buffer'
+  - 'Test: an oversized single write that splits a character keeps a boundary'
+  - 'Test: binary (non-UTF-8) content is not over-trimmed by the bounded scan'
+  - 'Each test is demonstrated load-bearing — reverting the fix makes it fail'
+  - '`cargo test -p termlink-session` passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 8
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2733-scrollback-cuts-mid-utf-8-character--uff.md
+generated_by: context-agent-hybrid

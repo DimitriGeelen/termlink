@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# guard-layer: source --no-heartbeat
 # T-2188 — /preflight check-count drift canary.
 #
 # The /preflight verb has its check enumeration described in 4 surfaces.

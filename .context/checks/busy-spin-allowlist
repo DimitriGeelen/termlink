@@ -1,0 +1,27 @@
+# busy-spin acknowledgement allowlist (T-2672; moved to a tracked path by T-2681)
+#
+# Signature format: <relpath>::<enclosing-fn>::busy-spin
+# `#`-comments and blank lines are skipped. fn-name-based, so entries survive line
+# moves; a fn RENAME re-fires the site — intended re-review on meaningful change.
+#
+# WHY THIS FILE IS GIT-TRACKED: see .context/checks/alloc-sink-allowlist's header
+# and T-2681. Short version: it used to live under gitignored `.context/working/`,
+# so all four loops below fired in any fresh clone / CI runner / worktree while
+# CLAUDE.md documented the tree as "scans CLEAN".
+#
+# ALL FOUR ARE THE SAME SHAPE, re-verified for T-2681: these are long-poll loops
+# whose error arm provably EXITS the loop (`anyhow::bail!` / `return`) rather than
+# falling through to re-dispatch. No re-dispatch means no spin, so the 500ms
+# sleep-on-error the check looks for is genuinely unnecessary. The grep cannot see
+# control flow, only the absence of a `tokio::time::sleep` in the loop body.
+#
+# If any of these is ever changed so the error arm CONTINUES the loop, delete its
+# line here and add the backoff — that is the T-2670/T-2671/T-2673 remediation.
+
+# `bail!("Timeout waiting for event topic ...")` / `bail!("Interrupted")` — both
+# error arms leave the loop.
+crates/termlink-cli/src/commands/events.rs::cmd_wait::busy-spin
+
+crates/termlink-mcp/src/tools.rs::termlink_request::busy-spin
+crates/termlink-mcp/src/tools.rs::termlink_wait::busy-spin
+crates/termlink-mcp/src/tools.rs::termlink_agent_ask::busy-spin

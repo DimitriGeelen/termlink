@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2742: Preflight Check 2 warns about missing hubs.toml on a correctly-configured local-only install
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-15T19:13:51Z
+# ============================================================================
+
+task_id: T-2742
+task_name: "Preflight Check 2 warns about missing hubs.toml on a correctly-configured local-only install"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-15T14:47:22Z
+completed: 2026-08-15T19:12:20Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Preflight Check 2 warns about missing hubs.toml on a correctly-configured local-only install
+
+# Key outcomes
+outcomes:
+  - 'Check 2 distinguishes "no hubs.toml AND a local hub socket exists" (a valid local-only install) from "no hubs.toml AND no local hub" (genuinely nothing to talk to)'
+  - 'The local-only case emits `pass`, not `warn`, and its message states that fleet verbs are empty *by design* so the operator is not left wondering'
+  - 'The no-hub-at-all case still warns and still names `termlink fleet profile add` — the guard is narrowed, not removed'
+  - 'The socket path is resolved with the script''s existing `resolve_runtime_dir`, not a hardcoded `/tmp` path (the T-2729 trap)'
+  - 'The "present but no [hubs.NAME] sections" branch keeps its existing behaviour'
+  - 'Fixture coverage for all three states (local-only pass, no-hub warn, populated pass), driven by a test seam rather than the real `$HOME`'
+  - 'Load-bearing proof recorded: reverting the conditional makes the local-only fixture fail'
+  - '`bash -n scripts/substrate-preflight.sh` parses, the preflight fixture suites pass, and `scripts/run-guard-layer.sh` is clean'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 264 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 264
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2742-preflight-check-2-warns-about-missing-hu.md
+generated_by: context-agent-hybrid

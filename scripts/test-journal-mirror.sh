@@ -17,7 +17,11 @@ command -v sqlite3 >/dev/null 2>&1      || { echo "SKIP: sqlite3 not available";
 command -v python3 >/dev/null 2>&1      || { echo "SKIP: python3 not available"; exit 0; }
 
 tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"' EXIT
+# T-2754 — extend (not replace) the existing tmp-dir trap so the minted topic is
+# reaped too. A second `trap ... EXIT` would silently drop the rm -rf.
+# shellcheck source=/dev/null
+. "$HERE/lib/reap-topic.sh"
+trap 'rc=$?; rm -rf "$tmp"; reap_topic "${topic:-}"; exit $rc' EXIT INT TERM
 J="$tmp/journal.sqlite"
 # A dm:-prefixed topic so the default enumeration also finds it.
 topic="dm:v6s1test:$$"

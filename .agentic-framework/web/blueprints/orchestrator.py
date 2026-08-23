@@ -32,7 +32,7 @@ from pathlib import Path
 import yaml
 from flask import Blueprint
 
-from web.shared import PROJECT_ROOT, render_page
+from web.shared import FRAMEWORK_ROOT, PROJECT_ROOT, render_page
 
 bp = Blueprint("orchestrator", __name__)
 
@@ -429,7 +429,9 @@ def _workflow_coverage() -> dict:
     can show an empty state instead of crashing.
     """
     import sys
-    lib_dir = PROJECT_ROOT / "lib"
+    # T-2645 (832 G-004 sibling): lib/ is FRAMEWORK-owned — PROJECT_ROOT resolution
+    # silently disabled this panel in split-root consumers (fallback masked it).
+    lib_dir = FRAMEWORK_ROOT / "lib"
     if str(lib_dir) not in sys.path:
         sys.path.insert(0, str(lib_dir))
     try:
@@ -494,6 +496,76 @@ def _arc_tasks() -> list[dict]:
             "completed": (path.parent.name == "completed"),
         })
     return out
+
+
+def _in_flight_dispatches() -> list[dict]:
+    """T-2342 (arc-011 M1 §5): read .context/dispatches.jsonl, return in-flight rows.
+
+    An entry is in-flight when its `outcome` field is missing/empty. When a
+    dispatch_id appears multiple times, the latest row wins (caller appends
+    new rows for each lifecycle stage; the last row reflects current state).
+    Bounded fail-safe: on parse error or missing file, returns [] silently.
+    """
+    path = PROJECT_ROOT / ".context" / "dispatches.jsonl"
+    if not path.is_file():
+        return []
+    latest: dict[str, dict] = {}
+    try:
+        with path.open(encoding="utf-8") as f:
+            for raw in f:
+                line = raw.strip()
+                if not line or line.startswith("#"):
+                    continue
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if not isinstance(row, dict):
+                    continue
+                d_id = row.get("dispatch_id")
+                if not d_id:
+                    continue
+                latest[d_id] = row
+    except OSError:
+        return []
+    # Filter to entries whose latest row is in-flight (outcome empty/missing)
+    return [r for r in latest.values() if not r.get("outcome")]
+
+
+@bp.route("/orchestrator/parallel")
+def orchestrator_parallel_page():
+    """T-2342 (arc-011 M1 §5): visual surface for in-flight dispatches.
+
+    Operator-facing render of arc-011's headline_mechanic firing — replaces
+    grep-against-dispatches.jsonl with one card per in-flight dispatch.
+    Auto-refresh every 2s via htmx. Sibling to T-2341's bash demo.
+    """
+    import time
+    in_flight = _in_flight_dispatches()
+    now = int(time.time())
+    cards = []
+    for row in in_flight:
+        started_at = row.get("started_at") or 0
+        try:
+            started_at = int(started_at)
+        except (TypeError, ValueError):
+            started_at = 0
+        elapsed = max(0, now - started_at) if started_at else 0
+        cards.append({
+            "dispatch_id": row.get("dispatch_id") or "?",
+            "task_id": row.get("task_id") or "?",
+            "started_at": started_at,
+            "elapsed_seconds": elapsed,
+        })
+    # Stable order: by dispatch_id so card positions don't reshuffle between refreshes
+    cards.sort(key=lambda c: c["dispatch_id"])
+    return render_page(
+        "orchestrator_parallel.html",
+        page_title="Orchestrator — Parallel Dispatches",
+        cards=cards,
+        in_flight_count=len(cards),
+        now_ts=now,
+    )
 
 
 @bp.route("/orchestrator")

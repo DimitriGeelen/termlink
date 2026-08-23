@@ -1,1118 +1,1094 @@
-# Framework Decisions — Seeded by fw init
-# Universal architectural decisions that govern how the framework operates.
-# scope: universal — applies to all projects using the framework
-# Project-specific decisions (technology choices, product scope) are NOT included.
-#
-# To add a project-specific decision: fw context add-decision "..." --task T-XXX
-# Universal decisions are synced from the framework via: fw governance sync (planned)
-
 decisions:
-  - id: FD-001
-    decision: "Use commit-msg hook (not pre-commit) for task reference enforcement"
-    scope: universal
-    inherited_from: framework
-    origin_task: T-013
-    rationale: "Validates message format, not file content; more appropriate for task ref check"
-    directives_served: [D2]
-
-  - id: FD-002
-    decision: "Audit saves history to YAML files"
-    scope: universal
-    inherited_from: framework
-    origin_task: T-014
-    rationale: "Enables trend detection without database, human-readable"
-    directives_served: [D1, D2]
-
-  - id: FD-003
-    decision: "3+ occurrences triggers practice candidate"
-    scope: universal
-    inherited_from: framework
-    origin_task: T-014
-    rationale: "Balance between noise (too few) and missing patterns (too many)"
-    directives_served: [D1]
-
-  - id: FD-004
-    decision: "Tier 0 violations are FAIL not WARN"
-    scope: universal
-    inherited_from: framework
-    origin_task: T-014
-    rationale: "Consequential actions must never bypass task requirement"
-    directives_served: [D1, D2]
-
-  - id: FD-005
-    decision: "Knowledge pyramid with 4 levels and graduation criteria"
-    scope: universal
-    inherited_from: framework
-    origin_task: T-011
-    rationale: "Higher levels require more evidence and are harder to change — directives require human approval"
-    directives_served: [D1, D2]
-
-  - id: FD-006
-    decision: "Monitor context budget via token reading from JSONL transcript, not tool-call counting"
-    scope: universal
-    inherited_from: framework
-    origin_task: T-059
-    rationale: "Tool calls are a garbage proxy — one call can consume 50 or 50,000 tokens. JSONL transcript contains actual usage."
-    directives_served: [D1, D2]
-
-  - id: FD-007
-    decision: "Check tokens every 5th tool call, not every call"
-    scope: universal
-    inherited_from: framework
-    origin_task: T-059
-    rationale: "23ms per check is fine but unnecessary on every call. Every 5th gives ~5-minute granularity."
-    directives_served: [D2, D3]
-
-  - id: FD-008
-    decision: "4-status task lifecycle: captured, started-work, issues, work-completed"
-    scope: universal
-    inherited_from: framework
-    origin_task: T-051
-    rationale: "Evidence from 50 tasks showed 0 uses of 'refined' and 0 uses of 'blocked'. Issues covered all blocking scenarios."
-    directives_served: [D2, D3]
-
-  - id: FD-009
-    decision: "PreToolUse hook blocks Write/Edit only, not Bash"
-    scope: universal
-    inherited_from: framework
-    origin_task: T-063
-    rationale: "Bash is needed for task creation itself; blocking it creates chicken-and-egg problem"
-    directives_served: [D1, D2]
-
-  - id: FD-010
-    decision: "fw work-on accepts both name strings (create new) and task IDs (resume existing)"
-    scope: universal
-    inherited_from: framework
-    origin_task: T-064
-    rationale: "Single command makes compliance easier than non-compliance"
-    directives_served: [D2, D3]
-
-  - id: FD-011
-    decision: "Three-tier plugin classification: AWARE / SILENT / BYPASSING"
-    scope: universal
-    inherited_from: framework
-    origin_task: T-067
-    rationale: "SILENT plugins need no action — only BYPASSING needs attention. Doctor check catches issues routinely."
-    directives_served: [D1, D2]
-
-  - id: FD-012
-    decision: "Tags over hierarchy for task grouping"
-    scope: universal
-    inherited_from: framework
-    origin_task: T-086
-    rationale: "Flat tags are simpler, more flexible, and avoid taxonomy design. Epics add brittle coupling."
-    directives_served: [D3]
-
-  - id: FD-013
-    decision: "Passive git metrics over manual estimation"
-    scope: universal
-    inherited_from: framework
-    origin_task: T-086
-    rationale: "Manual story points meaningless for AI agents. Git data is objective."
-    directives_served: [D2]
-
-  - id: FD-014
-    decision: "Build dispatch infrastructure (protocol + templates) instead of specialized agent types"
-    scope: universal
-    inherited_from: framework
-    origin_task: T-097
-    rationale: "Cannot create new Claude Code agent types. Generic agents handle 7/8 dispatches. Real problem is ad-hoc result management."
-    directives_served: [D2, D4]
-
-  - id: FD-015
-    decision: "Acceptance criteria gate + closed-task commit warning for task lifecycle enforcement"
-    scope: universal
-    inherited_from: framework
-    origin_task: T-112
-    rationale: "work-completed was an unvalidated flag. AC gate prevents premature closure, commit warning makes post-closure work visible."
-    directives_served: [D2]
-
-  - id: FD-016
-    decision: "Hybrid episodic: git-mined timeline/metrics + task-file AC/decisions"
-    scope: universal
-    inherited_from: framework
-    origin_task: T-117
-    rationale: "58% empty task files prove Updates-as-log failed. 97% git traceability proves commits are the natural authority."
-    directives_served: [D1, D2]
-
-  - id: FD-017
-    decision: "Error-watchdog PostToolUse hook for Bash error detection"
-    scope: universal
-    inherited_from: framework
-    origin_task: T-118
-    rationale: "7 systematic error bypass instances. Hook is low overhead (~25ms), detects high-confidence errors."
-    directives_served: [D1, D2]
-
-  - id: FD-018
-    decision: "Result ledger (fw bus) with 2KB size gating for sub-agent results"
-    scope: universal
-    inherited_from: framework
-    origin_task: T-109
-    rationale: "Formalizes write-to-disk convention. 2KB gating prevents context explosion (~97% savings in simulation)."
-    directives_served: [D1, D2]
-
-  - id: PD-001
-    decision: "T-233 Specialist Orchestration — layered agent routing with bypass registry, route cache, negotiation, and template caching"
-    scope: project
-    origin_task: T-233
-    rationale: "GO decision after comprehensive inception. Five architectural principles: bypass-first (sub-50ms), lazy learning, format negotiation, trust-aware supervision, zero-config defaults. Child tasks T-239-T-242, T-256 are building blocks — never evaluate them as isolated features."
-    directives_served: [D1, D3, D4]
-
-  - id: PD-002
-    decision: "One generic `termlink_remote_call` tool + 2 convenience wrappers (`termlink_remote_ping`, `termlink_remote_inject`)"
-    scope: project
-    date: 2026-04-11
-    task: T-920
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-003
-    decision: "Skip implementing a new `session.forward` hub RPC method. The hub"
-    scope: project
-    date: 2026-04-11
-    task: T-923
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-004
-    decision: "Close the scope-gap AC as 'verified safe via code-read + regression'"
-    scope: project
-    date: 2026-04-11
-    task: T-923
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-005
-    decision: "Option B — server-side write in `server.rs` after `TcpListener::bind()`"
-    scope: project
-    date: 2026-04-13
-    task: T-1025
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-006
-    decision: "`#[arg(global = true)]` on parent options + `Option<RemoteInboxAction>` defaulting to Status"
-    scope: project
-    date: 2026-04-16
-    task: T-1076
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-007
-    decision: "Audit and close — no code changes."
-    scope: project
-    date: 2026-04-20
-    task: T-1173
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-008
-    decision: "`cmd_channel_post` calls `client.flush().await` BEFORE issuing its own `post(pending)`, but only when `queue_size() > 0`"
-    scope: project
-    date: 2026-04-20
-    task: T-1174
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-009
-    decision: "New `hub_socket_soft(hub)` returns the path unconditionally; `cmd_channel_post` uses it; `subscribe`/`list`/`create` keep the strict `hub_socket(hub)?` that bails on missing socket"
-    scope: project
-    date: 2026-04-20
-    task: T-1174
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-010
-    decision: 'systemd restart via `remote exec "systemctl restart termlink-hub"`'
-    scope: project
-    date: 2026-04-23
-    task: T-1016
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-011
-    decision: "GO — proceed with hook audit"
-    scope: project
-    date: 2026-04-23
-    task: T-176
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-012
-    decision: "Restore from `git checkout HEAD~1` rather than re-vendor with `--exclude` flags"
-    scope: project
-    date: 2026-04-23
-    task: T-1206
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-013
-    decision: "Ship only B1 in T-1168: publisher hook + helper script that posts `channel:learnings` envelopes when `fw context add-learning` succeeds. Subscriber daemon (B2), Watchtower panel (B3), and install-bump coordination (B4) are deferred to **T-1217**."
-    scope: project
-    date: 2026-04-24
-    task: T-1168
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-014
-    decision: "Save to `/tmp/T-1224-message-to-122.md` for the human to relay (send-file via .107 or paste into .122 session)."
-    scope: project
-    date: 2026-04-25
-    task: T-1224
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-015
-    decision: "Real ACs from the start, not placeholders."
-    scope: project
-    date: 2026-04-25
-    task: T-1224
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-016
-    decision: "Migrate only `cmd_inbox_list` under T-1226. Capture"
-    scope: project
-    date: 2026-04-25
-    task: T-1226
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-017
-    decision: "Migrate only `termlink_inbox_list` under T-1228. Defer status /"
-    scope: project
-    date: 2026-04-25
-    task: T-1228
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-018
-    decision: "Factor dispatch into private `*_via_client` helpers that take"
-    scope: project
-    date: 2026-04-25
-    task: T-1231
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-019
-    decision: "Migrate only the List arm under T-1227. Status / Clear arms +"
-    scope: project
-    date: 2026-04-25
-    task: T-1227
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-020
-    decision: "Same scope-narrowing as T-1227 (List arm only). MCP-remote"
-    scope: project
-    date: 2026-04-25
-    task: T-1232
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-021
-    decision: "Add `count` field to each topic entry in existing `channel.list(prefix?)` response."
-    scope: project
-    date: 2026-04-25
-    task: T-1233
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-022
-    decision: "Split T-1164 into T-1248 (blob store + artifact.put/get RPC), T-1249 (sender migration), T-1250 (receiver migration), T-1251 (legacy deprecation + inbox.rs cleanup + PL-011 closure). T-1164 becomes the umbrella tracker."
-    scope: project
-    date: 2026-04-25
-    task: T-1164
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-023
-    decision: "`session-silent-scanner.sh` defaults to `DRY_RUN=1`. Cron stanza"
-    scope: project
-    date: 2026-04-25
-    task: T-1212
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-024
-    decision: "`metadata.in_reply_to=<offset>` as a routing-hint string, NOT included in `canonical_sign_bytes`."
-    scope: project
-    date: 2026-04-27
-    task: T-1313
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-025
-    decision: "Single integer (decimal string in metadata) within the same topic."
-    scope: project
-    date: 2026-04-27
-    task: T-1313
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-026
-    decision: "Emit both `last_seen_ts_ms` (int) and `last_seen_iso` (string)"
-    scope: project
-    date: 2026-04-30
-    task: T-1419
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-027
-    decision: "Add freshness only to `--json` path; human output unchanged"
-    scope: project
-    date: 2026-04-30
-    task: T-1419
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-028
-    decision: "Push the skill markdown to all reachable hosts FIRST, even though the binary doesn't yet support `agent contact` on .122/.141."
-    scope: project
-    date: 2026-05-03
-    task: T-1438
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-029
-    decision: "Test decision from Playwright"
-    scope: project
-    date: 2026-05-04
-    task: T-1030
-    rationale: "Not specified"
-
-  - id: PD-030
-    decision: "New task (T-1418) for the client-side upgrade"
-    scope: project
-    date: 2026-05-06
-    task: T-1418
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-031
-    decision: "Binary-only upgrade; rely on T-1235 SDK-layer rewrite"
-    scope: project
-    date: 2026-05-06
-    task: T-1418
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-032
-    decision: "Delete the existing `termlink_agent_threads` MCP tool (T-1574, line ~17760) and its `AgentThreadsParams { limit }` struct; ship a fresh implementation backed by `compute_threads_index_mcp` matching CLI `agent threads` (T-1365) one-to-one."
-    scope: project
-    date: 2026-05-20
-    task: T-1732
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-033
-    decision: "Ship the two writer-side fixes (foreign-port-kill guard + identity-verified triple write) in this task; carve the `fw doctor` drift-warning (3rd item in the original description) into a follow-up."
-    scope: project
-    date: 2026-05-25
-    task: T-1803
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-034
-    decision: "Factor the `/api/_identity` handshake into top-level `_watchtower_identity_matches` / `_watchtower_port_holder_is_ours` in the already-shared lib; have the reader's inline check delegate."
-    scope: project
-    date: 2026-05-25
-    task: T-1803
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-035
-    decision: "`mcp__termlink__termlink_run` (synchronous ephemeral session) for the patch + commit + push + verify steps."
-    scope: project
-    date: 2026-05-25
-    task: T-1812
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-036
-    decision: "A Python patcher doing per-hunk targeted string replacement with a presence-marker idempotency check and exactly-once anchor assertions; validated with `bash -n` before trusting."
-    scope: project
-    date: 2026-05-25
-    task: T-1812
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-037
-    decision: "`git add lib/watchtower.sh bin/watchtower.sh` (explicit, never `-A`)."
-    scope: project
-    date: 2026-05-25
-    task: T-1812
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-038
-    decision: "Remove `agent-reply.sh`/`test-agent-reply.sh`; keep the existing `agent-respond.sh` (T-1805) as the one receiver verb."
-    scope: project
-    date: 2026-05-25
-    task: T-1813
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-039
-    decision: "Remove the `event.broadcast` fallback outright; degrade to a logged no-op on channel.post failure."
-    scope: project
-    date: 2026-05-25
-    task: T-1814
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-040
-    decision: "Recover cv_key during the sweep by reading each record's envelope blob"
-    scope: project
-    date: 2026-06-22
-    task: T-2245
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-041
-    decision: "A single explicit `channel.sweep(topic)` RPC + CLI verb that enforces whatever"
-    scope: project
-    date: 2026-06-22
-    task: T-2245
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-042
-    decision: "size cap (default 100 MiB) + single rename-to-`.1` rotation, on by"
-    scope: project
-    date: 2026-06-23
-    task: T-2251
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-043
-    decision: "`channel.claim`/`renew`/`release` → **Interact**; `channel.transfer_claim`/`force_release` → **Control**."
-    scope: project
-    date: 2026-06-24
-    task: T-2267
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-044
-    decision: "Add explicit arms to `hub_method_scope` (server.rs); leave the `_ => auth::method_scope` → `_ => Execute` deny-by-default intact."
-    scope: project
-    date: 2026-06-24
-    task: T-2267
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-045
-    decision: "Put both the durable tracker AND the `await_ack_with_retry` loop in `termlink-session`, with the loop generic over injected `post_fn` / `receipts_fn` / clock / sleep closures. The CLI (`run_await_ack`) supplies real closures wrapping `rpc_call_authed`."
-    scope: project
-    date: 2026-06-25
-    task: T-2286
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-046
-    decision: "Prove the hub dedupe leg via the existing `termlink-hub` test (`dedupe_with_client_msg_id_duplicate_returns_cached_offset`) and the sender reuse leg via `ack_retry::tests::retry_after_dead_recipient_is_exactly_once` (dedupe-honouring fake hub)."
-    scope: project
-    date: 2026-06-25
-    task: T-2286
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-047
-    decision: "Persist `(dm_topic, msg_offset, client_msg_id, recipient_sender_id, attempts, enqueued_ms)` rather than the AC's literal `retry_deadline_ms`."
-    scope: project
-    date: 2026-06-25
-    task: T-2286
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-048
-    decision: "ship `channel awaiting-ack` as a single read verb (human + `--json`), no `--watch`/`--notify`/`--log` slices."
-    scope: project
-    date: 2026-06-26
-    task: T-2287
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-049
-    decision: "copy the queue-status handler's missing-file-is-healthy-empty-state contract, JSON-envelope shape, and path-resolution pattern."
-    scope: project
-    date: 2026-06-26
-    task: T-2287
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-050
-    decision: "Fire (exit 1) ONLY on `status != work-completed` (the true finalization"
-    scope: project
-    date: 2026-06-27
-    task: T-2290
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-051
-    decision: "A new `TERMLINK_AGENT_ID` env var that, when set, diverts the key"
-    scope: project
-    date: 2026-06-27
-    task: T-2292
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-052
-    decision: "Ship the self-reported `metadata.addr` + resolver-stamped `hub` as"
-    scope: project
-    date: 2026-06-27
-    task: T-2293
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-053
-    decision: "flag + heartbeat as plain files under `~/.termlink/notify/`."
-    scope: project
-    date: 2026-06-27
-    task: T-2294
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-054
-    decision: "the agent polls the local flag at its own yield points."
-    scope: project
-    date: 2026-06-27
-    task: T-2294
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-055
-    decision: "missing-ack→retry = `channel post --await-ack --retry` verbatim."
-    scope: project
-    date: 2026-06-27
-    task: T-2294
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-056
-    decision: "add the sidecar as the deterministic *alternative*; leave"
-    scope: project
-    date: 2026-06-27
-    task: T-2294
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-057
-    decision: "the recipient ack (the delivery confirmation the sender's"
-    scope: project
-    date: 2026-06-28
-    task: T-2295
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-058
-    decision: "standardize the conversational confirmation on mechanism A (the"
-    scope: project
-    date: 2026-06-28
-    task: T-2295
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-059
-    decision: "Client-side script (`journal-reaper.sh`) that trims via the existing `set-retention`+`sweep` primitives, plus a journal-merge in `recent-dm.sh`."
-    scope: project
-    date: 2026-07-02
-    task: T-2302
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-060
-    decision: "Reconnect loop that alternates WS ↔ one poll catch-up pass, per T-2311 GO."
-    scope: project
-    date: 2026-07-02
-    task: T-2314
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-061
-    decision: "reqwest feature `rustls-tls-webpki-roots-no-provider` instead of the plain `rustls-tls`."
-    scope: project
-    date: 2026-07-03
-    task: T-2333
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-062
-    decision: "exact topic membership OR the `\"*\"` wildcard; empty `topics` list never fires."
-    scope: project
-    date: 2026-07-03
-    task: T-2333
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-063
-    decision: "in-memory bounded `VecDeque` retry queue reusing the *shape* of the T-2051 offline-queue flush loop (attempts counter + jittered periodic drain + poison→dead-letter), NOT its SQLite store."
-    scope: project
-    date: 2026-07-03
-    task: T-2334
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-064
-    decision: "derive ±25% backoff jitter from `SystemTime::now().subsec_nanos()`."
-    scope: project
-    date: 2026-07-03
-    task: T-2334
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-065
-    decision: "2xx=Success, 4xx + config errors (bad URL / non-allowlisted host)=PermanentDrop, 5xx/3xx/1xx + transport errors=Retryable."
-    scope: project
-    date: 2026-07-03
-    task: T-2334
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-066
-    decision: "`test` runs the URL against the config's allowlist + explicit `--allowed-host` extras only; it does NOT auto-add the URL's own host. A host absent from the allowlist refuses loudly with an actionable `--allowed-host` hint."
-    scope: project
-    date: 2026-07-03
-    task: T-2336
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-067
-    decision: "Read 32 bytes from `/dev/urandom` directly for auto-generated signing keys."
-    scope: project
-    date: 2026-07-03
-    task: T-2336
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-068
-    decision: "Made `webhook::url_host` public and added `webhook::build_test_client()` in the hub crate; the CLI reuses both plus the existing `dispatch`/`sign_payload`."
-    scope: project
-    date: 2026-07-03
-    task: T-2336
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-069
-    decision: "Fix the two poll-loop `?`-exit defects (RPC-level + hub-level) inside T-2341 and"
-    scope: project
-    date: 2026-07-03
-    task: T-2341
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-070
-    decision: "`TERMLINK_WS_REPROBE_POLL_CYCLES` (default 30, clamp 1..=3600), mirroring"
-    scope: project
-    date: 2026-07-03
-    task: T-2341
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-071
-    decision: "After the first `latest-per-cv-key` sweep left 13,461 records (heartbeats"
-    scope: project
-    date: 2026-07-04
-    task: T-2345
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-072
-    decision: "Daily sweep at 04:17 UTC in /etc/cron.d/termlink-presence-sweep."
-    scope: project
-    date: 2026-07-04
-    task: T-2345
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-073
-    decision: "fleet-deploy-binary.sh for staging+probe ONLY; hand-rolled detached"
-    scope: project
-    date: 2026-07-04
-    task: T-2350
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-074
-    decision: "relay upgrade request to ring20 agent via DM; no direct deploy."
-    scope: project
-    date: 2026-07-04
-    task: T-2350
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-075
-    decision: "peer participation (`channel info` senders: does peer_fp have >0 posts in the candidate?) as the primary discriminator among existing dm threads; post-count and canonical-mint-existence only as fallbacks when no thread has peer posts."
-    scope: project
-    date: 2026-07-04
-    task: T-2352
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-076
-    decision: "wrap the T-2352 dm-topic scan (`channel list` + per-candidate `channel info`) in `timeout ${TERMLINK_SCAN_TIMEOUT:-8}`; on list failure/timeout emit a loud stderr NOTE and fall back to the canonical mint."
-    scope: project
-    date: 2026-07-04
-    task: T-2353
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-077
-    decision: "explicit `--hub <addr>` flag, mutex with `--to`."
-    scope: project
-    date: 2026-07-04
-    task: T-2353
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-078
-    decision: "bound every TCP RPC read in `rpc_call_authed` via a new `Client::call_with_timeout` (default 30s, `TERMLINK_RPC_READ_TIMEOUT_SECS` override clamped 1..=600); map expiry to `ClientError::Io(TimedOut)` so no caller error-handling changes."
-    scope: project
-    date: 2026-07-04
-    task: T-2354
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-079
-    decision: "re-run the live probe after confirming `target/debug/termlink` mtime postdates the edit."
-    scope: project
-    date: 2026-07-04
-    task: T-2354
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-080
-    decision: "per-walk elapsed-time deadline checked at top of each iteration, explicit structured error on expiry"
-    scope: project
-    date: 2026-07-04
-    task: T-2355
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-081
-    decision: "`WALK_DEADLINE_EXCEEDED` (-32020) error with `data.next_cursor`, never a truncated success page"
-    scope: project
-    date: 2026-07-04
-    task: T-2355
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-082
-    decision: "default 20_000ms, strictly under the T-2354 client read-timeout default (30s)"
-    scope: project
-    date: 2026-07-04
-    task: T-2355
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-083
-    decision: "declared per-hub version floors in a canary-owned config file (`.context/cron/fleet-version-floors.conf`), with `-` exemption for foreign lineages"
-    scope: project
-    date: 2026-07-04
-    task: T-2359
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-084
-    decision: "treat missing `hub_version` as firing, not informational"
-    scope: project
-    date: 2026-07-04
-    task: T-2359
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-085
-    decision: "Do NOT deploy 0.11.400 to .121; surface a decision to the operator instead."
-    scope: project
-    date: 2026-07-07
-    task: T-2377
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-086
-    decision: "Make `agent contact`'s dm-topic ensure-create non-fatal on"
-    scope: project
-    date: 2026-07-09
-    task: T-2382
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-087
-    decision: "`channel.delete` requires Execute (highest) scope."
-    scope: project
-    date: 2026-07-19
-    task: T-2421
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-088
-    decision: "CLI + RPC only; no `termlink_channel_delete` MCP tool."
-    scope: project
-    date: 2026-07-19
-    task: T-2421
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-089
-    decision: "Record the verdict (guaranteed-by-construction + already tested) and"
-    scope: project
-    date: 2026-08-09
-    task: T-2571
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-090
-    decision: "Option A — a present `ttl_ms` below `MIN_CLAIM_TTL_MS = 1000` returns"
-    scope: project
-    date: 2026-08-11
-    task: T-2604
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-091
-    decision: "Option A — non-breaking. Emit a one-line stderr advisory on the ack-less release path (human/non-`--json` mode only): `note: released WITHOUT --ack — slot reopened for retry (cursor NOT advanced). Pass --ack to mark the work completed.` A pure fn `release_retry_note(ack) -> Option<String>` builds it; it fires on `ack==false`, is `None` on `ack==true`. Keyed off the server-confirmed `r.ack` (truthful about what actually happened), not the input flag."
-    scope: project
-    date: 2026-08-12
-    task: T-2627
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-092
-    decision: "On first run the check fired on 7 long-poll loops. Verified each in"
-    scope: project
-    date: 2026-08-13
-    task: T-2672
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-093
-    decision: "Approach B — a hard cap with safe eviction entirely inside"
-    scope: project
-    date: 2026-08-13
-    task: T-2676
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-094
-    decision: "`safe_load` into a mapping — byte-identical to what `get_episodic_tags` does."
-    scope: project
-    date: 2026-08-20
-    task: T-2805
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-095
-    decision: "All 29 fire; the class carries the remediation."
-    scope: project
-    date: 2026-08-20
-    task: T-2805
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-096
-    decision: "No auto-regeneration."
-    scope: project
-    date: 2026-08-20
-    task: T-2805
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-097
-    decision: "File back on `framework:pickup` rather than only consuming the report."
-    scope: project
-    date: 2026-08-20
-    task: T-2805
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-098
-    decision: "Copy from the checkout that has the files; commit here where tracking is allowed."
-    scope: project
-    date: 2026-08-20
-    task: T-2806
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-099
-    decision: "File it upstream; recover the file locally."
-    scope: project
-    date: 2026-08-20
-    task: T-2806
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-100
-    decision: "The acceptance criterion is that a build task actually moves to `completed/`."
-    scope: project
-    date: 2026-08-20
-    task: T-2806
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-101
-    decision: "Fix the mechanism; do not bulk-finalize the backlog."
-    scope: project
-    date: 2026-08-20
-    task: T-2806
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-102
-    decision: "Everything under `lib/ bin/ policy/ agents/` that exists in the sibling checkout."
-    scope: project
-    date: 2026-08-20
-    task: T-2807
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-103
-    decision: "No edits to any recovered file, including obvious ones."
-    scope: project
-    date: 2026-08-20
-    task: T-2807
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-104
-    decision: "Copy with mode preserved and assert it afterwards."
-    scope: project
-    date: 2026-08-20
-    task: T-2807
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-105
-    decision: "revert all 72 writes, install the framework's own rubric template at"
-    scope: project
-    date: 2026-08-20
-    task: T-2808
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-106
-    decision: "score the whole corpus in memory first and look at the distribution."
-    scope: project
-    date: 2026-08-20
-    task: T-2808
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-107
-    decision: "`--include-proposed` for the ranking; no `fw bvp confirm`."
-    scope: project
-    date: 2026-08-20
-    task: T-2808
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-108
-    decision: "Reproduce on scratch copies across 26 old-format tasks before writing any report."
-    scope: project
-    date: 2026-08-20
-    task: T-2809
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-109
-    decision: "Scratch `PROJECT_ROOT` trees."
-    scope: project
-    date: 2026-08-20
-    task: T-2809
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-110
-    decision: "File upstream even though the answer is \"does not reproduce\"."
-    scope: project
-    date: 2026-08-20
-    task: T-2809
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-111
-    decision: "Record the outcome; do not add a hazard note."
-    scope: project
-    date: 2026-08-20
-    task: T-2809
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-112
-    decision: "Set `PROJECT_ROOT` in the cron registry entry."
-    scope: project
-    date: 2026-08-20
-    task: T-2810
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-113
-    decision: "The acceptance criterion is that the scan names T-1898 and T-2250."
-    scope: project
-    date: 2026-08-20
-    task: T-2810
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-114
-    decision: "Report T-1898 and T-2250 to the human; make no decision on either."
-    scope: project
-    date: 2026-08-20
-    task: T-2810
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-115
-    decision: "Check T-2705 on `worktree-charter-review-2026-0814` first, and stay out of its half."
-    scope: project
-    date: 2026-08-20
-    task: T-2811
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-116
-    decision: "Triage 12 commits to 3, rather than report the 95 the first scan produced."
-    scope: project
-    date: 2026-08-20
-    task: T-2812
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-117
-    decision: "File upstream and record the divergence; leave the re-vendor decision alone."
-    scope: project
-    date: 2026-08-20
-    task: T-2812
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-118
-    decision: "Add axis C — the same new path created on more than one branch, with differing"
-    scope: project
-    date: 2026-08-20
-    task: T-2800
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-119
-    decision: "Axis A (IDs) fires; axis B (titles) warns."
-    scope: project
-    date: 2026-08-20
-    task: T-2800
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-120
-    decision: "Build only the detection locally; file the allocation fix."
-    scope: project
-    date: 2026-08-20
-    task: T-2800
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-121
-    decision: "Report stranded and stale envelopes; never move or delete one."
-    scope: project
-    date: 2026-08-20
-    task: T-2801
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-122
-    decision: "Post upstream; do not edit `update-task.sh` locally."
-    scope: project
-    date: 2026-08-20
-    task: T-2801
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-123
-    decision: "Read `run-guard-layer.sh` on charter-review and conform to its marker contract."
-    scope: project
-    date: 2026-08-20
-    task: T-2802
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-124
-    decision: "Mark `check-task-id-collisions` and `check-pickup-deferred-freshness` even though"
-    scope: project
-    date: 2026-08-20
-    task: T-2802
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-125
-    decision: "A blocking scan for high-confidence markers; soft signals reported only."
-    scope: project
-    date: 2026-08-20
-    task: T-2803
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-126
-    decision: "Ship the script as a repo artifact, then run it through a TermLink session rooted"
-    scope: project
-    date: 2026-08-20
-    task: T-2803
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-127
-    decision: "Report it, print the command, never execute."
-    scope: project
-    date: 2026-08-20
-    task: T-2803
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-128
-    decision: "The four-sibling allowlist pattern (fire by default, acknowledge with a cited"
-    scope: project
-    date: 2026-08-20
-    task: T-2821
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-129
-    decision: "Take their file as the base and apply the firing change on top, preserving"
-    scope: project
-    date: 2026-08-20
-    task: T-2821
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-130
-    decision: "Accept `--strict` as a no-op alias of the new default."
-    scope: project
-    date: 2026-08-20
-    task: T-2821
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-131
-    decision: "The git move-commit timestamp."
-    scope: project
-    date: 2026-08-20
-    task: T-2804
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-132
-    decision: "Hand-write the four blank summaries, marked as hand-written."
-    scope: project
-    date: 2026-08-20
-    task: T-2804
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-133
-    decision: "Repair the three (inserting the field), and replace the grep in this task's"
-    scope: project
-    date: 2026-08-20
-    task: T-2804
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-134
-    decision: "Repair them as well."
-    scope: project
-    date: 2026-08-20
-    task: T-2804
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-135
-    decision: "`last_update` when it is at or before the move-commit; the move-commit"
-    scope: project
-    date: 2026-08-20
-    task: T-2804
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-136
-    decision: "Fix the seven; do not touch the canary, the sweep path, or the generator."
-    scope: project
-    date: 2026-08-20
-    task: T-2804
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-137
-    decision: "change the comparison to `-ge`."
-    scope: project
-    date: 2026-08-20
-    task: T-2826
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-138
-    decision: "fix here anyway."
-    scope: project
-    date: 2026-08-20
-    task: T-2826
-    rationale: "Auto-captured from task file on completion"
+- id: FD-001
+  decision: Use commit-msg hook (not pre-commit) for task reference enforcement
+  scope: universal
+  inherited_from: framework
+  origin_task: T-013
+  rationale: Validates message format, not file content; more appropriate for task ref check
+  directives_served:
+  - D2
+- id: FD-002
+  decision: Audit saves history to YAML files
+  scope: universal
+  inherited_from: framework
+  origin_task: T-014
+  rationale: Enables trend detection without database, human-readable
+  directives_served:
+  - D1
+  - D2
+- id: FD-003
+  decision: 3+ occurrences triggers practice candidate
+  scope: universal
+  inherited_from: framework
+  origin_task: T-014
+  rationale: Balance between noise (too few) and missing patterns (too many)
+  directives_served:
+  - D1
+- id: FD-004
+  decision: Tier 0 violations are FAIL not WARN
+  scope: universal
+  inherited_from: framework
+  origin_task: T-014
+  rationale: Consequential actions must never bypass task requirement
+  directives_served:
+  - D1
+  - D2
+- id: FD-005
+  decision: Knowledge pyramid with 4 levels and graduation criteria
+  scope: universal
+  inherited_from: framework
+  origin_task: T-011
+  rationale: Higher levels require more evidence and are harder to change — directives require human approval
+  directives_served:
+  - D1
+  - D2
+- id: FD-006
+  decision: Monitor context budget via token reading from JSONL transcript, not tool-call counting
+  scope: universal
+  inherited_from: framework
+  origin_task: T-059
+  rationale: Tool calls are a garbage proxy — one call can consume 50 or 50,000 tokens. JSONL transcript contains
+    actual usage.
+  directives_served:
+  - D1
+  - D2
+- id: FD-007
+  decision: Check tokens every 5th tool call, not every call
+  scope: universal
+  inherited_from: framework
+  origin_task: T-059
+  rationale: 23ms per check is fine but unnecessary on every call. Every 5th gives ~5-minute granularity.
+  directives_served:
+  - D2
+  - D3
+- id: FD-008
+  decision: '4-status task lifecycle: captured, started-work, issues, work-completed'
+  scope: universal
+  inherited_from: framework
+  origin_task: T-051
+  rationale: Evidence from 50 tasks showed 0 uses of 'refined' and 0 uses of 'blocked'. Issues covered all blocking
+    scenarios.
+  directives_served:
+  - D2
+  - D3
+- id: FD-009
+  decision: PreToolUse hook blocks Write/Edit only, not Bash
+  scope: universal
+  inherited_from: framework
+  origin_task: T-063
+  rationale: Bash is needed for task creation itself; blocking it creates chicken-and-egg problem
+  directives_served:
+  - D1
+  - D2
+- id: FD-010
+  decision: fw work-on accepts both name strings (create new) and task IDs (resume existing)
+  scope: universal
+  inherited_from: framework
+  origin_task: T-064
+  rationale: Single command makes compliance easier than non-compliance
+  directives_served:
+  - D2
+  - D3
+- id: FD-011
+  decision: 'Three-tier plugin classification: AWARE / SILENT / BYPASSING'
+  scope: universal
+  inherited_from: framework
+  origin_task: T-067
+  rationale: SILENT plugins need no action — only BYPASSING needs attention. Doctor check catches issues routinely.
+  directives_served:
+  - D1
+  - D2
+- id: FD-012
+  decision: Tags over hierarchy for task grouping
+  scope: universal
+  inherited_from: framework
+  origin_task: T-086
+  rationale: Flat tags are simpler, more flexible, and avoid taxonomy design. Epics add brittle coupling.
+  directives_served:
+  - D3
+- id: FD-013
+  decision: Passive git metrics over manual estimation
+  scope: universal
+  inherited_from: framework
+  origin_task: T-086
+  rationale: Manual story points meaningless for AI agents. Git data is objective.
+  directives_served:
+  - D2
+- id: FD-014
+  decision: Build dispatch infrastructure (protocol + templates) instead of specialized agent types
+  scope: universal
+  inherited_from: framework
+  origin_task: T-097
+  rationale: Cannot create new Claude Code agent types. Generic agents handle 7/8 dispatches. Real problem is ad-hoc
+    result management.
+  directives_served:
+  - D2
+  - D4
+- id: FD-015
+  decision: Acceptance criteria gate + closed-task commit warning for task lifecycle enforcement
+  scope: universal
+  inherited_from: framework
+  origin_task: T-112
+  rationale: work-completed was an unvalidated flag. AC gate prevents premature closure, commit warning makes post-closure
+    work visible.
+  directives_served:
+  - D2
+- id: FD-016
+  decision: 'Hybrid episodic: git-mined timeline/metrics + task-file AC/decisions'
+  scope: universal
+  inherited_from: framework
+  origin_task: T-117
+  rationale: 58% empty task files prove Updates-as-log failed. 97% git traceability proves commits are the natural
+    authority.
+  directives_served:
+  - D1
+  - D2
+- id: FD-017
+  decision: Error-watchdog PostToolUse hook for Bash error detection
+  scope: universal
+  inherited_from: framework
+  origin_task: T-118
+  rationale: 7 systematic error bypass instances. Hook is low overhead (~25ms), detects high-confidence errors.
+  directives_served:
+  - D1
+  - D2
+- id: FD-018
+  decision: Result ledger (fw bus) with 2KB size gating for sub-agent results
+  scope: universal
+  inherited_from: framework
+  origin_task: T-109
+  rationale: Formalizes write-to-disk convention. 2KB gating prevents context explosion (~97% savings in simulation).
+  directives_served:
+  - D1
+  - D2
+- id: PD-001
+  decision: T-233 Specialist Orchestration — layered agent routing with bypass registry, route cache, negotiation,
+    and template caching
+  scope: project
+  origin_task: T-233
+  rationale: 'GO decision after comprehensive inception. Five architectural principles: bypass-first (sub-50ms),
+    lazy learning, format negotiation, trust-aware supervision, zero-config defaults. Child tasks T-239-T-242, T-256
+    are building blocks — never evaluate them as isolated features.'
+  directives_served:
+  - D1
+  - D3
+  - D4
+- id: PD-002
+  decision: One generic `termlink_remote_call` tool + 2 convenience wrappers (`termlink_remote_ping`, `termlink_remote_inject`)
+  scope: project
+  date: 2026-04-11
+  task: T-920
+  rationale: Auto-captured from task file on completion
+- id: PD-003
+  decision: Skip implementing a new `session.forward` hub RPC method. The hub
+  scope: project
+  date: 2026-04-11
+  task: T-923
+  rationale: Auto-captured from task file on completion
+- id: PD-004
+  decision: Close the scope-gap AC as 'verified safe via code-read + regression'
+  scope: project
+  date: 2026-04-11
+  task: T-923
+  rationale: Auto-captured from task file on completion
+- id: PD-005
+  decision: Option B — server-side write in `server.rs` after `TcpListener::bind()`
+  scope: project
+  date: 2026-04-13
+  task: T-1025
+  rationale: Auto-captured from task file on completion
+- id: PD-006
+  decision: '`#[arg(global = true)]` on parent options + `Option<RemoteInboxAction>` defaulting to Status'
+  scope: project
+  date: 2026-04-16
+  task: T-1076
+  rationale: Auto-captured from task file on completion
+- id: PD-007
+  decision: Audit and close — no code changes.
+  scope: project
+  date: 2026-04-20
+  task: T-1173
+  rationale: Auto-captured from task file on completion
+- id: PD-008
+  decision: '`cmd_channel_post` calls `client.flush().await` BEFORE issuing its own `post(pending)`, but only when
+    `queue_size() > 0`'
+  scope: project
+  date: 2026-04-20
+  task: T-1174
+  rationale: Auto-captured from task file on completion
+- id: PD-009
+  decision: New `hub_socket_soft(hub)` returns the path unconditionally; `cmd_channel_post` uses it; `subscribe`/`list`/`create`
+    keep the strict `hub_socket(hub)?` that bails on missing socket
+  scope: project
+  date: 2026-04-20
+  task: T-1174
+  rationale: Auto-captured from task file on completion
+- id: PD-010
+  decision: systemd restart via `remote exec "systemctl restart termlink-hub"`
+  scope: project
+  date: 2026-04-23
+  task: T-1016
+  rationale: Auto-captured from task file on completion
+- id: PD-011
+  decision: GO — proceed with hook audit
+  scope: project
+  date: 2026-04-23
+  task: T-176
+  rationale: Auto-captured from task file on completion
+- id: PD-012
+  decision: Restore from `git checkout HEAD~1` rather than re-vendor with `--exclude` flags
+  scope: project
+  date: 2026-04-23
+  task: T-1206
+  rationale: Auto-captured from task file on completion
+- id: PD-013
+  decision: 'Ship only B1 in T-1168: publisher hook + helper script that posts `channel:learnings` envelopes when
+    `fw context add-learning` succeeds. Subscriber daemon (B2), Watchtower panel (B3), and install-bump coordination
+    (B4) are deferred to **T-1217**.'
+  scope: project
+  date: 2026-04-24
+  task: T-1168
+  rationale: Auto-captured from task file on completion
+- id: PD-014
+  decision: Save to `/tmp/T-1224-message-to-122.md` for the human to relay (send-file via .107 or paste into .122
+    session).
+  scope: project
+  date: 2026-04-25
+  task: T-1224
+  rationale: Auto-captured from task file on completion
+- id: PD-015
+  decision: Real ACs from the start, not placeholders.
+  scope: project
+  date: 2026-04-25
+  task: T-1224
+  rationale: Auto-captured from task file on completion
+- id: PD-016
+  decision: Migrate only `cmd_inbox_list` under T-1226. Capture
+  scope: project
+  date: 2026-04-25
+  task: T-1226
+  rationale: Auto-captured from task file on completion
+- id: PD-017
+  decision: Migrate only `termlink_inbox_list` under T-1228. Defer status /
+  scope: project
+  date: 2026-04-25
+  task: T-1228
+  rationale: Auto-captured from task file on completion
+- id: PD-018
+  decision: Factor dispatch into private `*_via_client` helpers that take
+  scope: project
+  date: 2026-04-25
+  task: T-1231
+  rationale: Auto-captured from task file on completion
+- id: PD-019
+  decision: Migrate only the List arm under T-1227. Status / Clear arms +
+  scope: project
+  date: 2026-04-25
+  task: T-1227
+  rationale: Auto-captured from task file on completion
+- id: PD-020
+  decision: Same scope-narrowing as T-1227 (List arm only). MCP-remote
+  scope: project
+  date: 2026-04-25
+  task: T-1232
+  rationale: Auto-captured from task file on completion
+- id: PD-021
+  decision: Add `count` field to each topic entry in existing `channel.list(prefix?)` response.
+  scope: project
+  date: 2026-04-25
+  task: T-1233
+  rationale: Auto-captured from task file on completion
+- id: PD-022
+  decision: Split T-1164 into T-1248 (blob store + artifact.put/get RPC), T-1249 (sender migration), T-1250 (receiver
+    migration), T-1251 (legacy deprecation + inbox.rs cleanup + PL-011 closure). T-1164 becomes the umbrella tracker.
+  scope: project
+  date: 2026-04-25
+  task: T-1164
+  rationale: Auto-captured from task file on completion
+- id: PD-023
+  decision: '`session-silent-scanner.sh` defaults to `DRY_RUN=1`. Cron stanza'
+  scope: project
+  date: 2026-04-25
+  task: T-1212
+  rationale: Auto-captured from task file on completion
+- id: PD-024
+  decision: '`metadata.in_reply_to=<offset>` as a routing-hint string, NOT included in `canonical_sign_bytes`.'
+  scope: project
+  date: 2026-04-27
+  task: T-1313
+  rationale: Auto-captured from task file on completion
+- id: PD-025
+  decision: Single integer (decimal string in metadata) within the same topic.
+  scope: project
+  date: 2026-04-27
+  task: T-1313
+  rationale: Auto-captured from task file on completion
+- id: PD-026
+  decision: Emit both `last_seen_ts_ms` (int) and `last_seen_iso` (string)
+  scope: project
+  date: 2026-04-30
+  task: T-1419
+  rationale: Auto-captured from task file on completion
+- id: PD-027
+  decision: Add freshness only to `--json` path; human output unchanged
+  scope: project
+  date: 2026-04-30
+  task: T-1419
+  rationale: Auto-captured from task file on completion
+- id: PD-028
+  decision: Push the skill markdown to all reachable hosts FIRST, even though the binary doesn't yet support `agent
+    contact` on .122/.141.
+  scope: project
+  date: 2026-05-03
+  task: T-1438
+  rationale: Auto-captured from task file on completion
+- id: PD-029
+  decision: Test decision from Playwright
+  scope: project
+  date: 2026-05-04
+  task: T-1030
+  rationale: Not specified
+- id: PD-030
+  decision: New task (T-1418) for the client-side upgrade
+  scope: project
+  date: 2026-05-06
+  task: T-1418
+  rationale: Auto-captured from task file on completion
+- id: PD-031
+  decision: Binary-only upgrade; rely on T-1235 SDK-layer rewrite
+  scope: project
+  date: 2026-05-06
+  task: T-1418
+  rationale: Auto-captured from task file on completion
+- id: PD-032
+  decision: Delete the existing `termlink_agent_threads` MCP tool (T-1574, line ~17760) and its `AgentThreadsParams
+    { limit }` struct; ship a fresh implementation backed by `compute_threads_index_mcp` matching CLI `agent threads`
+    (T-1365) one-to-one.
+  scope: project
+  date: 2026-05-20
+  task: T-1732
+  rationale: Auto-captured from task file on completion
+- id: PD-033
+  decision: Ship the two writer-side fixes (foreign-port-kill guard + identity-verified triple write) in this task;
+    carve the `fw doctor` drift-warning (3rd item in the original description) into a follow-up.
+  scope: project
+  date: 2026-05-25
+  task: T-1803
+  rationale: Auto-captured from task file on completion
+- id: PD-034
+  decision: Factor the `/api/_identity` handshake into top-level `_watchtower_identity_matches` / `_watchtower_port_holder_is_ours`
+    in the already-shared lib; have the reader's inline check delegate.
+  scope: project
+  date: 2026-05-25
+  task: T-1803
+  rationale: Auto-captured from task file on completion
+- id: PD-035
+  decision: '`mcp__termlink__termlink_run` (synchronous ephemeral session) for the patch + commit + push + verify
+    steps.'
+  scope: project
+  date: 2026-05-25
+  task: T-1812
+  rationale: Auto-captured from task file on completion
+- id: PD-036
+  decision: A Python patcher doing per-hunk targeted string replacement with a presence-marker idempotency check
+    and exactly-once anchor assertions; validated with `bash -n` before trusting.
+  scope: project
+  date: 2026-05-25
+  task: T-1812
+  rationale: Auto-captured from task file on completion
+- id: PD-037
+  decision: '`git add lib/watchtower.sh bin/watchtower.sh` (explicit, never `-A`).'
+  scope: project
+  date: 2026-05-25
+  task: T-1812
+  rationale: Auto-captured from task file on completion
+- id: PD-038
+  decision: Remove `agent-reply.sh`/`test-agent-reply.sh`; keep the existing `agent-respond.sh` (T-1805) as the
+    one receiver verb.
+  scope: project
+  date: 2026-05-25
+  task: T-1813
+  rationale: Auto-captured from task file on completion
+- id: PD-039
+  decision: Remove the `event.broadcast` fallback outright; degrade to a logged no-op on channel.post failure.
+  scope: project
+  date: 2026-05-25
+  task: T-1814
+  rationale: Auto-captured from task file on completion
+- id: PD-040
+  decision: Recover cv_key during the sweep by reading each record's envelope blob
+  scope: project
+  date: 2026-06-22
+  task: T-2245
+  rationale: Auto-captured from task file on completion
+- id: PD-041
+  decision: A single explicit `channel.sweep(topic)` RPC + CLI verb that enforces whatever
+  scope: project
+  date: 2026-06-22
+  task: T-2245
+  rationale: Auto-captured from task file on completion
+- id: PD-042
+  decision: size cap (default 100 MiB) + single rename-to-`.1` rotation, on by
+  scope: project
+  date: 2026-06-23
+  task: T-2251
+  rationale: Auto-captured from task file on completion
+- id: PD-043
+  decision: '`channel.claim`/`renew`/`release` → **Interact**; `channel.transfer_claim`/`force_release` → **Control**.'
+  scope: project
+  date: 2026-06-24
+  task: T-2267
+  rationale: Auto-captured from task file on completion
+- id: PD-044
+  decision: Add explicit arms to `hub_method_scope` (server.rs); leave the `_ => auth::method_scope` → `_ => Execute`
+    deny-by-default intact.
+  scope: project
+  date: 2026-06-24
+  task: T-2267
+  rationale: Auto-captured from task file on completion
+- id: PD-045
+  decision: Put both the durable tracker AND the `await_ack_with_retry` loop in `termlink-session`, with the loop
+    generic over injected `post_fn` / `receipts_fn` / clock / sleep closures. The CLI (`run_await_ack`) supplies
+    real closures wrapping `rpc_call_authed`.
+  scope: project
+  date: 2026-06-25
+  task: T-2286
+  rationale: Auto-captured from task file on completion
+- id: PD-046
+  decision: Prove the hub dedupe leg via the existing `termlink-hub` test (`dedupe_with_client_msg_id_duplicate_returns_cached_offset`)
+    and the sender reuse leg via `ack_retry::tests::retry_after_dead_recipient_is_exactly_once` (dedupe-honouring
+    fake hub).
+  scope: project
+  date: 2026-06-25
+  task: T-2286
+  rationale: Auto-captured from task file on completion
+- id: PD-047
+  decision: Persist `(dm_topic, msg_offset, client_msg_id, recipient_sender_id, attempts, enqueued_ms)` rather than
+    the AC's literal `retry_deadline_ms`.
+  scope: project
+  date: 2026-06-25
+  task: T-2286
+  rationale: Auto-captured from task file on completion
+- id: PD-048
+  decision: ship `channel awaiting-ack` as a single read verb (human + `--json`), no `--watch`/`--notify`/`--log`
+    slices.
+  scope: project
+  date: 2026-06-26
+  task: T-2287
+  rationale: Auto-captured from task file on completion
+- id: PD-049
+  decision: copy the queue-status handler's missing-file-is-healthy-empty-state contract, JSON-envelope shape, and
+    path-resolution pattern.
+  scope: project
+  date: 2026-06-26
+  task: T-2287
+  rationale: Auto-captured from task file on completion
+- id: PD-050
+  decision: Fire (exit 1) ONLY on `status != work-completed` (the true finalization
+  scope: project
+  date: 2026-06-27
+  task: T-2290
+  rationale: Auto-captured from task file on completion
+- id: PD-051
+  decision: A new `TERMLINK_AGENT_ID` env var that, when set, diverts the key
+  scope: project
+  date: 2026-06-27
+  task: T-2292
+  rationale: Auto-captured from task file on completion
+- id: PD-052
+  decision: Ship the self-reported `metadata.addr` + resolver-stamped `hub` as
+  scope: project
+  date: 2026-06-27
+  task: T-2293
+  rationale: Auto-captured from task file on completion
+- id: PD-053
+  decision: flag + heartbeat as plain files under `~/.termlink/notify/`.
+  scope: project
+  date: 2026-06-27
+  task: T-2294
+  rationale: Auto-captured from task file on completion
+- id: PD-054
+  decision: the agent polls the local flag at its own yield points.
+  scope: project
+  date: 2026-06-27
+  task: T-2294
+  rationale: Auto-captured from task file on completion
+- id: PD-055
+  decision: missing-ack→retry = `channel post --await-ack --retry` verbatim.
+  scope: project
+  date: 2026-06-27
+  task: T-2294
+  rationale: Auto-captured from task file on completion
+- id: PD-056
+  decision: add the sidecar as the deterministic *alternative*; leave
+  scope: project
+  date: 2026-06-27
+  task: T-2294
+  rationale: Auto-captured from task file on completion
+- id: PD-057
+  decision: the recipient ack (the delivery confirmation the sender's
+  scope: project
+  date: 2026-06-28
+  task: T-2295
+  rationale: Auto-captured from task file on completion
+- id: PD-058
+  decision: standardize the conversational confirmation on mechanism A (the
+  scope: project
+  date: 2026-06-28
+  task: T-2295
+  rationale: Auto-captured from task file on completion
+- id: PD-059
+  decision: Client-side script (`journal-reaper.sh`) that trims via the existing `set-retention`+`sweep` primitives,
+    plus a journal-merge in `recent-dm.sh`.
+  scope: project
+  date: 2026-07-02
+  task: T-2302
+  rationale: Auto-captured from task file on completion
+- id: PD-060
+  decision: Reconnect loop that alternates WS ↔ one poll catch-up pass, per T-2311 GO.
+  scope: project
+  date: 2026-07-02
+  task: T-2314
+  rationale: Auto-captured from task file on completion
+- id: PD-061
+  decision: reqwest feature `rustls-tls-webpki-roots-no-provider` instead of the plain `rustls-tls`.
+  scope: project
+  date: 2026-07-03
+  task: T-2333
+  rationale: Auto-captured from task file on completion
+- id: PD-062
+  decision: exact topic membership OR the `"*"` wildcard; empty `topics` list never fires.
+  scope: project
+  date: 2026-07-03
+  task: T-2333
+  rationale: Auto-captured from task file on completion
+- id: PD-063
+  decision: in-memory bounded `VecDeque` retry queue reusing the *shape* of the T-2051 offline-queue flush loop
+    (attempts counter + jittered periodic drain + poison→dead-letter), NOT its SQLite store.
+  scope: project
+  date: 2026-07-03
+  task: T-2334
+  rationale: Auto-captured from task file on completion
+- id: PD-064
+  decision: derive ±25% backoff jitter from `SystemTime::now().subsec_nanos()`.
+  scope: project
+  date: 2026-07-03
+  task: T-2334
+  rationale: Auto-captured from task file on completion
+- id: PD-065
+  decision: 2xx=Success, 4xx + config errors (bad URL / non-allowlisted host)=PermanentDrop, 5xx/3xx/1xx + transport
+    errors=Retryable.
+  scope: project
+  date: 2026-07-03
+  task: T-2334
+  rationale: Auto-captured from task file on completion
+- id: PD-066
+  decision: '`test` runs the URL against the config''s allowlist + explicit `--allowed-host` extras only; it does
+    NOT auto-add the URL''s own host. A host absent from the allowlist refuses loudly with an actionable `--allowed-host`
+    hint.'
+  scope: project
+  date: 2026-07-03
+  task: T-2336
+  rationale: Auto-captured from task file on completion
+- id: PD-067
+  decision: Read 32 bytes from `/dev/urandom` directly for auto-generated signing keys.
+  scope: project
+  date: 2026-07-03
+  task: T-2336
+  rationale: Auto-captured from task file on completion
+- id: PD-068
+  decision: Made `webhook::url_host` public and added `webhook::build_test_client()` in the hub crate; the CLI reuses
+    both plus the existing `dispatch`/`sign_payload`.
+  scope: project
+  date: 2026-07-03
+  task: T-2336
+  rationale: Auto-captured from task file on completion
+- id: PD-069
+  decision: Fix the two poll-loop `?`-exit defects (RPC-level + hub-level) inside T-2341 and
+  scope: project
+  date: 2026-07-03
+  task: T-2341
+  rationale: Auto-captured from task file on completion
+- id: PD-070
+  decision: '`TERMLINK_WS_REPROBE_POLL_CYCLES` (default 30, clamp 1..=3600), mirroring'
+  scope: project
+  date: 2026-07-03
+  task: T-2341
+  rationale: Auto-captured from task file on completion
+- id: PD-071
+  decision: After the first `latest-per-cv-key` sweep left 13,461 records (heartbeats
+  scope: project
+  date: 2026-07-04
+  task: T-2345
+  rationale: Auto-captured from task file on completion
+- id: PD-072
+  decision: Daily sweep at 04:17 UTC in /etc/cron.d/termlink-presence-sweep.
+  scope: project
+  date: 2026-07-04
+  task: T-2345
+  rationale: Auto-captured from task file on completion
+- id: PD-073
+  decision: fleet-deploy-binary.sh for staging+probe ONLY; hand-rolled detached
+  scope: project
+  date: 2026-07-04
+  task: T-2350
+  rationale: Auto-captured from task file on completion
+- id: PD-074
+  decision: relay upgrade request to ring20 agent via DM; no direct deploy.
+  scope: project
+  date: 2026-07-04
+  task: T-2350
+  rationale: Auto-captured from task file on completion
+- id: PD-075
+  decision: 'peer participation (`channel info` senders: does peer_fp have >0 posts in the candidate?) as the primary
+    discriminator among existing dm threads; post-count and canonical-mint-existence only as fallbacks when no thread
+    has peer posts.'
+  scope: project
+  date: 2026-07-04
+  task: T-2352
+  rationale: Auto-captured from task file on completion
+- id: PD-076
+  decision: wrap the T-2352 dm-topic scan (`channel list` + per-candidate `channel info`) in `timeout ${TERMLINK_SCAN_TIMEOUT:-8}`;
+    on list failure/timeout emit a loud stderr NOTE and fall back to the canonical mint.
+  scope: project
+  date: 2026-07-04
+  task: T-2353
+  rationale: Auto-captured from task file on completion
+- id: PD-077
+  decision: explicit `--hub <addr>` flag, mutex with `--to`.
+  scope: project
+  date: 2026-07-04
+  task: T-2353
+  rationale: Auto-captured from task file on completion
+- id: PD-078
+  decision: bound every TCP RPC read in `rpc_call_authed` via a new `Client::call_with_timeout` (default 30s, `TERMLINK_RPC_READ_TIMEOUT_SECS`
+    override clamped 1..=600); map expiry to `ClientError::Io(TimedOut)` so no caller error-handling changes.
+  scope: project
+  date: 2026-07-04
+  task: T-2354
+  rationale: Auto-captured from task file on completion
+- id: PD-079
+  decision: re-run the live probe after confirming `target/debug/termlink` mtime postdates the edit.
+  scope: project
+  date: 2026-07-04
+  task: T-2354
+  rationale: Auto-captured from task file on completion
+- id: PD-080
+  decision: per-walk elapsed-time deadline checked at top of each iteration, explicit structured error on expiry
+  scope: project
+  date: 2026-07-04
+  task: T-2355
+  rationale: Auto-captured from task file on completion
+- id: PD-081
+  decision: '`WALK_DEADLINE_EXCEEDED` (-32020) error with `data.next_cursor`, never a truncated success page'
+  scope: project
+  date: 2026-07-04
+  task: T-2355
+  rationale: Auto-captured from task file on completion
+- id: PD-082
+  decision: default 20_000ms, strictly under the T-2354 client read-timeout default (30s)
+  scope: project
+  date: 2026-07-04
+  task: T-2355
+  rationale: Auto-captured from task file on completion
+- id: PD-083
+  decision: declared per-hub version floors in a canary-owned config file (`.context/cron/fleet-version-floors.conf`),
+    with `-` exemption for foreign lineages
+  scope: project
+  date: 2026-07-04
+  task: T-2359
+  rationale: Auto-captured from task file on completion
+- id: PD-084
+  decision: treat missing `hub_version` as firing, not informational
+  scope: project
+  date: 2026-07-04
+  task: T-2359
+  rationale: Auto-captured from task file on completion
+- id: PD-085
+  decision: Do NOT deploy 0.11.400 to .121; surface a decision to the operator instead.
+  scope: project
+  date: 2026-07-07
+  task: T-2377
+  rationale: Auto-captured from task file on completion
+- id: PD-086
+  decision: Make `agent contact`'s dm-topic ensure-create non-fatal on
+  scope: project
+  date: 2026-07-09
+  task: T-2382
+  rationale: Auto-captured from task file on completion
+- id: PD-087
+  decision: '`channel.delete` requires Execute (highest) scope.'
+  scope: project
+  date: 2026-07-19
+  task: T-2421
+  rationale: Auto-captured from task file on completion
+- id: PD-088
+  decision: CLI + RPC only; no `termlink_channel_delete` MCP tool.
+  scope: project
+  date: 2026-07-19
+  task: T-2421
+  rationale: Auto-captured from task file on completion
+- id: PD-089
+  decision: Record the verdict (guaranteed-by-construction + already tested) and
+  scope: project
+  date: 2026-08-09
+  task: T-2571
+  rationale: Auto-captured from task file on completion
+- id: PD-090
+  decision: Option A — a present `ttl_ms` below `MIN_CLAIM_TTL_MS = 1000` returns
+  scope: project
+  date: 2026-08-11
+  task: T-2604
+  rationale: Auto-captured from task file on completion
+- id: PD-091
+  decision: 'Option A — non-breaking. Emit a one-line stderr advisory on the ack-less release path (human/non-`--json`
+    mode only): `note: released WITHOUT --ack — slot reopened for retry (cursor NOT advanced). Pass --ack to mark
+    the work completed.` A pure fn `release_retry_note(ack) -> Option<String>` builds it; it fires on `ack==false`,
+    is `None` on `ack==true`. Keyed off the server-confirmed `r.ack` (truthful about what actually happened), not
+    the input flag.'
+  scope: project
+  date: 2026-08-12
+  task: T-2627
+  rationale: Auto-captured from task file on completion
+- id: PD-092
+  decision: On first run the check fired on 7 long-poll loops. Verified each in
+  scope: project
+  date: 2026-08-13
+  task: T-2672
+  rationale: Auto-captured from task file on completion
+- id: PD-093
+  decision: Approach B — a hard cap with safe eviction entirely inside
+  scope: project
+  date: 2026-08-13
+  task: T-2676
+  rationale: Auto-captured from task file on completion
+- id: PD-094
+  decision: Build the static check. Leave the three hand-copied `build.rs` files as they are.
+  scope: project
+  date: 2026-08-15
+  task: T-2746
+  rationale: Auto-captured from task file on completion
+- id: PD-095
+  decision: Flag a crate whose only `env!("CARGO_PKG_VERSION")` use is inside a test.
+  scope: project
+  date: 2026-08-15
+  task: T-2746
+  rationale: Auto-captured from task file on completion
+- id: PD-096
+  decision: Keep `unicode-width = "0.1"` (locked at 0.1.14) and keep dropping zero-width
+  scope: project
+  date: 2026-08-15
+  task: T-2749
+  rationale: Auto-captured from task file on completion
+- id: PD-097
+  decision: Do not build a `curl | sh` installer. Close rank 20 by correcting its premise,
+  scope: project
+  date: 2026-08-15
+  task: T-2751
+  rationale: Auto-captured from task file on completion
+- id: PD-098
+  decision: Check `install.sh` ↔ `release.yml` in **both** directions with distinct
+  scope: project
+  date: 2026-08-15
+  task: T-2751
+  rationale: Auto-captured from task file on completion
+- id: PD-099
+  decision: Ship without an allowlist, and treat a zero-length artifact set from either
+  scope: project
+  date: 2026-08-15
+  task: T-2751
+  rationale: Auto-captured from task file on completion
+- id: PD-100
+  decision: Prove the check fires against the real tree, not only against fixtures.
+  scope: project
+  date: 2026-08-15
+  task: T-2751
+  rationale: Auto-captured from task file on completion
+- id: PD-101
+  decision: Make `## Installation` match Quick Start's ordering (one-liner, Homebrew,
+  scope: project
+  date: 2026-08-15
+  task: T-2752
+  rationale: Auto-captured from task file on completion
+- id: PD-102
+  decision: Retitle to "Homebrew (macOS)" and note it also works on Linux with the
+  scope: project
+  date: 2026-08-15
+  task: T-2752
+  rationale: Auto-captured from task file on completion
+- id: PD-103
+  decision: Rewrite `install-check.yml`'s header to name its scope (from-source only), say
+  scope: project
+  date: 2026-08-15
+  task: T-2752
+  rationale: Auto-captured from task file on completion
+- id: PD-104
+  decision: Copy with mode preserved and assert it afterwards.
+  scope: project
+  date: 2026-08-20
+  task: T-2807
+  rationale: Auto-captured from task file on completion
+- id: PD-105
+  decision: revert all 72 writes, install the framework's own rubric template at
+  scope: project
+  date: 2026-08-20
+  task: T-2808
+  rationale: Auto-captured from task file on completion
+- id: PD-106
+  decision: score the whole corpus in memory first and look at the distribution.
+  scope: project
+  date: 2026-08-20
+  task: T-2808
+  rationale: Auto-captured from task file on completion
+- id: PD-107
+  decision: '`--include-proposed` for the ranking; no `fw bvp confirm`.'
+  scope: project
+  date: 2026-08-20
+  task: T-2808
+  rationale: Auto-captured from task file on completion
+- id: PD-108
+  decision: Reproduce on scratch copies across 26 old-format tasks before writing any report.
+  scope: project
+  date: 2026-08-20
+  task: T-2809
+  rationale: Auto-captured from task file on completion
+- id: PD-109
+  decision: Scratch `PROJECT_ROOT` trees.
+  scope: project
+  date: 2026-08-20
+  task: T-2809
+  rationale: Auto-captured from task file on completion
+- id: PD-110
+  decision: File upstream even though the answer is "does not reproduce".
+  scope: project
+  date: 2026-08-20
+  task: T-2809
+  rationale: Auto-captured from task file on completion
+- id: PD-111
+  decision: Record the outcome; do not add a hazard note.
+  scope: project
+  date: 2026-08-20
+  task: T-2809
+  rationale: Auto-captured from task file on completion
+- id: PD-112
+  decision: Set `PROJECT_ROOT` in the cron registry entry.
+  scope: project
+  date: 2026-08-20
+  task: T-2810
+  rationale: Auto-captured from task file on completion
+- id: PD-113
+  decision: The acceptance criterion is that the scan names T-1898 and T-2250.
+  scope: project
+  date: 2026-08-20
+  task: T-2810
+  rationale: Auto-captured from task file on completion
+- id: PD-114
+  decision: Report T-1898 and T-2250 to the human; make no decision on either.
+  scope: project
+  date: 2026-08-20
+  task: T-2810
+  rationale: Auto-captured from task file on completion
+- id: PD-115
+  decision: Check T-2705 on `worktree-charter-review-2026-0814` first, and stay out of its half.
+  scope: project
+  date: 2026-08-20
+  task: T-2811
+  rationale: Auto-captured from task file on completion
+- id: PD-116
+  decision: Triage 12 commits to 3, rather than report the 95 the first scan produced.
+  scope: project
+  date: 2026-08-20
+  task: T-2812
+  rationale: Auto-captured from task file on completion
+- id: PD-117
+  decision: File upstream and record the divergence; leave the re-vendor decision alone.
+  scope: project
+  date: 2026-08-20
+  task: T-2812
+  rationale: Auto-captured from task file on completion
+- id: PD-118
+  decision: Add axis C — the same new path created on more than one branch, with differing
+  scope: project
+  date: 2026-08-20
+  task: T-2800
+  rationale: Auto-captured from task file on completion
+- id: PD-119
+  decision: Axis A (IDs) fires; axis B (titles) warns.
+  scope: project
+  date: 2026-08-20
+  task: T-2800
+  rationale: Auto-captured from task file on completion
+- id: PD-120
+  decision: Build only the detection locally; file the allocation fix.
+  scope: project
+  date: 2026-08-20
+  task: T-2800
+  rationale: Auto-captured from task file on completion
+- id: PD-121
+  decision: Report stranded and stale envelopes; never move or delete one.
+  scope: project
+  date: 2026-08-20
+  task: T-2801
+  rationale: Auto-captured from task file on completion
+- id: PD-122
+  decision: Post upstream; do not edit `update-task.sh` locally.
+  scope: project
+  date: 2026-08-20
+  task: T-2801
+  rationale: Auto-captured from task file on completion
+- id: PD-123
+  decision: Read `run-guard-layer.sh` on charter-review and conform to its marker contract.
+  scope: project
+  date: 2026-08-20
+  task: T-2802
+  rationale: Auto-captured from task file on completion
+- id: PD-124
+  decision: Mark `check-task-id-collisions` and `check-pickup-deferred-freshness` even though
+  scope: project
+  date: 2026-08-20
+  task: T-2802
+  rationale: Auto-captured from task file on completion
+- id: PD-125
+  decision: A blocking scan for high-confidence markers; soft signals reported only.
+  scope: project
+  date: 2026-08-20
+  task: T-2803
+  rationale: Auto-captured from task file on completion
+- id: PD-126
+  decision: Ship the script as a repo artifact, then run it through a TermLink session rooted
+  scope: project
+  date: 2026-08-20
+  task: T-2803
+  rationale: Auto-captured from task file on completion
+- id: PD-127
+  decision: Report it, print the command, never execute.
+  scope: project
+  date: 2026-08-20
+  task: T-2803
+  rationale: Auto-captured from task file on completion
+- id: PD-128
+  decision: The four-sibling allowlist pattern (fire by default, acknowledge with a cited
+  scope: project
+  date: 2026-08-20
+  task: T-2821
+  rationale: Auto-captured from task file on completion
+- id: PD-129
+  decision: Take their file as the base and apply the firing change on top, preserving
+  scope: project
+  date: 2026-08-20
+  task: T-2821
+  rationale: Auto-captured from task file on completion
+- id: PD-130
+  decision: Accept `--strict` as a no-op alias of the new default.
+  scope: project
+  date: 2026-08-20
+  task: T-2821
+  rationale: Auto-captured from task file on completion
+- id: PD-131
+  decision: The git move-commit timestamp.
+  scope: project
+  date: 2026-08-20
+  task: T-2804
+  rationale: Auto-captured from task file on completion
+- id: PD-132
+  decision: Hand-write the four blank summaries, marked as hand-written.
+  scope: project
+  date: 2026-08-20
+  task: T-2804
+  rationale: Auto-captured from task file on completion
+- id: PD-133
+  decision: Repair the three (inserting the field), and replace the grep in this task's
+  scope: project
+  date: 2026-08-20
+  task: T-2804
+  rationale: Auto-captured from task file on completion
+- id: PD-134
+  decision: Repair them as well.
+  scope: project
+  date: 2026-08-20
+  task: T-2804
+  rationale: Auto-captured from task file on completion
+- id: PD-135
+  decision: '`last_update` when it is at or before the move-commit; the move-commit'
+  scope: project
+  date: 2026-08-20
+  task: T-2804
+  rationale: Auto-captured from task file on completion
+- id: PD-136
+  decision: Fix the seven; do not touch the canary, the sweep path, or the generator.
+  scope: project
+  date: 2026-08-20
+  task: T-2804
+  rationale: Auto-captured from task file on completion
+- id: PD-137
+  decision: change the comparison to `-ge`.
+  scope: project
+  date: 2026-08-20
+  task: T-2826
+  rationale: Auto-captured from task file on completion
+- id: PD-138
+  decision: fix here anyway.
+  scope: project
+  date: 2026-08-20
+  task: T-2826
+  rationale: Auto-captured from task file on completion
+- id: PD-139
+  decision: '`safe_load` into a mapping — byte-identical to what `get_episodic_tags` does.'
+  scope: project
+  date: 2026-08-20
+  task: T-2805
+  rationale: Auto-captured from task file on completion
+- id: PD-140
+  decision: All 29 fire; the class carries the remediation.
+  scope: project
+  date: 2026-08-20
+  task: T-2805
+  rationale: Auto-captured from task file on completion
+- id: PD-141
+  decision: No auto-regeneration.
+  scope: project
+  date: 2026-08-20
+  task: T-2805
+  rationale: Auto-captured from task file on completion
+- id: PD-142
+  decision: File back on `framework:pickup` rather than only consuming the report.
+  scope: project
+  date: 2026-08-20
+  task: T-2805
+  rationale: Auto-captured from task file on completion
+- id: PD-143
+  decision: Copy from the checkout that has the files; commit here where tracking is allowed.
+  scope: project
+  date: 2026-08-20
+  task: T-2806
+  rationale: Auto-captured from task file on completion
+- id: PD-144
+  decision: File it upstream; recover the file locally.
+  scope: project
+  date: 2026-08-20
+  task: T-2806
+  rationale: Auto-captured from task file on completion
+- id: PD-145
+  decision: The acceptance criterion is that a build task actually moves to `completed/`.
+  scope: project
+  date: 2026-08-20
+  task: T-2806
+  rationale: Auto-captured from task file on completion
+- id: PD-146
+  decision: Fix the mechanism; do not bulk-finalize the backlog.
+  scope: project
+  date: 2026-08-20
+  task: T-2806
+  rationale: Auto-captured from task file on completion
+- id: PD-147
+  decision: Everything under `lib/ bin/ policy/ agents/` that exists in the sibling checkout.
+  scope: project
+  date: 2026-08-20
+  task: T-2807
+  rationale: Auto-captured from task file on completion
+- id: PD-148
+  decision: No edits to any recovered file, including obvious ones.
+  scope: project
+  date: 2026-08-20
+  task: T-2807
+  rationale: Auto-captured from task file on completion

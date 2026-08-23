@@ -1,5 +1,20 @@
 use std::sync::Arc;
 
+/// T-2709: recency window for treating a lapsed lease as still operationally
+/// interesting. Duplicated from the CLI's `channel::RECENT_EXPIRY_WINDOW_MS`
+/// per the no-cross-crate-share convention for tiny primitives; the two must
+/// stay in agreement so an agent pivoting between the CLI and MCP surfaces
+/// sees the same `potentially_stuck` verdict (the T-2043 alignment rule).
+const RECENT_EXPIRY_WINDOW_MS: i64 = 15 * 60 * 1000;
+
+/// T-2709: wall-clock epoch-millis, matching the hub's `claimed_until` units.
+fn now_unix_ms_for_claims() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
+}
+
 use base64::Engine as _;
 use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
@@ -382,6 +397,55 @@ pub(crate) fn aggregate_governor_entries(
             .unwrap_or(0);
     }
     per_hub
+}
+
+/// T-2687 — outcome of probing one session for its event topics.
+///
+/// Mirrors the CLI's `TopicsProbe` (termlink-cli `commands/events.rs`, T-2624).
+/// Duplicated rather than shared across crates per the T-2069 convention for tiny
+/// pure helpers. The two surfaces must agree on what "skipped" MEANS, not merely on
+/// the field names — a session that timed out and one that returned an unparseable
+/// result are both excluded from the inventory, and a consumer is entitled to know
+/// which and how many.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum TopicsProbeMcp {
+    /// The session answered with a topic list (possibly empty).
+    Topics(Vec<String>),
+    /// Timed out or the transport failed.
+    Unreachable,
+    /// Answered, but the result was an error or had no `topics` array.
+    BadResult,
+}
+
+/// T-2687 — aggregate per-session probe outcomes into the inventory plus the
+/// partial-inventory counters.
+///
+/// Sessions reporting an EMPTY topic list are deliberately excluded from
+/// `session_topics` (they contribute nothing to an inventory of topics) but are NOT
+/// counted as skipped — they were reached and answered truthfully. This matches the
+/// CLI's `aggregate_topics_probes` exactly.
+pub(crate) fn aggregate_topics_probes_mcp(
+    probes: Vec<(String, TopicsProbeMcp)>,
+) -> (
+    std::collections::BTreeMap<String, Vec<String>>,
+    usize,
+    usize,
+) {
+    let mut session_topics = std::collections::BTreeMap::new();
+    let mut unreachable = 0usize;
+    let mut bad_result = 0usize;
+    for (name, probe) in probes {
+        match probe {
+            TopicsProbeMcp::Unreachable => unreachable += 1,
+            TopicsProbeMcp::BadResult => bad_result += 1,
+            TopicsProbeMcp::Topics(list) => {
+                if !list.is_empty() {
+                    session_topics.insert(name, list);
+                }
+            }
+        }
+    }
+    (session_topics, unreachable, bad_result)
 }
 
 fn json_err(msg: impl std::fmt::Display) -> String {
@@ -1024,7 +1088,7 @@ fn help_categories() -> Vec<(&'static str, Vec<(&'static str, &'static str)>)> {
             ("termlink_channel_renew", "Extend the lease on a held claim (for long-running workers)"),
             ("termlink_channel_claims", "List current claim rows on a topic (read-only introspection, no claim attempt)"),
             ("termlink_channel_claims_summary", "Aggregate claim state on a topic — O(1) busy/stuck-worker signal (active+expired counts, oldest-active age, next free slot)"),
-            ("termlink_channel_claims_summary_all", "Fleet-wide sweep: aggregate claim state on every topic, annotates each with potentially_stuck (expired>0 OR oldest_active_age>60s). Cold-start investigator verb when you don't know which topic to check"),
+            ("termlink_channel_claims_summary_all", "Fleet-wide sweep: aggregate claim state on every topic, annotates each with potentially_stuck (a lease lapsed in the last 15min OR oldest_active_age>60s). Cold-start investigator verb when you don't know which topic to check"),
             ("termlink_channel_claims_history", "T-2075/T-2074 — retrospective read of ~/.termlink/claims.log NDJSON (written by `channel claims-summary --watch --log`). Per-topic aggregate of transition/new/removed event counts within --since-days window"),
         ]),
         ("channel_poll", vec![
@@ -2878,8 +2942,77 @@ fn cursor_list_for_fingerprint_mcp(fingerprint: &str) -> Result<Vec<(String, u64
 struct UnreadRowMcp {
     topic: String,
     cursor: u64,
+    /// T-2757: this identity's receipt frontier, or `None` when no receipt
+    /// evidence is available. Reported alongside `cursor` so the reconciliation
+    /// is auditable rather than a silent swap.
+    receipt_up_to: Option<u64>,
+    /// T-2757: `max(cursor, receipt_up_to)` — what `unread` was computed from.
+    frontier: u64,
     latest: u64,
-    unread: u64,
+    /// T-2757: `None` = INDETERMINATE — see `unread_verdict_mcp`.
+    unread: Option<u64>,
+}
+
+/// T-2757: MCP mirror of the CLI's `UnreadVerdict`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum UnreadVerdictMcp {
+    CaughtUp,
+    Unread(u64),
+    Indeterminate,
+}
+
+/// T-2757: MCP mirror of the CLI's `unread_verdict`.
+///
+/// `latest` has two provenances that are NOT the same unit: the hub's
+/// `latest_offset` (a true offset, T-2533) and the `count - 1` fallback for a
+/// pre-T-2533 hub (a position inside a retention-bounded window, far below the
+/// true offset once trimmed). A receipt `up_to` is always a true offset, so on
+/// the fallback path the two are incomparable — PL-293 reached from the
+/// frontier side.
+///
+/// It is detectable: a receipt cannot acknowledge an offset that does not exist,
+/// so `receipt_up_to > latest` proves `latest` is not the latest offset. Without
+/// this guard the row looks caught-up and is DROPPED, silently hiding real
+/// unread (measured: frontier 11952 vs fallback latest 1999, 14 truly unread) —
+/// trading a loud over-count for a silent under-count.
+fn unread_verdict_mcp(
+    latest: u64,
+    latest_is_authoritative: bool,
+    frontier: u64,
+    receipt_up_to: Option<u64>,
+) -> UnreadVerdictMcp {
+    if !latest_is_authoritative
+        && let Some(up_to) = receipt_up_to
+        && up_to > latest
+    {
+        return UnreadVerdictMcp::Indeterminate;
+    }
+    if frontier >= latest {
+        return UnreadVerdictMcp::CaughtUp;
+    }
+    UnreadVerdictMcp::Unread(latest - frontier)
+}
+
+/// T-2757: MCP mirror of the CLI's `reconcile_consumption_frontier`
+/// (`termlink-cli/src/commands/channel.rs`). Duplicated rather than shared per
+/// the T-2069 convention for tiny pure helpers.
+///
+/// TermLink records "I consumed up to offset X on topic T" in two stores that
+/// nothing joins: the subscribe cursor (`cursors.json`, advanced only by
+/// `subscribe --resume`) and the receipt frontier (`msg_type=receipt`,
+/// advanced by `channel ack` / `agent ack` and the conversation-arc tools built
+/// on them). An agent that reads its mail the normal way advances only the
+/// latter, so a digest keyed on the former reports unread that no amount of
+/// reading can clear — the PL-340 / T-2709 unclearable-count shape.
+///
+/// `max` is the correct join (both are consumption claims by the same identity)
+/// and is safe in one direction only: it can lower a reported count, never
+/// raise one, so it cannot manufacture a false alarm.
+fn reconcile_consumption_frontier_mcp(cursor: u64, receipt_up_to: Option<u64>) -> u64 {
+    match receipt_up_to {
+        Some(up_to) => cursor.max(up_to),
+        None => cursor,
+    }
 }
 
 /// T-1729: pure helper — given a list of `(topic, cursor)` and a
@@ -3419,9 +3552,11 @@ fn compute_unread_rows_mcp(
     cursors: &[(String, u64)],
     topic_counts: &std::collections::HashMap<String, u64>,
     topic_latest: &std::collections::HashMap<String, u64>,
+    topic_receipts: &std::collections::HashMap<String, u64>,
 ) -> Vec<UnreadRowMcp> {
     let mut rows: Vec<UnreadRowMcp> = Vec::new();
     for (topic, cursor) in cursors {
+        let authoritative = topic_latest.contains_key(topic);
         let latest = match topic_latest.get(topic) {
             Some(l) => *l,
             None => {
@@ -3435,13 +3570,19 @@ fn compute_unread_rows_mcp(
                 count - 1
             }
         };
-        if *cursor >= latest {
-            continue;
-        }
-        let unread = latest - cursor;
+        // T-2757: an empty `topic_receipts` reproduces pre-T-2757 behaviour.
+        let receipt_up_to = topic_receipts.get(topic).copied();
+        let frontier = reconcile_consumption_frontier_mcp(*cursor, receipt_up_to);
+        let unread = match unread_verdict_mcp(latest, authoritative, frontier, receipt_up_to) {
+            UnreadVerdictMcp::CaughtUp => continue,
+            UnreadVerdictMcp::Unread(n) => Some(n),
+            UnreadVerdictMcp::Indeterminate => None,
+        };
         rows.push(UnreadRowMcp {
             topic: topic.clone(),
             cursor: *cursor,
+            receipt_up_to,
+            frontier,
             latest,
             unread,
         });
@@ -7863,7 +8004,146 @@ pub struct WhoamiParams {
 /// task may extract to a shared crate; for v1 duplication is the cheaper
 /// path (~40 LOC, no behavioural drift expected — both sides read the
 /// same `/proc/<pid>/stat` format).
+/// Spawn `sh -c <cmd>` fully detached from the launcher: a new session, with all
+/// three stdio streams on `/dev/null`.
+///
+/// T-2743. Mirrors `termlink-cli execution::spawn_detached` — duplicated rather
+/// than shared across crates, per the convention these small helpers already
+/// follow (T-2069).
+///
+/// The detachment is done with the `setsid(2)` syscall in `pre_exec`, not by
+/// exec'ing the `setsid(1)` binary. The binary is util-linux and absent on
+/// macOS, so the old code's `.or_else` fallback to a bare `sh -c` always fired
+/// there: the worker started — the call site saw success — but stayed in the
+/// launcher's session and died on SIGHUP when the connection dropped. For a
+/// dispatched background worker that is a silent failure, not a degradation.
+/// The syscall exists on both platforms, so no fallback is needed.
+///
+/// A `setsid(2)` failure is returned as a spawn error, which this caller
+/// already collects into `spawn_errors` — so it surfaces rather than producing
+/// a worker that is quietly not detached.
+fn spawn_detached(shell_cmd: &str) -> std::io::Result<std::process::Child> {
+    use std::os::unix::process::CommandExt;
+
+    let mut cmd = std::process::Command::new("sh");
+    cmd.args(["-c", shell_cmd])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .stdin(std::process::Stdio::null());
+
+    // SAFETY: runs in the forked child before exec. `setsid` is
+    // async-signal-safe, which is the constraint that applies here.
+    unsafe {
+        cmd.pre_exec(|| {
+            if libc::setsid() == -1 {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
+
+    cmd.spawn()
+}
+
 mod whoami_helpers {
+    /// T-2691: can the ancestor walk work on this host at all?
+    ///
+    /// Mirrors `termlink-cli metadata::procfs_available`. The walk below parses
+    /// `/proc/<pid>/stat`, which does not exist on macOS — a platform README lists
+    /// as supported and for which Homebrew is the recommended install. Without this
+    /// probe the walk collapses to `[self]` and the caller reports "ambiguous",
+    /// which is a plausible wrong answer rather than an error (Directive #2) and
+    /// implies an action that cannot help (Directive #3).
+    ///
+    /// Runtime probe, not `#[cfg(target_os)]`, so both branches stay reachable and
+    /// testable from a Linux host — see the CLI-side rationale.
+    pub(super) fn procfs_available_at(proc_root: &str) -> bool {
+        std::path::Path::new(proc_root).join("self").join("stat").exists()
+    }
+
+    pub(super) fn procfs_available() -> bool {
+        procfs_available_at("/proc")
+    }
+
+    /// T-2735 — verdict of cross-checking an *inherited* identity claim against
+    /// the process ancestor chain. Mirrors `termlink-cli metadata::EnvClaimCheck`
+    /// (T-2069 convention: small pure helpers are duplicated, not shared across
+    /// crates), and is fixed on the same commit as the CLI per the T-2687
+    /// `parity_topics` lesson — a rail hardened on one surface and not its
+    /// sibling is the divergence this repo keeps rediscovering.
+    ///
+    /// `TERMLINK_SESSION_ID` is seeded into a spawned session's shell and then
+    /// inherited by every descendant, so it says only that *some ancestor* once
+    /// belonged to that session — not that this process does. Consuming it ahead
+    /// of the PID-walk turned a stale value into a confident wrong answer.
+    #[derive(Debug, PartialEq, Eq)]
+    pub(super) enum EnvClaimCheck {
+        Confirmed { ancestor_pid: u32 },
+        Conflict { walked_id: String, ancestor_pid: u32 },
+        NoWalkEvidence,
+        Unavailable,
+    }
+
+    /// Pure core of the cross-check — ancestors and sessions injected so every
+    /// branch is testable without a real process tree.
+    pub(super) fn check_env_claim(
+        claimed_id: &str,
+        sessions: &[termlink_session::registration::Registration],
+        ancestors: &[u32],
+        procfs: bool,
+    ) -> EnvClaimCheck {
+        if !procfs {
+            return EnvClaimCheck::Unavailable;
+        }
+        for pid in ancestors {
+            if let Some(reg) = sessions.iter().find(|s| s.pid == *pid) {
+                return if reg.id.as_str() == claimed_id {
+                    EnvClaimCheck::Confirmed { ancestor_pid: *pid }
+                } else {
+                    EnvClaimCheck::Conflict {
+                        walked_id: reg.id.as_str().to_string(),
+                        ancestor_pid: *pid,
+                    }
+                };
+            }
+        }
+        EnvClaimCheck::NoWalkEvidence
+    }
+
+    /// Decorate a whoami card with the env-claim verdict. Kept beside the check
+    /// so the two cannot drift, and keyed identically to the CLI card.
+    pub(super) fn decorate_env_claim(
+        card: &mut serde_json::Value,
+        claimed_id: &str,
+        check: &EnvClaimCheck,
+    ) {
+        card["resolved_via"] = serde_json::json!("env");
+        match check {
+            EnvClaimCheck::Confirmed { ancestor_pid } => {
+                card["env_claim_verified"] = serde_json::json!("confirmed");
+                card["pid_walk_match"] = serde_json::json!(ancestor_pid);
+            }
+            EnvClaimCheck::Conflict { walked_id, ancestor_pid } => {
+                card["env_claim_verified"] = serde_json::json!("conflict");
+                card["env_claim_conflict"] = serde_json::json!({
+                    "claimed_id": claimed_id,
+                    "ancestor_owned_by": walked_id,
+                    "ancestor_pid": ancestor_pid,
+                    "hint": "TERMLINK_SESSION_ID names a session that does not own this process. \
+                             It is inherited by every descendant of a spawned shell, so it is \
+                             probably stale. Unset it (or set it to the id above) to let the \
+                             PID-ancestor walk answer.",
+                });
+            }
+            EnvClaimCheck::NoWalkEvidence => {
+                card["env_claim_verified"] = serde_json::json!("unconfirmed");
+            }
+            EnvClaimCheck::Unavailable => {
+                card["env_claim_verified"] = serde_json::json!("unavailable-no-procfs");
+            }
+        }
+    }
+
     pub(super) fn walk_ancestor_pids(start: u32) -> Vec<u32> {
         let mut chain = vec![start];
         let mut current = start;
@@ -11738,7 +12018,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_whoami",
-        description = "Identify which TermLink session is the caller. Resolution chain: session_hint → name_hint → $TERMLINK_SESSION_ID env → PID-walk ancestor chain → ambiguous candidate list. Mirrors `termlink whoami` CLI behaviour. Returns an identity card (id, display_name, state, pid, uid, roles, tags, capabilities, cwd, identity_fingerprint, identity_shared_with) or a candidate list when ambiguous."
+        description = "Identify which TermLink session is the caller. Resolution chain: session_hint → $TERMLINK_SESSION_ID env → name_hint → PID-walk ancestor chain → ambiguous candidate list. Mirrors `termlink whoami` CLI behaviour. Returns an identity card (id, display_name, state, pid, uid, roles, tags, capabilities, cwd, identity_fingerprint, identity_shared_with) or a candidate list when ambiguous. When the answer came from the inherited env var, the card carries `resolved_via: \"env\"` and `env_claim_verified` (confirmed | conflict | unconfirmed | unavailable-no-procfs); on `conflict` an `env_claim_conflict` object names the session that actually owns this process — treat the identity as untrustworthy."
     )]
     async fn termlink_whoami(&self, Parameters(p): Parameters<WhoamiParams>) -> String {
         // T-1933: parity with `termlink whoami` (CLI metadata.rs:529).
@@ -11747,14 +12027,34 @@ impl TermLinkTools {
         let env_hint = std::env::var("TERMLINK_SESSION_ID")
             .ok()
             .filter(|s| !s.is_empty());
-        let query = p.session_hint.or(env_hint).or(p.name_hint);
+        // T-2735: precedence unchanged, but carry the winner's PROVENANCE so an
+        // inherited claim can be cross-checked. An explicit session_hint/name_hint
+        // is the caller stating intent; the env var is something they inherited
+        // without necessarily knowing it.
+        let (query, from_env) = match p.session_hint {
+            Some(s) => (Some(s), false),
+            None => match env_hint {
+                Some(e) => (Some(e), true),
+                None => (p.name_hint, false),
+            },
+        };
 
         if let Some(q) = query.as_deref() {
             match manager::find_session(q) {
                 Ok(reg) => {
                     let all = manager::list_sessions(false).unwrap_or_default();
                     let shared = count_shared_identity(&reg, &all);
-                    return whoami_card_json(&reg, None, shared).to_string();
+                    let mut card = whoami_card_json(&reg, None, shared);
+                    if from_env {
+                        let check = whoami_helpers::check_env_claim(
+                            reg.id.as_str(),
+                            &all,
+                            &whoami_helpers::walk_ancestor_pids(std::process::id()),
+                            whoami_helpers::procfs_available(),
+                        );
+                        whoami_helpers::decorate_env_claim(&mut card, reg.id.as_str(), &check);
+                    }
+                    return card.to_string();
                 }
                 Err(e) => {
                     return serde_json::json!({
@@ -11800,11 +12100,31 @@ impl TermLinkTools {
             "tags": s.tags,
             "cwd": s.metadata.cwd,
         })).collect();
+        // T-2691: mirror the CLI — reaching here without a procfs is a PLATFORM
+        // LIMITATION, not an ambiguity. The PID-ancestor walk above is Linux-only
+        // (`whoami_helpers` parses /proc/<pid>/stat), so on macOS it can never
+        // succeed and "re-call after disambiguating" is advice that never works.
+        // An agent consuming this tool needs to branch on that, hence a
+        // machine-readable field rather than only prose.
+        let (auto_resolution, hint) = if whoami_helpers::procfs_available() {
+            (
+                "attempted",
+                "Set TERMLINK_SESSION_ID=<id> for your session and re-call, or pass session_hint / name_hint.".to_string(),
+            )
+        } else {
+            (
+                "unavailable-no-procfs",
+                "This host has no /proc, so PID-ancestor auto-resolution cannot run (it is Linux-only). \
+                 Re-calling will not change this — set TERMLINK_SESSION_ID=<id>, or pass session_hint / name_hint."
+                    .to_string(),
+            )
+        };
         serde_json::json!({
             "ok": true,
             "ambiguous": true,
+            "auto_resolution": auto_resolution,
             "candidates": cards,
-            "hint": "Set TERMLINK_SESSION_ID=<id> for your session and re-call, or pass session_hint / name_hint.",
+            "hint": hint,
         }).to_string()
     }
 
@@ -13594,20 +13914,7 @@ impl TermLinkTools {
                 reg_parts.join(" ")
             );
 
-            match std::process::Command::new("setsid")
-                .args(["sh", "-c", &shell_cmd])
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .stdin(std::process::Stdio::null())
-                .spawn()
-                .or_else(|_| {
-                    std::process::Command::new("sh")
-                        .args(["-c", &shell_cmd])
-                        .stdout(std::process::Stdio::null())
-                        .stderr(std::process::Stdio::null())
-                        .stdin(std::process::Stdio::null())
-                        .spawn()
-                }) {
+            match spawn_detached(&shell_cmd) {
                 Ok(_) => {}
                 Err(e) => spawn_errors.push(format!("{worker_name}: {e}")),
             }
@@ -13866,63 +14173,56 @@ impl TermLinkTools {
         };
 
         if registrations.is_empty() {
+            // T-2687: emit the full field set (zeroed) so the empty path is
+            // structurally identical to the populated one and to the CLI. T-2624
+            // added the partial-inventory fields to the populated path only, which
+            // left BOTH surfaces silently shape-shifting when no session exists.
             return serde_json::json!({
                 "ok": true,
                 "sessions": [],
                 "total_topics": 0,
                 "total_sessions": 0,
+                "sessions_unreachable": 0,
+                "sessions_bad_result": 0,
+                "sessions_skipped": 0,
+                "sessions_probed": 0,
             }).to_string();
         }
 
         let timeout = std::time::Duration::from_secs(5);
-        let mut session_topics: std::collections::BTreeMap<String, Vec<String>> = std::collections::BTreeMap::new();
-
-        // T-2824: classify every probe outcome explicitly instead of letting all
-        // four failure modes fall through one chained `if let`. The previous form
-        //
-        //     if let Ok(Ok(resp)) = timeout(..).await
-        //         && let Ok(result) = unwrap_result(resp)
-        //         && let Some(topics) = result["topics"].as_array()
-        //
-        // swallowed a timeout, a transport error, an error response and a missing
-        // `topics` array identically and silently, so a caller received a topic
-        // inventory with no way to know it was PARTIAL. T-2624 fixed exactly this
-        // on the CLI side; the MCP tool was never brought along, which left
-        // `cargo test --workspace` red on `parity_topics` for 8 days.
-        //
-        // The arms mirror the CLI's `TopicsProbe` match (events.rs::cmd_topics)
-        // one-for-one. Duplicated rather than shared: the CLI's helpers live in
-        // termlink-cli and the convention for tiny pure helpers is duplication
-        // over a cross-crate dep (T-2069). The parity test is what keeps the two
-        // copies honest — it compares the OUTPUTS, not the implementations.
-        let sessions_probed = registrations.len();
-        let mut sessions_unreachable = 0usize;
-        let mut sessions_bad_result = 0usize;
+        let total_probed = registrations.len();
+        // Size from the materialized collection directly, not via `total_probed`: the
+        // capacity is then bounded by an allocation that has already succeeded, which
+        // is both true and visible to check-alloc-sink-clamps (T-2527) — it clears
+        // `.len()` of a materialized collection but not a bare identifier.
+        let mut probes: Vec<(String, TopicsProbeMcp)> = Vec::with_capacity(registrations.len());
 
         for reg in &registrations {
             let rpc_future = client::rpc_call(reg.socket_path(), "event.topics", serde_json::json!({}));
-            match tokio::time::timeout(timeout, rpc_future).await {
+            // T-2687: classify each probe explicitly instead of letting a failed
+            // session fall through an `if let` chain into silence. Aggregation lives
+            // in the pure `aggregate_topics_probes_mcp` helper for unit-testability,
+            // mirroring the CLI's structure (events.rs `aggregate_topics_probes`).
+            let probe = match tokio::time::timeout(timeout, rpc_future).await {
                 Ok(Ok(resp)) => match client::unwrap_result(resp) {
                     Ok(result) => match result["topics"].as_array() {
-                        Some(topics) => {
-                            let topic_list: Vec<String> = topics
+                        Some(topics) => TopicsProbeMcp::Topics(
+                            topics
                                 .iter()
                                 .filter_map(|t| t.as_str().map(String::from))
-                                .collect();
-                            if !topic_list.is_empty() {
-                                session_topics.insert(reg.display_name.clone(), topic_list);
-                            }
-                        }
-                        None => sessions_bad_result += 1,
+                                .collect(),
+                        ),
+                        None => TopicsProbeMcp::BadResult,
                     },
-                    Err(_) => sessions_bad_result += 1,
+                    Err(_) => TopicsProbeMcp::BadResult,
                 },
-                // Transport error or timeout — the session did not answer.
-                Ok(Err(_)) | Err(_) => sessions_unreachable += 1,
-            }
+                Ok(Err(_)) | Err(_) => TopicsProbeMcp::Unreachable,
+            };
+            probes.push((reg.display_name.clone(), probe));
         }
 
-        let sessions_skipped = sessions_unreachable + sessions_bad_result;
+        let (session_topics, unreachable, bad_result) = aggregate_topics_probes_mcp(probes);
+
         let total: usize = session_topics.values().map(|v| v.len()).sum();
         let total_sessions = session_topics.len();
         let sessions: Vec<serde_json::Value> = session_topics
@@ -13935,12 +14235,14 @@ impl TermLinkTools {
             "sessions": sessions,
             "total_topics": total,
             "total_sessions": total_sessions,
-            // Partial-inventory signal, matching the CLI (T-2624): a consumer can
-            // now tell the topic set excludes sessions that timed out or errored.
-            "sessions_unreachable": sessions_unreachable,
-            "sessions_bad_result": sessions_bad_result,
-            "sessions_skipped": sessions_skipped,
-            "sessions_probed": sessions_probed,
+            // T-2624 partial-inventory signal, migrated to MCP by T-2687: an agent
+            // consuming this tool can now tell the topic set excludes sessions that
+            // timed out or errored, instead of reading a truncated inventory as
+            // complete (Directive #2 — no silent failures).
+            "sessions_unreachable": unreachable,
+            "sessions_bad_result": bad_result,
+            "sessions_skipped": unreachable + bad_result,
+            "sessions_probed": total_probed,
         });
         serde_json::to_string_pretty(&result).unwrap_or_else(json_err)
     }
@@ -19024,7 +19326,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_agent_inbox",
-        description = "Cross-topic unread digest for the local identity. Walks the local cursor store (`${TERMLINK_IDENTITY_DIR:-~/.termlink}/cursors.json`, recorded by `subscribe --resume` on prior sessions) and joins with hub-side topic counts. Returns `{ok, my_id, unread_topics:[{topic, cursor, latest, unread}, ...]}` sorted by descending unread (topic asc tiebreak). Answers 'what needs my attention?' across every subscribed topic. When the cursor store is empty (never ran `subscribe --resume`) returns `unread_topics:[]` with `ok:true`."
+        description = "Cross-topic unread digest for the local identity. Enumerates topics from the local cursor store (`${TERMLINK_IDENTITY_DIR:-~/.termlink}/cursors.json`, recorded by `subscribe --resume`), then computes unread against the RECONCILED consumption frontier `max(cursor, receipt up_to)` (T-2757) — because `subscribe --resume` and `channel/agent ack` advance two different stores, and an agent reading its mail normally advances only the receipts. Returns `{ok, my_id, unread_topics:[{topic, cursor, receipt_up_to, frontier, latest, unread}, ...]}` sorted by descending unread (topic asc tiebreak); `cursor` and `receipt_up_to` are both reported so the reconciliation is auditable. Receipt lookup is best-effort per topic: unavailable receipts fall back to the cursor alone. Scope: topics are still enumerated from the cursor store, so a topic never subscribed with `--resume` does not appear at all — this is not a whole-hub view. Empty cursor store returns `unread_topics:[]` with `ok:true`."
     )]
     async fn termlink_agent_inbox(
         &self,
@@ -19091,14 +19393,49 @@ impl TermLinkTools {
             }
         }
 
-        let rows = compute_unread_rows_mcp(&cursors, &counts, &latest);
+        // T-2757: join this identity's receipt frontier per tracked topic. The
+        // cursor alone is not the consumption frontier — see
+        // `reconcile_consumption_frontier_mcp`. Best-effort per topic: any
+        // failure (hub without `channel.receipts`, transport error, no receipt
+        // yet) simply leaves the topic out of the map, which reproduces the
+        // pre-T-2757 number rather than failing the whole digest.
+        let mut receipt_frontiers: std::collections::HashMap<String, u64> =
+            std::collections::HashMap::new();
+        for (topic, _) in &cursors {
+            let receipts_resp = termlink_session::client::rpc_call(
+                &hub_socket,
+                termlink_protocol::control::method::CHANNEL_RECEIPTS,
+                serde_json::json!({ "topic": topic }),
+            )
+            .await;
+            if let Ok(resp) = receipts_resp
+                && let Ok(r) = termlink_session::client::unwrap_result(resp)
+                && let Some(entries) = r["receipts"].as_array()
+            {
+                for entry in entries {
+                    if entry.get("sender_id").and_then(|v| v.as_str()) == Some(my_id.as_str())
+                        && let Some(up_to) = entry.get("up_to").and_then(|v| v.as_u64())
+                    {
+                        receipt_frontiers.insert(topic.clone(), up_to);
+                        break;
+                    }
+                }
+            }
+        }
+
+        let rows = compute_unread_rows_mcp(&cursors, &counts, &latest, &receipt_frontiers);
         let rows_json: Vec<serde_json::Value> = rows
             .iter()
             .map(|r| serde_json::json!({
                 "topic": r.topic,
                 "cursor": r.cursor,
+                "receipt_up_to": r.receipt_up_to,
+                "frontier": r.frontier,
                 "latest": r.latest,
                 "unread": r.unread,
+                // T-2757: an explicit flag, so a consumer cannot read a null
+                // `unread` as a zero.
+                "indeterminate": r.unread.is_none(),
             }))
             .collect();
 
@@ -22374,7 +22711,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_claims_summary",
-        description = "Aggregate claim state for a topic — 'how busy is this topic, is anything stuck?' in one O(1) call (vs `termlink_channel_claims` full-list). Returns `{ok, topic, active_count, expired_count, oldest_active_at_ms?, oldest_active_age_ms?, next_active_expiry_ms?}`. Signals: growing `expired_count` with low active = workers dying without releasing; `oldest_active_age_ms` near a worker's ttl = stuck or about to renew; `next_active_expiry_ms` = when the next slot frees. All `*_ms` null when `active_count==0`. Error: CHANNEL_TOPIC_UNKNOWN (-32013). Pure read."
+        description = "Aggregate claim state for a topic — 'how busy is this topic, is anything stuck?' in one O(1) call (vs `termlink_channel_claims` full-list). Returns `{ok, topic, active_count, expired_count, oldest_active_at_ms?, oldest_active_age_ms?, next_active_expiry_ms?, newest_expired_at_ms?}`. Signals: `newest_expired_at_ms` close to now = a worker just died without releasing (T-2709; prefer this over `expired_count`, which only ever grows — expired rows are reaped lazily and only on re-claim of the same offset, so a high count may be years of history, not a current fault); `oldest_active_age_ms` near a worker's ttl = stuck or about to renew; `next_active_expiry_ms` = when the next slot frees. All `*_ms` null when `active_count==0`. Error: CHANNEL_TOPIC_UNKNOWN (-32013). Pure read."
     )]
     async fn termlink_channel_claims_summary(
         &self,
@@ -22402,7 +22739,7 @@ impl TermLinkTools {
 
     #[tool(
         name = "termlink_channel_claims_summary_all",
-        description = "Fleet-wide claim-state sweep — the cold-start investigator when you don't yet know which topic has the stuck worker. One row per topic plus a `potentially_stuck` flag (heuristic: `expired_count > 0` OR `oldest_active_age_ms > 60_000`). Returns `{ok, topic_count, stuck_count, shown, only_stuck, topics:[{ok, topic, active_count, expired_count, oldest_active_age_ms?, next_active_expiry_ms?, potentially_stuck}]}`. Per-topic fetch errors non-fatal (`{ok:false, topic, error}`; sweep continues). `only_stuck` (default false) drops non-stuck rows (errors always kept); `stuck_count` stays fleet-wide truth. Read-only."
+        description = "Fleet-wide claim-state sweep — the cold-start investigator when you don't yet know which topic has the stuck worker. One row per topic plus a `potentially_stuck` flag (heuristic: a lease lapsed within the last 15min OR `oldest_active_age_ms > 60_000`). T-2709: the expired arm is recency-windowed via `newest_expired_at_ms`, NOT `expired_count > 0` — the latter latched true forever because expired rows are reaped only when the same (topic, offset) is re-claimed. Returns `{ok, topic_count, stuck_count, shown, only_stuck, topics:[{ok, topic, active_count, expired_count, oldest_active_age_ms?, next_active_expiry_ms?, potentially_stuck}]}`. Per-topic fetch errors non-fatal (`{ok:false, topic, error}`; sweep continues). `only_stuck` (default false) drops non-stuck rows (errors always kept); `stuck_count` stays fleet-wide truth. Read-only."
     )]
     async fn termlink_channel_claims_summary_all(
         &self,
@@ -22458,9 +22795,22 @@ impl TermLinkTools {
                         // T-2043: apply Slice 9's stuck heuristic to keep
                         // CLI/MCP semantics aligned for agents pivoting
                         // between the two surfaces.
-                        let expired = result["expired_count"].as_u64().unwrap_or(0);
+                        // T-2709: recency-windowed, matching the CLI predicate.
+                        // The old form was `expired_count > 0`, a monotonic
+                        // latch — expired rows are reaped only when the same
+                        // (topic, offset) is re-claimed, so an abandoned topic
+                        // reported stuck forever. Absent field (pre-T-2709 hub)
+                        // reads as "no recent expiry", never as stuck.
                         let age = result["oldest_active_age_ms"].as_i64();
-                        let stuck = expired > 0 || age.map(|a| a > 60_000).unwrap_or(false);
+                        let recently_abandoned = result["newest_expired_at_ms"]
+                            .as_i64()
+                            .map(|at| {
+                                now_unix_ms_for_claims().saturating_sub(at)
+                                    <= RECENT_EXPIRY_WINDOW_MS
+                            })
+                            .unwrap_or(false);
+                        let stuck =
+                            recently_abandoned || age.map(|a| a > 60_000).unwrap_or(false);
                         if stuck {
                             stuck_count += 1;
                         }
@@ -29898,6 +30248,171 @@ impl TermLinkTools {
 mod tests {
     use super::*;
 
+    // === T-2691: procfs probe parity with the CLI (Directive #4 portability) ===
+
+    #[test]
+    fn mcp_procfs_probe_matches_cli_semantics() {
+        // Available on this Linux host...
+        assert!(whoami_helpers::procfs_available_at("/proc"));
+        // ...and unavailable for a root with no self/stat, which is the macOS shape.
+        let dir = std::env::temp_dir().join("termlink-t2691-mcp-no-procfs");
+        let _ = std::fs::create_dir_all(&dir);
+        assert!(!whoami_helpers::procfs_available_at(dir.to_str().unwrap()));
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(!whoami_helpers::procfs_available_at("/definitely/not/a/procfs"));
+    }
+
+    // === T-2735: inherited TERMLINK_SESSION_ID cross-check (CLI parity) ===
+    //
+    // These mirror `termlink-cli metadata::tests` case for case. The point of
+    // duplicating them is the T-2687 lesson: the MCP surface silently lagged the
+    // CLI on `topics --json` for days because only one side had a test.
+
+    fn mcp_reg(id: &str, pid: u32) -> termlink_session::registration::Registration {
+        let json = format!(
+            r#"{{
+                "version": 1,
+                "id": "{id}",
+                "display_name": "s-{id}",
+                "pid": {pid},
+                "uid": 0,
+                "addr": {{ "type": "unix", "path": "/tmp/test.sock" }},
+                "created_at": "2026-05-01T17:00:00Z",
+                "heartbeat_at": "2026-05-01T17:00:00Z",
+                "state": "ready",
+                "capabilities": [],
+                "roles": [],
+                "tags": [],
+                "metadata": {{ "cwd": "/tmp" }}
+            }}"#
+        );
+        serde_json::from_str(&json).expect("Registration JSON shape valid in test")
+    }
+
+    #[test]
+    fn mcp_env_claim_conflict_is_reported() {
+        let sessions = vec![mcp_reg("tl-aaaa", 1111), mcp_reg("tl-bbbb", 2222)];
+        assert_eq!(
+            whoami_helpers::check_env_claim("tl-aaaa", &sessions, &[9999, 2222, 1], true),
+            whoami_helpers::EnvClaimCheck::Conflict {
+                walked_id: "tl-bbbb".to_string(),
+                ancestor_pid: 2222
+            },
+            "MCP must reach the same verdict as the CLI on the same evidence"
+        );
+    }
+
+    #[test]
+    fn mcp_env_claim_owning_the_chain_is_confirmed() {
+        let sessions = vec![mcp_reg("tl-aaaa", 1111)];
+        assert_eq!(
+            whoami_helpers::check_env_claim("tl-aaaa", &sessions, &[9999, 1111, 1], true),
+            whoami_helpers::EnvClaimCheck::Confirmed { ancestor_pid: 1111 }
+        );
+    }
+
+    #[test]
+    fn mcp_env_claim_without_procfs_is_unavailable_not_confirmed() {
+        let sessions = vec![mcp_reg("tl-aaaa", 1111)];
+        assert_eq!(
+            whoami_helpers::check_env_claim("tl-aaaa", &sessions, &[9999, 1111, 1], false),
+            whoami_helpers::EnvClaimCheck::Unavailable,
+            "'could not check' must never render as 'checked and fine' (T-2691 lesson)"
+        );
+    }
+
+    #[test]
+    fn mcp_no_registered_ancestor_is_not_a_conflict() {
+        let sessions = vec![mcp_reg("tl-aaaa", 1111)];
+        assert_eq!(
+            whoami_helpers::check_env_claim("tl-aaaa", &sessions, &[9999, 8888, 1], true),
+            whoami_helpers::EnvClaimCheck::NoWalkEvidence
+        );
+    }
+
+    #[test]
+    fn mcp_conflict_card_keys_match_the_cli_card() {
+        // Key-for-key parity with `whoami_card_json` on the CLI side. If either
+        // surface renames a key, this fails on the MCP side and the CLI test
+        // fails on its own — the divergence cannot ship quietly.
+        let mut card = serde_json::json!({"ok": true});
+        let check = whoami_helpers::EnvClaimCheck::Conflict {
+            walked_id: "tl-bbbb".to_string(),
+            ancestor_pid: 2222,
+        };
+        whoami_helpers::decorate_env_claim(&mut card, "tl-aaaa", &check);
+        assert_eq!(card["resolved_via"].as_str(), Some("env"));
+        assert_eq!(card["env_claim_verified"].as_str(), Some("conflict"));
+        assert_eq!(card["env_claim_conflict"]["claimed_id"].as_str(), Some("tl-aaaa"));
+        assert_eq!(
+            card["env_claim_conflict"]["ancestor_owned_by"].as_str(),
+            Some("tl-bbbb")
+        );
+        assert_eq!(card["env_claim_conflict"]["ancestor_pid"].as_u64(), Some(2222));
+    }
+
+    #[test]
+    fn mcp_whoami_description_states_the_order_the_code_implements() {
+        // T-2735: the description used to read "session_hint → name_hint → env"
+        // while the code was `session_hint.or(env_hint).or(name_hint)` — env
+        // beats name_hint. An agent choosing between the two params was reading
+        // a contract the code did not honour. The description IS the contract on
+        // this surface, so it is pinned.
+        let tools = TermLinkTools::tool_router();
+        let whoami = tools
+            .list_all()
+            .into_iter()
+            .find(|t| t.name == "termlink_whoami")
+            .expect("termlink_whoami is registered");
+        let desc = whoami.description.clone().unwrap_or_default().to_string();
+        let env_pos = desc.find("$TERMLINK_SESSION_ID").expect("env var named in chain");
+        let name_pos = desc.find("name_hint").expect("name_hint named in chain");
+        assert!(
+            env_pos < name_pos,
+            "description must list the env var BEFORE name_hint, matching \
+             session_hint.or(env_hint).or(name_hint); got: {desc}"
+        );
+    }
+
+    // === T-2687: topics probe classification (partial-inventory signal) ===
+
+    #[test]
+    fn topics_probe_counts_unreachable_and_bad_result_separately() {
+        let (topics, unreachable, bad) = aggregate_topics_probes_mcp(vec![
+            ("s1".into(), TopicsProbeMcp::Topics(vec!["a".into(), "b".into()])),
+            ("s2".into(), TopicsProbeMcp::Unreachable),
+            ("s3".into(), TopicsProbeMcp::Topics(vec!["c".into()])),
+            ("s4".into(), TopicsProbeMcp::BadResult),
+            ("s5".into(), TopicsProbeMcp::Unreachable),
+        ]);
+        assert_eq!(topics.len(), 2, "only reachable sessions with topics are inventoried");
+        assert_eq!(unreachable, 2, "both unreachable sessions counted");
+        assert_eq!(bad, 1, "bad-result counted separately from unreachable");
+        assert_eq!(topics.get("s1").map(|v| v.len()), Some(2));
+        assert_eq!(topics.get("s3").map(|v| v.len()), Some(1));
+    }
+
+    #[test]
+    fn topics_probe_empty_list_is_not_skipped() {
+        // A session that answered with zero topics was REACHED. It contributes
+        // nothing to the inventory but must not inflate the skipped counters —
+        // that would report a partial inventory where none exists.
+        let (topics, unreachable, bad) = aggregate_topics_probes_mcp(vec![
+            ("quiet".into(), TopicsProbeMcp::Topics(vec![])),
+        ]);
+        assert!(topics.is_empty(), "empty topic list is excluded from the inventory");
+        assert_eq!((unreachable, bad), (0, 0), "a reachable session is never 'skipped'");
+    }
+
+    #[test]
+    fn topics_probe_all_healthy_reports_zero_skipped() {
+        let (topics, unreachable, bad) = aggregate_topics_probes_mcp(vec![
+            ("s1".into(), TopicsProbeMcp::Topics(vec!["x".into()])),
+        ]);
+        assert_eq!(topics.len(), 1);
+        assert_eq!(unreachable + bad, 0, "a complete inventory reports zero skipped");
+    }
+
     // === T-2553: hub-down error is actionable (Constitutional Directive #3) ===
 
     #[test]
@@ -31280,7 +31795,7 @@ YW\tJ
     fn agent_inbox_compute_unread_rows_empty_cursors() {
         let cursors: Vec<(String, u64)> = vec![];
         let counts = std::collections::HashMap::new();
-        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new());
+        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new(), &std::collections::HashMap::new());
         assert!(rows.is_empty());
     }
 
@@ -31289,7 +31804,7 @@ YW\tJ
         let cursors = vec![("alpha".to_string(), 9)];
         let mut counts = std::collections::HashMap::new();
         counts.insert("alpha".to_string(), 10); // latest=9, cursor==latest → drop
-        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new());
+        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new(), &std::collections::HashMap::new());
         assert!(rows.is_empty(), "caller at latest should yield no rows");
     }
 
@@ -31298,12 +31813,12 @@ YW\tJ
         let cursors = vec![("alpha".to_string(), 3)];
         let mut counts = std::collections::HashMap::new();
         counts.insert("alpha".to_string(), 10); // latest=9, cursor=3, unread=6
-        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new());
+        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new(), &std::collections::HashMap::new());
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].topic, "alpha");
         assert_eq!(rows[0].cursor, 3);
         assert_eq!(rows[0].latest, 9);
-        assert_eq!(rows[0].unread, 6);
+        assert_eq!(rows[0].unread, Some(6));
     }
 
     #[test]
@@ -31317,7 +31832,7 @@ YW\tJ
         counts.insert("alpha".to_string(), 5);
         counts.insert("bravo".to_string(), 10);
         counts.insert("charlie".to_string(), 5);
-        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new());
+        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new(), &std::collections::HashMap::new());
         assert_eq!(rows.len(), 3);
         // bravo (9 unread) first, then alpha (alpha<charlie) then charlie
         assert_eq!(rows[0].topic, "bravo");
@@ -31333,7 +31848,7 @@ YW\tJ
         ];
         let mut counts = std::collections::HashMap::new();
         counts.insert("alpha".to_string(), 3);
-        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new());
+        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new(), &std::collections::HashMap::new());
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].topic, "alpha");
     }
@@ -31343,7 +31858,7 @@ YW\tJ
         let cursors = vec![("alpha".to_string(), 0)];
         let mut counts = std::collections::HashMap::new();
         counts.insert("alpha".to_string(), 0); // count==0 → drop
-        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new());
+        let rows = compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new(), &std::collections::HashMap::new());
         assert!(rows.is_empty());
     }
 
@@ -31352,6 +31867,139 @@ YW\tJ
     // reader at cursor 4990 has 9 unread. The buggy count-1 path computes
     // latest=999 and DROPS the row → `termlink_agent_inbox` silently reports 0
     // unread while 9 messages sit unseen. With latest_offset the row is correct.
+    // ---- T-2757: frontier reconciliation (MCP mirror of the CLI cases) -----
+
+    #[test]
+    fn mcp_reconcile_frontier_receipt_ahead_of_cursor_wins() {
+        assert_eq!(reconcile_consumption_frontier_mcp(44, Some(174)), 174);
+    }
+
+    #[test]
+    fn mcp_reconcile_frontier_cursor_ahead_of_receipt_wins() {
+        assert_eq!(reconcile_consumption_frontier_mcp(900, Some(100)), 900);
+    }
+
+    #[test]
+    fn mcp_reconcile_frontier_no_receipt_is_cursor() {
+        assert_eq!(reconcile_consumption_frontier_mcp(77, None), 77);
+    }
+
+    // Regression for the measured production defect: cursor=44, receipt=174,
+    // latest=175 on one DM topic. Pre-T-2757 the digest said 131; truth is 1.
+    #[test]
+    fn mcp_agent_inbox_receipt_frontier_collapses_the_overreport() {
+        let topic = "dm:9219671e28054458:d1993c2c3ec44c94";
+        let cursors = vec![(topic.to_string(), 44u64)];
+        let mut counts = std::collections::HashMap::new();
+        counts.insert(topic.to_string(), 176u64);
+        let mut latest = std::collections::HashMap::new();
+        latest.insert(topic.to_string(), 175u64);
+
+        let stale = compute_unread_rows_mcp(
+            &cursors,
+            &counts,
+            &latest,
+            &std::collections::HashMap::new(),
+        );
+        assert_eq!(stale.len(), 1);
+        assert_eq!(
+            stale[0].unread, Some(131),
+            "pre-T-2757 shape must stay reproducible, else this test proves nothing"
+        );
+
+        let mut receipts = std::collections::HashMap::new();
+        receipts.insert(topic.to_string(), 174u64);
+        let fixed = compute_unread_rows_mcp(&cursors, &counts, &latest, &receipts);
+        assert_eq!(fixed.len(), 1);
+        assert_eq!(fixed[0].unread, Some(1));
+        assert_eq!(fixed[0].cursor, 44);
+        assert_eq!(fixed[0].receipt_up_to, Some(174));
+        assert_eq!(fixed[0].frontier, 174);
+    }
+
+    // Mirror of the CLI case the live run caught: on a pre-T-2533 hub the
+    // count-derived latest (1999) is not an offset, while the receipt frontier
+    // (11952) is. Dropping the row would silently hide 14 real unread messages.
+    #[test]
+    fn mcp_agent_inbox_stale_hub_receipt_beyond_count_is_indeterminate() {
+        let cursors = vec![("agent-chat-arc".to_string(), 1611u64)];
+        let mut counts = std::collections::HashMap::new();
+        counts.insert("agent-chat-arc".to_string(), 2000u64);
+        let mut receipts = std::collections::HashMap::new();
+        receipts.insert("agent-chat-arc".to_string(), 11952u64);
+
+        let rows = compute_unread_rows_mcp(
+            &cursors,
+            &counts,
+            &std::collections::HashMap::new(),
+            &receipts,
+        );
+        assert_eq!(rows.len(), 1, "topic must not vanish");
+        assert_eq!(rows[0].unread, None);
+
+        // With an authoritative latest_offset the same inputs resolve cleanly.
+        let mut latest = std::collections::HashMap::new();
+        latest.insert("agent-chat-arc".to_string(), 11966u64);
+        let resolved = compute_unread_rows_mcp(&cursors, &counts, &latest, &receipts);
+        assert_eq!(resolved[0].unread, Some(14));
+    }
+
+    #[test]
+    fn mcp_unread_verdict_matches_cli_semantics() {
+        assert_eq!(
+            unread_verdict_mcp(100, true, 150, Some(150)),
+            UnreadVerdictMcp::CaughtUp
+        );
+        assert_eq!(
+            unread_verdict_mcp(100, false, 150, Some(150)),
+            UnreadVerdictMcp::Indeterminate
+        );
+        assert_eq!(
+            unread_verdict_mcp(100, false, 40, Some(40)),
+            UnreadVerdictMcp::Unread(60)
+        );
+        assert_eq!(
+            unread_verdict_mcp(100, false, 40, None),
+            UnreadVerdictMcp::Unread(60)
+        );
+    }
+
+    // Fully acked by receipt → the topic leaves the digest entirely.
+    #[test]
+    fn mcp_agent_inbox_fully_acked_topic_is_dropped() {
+        let cursors = vec![("t".to_string(), 10u64)];
+        let mut counts = std::collections::HashMap::new();
+        counts.insert("t".to_string(), 500u64);
+        let mut latest = std::collections::HashMap::new();
+        latest.insert("t".to_string(), 499u64);
+        let mut receipts = std::collections::HashMap::new();
+        receipts.insert("t".to_string(), 499u64);
+        assert!(compute_unread_rows_mcp(&cursors, &counts, &latest, &receipts).is_empty());
+    }
+
+    // CLI/MCP parity: the two helpers must agree on the same inputs, or the
+    // surfaces diverge again in the opposite direction from the original bug.
+    #[test]
+    fn mcp_reconcile_frontier_matches_cli_semantics() {
+        for (cursor, receipt) in [
+            (44u64, Some(174u64)),
+            (900, Some(100)),
+            (77, None),
+            (5, Some(5)),
+            (0, Some(0)),
+        ] {
+            let expected = match receipt {
+                Some(r) => cursor.max(r),
+                None => cursor,
+            };
+            assert_eq!(
+                reconcile_consumption_frontier_mcp(cursor, receipt),
+                expected,
+                "cursor={cursor} receipt={receipt:?}"
+            );
+        }
+    }
+
     #[test]
     fn agent_inbox_compute_unread_rows_swept_topic_uses_latest_offset() {
         let cursors = vec![("agent-chat-arc".to_string(), 4990)];
@@ -31359,15 +32007,15 @@ YW\tJ
         counts.insert("agent-chat-arc".to_string(), 1000); // COUNT(*) after sweep
         let mut latest = std::collections::HashMap::new();
         latest.insert("agent-chat-arc".to_string(), 4999u64); // next_offset - 1
-        let rows = compute_unread_rows_mcp(&cursors, &counts, &latest);
+        let rows = compute_unread_rows_mcp(&cursors, &counts, &latest, &std::collections::HashMap::new());
         assert_eq!(rows.len(), 1, "swept topic must report unread, not drop it");
         assert_eq!(rows[0].latest, 4999);
-        assert_eq!(rows[0].unread, 9);
+        assert_eq!(rows[0].unread, Some(9));
         assert_eq!(rows[0].cursor, 4990);
 
         // Pre-T-2533 fallback (empty latest map) → count-1 → latest=999 → drop.
         let rows_fallback =
-            compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new());
+            compute_unread_rows_mcp(&cursors, &counts, &std::collections::HashMap::new(), &std::collections::HashMap::new());
         assert!(
             rows_fallback.is_empty(),
             "count-1 fallback under-reports on swept topics (the T-2533 bug)"

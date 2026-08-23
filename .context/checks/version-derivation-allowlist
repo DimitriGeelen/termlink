@@ -1,0 +1,16 @@
+# version-derivation allowlist (T-2746) — consumed by scripts/check-version-derivation.sh
+#
+# One crate name per line: `<crate>  # <reason>`.
+#
+# A listed crate is still COUNTED and REPORTED as reading its version without deriving
+# it — it simply does not fire. Removing a line re-fires that crate immediately; a NEW
+# crate with the same omission fires straight away because it is not listed.
+#
+# The reason must say why that crate's Cargo.toml version is the RIGHT answer for it,
+# not merely that someone looked. Per PL-345, an entry whose stated reason is incomplete
+# is worse than no entry: it converts an open question into a closed one, so nobody looks
+# again. The two instances this check exists to catch (T-1458 termlink-hub, T-2744
+# termlink-session) each reported "0.9.0" for months while looking perfectly healthy —
+# an unexamined allowlist entry would have made that permanent instead of merely long.
+#
+# Empty on purpose: every crate in this workspace that reads the version also derives it.

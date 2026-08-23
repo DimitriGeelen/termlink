@@ -15,6 +15,12 @@ ROOT="$SELF_DIR/.."
 WC="$ROOT/scripts/wake-confirm.sh"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
+
+# T-2761: this test drives the real agent-send.sh, whose T-2402 give-up path
+# appends to the operator's woken-but-silent canary log. Redirect it into our own
+# tmp dir — "empty log = healthy" is a one-bit channel, so test residue leaves the
+# canary permanently FIRING and therefore deaf to a genuine event.
+export TERMLINK_WOKEN_SILENT_LOG="$TMP/woken-silent-canary.log"
 fails=0
 pass() { echo "  PASS: $1"; }
 fail() { echo "  FAIL: $1"; fails=$((fails+1)); }

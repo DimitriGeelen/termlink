@@ -1,0 +1,14 @@
+id: crates/termlink-cli/tests/channel_claim_cli_integration.rs
+name: channel_claim_cli_integration
+type: script
+subsystem: cli
+location: crates/termlink-cli/tests/channel_claim_cli_integration.rs
+tags: []
+purpose: 'TODO: describe what this component does'
+depends_on:
+- target: crates/termlink-protocol/src/lib.rs
+  type: calls
+depended_by: []
+last_verified: 2026-08-14
+created_by: unknown
+last_enriched: '2026-08-14'

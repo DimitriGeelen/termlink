@@ -58,6 +58,8 @@ but on the client side. Question: can the fleet self-heal this by PTY-injecting 
 `/mcp`-reconnect command into the live session (`termlink inject`) right after a deploy?
 For: every long-lived agent session on a host where binaries get upgraded underneath it.
 
+Research artifact: `docs/reports/T-2276-mcp-autoreconnect-pty-inject.md` (C-001).
+
 ## Assumptions
 
 - A1: "the Claude Code session is a registered/injectable termlink PTY" — **REFUTED for the

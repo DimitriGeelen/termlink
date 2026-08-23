@@ -2197,6 +2197,10 @@ pub(crate) async fn handle_channel_claims_summary_with(
                 "oldest_active_at_ms": s.oldest_active_at_ms,
                 "oldest_active_age_ms": s.oldest_active_age_ms,
                 "next_active_expiry_ms": s.next_active_expiry_ms,
+                // T-2709: recency of the last lapsed lease. Lets clients ask
+                // "was work abandoned recently?" instead of the latching
+                // "has work EVER been abandoned here?" that expired_count answers.
+                "newest_expired_at_ms": s.newest_expired_at_ms,
             }),
         )
         .into(),

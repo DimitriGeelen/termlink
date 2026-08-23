@@ -261,7 +261,7 @@ T-2250 fires 2026-07-25: R5 telemetry plane design
 ```
 
 Diagnosed and fixed under **T-2810** (explicit `PROJECT_ROOT` in the cron registry, fixtures
-that reproduce the defect, filed upstream at `framework:pickup` offset 24, learning PL-328).
+that reproduce the defect, filed upstream at `framework:pickup` offset 24, learning PL-358).
 That is why this task had been sitting: part of its remaining work was waiting on a reminder
 that could never arrive.
 

@@ -5,7 +5,9 @@
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 FRAMEWORK_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 source "$FRAMEWORK_ROOT/lib/paths.sh"
-HANDOVER_DIR="$CONTEXT_DIR/handovers"
+# HANDOVER_DIR is overridable via env for hermetic testing (T-2366); in
+# production it is unset, so the default below is used unchanged.
+HANDOVER_DIR="${HANDOVER_DIR:-$CONTEXT_DIR/handovers}"
 
 # T-1461: Resolve Watchtower URL once for inline link rendering.
 # Falls back to the literal port file or 3000 if `fw watchtower url` fails — the
@@ -53,6 +55,53 @@ _resolve_commit_task() {
     # Note: focused task fallback was removed (T-556) — handover commits
     # are session-level and must never borrow a work task's ID.
     COMMIT_TASK="T-000"
+}
+
+# T-2588: Shared push leg for both normal handovers and --checkpoint commits.
+# Checkpoint commits previously accumulated locally with no push — exactly the
+# state a checkpoint exists to protect gets stranded if the session dies or
+# the budget gate blocks a later push (T-2587). Push failures are warnings,
+# never a silent skip: the caller sees explicit WARNING lines either way.
+_push_to_remotes() {
+    echo ""
+    echo -e "${CYAN}Pushing to remotes...${NC}"
+    _push_failed=false
+    _push_timeout="${FW_HANDOVER_PUSH_TIMEOUT:-60}"
+    # T-1255 (G-007): When >1 remote is configured AND `origin` is one of them,
+    # push ONLY to origin. Mirroring (e.g. github) is OneDev's job via
+    # .onedev-buildspec.yml's PushRepository job. Pushing directly to mirror
+    # remotes caused github-ahead-of-onedev divergence whenever onedev briefly
+    # 502'd at handover time (T-1253 inception, PL-036).
+    # T-1474: Guard against the no-origin case. If no remote is named `origin`,
+    # there is no canonical source for OneDev to mirror from, so the assumption
+    # that other remotes are "mirrors" is invalid — push to all of them.
+    _remote_count=$(git -C "$PROJECT_ROOT" remote 2>/dev/null | wc -l)
+    if git -C "$PROJECT_ROOT" remote 2>/dev/null | grep -qx 'origin'; then
+        _has_origin=true
+    else
+        _has_origin=false
+    fi
+    while IFS= read -r remote_name; do
+        [ -z "$remote_name" ] && continue
+        if [ "$_has_origin" = true ] && [ "$_remote_count" -gt 1 ] && [ "$remote_name" != "origin" ]; then
+            echo -e "  ${CYAN}Skipping $remote_name (mirrored from origin via PushRepository)${NC}"
+            continue
+        fi
+        if timeout "$_push_timeout" git -C "$PROJECT_ROOT" push --follow-tags "$remote_name" HEAD 2>&1; then
+            echo -e "  ${GREEN}Pushed to $remote_name ✓${NC}"
+        else
+            _exit=$?
+            if [ "$_exit" -eq 124 ]; then
+                echo -e "  ${YELLOW}WARNING: Push to $remote_name timed out after ${_push_timeout}s (non-blocking, T-1277)${NC}" >&2
+            else
+                echo -e "  ${YELLOW}WARNING: Push to $remote_name failed (non-blocking)${NC}" >&2
+            fi
+            _push_failed=true
+        fi
+    done < <(git -C "$PROJECT_ROOT" remote 2>/dev/null)
+    if [ "$_push_failed" = true ]; then
+        echo -e "${YELLOW}Some pushes failed. Run 'git push' manually after resolving.${NC}"
+    fi
 }
 
 # Parse arguments
@@ -170,6 +219,9 @@ CHECKPOINT_EOF
         if [ -n "$GIT_AGENT" ]; then
             git -C "$PROJECT_ROOT" add "$HANDOVER_FILE"
             PROJECT_ROOT="$PROJECT_ROOT" "$GIT_AGENT" commit -m "$COMMIT_TASK: Checkpoint handover $SESSION_ID"
+            # T-2588: push immediately — checkpoints exist to survive session
+            # death, so a checkpoint commit stranded locally defeats the point.
+            _push_to_remotes
         fi
     fi
     exit 0
@@ -223,6 +275,35 @@ ACTIVE_TASKS="${ACTIVE_TASKS%, }"  # Remove trailing comma
 # Get git info
 UNCOMMITTED=$(git -C "$PROJECT_ROOT" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
 RECENT_COMMITS=$(git -C "$PROJECT_ROOT" log -5 --pretty=format:"- %h %s" 2>/dev/null)
+
+# T-100144 (C3 of T-100139): branch divergence vs origin/master. Strand
+# divergence is invisible at session boundaries (live strands were 215-248
+# commits behind master before the inception measured them) — surface it in
+# every handover, and nudge toward `fw integrate run` when merge-back is
+# overdue (behind > FW_BRANCH_BEHIND_WARN, default 50, shared with the
+# T-100143 doctor scan). Silent on master / detached / no origin/master.
+BRANCH_DIVERGENCE=""
+MERGEBACK_NUDGE=""
+if [ -f "$FRAMEWORK_ROOT/lib/branch-hygiene.sh" ]; then
+    . "$FRAMEWORK_ROOT/lib/branch-hygiene.sh"
+    _bd_out=$(fw_branch_divergence "$PROJECT_ROOT" 2>/dev/null || true)
+    _bd_line=$(printf '%s\n' "$_bd_out" | grep '^divergence ' || true)
+    if [ -n "$_bd_line" ]; then
+        _bd_branch=$(echo "$_bd_line" | awk '{print $2}')
+        _bd_ahead=$(echo "$_bd_line" | awk '{print $3}' | cut -d= -f2)
+        _bd_behind=$(echo "$_bd_line" | awk '{print $4}' | cut -d= -f2)
+        BRANCH_DIVERGENCE="**Branch:** \`$_bd_branch\` +${_bd_ahead} / −${_bd_behind} vs origin/master"
+        if printf '%s\n' "$_bd_out" | grep -q '^fork '; then
+            # T-100195: bidirectional fork — a bare `git merge origin/master`
+            # conflicts (T-100194 origin: 100+ conflicts). Reconcile while small,
+            # do NOT recommend a one-way `fw integrate` (it cannot absorb the
+            # ${_bd_behind} commits master has that this branch lacks).
+            MERGEBACK_NUDGE="**⚠ Branch has FORKED from origin/master:** \`$_bd_branch\` is +${_bd_ahead} ahead AND −${_bd_behind} behind (threshold ${FW_BRANCH_BEHIND_WARN:-50}). This is a bidirectional fork, not a lag — a go-live \`git merge origin/master\` will conflict. Reconcile now while the fork is small: merge origin/master INTO this branch and resolve, or reset to origin/master if the unique commits are already landed. (RCA T-100194; safe go-live path: T-100195 Leg 2.)"
+        elif printf '%s\n' "$_bd_out" | grep -q '^nudge '; then
+            MERGEBACK_NUDGE="**Merge-back overdue:** \`$_bd_branch\` is ${_bd_behind} commits behind origin/master (threshold ${FW_BRANCH_BEHIND_WARN:-50}) — land the strand with \`fw integrate run master --push\` before starting new work."
+        fi
+    fi
+fi
 
 # Get tasks touched recently (modified in last day)
 TASKS_TOUCHED=""
@@ -297,15 +378,52 @@ INBOX_FILE="$CONTEXT_DIR/inbox.yaml"
 PENDING_OBS=0
 URGENT_OBS=0
 if [ -f "$INBOX_FILE" ]; then
-    PENDING_OBS=$(grep -c 'status: pending' "$INBOX_FILE" 2>/dev/null) || PENDING_OBS=0
+    # T-2932: parse, do not grep. `grep -c 'status: pending'` counts the string
+    # ANYWHERE in the file, including inside an observation's own text. That was
+    # correct for as long as no observation quoted it — and it stopped being
+    # correct the same hour it was written down: OBS-233, filed to record the
+    # risk, quotes the string and pushed the count from 118 to 119. The latent
+    # case went live on the act of describing it.
+    PENDING_OBS=$(VALIDATE_FILE="$INBOX_FILE" python3 -c "
+import os, sys
+try:
+    import yaml
+    with open(os.environ['VALIDATE_FILE']) as f:
+        d = yaml.safe_load(f) or {}
+    print(sum(1 for o in (d.get('observations') or [])
+              if isinstance(o, dict) and o.get('status') == 'pending'))
+except Exception as e:
+    print('handover: could not read the observation inbox (%s)' % e.__class__.__name__, file=sys.stderr)
+    print(0)
+" 2>/dev/null) || PENDING_OBS=0
+    # T-2927: parse the YAML, do not guess its indentation. The previous form
+    # split on `\n  - ` — the 2-space list indent used by patterns.yaml, NOT the
+    # column-0 form inbox.yaml actually uses. T-2514 named that exact mismatch
+    # and fixed it in audit.sh; this site and the listing block below were never
+    # swept (L-533: a sibling sweep with no enumerating guard cannot tell
+    # "converted the ones we found" from "converted all of them").
+    #
+    # Measured before repair: this returned 1 urgent against a true count of 3.
+    # Reported by 832 as latent in their tree, where it always returned 0 —
+    # actively miscounting in ours, which is worse: 0 reads as "none", 1 reads
+    # as a working counter.
     URGENT_OBS=$(VALIDATE_FILE="$INBOX_FILE" python3 -c "
-import re, os
-with open(os.environ['VALIDATE_FILE']) as f:
-    content = f.read()
-blocks = re.split(r'\n  - ', content)
-urgent = sum(1 for b in blocks[1:] if 'status: pending' in b and 'urgent: true' in b)
-print(urgent)
-" 2>/dev/null || echo 0)
+import os, sys
+try:
+    import yaml
+    with open(os.environ['VALIDATE_FILE']) as f:
+        d = yaml.safe_load(f) or {}
+    obs = d.get('observations') or []
+    print(sum(1 for o in obs
+              if isinstance(o, dict)
+              and o.get('status') == 'pending'
+              and o.get('urgent') is True))
+except Exception as e:
+    # Loud, not silent: a swallowed parse error here prints 0 and reads as
+    # 'no urgent observations', which is the failure this task exists to fix.
+    print('WARN: could not parse %s for urgent count: %s' % (os.environ['VALIDATE_FILE'], e), file=sys.stderr)
+    print(0)
+" || echo 0)
 fi
 
 if [ "$PENDING_OBS" -gt 0 ]; then
@@ -392,6 +510,24 @@ if [ -f "$FRAMEWORK_ROOT/agents/context/session-metrics.sh" ]; then
     fi
 fi
 
+# Step 1.10: Discard manifest (T-2366, arc-012 S4)
+# Write a category-level record of what compaction sheds (tool-results, model
+# turns, working-set files) alongside the handover, so the operator can review
+# post-hoc what the self-compacting model discarded. The continuous-run loop
+# (pre-compact.sh / checkpoint.sh → handover.sh, unified under D-028) and the
+# deprecated `--emergency` alias both route through this normal path. Best-effort:
+# the helper never fails the handover (graceful degradation to a placeholder).
+DISCARD_MANIFEST_LINE=""
+if [ -x "$FRAMEWORK_ROOT/agents/handover/discard-manifest.sh" ]; then
+    if SESSION_ID="$SESSION_ID" HANDOVER_DIR="$HANDOVER_DIR" PROJECT_ROOT="$PROJECT_ROOT" \
+        CONTEXT_DIR="$CONTEXT_DIR" "$FRAMEWORK_ROOT/agents/handover/discard-manifest.sh" \
+        "$SESSION_ID" >/dev/null 2>&1; then
+        DISCARD_MANIFEST_LINE="**Discard Manifest:** \`$SESSION_ID.discard-manifest.yaml\` (category-level compaction discards — T-2366)
+
+"
+    fi
+fi
+
 # Step 2: Create handover template
 echo -e "${YELLOW}Creating handover document...${NC}"
 
@@ -446,7 +582,9 @@ session_narrative: ""
 
 # Session Handover: $SESSION_ID
 
-${RECOVERED_BANNER}## Where We Are
+${DISCARD_MANIFEST_LINE}${RECOVERED_BANNER}## Where We Are
+
+${BRANCH_DIVERGENCE}
 
 $(python3 -c "
 import subprocess, re, collections
@@ -518,6 +656,29 @@ if [ -s "$REVISITS_FILE" ]; then
         [ -z "$line" ] && continue
         echo "- $line"
     done < "$REVISITS_FILE"
+    echo ""
+fi
+
+# T-2865: surface DEFER decisions carrying no revisit date. Its own heading, not
+# extra lines above — "Ripe Today" asserts a date has arrived, and these have no
+# date at all. Same absent-or-empty silence contract.
+UNDATED_FILE="$PROJECT_ROOT/.context/working/.revisits-undated.txt"
+if [ -s "$UNDATED_FILE" ]; then
+    _undated_n=$(grep -c . "$UNDATED_FILE" 2>/dev/null || echo 0)
+    echo "## Deferred With No Revisit Date"
+    echo ""
+    echo "$_undated_n task(s) recorded a DEFER decision but carry no \`revisit_at\`, so"
+    echo "nothing will ever surface them as ripe."
+    echo ""
+    echo "There is **no CLI verb** that sets this field — verified, not assumed"
+    echo "(T-2865). To schedule a revisit, add \`revisit_at: YYYY-MM-DD\` to the task's"
+    echo "frontmatter by hand; the template carries it commented out. Or close the"
+    echo "task if the deferral is permanent."
+    echo ""
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        echo "- $line"
+    done < "$UNDATED_FILE"
     echo ""
 fi
 )
@@ -799,21 +960,53 @@ if [ "$PENDING_OBS" -gt 0 ]; then
             echo "**$PENDING_OBS pending observations** — review with \`fw note list\` or \`fw note triage\`."
         fi
         echo ""
-        # List pending observation summaries
-        python3 << PYEOF
-import re
-with open("$INBOX_FILE") as f:
-    content = f.read()
-blocks = re.split(r'\n  - ', content)
-for b in blocks[1:]:
-    if 'status: pending' not in b:
-        continue
-    obs_id = re.search(r'id: (OBS-\d+)', b)
-    text = re.search(r'text: "(.*?)"', b)
-    urgent = 'urgent: true' in b
-    if obs_id and text:
-        prefix = "[URGENT] " if urgent else ""
-        print(f"- {prefix}{obs_id.group(1)}: {text.group(1)}")
+        # List pending observation summaries.
+        #
+        # T-2927: parses the YAML rather than splitting on a guessed indent.
+        # The previous form split on `\n  - ` and listed 1 of 112 pending
+        # observations. One listed is worse than none: a zero could read as
+        # "nothing to show", whereas a single well-formed entry under a
+        # "112 pending" heading reads as a working section.
+        #
+        # The regex was only half of it. The other half — 832's, and the half
+        # that keeps this class visible if the parse ever breaks again — is the
+        # mismatch line below: a listing that emits fewer rows than the count it
+        # just printed must SAY so. Without it, the section is well-formed and
+        # complete-looking with its payload absent, and nothing anywhere reports
+        # "listed 1 of 112".
+        INBOX_FILE="$INBOX_FILE" PENDING_OBS="$PENDING_OBS" python3 << 'PYEOF'
+import os, sys
+
+path = os.environ['INBOX_FILE']
+claimed = int(os.environ.get('PENDING_OBS') or 0)
+
+listed = 0
+err = None
+try:
+    import yaml
+    with open(path) as f:
+        d = yaml.safe_load(f) or {}
+    for o in (d.get('observations') or []):
+        if not isinstance(o, dict) or o.get('status') != 'pending':
+            continue
+        obs_id = o.get('id')
+        text = o.get('text')
+        if not obs_id or not text:
+            continue
+        prefix = "[URGENT] " if o.get('urgent') is True else ""
+        print(f"- {prefix}{obs_id}: {str(text).strip()}")
+        listed += 1
+except Exception as e:
+    err = e
+
+if err is not None:
+    print(f"- _Could not read the observation inbox ({err.__class__.__name__}). "
+          f"{claimed} pending — run `fw note list`._")
+elif listed < claimed:
+    # Never silent. The count and the list disagreeing is itself the finding.
+    print("")
+    print(f"_Listed {listed} of {claimed} pending — {claimed - listed} could not be "
+          f"summarised (missing `id` or `text`). Run `fw note list` for the full set._")
 PYEOF
         echo ""
     } >> "$HANDOVER_FILE"
@@ -874,6 +1067,8 @@ fi)
 See gaps register above.
 
 ## Suggested First Action
+
+${MERGEBACK_NUDGE}
 
 $(python3 -c "
 import glob, re, os
@@ -946,6 +1141,17 @@ if [ "${ORPHAN_COUNT:-0}" -gt 0 ]; then
 fi
 
 # Step 3: Update LATEST.md (symlink so edits to session file auto-reflect)
+# T-2374: only repoint LATEST after confirming the body file was actually written
+# and is non-empty. Updating the symlink unconditionally (the old behavior) left
+# LATEST dangling whenever generation failed/partial — a silent break that
+# degrades /resume and SessionStart:compact reinjection (Directive-2). On failure,
+# leave the previous (valid) LATEST untouched and exit non-zero so callers (e.g.
+# pre-compact.sh) can detect it.
+if [ ! -s "$HANDOVER_FILE" ]; then
+    echo -e "${RED:-}ERROR: handover body not written or empty: $HANDOVER_FILE${NC:-}" >&2
+    echo "  LATEST.md left untouched (still points to the last valid handover)." >&2
+    exit 1
+fi
 ln -sf "$(basename "$HANDOVER_FILE")" "$HANDOVER_DIR/LATEST.md"
 
 echo ""
@@ -988,45 +1194,7 @@ if [ "$AUTO_COMMIT" = true ]; then
         # T-1341 (L-019): default raised 15s → 60s because pre-push hook runs
         # fw audit (~10s), leaving too little headroom for the actual push at 15s.
         # Override via FW_HANDOVER_PUSH_TIMEOUT.
-        echo ""
-        echo -e "${CYAN}Pushing to remotes...${NC}"
-        _push_failed=false
-        _push_timeout="${FW_HANDOVER_PUSH_TIMEOUT:-60}"
-        # T-1255 (G-007): When >1 remote is configured AND `origin` is one of them,
-        # push ONLY to origin. Mirroring (e.g. github) is OneDev's job via
-        # .onedev-buildspec.yml's PushRepository job. Pushing directly to mirror
-        # remotes caused github-ahead-of-onedev divergence whenever onedev briefly
-        # 502'd at handover time (T-1253 inception, PL-036).
-        # T-1474: Guard against the no-origin case. If no remote is named `origin`,
-        # there is no canonical source for OneDev to mirror from, so the assumption
-        # that other remotes are "mirrors" is invalid — push to all of them.
-        _remote_count=$(git -C "$PROJECT_ROOT" remote 2>/dev/null | wc -l)
-        if git -C "$PROJECT_ROOT" remote 2>/dev/null | grep -qx 'origin'; then
-            _has_origin=true
-        else
-            _has_origin=false
-        fi
-        while IFS= read -r remote_name; do
-            [ -z "$remote_name" ] && continue
-            if [ "$_has_origin" = true ] && [ "$_remote_count" -gt 1 ] && [ "$remote_name" != "origin" ]; then
-                echo -e "  ${CYAN}Skipping $remote_name (mirrored from origin via PushRepository)${NC}"
-                continue
-            fi
-            if timeout "$_push_timeout" git -C "$PROJECT_ROOT" push --follow-tags "$remote_name" HEAD 2>&1; then
-                echo -e "  ${GREEN}Pushed to $remote_name ✓${NC}"
-            else
-                _exit=$?
-                if [ "$_exit" -eq 124 ]; then
-                    echo -e "  ${YELLOW}WARNING: Push to $remote_name timed out after ${_push_timeout}s (non-blocking, T-1277)${NC}" >&2
-                else
-                    echo -e "  ${YELLOW}WARNING: Push to $remote_name failed (non-blocking)${NC}" >&2
-                fi
-                _push_failed=true
-            fi
-        done < <(git -C "$PROJECT_ROOT" remote 2>/dev/null)
-        if [ "$_push_failed" = true ]; then
-            echo -e "${YELLOW}Some pushes failed. Run 'git push' manually after resolving.${NC}"
-        fi
+        _push_to_remotes
     else
         error "Git agent not found. Manual commit required."
         echo "Run: git commit -m \"$COMMIT_TASK: Session handover $SESSION_ID\""

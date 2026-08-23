@@ -3,12 +3,22 @@
 #
 # Catches deployment-time misconfigs that cause silent substrate failures:
 #
-#   Check 1: TERMLINK_RUNTIME_DIR on volatile /tmp
+#   Check 1: runtime_dir on a volatile filesystem
 #            → PL-021: hub regenerates secret + TLS cert every reboot,
 #              every client sees auth-mismatch + TOFU drift, fleet wedges.
-#              Both mechanisms detected: tmpfs mount AND systemd-tmpfiles
+#              Two mechanisms detected: a memory-backed filesystem
+#              (tmpfs/ramfs, wherever it is mounted) AND systemd-tmpfiles
 #              D-rule wipe (the rule that looks innocent in `mount` output
 #              but still nukes /tmp on boot — T-1294 ring20-management).
+#              T-2729: the directory is resolved by the binary's own
+#              four-step order (discovery.rs:10-26 — TERMLINK_RUNTIME_DIR,
+#              XDG_RUNTIME_DIR/termlink, TMPDIR/termlink-$UID,
+#              /tmp/termlink-$UID). It was previously hardcoded to
+#              `${TERMLINK_RUNTIME_DIR:-/tmp/termlink-0}`, so on any host
+#              using the systemd default the check inspected /tmp/termlink-0
+#              while the hub used /run/user/<uid>/termlink, and reported
+#              PASS "persists across reboot" for a tmpfs destroyed at
+#              logout — most confident exactly where it was most wrong.
 #
 #   Check 2: ~/.termlink/hubs.toml present + has [hubs.*] sections
 #            → Without it, every heal path (T-1054/T-1055/T-1291) fails;
@@ -236,32 +246,163 @@ emit_check() {
 
 # ---- Check 1: TERMLINK_RUNTIME_DIR volatility (PL-021) ------------------
 
+# Resolve the runtime directory exactly as the binary does
+# (crates/termlink-session/src/discovery.rs:10-26). T-2729: this check
+# previously hardcoded `${TERMLINK_RUNTIME_DIR:-/tmp/termlink-0}`, which
+# implements step 1 and a UID-0 misspelling of step 4, skipping steps 2 and 3
+# entirely. On any host with XDG_RUNTIME_DIR set and no explicit override — the
+# systemd default — the hub used /run/user/<uid>/termlink while this check
+# inspected /tmp/termlink-0: an unrelated path, so every verdict was about a
+# directory the hub never touches.
+#
+# Set-ness, not non-emptiness, is the test: Rust's `env::var()` returns Ok("")
+# for a variable set to the empty string, so an empty override resolves to ""
+# there too. Matching that keeps the script from ever disagreeing with the
+# binary — and an empty override is a real misconfiguration this check should
+# surface rather than paper over.
+resolve_runtime_dir() {
+    if [ -n "${TERMLINK_RUNTIME_DIR+set}" ]; then
+        printf '%s\n' "$TERMLINK_RUNTIME_DIR"; return
+    fi
+    if [ -n "${XDG_RUNTIME_DIR+set}" ]; then
+        printf '%s/termlink\n' "${XDG_RUNTIME_DIR%/}"; return
+    fi
+    local uid="${TERMLINK_PREFLIGHT_TEST_UID:-$(id -u)}"
+    if [ -n "${TMPDIR+set}" ]; then
+        printf '%s/termlink-%s\n' "${TMPDIR%/}" "$uid"; return
+    fi
+    printf '/tmp/termlink-%s\n' "$uid"
+}
+
+# Filesystem type backing $1, via longest-prefix match against the mount table.
+#
+# T-2729: volatility is a property of the filesystem, not of the path spelling.
+# The previous classifier matched `/tmp*` and `/var/tmp*` literally, so
+# /run/user/<uid> — a tmpfs systemd destroys at the user's last logout — fell
+# through to the "not on /tmp" branch and was reported as persistent. Asking
+# the mount table instead means an unanticipated tmpfs location cannot inherit
+# a false PASS the way /run/user did.
+#
+# The directory need not exist yet (pre-first-start) and no existence check is
+# performed: longest-prefix matching against the mount table already answers for
+# a path that is not there, since it inherits whichever mountpoint contains it.
+# An earlier draft walked up to the nearest existing ancestor first, which was
+# strictly worse — it discarded the very prefix that identified the filesystem.
+#
+# Symlinks are resolved when a `realpath` is available, because the mount table
+# describes real paths; if it is not, the literal path is used rather than
+# failing closed to `unknown` (a symlinked runtime_dir is exotic, and `unknown`
+# is treated as non-volatile below).
+fs_type_of() {
+    local target="$1" mp fstype line best="" best_type=""
+
+    if command -v realpath >/dev/null 2>&1; then
+        target="$(realpath -m "$target" 2>/dev/null || printf '%s' "$target")"
+    fi
+
+    local mount_src
+    if [ -n "${TERMLINK_PREFLIGHT_TEST_MOUNT_OUTPUT:-}" ]; then
+        mount_src="$(cat "$TERMLINK_PREFLIGHT_TEST_MOUNT_OUTPUT" 2>/dev/null || true)"
+    else
+        mount_src="$(mount 2>/dev/null || true)"
+    fi
+    [ -n "$mount_src" ] || { printf 'unknown\n'; return; }
+
+    while IFS= read -r line; do
+        case "$line" in *" on "*) ;; *) continue ;; esac
+        mp="${line#* on }"
+        case "$line" in
+            *" type "*)
+                # Linux: "<dev> on <mountpoint> type <fstype> (<opts>)"
+                mp="${mp%% type *}"
+                fstype="${line#* type }"; fstype="${fstype%% *}"
+                ;;
+            *)
+                # macOS: "<dev> on <mountpoint> (<fstype>, <opts>)" — Directive #4.
+                mp="${mp%% (*}"
+                fstype="${line##*(}"; fstype="${fstype%%,*}"; fstype="${fstype%)}"
+                ;;
+        esac
+        [ -n "$mp" ] || continue
+        # Root needs its own arm: "$mp"/* expands to //* for mp=/, which matches
+        # nothing, so / would never be selected and every path on the root
+        # filesystem would read as "unknown".
+        local matched=0
+        if [ "$mp" = "/" ]; then
+            matched=1
+        else
+            case "$target" in "$mp"|"$mp"/*) matched=1 ;; esac
+        fi
+        if [ "$matched" -eq 1 ]; then
+            # Longest mountpoint wins: / matches everything, so a nested mount
+            # must be able to override it.
+            if [ "${#mp}" -ge "${#best}" ]; then best="$mp"; best_type="$fstype"; fi
+        fi
+    done <<< "$mount_src"
+
+    printf '%s\n' "${best_type:-unknown}"
+}
+
 check_runtime_dir_volatility() {
-    local rd="${TERMLINK_RUNTIME_DIR:-/tmp/termlink-0}"
+    local rd; rd="$(resolve_runtime_dir)"
+
+    if [ -z "$rd" ]; then
+        emit_check "runtime_dir" "high" "fail" \
+            "TERMLINK_RUNTIME_DIR is set but EMPTY — the hub resolves this to an unusable path and will regenerate secret + TLS cert on every start (PL-021)" \
+            "export TERMLINK_RUNTIME_DIR=/var/lib/termlink (or unset it to fall back to XDG_RUNTIME_DIR/TMPDIR resolution)"
+        return
+    fi
+
+    local fstype; fstype="$(fs_type_of "$rd")"
+
+    # A memory-backed filesystem cannot survive its own teardown, whatever it
+    # is called or wherever it is mounted.
+    case "$fstype" in
+        tmpfs|ramfs)
+            local trigger="every reboot"
+            case "$rd" in
+                /run/user/*)
+                    trigger="the user's last logout — sooner than reboot, not later" ;;
+            esac
+            emit_check "runtime_dir" "high" "fail" \
+                "runtime_dir=$rd is on a $fstype (memory-backed) filesystem — contents are destroyed at $trigger, so the hub regenerates secret + TLS cert and every client sees auth-mismatch + TOFU drift (PL-021)" \
+                "export TERMLINK_RUNTIME_DIR=/var/lib/termlink before starting the hub; pre-seed with 'cp -a $rd/. /var/lib/termlink/' if a working hub already exists. See CLAUDE.md Hub Auth Rotation Protocol."
+            return
+            ;;
+    esac
 
     case "$rd" in
         /tmp/*|/tmp|/var/tmp/*|/var/tmp)
             ;;
         *)
             emit_check "runtime_dir" "high" "pass" \
-                "TERMLINK_RUNTIME_DIR=$rd (not on /tmp — persists across reboot)"
+                "runtime_dir=$rd on $fstype (disk-backed, not wiped by tmpfiles) — persists across reboot"
             return
             ;;
     esac
 
-    # On /tmp — check for both volatility mechanisms.
-    local volatile_reason=""
-    if mount 2>/dev/null | grep -qE "^tmpfs on /tmp\b"; then
-        volatile_reason="tmpfs mount"
-    elif [ -r /usr/lib/tmpfiles.d/tmp.conf ] && \
-         grep -qE '^[Dd][[:space:]]+/tmp([[:space:]]|$)' /usr/lib/tmpfiles.d/tmp.conf 2>/dev/null; then
+    # On /tmp but NOT tmpfs — the second volatility mechanism: a
+    # systemd-tmpfiles D-rule wipes the directory on boot while the mount
+    # table looks entirely innocent (T-1294, ring20-management).
+    # The tmpfs arm the old code had here is gone: unreachable now, because a
+    # tmpfs runtime_dir already returned above — and it tested `/tmp` literally
+    # rather than the resolved directory, which is the bug this task is fixing.
+    local volatile_reason="" base
+    case "$rd" in
+        /var/tmp*) base="/var/tmp" ;;
+        *)         base="/tmp" ;;
+    esac
+    local base_re="^[Dd][[:space:]]+${base}([[:space:]]|$)"
+
+    if [ -r /usr/lib/tmpfiles.d/tmp.conf ] && \
+         grep -qE "$base_re" /usr/lib/tmpfiles.d/tmp.conf 2>/dev/null; then
         volatile_reason="systemd-tmpfiles D-rule (/usr/lib/tmpfiles.d/tmp.conf)"
     else
         # Scan /etc overrides — D-rule may live in any override file.
         local override_match=""
         for f in /etc/tmpfiles.d/*.conf; do
             [ -r "$f" ] || continue
-            if grep -qE '^[Dd][[:space:]]+/tmp([[:space:]]|$)' "$f" 2>/dev/null; then
+            if grep -qE "$base_re" "$f" 2>/dev/null; then
                 override_match="$f"
                 break
             fi
@@ -273,11 +414,11 @@ check_runtime_dir_volatility() {
 
     if [ -n "$volatile_reason" ]; then
         emit_check "runtime_dir" "high" "fail" \
-            "TERMLINK_RUNTIME_DIR=$rd on volatile /tmp ($volatile_reason) — hub will regenerate secret + TLS cert every reboot (PL-021)" \
-            "export TERMLINK_RUNTIME_DIR=/var/lib/termlink before starting the hub; pre-seed with 'cp -a /tmp/termlink-0/. /var/lib/termlink/' if a working hub already exists. See CLAUDE.md Hub Auth Rotation Protocol."
+            "runtime_dir=$rd on volatile $base ($volatile_reason — the mount table looks innocent but the directory is wiped on boot) — hub will regenerate secret + TLS cert every reboot (PL-021)" \
+            "export TERMLINK_RUNTIME_DIR=/var/lib/termlink before starting the hub; pre-seed with 'cp -a $rd/. /var/lib/termlink/' if a working hub already exists. See CLAUDE.md Hub Auth Rotation Protocol."
     else
         emit_check "runtime_dir" "high" "warn" \
-            "TERMLINK_RUNTIME_DIR=$rd on /tmp but not detected as volatile — move to /var/lib/termlink anyway (defence in depth)" \
+            "runtime_dir=$rd on $base ($fstype) — no wipe mechanism detected, but $base is conventionally scratch space; move to /var/lib/termlink anyway (defence in depth)" \
             "export TERMLINK_RUNTIME_DIR=/var/lib/termlink"
     fi
 }
@@ -285,11 +426,26 @@ check_runtime_dir_volatility() {
 # ---- Check 2: hubs.toml presence ---------------------------------------
 
 check_hubs_toml() {
-    local f="${HOME}/.termlink/hubs.toml"
+    local f="${TERMLINK_PREFLIGHT_HUBS_TOML:-${HOME}/.termlink/hubs.toml}"
     if [ ! -f "$f" ]; then
+        # T-2742: a missing hubs.toml is NOT a fault on a purely-local install.
+        # config.rs treats the absent file as an empty config, and the local hub
+        # is reached at runtime_dir()/hub.sock with no profile at all — so an
+        # operator who only ever talks to their own hub is correctly configured
+        # and was nonetheless warned on every run. Warning on a healthy state
+        # is the PL-219 class: it trains the operator to stop reading the check.
+        #
+        # The distinction that matters is whether there is any hub to talk to.
+        local sock
+        sock="$(resolve_runtime_dir)/hub.sock"
+        if [ -S "$sock" ]; then
+            emit_check "hubs.toml" "medium" "pass" \
+                "$f absent, but a local hub is serving at $sock — local-only install, no profile needed (fleet verbs return empty by design)"
+            return
+        fi
         emit_check "hubs.toml" "medium" "warn" \
-            "$f missing — every fleet verb will return empty" \
-            "Run 'termlink fleet profile add <name> --address <ip:port>' to declare a hub"
+            "$f missing and no local hub socket at $sock — there is no hub to talk to" \
+            "Start a local hub ('termlink hub start'), or declare a remote one: termlink fleet profile add <name> --address <ip:port>"
         return
     fi
     if ! grep -qE '^\[hubs\.' "$f" 2>/dev/null; then
@@ -404,7 +560,7 @@ check_binary_freshness() {
     if ! command -v termlink >/dev/null 2>&1; then
         emit_check "binary" "medium" "warn" \
             "termlink not on PATH — catalog flags won't resolve" \
-            "cargo build --release && install -m 755 target/release/termlink ~/.cargo/bin/"
+            "brew tap DimitriGeelen/termlink && brew install termlink (macOS), or download a release binary from GitHub Releases; from source: cargo build --release && install -m 755 target/release/termlink ~/.cargo/bin/"
         return
     fi
     local binary_version
@@ -412,7 +568,7 @@ check_binary_freshness() {
     if [ -z "$binary_version" ]; then
         emit_check "binary" "medium" "warn" \
             "termlink --version returned no parseable version" \
-            "Reinstall: cargo build --release && install -m 755 target/release/termlink ~/.cargo/bin/"
+            "Reinstall: brew tap DimitriGeelen/termlink && brew install termlink (macOS), or download a release binary from GitHub Releases; from source: cargo build --release && install -m 755 target/release/termlink ~/.cargo/bin/"
         return
     fi
 
@@ -425,7 +581,7 @@ check_binary_freshness() {
         else
             emit_check "binary" "medium" "warn" \
                 "termlink $binary_version older than project VERSION $repo_version — catalog features may surface as 'unknown flag' / 'unrecognized subcommand'" \
-                "cargo build --release && install -m 755 target/release/termlink ~/.cargo/bin/"
+                "cargo build --release && install -m 755 target/release/termlink ~/.cargo/bin/ (build from source, NOT brew/releases: VERSION is git-derived, so unless $repo_version is a published tag no release artifact carries it and installing one would leave this check firing)"
         fi
     else
         emit_check "binary" "medium" "pass" \
@@ -464,10 +620,76 @@ check_hub_binary_freshness() {
         # Don't false-positive a stale-binary classification.
         return
     fi
+    # ---- T-2726: primary test is a VERSION comparison, not a field probe. ----
+    # The `rate_buckets_evicted_total` probe below is a fixed point in a moving
+    # history: it was the newest field the hub served when T-2184 was written,
+    # so it distinguished "restarted" from "not restarted" AT THAT MOMENT. It
+    # cannot age well. Every hub at or past T-2139 passes it forever — measured
+    # on this host, a hub 581 commits behind the tree scored PASS "fresh
+    # binary". That is a guard whose verdict rested on an assumption about its
+    # input that no longer holds. The durable question is the one Check 4 asks
+    # of the CLI: is the version the hub ACTUALLY SERVES behind the project?
+    local hub_pid repo_version hub_exe link hub_version
+    hub_pid=$(printf '%s' "$probe_output" | sed -n 's/.*"pid":[[:space:]]*\([0-9]*\).*/\1/p')
+    repo_version=""
+    if [ -r "VERSION" ]; then
+        repo_version=$(head -n1 "VERSION" 2>/dev/null | tr -d '[:space:]')
+    fi
+
+    # Resolve the running hub's own executable. Linux-only (procfs); on a host
+    # without /proc this stays empty and we fall through to the bounded
+    # fallback below rather than guessing — Directive #4, same graceful
+    # degradation Check 6 applies on non-systemd hosts.
+    hub_exe=""
+    if [ -n "$hub_pid" ] && [ -d "/proc/$hub_pid" ]; then
+        link=$(readlink "/proc/$hub_pid/exe" 2>/dev/null || true)
+        case "$link" in
+            *" (deleted)")
+                # The exact failure T-2184 was written for, now detected
+                # directly instead of inferred from a sentinel field.
+                emit_check "hub-binary" "medium" "warn" \
+                    "running hub's executable was REPLACED on disk (/proc/$hub_pid/exe → '(deleted)') — the live process still serves the old in-memory binary" \
+                    "Restart the hub THROUGH its systemd unit (G-070 — a detached restart produces the ghost-process class); verify runtime_dir persists secret/cert per Check 1 first."
+                return
+                ;;
+            "") ;;
+            *) hub_exe="$link" ;;
+        esac
+    fi
+
+    hub_version=""
+    if [ -n "$hub_exe" ] && [ -x "$hub_exe" ]; then
+        hub_version=$("$hub_exe" --version 2>/dev/null | awk '{print $NF}' || true)
+    fi
+
+    if [ -n "$hub_version" ] && [ -n "$repo_version" ]; then
+        if version_lt "$hub_version" "$repo_version"; then
+            if crates_unchanged_since_binary "$hub_version" "$repo_version"; then
+                # T-2226 suppression, inherited rather than reinvented: VERSION
+                # is git-derived and moves on doc-only commits too.
+                emit_check "hub-binary" "medium" "pass" \
+                    "running hub serves $hub_version < VERSION $repo_version but no crates/ change since — version drift only, restart not required (T-2226)"
+            else
+                emit_check "hub-binary" "medium" "warn" \
+                    "running hub serves $hub_version, older than project VERSION $repo_version — hub-side features land only after a restart onto the new binary" \
+                    "Rebuild and install first if the on-disk binary is also stale (Check 4), then restart the hub THROUGH its systemd unit (G-070)."
+            fi
+        else
+            emit_check "hub-binary" "medium" "pass" \
+                "running hub serves $hub_version >= project VERSION $repo_version"
+        fi
+        return
+    fi
+
+    # ---- Fallback: the hub's version could not be resolved here (no procfs,
+    # or /proc unreadable for a hub owned by another user). The T-2139 field
+    # probe can still rule OUT the pre-T-2139 case, but it CANNOT establish
+    # freshness — so it must not claim to. Saying "fresh binary" on this
+    # evidence is the defect T-2726 closed; the wording below is deliberate.
     # L-387 capture-first SIGPIPE safety: capture full body, then grep.
     if echo "$probe_output" | grep -q '"rate_buckets_evicted_total"'; then
         emit_check "hub-binary" "medium" "pass" \
-            "local hub serves T-2139 rate_buckets_evicted_total field — fresh binary"
+            "local hub serves T-2139 rate_buckets_evicted_total (pre-T-2139 ruled out) — hub version not resolvable on this host, so freshness vs VERSION is UNVERIFIED"
     else
         emit_check "hub-binary" "medium" "warn" \
             "local hub omits rate_buckets_evicted_total (pre-T-2139) — likely (deleted)-on-disk binary still in memory" \

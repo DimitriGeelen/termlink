@@ -18,6 +18,8 @@ date_finished: 2026-05-28T12:37:55Z
 
 # T-1830: Doorbell+mail adoption gap — drive zero active conversations to non-zero
 
+Research artifact: `docs/reports/T-1830-doorbell-mail-adoption-gap.md` (C-001, consolidated retrospectively 2026-08-14 under T-2716).
+
 ## Problem Statement
 
 <!-- What problem are we exploring? For whom? Why now? -->

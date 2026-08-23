@@ -1,0 +1,108 @@
+---
+id: U-007
+title: "Task completion does not couple a shipped hub-side rail to the deploy-floor declaration; a data-loss fix sat undeployed for 7 days behind a green canary"
+created: 2026-08-15T05:20:00Z
+source_project: 010-termlink
+source_task: T-2720
+status: pending
+severity: high
+component: agents/task-create/update-task.sh (work-completed gate)
+context: |
+  Found while verifying a bug report from a peer agent session.
+
+  010-termlink runs a daily canary (check-fleet-binary-freshness.sh) whose whole
+  purpose is to catch "recorded as shipped, not actually live in the field" —
+  the G-069 class. It compares each hub's served version against a floor
+  declared by hand in a config file, and the config file's own header states the
+  operating convention:
+
+    BUMP THE FLOOR WHEN HUB-SIDE RAILS SHIP: that is the operator's declaration
+    that "shipped" must mean "capability-live".
+
+  On 2026-08-08 a task (T-2533) fixed SILENT DATA LOSS on the durable-messages
+  verb: `unread`/`ack` used `count-1` as the latest offset, so on a swept topic
+  a reader could be told "0 unread" while messages sat unseen. The fix is
+  hub-side — a pre-fix hub does not serve `latest_offset`, so clients silently
+  fall back to the broken path.
+
+  The task shipped without bumping the floor. Seven days later every reachable
+  hub in the fleet was still 151-192 commits below the fix, and the canary
+  reported:
+
+    fleet-binary-freshness: healthy — all floored reachable hubs at/above floor
+
+  A peer agent session then hit the resulting symptom, spent a debugging cycle
+  on it, and filed it as a new bug. It had been fixed a week earlier.
+
+  The canary is not defective. It compares `served >= declared_floor` and never
+  `declared_floor >= reality`, so its verdict is only as fresh as the last time
+  a human re-asserted the constant. Nothing was watching the constant.
+evidence: |
+  Measured in 010-termlink on 2026-08-15.
+
+  Fix commit:      ac859d321, 2026-08-08, v0.11.2-871 → version 0.11.871
+                   "T-2533: expose Bus::latest_offset — fix silent unread/ack
+                    data-loss on swept topics"
+  Floors file:     last bumped 2026-07-27 (T-2465/T-2466) to 0.11.679
+  Canary verdict:  healthy (exit 0), every day since
+
+    ✓ local-test:              served=0.11.720 >= floor=0.11.679
+    ✓ workstation-107-public:  served=0.11.720 >= floor=0.11.679
+    ✓ ring20-management:       served=0.11.679 >= floor=0.11.679
+
+  After raising the floors to the fix version (0.11.871), the same unchanged
+  script immediately reports the truth:
+
+    fleet-binary-freshness: FIRING — 3 hub(s) below declared version floor
+    ! local-test:             served=0.11.720 < floor=0.11.871
+    ! ring20-management:      served=0.11.679 < floor=0.11.871
+    ! workstation-107-public: served=0.11.720 < floor=0.11.871
+
+  So the entire 7-day blind spot is attributable to one un-updated constant,
+  not to any defect in the detector.
+proposal: |
+  Couple the floor declaration to the shipping task, at the work-completed gate.
+
+    At `--status work-completed`, if the task's commits touch deploy-sensitive
+    paths (project-declared; here crates/termlink-{hub,bus,protocol}/), require
+    EITHER a change to the project's deploy-floor declaration in the same task,
+    OR an explicit one-line statement that the change carries no deployable
+    rail. Record whichever was given.
+
+  Why at the completion gate specifically:
+
+  - It fires ONCE PER SHIPPING TASK. It cannot idle red, so it never becomes
+    background noise.
+  - It lands on the person holding the context. "Does this change require a
+    redeploy to take effect?" is answerable at closure and nearly unanswerable
+    six weeks later.
+  - It is the same instrument the framework already uses at that moment — the
+    P-011 verification gate and the RCA/Evolution completeness gates all block
+    on work-completed. This is one more mechanical precondition, not a new
+    subsystem.
+
+  Generalization beyond this project: any project where "merged" and "running"
+  are different states needs the closure gate to ask which one was achieved.
+  The floors file is 010-termlink's spelling of it; the gate should take the
+  declaration path from project config rather than hard-coding it.
+
+  REJECTED ALTERNATIVE, named because it is the obvious one and it is worse:
+  a background check that fires when a declared floor falls more than N commits
+  behind HEAD. On any actively developed repo HEAD advances daily while floors
+  move only on a deploy, so such a check goes red within days of every upgrade
+  and stays red forever. That converts a one-bit signal into standing noise and
+  trains the operator to ignore it — the same disease as the finding itself.
+  The lag is also the wrong quantity: 400 commits of CLI-only work above the
+  floor is harmless; these 192 mattered because ONE of them was hub-serving.
+related_learning: |
+  Companion to U-003/U-004/U-006 from the same review: a check whose printed
+  verdict rests on an assumption that has quietly stopped holding. This is the
+  sharpest instance of the family, because here the assumption is an explicit
+  hand-written constant and the guard was purpose-built for exactly the failure
+  it then missed.
+
+  The transferable rule: a guard that compares live state against a
+  hand-maintained declaration has TWO failure modes, and monitoring conventionally
+  covers only one. "Is the field below the declaration?" is watched. "Is the
+  declaration still true?" is not — and it decays silently, because nothing about
+  a stale constant looks different from a fresh one.

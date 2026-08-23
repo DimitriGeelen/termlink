@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# guard-layer: source --no-heartbeat
 # check-charter-sentence-drift.sh (T-2484, G-019 charter-fork prevention)
 #
 # WHY: P1 (T-2470) shipped docs/CHARTER.md as "the single owned statement of what

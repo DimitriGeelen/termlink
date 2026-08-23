@@ -337,13 +337,26 @@ while :; do
   # Step 2 — poll the inbox for an unread DM topic (any dm:* with unread > 0).
   # `agent inbox --watch` is `--json`-incompatible (T-1558), so this is a
   # one-shot poll inside a loop with a short sleep to keep rate-limit cost low.
-  # NOTE (T-2153): `agent inbox --json` returns an ARRAY of inbox entries
-  # `[{topic, cursor, latest, unread}, ...]`, not an object with a `.topics`
-  # field. The jq selector is `.[]?`, not `.topics[]?`. The vetted version
-  # of this whole loop ships as `scripts/substrate-worker-pickup.sh`
-  # (T-2152) — prefer that script in production.
+  # NOTE (T-2153): `agent inbox --json` returns an ARRAY of inbox entries,
+  # not an object with a `.topics` field. The jq selector is `.[]?`, not
+  # `.topics[]?`. The vetted version of this whole loop ships as
+  # `scripts/substrate-worker-pickup.sh` (T-2152) — prefer that in production.
+  #
+  # NOTE (T-2757): each entry is
+  # `{topic, cursor, receipt_up_to, frontier, latest, unread, indeterminate}`.
+  # `unread` is computed from `frontier = max(cursor, receipt_up_to)`, because
+  # `subscribe --resume` and `channel/agent ack` write to two different stores
+  # and a worker that acks advances only the second — keying on `cursor` alone
+  # reported unread that no amount of reading could clear.
+  #
+  # `unread` is `number | null`. `null` (with `indeterminate: true`) means no
+  # honest count exists: the hub reports no `latest_offset` and the receipt
+  # frontier proves the `count - 1` fallback is not an offset. `(.unread // 0)`
+  # skips those explicitly — bare `.unread > 0` skips them too (jq: `null > 0`
+  # is false) but only by accident, and the intent should be visible. Remedy for
+  # a hub in that state: upgrade it to a T-2533+ build.
   next_dm="$(termlink agent inbox --json \
-    | jq -r '.[]? | select(.unread > 0 and (.topic | startswith("dm:"))) | .topic' \
+    | jq -r '.[]? | select((.unread // 0) > 0 and (.topic | startswith("dm:"))) | .topic' \
     | head -1)"
   if [ -z "$next_dm" ]; then
     sleep 2

@@ -86,6 +86,21 @@ get_session() {
     fi
 }
 
+# T-2301: Port the arc-focus.yaml reader from handover.sh / post-compact-resume.sh
+# so the interactive /resume path surfaces the same arc-scoping signal those
+# automated paths already inject. `--clear` writes literal `current_arc: null`
+# (lib/arc.sh:472), so squash null → empty for the caller.
+get_arc_focus() {
+    if [ -f "$WORKING_DIR/arc-focus.yaml" ]; then
+        local arc
+        arc=$(grep "^current_arc:" "$WORKING_DIR/arc-focus.yaml" | cut -d: -f2 | tr -d ' "')
+        [ "$arc" = "null" ] && arc=""
+        echo "$arc"
+    else
+        echo ""
+    fi
+}
+
 # STATUS command - full synthesis
 cmd_status() {
     echo -e "${CYAN}${BOLD}=== RESUME: Current State ===${NC}"
@@ -96,7 +111,10 @@ cmd_status() {
     session_id=$(get_session)
     local focus
     focus=$(get_focus)
+    local arc_focus
+    arc_focus=$(get_arc_focus)
     echo -e "${BOLD}Session:${NC} ${session_id:-unknown}"
+    echo -e "${BOLD}Arc:${NC} ${arc_focus:-none}"
     echo -e "${BOLD}Focus:${NC} ${focus:-none}"
     echo ""
 
@@ -126,6 +144,43 @@ cmd_status() {
         echo -e "  ${GREEN}Working directory clean${NC}"
     fi
     echo ""
+
+    # T-2365 (T-2158 S3): Continuous-mode status surface. Surfaces enabled,
+    # iteration X/Y, tier_ceiling, last_resumed_at, expires_at, terminated
+    # reason when present. Silent when the config file is absent (continuous-
+    # mode never seeded — backward-compat).
+    local cmode_file="$PROJECT_ROOT/.context/working/.continuous-mode.yaml"
+    if [ -f "$cmode_file" ]; then
+        local cmode_summary
+        cmode_summary=$(python3 - "$cmode_file" <<'PYCM' 2>/dev/null
+import sys, yaml
+try:
+    with open(sys.argv[1]) as f:
+        d = yaml.safe_load(f) or {}
+except Exception:
+    sys.exit(0)
+enabled = bool(d.get("enabled", False))
+cur = d.get("current_iteration", 0)
+mx = d.get("max_iterations", "unset")
+tc = d.get("tier_ceiling", "unset")
+last = d.get("last_resumed_at", "never")
+term = d.get("last_terminated_reason", "") or ""
+src = d.get("last_source", "n/a")
+if enabled:
+    print(f"  Enabled: yes  | iteration {cur}/{mx}  | tier_ceiling {tc}")
+    print(f"  Last resumed: {last}  | source: {src}")
+    if term:
+        print(f"  Terminated: {term}")
+else:
+    print(f"  Enabled: no   | (current_iteration {cur}, max_iterations {mx})")
+PYCM
+)
+        if [ -n "$cmode_summary" ]; then
+            echo -e "${BOLD}Continuous Mode (T-2158):${NC}"
+            echo "$cmode_summary"
+            echo ""
+        fi
+    fi
 
     # Active tasks (T-373: separate agent-actionable from human-owned)
     IFS='|' read -r task_count task_list human_count human_list <<< "$(get_active_tasks)"
@@ -260,7 +315,11 @@ if nd:
     if [ "$task_count" -eq 0 ]; then
         echo "  1. Create a new task or review open questions"
     elif [ -n "$focus" ]; then
-        echo "  1. Continue work on $focus"
+        if [ -n "$arc_focus" ]; then
+            echo "  1. Continue work on $focus (arc: $arc_focus)"
+        else
+            echo "  1. Continue work on $focus"
+        fi
     else
         echo "  1. Set focus: ./agents/context/context.sh focus T-XXX"
     fi
@@ -365,6 +424,8 @@ EOF
 cmd_quick() {
     local focus
     focus=$(get_focus)
+    local arc_focus
+    arc_focus=$(get_arc_focus)
     IFS='|' read -r task_count task_list <<< "$(get_active_tasks)"
     IFS='|' read -r uncommitted last_commit branch <<< "$(get_git_state)"
 
@@ -381,7 +442,9 @@ cmd_quick() {
 
     local summary=""
 
-    if [ -n "$focus" ]; then
+    if [ -n "$arc_focus" ] && [ -n "$focus" ]; then
+        summary="Arc: $arc_focus | Focus: $focus"
+    elif [ -n "$focus" ]; then
         summary="Focus: $focus"
     elif [ "$task_count" -gt 0 ]; then
         summary="$task_count active tasks"

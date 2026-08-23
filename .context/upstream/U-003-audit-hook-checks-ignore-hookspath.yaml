@@ -1,0 +1,60 @@
+---
+id: U-003
+title: "Audit hook checks concatenate .git/hooks, ignoring worktrees and core.hooksPath"
+created: 2026-08-14T20:47:00Z
+source_project: 010-termlink
+source_task: T-2714
+status: pending
+severity: high
+component: agents/audit/audit.sh
+context: |
+  Found during a full `fw audit` remediation pass in a linked worktree.
+
+  THREE audit warnings fire in a linked worktree that cannot be cleared by the
+  mitigation they print, because all three decide by string-concatenating
+  `$PROJECT_ROOT/.git/hooks/<name>`:
+
+    - CTL-011 "pre-push hook missing or not executable"
+    - "No commit-msg hook"
+    - C-002 "commit-msg hook missing research artifact check"
+
+  In a linked worktree `.git` is a POINTER FILE containing `gitdir: ...`, not a
+  directory, so `$PROJECT_ROOT/.git/hooks/<anything>` can never exist. The
+  checks are structurally incapable of passing there. They also ignore
+  `core.hooksPath`, which git honours and which this repo sets.
+
+  The hooks are installed and DO fire. Running the recommended
+  `./agents/git/git.sh install-hooks` does the right thing — it writes to the
+  common hooks dir, which is where git actually looks — and the warnings persist
+  anyway. A mitigation that cannot fix its own finding is worse than no
+  mitigation: during this audit the agent ran it and reported CTL-011 as
+  remediated before re-checking. It was not, and could not have been.
+evidence: |
+  - audit.sh:2393 — `if [ -f "$PROJECT_ROOT/.git/hooks/commit-msg" ]; then`
+  - audit.sh:3022 — `grep -q "inception-research-warnings" "$PROJECT_ROOT/.git/hooks/commit-msg" 2>/dev/null`
+    (the 2>/dev/null silences the "Not a directory" error, making the failure
+    indistinguishable from a genuinely missing gate)
+  - the CTL-011 site, same pattern
+  - `git rev-parse --git-path hooks/commit-msg` → /opt/termlink/.git/hooks/commit-msg
+  - `git config core.hooksPath` → /opt/termlink/.git/hooks
+  - Empirical proof the hooks fire: the post-commit hook printed
+    "Task T-2712 updated (...)" on a real commit; the pre-push audit gate
+    blocked a push during the same session.
+  - C-002 is the worst of the three: the installed hook DOES carry the marker
+    (/opt/termlink/.git/hooks/commit-msg:166 reads
+    "# inception-research-warnings: audit marker (C-002 OE check)") and the
+    C-001 enforcement block is present and functional at lines 164-195, where it
+    exit-1s an inception commit lacking a docs/reports artifact. So C-002 is a
+    false negative about a LIVE SAFETY GATE, not about a missing file — an
+    operator reading it concludes inception research enforcement is off while it
+    is running on every commit.
+suggestion: |
+  Replace the concatenation with `git rev-parse --git-path hooks/<name>`, which
+  resolves linked worktrees and core.hooksPath together in one call. Apply at
+  all three sites.
+
+  The durable guard is a fixture that runs the hook checks inside a
+  `git worktree add` and asserts they PASS when hooks are installed. Without it
+  the next path-derived check will make the same assumption. Note that ONE
+  fixture would also cover U-004, which is the same worktree blindness in the
+  cron-audit check — worth fixing them together.

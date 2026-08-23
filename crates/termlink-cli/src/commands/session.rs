@@ -44,6 +44,62 @@ pub(crate) fn filter_sessions(
     sessions
 }
 
+/// Parse a `major.minor.patch` version into comparable numbers.
+///
+/// Returns `None` for anything that does not parse — callers decide what that
+/// means rather than having a silent default chosen for them here.
+///
+/// Numeric, deliberately: `patch` is commits-since-tag in this project, so it
+/// routinely reaches four digits. A lexical compare puts `0.11.9` *after*
+/// `0.11.1346`, which inverts the answer on exactly the versions that occur most.
+pub(crate) fn parse_version(v: &str) -> Option<(u64, u64, u64)> {
+    let mut parts = v.trim().split('.');
+    let major = parts.next()?.parse().ok()?;
+    let minor = parts.next()?.parse().ok()?;
+    // Tolerate a trailing pre-release/build suffix on the patch component
+    // (`0.11.5-dirty`): take the leading digits and ignore the rest.
+    let patch_raw = parts.next()?;
+    let digits: String = patch_raw.chars().take_while(|c| c.is_ascii_digit()).collect();
+    let patch = digits.parse().ok()?;
+    Some((major, minor, patch))
+}
+
+/// Was this session registered by a binary older than `reference`?
+///
+/// **Absent or unparseable counts as stale.** T-2359 settled this for hubs — a
+/// peer too old to report its version *is* the staleness class — and the
+/// alternative is worse than it looks: treating "no version" as current would
+/// pass precisely the oldest sessions, which are the population the check
+/// exists to find. A version we cannot read is likewise not one we can vouch
+/// for. Note that sessions registered before T-2744 carry a placeholder `0.9.0`
+/// rather than their binary's real version.
+///
+/// **Lineage assumption.** `patch` is commits-since-tag, so this comparison is
+/// meaningful only within one build lineage. That holds for sessions on a single
+/// host, which is the scope of this command, but it is the same caveat
+/// `.context/cron/fleet-version-floors.conf` carries for hubs — a larger patch
+/// number across lineages does not mean "newer".
+pub(crate) fn is_stale_binary(session_version: Option<&str>, reference: &str) -> bool {
+    let Some(reference) = parse_version(reference) else {
+        // We cannot say anything is stale relative to a reference we cannot
+        // parse. Report nothing rather than everything.
+        return false;
+    };
+    match session_version.and_then(parse_version) {
+        Some(v) => v < reference,
+        None => true,
+    }
+}
+
+/// Retain only sessions registered by a binary older than `reference`.
+pub(crate) fn filter_stale_binary(
+    mut sessions: Vec<termlink_session::registration::Registration>,
+    reference: &str,
+) -> Vec<termlink_session::registration::Registration> {
+    sessions.retain(|s| is_stale_binary(s.metadata.termlink_version.as_deref(), reference));
+    sessions
+}
+
 /// Options for listing/filtering sessions.
 pub(crate) struct ListFilterOpts<'a> {
     pub include_stale: bool,
@@ -53,6 +109,8 @@ pub(crate) struct ListFilterOpts<'a> {
     pub cap: Option<&'a str>,
     pub wait: bool,
     pub wait_timeout: u64,
+    /// T-2745: retain only sessions registered by a binary older than this one.
+    pub stale_binary: bool,
 }
 
 /// Options for session registration.
@@ -529,11 +587,20 @@ fn sort_sessions(sessions: &mut [termlink_session::registration::Registration], 
 }
 
 pub(crate) async fn cmd_list(filter: &ListFilterOpts<'_>, display: &super::ListDisplayOpts, sort_key: Option<&str>) -> Result<()> {
-    let ListFilterOpts { include_stale, tag, name, role, cap, wait, wait_timeout } = *filter;
+    let ListFilterOpts { include_stale, tag, name, role, cap, wait, wait_timeout, stale_binary } = *filter;
+    // T-2745: the version this binary was built from — the same string
+    // registration stamps into a session's metadata, so a session recording
+    // something lower was registered by an older build.
+    let reference_version = env!("CARGO_PKG_VERSION");
     let do_filter = |include_stale: bool| -> Result<Vec<termlink_session::registration::Registration>> {
         let sessions = manager::list_sessions(include_stale)
             .context("Failed to list sessions")?;
-        Ok(filter_sessions(sessions, tag, name, role, cap))
+        let sessions = filter_sessions(sessions, tag, name, role, cap);
+        Ok(if stale_binary {
+            filter_stale_binary(sessions, reference_version)
+        } else {
+            sessions
+        })
     };
 
     let sessions = if wait {
@@ -665,7 +732,60 @@ pub(crate) async fn cmd_list(filter: &ListFilterOpts<'_>, display: &super::ListD
                 "socket_path": s.socket_path().display().to_string(),
             })
         }).collect();
-        println!("{}", serde_json::json!({"ok": true, "sessions": items}));
+        let mut envelope = serde_json::json!({"ok": true, "sessions": items});
+        if stale_binary {
+            // Additive only — the existing shape is untouched, so a consumer
+            // that does not know about --stale-binary still parses this.
+            envelope["reference_version"] = serde_json::json!(reference_version);
+            envelope["stale_binary"] = serde_json::json!(true);
+        }
+        println!("{envelope}");
+        return Ok(());
+    }
+
+    // T-2745: --stale-binary answers a different question than the session
+    // table does, so it gets its own rendering rather than a column bolted onto
+    // a shared table. Every line names the version that made the session stale
+    // next to the version it is being compared against — the operator should
+    // not need a second command to know what to do.
+    if stale_binary {
+        if sessions.is_empty() {
+            if !display.no_header {
+                // "All current" and "there is nothing here" are different
+                // answers, and only one of them is reassuring. Saying "every
+                // session was registered by X or newer" when there are no
+                // sessions at all is vacuously true and reads as a clean bill
+                // of health for a fleet that does not exist.
+                let total = manager::list_sessions(include_stale).map(|s| s.len()).unwrap_or(0);
+                if total == 0 {
+                    println!("No sessions registered — nothing to check.");
+                } else {
+                    println!(
+                        "No stale-binary sessions — all {total} were registered by {reference_version} or newer."
+                    );
+                }
+            }
+            return Ok(());
+        }
+        if !display.no_header {
+            println!(
+                "Sessions registered by a binary older than {reference_version} \
+                 (patch is commits-since-tag; comparable within one build lineage):"
+            );
+        }
+        for session in &sessions {
+            let recorded = session
+                .metadata
+                .termlink_version
+                .as_deref()
+                .unwrap_or("unrecorded");
+            println!(
+                "{:<14} {:<16} registered by {}",
+                session.id.as_str(),
+                truncate(&session.display_name, 15),
+                recorded
+            );
+        }
         return Ok(());
     }
 
@@ -1382,6 +1502,86 @@ mod tests {
         let sessions = sample_sessions();
         let result = filter_sessions(sessions, None, Some("worker"), None, None);
         assert_eq!(result.len(), 2);
+    }
+
+    // ── T-2745: stale-binary detection ──────────────────────────────────────
+
+    #[test]
+    fn version_parses_into_comparable_numbers() {
+        assert_eq!(parse_version("0.11.1346"), Some((0, 11, 1346)));
+        assert_eq!(parse_version("1.2.3"), Some((1, 2, 3)));
+        // A pre-release/build suffix on patch is tolerated.
+        assert_eq!(parse_version("0.11.5-dirty"), Some((0, 11, 5)));
+        // Not versions.
+        assert_eq!(parse_version("0.11"), None);
+        assert_eq!(parse_version("banana"), None);
+        assert_eq!(parse_version(""), None);
+    }
+
+    // The trap this helper exists to avoid. `patch` is commits-since-tag here,
+    // so four-digit values are routine and a lexical compare inverts the answer
+    // on exactly the versions that occur most.
+    #[test]
+    fn comparison_is_numeric_not_lexical() {
+        assert!(
+            parse_version("0.11.9").unwrap() < parse_version("0.11.1346").unwrap(),
+            "0.11.9 must order before 0.11.1346"
+        );
+        // Confirms the two orderings genuinely disagree, so the test above is
+        // testing something.
+        assert!("0.11.9" > "0.11.1346", "string compare is expected to disagree");
+
+        assert!(is_stale_binary(Some("0.11.9"), "0.11.1346"));
+        assert!(!is_stale_binary(Some("0.11.1346"), "0.11.9"));
+    }
+
+    #[test]
+    fn missing_or_unreadable_version_counts_as_stale() {
+        assert!(is_stale_binary(None, "0.11.1346"));
+        assert!(is_stale_binary(Some(""), "0.11.1346"));
+        assert!(is_stale_binary(Some("banana"), "0.11.1346"));
+        // Pre-T-2744 sessions carry this placeholder.
+        assert!(is_stale_binary(Some("0.9.0"), "0.11.1346"));
+    }
+
+    // PL-219: the filter has to be able to *not* fire, or it is not a filter.
+    #[test]
+    fn current_and_newer_sessions_are_not_stale() {
+        assert!(!is_stale_binary(Some("0.11.1346"), "0.11.1346"), "equal is not stale");
+        assert!(!is_stale_binary(Some("0.11.1400"), "0.11.1346"), "newer is not stale");
+        assert!(!is_stale_binary(Some("1.0.0"), "0.11.1346"), "major bump is not stale");
+    }
+
+    // If we cannot read our own version we cannot call anything stale relative
+    // to it. Reporting nothing beats reporting everything.
+    #[test]
+    fn unparseable_reference_reports_nothing_rather_than_everything() {
+        assert!(!is_stale_binary(Some("0.1.0"), "not-a-version"));
+        assert!(!is_stale_binary(None, "not-a-version"));
+    }
+
+    #[test]
+    fn filter_stale_binary_retains_only_older_sessions() {
+        let mut old = test_reg("old", vec![], vec![], vec![]);
+        old.metadata.termlink_version = Some("0.11.9".into());
+        let mut current = test_reg("current", vec![], vec![], vec![]);
+        current.metadata.termlink_version = Some("0.11.1346".into());
+        let mut unrecorded = test_reg("unrecorded", vec![], vec![], vec![]);
+        unrecorded.metadata.termlink_version = None;
+
+        let kept = filter_stale_binary(vec![old, current, unrecorded], "0.11.1346");
+        let names: Vec<&str> = kept.iter().map(|s| s.display_name.as_str()).collect();
+        assert_eq!(names, vec!["old", "unrecorded"]);
+    }
+
+    #[test]
+    fn filter_stale_binary_returns_empty_when_every_session_is_current() {
+        let mut a = test_reg("a", vec![], vec![], vec![]);
+        a.metadata.termlink_version = Some("0.11.1346".into());
+        let mut b = test_reg("b", vec![], vec![], vec![]);
+        b.metadata.termlink_version = Some("0.11.2000".into());
+
+        assert!(filter_stale_binary(vec![a, b], "0.11.1346").is_empty());
     }
 
     #[test]

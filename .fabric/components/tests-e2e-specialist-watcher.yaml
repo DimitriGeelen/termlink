@@ -1,0 +1,14 @@
+id: tests/e2e/specialist-watcher.sh
+name: specialist-watcher
+type: script
+subsystem: unknown
+location: tests/e2e/specialist-watcher.sh
+tags: []
+purpose: 'TODO: describe what this component does'
+depends_on: []
+depended_by:
+- target: tests/e2e/level6-reflection-fleet.sh
+  type: called_by
+last_verified: 2026-08-14
+created_by: unknown
+last_enriched: '2026-08-14'

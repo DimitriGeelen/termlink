@@ -17,87 +17,73 @@
 # canary-to-detect-uninstalled-canaries would itself need installing (recursive).
 # Run it ad-hoc after committing a new canary, or fold it into /preflight.
 #
-# Classes: MISSING (declared path absent) FIRES (exit 1 — the G-069 class);
-# DRIFT (present but content differs from git) FIRES unless acknowledged;
-# ACKNOWLEDGED (drift allowlisted with a reason) reported, not firing;
-# OK (present + byte-identical).
+# Classes:
+#   MISSING           declared path absent entirely            → FIRES (the G-069 class)
+#   UNINSTALLED_JOBS  present, but the installed file lacks cron JOB lines that git
+#                     declares                                 → FIRES (T-2682)
+#   DRIFT             present, content differs, but no job line is absent (comment
+#                     churn, env tweaks, extra installed jobs)  → WARNING; fires only
+#                     under --strict
+#   OK                present + byte-identical
 #
-# T-2821 (building on T-2815's honest-wording fix below). Drift was a non-firing
-# warning, on the reasoning that a host-local edit should not paint the check
-# permanently red. T-2815 corrected the summary WORD but deliberately kept the
-# exit code. The remaining cost: exit 0 is what automation and a skimming human
-# both read, and the state it was reporting was 21 of 24 installed crontabs
-# diverged from source — carrying a real fix nobody had committed. A warning
-# nobody must act on is indistinguishable from no warning once it scrolls past.
+# T-2682 — why UNINSTALLED_JOBS is its own class. T-2561 shipped with MISSING vs DRIFT
+# only, so any content difference read as one non-firing "DRIFT (warning)" line. On the
+# origin host that hid two crontabs whose installed copies were missing their
+# meta-canary job line entirely (T-2175 substrate-preflight, T-2176 fleet-doorbell-mail)
+# — the jobs that detect when the canary itself stops firing had never been scheduled.
+# A job that was never scheduled is not a cosmetic difference; it is exactly the
+# shipped-but-dark condition this check exists to catch, so it fires regardless of
+# --strict. Direction matters: git-declared work absent from the host fires; an EXTRA
+# job the operator added locally does not (that is their prerogative).
 #
-# The four source-level static checks (T-2527 alloc-sink, T-2531 drain-sink,
-# T-2666 silent-exit, T-2672 busy-spin) had already settled the same tension the
-# other way: fire by default, and acknowledge a confirmed-safe instance in an
-# allowlist with a cited reason. This check now follows that convention.
-# `--lenient` restores the pre-T-2821 behaviour; `--strict` is kept as an accepted
-# alias of the new default so existing invocations keep working.
+# Job lines are compared with comments, blank lines, and `VAR=value` env assignments
+# stripped and internal whitespace collapsed, so a reformat alone is never a false
+# positive.
 #
-# Exit codes: 0 healthy · 1 firing (missing, or unacknowledged drift) · 2 tooling error
+# Exit codes: 0 healthy · 1 firing (missing / uninstalled jobs / drift under --strict)
+#             · 2 tooling error
 set -u
 
 SRC_DIR="${CRON_DRIFT_SRC_DIR:-.context/cron}"
 INSTALLED_DIR="${CRON_DRIFT_INSTALLED_DIR:-}"   # test hook: remap install root
-ALLOWLIST="${CRON_DRIFT_ALLOWLIST:-.context/working/.cron-drift-allowlist}"
 QUIET=0
 FORMAT=human
+STRICT=0
+# T-2821: --lenient suppresses DRIFT firing even when --strict asked for it. It
+# never suppresses MISSING or UNINSTALLED_JOBS.
 LENIENT=0
 
 usage() {
-    sed -n '2,40p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'
     cat <<'EOF'
 
 Usage: check-cron-install-drift.sh [OPTIONS]
-  --lenient    Do NOT fire on DRIFT (pre-T-2821 behaviour); MISSING still fires
-  --strict     Accepted alias of the default (kept for back-compat)
+  --strict     Also fire (exit 1) on plain DRIFT. Does NOT affect MISSING or
+               UNINSTALLED_JOBS — those always fire.
   --json       Emit a JSON envelope
   --quiet      Print only on firing (cron-friendly)
   -h, --help   This help
 
-Allowlist: .context/working/.cron-drift-allowlist — one crontab basename per line
-for a deliberate host-local variation, with the reason on a `#` comment. Same shape
-as the alloc-sink / drain-sink / silent-exit / busy-spin allowlists. Acknowledged
-entries are still reported and counted; they just do not fire. A MISSING crontab is
-never acknowledgeable — a dark canary is not a variation.
-
 Test hooks: CRON_DRIFT_SRC_DIR=<dir> (git crontab source, default .context/cron),
 CRON_DRIFT_INSTALLED_DIR=<dir> (remaps each declared install path's dirname to this
-dir, for host-independent fixtures), CRON_DRIFT_ALLOWLIST=<file>.
+dir, for host-independent fixtures).
+Fixtures: bash tests/cron-install-drift-fixtures.sh
 
-Exit: 0 healthy · 1 firing (missing / unacknowledged drift) · 2 tooling error
+Exit: 0 healthy · 1 firing (missing / uninstalled jobs / drift-under-strict)
+      · 2 tooling error
 EOF
 }
 
 while [ $# -gt 0 ]; do
     case "$1" in
+        --strict)  STRICT=1; shift ;;
         --lenient) LENIENT=1; shift ;;
-        # T-2821: --strict was the flag that made DRIFT fire; that is now the
-        # default, so it is a no-op. Kept accepted rather than rejected — it is in
-        # the docs and in muscle memory, and turning a documentation lag into an
-        # unknown-arg failure helps nobody.
-        --strict) shift ;;
         --json)   FORMAT=json; shift ;;
         --quiet)  QUIET=1; shift ;;
         -h|--help) usage; exit 0 ;;
         *) echo "check-cron-install-drift: unknown arg: $1" >&2; exit 2 ;;
     esac
 done
-
-# Allowlisted basenames (deliberate host-local variation). Comments and blank
-# lines ignored; an inline `#` reason after the name is stripped.
-ACK_NAMES=""
-if [ -r "$ALLOWLIST" ]; then
-    ACK_NAMES="$(sed -e 's/#.*//' -e 's/[[:space:]]*$//' -e 's/^[[:space:]]*//' "$ALLOWLIST" 2>/dev/null | grep -v '^$' || true)"
-fi
-
-is_acknowledged() {
-    [ -n "$ACK_NAMES" ] || return 1
-    printf '%s\n' "$ACK_NAMES" | grep -qxF "$1"
-}
 
 if [ ! -d "$SRC_DIR" ]; then
     echo "check-cron-install-drift: source dir not found: $SRC_DIR" >&2
@@ -121,7 +107,32 @@ resolve_installed() {
     fi
 }
 
-missing=(); drifted=(); acknowledged=(); skipped=(); ok_count=0
+# T-2682 — extract executable cron JOB lines from a crontab file: drop blank lines,
+# `#`-comments, and `VAR=value` env assignments; collapse internal whitespace so a
+# reformat alone is never a false positive. What remains is work that is supposed to
+# be scheduled — the only difference class that means "shipped but dark".
+job_lines() {
+    sed -E 's/[[:space:]]+$//' "$1" 2>/dev/null \
+        | grep -vE '^[[:space:]]*(#|$)' \
+        | grep -vE '^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*=' \
+        | sed -E 's/[[:space:]]+/ /g; s/^ //'
+}
+
+missing=(); drifted=(); skipped=(); ok_count=0
+uninstalled=(); uninstalled_detail=(); acknowledged=()
+
+# T-2821 allowlist. A crontab basename listed here is a DELIBERATE host-local
+# variation, so its plain DRIFT is reported but never fires. It cannot suppress
+# MISSING or UNINSTALLED_JOBS — a dark canary is not a variation.
+ALLOWLIST="${CRON_DRIFT_ALLOWLIST:-.context/working/.cron-drift-allowlist}"
+ACK_NAMES=""
+if [ -r "$ALLOWLIST" ]; then
+    ACK_NAMES="$(sed -e 's/#.*//' -e 's/[[:space:]]*$//' -e 's/^[[:space:]]*//' "$ALLOWLIST" 2>/dev/null | grep -v '^$' || true)"
+fi
+is_acknowledged() {
+    [ -n "$ACK_NAMES" ] || return 1
+    printf '%s\n' "$ACK_NAMES" | grep -qxF "$1"
+}
 for f in "$SRC_DIR"/*.crontab; do
     [ -e "$f" ] || continue
     declared="$(grep -iE '^#[[:space:]]*Installed to:' "$f" | head -1 | sed -E 's/.*[Ii]nstalled to:[[:space:]]*//; s/[[:space:]].*//')"
@@ -133,7 +144,23 @@ for f in "$SRC_DIR"/*.crontab; do
     if [ ! -f "$inst" ]; then
         missing+=("$(basename "$f") → $declared")
     elif ! diff -q "$inst" "$f" >/dev/null 2>&1; then
-        if is_acknowledged "$(basename "$f")"; then
+        # T-2682 — split drift by DIRECTION. A git job line absent from the
+        # installed file is scheduled work that is not scheduled: shipped-dark,
+        # the exact G-069 class this check exists for, so it FIRES. Everything
+        # else (comment churn, env tweaks, extra installed jobs) stays a warning.
+        # Extra lines present only in the INSTALLED file are deliberately NOT a
+        # firing condition — an operator adding a local job is their prerogative.
+        gitjobs="$(mktemp)"; instjobs="$(mktemp)"
+        job_lines "$f"    > "$gitjobs"
+        job_lines "$inst" > "$instjobs"
+        absent="$(grep -Fxv -f "$instjobs" "$gitjobs" 2>/dev/null || true)"
+        rm -f "$gitjobs" "$instjobs"
+        if [ -n "$absent" ]; then
+            uninstalled+=("$(basename "$f") ↔ $declared")
+            while IFS= read -r l; do
+                [ -n "$l" ] && uninstalled_detail+=("$(basename "$f")|$declared|$l")
+            done <<< "$absent"
+        elif is_acknowledged "$(basename "$f")"; then
             acknowledged+=("$(basename "$f") ↔ $declared")
         else
             drifted+=("$(basename "$f") ↔ $declared")
@@ -144,16 +171,20 @@ for f in "$SRC_DIR"/*.crontab; do
 done
 
 miss_n=${#missing[@]}; drift_n=${#drifted[@]}; skip_n=${#skipped[@]}
-ack_n=${#acknowledged[@]}
+uninst_n=${#uninstalled[@]}; ack_n=${#acknowledged[@]}
 
 if [ "$FORMAT" = json ]; then
     jarr() { local first=1; printf '['; for x in "$@"; do [ $first -eq 1 ] || printf ','; printf '%s' "$(printf '%s' "$x" | jq -R .)"; first=0; done; printf ']'; }
-    fire=$([ "$miss_n" -gt 0 ] && echo true || { [ "$LENIENT" -eq 0 ] && [ "$drift_n" -gt 0 ] && echo true || echo false; })
-    printf '{"ok":%s,"missing_count":%s,"drift_count":%s,"acknowledged_count":%s,"ok_count":%s,"skipped_count":%s,"lenient":%s,"missing":%s,"drifted":%s,"acknowledged":%s}\n' \
+    # T-2682: uninstalled job lines fire unconditionally — they are the G-069
+    # class, not a cosmetic difference, so --strict is irrelevant to them.
+    fire=$({ [ "$miss_n" -gt 0 ] || [ "$uninst_n" -gt 0 ]; } && echo true \
+        || { [ "$STRICT" -eq 1 ] && [ "$LENIENT" -eq 0 ] && [ "$drift_n" -gt 0 ] && echo true || echo false; })
+    printf '{"ok":%s,"missing_count":%s,"uninstalled_jobs_count":%s,"drift_count":%s,"acknowledged_count":%s,"ok_count":%s,"skipped_count":%s,"strict":%s,"lenient":%s,"missing":%s,"uninstalled_jobs":%s,"drifted":%s,"acknowledged":%s}\n' \
         "$([ "$fire" = true ] && echo false || echo true)" \
-        "$miss_n" "$drift_n" "$ack_n" "$ok_count" "$skip_n" \
+        "$miss_n" "$uninst_n" "$drift_n" "$ack_n" "$ok_count" "$skip_n" \
+        "$([ "$STRICT" -eq 1 ] && echo true || echo false)" \
         "$([ "$LENIENT" -eq 1 ] && echo true || echo false)" \
-        "$(jarr "${missing[@]}")" "$(jarr "${drifted[@]}")" "$(jarr "${acknowledged[@]}")"
+        "$(jarr "${missing[@]}")" "$(jarr "${uninstalled_detail[@]}")" "$(jarr "${drifted[@]}")" "$(jarr "${acknowledged[@]}")"
     [ "$fire" = true ] && exit 1 || exit 0
 fi
 
@@ -164,37 +195,54 @@ if [ "$miss_n" -gt 0 ]; then
     for m in "${missing[@]}"; do echo "  MISSING: $m"; done
     echo "  Remediation: install each with  sudo cp .context/cron/<name>.crontab <declared-path>  (root)."
 fi
+if [ "$uninst_n" -gt 0 ]; then
+    fired=1
+    echo "check-cron-install-drift: $uninst_n installed crontab(s) are MISSING JOB LINES that git declares — SHIPPED BUT DARK (G-069, T-2682):"
+    for u in "${uninstalled[@]}"; do echo "  UNINSTALLED_JOBS: $u"; done
+    echo "  The scheduled work below exists in git but is NOT scheduled on this host:"
+    for d in "${uninstalled_detail[@]}"; do
+        echo "    ↳ ${d%%|*}: $(printf '%s' "$d" | cut -d'|' -f3-)"
+    done
+    echo "  Remediation: re-install the affected crontab(s) with"
+    echo "    sudo cp .context/cron/<name>.crontab <declared-path>   (root)"
+    echo "  This fires regardless of --strict: a job that was never scheduled is not a cosmetic difference."
+fi
+if [ "$ack_n" -gt 0 ]; then
+    # Acknowledged drift is reported even when nothing fires: an allowlist that has
+    # quietly grown should stay readable — that is the failure mode an allowlist invites.
+    echo "check-cron-install-drift: $ack_n installed crontab(s) differ from git source but are ACKNOWLEDGED in $ALLOWLIST:"
+    for a in "${acknowledged[@]}"; do echo "  ACKNOWLEDGED: $a"; done
+fi
 if [ "$drift_n" -gt 0 ]; then
-    [ "$LENIENT" -eq 0 ] && fired=1
-    lvl=$([ "$LENIENT" -eq 1 ] && echo "DRIFT (warning — --lenient)" || echo "DRIFT (firing)")
+    [ "$STRICT" -eq 1 ] && [ "$LENIENT" -eq 0 ] && fired=1
+    if [ "$STRICT" -eq 1 ] && [ "$LENIENT" -eq 1 ]; then
+        lvl="DRIFT (warning — --lenient)"
+    elif [ "$STRICT" -eq 1 ]; then
+        lvl="DRIFT (firing under --strict)"
+    else
+        lvl="DRIFT (warning)"
+    fi
     echo "check-cron-install-drift: $drift_n installed crontab(s) differ from git source — $lvl:"
     for d in "${drifted[@]}"; do echo "  DRIFT: $d"; done
-    echo "  The installed copy is what actually runs; the git copy is what gets reviewed."
-    echo "  Remediation: re-install from git source, or reconcile the /etc/cron.d edit back"
-    echo "  into .context/cron/ — whichever is correct. If the difference is a deliberate"
-    echo "  host-local variation, acknowledge it with a reason:"
-    echo "    echo '<name>.crontab  # why this host differs' >> $ALLOWLIST"
-fi
-# Acknowledged drift is reported even when nothing is firing: an allowlist that has
-# quietly grown should stay readable, which is the failure mode an allowlist invites.
-if [ "$ack_n" -gt 0 ] && [ "$QUIET" -ne 1 ]; then
-    echo "check-cron-install-drift: $ack_n acknowledged host-local variation(s) (not firing):"
-    for a in "${acknowledged[@]}"; do echo "  ACKNOWLEDGED: $a"; done
+    echo "  Remediation: re-install from git source, or reconcile the /etc/cron.d edit back into .context/cron/."
 fi
 if [ "$skip_n" -gt 0 ] && [ "$QUIET" -ne 1 ]; then
     for s in "${skipped[@]}"; do echo "  skipped: $s"; done
 fi
 if [ "$fired" -eq 0 ]; then
-    # Word the summary honestly (T-2815). T-2821 then made unacknowledged drift
-    # fire outright, so this branch is now reached only under --lenient or with a
-    # clean tree — but the wording rule still holds and still matters: "healthy" is
-    # claimed only when nothing is missing and nothing drifts unacknowledged. It
-    # was once printed while 21 installed crontabs had their canaries' stderr
-    # rerouted to a `.log.stderr` sink that nothing read.
-    if [ "$drift_n" -gt 0 ]; then
-        [ "$QUIET" -eq 1 ] || echo "check-cron-install-drift: DRIFT ($ok_count installed + matching, $drift_n drifting, $ack_n acknowledged, $skip_n skipped) — NOT firing (--lenient); installed crontabs differ from the git source of truth, reconcile before trusting them"
-    else
-        [ "$QUIET" -eq 1 ] || echo "check-cron-install-drift: healthy ($ok_count installed + matching, $ack_n acknowledged, $skip_n skipped)"
+    # T-2815/T-2821 wording rule, preserved through the T-2830 merge: only say
+    # "healthy" when there is genuinely nothing outstanding. Summarising a tree
+    # that carries known drift as "healthy" is the defect T-2815 was filed for —
+    # exit 0 plus the word "healthy" is what both automation and a skimming human
+    # read, and it made 21 diverged crontabs invisible for as long as they were
+    # only ever a warning. Not firing is a policy choice; calling it healthy is a
+    # false statement.
+    if [ "$QUIET" -ne 1 ]; then
+        if [ "$drift_n" -gt 0 ]; then
+            echo "check-cron-install-drift: not firing, but NOT clean — $drift_n crontab(s) drift from git source ($ok_count matching, $ack_n acknowledged, $skip_n skipped)"
+        else
+            echo "check-cron-install-drift: healthy ($ok_count installed + matching, $ack_n acknowledged, $skip_n skipped)"
+        fi
     fi
     exit 0
 fi

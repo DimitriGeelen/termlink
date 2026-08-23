@@ -1,8 +1,29 @@
+/// True if `ch` is an ECMA-48 CSI *final byte* (`0x40..=0x7E`), which ends a
+/// control sequence.
+///
+/// T-2728: this deliberately is NOT `is_ascii_alphabetic()`. A CSI sequence is
+/// `ESC [`, then parameter bytes (`0x30..=0x3F`), then intermediate bytes
+/// (`0x20..=0x2F`), then ONE final byte in `0x40..=0x7E` — a range that
+/// includes `~ @ [ \ ] ^ _ ` { | } ` as well as the letters. Terminating only
+/// on letters meant `"\x1b[3~hello"` never ended at the `~`, so the scan
+/// swallowed the `h` and returned `"ello"`. Bracketed paste (`ESC [ 200~` /
+/// `ESC [ 201~`) hits this on every paste.
+fn is_csi_final(ch: char) -> bool {
+    ('\x40'..='\x7e').contains(&ch)
+}
+
 /// Strip ANSI escape sequences and carriage returns from a string.
 ///
-/// Handles CSI sequences (\x1b[...), OSC sequences (\x1b]...\x07 or \x1b]...\x1b\\),
-/// and bare escape sequences.
-pub(crate) fn strip_ansi_codes(s: &str) -> String {
+/// Handles CSI sequences (`ESC [ … final`), OSC sequences
+/// (`ESC ] … BEL` or `ESC ] … ESC \`), the DCS/SOS/PM/APC string sequences
+/// (`ESC P` / `ESC X` / `ESC ^` / `ESC _`, each terminated by ST = `ESC \`),
+/// and bare two-character escape sequences.
+///
+/// This is the single implementation for the workspace (T-2728). It previously
+/// existed as two near-identical copies here and in `termlink-cli/src/util.rs`,
+/// which is how the two defects above survived: a reader fixing one copy would
+/// leave the other wrong. `termlink-cli` now re-exports this function.
+pub fn strip_ansi_codes(s: &str) -> String {
     let mut result = String::with_capacity(s.len());
     let mut chars = s.chars().peekable();
     while let Some(c) = chars.next() {
@@ -12,12 +33,17 @@ pub(crate) fn strip_ansi_codes(s: &str) -> String {
                     chars.next();
                     while let Some(&ch) = chars.peek() {
                         chars.next();
-                        if ch.is_ascii_alphabetic() || ch == 'K' || ch == 'J' || ch == 'H' {
+                        if is_csi_final(ch) {
                             break;
                         }
                     }
                 }
-                Some(']') => {
+                // OSC and the string sequences share a terminator discipline:
+                // run to ST (`ESC \`), with BEL also accepted for OSC by long
+                // convention. Grouping them is what stops a DCS/APC payload —
+                // e.g. a kitty-graphics blob — being emitted as visible text
+                // by the old catch-all "skip one character" arm (T-2728).
+                Some(']') | Some('P') | Some('X') | Some('^') | Some('_') => {
                     chars.next();
                     while let Some(&ch) = chars.peek() {
                         chars.next();
@@ -48,6 +74,46 @@ pub(crate) fn strip_ansi_codes(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// T-2728: a CSI sequence ends at any ECMA-48 final byte (0x40..=0x7E),
+    /// not only at an ASCII letter. `~` is the canonical counter-example.
+    ///
+    /// Load-bearing: with the old `ch.is_ascii_alphabetic()` terminator the
+    /// scan runs past the `~` and eats the following character, so
+    /// `"\x1b[3~hello"` returned `"ello"` — a silent wrong answer on an API
+    /// whose entire contract is fidelity.
+    #[test]
+    fn strip_ansi_csi_non_alphabetic_final_byte() {
+        assert_eq!(strip_ansi_codes("\x1b[3~hello"), "hello");
+        assert_eq!(strip_ansi_codes("\x1b[2~world"), "world");
+        // Bracketed paste wraps real user input on every paste.
+        assert_eq!(
+            strip_ansi_codes("\x1b[200~pasted text\x1b[201~"),
+            "pasted text"
+        );
+        // The rest of the 0x40..=0x7E range that is not a letter.
+        assert_eq!(strip_ansi_codes("\x1b[0@at"), "at");
+        assert_eq!(strip_ansi_codes("\x1b[1`tick"), "tick");
+        assert_eq!(strip_ansi_codes("\x1b[1{brace"), "brace");
+        assert_eq!(strip_ansi_codes("\x1b[1|pipe"), "pipe");
+    }
+
+    /// T-2728: DCS / SOS / PM / APC are *string* sequences terminated by ST
+    /// (`ESC \`). The old `_ =>` arm skipped a single character, so the whole
+    /// payload was emitted as visible text.
+    #[test]
+    fn strip_ansi_string_sequences_consume_payload() {
+        // DCS
+        assert_eq!(strip_ansi_codes("a\x1bPq some payload \x1b\\b"), "ab");
+        // APC — what a terminal-image or kitty-graphics payload looks like.
+        assert_eq!(strip_ansi_codes("a\x1b_Gf=100,s=1;AAAA\x1b\\b"), "ab");
+        // PM
+        assert_eq!(strip_ansi_codes("a\x1b^private\x1b\\b"), "ab");
+        // SOS
+        assert_eq!(strip_ansi_codes("a\x1bXstring\x1b\\b"), "ab");
+        // Unterminated payload must not leak either.
+        assert_eq!(strip_ansi_codes("a\x1bPunterminated"), "a");
+    }
 
     #[test]
     fn strip_ansi_plain_text_passthrough() {
@@ -101,9 +167,20 @@ mod tests {
         assert_eq!(strip_ansi_codes(input), expected);
     }
 
+    /// A genuine *bare* two-character escape: `ESC 7` is DECSC (save cursor),
+    /// which carries no payload and ends after its second byte.
+    ///
+    /// T-2728: this test previously used `ESC X` as an "arbitrary unknown"
+    /// escape, but `X` (0x58) is not arbitrary — it is SOS, a *string* sequence
+    /// consumed through ST, so the correct result is `""`, not `"rest"`. The
+    /// test was encoding the old catch-all "skip one character" bug. Do NOT
+    /// restore `ESC X` here; add it to
+    /// `strip_ansi_string_sequences_consume_payload` instead, where it belongs.
     #[test]
     fn strip_ansi_bare_escape_consumed() {
-        assert_eq!(strip_ansi_codes("\x1bXrest"), "rest");
+        assert_eq!(strip_ansi_codes("\x1b7rest"), "rest");
+        // ESC 8 (DECRC, restore cursor) — the other half of the pair.
+        assert_eq!(strip_ansi_codes("\x1b8rest"), "rest");
     }
 
     #[test]

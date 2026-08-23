@@ -26,6 +26,8 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
 
 # T-2288: Is AEF T-2324 reviewer-guard GO'd and unblocked for a termlink-driven build
 
+Research artifact: `docs/reports/T-2288-aef-t2324-reviewer-guard-unblock-check.md` (C-001, consolidated retrospectively 2026-08-14 under T-2716).
+
 ## Problem Statement
 
 The epoch-2 (AEF parallel-execution harness) reviewer-guard task **T-2324**

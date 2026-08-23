@@ -59,6 +59,10 @@ depends_on:
   type: calls
 - target: crates/termlink-hub/src/governor.rs
   type: calls
+- target: crates/termlink-hub/src/retention_sweeper.rs
+  type: calls
+- target: crates/termlink-hub/src/webhook.rs
+  type: calls
 last_verified: 2026-03-14
 created_by: T-043
 depended_by:
@@ -66,4 +70,8 @@ depended_by:
   type: exports-via_by
 - target: crates/termlink-hub/src/supervisor.rs
   type: exports-via_by
-last_enriched: '2026-07-03'
+- target: crates/termlink-cli/src/commands/webhook.rs
+  type: called_by
+- target: crates/termlink-mcp/src/tools.rs
+  type: called_by
+last_enriched: '2026-08-14'

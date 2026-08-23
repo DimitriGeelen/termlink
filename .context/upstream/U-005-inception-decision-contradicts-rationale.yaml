@@ -1,0 +1,49 @@
+---
+id: U-005
+title: "Inception decisions can contradict their own recorded rationale, undetected"
+created: 2026-08-14T20:49:00Z
+source_project: 010-termlink
+source_task: T-2717
+status: pending
+severity: high
+component: lib/inception.sh
+context: |
+  Found while consolidating research artifacts for completed inceptions
+  (termlink T-2716). Of six completed inceptions reviewed, TWO record a
+  `## Decision` of GO whose attached rationale argues the opposite, verbatim.
+
+  A recorded inception decision is a human-sovereignty artifact and the thing
+  downstream gates trust: the commit-msg inception gate unblocks on
+  `**Decision**: GO`, and `fw inception decide` is precisely the authority an
+  agent may not exercise. When the verdict field and its own reasoning disagree,
+  the record cannot serve as evidence in either direction — a reader who trusts
+  the field concludes the opposite of one who reads the paragraph beneath it.
+evidence: |
+  - T-1793 (2026-05-25T17:27:58Z): `## Recommendation` DEFER; `## Decision` GO;
+    rationale is the DEFER text verbatim, ending "Parked at horizon=later
+    because...". The task was archived at horizon: later, consistent with DEFER.
+  - T-2288 (2026-06-26T10:01:16Z): `## Recommendation` NO-GO (bold, twice);
+    `## Decision` GO; rationale is the NO-GO text verbatim, including the
+    sentence "a termlink-driven build now would violate the gate". Its entire
+    finding is that a build cannot proceed without a recorded GO and that an
+    agent cannot record one — and it is now itself recorded as GO.
+  - The other four (T-1692, T-1693, T-1830, T-2054) are consistent, and in ALL
+    FOUR the recommendation was already GO. The divergence appears exactly and
+    only where the recommendation was NOT GO, across two tasks five weeks apart.
+    A shared precondition across independent instances is a mechanism, not a
+    slip.
+  - NOT a tool auto-fill bug: lib/inception.sh:421-423 makes --rationale
+    mandatory for `decide` and errors without it, so the recommendation body was
+    passed explicitly in both cases while `go` was typed as the verdict.
+suggestion: |
+  On `fw inception decide`, when the supplied rationale contains a
+  "Recommendation: <verdict>" line that disagrees with the verdict being
+  recorded, do not silently accept it. Either require explicit confirmation or
+  require an `--override-recommendation` flag, so that a deliberate override is
+  recorded AS an override rather than as agreement.
+
+  This deliberately does not prevent overriding a recommendation — sovereignty
+  includes that. It prevents an override and a typo from being
+  indistinguishable afterwards, which is the actual loss here: whether each of
+  the two instances was intentional is now unrecoverable from the artifacts.
+  Fixing the blindness is possible; recovering the two instances is not.

@@ -241,8 +241,16 @@ pub mod method {
     /// to need `channel.renew`. `next_active_expiry_ms` tells the operator
     /// when the next slot frees up without intervention.
     /// Params: `{ topic }` → `{ ok, topic, active_count, expired_count,
-    /// oldest_active_at_ms?, oldest_active_age_ms?, next_active_expiry_ms? }`.
-    /// All three `*_ms?` fields are `null` when `active_count == 0`.
+    /// oldest_active_at_ms?, oldest_active_age_ms?, next_active_expiry_ms?,
+    /// newest_expired_at_ms? }`.
+    /// The first three `*_ms?` fields are `null` when `active_count == 0`.
+    /// T-2709: `newest_expired_at_ms` is the complement — `null` when
+    /// `expired_count == 0`, otherwise the most recent lapse. Prefer it over
+    /// `expired_count` for any "is something wrong NOW" question:
+    /// `expired_count` only ever grows (rows are reaped lazily, and only when
+    /// the same `(topic, offset)` is re-claimed), so it answers "was work ever
+    /// abandoned here", not "is work abandoned now". Absent on pre-T-2709
+    /// hubs; treat absent as "no recent expiry", never as stuck.
     /// Errors: `CHANNEL_TOPIC_UNKNOWN` (-32013) — same shape as
     /// `channel.claims`. Old hubs return `MethodNotFound` (-32601).
     pub const CHANNEL_CLAIMS_SUMMARY: &str = "channel.claims_summary";
@@ -361,8 +369,22 @@ pub mod channel {
 /// TermLink-specific JSON-RPC error codes (in addition to standard -32700..-32603).
 pub mod error_code {
     pub const SESSION_NOT_FOUND: i64 = -32001;
+    /// ⚠️ **NOT ENFORCED** (T-2698). Nothing emits this. The T-005 protocol design
+    /// documents it as "Target cannot accept commands (already executing)", but no
+    /// handler rejects a concurrent command — a second `command.execute` against a
+    /// busy session is accepted, not refused. Treat the documented protection as
+    /// absent until something emits this code. Declared in
+    /// `.context/checks/error-code-emission-allowlist`.
     pub const SESSION_BUSY: i64 = -32002;
     pub const CAPABILITY_NOT_SUPPORTED: i64 = -32003;
+    /// ⚠️ **NOT ENFORCED** (T-2698). Nothing emits this. Documented as "TTL exceeded
+    /// before delivery", but no path rejects an expired message — an over-TTL message
+    /// is delivered late rather than refused.
+    ///
+    /// Worse than merely dead until T-2699: `artifact.rs` was emitting this exact
+    /// value as a bare literal for "artifact not found", so `-32004` on the wire meant
+    /// two incompatible things. That squatting is fixed — artifact-not-found now uses
+    /// [`ARTIFACT_NOT_FOUND`] — but this code itself remains unemitted.
     pub const MESSAGE_EXPIRED: i64 = -32004;
     pub const INJECTION_FAILED: i64 = -32005;
     pub const SIGNAL_FAILED: i64 = -32006;
@@ -373,6 +395,18 @@ pub mod error_code {
     /// Session's declared protocol_version is older than the target method requires.
     /// Data field carries `{declared, required, method}` so the client can act on it.
     /// T-1131 (from T-1071 GO).
+    ///
+    /// ⚠️ **NOT ENFORCED** (T-2698). The machinery is complete —
+    /// [`check_protocol_version`] builds this error and
+    /// `check_protocol_version_rejects_when_declared_is_older` proves the builder
+    /// works — but grep finds **zero callers** outside this file. Version negotiation
+    /// is defined, unit-tested, documented, and invoked by nothing, so the hub cannot
+    /// refuse a peer for speaking too old a protocol.
+    ///
+    /// This is why a passing unit test is not evidence of enforcement: coverage of a
+    /// builder says nothing about whether the builder is called. Wiring it is T-2700
+    /// (`owner: human`) because it begins REJECTING live peers below the requirement,
+    /// and this fleet has hosts on binaries ~1000 commits stale (T-2377).
     pub const PROTOCOL_VERSION_TOO_OLD: i64 = -32011;
     /// T-1160 `channel.post` signature did not verify against sender pubkey.
     pub const CHANNEL_SIGNATURE_INVALID: i64 = -32012;
@@ -444,6 +478,45 @@ pub mod error_code {
     /// Valid claimable offsets are `[0, next_offset)`. Data field:
     /// `{topic, offset, frontier}` where `frontier == next_offset`.
     pub const CLAIM_OFFSET_BEYOND_FRONTIER: i64 = -32022;
+    /// T-2679 `kv.set` — the session's KV store is at its key cap
+    /// (`TERMLINK_KV_MAX_KEYS`, default 1000) or the supplied value exceeds
+    /// the per-value byte cap (`TERMLINK_KV_MAX_VALUE_BYTES`, default 65536).
+    /// Before T-2679 `SessionContext.kv` was an uncapped
+    /// `HashMap<String, Value>` inside the session daemon — the process that
+    /// owns the real PTYs backing the charter's "control terminal sessions"
+    /// verb — reachable at `Interact` scope by any authenticated peer. An
+    /// agent looping `kv.set` with unique keys grew it without bound until
+    /// the daemon OOMed, taking every live terminal session with it.
+    /// LOUD-refuse rather than evict: `kv` is a caller-visible store, so
+    /// silently dropping a key the caller believes it set would be a
+    /// Directive #2 (no silent failures) violation — the caller must learn
+    /// its write did not land. Overwriting an EXISTING key is always allowed
+    /// (it cannot grow the key set), so a well-behaved caller that updates a
+    /// bounded set of keys never sees this. Data field:
+    /// `{reason: "max_keys"|"max_value_bytes", limit: u64, current: u64}`
+    /// where `current` is the live key count (`max_keys`) or the rejected
+    /// value's serialized size in bytes (`max_value_bytes`).
+    pub const KV_STORE_FULL: i64 = -32023;
+
+    /// T-2699 `artifact.fetch` / `artifact.stat` — the requested artifact sha256 is
+    /// not in the store.
+    ///
+    /// Exists to resolve a WIRE COLLISION found by T-2698. Three sites in
+    /// `termlink-hub/src/artifact.rs` emitted the bare literal `-32004` for
+    /// "artifact not found" — but `-32004` is [`MESSAGE_EXPIRED`], documented as
+    /// "TTL exceeded before delivery". The same code therefore carried two
+    /// incompatible meanings, and they demand opposite client responses: an expired
+    /// message may be worth resending with a fresh TTL, a missing artifact must be
+    /// re-uploaded or abandoned. A client could not tell which it had received.
+    ///
+    /// The collision was invisible to `check-error-code-docs.sh`, which verifies
+    /// doc↔definition pairing and never sees a hand-written numeric literal in a
+    /// handler. `check-error-code-emission.sh` (T-2699) now catches both halves:
+    /// codes that are never emitted, and literals that squat a named code's value.
+    ///
+    /// Safe to introduce: no client crate branched on `-32004` or on
+    /// `BusError::UnknownArtifact`, so nothing observable depended on the old value.
+    pub const ARTIFACT_NOT_FOUND: i64 = -32024;
 }
 
 /// Default `protocol_version` when the field is missing on the wire.
@@ -791,5 +864,60 @@ mod tests {
         // T-2355 — locks the wire value so clients can pin the code in their
         // error taxonomy. Bumping requires a coordinated client+hub release.
         assert_eq!(error_code::WALK_DEADLINE_EXCEEDED, -32020);
+    }
+
+    #[test]
+    fn kv_store_full_const_is_stable_wire_value() {
+        // T-2679 — locks the wire value so clients can pin the code in their
+        // error taxonomy. Bumping requires a coordinated client+session release.
+        assert_eq!(error_code::KV_STORE_FULL, -32023);
+    }
+
+    #[test]
+    fn kv_store_full_does_not_collide_with_neighbouring_codes() {
+        // T-2679 — the code space is assigned by hand; a duplicate would make
+        // two unrelated refusals indistinguishable on the wire.
+        for other in [
+            error_code::HUB_AT_CAPACITY,
+            error_code::WALK_DEADLINE_EXCEEDED,
+            error_code::POST_IN_FLIGHT,
+            error_code::CLAIM_OFFSET_BEYOND_FRONTIER,
+        ] {
+            assert_ne!(error_code::KV_STORE_FULL, other);
+        }
+    }
+
+    // === T-2699: ARTIFACT_NOT_FOUND resolves a wire collision ===
+
+    #[test]
+    fn artifact_not_found_const_is_stable_wire_value() {
+        assert_eq!(error_code::ARTIFACT_NOT_FOUND, -32024);
+    }
+
+    #[test]
+    fn artifact_not_found_does_not_reuse_message_expired() {
+        // THE REGRESSION THIS PINS. Three sites in termlink-hub/src/artifact.rs
+        // emitted the bare literal -32004 for "artifact not found", but -32004 is
+        // MESSAGE_EXPIRED ("TTL exceeded before delivery"). One wire code, two
+        // incompatible meanings, demanding opposite client responses. Found by
+        // T-2698 only because a check scanned for emission-by-literal — the
+        // doc-pairing lint cannot see a hand-written number inside a handler.
+        assert_ne!(
+            error_code::ARTIFACT_NOT_FOUND,
+            error_code::MESSAGE_EXPIRED,
+            "artifact-not-found must not reuse MESSAGE_EXPIRED's wire value"
+        );
+        // And it must not collide with anything else in the taxonomy either.
+        for other in [
+            error_code::SESSION_NOT_FOUND,
+            error_code::SESSION_BUSY,
+            error_code::CAPABILITY_NOT_SUPPORTED,
+            error_code::KV_STORE_FULL,
+            error_code::CLAIM_OFFSET_BEYOND_FRONTIER,
+            error_code::POST_IN_FLIGHT,
+            error_code::WALK_DEADLINE_EXCEEDED,
+        ] {
+            assert_ne!(error_code::ARTIFACT_NOT_FOUND, other);
+        }
     }
 }

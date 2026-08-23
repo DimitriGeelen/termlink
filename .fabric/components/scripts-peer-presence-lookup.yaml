@@ -4,17 +4,13 @@ type: script
 subsystem: unknown
 location: scripts/peer-presence-lookup.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
+purpose: 'TODO: describe what this component does'
 depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+- target: scripts/agent-listeners-fleet.sh
+  type: calls
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: scripts/check-outbox.sh
+  type: called_by
 last_verified: 2026-05-31
 created_by: unknown
+last_enriched: '2026-08-14'

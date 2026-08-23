@@ -66,11 +66,11 @@ Before deploying, run the pre-flight (T-2154):
 
 ```bash
 scripts/substrate-preflight.sh
-# → [PASS] runtime_dir        TERMLINK_RUNTIME_DIR=/var/lib/termlink (not on /tmp …)
+# → [PASS] runtime_dir        runtime_dir=/var/lib/termlink on xfs (disk-backed, not wiped by tmpfiles) — persists across reboot
 # → [PASS] hubs.toml          /root/.termlink/hubs.toml present (N hub(s) declared)
 # → [PASS] be-reachable       alive | absent
 # → [PASS] binary             termlink X.Y.Z matches project VERSION (catalog features available)
-# → [PASS] hub-binary         local hub serves T-2139 rate_buckets_evicted_total field — fresh binary
+# → [PASS] hub-binary         running hub serves X.Y.Z, matching project VERSION
 # → [PASS] hub-unit           termlink-hub.service active (MainPID …, NRestarts=0) — hub under systemd supervision
 # → Summary: 6 pass, 0 warn, 0 fail — substrate-ready.
 ```

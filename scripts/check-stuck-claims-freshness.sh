@@ -14,10 +14,23 @@
 #
 # The substrate already ships the detector primitive: `channel claims-summary --all
 # --only-stuck --json` (T-2076) computes stuckness via the T-2042 heuristic
-# (expired_count > 0 OR oldest_active_age_ms > 60_000) and returns a truthful
-# fleet-wide `stuck_count`. This canary wraps that: it FIRES (exit 1) when
-# stuck_count > 0, turning a silently-stuck work-topic into a daily alert. Empty
-# log = healthy — the same convention as the other canaries (CLAUDE.md).
+# (a lease lapsed within the last 15min OR oldest_active_age_ms > 60_000) and
+# returns a truthful fleet-wide `stuck_count`. This canary wraps that: it FIRES
+# (exit 1) when stuck_count > 0, turning a silently-stuck work-topic into a
+# daily alert. Empty log = healthy — the same convention as the other canaries
+# (CLAUDE.md).
+#
+# T-2709: the first arm used to be `expired_count > 0`, which could never clear.
+# Expired claim rows are reaped only when the SAME (topic, offset) is
+# re-claimed, so on an abandoned topic the row — and the "stuck" verdict —
+# persisted for the life of the hub's SQLite. This canary consequently fired
+# daily on 11 topics whose leases had lapsed ~62 days earlier, every one with
+# active_count 0 (nothing held, nothing that could BE stuck). That is worse
+# than a missing guard: a canary that fires every day regardless of system
+# state trains its operator to stop reading it, so it also costs you the one
+# firing that mattered. No change was needed here — the gate reads `stuck_count`
+# from the CLI, so it inherits the corrected predicate — but the fix is noted
+# because this script's own header taught the wrong rule.
 #
 # Exit codes: 0 healthy (no stuck claims) · 1 firing (>=1 stuck topic) · 2 tooling error
 set -u
@@ -92,6 +105,12 @@ if [ "$jq_rc" -ne 0 ] || [ -z "$stuck_count" ]; then
 fi
 topic_count="$(printf '%s' "$raw" | jq -r '.topic_count // 0' 2>/dev/null)"
 
+# T-2709: the CLI sets expired_arm_inert when the hub omits newest_expired_at_ms
+# while topics still carry expired rows — i.e. the abandoned-claim half of the
+# stuck predicate cannot fire on this hub. Absent on older CLIs → false.
+inert="$(printf '%s' "$raw" | jq -r '.expired_arm_inert // false' 2>/dev/null)"
+[ "$inert" = "true" ] || inert=false
+
 # Per-topic fetch errors (ok:false entries) are surfaced but do NOT themselves
 # fire — they could mask a stuck topic, so we note them as a soft warning.
 fetch_errors="$(printf '%s' "$raw" | jq -r '[.topics[]? | select(.ok == false)] | length' 2>/dev/null)"
@@ -116,6 +135,12 @@ fi
 if [ "$stuck_count" -eq 0 ]; then
     note=""
     [ "$fetch_errors" -gt 0 ] && note=" (warning: $fetch_errors topic(s) unreadable — could mask a stuck topic)"
+    # T-2709: never report a bare "healthy" when half the check is inert. A hub
+    # predating T-2709 omits newest_expired_at_ms, so the abandoned-claim arm
+    # cannot fire at all — 0 stuck then means "we could not look", not "nothing
+    # is wrong". Non-firing (this is a capability gap, not a stuck claim —
+    # PL-219's rule) but it must be SAID, or the guard degrades silently.
+    [ "$inert" = "true" ] && note="${note} (DEGRADED: hub predates T-2709 and omits newest_expired_at_ms — the abandoned-claim half of this check is inert; upgrade + restart the hub through its unit to restore it)"
     [ "$QUIET" -eq 1 ] || echo "check-stuck-claims: healthy (${topic_count:-0} topics, 0 stuck)${note}"
     exit 0
 fi

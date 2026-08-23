@@ -26,7 +26,43 @@ pub struct SessionContext {
     /// Event bus for structured cross-session messaging.
     pub events: Arc<Mutex<EventBus>>,
     /// Key-value store for session metadata accessible via RPC.
+    ///
+    /// Bounded by `kv_max_keys` / `kv_max_value_bytes` (T-2679) — see
+    /// [`handle_kv_set`]. Before T-2679 this was uncapped, and since `kv.set`
+    /// needs only `Interact` scope any authenticated peer could grow it until
+    /// the session daemon OOMed, taking its live PTYs down with it.
     pub kv: HashMap<String, serde_json::Value>,
+    /// Hard cap on distinct keys in [`Self::kv`]. Always `>= 1`.
+    /// Gates GROWTH only — overwriting an existing key is always permitted.
+    pub kv_max_keys: usize,
+    /// Hard cap on the serialized byte size of a single `kv` value. Always `>= 1`.
+    pub kv_max_value_bytes: usize,
+}
+
+/// Default `kv` key cap: 1000 distinct keys per session. `kv` is session
+/// metadata for coordination, not storage — a thousand keys is far beyond any
+/// legitimate use while still bounding the daemon's exposure.
+/// Env-tunable via `TERMLINK_KV_MAX_KEYS` (must parse to `> 0`, else this default).
+pub const DEFAULT_KV_MAX_KEYS: usize = 1000;
+
+/// Default `kv` per-value cap: 64 KiB. Env-tunable via
+/// `TERMLINK_KV_MAX_VALUE_BYTES` (must parse to `> 0`, else this default).
+pub const DEFAULT_KV_MAX_VALUE_BYTES: usize = 65_536;
+
+fn kv_max_keys_from_env() -> usize {
+    std::env::var("TERMLINK_KV_MAX_KEYS")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .filter(|v| *v > 0)
+        .unwrap_or(DEFAULT_KV_MAX_KEYS)
+}
+
+fn kv_max_value_bytes_from_env() -> usize {
+    std::env::var("TERMLINK_KV_MAX_VALUE_BYTES")
+        .ok()
+        .and_then(|s| s.parse::<usize>().ok())
+        .filter(|v| *v > 0)
+        .unwrap_or(DEFAULT_KV_MAX_VALUE_BYTES)
 }
 
 impl SessionContext {
@@ -39,6 +75,8 @@ impl SessionContext {
             pty: None,
             events: Arc::new(Mutex::new(EventBus::new())),
             kv: HashMap::new(),
+            kv_max_keys: kv_max_keys_from_env(),
+            kv_max_value_bytes: kv_max_value_bytes_from_env(),
         }
     }
 
@@ -55,12 +93,27 @@ impl SessionContext {
             pty: Some(pty),
             events: Arc::new(Mutex::new(EventBus::new())),
             kv: HashMap::new(),
+            kv_max_keys: kv_max_keys_from_env(),
+            kv_max_value_bytes: kv_max_value_bytes_from_env(),
         }
     }
 
     /// Set the path to the on-disk registration JSON file for persistence.
     pub fn with_registration_path(mut self, path: std::path::PathBuf) -> Self {
         self.registration_path = Some(path);
+        self
+    }
+
+    /// Override the `kv` bounds explicitly (T-2679).
+    ///
+    /// Tests use this instead of setting `TERMLINK_KV_MAX_*`: the suite runs
+    /// threaded and parallel tests must not race on process-global env
+    /// (the `with_bounds` idiom established by T-2675's `PresenceTracker`).
+    /// Both values are clamped to `>= 1` — a zero cap would make every `kv.set`
+    /// unsatisfiable, which is a footgun, not a policy.
+    pub fn with_kv_bounds(mut self, max_keys: usize, max_value_bytes: usize) -> Self {
+        self.kv_max_keys = max_keys.max(1);
+        self.kv_max_value_bytes = max_value_bytes.max(1);
         self
     }
 }
@@ -963,6 +1016,45 @@ async fn handle_kv_set(
         }
     };
 
+    // T-2679 — bound the store BEFORE inserting. Two independent caps, each a
+    // LOUD refuse rather than an eviction: `kv` is a caller-visible store, so
+    // silently dropping (or silently evicting to make room for) a key the
+    // caller believes it set is a Directive #2 no-silent-failures violation.
+    //
+    // Order matters: the value-size check is independent of map state, so it
+    // runs first and gives the same verdict whether or not the key exists.
+    let value_bytes = serde_json::to_vec(&value).map(|v| v.len()).unwrap_or(usize::MAX);
+    if value_bytes > ctx.kv_max_value_bytes {
+        return ErrorResponse::with_data(
+            id,
+            control::error_code::KV_STORE_FULL,
+            "kv value exceeds the per-value size cap",
+            json!({
+                "reason": "max_value_bytes",
+                "limit": ctx.kv_max_value_bytes,
+                "current": value_bytes,
+            }),
+        )
+        .into();
+    }
+
+    // The key cap gates GROWTH only. Overwriting a key that already exists
+    // cannot increase `len()`, so a well-behaved caller updating a bounded set
+    // of keys never trips this — even sitting exactly at the cap.
+    if !ctx.kv.contains_key(&key) && ctx.kv.len() >= ctx.kv_max_keys {
+        return ErrorResponse::with_data(
+            id,
+            control::error_code::KV_STORE_FULL,
+            "kv store is at its key cap",
+            json!({
+                "reason": "max_keys",
+                "limit": ctx.kv_max_keys,
+                "current": ctx.kv.len(),
+            }),
+        )
+        .into();
+    }
+
     let replaced = ctx.kv.insert(key.clone(), value.clone()).is_some();
 
     {
@@ -1310,6 +1402,8 @@ mod tests {
             pty: None,
             events: Arc::new(Mutex::new(EventBus::new())),
             kv: HashMap::new(),
+            kv_max_keys: DEFAULT_KV_MAX_KEYS,
+            kv_max_value_bytes: DEFAULT_KV_MAX_VALUE_BYTES,
         }
     }
 
@@ -2011,6 +2105,8 @@ mod tests {
             pty: None,
             events: Arc::new(Mutex::new(crate::events::EventBus::with_capacity(3))),
             kv: HashMap::new(),
+            kv_max_keys: DEFAULT_KV_MAX_KEYS,
+            kv_max_value_bytes: DEFAULT_KV_MAX_VALUE_BYTES,
         };
 
         // Emit 5 events (buffer capacity 3 → seqs 0,1 evicted, buffer holds 2,3,4)
@@ -2223,6 +2319,147 @@ mod tests {
         } else {
             panic!("Expected error for kv.delete without key");
         }
+    }
+
+    // --- T-2679: kv store bounds ---
+    //
+    // `kv.set` needs only Interact scope, and before T-2679 `SessionContext.kv`
+    // was an uncapped HashMap living in the daemon that owns the real PTYs. A
+    // peer looping unique keys grew it until the daemon OOMed, taking every
+    // live terminal session with it. These tests are the load-bearing proof:
+    // remove either guard in `handle_kv_set` and they fail.
+
+    /// Helper: drive one `kv.set` and hand back the response.
+    async fn kv_set(ctx: &mut SessionContext, key: &str, value: serde_json::Value) -> RpcResponse {
+        let req = Request::new("kv.set", json!("t"), json!({"key": key, "value": value}));
+        dispatch_mut(&req, ctx).await.unwrap()
+    }
+
+    #[tokio::test]
+    async fn kv_set_refuses_new_key_at_key_cap() {
+        // Cap of 2 keys. Fill it, then a THIRD distinct key must be refused.
+        let mut ctx = test_ctx().with_kv_bounds(2, DEFAULT_KV_MAX_VALUE_BYTES);
+
+        assert!(matches!(
+            kv_set(&mut ctx, "a", json!(1)).await,
+            RpcResponse::Success(_)
+        ));
+        assert!(matches!(
+            kv_set(&mut ctx, "b", json!(2)).await,
+            RpcResponse::Success(_)
+        ));
+
+        let resp = kv_set(&mut ctx, "c", json!(3)).await;
+        let RpcResponse::Error(err) = resp else {
+            panic!("expected KV_STORE_FULL for a new key at the cap");
+        };
+        assert_eq!(err.error.code, control::error_code::KV_STORE_FULL);
+        let data = err.error.data.expect("KV_STORE_FULL carries a data field");
+        assert_eq!(data["reason"], "max_keys");
+        assert_eq!(data["limit"], 2);
+        assert_eq!(data["current"], 2);
+
+        // The refusal must not have inserted — a refused write that still
+        // mutates is the silent-failure this whole fix exists to prevent.
+        assert_eq!(ctx.kv.len(), 2);
+        assert!(!ctx.kv.contains_key("c"));
+    }
+
+    #[tokio::test]
+    async fn kv_set_overwrite_of_existing_key_succeeds_at_key_cap() {
+        // The cap gates GROWTH, not updates. A caller sitting exactly at the
+        // cap must still be able to update the keys it already owns, or a
+        // bounded well-behaved caller would be wedged by its own last write.
+        let mut ctx = test_ctx().with_kv_bounds(2, DEFAULT_KV_MAX_VALUE_BYTES);
+        kv_set(&mut ctx, "a", json!(1)).await;
+        kv_set(&mut ctx, "b", json!(2)).await;
+        assert_eq!(ctx.kv.len(), 2);
+
+        let resp = kv_set(&mut ctx, "a", json!("updated")).await;
+        let RpcResponse::Success(r) = resp else {
+            panic!("overwriting an existing key at the cap must succeed");
+        };
+        assert!(r.result["replaced"].as_bool().unwrap());
+        assert_eq!(ctx.kv.len(), 2);
+        assert_eq!(ctx.kv["a"], json!("updated"));
+    }
+
+    #[tokio::test]
+    async fn kv_set_refuses_oversized_value() {
+        let mut ctx = test_ctx().with_kv_bounds(DEFAULT_KV_MAX_KEYS, 64);
+
+        // A string of 200 chars serializes well past a 64-byte cap.
+        let big = json!("x".repeat(200));
+        let resp = kv_set(&mut ctx, "big", big).await;
+        let RpcResponse::Error(err) = resp else {
+            panic!("expected KV_STORE_FULL for an oversized value");
+        };
+        assert_eq!(err.error.code, control::error_code::KV_STORE_FULL);
+        let data = err.error.data.expect("KV_STORE_FULL carries a data field");
+        assert_eq!(data["reason"], "max_value_bytes");
+        assert_eq!(data["limit"], 64);
+        assert!(data["current"].as_u64().unwrap() > 64);
+
+        assert!(ctx.kv.is_empty(), "refused value must not be stored");
+    }
+
+    #[tokio::test]
+    async fn kv_set_oversized_value_refused_even_when_key_exists() {
+        // The value cap is independent of map state: an existing key does not
+        // buy the caller an exemption from the size limit.
+        let mut ctx = test_ctx().with_kv_bounds(DEFAULT_KV_MAX_KEYS, 64);
+        assert!(matches!(
+            kv_set(&mut ctx, "k", json!("small")).await,
+            RpcResponse::Success(_)
+        ));
+
+        let resp = kv_set(&mut ctx, "k", json!("y".repeat(200))).await;
+        let RpcResponse::Error(err) = resp else {
+            panic!("expected KV_STORE_FULL overwriting with an oversized value");
+        };
+        assert_eq!(err.error.code, control::error_code::KV_STORE_FULL);
+        // Original value survives untouched.
+        assert_eq!(ctx.kv["k"], json!("small"));
+    }
+
+    #[tokio::test]
+    async fn kv_set_refusal_emits_no_kv_change_event() {
+        // A refused write must not look like a write to subscribers, or every
+        // downstream consumer of kv.change learns a lie.
+        let mut ctx = test_ctx().with_kv_bounds(1, DEFAULT_KV_MAX_VALUE_BYTES);
+        kv_set(&mut ctx, "a", json!(1)).await;
+
+        let before = ctx.events.lock().await.next_seq();
+        let resp = kv_set(&mut ctx, "b", json!(2)).await;
+        assert!(matches!(resp, RpcResponse::Error(_)));
+        let after = ctx.events.lock().await.next_seq();
+
+        assert_eq!(
+            before, after,
+            "a refused kv.set must emit no event (seq must not advance)"
+        );
+    }
+
+    #[tokio::test]
+    async fn kv_bounds_are_clamped_to_at_least_one() {
+        // A zero cap would make every kv.set unsatisfiable — a footgun, not a
+        // policy. `with_kv_bounds` clamps; env parsing rejects 0 separately.
+        let ctx = test_ctx().with_kv_bounds(0, 0);
+        assert_eq!(ctx.kv_max_keys, 1);
+        assert_eq!(ctx.kv_max_value_bytes, 1);
+    }
+
+    #[tokio::test]
+    async fn kv_default_bounds_admit_ordinary_use() {
+        // Guard against a future cap so tight it breaks legitimate callers:
+        // the default must comfortably admit a normal metadata write.
+        let mut ctx = test_ctx();
+        assert_eq!(ctx.kv_max_keys, DEFAULT_KV_MAX_KEYS);
+        assert_eq!(ctx.kv_max_value_bytes, DEFAULT_KV_MAX_VALUE_BYTES);
+        assert!(matches!(
+            kv_set(&mut ctx, "status", json!({"phase": "building", "pct": 42})).await,
+            RpcResponse::Success(_)
+        ));
     }
 
     // --- session.update roles test ---

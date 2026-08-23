@@ -1,0 +1,62 @@
+# platform-lock-allowlist (T-2693, T-2690 G3 — Directive #4 Portability)
+#
+# Acknowledged Linux-only primitives in the product crates. Git-tracked on purpose
+# (T-2681): a guard whose reported health depends on unversioned local state is a
+# guard whose green is not evidence.
+#
+# One drift-stable signature per line: <relpath>::<enclosing-fn>::<primitive>
+# Signatures are fn-name based, so they survive line moves; a fn RENAME re-fires the
+# site, which is the intended re-review on meaningful change.
+#
+# THE RULE FOR ADDING AN ENTRY: the reason must state **how the non-Linux path
+# behaves** — degrades gracefully, has an explicit fallback, or is unreachable off
+# Linux. "It's fine" is not a reason. These comments are the portability
+# documentation for macOS, which README §Platform Support calls a supported platform
+# and for which Homebrew is the *recommended* install; keeping them next to the
+# signature is the only way they stay in sync with the code.
+#
+# What is NOT allowlisted is the interesting part: T-2690 found whoami's /proc walk
+# returning a plausible WRONG ANSWER on macOS with no signal. That was fixed
+# (T-2691), not acknowledged. An allowlist entry is for a site that behaves
+# correctly off Linux — never for one that fails quietly.
+
+# ── setsid: RETIRED by T-2743, not re-acknowledged ───────────────────────────────
+# Three entries lived here for the `setsid sh -c <cmd>` spawn sites, acknowledged as
+# "degraded but functional" because each chained `.or_else(|_| Command::new("sh"))`.
+# That reason was wrong on its own terms. This file's rule is that an entry must say
+# how the non-Linux path BEHAVES, and the entries described only the mechanism —
+# "process starts, no session leader" — while omitting the consequence: a child left
+# in the launcher's session receives the SIGHUP that ends an SSH connection. Since
+# outliving the launcher is the entire purpose of the `background` backend, macOS did
+# not get a degraded version of the feature, it got a silent absence of it. Worker 4
+# raised exactly this in the herdr review and was right.
+#
+# T-2743 removed the sites rather than rewording the entries: all three now call
+# `setsid(2)` in `pre_exec`. The syscall is POSIX and present on macOS — only the
+# `setsid(1)` BINARY is util-linux — so there is nothing platform-specific left to
+# acknowledge and no fallback to degrade into. Proven by
+# `a_backgrounded_child_leads_its_own_session` in `execution.rs`, with a control test
+# spawning the old shape so the assertion is known to be able to fail.
+
+# ── ufw / ss: unreachable off Linux by construction ──────────────────────────────
+# `cmd_doctor` runs `ufw status` and only enters the port-check block on
+# `Ok(out) && out.status.success()`. macOS has no ufw, so the command errors, the
+# block is skipped entirely, and the `ss -tln` call inside it is never reached. The
+# enclosing comment already documents this as best-effort: "ufw unavailable or
+# unreadable is a skipped check, not a warning".
+crates/termlink-cli/src/commands/infrastructure.rs::cmd_doctor::cmd:ufw  # Ok+success gate; absent ufw skips the whole block (best-effort by design)
+crates/termlink-cli/src/commands/infrastructure.rs::cmd_doctor::cmd:ss   # nested inside the ufw-success block above; unreachable without ufw
+
+# ── /proc reads: guarded by a runtime probe that names the limitation (T-2691) ────
+# Both sites are the PID-ancestor walk behind `whoami`. They still read /proc — that
+# is unavoidable, it IS the Linux mechanism — but the callers now consult
+# `procfs_available()` before reporting, so a macOS user is told "this platform has
+# no /proc, auto-resolution cannot run; set TERMLINK_SESSION_ID" instead of receiving
+# an ambiguous candidate list implying an action that can never work. The read itself
+# returning None off-Linux is correct; the defect was the silent reporting, and that
+# is fixed rather than acknowledged.
+crates/termlink-cli/src/commands/metadata.rs::read_ppid_from_proc::proc-path  # T-2691: callers gate on procfs_available() and name the limitation
+crates/termlink-mcp/src/tools.rs::read_ppid_from_proc::proc-path             # T-2691: MCP whoami emits auto_resolution=unavailable-no-procfs
+
+# ── test asserting a platform fact, correctly cfg-gated ──────────────────────────
+crates/termlink-cli/src/commands/metadata.rs::procfs_probe_detects_a_real_procfs::proc-path  # #[cfg(target_os = "linux")] test; asserts /proc exists on Linux only, with a non-Linux complement test

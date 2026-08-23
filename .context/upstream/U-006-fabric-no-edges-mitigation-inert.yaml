@@ -1,0 +1,153 @@
+---
+id: U-006
+title: "Fabric no-edges warning cannot be cleared by its own mitigation: two fixable parser gaps plus a residual the edge model cannot express"
+created: 2026-08-14T21:00:00Z
+source_project: 010-termlink
+source_task: T-2718
+status: pending
+severity: high
+severity_history: |
+  Filed medium 2026-08-14 as "a warning that is hard to action". Raised to high
+  2026-08-15 when the threshold was read: `-gt 10` absolute means the check
+  cannot be satisfied by any project past ~10 leaf components, and gets louder
+  the more completely a registry is populated. A check that can never pass
+  trains its readers to discount the audit, which is the failure mode the audit
+  exists to prevent.
+component: agents/fabric/
+context: |
+  Found during a full `fw audit` remediation pass.
+
+  The audit warns "Fabric: 193/344 cards have no edges" with mitigation
+  "Run: fw fabric enrich". Running it changes nothing:
+
+      Cards enriched:    0
+      Total edges added: 0
+      Unresolved edge targets — Actionable: 0, Ignorable: 0
+
+  Zero added AND zero unresolved means the enricher is saturated, not blocked on
+  targets it cannot resolve. The warning has recurred 11 times in 14 days per
+  the audit's own trend analysis — the signature of a finding nobody can action.
+
+  This is the third instance found in one audit pass of a check whose printed
+  mitigation cannot fix its own finding; see U-003 and U-004.
+evidence: |
+  CORRECTED 2026-08-15. The first version of this record claimed "0 source or
+  invoke another repo script" and concluded "no parser improvement closes this".
+  Both were wrong, and the way they were wrong matters more than the numbers:
+  the original figure was measured over three specific variable idioms
+  (${SCRIPT_DIR} / ${REPO_ROOT} / ${PROJECT_ROOT}) after `source`/`.` only, and
+  then reported as though it covered invocation generally. A first correction
+  overshot in the other direction — it counted grep hits that were console
+  hint-text and heredoc usage blocks, and cited run-guard-layer.sh as proof,
+  which is precisely the one case a static parser provably cannot reach.
+  The numbers below are the third measurement, verified by reading every
+  matching line.
+
+  Measured in 010-termlink on 2026-08-15, across 149 files in scripts/,
+  excluding comments, heredoc help blocks, and echo/printf hint text:
+
+  - 17 files carry 28 statically-resolvable sibling dependencies
+  - 71 reference the termlink binary, via TERMLINK_BIN or TERMLINK="..."
+
+  So there ARE real file→file edges the enricher is missing, and the two gaps
+  that hide them are small and specific:
+
+  1. $HERE is not in the recognised directory-variable set at all. It is the
+     dominant idiom here — `SEND="$HERE/agent-send.sh"` and similar account for
+     most of the 28.
+  2. The recognised variables (LIB_DIR, SCRIPT_DIR) are only matched after
+     `source` or `.`. They are not matched after `bash`/`exec`, nor in a bare
+     `VAR="${SCRIPT_DIR}/x.sh"` binding that is executed later.
+
+  Worked example, scripts/substrate-smoke.sh — four invocations of the form
+  `out=$(bash "${SCRIPT_DIR}/substrate-drain-demo.sh" ...)` plus one
+  `WORKER_LOOP="${SCRIPT_DIR}/substrate-worker-loop.sh"` binding. Its card has
+  zero edges. SCRIPT_DIR is already a known variable; only the verb differs.
+
+  Closing both gaps would take 193 edgeless cards to roughly 176 — 56% coverage
+  to about 61%. Real, and partial.
+
+  The residual IS structural, and this is where the original conclusion holds:
+
+  - scripts/run-guard-layer.sh, the largest dependency hub in the repo, resolves
+    its ~20 members at RUNTIME by globbing `"$SCRIPTS_DIR"/check-*.sh` and then
+    filtering on a `# guard-layer: source` header marker. No literal target name
+    appears anywhere in the file. No static parser can reach it.
+  - The 71 scripts whose real dependency is the compiled `termlink` binary
+    depend on an artifact a file→file model has no way to name.
+
+  So the accurate statement is: a parser improvement closes about a third of the
+  gap, and the rest is not expressible in the current model.
+
+  THE DECISIVE POINT, found last and worth more than everything above.
+  The warn condition is an ABSOLUTE count, not a ratio (audit.sh:1541):
+
+      if [ "$fabric_unenriched" -gt 10 ]; then warn ...
+
+  Clearing this warning requires 183 of the 193 edgeless cards to gain edges —
+  on a graph where 71 cards' only real dependency is a compiled binary the model
+  cannot name. It is not reachable by a parser fix, by enrichment, or by any
+  amount of honest work. It is unclearable by construction.
+
+  And because the threshold is absolute rather than proportional, it gets
+  strictly worse as a project grows: every newly registered leaf card pushes the
+  number further from 10, so the healthier the registry's coverage becomes, the
+  louder the warning gets. A project with 3000 well-registered components can
+  never satisfy it. This is the actual defect — the parser gaps are real but
+  incidental, and fixing them changes the printed number from 193 to ~176 while
+  the verdict stays WARN.
+
+  This also explains the 11-recurrences-in-14-days trend the audit reports about
+  its own finding: not a backlog nobody got to, but a threshold nobody can meet.
+suggestion: |
+  0. FIRST, and unambiguously worth doing: close the two parser gaps named in
+     the evidence. Add $HERE to the recognised directory-variable set, and match
+     those variables after `bash`/`exec` and in bare `VAR=` bindings, not only
+     after `source`/`.`. This is a small change to detect_bash_sources() with no
+     model implications — it finds edges that genuinely exist and are already
+     expressible. It does NOT clear the warning on its own; see below.
+
+  1. Make the threshold proportional and/or scoped, so it can be satisfied. An
+     absolute `> 10` cannot survive registry growth (see evidence). Whatever
+     replaces it should be expressible as a target a project can actually reach,
+     and should exclude the card classes whose edges cannot exist.
+
+  Then two candidate directions for the residual, deliberately not chosen here —
+  that trade belongs to whoever owns the fabric model:
+
+  1. Allow non-file edge targets, so a card can declare a dependency on a
+     binary, service, or build artifact (e.g. `- target: bin:termlink`,
+     `type: invokes`). Makes the graph express what is actually true, at the
+     cost of edges that no file-existence check can validate.
+
+  2. Scope the coverage metric to card types where file→file edges are
+     meaningful, and report leaf//binary-dependent cards as their own class
+     rather than as coverage debt.
+
+  TWO WRONG FIXES, named because both are tempting and both are worse than the
+  warning:
+
+  - Hand-authoring plausible edges to bring the number down. The edges would be
+    fiction, and the graph is consumed by `fw fabric impact` / `blast-radius`,
+    which would then mislead about real change impact.
+  - Re-narrowing .fabric/watch-patterns.yaml so fewer cards are counted. This
+    repo already hit that trap three times (T-2680, T-2681, T-2712) and recorded
+    it as PL-341. The 56% figure is honest precisely BECAUSE T-2712 widened the
+    patterns; it read a flattering 18% only while 188 guard-layer scripts were
+    invisible to the metric. Improving a number by changing what it measures is
+    the failure mode, not the fix.
+related_learning: |
+  PL-341 (010-termlink): a metric measured over a flattering subset is worse
+  than a bad metric, because it reads as complete. The consumer-side lesson for
+  the fabric is that "coverage below target" should distinguish "edges not yet
+  found" from "edges that cannot exist" — otherwise the metric generates
+  permanent, unactionable debt.
+
+  Second-order lesson from this record's own correction history: the original
+  claim and its first correction were BOTH produced by a single grep whose
+  result was then generalised past what it measured — once too narrow (three
+  idioms after two verbs, reported as "invocation"), once too broad (hint-text
+  and heredocs counted as calls). Same defect, opposite directions, on the same
+  finding, three measurements before it settled. A count of zero deserves more
+  suspicion than a count of a few, and a count produced by one regex deserves
+  the lines printed and read before it is written down anywhere outbound.

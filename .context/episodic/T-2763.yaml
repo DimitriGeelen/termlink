@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2763: canary-status reports a false all-clear inside a git worktree
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-16T13:33:22Z
+# ============================================================================
+
+task_id: T-2763
+task_name: "canary-status reports a false all-clear inside a git worktree"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-16T13:13:54Z
+completed: 2026-08-16T13:31:30Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  canary-status.sh (/canaries) resolves .context/working/ relative to the CURRENT checkout, with no worktree awareness. Host cron writes canary logs and heartbeats into the MAIN checkout only, so inside a linked worktree every log reads empty and every heartbeat reads ancient. Two failure directions: STALE noise on canaries that are firing fine (annoying), and — far worse — a confident HEALTHY for a canary that IS firing in the main checkout (a false all-clear). fw audit already knows about this ('Cron drift checks skipped — linked worktree'); canary-status does not. Same class as T-2681: a guard whose reported health depends on unversioned local state.
+
+# Key outcomes
+outcomes:
+  - '`canary-status.sh` detects that it is running inside a linked git worktree (the `.git` entry is a FILE containing `gitdir:`, not a directory) and resolves the canary directory to the MAIN checkout rather than the worktree''s own `.context/working/`'
+  - 'Detection is by git''s own answer (`git rev-parse --path-format=absolute --git-common-dir` → parent), NOT by string-matching `.claude/worktrees/` in the path — the naming convention is not a contract and a worktree elsewhere must still resolve'
+  - 'When the main checkout''s canary dir cannot be read (permissions, or the T-559 boundary), the script exits **2 (tooling error)** and says so — it must NEVER fall back to the worktree''s empty dir and report healthy, because the fallback IS the false all-clear this task exists to remove'
+  - 'The false-all-clear direction is pinned by a fixture: a firing log present in a fixture "main" dir and ABSENT from a fixture "worktree" dir must make the check report FIRING, and must have reported HEALTHY before the fix (the load-bearing assertion)'
+  - 'The STALE-noise direction is pinned too: fresh heartbeats in the fixture main dir must clear the STALE classification that the worktree''s stale copies would otherwise produce'
+  - 'Existing non-worktree behaviour is unchanged — a fixture run with a plain (non-worktree) checkout resolves to its own `.context/working/` exactly as today (PL-219 real-tree control)'
+  - 'Test seam exists so the fixtures need no real second checkout, following the `CANARY_HYGIENE_SRC_DIR` / `CRON_DRIFT_*_DIR` convention — **implemented as `CANARY_STATUS_TEST_GIT_DIR` + `CANARY_STATUS_TEST_GIT_COMMON_DIR`, not the `CANARY_STATUS_MAIN_DIR` this AC sketched.** Deliberate change: a seam that hands the script a ready-made "main dir" would bypass both the worktree DECISION (`git_dir != git_common_dir`) and the main-root DERIVATION (`dirname`) — the two pieces of logic most likely to be wrong. Feeding the two raw git answers instead means the fixtures exercise that real code, so a bug in either is caught rather than stubbed over.'
+  - 'Output states which directory it read, so an operator can tell worktree-resolved from local-resolved at a glance (the T-2680 scope-disclaimer lesson: a guard must say what it looked at)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 17 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 17
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2763-canary-status-reports-a-false-all-clear-.md
+generated_by: context-agent-hybrid

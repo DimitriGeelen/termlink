@@ -1,0 +1,16 @@
+id: scripts/recent-dm.sh
+name: recent-dm
+type: script
+subsystem: unknown
+location: scripts/recent-dm.sh
+tags: []
+purpose: 'TODO: describe what this component does'
+depends_on:
+- target: scripts/agent-chat-arc-recent.sh
+  type: calls
+- target: scripts/agent-journal.sh
+  type: calls
+depended_by: []
+last_verified: 2026-08-14
+created_by: unknown
+last_enriched: '2026-08-14'

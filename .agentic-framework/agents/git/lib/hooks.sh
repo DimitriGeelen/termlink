@@ -1,8 +1,45 @@
 #!/bin/bash
 # Git Agent - Hook installation subcommand
 
+# T-2852: the version of the commit-msg hook TEMPLATE in this file — i.e. the
+# value written as `# VERSION=` into the heredoc below, and therefore the value
+# that will be read back out of an installed hook on the next run.
+#
+# This is deliberately NOT `$VERSION` (agents/git/git.sh:19), which is the git
+# agent's own version. Those were compared against each other for an unknown
+# span: the template said 1.11, the agent said 1.6, so the equality at the
+# "already installed" check could never hold, the fast path was unreachable, and
+# every install-hooks call rewrote all four hooks while announcing a move from
+# the installed marker to the agent's number — phrasing that reads as a
+# downgrade and produced a confident, wrong bug report from a live onboarding
+# run (/opt/001-test-install, 2026-08-07). The old wording is deliberately not
+# reproduced here: a regression test greps this file for it, and quoting the
+# string one claims to have removed is its own recurring mistake (T-2847).
+#
+# git.sh already carried a comment instructing whoever edits a template to keep
+# the two in sync. It was correct and it was ignored across five marker bumps,
+# which is why the guard is now a test (tests/unit/hook_version_marker_parity.bats)
+# rather than a sixth sentence of prose.
+#
+# PL-078 still applies: when you change the CONTENT of any hook template below,
+# bump this constant AND the `# VERSION=` literal in the commit-msg heredoc
+# together, so consumers' next install-hooks redeploys all four.
+COMMIT_MSG_HOOK_VERSION="1.11"
+
+# T-2813: verify a hook actually landed by reading state back from disk,
+# rather than trusting that the `cat`/`chmod` calls that wrote it didn't
+# print an error. `cat > "$hook" << 'EOF'` fails silently at the redirect
+# (e.g. hooks directory missing) *before* any command in the heredoc body
+# runs, so neither a captured exit status nor the heredoc content itself
+# is a reliable signal — only the resulting file is.
+_verify_hook_written() {
+    [ -f "$1" ] && [ -x "$1" ]
+}
+
 do_install_hooks() {
     local force=false
+    local install_failed=false
+    local -a failed_hooks=()
 
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -23,7 +60,12 @@ do_install_hooks() {
 
     check_git_repo
 
-    local hooks_dir="$PROJECT_ROOT/.git/hooks"
+    local hooks_dir
+    hooks_dir=$(resolve_git_hooks_dir) || {
+        echo -e "${RED}ERROR: Could not resolve git hooks directory${NC}"
+        exit 1
+    }
+    mkdir -p "$hooks_dir"
     local commit_msg_hook="$hooks_dir/commit-msg"
     local pre_commit_hook="$hooks_dir/pre-commit"
     local post_commit_hook="$hooks_dir/post-commit"
@@ -33,12 +75,17 @@ do_install_hooks() {
     if [ -f "$commit_msg_hook" ] && [ "$force" = false ]; then
         local existing_version
         existing_version=$(grep "^# VERSION=" "$commit_msg_hook" 2>/dev/null | cut -d= -f2)
-        if [ "$existing_version" = "$VERSION" ]; then
-            echo -e "${GREEN}Hooks already installed (version $VERSION)${NC}"
+        if [ "$existing_version" = "$COMMIT_MSG_HOOK_VERSION" ]; then
+            echo -e "${GREEN}Hooks already installed (version $COMMIT_MSG_HOOK_VERSION)${NC}"
             echo "Use --force to reinstall"
             exit 0
         else
-            echo -e "${YELLOW}Updating hooks from version $existing_version to $VERSION${NC}"
+            # State the difference, not a direction. Nothing here compares
+            # ordering, so "updating X to Y" was claiming knowledge the code
+            # does not have — and when the installed marker happened to sort
+            # above the template's, it read as a downgrade and was reported as
+            # a version-comparison bug (T-2852).
+            echo -e "${YELLOW}Hook version differs (installed: ${existing_version:-none}, template: $COMMIT_MSG_HOOK_VERSION) — reinstalling${NC}"
         fi
     fi
 
@@ -55,7 +102,7 @@ do_install_hooks() {
 # commit-msg hook - Task Reference Enforcement
 # Installed by: ./agents/git/git.sh install-hooks
 # Part of: Agentic Engineering Framework
-# VERSION=1.9
+# VERSION=1.11
 
 COMMIT_MSG_FILE="$1"
 COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
@@ -70,6 +117,27 @@ if [ -d ".git/rebase-merge" ] || [ -d ".git/rebase-apply" ]; then
     exit 0
 fi
 
+# Resolve the fw entry point for THIS project shape (T-2816, T-1257 class).
+# The framework repo carries bin/fw at its root; a consumer carries only
+# .agentic-framework/bin/fw unless the PATH shim is installed. This hook is the
+# ONLY framework gate a by-hand operator ever trips — the PreToolUse task gate
+# is a Claude Code hook and never fires for a human at a terminal — so a remedy
+# that does not exist here is the first and possibly only enforcement message
+# that operator ever reads. Resolved at hook runtime, not at install time: the
+# heredoc that writes this file is quoted, and the project may be re-shaped
+# (shim installed, framework vendored) long after the hook was written.
+_fw_entry() {
+    if [ -x "./bin/fw" ] && [ -f "./FRAMEWORK.md" ]; then
+        echo "bin/fw"
+    elif command -v fw >/dev/null 2>&1; then
+        echo "fw"
+    elif [ -x "./.agentic-framework/bin/fw" ]; then
+        echo ".agentic-framework/bin/fw"
+    else
+        echo "fw"
+    fi
+}
+
 # Check for task reference
 if ! echo "$COMMIT_MSG" | grep -qE "T-[0-9]+"; then
     echo ""
@@ -79,7 +147,7 @@ if ! echo "$COMMIT_MSG" | grep -qE "T-[0-9]+"; then
     echo ""
     echo "To fix:"
     echo "  1. Add task reference: git commit -m \"T-XXX: your message\""
-    echo "  2. Create a task: ./agents/task-create/create-task.sh"
+    echo "  2. Create a task: $(_fw_entry) work-on \"your task name\" --type build"
     echo ""
     echo "Bypass: git commit --no-verify"
     echo "  (In agent context, Tier 0 will prompt for approval on --no-verify.)"
@@ -260,6 +328,7 @@ exit 0
 HOOK_EOF
 
     chmod +x "$commit_msg_hook"
+    _verify_hook_written "$commit_msg_hook" || { install_failed=true; failed_hooks+=("$commit_msg_hook"); }
 
     # T-1844: Create pre-commit hook for secret-scan
     # Origin: T-1828/T-1834 — Azure DevOps PAT committed at 79e3361d (T-1736
@@ -268,10 +337,10 @@ HOOK_EOF
     # scanning to agents/git/lib/secret-scan.sh and fails the commit on hit.
     cat > "$pre_commit_hook" << 'HOOK_EOF'
 #!/bin/bash
-# pre-commit hook - Secret Scan (T-1844)
+# pre-commit hook - Master-merge-only guard (T-2396) + Secret Scan (T-1844)
 # Installed by: ./agents/git/git.sh install-hooks
 # Part of: Agentic Engineering Framework
-# VERSION=1.0
+# VERSION=1.2
 
 PROJECT_ROOT="$(git rev-parse --show-toplevel)"
 
@@ -285,14 +354,42 @@ fi
     && [ -f "$PROJECT_ROOT/.agentic-framework/agents/git/lib/secret-scan.sh" ] \
     && FRAMEWORK_ROOT="$PROJECT_ROOT/.agentic-framework"
 
+# T-2396 (inception T-2394 G1): Master-as-merge-only guard. Runs FIRST so a
+# direct authored commit on a protected branch is refused before any scan work.
+# Default-off (config PROTECT_MASTER) → consumer-safe; opt-in per project.
+# Allows merges/rebases/fast-forwards/feature-branches. Bypass: FW_ALLOW_MASTER_COMMIT=1
+# (Tier-2) or git commit --no-verify (Tier-0). See agents/git/lib/master-guard.sh.
+# T-2061: bash-invoke + gate on -f (exec bit irrelevant for vendored copies).
+MASTER_GUARD="$FRAMEWORK_ROOT/agents/git/lib/master-guard.sh"
+if [ -f "$MASTER_GUARD" ]; then
+    PROJECT_ROOT="$PROJECT_ROOT" bash "$MASTER_GUARD" check || exit 1
+fi
+
 SCANNER="$FRAMEWORK_ROOT/agents/git/lib/secret-scan.sh"
 # T-2061: gate on -f not -x. We invoke via `bash "$SCANNER"` below, so the
 # exec bit is irrelevant — gating on -x silently disabled the scanner when
 # vendor copies landed without the exec bit (T-2052 found this hot, 2026-06-08).
 # -f catches the only failure that actually matters here: file missing.
 if [ ! -f "$SCANNER" ]; then
-    # Scanner missing — fail open with a clear message, don't block legitimate work.
-    echo "secret-scan: scanner not found at $SCANNER (skipping)" >&2
+    # T-2647 (832 G-001/F4): a security control that silently no-ops is worse
+    # than one that is absent — the old one-line "(skipping)" note was ignorable
+    # and consumers committed for weeks with no secret scanning. Default stays
+    # fail-open (a missing scanner usually means a stale vendored payload, and
+    # blocking every commit on it would be hostile), but the warning is now
+    # unmissable and names the fix. FW_SECRET_SCAN_STRICT=1 opts into blocking.
+    echo "" >&2
+    echo "WARNING: SECRET SCAN IS NOT RUNNING — scanner missing:" >&2
+    echo "  $SCANNER" >&2
+    echo "Every commit is going through WITHOUT secret scanning." >&2
+    echo "Fix: refresh the vendored framework payload:" >&2
+    echo "  cd $PROJECT_ROOT && .agentic-framework/bin/fw upgrade" >&2
+    echo "  (framework repo: bin/fw vendor self)" >&2
+    echo "Strict mode: set FW_SECRET_SCAN_STRICT=1 to make this block commits." >&2
+    echo "" >&2
+    if [ "${FW_SECRET_SCAN_STRICT:-0}" = "1" ]; then
+        echo "ERROR: Commit blocked — FW_SECRET_SCAN_STRICT=1 and scanner missing." >&2
+        exit 1
+    fi
     exit 0
 fi
 
@@ -376,6 +473,7 @@ exit 0
 HOOK_EOF
 
     chmod +x "$pre_commit_hook"
+    _verify_hook_written "$pre_commit_hook" || { install_failed=true; failed_hooks+=("$pre_commit_hook"); }
 
     # Create post-commit hook for bypass detection + context checkpoint
     cat > "$post_commit_hook" << 'HOOK_EOF'
@@ -502,6 +600,7 @@ fi
 HOOK_EOF
 
     chmod +x "$post_commit_hook"
+    _verify_hook_written "$post_commit_hook" || { install_failed=true; failed_hooks+=("$post_commit_hook"); }
 
     # Create pre-push hook for audit enforcement
     cat > "$pre_push_hook" << 'HOOK_EOF'
@@ -709,6 +808,50 @@ if [ -x "$PROJECT_ROOT/bin/fw" ] && [ -d "$PROJECT_ROOT/.agentic-framework/lib" 
     fi
 fi
 
+# T-2294: MCP manifest drift gate (arc-010 sibling to T-2240).
+# Origin: T-2293 commit 7e647bd1e leaked a bats artefact (fake_drift_tool_t2290)
+# into agents/mcp/framework-mcp-manifest.json because the test's prior crash had
+# polluted tool-set.yaml. The push went through clean — no manifest drift gate
+# existed. This block runs `fw mcp check` (T-2293) and refuses push on non-zero
+# exit. Catches both real edit-drift (developer forgot `fw mcp emit-manifest`)
+# and test-artefact leaks.
+#
+# Guard: framework repo only (consumers have no agents/mcp/manifest.py source).
+# Bypass: FW_SKIP_MCP_DRIFT_CHECK=1 (sibling to FW_SKIP_SELF_VENDOR_CHECK) and
+# --no-verify per L-399 producer/consumer-parity discipline. Block message
+# names both mechanisms (T-1890).
+if [ -x "$PROJECT_ROOT/bin/fw" ] && [ -f "$PROJECT_ROOT/agents/mcp/manifest.py" ]; then
+    if [ "${FW_SKIP_MCP_DRIFT_CHECK:-0}" = "1" ]; then
+        echo "" >&2
+        echo "WARN: MCP manifest drift check skipped (FW_SKIP_MCP_DRIFT_CHECK=1)" >&2
+        echo "  Class: T-2294 — agents/mcp/framework-mcp-manifest.json may diverge from tool-set.yaml" >&2
+        echo "" >&2
+    else
+        _mcp_out=$("$PROJECT_ROOT/bin/fw" mcp check 2>&1 || true)
+        _mcp_exit=$("$PROJECT_ROOT/bin/fw" mcp check >/dev/null 2>&1; echo $?)
+        if [ "$_mcp_exit" != "0" ]; then
+            echo "" >&2
+            echo "ERROR: Push blocked — MCP manifest drift detected (T-2294):" >&2
+            echo "" >&2
+            echo "$_mcp_out" | head -3 >&2
+            echo "" >&2
+            echo "agents/mcp/framework-mcp-manifest.json is out of sync with" >&2
+            echo "policy/capability-overlay/tool-set.yaml. Consumers reading the" >&2
+            echo "manifest as a capability gate would see the stale tool catalogue." >&2
+            echo "" >&2
+            echo "Fix:" >&2
+            echo "  cd $PROJECT_ROOT && bin/fw mcp emit-manifest && git add agents/mcp/framework-mcp-manifest.json && git commit -m 'T-XXX: refresh MCP manifest'" >&2
+            echo "" >&2
+            echo "Bypass (logged Tier-2):" >&2
+            echo "  FW_SKIP_MCP_DRIFT_CHECK=1 git push" >&2
+            echo "Bypass (Tier 0):" >&2
+            echo "  git push --no-verify" >&2
+            echo "" >&2
+            exit 1
+        fi
+    fi
+fi
+
 # Resolve audit script. Priority (T-1396):
 #   1. .framework.yaml -> framework_path (explicit consumer config)
 #   2. $PROJECT_ROOT/agents/audit/audit.sh (framework repo: source-of-truth)
@@ -769,7 +912,32 @@ echo ""
 "$AUDIT_SCRIPT" --section structure
 audit_exit=$?
 
-if [ $audit_exit -eq 2 ]; then
+if [ $audit_exit -eq 75 ]; then
+    # T-2930 / OBS-221: 75 = EX_TEMPFAIL = the audit DID NOT RUN (lock contention).
+    # This is not a pass. Before this branch existed, contention exited 0 and landed
+    # in the "no failures" path, so a push during the daily audit cron was waved
+    # through with the gate never having evaluated anything — observed live
+    # 2026-08-11 with an invariant RED at the time.
+    #
+    # BLOCK rather than warn. The asymmetry is what decides it: a push blocked on
+    # contention costs seconds — wait for the other audit and push again — whereas a
+    # push waved through on an unevaluated gate costs whatever the unaudited commit
+    # does downstream, discovered later and attributed elsewhere.
+    echo ""
+    echo "ERROR: Push blocked - audit COULD NOT RUN (another audit holds the lock)"
+    echo ""
+    echo "This is not an audit failure. No verdict was produced, so the gate has"
+    echo "nothing to pass you on."
+    echo ""
+    echo "What to do: wait for the running audit to finish, then push again."
+    echo "  Usually the daily cron audit — it finishes within a minute or two."
+    echo "  Check: ls -l $PROJECT_ROOT/.context/locks/audit.lock"
+    echo ""
+    echo "Bypass: git push --no-verify"
+    echo "  (In agent context, Tier 0 will prompt for approval on --no-verify.)"
+    echo ""
+    exit 1
+elif [ $audit_exit -eq 2 ]; then
     echo ""
     echo "ERROR: Push blocked - audit has FAILURES"
     echo ""
@@ -790,6 +958,31 @@ exit 0
 HOOK_EOF
 
     chmod +x "$pre_push_hook"
+    _verify_hook_written "$pre_push_hook" || { install_failed=true; failed_hooks+=("$pre_push_hook"); }
+
+    # T-2813: report actual disk state, not the write that was attempted.
+    # A hook is only listed as installed once _verify_hook_written confirmed
+    # it exists and is executable — a hook whose write failed is reported as
+    # a failure, never silently folded into a success banner.
+    if [ "$install_failed" = true ]; then
+        echo -e "${RED}ERROR: hook installation failed — ${#failed_hooks[@]} of 4 hook(s) were not written:${NC}" >&2
+        echo "" >&2
+        for _fh in "${failed_hooks[@]}"; do
+            echo "  - $_fh" >&2
+        done
+        echo "" >&2
+        echo "Cause: the target file does not exist (or is not executable) after the" >&2
+        echo "write, which means the write to the hooks directory did not complete —" >&2
+        echo "most commonly because the hooks directory itself does not exist or is" >&2
+        echo "not writable." >&2
+        echo "" >&2
+        echo "Fix:" >&2
+        echo "  1. Check the resolved hooks dir exists and is writable:" >&2
+        echo "       git rev-parse --git-path hooks" >&2
+        echo "  2. Re-run: $(_emit_user_command "git install-hooks" 2>/dev/null || echo "fw git install-hooks")" >&2
+        echo "" >&2
+        exit 1
+    fi
 
     echo -e "${GREEN}=== Hooks Installed ===${NC}"
     echo ""
@@ -803,7 +996,7 @@ HOOK_EOF
     echo "  - Blocks commits without task references (T-XXX)"
     echo "  - Blocks commits introducing secrets (T-1844 — Azure PAT, AWS keys, SSH keys, etc.)"
     echo "  - Allows merge commits and rebases"
-    echo "  - Runs audit before push (blocks on FAIL, warns on WARN)"
+    echo "  - Runs audit before push (blocks on FAIL, blocks if audit could not run, warns on WARN)"
     echo "  - Bypass: $(_emit_user_command "tier0 approve") (Tier 0 protected)"
     echo "           then: git commit/push --no-verify"
 }
@@ -821,7 +1014,7 @@ Options:
 Installs:
   - commit-msg hook: Validates task reference in commit message
   - post-commit hook: Detects bypasses and reminds to log them
-  - pre-push hook: Runs audit before push (blocks on FAIL)
+  - pre-push hook: Runs audit before push (blocks on FAIL, and on could-not-run)
 
 The hooks enforce task traceability (P-002: Structural Enforcement).
 

@@ -17,6 +17,7 @@ use serde_json::{json, Value};
 #[cfg(test)]
 use termlink_bus::ArtifactStore;
 use termlink_bus::{BusError, StreamingPutOutcome};
+use termlink_protocol::control::error_code;
 use termlink_protocol::jsonrpc::{ErrorResponse, Response, RpcResponse};
 
 use crate::channel::artifact_store;
@@ -109,7 +110,14 @@ pub async fn handle_artifact_get(id: Value, params: &Value) -> RpcResponse {
     let bytes = match store.get(sha256) {
         Ok(b) => b,
         Err(BusError::UnknownArtifact(_)) => {
-            return ErrorResponse::new(id, -32004, &format!("artifact {sha256} not found")).into();
+            // T-2699: was the bare literal -32004, which is MESSAGE_EXPIRED in the
+            // named taxonomy — the same wire code meant two incompatible things.
+            return ErrorResponse::new(
+                id,
+                error_code::ARTIFACT_NOT_FOUND,
+                &format!("artifact {sha256} not found"),
+            )
+            .into();
         }
         Err(e) => return artifact_error(id, &e),
     };
@@ -143,7 +151,8 @@ pub async fn handle_artifact_get(id: Value, params: &Value) -> RpcResponse {
 fn artifact_error(id: Value, e: &BusError) -> RpcResponse {
     let code = match e {
         BusError::ArtifactOffsetMismatch { .. } | BusError::ArtifactHashMismatch { .. } => -32602,
-        BusError::UnknownArtifact(_) => -32004,
+        // T-2699: was -32004 (MESSAGE_EXPIRED in the named taxonomy).
+        BusError::UnknownArtifact(_) => error_code::ARTIFACT_NOT_FOUND,
         _ => -32603,
     };
     ErrorResponse::new(id, code, &e.to_string()).into()
@@ -230,7 +239,8 @@ pub(crate) async fn handle_artifact_get_with(
     let bytes = match store.get(sha256) {
         Ok(b) => b,
         Err(BusError::UnknownArtifact(_)) => {
-            return ErrorResponse::new(id, -32004, "not found").into();
+            // T-2699: was -32004 (MESSAGE_EXPIRED in the named taxonomy).
+            return ErrorResponse::new(id, error_code::ARTIFACT_NOT_FOUND, "not found").into();
         }
         Err(e) => return artifact_error(id, &e),
     };

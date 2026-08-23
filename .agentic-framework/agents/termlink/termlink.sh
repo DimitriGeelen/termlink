@@ -19,6 +19,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FRAMEWORK_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 source "$FRAMEWORK_ROOT/lib/config.sh"
+# T-2917: fw_worker_git_identity_env — default git identity for direct
+# `fw termlink dispatch` (see cmd_dispatch below).
+source "$FRAMEWORK_ROOT/lib/git-identity.sh"
 
 # Colors
 RED='\033[0;31m'
@@ -493,7 +496,7 @@ cmd_cleanup() {
 
 cmd_dispatch() {
     ensure_termlink
-    local task="" name="" prompt="" prompt_file="" project_dir="" timeout="$TERMLINK_WORKER_TIMEOUT" model="" task_type="" tools="" worker_kind=""
+    local task="" name="" prompt="" prompt_file="" project_dir="" timeout="$TERMLINK_WORKER_TIMEOUT" model="" task_type="" tools="" worker_kind="" permission_mode="" mcp_config="" strict_mcp="" allowed_tools=""
     # T-1700: workflow `env:` plumb-through. Repeatable --env KEY=VAL pairs are
     # injected into the spawned worker's shell so `claude -p` honors per-workflow
     # overrides like ANTHROPIC_BASE_URL=http://localhost:4000 (litellm proxy)
@@ -526,6 +529,47 @@ cmd_dispatch() {
                 # T-1706: select worker implementation. Default empty → claude -p.
                 # `ollama-loop` → tools/ollama-tool-loop.py (curated litellm direct).
                 worker_kind="$2"; shift 2 ;;
+            --permission-mode)
+                # T-2282: permission-mode passthrough to claude -p. Default empty
+                # → claude -p uses its own default (interactive trust dialog).
+                # Non-interactive workers needing MCP servers should pass
+                # `acceptEdits` so the workspace trust dialog auto-resolves and
+                # MCP server tools surface in the deferred catalogue. Without
+                # this, .mcp.json-wired servers stay "status":"pending" and the
+                # worker can't call mcp__*__* verbs (OBS-058 + OBS-059, 2026-06-09).
+                # No validation here — claude -p validates the mode string.
+                permission_mode="$2"; shift 2 ;;
+            --mcp-config)
+                # T-2284: --mcp-config passthrough to claude -p. Default empty
+                # → claude -p uses parent's permissions.allow for MCP trust,
+                # which leaves servers in "status":"pending" when the parent
+                # has no per-server entry (OBS-060 + OBS-061, 2026-06-09).
+                # Pass an explicit .mcp.json path so the worker brings up its
+                # own MCP servers regardless of parent's trust state. Pairs
+                # naturally with --strict-mcp-config to refuse anything outside
+                # the supplied config.
+                # No validation here — claude -p validates the file at startup.
+                mcp_config="$2"; shift 2 ;;
+            --strict-mcp-config)
+                # T-2284: refuse MCP servers not in --mcp-config. Boolean flag,
+                # no value. Composes with --mcp-config above; passing strict
+                # without --mcp-config still surfaces as "--strict-mcp-config"
+                # to claude -p (which will use its default config lookup).
+                strict_mcp=1; shift ;;
+            --allowed-tools)
+                # T-2288 (substrate quintet, 5th onion layer): pre-approve tools
+                # for non-interactive workers. Even with --mcp-config + --strict-mcp-config
+                # + --permission-mode acceptEdits (substrate quartet), claude -p
+                # still emits per-tool trust prompts on first invocation of each
+                # MCP tool. Non-interactive workers (claude -p) cannot answer
+                # the prompt and stall. Pass a comma-or-space-separated list
+                # (e.g. "mcp__fw__work_on mcp__fw__task_update Read Write Bash")
+                # to pre-grant trust for exactly those tools. Origin: arc010-hma-demo-004
+                # (2026-06-09T13:43Z) — substrate-quartet active, worker invoked
+                # mcp__fw__work_on twice, got "Claude requested permissions"
+                # response both times, gave up at turn 8.
+                # No validation here — claude -p validates the tool names.
+                allowed_tools="$2"; shift 2 ;;
             *) die "Unknown option: $1" ;;
         esac
     done
@@ -582,6 +626,18 @@ cmd_dispatch() {
     # Keys validated at parse time (KEY=VAL with KEY ∈ [A-Z_][A-Z0-9_]*).
     # Values are written verbatim with shell-quoted form so spaces/specials survive.
     : > "$wdir/env.sh"
+    # T-2917: default worker git identity, written FIRST so any caller-supplied
+    # --env GIT_AUTHOR_*/--env GIT_COMMITTER_* (e.g. forwarded by a resolver
+    # dispatch — TermLinkWorker._build_dispatch_argv turns envelope["env"]
+    # into --env pairs) overrides it: env.sh is sourced top-to-bottom, later
+    # `export` wins. `$name` (required, unique per dispatch) stands in for a
+    # dispatch_id here — this call path has no dispatches.jsonl row to join
+    # against; the TermLink worker dir at /tmp/tl-dispatch/$name is the join
+    # target instead. Mechanism is fixed "termlink-dispatch": this is the
+    # direct-dispatch path (CLAUDE.md §Sub-Agent Dispatch Protocol), distinct
+    # from a resolver-loop worker (which arrives with mechanism already set
+    # via --env and overrides these lines).
+    fw_worker_git_identity_env "termlink-dispatch" "$name" >> "$wdir/env.sh"
     local env_keys_json="[]"
     if [ "${#envs[@]}" -gt 0 ]; then
         local _key_list=""
@@ -613,6 +669,44 @@ cmd_dispatch() {
         tools_json="[$(printf '%s' "$tools" | awk -F, '{for(i=1;i<=NF;i++){gsub(/^[ \t]+|[ \t]+$/,"",$i); printf "%s\"%s\"",(i>1?",":""),$i}}')]"
     fi
 
+    # T-2282: --permission-mode plumb-through. Write permission_mode.txt read by
+    # run.sh to construct --permission-mode flag. Empty when no flag passed
+    # (claude -p uses its default; for non-interactive workers this leaves MCP
+    # servers stuck "status":"pending" — see OBS-058/OBS-059).
+    local permission_mode_json="null"
+    if [ -n "$permission_mode" ]; then
+        printf '%s\n' "$permission_mode" > "$wdir/permission_mode.txt"
+        permission_mode_json="\"$permission_mode\""
+    fi
+
+    # T-2284: --mcp-config + --strict-mcp-config plumb-through. Write
+    # mcp_config.txt (path string) and strict_mcp (sentinel file, presence ==
+    # true) read by run.sh to construct MCP_CONFIG_FLAG + STRICT_MCP_FLAG.
+    # Empty when no flag passed → claude -p uses parent's .mcp.json + parent's
+    # permissions.allow, which leaves MCP servers pending for workers whose
+    # parent has no per-server trust entry (OBS-060/OBS-061).
+    local mcp_config_json="null"
+    if [ -n "$mcp_config" ]; then
+        printf '%s\n' "$mcp_config" > "$wdir/mcp_config.txt"
+        # Escape quotes in path for JSON safety (paths rarely contain quotes,
+        # but be defensive — same convention as model_used_json above).
+        mcp_config_json="\"${mcp_config//\"/\\\"}\""
+    fi
+    local strict_mcp_json="false"
+    if [ -n "$strict_mcp" ]; then
+        : > "$wdir/strict_mcp"   # sentinel file — presence == enabled
+        strict_mcp_json="true"
+    fi
+    # T-2288: --allowed-tools plumb-through. Write allowed_tools.txt read by
+    # run.sh to construct --allowed-tools flag. Empty when no flag passed
+    # (claude -p uses parent's permissions.allow for per-tool trust — which
+    # for non-interactive workers means trust prompts that cannot be answered).
+    local allowed_tools_json="null"
+    if [ -n "$allowed_tools" ]; then
+        printf '%s\n' "$allowed_tools" > "$wdir/allowed_tools.txt"
+        allowed_tools_json="\"${allowed_tools//\"/\\\"}\""
+    fi
+
     # T-1643/W4 + T-1664: meta.json includes task_type, model_used, fallback_used.
     # T-1700: env_keys lists the env var names injected (values not stored — possible secrets).
     # model_used / fallback_used now populated at dispatch time when resolution succeeds;
@@ -630,6 +724,10 @@ cmd_dispatch() {
   "resolution_source": "${resolution_source:-none}",
   "env_keys": $env_keys_json,
   "tools_restricted": $tools_json,
+  "permission_mode": $permission_mode_json,
+  "mcp_config": $mcp_config_json,
+  "strict_mcp": $strict_mcp_json,
+  "allowed_tools": $allowed_tools_json,
   "started": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "status": "running"
 }
@@ -645,9 +743,23 @@ cd "$PROJECT_DIR" || { echo "FATAL: cd $PROJECT_DIR failed" > "$WDIR/stderr.log"
 
 # T-792: Export PROJECT_ROOT so hooks skip git resolution and use the correct project
 export PROJECT_ROOT="$PROJECT_DIR"
-if [ -d "$PROJECT_DIR/.agentic-framework" ]; then
+# T-2285 (OBS-062): discriminate framework-self vs consumer before redirecting
+# FRAMEWORK_ROOT to .agentic-framework/. The .agentic-framework/ directory
+# exists in BOTH cases — consumers have it as the vendored framework source,
+# and the framework REPO itself has it as a self-vendored mirror (verified
+# by `fw vendor self`). Redirecting FRAMEWORK_ROOT to the mirror in the
+# framework repo breaks subsystems that read source-only assets like
+# policy/capability-overlay/tool-set.yaml — the mirror doesn't carry policy/.
+# Use FRAMEWORK.md at PROJECT_DIR's root as the discriminator: only the
+# framework REPO has it; consumers don't.
+if [ -f "$PROJECT_DIR/FRAMEWORK.md" ]; then
+    # Framework repo: PROJECT_ROOT == FRAMEWORK_ROOT (source is at root).
+    export FRAMEWORK_ROOT="$PROJECT_DIR"
+elif [ -d "$PROJECT_DIR/.agentic-framework" ]; then
+    # Consumer with vendored framework: redirect to .agentic-framework/.
     export FRAMEWORK_ROOT="$PROJECT_DIR/.agentic-framework"
 else
+    # Bare project with no framework wiring: FRAMEWORK_ROOT==PROJECT_ROOT.
     export FRAMEWORK_ROOT="$PROJECT_DIR"
 fi
 
@@ -673,6 +785,41 @@ fi
 TOOLS_FLAG=""
 if [ -f "$WDIR/tools.txt" ] && [ -s "$WDIR/tools.txt" ]; then
     TOOLS_FLAG="--tools $(cat "$WDIR/tools.txt")"
+fi
+
+# T-2282: Build --permission-mode flag if permission_mode.txt was written by
+# cmd_dispatch. Empty/missing → claude -p uses its default (workspace trust
+# dialog, which can't fire non-interactively, leaving MCP servers in "pending"
+# state). Pass `acceptEdits` for non-interactive MCP-using workers (OBS-058).
+PERMISSION_MODE_FLAG=""
+if [ -f "$WDIR/permission_mode.txt" ] && [ -s "$WDIR/permission_mode.txt" ]; then
+    PERMISSION_MODE_FLAG="--permission-mode $(cat "$WDIR/permission_mode.txt")"
+fi
+
+# T-2284: Build --mcp-config flag if mcp_config.txt was written by cmd_dispatch.
+# Empty/missing → claude -p inherits parent's .mcp.json + permissions.allow,
+# leaving MCP servers pending when the parent has no per-server trust entry
+# (OBS-060/OBS-061). Path is read verbatim — caller is responsible for
+# correctness (claude -p validates at startup).
+MCP_CONFIG_FLAG=""
+if [ -f "$WDIR/mcp_config.txt" ] && [ -s "$WDIR/mcp_config.txt" ]; then
+    MCP_CONFIG_FLAG="--mcp-config $(cat "$WDIR/mcp_config.txt")"
+fi
+
+# T-2284: Build --strict-mcp-config flag if strict_mcp sentinel was written.
+# Composes with MCP_CONFIG_FLAG. Boolean — file presence == enabled.
+STRICT_MCP_FLAG=""
+if [ -f "$WDIR/strict_mcp" ]; then
+    STRICT_MCP_FLAG="--strict-mcp-config"
+fi
+
+# T-2288: Build --allowed-tools flag if allowed_tools.txt was written by
+# cmd_dispatch. Empty/missing → claude -p uses parent's permissions.allow for
+# per-tool trust. For non-interactive workers this leaves trust prompts that
+# cannot be answered (arc010-hma-demo-004 origin).
+ALLOWED_TOOLS_FLAG=""
+if [ -f "$WDIR/allowed_tools.txt" ] && [ -s "$WDIR/allowed_tools.txt" ]; then
+    ALLOWED_TOOLS_FLAG="--allowed-tools $(cat "$WDIR/allowed_tools.txt")"
 fi
 
 # T-1706: worker_kind dispatch routing. If worker_kind.txt requests ollama-loop,
@@ -711,7 +858,7 @@ else
     # buffers everything until completion, leaving an empty result.md on timeout (T-1643 found
     # this twice consecutively on U-005 dispatches). result.jsonl is the live trail; result.md
     # carries the final assistant text extracted on clean exit (backward-compat with `fw termlink result`).
-    claude -p "$(cat "$WDIR/prompt.md")" $MODEL_FLAG $TOOLS_FLAG --output-format stream-json --verbose > "$WDIR/result.jsonl" 2>"$WDIR/stderr.log" &
+    claude -p "$(cat "$WDIR/prompt.md")" $MODEL_FLAG $TOOLS_FLAG $PERMISSION_MODE_FLAG $MCP_CONFIG_FLAG $STRICT_MCP_FLAG $ALLOWED_TOOLS_FLAG --output-format stream-json --verbose > "$WDIR/result.jsonl" 2>"$WDIR/stderr.log" &
     CLAUDE_PID=$!
     (sleep "$TIMEOUT" && kill "$CLAUDE_PID" 2>/dev/null && echo "TIMEOUT" >> "$WDIR/stderr.log") &
     WATCHDOG_PID=$!
@@ -905,7 +1052,13 @@ cmd_help() {
     echo -e "  ${GREEN}status${NC}                       List active TermLink sessions"
     echo -e "  ${GREEN}cleanup${NC}                      Deregister sessions, close terminal windows"
     echo -e "  ${GREEN}dispatch${NC} --name N --prompt P  Spawn claude -p worker in real terminal
-                                     [--project DIR] [--model M] [--timeout S]"
+                                     [--project DIR] [--model M] [--timeout S]
+                                     [--permission-mode acceptEdits]   (T-2282: MCP workers need this)
+                                     [--mcp-config <path>] [--strict-mcp-config]
+                                       (T-2284: pin MCP server set independent of parent trust)
+                                     [--allowed-tools <list>]
+                                       (T-2288: pre-approve tools for non-interactive workers
+                                        e.g. \"mcp__fw__work_on mcp__fw__task_update Read Write Bash\")"
     echo -e "  ${GREEN}wait${NC} --name N [--timeout S]   Wait for worker completion"
     echo -e "  ${GREEN}result${NC} <worker-name>          Read worker result file"
     echo -e "  ${GREEN}update${NC} [--quiet]              Pull latest + rebuild (daily cron uses --quiet)"

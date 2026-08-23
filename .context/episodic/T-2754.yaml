@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2754: cron+test provers reap the topics they mint (topic-count leak)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-15T22:26:38Z
+# ============================================================================
+
+task_id: T-2754
+task_name: "cron+test provers reap the topics they mint (topic-count leak)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-15T22:07:21Z
+completed: 2026-08-15T22:25:02Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  cron+test provers reap the topics they mint (topic-count leak)
+
+# Key outcomes
+outcomes:
+  - 'A shared reap helper exists (`scripts/lib/reap-topic.sh`) exposing `reap_topic <name> [hub-args...]`, sourced by the consumers rather than duplicated per script. It is **best-effort by contract**: a failed or unavailable delete emits one stderr warning and returns 0, so reaping can never turn a passing prover into a failing one.'
+  - 'The helper degrades safely on a binary predating T-2421 — probes `channel delete --help` once and skips with a named warning rather than erroring (mirrors `sweep-test-debris.sh:53`).'
+  - '`TERMLINK_KEEP_TEST_TOPICS=1` opts out of reaping across every migrated script, so an operator debugging a failed run can retain the topic for inspection.'
+  - '`scripts/agent-conversation-selftest.sh` (the daily-cron leaker) reaps its `ephemeral_topic` via `trap` on EXIT, so the topic is removed on every exit path — pass, assertion-fail, setup-fail, and interrupt — not only the success path.'
+  - 'The remaining in-scope provers reap every topic they mint: `test-agent-conversation-status.sh`, `test-agent-conversation-list.sh` (both topics), `test-agent-respond.sh`, `test-agent-send.sh`, `test-agent-send-transport.sh` (both sites), `test-journal-mirror.sh`, `substrate-smoke.sh`.'
+  - 'The stale `test-agent-conversation-status.sh:118` comment asserting `channel delete` does not exist is replaced with the actual reap call.'
+  - 'Reaping preserves the prover''s own exit code — the `trap` must not overwrite a non-zero verdict with the delete''s status.'
+  - 'Load-bearing proof: running `agent-conversation-selftest.sh` leaves the hub''s topic count unchanged, and the same run with `TERMLINK_KEEP_TEST_TOPICS=1` increases it by exactly 1 (the opt-out is what makes the reap observable).'
+  - 'A fixture suite `tests/reap-topic-fixtures.sh` covers the helper''s contract without a live hub: best-effort-on-failure, missing-verb skip, opt-out honoured, exit-code preservation.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 17 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 17
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2754-crontest-provers-reap-the-topics-they-mi.md
+generated_by: context-agent-hybrid

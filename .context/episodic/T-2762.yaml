@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2762: Fleet hub restart onto current binary (operator-authorized)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-16T13:11:03Z
+# ============================================================================
+
+task_id: T-2762
+task_name: "Fleet hub restart onto current binary (operator-authorized)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-16T12:19:55Z
+completed: 2026-08-16T13:10:46Z
+duration_days: 0
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Operator authorized a fleet-wide hub restart to clear the T-2359 staleness warnings. Recon: only the local hub (.107, 0.11.720) has a usable foothold. .121 (0.11.588) refuses SSH publickey; .122 (0.11.679) answers SSH with a forced-command token broker and no shell; .141 is unreachable (no route). Scope is therefore: build+install current binary locally, restart the local hub THROUGH systemd per G-070, verify no PL-021 auth rotation, and report per-hub blockers for the three unreachable hubs.
+
+# Key outcomes
+outcomes:
+  - 'Current binary is built and installed locally; `termlink --version` reports the project VERSION'
+  - 'The local hub is restarted THROUGH its systemd unit (G-070), never as a detached process'
+  - 'Post-restart, the hub serves the new version (`fleet doctor` on the local profile)'
+  - 'NO PL-021 rotation: the TLS fingerprint and HMAC secret are identical before and after the restart, evidenced by captured values — not assumed from the runtime_dir being disk-backed'
+  - '`substrate-preflight.sh` Checks 4 and 5 (binary / hub-binary staleness) both return to PASS'
+  - 'Remote-session availability is probed for `.121` and `.122` so the "no foothold" claim is measured, not inherited from documentation'
+  - 'Each unreachable hub has a named, specific blocker and the concrete action that would unblock it'
+  - 'The fleet-binary canary floors are reviewed against the post-restart state so the canary reflects reality'
+  - '`.122` deployed and restarted onto the current binary'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 50 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 50
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2762-fleet-hub-restart-onto-current-binary-op.md
+generated_by: context-agent-hybrid

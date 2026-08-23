@@ -1,0 +1,43 @@
+# alloc-sink acknowledgement allowlist (T-2527; moved to a tracked path by T-2681)
+#
+# Signature format: <relpath>::<sink>(<normalized-arg>)   — `as usize` casts stripped.
+# `#`-comments and blank lines are skipped. Line-independent, so entries survive
+# code moves; the signature changes only if the file, sink kind, or arg name changes.
+#
+# WHY THIS FILE IS GIT-TRACKED (T-2681)
+# ------------------------------------
+# It previously lived at `.context/working/.alloc-sink-allowlist`, which is
+# gitignored (.gitignore:80). That made the check non-reproducible: in a fresh
+# clone, a CI runner, or a git worktree the file is absent and all five sites
+# below fire, so the check reported ok:false everywhere except the one machine
+# holding the untracked copy — while CLAUDE.md documented the tree as "scans
+# CLEAN". Worse, the cited reasons that justify each acknowledgement — the entire
+# value of the mechanism — existed only on that one disk, outside version control.
+#
+# Every entry below was RE-VERIFIED by reading the code for T-2681, not copied
+# forward on trust.
+
+# Registry-derived count, not a caller param: `total_tools` is computed by walking
+# the internal `categories` map that backs the tool registry. No external input
+# reaches it.
+crates/termlink-mcp/src/tools.rs::with_capacity(total_tools)
+
+# Guarded by `validate_dispatch_count(p.count)`, which runs and early-returns
+# above both sites — the `validate_*` guard class the grep deliberately cannot
+# see (it looks for inline `.clamp(`/`.min(` or a `let`-binding clamp). The
+# in-code comment at the guard names these exact allocations as the reason it
+# exists. Without it an unbounded u32 would pre-allocate.
+crates/termlink-mcp/src/tools.rs::with_capacity(count)
+crates/termlink-mcp/src/tools.rs::vec!(count)
+
+# Data-plane frame reader. `payload_len` comes from `FrameHeader::decode(&..)?`
+# one line above, which rejects `payload_length > MAX_PAYLOAD_SIZE`
+# (crates/termlink-protocol/src/data.rs:102; MAX_PAYLOAD_SIZE = 16 MiB, lib.rs:40).
+# The bound is enforced at the decode boundary rather than by a `let`-clamp, so
+# the grep cannot see it. Allocation is therefore capped at 16 MiB.
+crates/termlink-session/src/codec.rs::vec!(payload_len)
+
+# Library constructor parameter, not a wire param: `EventBus::with_capacity` is
+# called by `EventBus::new()` with the internal DEFAULT_CAPACITY, and by tests
+# with small literals. No peer-supplied value reaches it.
+crates/termlink-session/src/events.rs::with_capacity(capacity)

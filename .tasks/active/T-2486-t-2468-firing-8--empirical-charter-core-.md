@@ -66,6 +66,8 @@ substrate to establish ground truth. What breaks (if anything) is the genuine ga
 if nothing breaks, the honest finding is that the core is proven and remaining gaps are all
 human-gated — which is itself a valid, reportable review outcome (not a mandate to invent work).
 
+Research artifact: `docs/reports/T-2486-empirical-charter-core-proof.md` (C-001).
+
 ## Assumptions
 
 <!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->

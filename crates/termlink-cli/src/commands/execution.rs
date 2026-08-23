@@ -538,22 +538,47 @@ fn spawn_via_tmux(session_name: &str, shell_cmd: &str) -> Result<()> {
     Ok(())
 }
 
-fn spawn_via_background(session_name: &str, shell_cmd: &str) -> Result<()> {
-    let child = std::process::Command::new("setsid")
-        .args(["sh", "-c", shell_cmd])
+/// Spawn `sh -c <cmd>` fully detached from the launcher: a new session, with all
+/// three stdio streams on `/dev/null`.
+///
+/// T-2743. The detachment is done with the `setsid(2)` syscall in `pre_exec`,
+/// not by exec'ing the `setsid(1)` binary. The binary is util-linux and does
+/// not exist on macOS, which README §Platform Support calls supported; the old
+/// code exec'd it and, on failure, fell back to a bare `sh -c`. That fallback
+/// starts a process — so the call site reported success — but leaves it in the
+/// launcher's session, where SIGHUP reaches it when the SSH connection drops.
+/// Outliving the launcher is the entire point of the `background` backend, so
+/// the fallback was not a degraded success; it was a silent failure of the
+/// feature it was standing in for. The syscall is POSIX and present on both
+/// platforms, so there is nothing left to fall back to.
+///
+/// A `setsid(2)` failure is returned as a spawn error rather than swallowed:
+/// this either detaches or refuses, never quietly half-works.
+pub(crate) fn spawn_detached(shell_cmd: &str) -> std::io::Result<std::process::Child> {
+    use std::os::unix::process::CommandExt;
+
+    let mut cmd = std::process::Command::new("sh");
+    cmd.args(["-c", shell_cmd])
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
-        .stdin(std::process::Stdio::null())
-        .spawn()
-        .or_else(|_| {
-            std::process::Command::new("sh")
-                .args(["-c", shell_cmd])
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .stdin(std::process::Stdio::null())
-                .spawn()
-        })
-        .context("Failed to spawn background session")?;
+        .stdin(std::process::Stdio::null());
+
+    // SAFETY: runs in the forked child before exec. `setsid` is
+    // async-signal-safe, which is the constraint that applies here.
+    unsafe {
+        cmd.pre_exec(|| {
+            if libc::setsid() == -1 {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
+
+    cmd.spawn()
+}
+
+fn spawn_via_background(session_name: &str, shell_cmd: &str) -> Result<()> {
+    let child = spawn_detached(shell_cmd).context("Failed to spawn background session")?;
 
     let _ = child;
     let _ = session_name;
@@ -586,6 +611,74 @@ pub(crate) fn exec_json_envelope(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── T-2743: "survives SSH disconnect" ────────────────────────────────────
+    //
+    // The `background` backend's whole promise is that the session outlives the
+    // shell that launched it. That promise was argued from the mechanism ("we
+    // call setsid") and never tested — so when the mechanism silently stopped
+    // applying on macOS, where `setsid(1)` does not exist and the old fallback
+    // ran a plain `sh -c`, nothing noticed.
+    //
+    // The property is testable without an SSH session, a disconnect, or a macOS
+    // host: SIGHUP on hangup goes to the launcher's session, so a child that
+    // leads its OWN session is out of its reach. `getsid(pid) == pid` is that,
+    // and it is observable in-process on both platforms.
+
+    /// Reap a child we only spawned to inspect, so the test leaves no strays.
+    fn kill_and_reap(mut child: std::process::Child) {
+        unsafe { libc::kill(child.id() as libc::pid_t, libc::SIGKILL) };
+        let _ = child.wait();
+    }
+
+    #[test]
+    fn a_backgrounded_child_leads_its_own_session() {
+        // `Command::spawn` returns only after the child has passed `pre_exec`
+        // and reached exec (std reports pre_exec failure back over a CLOEXEC
+        // pipe), so the setsid call has already happened here — no polling race.
+        let child = spawn_detached("sleep 30").expect("spawn should succeed");
+        let pid = child.id() as libc::pid_t;
+
+        let child_sid = unsafe { libc::getsid(pid) };
+        let launcher_sid = unsafe { libc::getsid(0) };
+
+        assert_eq!(
+            child_sid, pid,
+            "a backgrounded child must lead its own session, or SIGHUP to the launcher's \
+             session reaches it and the background backend does not survive disconnect"
+        );
+        assert_ne!(
+            child_sid, launcher_sid,
+            "child must not share the launcher's session"
+        );
+
+        kill_and_reap(child);
+    }
+
+    // The control. Without it the assertion above could be trivially true and
+    // nobody would know — PL-219: an assertion that cannot fail is not a guard.
+    // This spawns exactly what the old macOS fallback produced and shows it
+    // lands in the launcher's session, which is the failure being prevented.
+    #[test]
+    fn a_plain_child_stays_in_the_launchers_session() {
+        let child = std::process::Command::new("sh")
+            .args(["-c", "sleep 30"])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .stdin(std::process::Stdio::null())
+            .spawn()
+            .expect("spawn should succeed");
+        let pid = child.id() as libc::pid_t;
+
+        assert_eq!(
+            unsafe { libc::getsid(pid) },
+            unsafe { libc::getsid(0) },
+            "a child spawned without setsid(2) shares the launcher's session — this is \
+             the pre-T-2743 macOS behaviour, and the reason the test above is meaningful"
+        );
+
+        kill_and_reap(child);
+    }
 
     // T-2537: the CLI exec envelope must carry `truncated`. Load-bearing —
     // dropping the field from `exec_json_envelope` fails this.

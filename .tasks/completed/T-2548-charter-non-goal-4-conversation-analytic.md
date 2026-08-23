@@ -68,6 +68,8 @@ this is the largest remaining off-charter tool surface the campaign has surfaced
 after orchestrator.route (T-2540). The subtract-vs-keep call is a human
 sovereignty product-identity decision.
 
+Research artifact: `docs/reports/T-2548-conversation-analytics-non-goal-4.md` (C-001).
+
 ## Assumptions
 
 <!-- Key assumptions to test. Register with: fw assumption add "Statement" --task T-XXX -->

@@ -24,7 +24,23 @@ command -v jq >/dev/null 2>&1            || { echo "SKIP: jq not available"; exi
 topic="agent-respond-test-$$"
 nosess="no-such-session-$$"
 tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"' EXIT
+# T-2754 — extend (not replace) the existing tmp-dir trap so the minted topic is
+# reaped too. A second `trap ... EXIT` would silently drop the rm -rf.
+# shellcheck source=/dev/null
+. "$HERE/lib/reap-topic.sh"
+trap 'rc=$?; rm -rf "$tmp"; reap_topic "${topic:-}"; exit $rc' EXIT INT TERM
+
+# T-2761: this test drives the REAL agent-send.sh against a deliberately-absent
+# session, so agent-send's T-2402 Stage 5 give-up path is GUARANTEED to fire.
+# Without this redirect that escalation appends to the operator's real
+# .woken-but-silent-canary.log. Because "empty log = healthy" is a one-bit
+# channel, test residue leaves the canary reading FIRING forever — so a genuine
+# woken-but-silent event later appends to an already-non-empty file and changes
+# nothing an operator can see. The canary would not merely be noisy, it would be
+# DEAF (the T-2685 harm). Sibling test-agent-send.sh has carried this export
+# since T-2402 Stage 5; this script was never migrated.
+export TERMLINK_WOKEN_SILENT_LOG="$tmp/woken-silent-canary.log"
+
 fail=0
 
 # --- Path A: respond posts the receipt -> send sees DELIVERED, exit 0 ---

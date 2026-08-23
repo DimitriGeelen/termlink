@@ -821,7 +821,8 @@ impl Meta {
                COALESCE(SUM(CASE WHEN claimed_until >  ?2 THEN 1 ELSE 0 END), 0) AS active, \
                COALESCE(SUM(CASE WHEN claimed_until <= ?2 THEN 1 ELSE 0 END), 0) AS expired, \
                MIN(CASE WHEN claimed_until >  ?2 THEN claimed_at    ELSE NULL END) AS oldest_active_at, \
-               MIN(CASE WHEN claimed_until >  ?2 THEN claimed_until ELSE NULL END) AS next_active_expiry \
+               MIN(CASE WHEN claimed_until >  ?2 THEN claimed_until ELSE NULL END) AS next_active_expiry, \
+               MAX(CASE WHEN claimed_until <= ?2 THEN claimed_until ELSE NULL END) AS newest_expired_at \
              FROM claims WHERE topic = ?1",
         )?;
         let summary = stmt.query_row(params![topic, now_ms], |r| {
@@ -829,6 +830,7 @@ impl Meta {
             let expired_i: i64 = r.get(1)?;
             let oldest_active_at_ms: Option<i64> = r.get(2)?;
             let next_active_expiry_ms: Option<i64> = r.get(3)?;
+            let newest_expired_at_ms: Option<i64> = r.get(4)?;
             let oldest_active_age_ms = oldest_active_at_ms
                 .map(|t| (now_ms - t).max(0));
             Ok(ClaimsSummary {
@@ -837,6 +839,7 @@ impl Meta {
                 oldest_active_at_ms,
                 oldest_active_age_ms,
                 next_active_expiry_ms,
+                newest_expired_at_ms,
             })
         })?;
         Ok(summary)

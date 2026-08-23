@@ -1,2609 +1,2631 @@
 - timestamp: '2026-04-12T11:41:27Z'
-  task: 'T-912'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-912
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-12T13:03:33Z'
-  task: 'T-947'
-  flag: '--skip-acceptance-criteria'
-  caller: 'check_acceptance_criteria'
-  reason: 'Canary test message — explicitly safe to discard'
+  task: T-947
+  flag: --skip-acceptance-criteria
+  caller: check_acceptance_criteria
+  reason: Canary test message — explicitly safe to discard
 - timestamp: '2026-04-12T13:03:34Z'
-  task: 'T-950'
-  flag: '--skip-acceptance-criteria'
-  caller: 'check_acceptance_criteria'
-  reason: 'Learning captured, no further action needed'
+  task: T-950
+  flag: --skip-acceptance-criteria
+  caller: check_acceptance_criteria
+  reason: Learning captured, no further action needed
 - timestamp: '2026-04-12T13:13:47Z'
-  task: 'T-936'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-936
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-12T13:21:19Z'
-  task: 'T-980'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-980
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-12T15:59:17Z'
-  task: 'T-952'
-  flag: '--skip-acceptance-criteria'
-  caller: 'check_acceptance_criteria'
-  reason: 'Learning captured, no build work needed'
+  task: T-952
+  flag: --skip-acceptance-criteria
+  caller: check_acceptance_criteria
+  reason: Learning captured, no build work needed
 - timestamp: '2026-04-12T15:59:19Z'
-  task: 'T-953'
-  flag: '--skip-acceptance-criteria'
-  caller: 'check_acceptance_criteria'
-  reason: 'Learning captured, no build work needed'
+  task: T-953
+  flag: --skip-acceptance-criteria
+  caller: check_acceptance_criteria
+  reason: Learning captured, no build work needed
 - timestamp: '2026-04-12T15:59:20Z'
-  task: 'T-956'
-  flag: '--skip-acceptance-criteria'
-  caller: 'check_acceptance_criteria'
-  reason: 'Learning captured, no build work needed'
+  task: T-956
+  flag: --skip-acceptance-criteria
+  caller: check_acceptance_criteria
+  reason: Learning captured, no build work needed
 - timestamp: '2026-04-12T15:59:22Z'
-  task: 'T-957'
-  flag: '--skip-acceptance-criteria'
-  caller: 'check_acceptance_criteria'
-  reason: 'Learning captured, no build work needed'
+  task: T-957
+  flag: --skip-acceptance-criteria
+  caller: check_acceptance_criteria
+  reason: Learning captured, no build work needed
 - timestamp: '2026-04-12T15:59:57Z'
-  task: 'T-959'
-  flag: '--skip-acceptance-criteria'
-  caller: 'check_acceptance_criteria'
-  reason: 'Architecture validated, learning captured'
+  task: T-959
+  flag: --skip-acceptance-criteria
+  caller: check_acceptance_criteria
+  reason: Architecture validated, learning captured
 - timestamp: '2026-04-12T20:35:29Z'
-  task: 'T-910'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Human reviewed'
+  task: T-910
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Human reviewed
 - timestamp: '2026-04-12T20:35:29Z'
-  task: 'T-911'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Human reviewed'
+  task: T-911
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Human reviewed
 - timestamp: '2026-04-12T20:35:30Z'
-  task: 'T-913'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Human reviewed'
+  task: T-913
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Human reviewed
 - timestamp: '2026-04-12T20:35:30Z'
-  task: 'T-913'
-  flag: '--skip-verification'
-  caller: 'run_verification_commands'
-  reason: 'Human reviewed'
+  task: T-913
+  flag: --skip-verification
+  caller: run_verification_commands
+  reason: Human reviewed
 - timestamp: '2026-04-12T20:35:30Z'
-  task: 'T-914'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Human reviewed'
+  task: T-914
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Human reviewed
 - timestamp: '2026-04-13T13:07:18Z'
-  task: 'T-1025'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1025
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-13T19:20:33Z'
-  task: 'T-1016'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1016
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-13T19:20:35Z'
-  task: 'T-1016'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1016
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-14T07:58:16Z'
-  task: 'T-1051'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1051
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-17T10:50:39Z'
-  task: 'T-1101'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1101
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-18T15:05:31Z'
-  task: 'T-1070'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1070
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-18T15:05:37Z'
-  task: 'T-1070'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1070
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-18T15:17:12Z'
-  task: 'T-1070'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1070
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-18T15:17:25Z'
-  task: 'T-1074'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1074
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-18T19:51:42Z'
-  task: 'T-1071'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1071
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-20T14:02:47Z'
-  task: 'T-1155'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1155
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-22T21:33:57Z'
-  task: 'T-1192'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1192
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-22T21:38:22Z'
-  task: 'T-1192'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1192
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-23T12:10:14Z'
-  task: 'T-1016'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1016
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-23T12:10:42Z'
-  task: 'T-1051'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1051
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-23T12:10:44Z'
-  task: 'T-1074'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1074
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-23T12:10:47Z'
-  task: 'T-1192'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1192
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-23T12:11:22Z'
-  task: 'T-1194'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1194
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-23T16:54:22Z'
-  task: 'T-1043'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1043
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T16:54:26Z'
-  task: 'T-1044'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1044
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T16:54:43Z'
-  task: 'T-1045'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1045
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T16:54:54Z'
-  task: 'T-1046'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1046
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T17:05:29Z'
-  task: 'T-1032'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1032
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T17:05:49Z'
-  task: 'T-1032'
-  flag: '--skip-verification'
-  caller: 'run_verification_commands'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1032
+  flag: --skip-verification
+  caller: run_verification_commands
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T17:05:50Z'
-  task: 'T-1040'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1040
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T17:06:08Z'
-  task: 'T-1041'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1041
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T17:06:13Z'
-  task: 'T-1042'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1042
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T17:19:49Z'
-  task: 'T-1176'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1176
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T17:19:49Z'
-  task: 'T-1176'
-  flag: '--skip-verification'
-  caller: 'run_verification_commands'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1176
+  flag: --skip-verification
+  caller: run_verification_commands
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T17:19:51Z'
-  task: 'T-1189'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1189
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T17:19:53Z'
-  task: 'T-1190'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1190
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T19:17:05Z'
-  task: 'T-1027'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1027
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T19:17:05Z'
-  task: 'T-1027'
-  flag: '--skip-verification'
-  caller: 'run_verification_commands'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1027
+  flag: --skip-verification
+  caller: run_verification_commands
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T19:17:07Z'
-  task: 'T-1028'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1028
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T19:17:17Z'
-  task: 'T-1029'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1029
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T19:17:24Z'
-  task: 'T-1029'
-  flag: '--skip-verification'
-  caller: 'run_verification_commands'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1029
+  flag: --skip-verification
+  caller: run_verification_commands
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T19:17:25Z'
-  task: 'T-1030'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1030
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T19:17:33Z'
-  task: 'T-1030'
-  flag: '--skip-verification'
-  caller: 'run_verification_commands'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1030
+  flag: --skip-verification
+  caller: run_verification_commands
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T19:17:34Z'
-  task: 'T-1031'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1031
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T19:17:42Z'
-  task: 'T-1031'
-  flag: '--skip-verification'
-  caller: 'run_verification_commands'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1031
+  flag: --skip-verification
+  caller: run_verification_commands
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T19:17:50Z'
-  task: 'T-1191'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1191
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T19:17:50Z'
-  task: 'T-1191'
-  flag: '--skip-acceptance-criteria'
-  caller: 'check_acceptance_criteria'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1191
+  flag: --skip-acceptance-criteria
+  caller: check_acceptance_criteria
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T19:17:50Z'
-  task: 'T-1191'
-  flag: '--skip-verification'
-  caller: 'run_verification_commands'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1191
+  flag: --skip-verification
+  caller: run_verification_commands
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T19:29:54Z'
-  task: 'T-163'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-163
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T19:29:55Z'
-  task: 'T-176'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-176
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T19:29:57Z'
-  task: 'T-180'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-180
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T19:29:57Z'
-  task: 'T-180'
-  flag: '--skip-acceptance-criteria'
-  caller: 'check_acceptance_criteria'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-180
+  flag: --skip-acceptance-criteria
+  caller: check_acceptance_criteria
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T19:29:58Z'
-  task: 'T-186'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-186
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T19:30:00Z'
-  task: 'T-192'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-192
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T19:30:01Z'
-  task: 'T-196'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-196
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T19:30:01Z'
-  task: 'T-196'
-  flag: '--skip-acceptance-criteria'
-  caller: 'check_acceptance_criteria'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-196
+  flag: --skip-acceptance-criteria
+  caller: check_acceptance_criteria
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T19:30:03Z'
-  task: 'T-207'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-207
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T19:30:04Z'
-  task: 'T-280'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-280
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T19:30:06Z'
-  task: 'T-287'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-287
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T19:33:36Z'
-  task: 'T-1206'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1206
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T19:34:06Z'
-  task: 'T-289'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-289
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T19:34:25Z'
-  task: 'T-234'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-234
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-23T19:34:26Z'
-  task: 'T-260'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-260
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-24T08:50:16Z'
-  task: 'T-1064'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1064
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-24T09:44:39Z'
-  task: 'T-1207'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1207
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-24T09:44:59Z'
-  task: 'T-1209'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1209
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-24T09:50:23Z'
-  task: 'T-1208'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1208
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-24T10:02:31Z'
-  task: 'T-1210'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1210
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-25T15:36:23Z'
-  task: 'T-1253'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1253
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-25T21:53:15Z'
-  task: 'T-1211'
-  flag: '--skip-human-ownership'
-  caller: 'owner_change'
+  task: T-1211
+  flag: --skip-human-ownership
+  caller: owner_change
   reason: ''
 - timestamp: '2026-04-25T21:53:21Z'
-  task: 'T-1212'
-  flag: '--skip-human-ownership'
-  caller: 'owner_change'
+  task: T-1212
+  flag: --skip-human-ownership
+  caller: owner_change
   reason: ''
 - timestamp: '2026-04-25T21:53:34Z'
-  task: 'T-1213'
-  flag: '--skip-human-ownership'
-  caller: 'owner_change'
+  task: T-1213
+  flag: --skip-human-ownership
+  caller: owner_change
   reason: ''
 - timestamp: '2026-04-25T21:53:39Z'
-  task: 'T-1213'
-  flag: '--skip-acceptance-criteria'
-  caller: 'check_acceptance_criteria'
+  task: T-1213
+  flag: --skip-acceptance-criteria
+  caller: check_acceptance_criteria
   reason: ''
 - timestamp: '2026-04-25T21:54:32Z'
-  task: 'T-1215'
-  flag: '--skip-human-ownership'
-  caller: 'owner_change'
+  task: T-1215
+  flag: --skip-human-ownership
+  caller: owner_change
   reason: ''
 - timestamp: '2026-04-25T21:54:32Z'
-  task: 'T-1218'
-  flag: '--skip-human-ownership'
-  caller: 'owner_change'
+  task: T-1218
+  flag: --skip-human-ownership
+  caller: owner_change
   reason: ''
 - timestamp: '2026-04-25T21:54:32Z'
-  task: 'T-1255'
-  flag: '--skip-human-ownership'
-  caller: 'owner_change'
+  task: T-1255
+  flag: --skip-human-ownership
+  caller: owner_change
   reason: ''
 - timestamp: '2026-04-25T21:54:33Z'
-  task: 'T-173'
-  flag: '--skip-human-ownership'
-  caller: 'owner_change'
+  task: T-173
+  flag: --skip-human-ownership
+  caller: owner_change
   reason: ''
 - timestamp: '2026-04-25T21:54:34Z'
-  task: 'T-174'
-  flag: '--skip-human-ownership'
-  caller: 'owner_change'
+  task: T-174
+  flag: --skip-human-ownership
+  caller: owner_change
   reason: ''
 - timestamp: '2026-04-25T21:54:36Z'
-  task: 'T-175'
-  flag: '--skip-human-ownership'
-  caller: 'owner_change'
+  task: T-175
+  flag: --skip-human-ownership
+  caller: owner_change
   reason: ''
 - timestamp: '2026-04-26T09:34:15Z'
-  task: 'T-243'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-243
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-26T10:56:45Z'
-  task: 'T-1122'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1122
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-26T12:03:26Z'
-  task: 'T-1290'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1290
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-26T21:18:12Z'
-  task: 'T-1297'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1297
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-26T22:26:15Z'
-  task: 'T-243'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-243
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-27T06:15:59Z'
-  task: 'T-1299'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1299
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-27T06:15:59Z'
-  task: 'T-1299'
-  flag: '--skip-acceptance-criteria'
-  caller: 'check_acceptance_criteria'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1299
+  flag: --skip-acceptance-criteria
+  caller: check_acceptance_criteria
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-27T06:16:38Z'
-  task: 'T-1298'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1298
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-28T19:33:22Z'
-  task: 'T-1384'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1384
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-04-29T07:32:25Z'
-  task: 'T-1300'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1300
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-29T07:32:41Z'
-  task: 'T-1301'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1301
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-29T07:33:01Z'
-  task: 'T-1300'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1300
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-29T07:33:14Z'
-  task: 'T-1301'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1301
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-29T07:33:49Z'
-  task: 'T-1301'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1301
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-29T07:38:24Z'
-  task: 'T-1301'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'reproduce'
+  task: T-1301
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: reproduce
 - timestamp: '2026-04-29T07:39:36Z'
-  task: 'T-1301'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'trace'
+  task: T-1301
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: trace
 - timestamp: '2026-04-29T07:39:50Z'
-  task: 'T-1301'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'trace'
+  task: T-1301
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: trace
 - timestamp: '2026-04-29T07:40:04Z'
-  task: 'T-1301'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'trace'
+  task: T-1301
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: trace
 - timestamp: '2026-04-29T07:42:15Z'
-  task: 'T-1301'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1301
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-04-29T07:43:08Z'
-  task: 'T-1300'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
-  reason: 'Completed via Watchtower UI (human action)'
+  task: T-1300
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
+  reason: Completed via Watchtower UI (human action)
 - timestamp: '2026-05-02T07:02:34Z'
-  task: 'T-1444'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1444
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: NO-GO'
 - timestamp: '2026-05-02T20:09:45Z'
-  task: 'T-1448'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1448
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-05-02T22:03:48Z'
-  task: 'T-1449'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1449
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-05-20T13:21:41Z'
-  task: 'T-1503'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A pilot — agent-evidenced via MCP registration'
+  task: T-1503
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A pilot — agent-evidenced via MCP registration
 - timestamp: '2026-05-20T13:22:52Z'
-  task: 'T-1504'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1504
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:22:53Z'
-  task: 'T-1505'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1505
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:22:53Z'
-  task: 'T-1507'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1507
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:22:54Z'
-  task: 'T-1508'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1508
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:22:55Z'
-  task: 'T-1509'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1509
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:22:55Z'
-  task: 'T-1510'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1510
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:22:56Z'
-  task: 'T-1511'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1511
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:22:57Z'
-  task: 'T-1512'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1512
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:22:58Z'
-  task: 'T-1513'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1513
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:22:58Z'
-  task: 'T-1514'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1514
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:22:59Z'
-  task: 'T-1515'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1515
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:22:59Z'
-  task: 'T-1516'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1516
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:00Z'
-  task: 'T-1517'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1517
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:01Z'
-  task: 'T-1518'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1518
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:01Z'
-  task: 'T-1519'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1519
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:02Z'
-  task: 'T-1520'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1520
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:02Z'
-  task: 'T-1521'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1521
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:03Z'
-  task: 'T-1522'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1522
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:04Z'
-  task: 'T-1523'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1523
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:04Z'
-  task: 'T-1524'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1524
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:05Z'
-  task: 'T-1525'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1525
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:05Z'
-  task: 'T-1526'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1526
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:06Z'
-  task: 'T-1527'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1527
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:07Z'
-  task: 'T-1528'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1528
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:07Z'
-  task: 'T-1538'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1538
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:08Z'
-  task: 'T-1539'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1539
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:08Z'
-  task: 'T-1540'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1540
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:09Z'
-  task: 'T-1541'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1541
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:09Z'
-  task: 'T-1542'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1542
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:10Z'
-  task: 'T-1543'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1543
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:11Z'
-  task: 'T-1544'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1544
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:11Z'
-  task: 'T-1545'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1545
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:12Z'
-  task: 'T-1546'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1546
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:12Z'
-  task: 'T-1547'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1547
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:13Z'
-  task: 'T-1548'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1548
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:13Z'
-  task: 'T-1549'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1549
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:14Z'
-  task: 'T-1550'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1550
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:15Z'
-  task: 'T-1551'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1551
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:15Z'
-  task: 'T-1552'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1552
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:16Z'
-  task: 'T-1553'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1553
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:16Z'
-  task: 'T-1554'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1554
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:17Z'
-  task: 'T-1556'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1556
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:17Z'
-  task: 'T-1560'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1560
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:18Z'
-  task: 'T-1561'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1561
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:19Z'
-  task: 'T-1562'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1562
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:19Z'
-  task: 'T-1563'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1563
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:20Z'
-  task: 'T-1564'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1564
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:20Z'
-  task: 'T-1565'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1565
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:21Z'
-  task: 'T-1566'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1566
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:22Z'
-  task: 'T-1567'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1567
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:22Z'
-  task: 'T-1568'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1568
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:23Z'
-  task: 'T-1569'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1569
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:23Z'
-  task: 'T-1571'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1571
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:24Z'
-  task: 'T-1572'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1572
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:24Z'
-  task: 'T-1573'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1573
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:25Z'
-  task: 'T-1574'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1574
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:26Z'
-  task: 'T-1575'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1575
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:26Z'
-  task: 'T-1576'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1576
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:27Z'
-  task: 'T-1577'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1577
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:27Z'
-  task: 'T-1578'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1578
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:28Z'
-  task: 'T-1579'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1579
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:28Z'
-  task: 'T-1580'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1580
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:29Z'
-  task: 'T-1581'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1581
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:30Z'
-  task: 'T-1582'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1582
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:30Z'
-  task: 'T-1583'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1583
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:31Z'
-  task: 'T-1584'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1584
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:31Z'
-  task: 'T-1585'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1585
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:32Z'
-  task: 'T-1586'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1586
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:33Z'
-  task: 'T-1587'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1587
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:33Z'
-  task: 'T-1588'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1588
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:34Z'
-  task: 'T-1589'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1589
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:34Z'
-  task: 'T-1590'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1590
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:35Z'
-  task: 'T-1591'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1591
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:36Z'
-  task: 'T-1592'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1592
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:36Z'
-  task: 'T-1593'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1593
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:37Z'
-  task: 'T-1594'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1594
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:37Z'
-  task: 'T-1595'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1595
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:38Z'
-  task: 'T-1596'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1596
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:39Z'
-  task: 'T-1597'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1597
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:39Z'
-  task: 'T-1598'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1598
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:40Z'
-  task: 'T-1599'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1599
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:40Z'
-  task: 'T-1600'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1600
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:41Z'
-  task: 'T-1601'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1601
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:42Z'
-  task: 'T-1602'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1602
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:42Z'
-  task: 'T-1603'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1603
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:43Z'
-  task: 'T-1604'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1604
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:44Z'
-  task: 'T-1605'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1605
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:44Z'
-  task: 'T-1606'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1606
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:45Z'
-  task: 'T-1607'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1607
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:45Z'
-  task: 'T-1608'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1608
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:46Z'
-  task: 'T-1609'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1609
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:47Z'
-  task: 'T-1610'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1610
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-20T13:23:47Z'
-  task: 'T-1611'
-  flag: '--skip-acceptance-criteria'
-  caller: 'partial_complete_recheck'
-  reason: 'Phase A batch close — agent-evidenced (tool registered + silent-OK soak)'
+  task: T-1611
+  flag: --skip-acceptance-criteria
+  caller: partial_complete_recheck
+  reason: Phase A batch close — agent-evidenced (tool registered + silent-OK soak)
 - timestamp: '2026-05-25T17:27:13Z'
-  task: 'T-1800'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1800
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-05-25T17:27:58Z'
-  task: 'T-1793'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1793
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-05-25T20:03:30Z'
-  task: 'S-2026-0517-1338'
-  flag: '--switch-focus'
-  caller: 'check-active-task focus-drift'
-  target: 'T-1805'
+  task: S-2026-0517-1338
+  flag: --switch-focus
+  caller: check-active-task focus-drift
+  target: T-1805
   command: 'git add -A .tasks/ .context/episodic/T-1805.yaml .fabric/ && git commit -q -m "$(cat <<EOF
-T-1805: complete — move to completed/ + episodic + fabric cards --switch-focus
+    T-1805: complete — move to completed/ + episodic + fabric cards --switch-focus
 
-Co-Authored-By: Claude Op'
+    Co-Authored-By: Claude Op'
 - timestamp: '2026-05-25T20:03:41Z'
-  task: 'T-1806'
-  flag: '--switch-focus'
-  caller: 'check-active-task focus-drift'
-  target: 'T-1805'
+  task: T-1806
+  flag: --switch-focus
+  caller: check-active-task focus-drift
+  target: T-1805
   command: 'git add -A .tasks/ .context/episodic/T-1805.yaml .fabric/ && git commit -q -m "$(cat <<EOF
-T-1805: complete — move to completed/ + episodic + fabric cards --switch-focus
+    T-1805: complete — move to completed/ + episodic + fabric cards --switch-focus
 
-Co-Authored-By: Claude Op'
+    Co-Authored-By: Claude Op'
 - timestamp: '2026-05-25T20:06:15Z'
-  task: 'T-1807'
-  flag: '--switch-focus'
-  caller: 'check-active-task focus-drift'
-  target: 'T-1806'
-  command: 'git add .tasks/completed/T-1806-injectable-listener-spawn-recipe--govern.md .tasks/active/T-1806-injectable-listener-spawn-recipe--govern.md .context/episodic/T-1806.yaml 2>/dev/null
-git status --shor'
+  task: T-1807
+  flag: --switch-focus
+  caller: check-active-task focus-drift
+  target: T-1806
+  command: git add .tasks/completed/T-1806-injectable-listener-spawn-recipe--govern.md .tasks/active/T-1806-injectable-listener-spawn-recipe--govern.md
+    .context/episodic/T-1806.yaml 2>/dev/null git status --shor
 - timestamp: '2026-05-25T20:06:48Z'
-  task: 'T-1807'
-  flag: '--switch-focus'
-  caller: 'check-active-task focus-drift'
-  target: 'T-1806'
-  command: 'git add .tasks/active/T-1806-injectable-listener-spawn-recipe--govern.md .tasks/completed/T-1806-injectable-listener-spawn-recipe--govern.md .context/episodic/T-1806.yaml .tasks/active/T-1807-two-agen'
+  task: T-1807
+  flag: --switch-focus
+  caller: check-active-task focus-drift
+  target: T-1806
+  command: git add .tasks/active/T-1806-injectable-listener-spawn-recipe--govern.md .tasks/completed/T-1806-injectable-listener-spawn-recipe--govern.md
+    .context/episodic/T-1806.yaml .tasks/active/T-1807-two-agen
 - timestamp: '2026-05-25T20:40:29Z'
-  task: 'S-2026-0517-1338'
-  flag: '--switch-focus'
-  caller: 'check-active-task focus-drift'
-  target: 'T-1811'
-  command: 'git add .context/episodic/T-1811.yaml .tasks/active/T-1811-agent-sendsh---await-reply-synchronous-c.md .tasks/completed/T-1811-agent-sendsh---await-reply-synchronous-c.md .context/working .context/aud'
+  task: S-2026-0517-1338
+  flag: --switch-focus
+  caller: check-active-task focus-drift
+  target: T-1811
+  command: git add .context/episodic/T-1811.yaml .tasks/active/T-1811-agent-sendsh---await-reply-synchronous-c.md
+    .tasks/completed/T-1811-agent-sendsh---await-reply-synchronous-c.md .context/working .context/aud
 - timestamp: '2026-05-25T20:40:40Z'
-  task: 'T-1452'
-  flag: '--switch-focus'
-  caller: 'check-active-task focus-drift'
-  target: 'T-1811'
-  command: 'git add .context/episodic/T-1811.yaml .tasks/active/T-1811-agent-sendsh---await-reply-synchronous-c.md .tasks/completed/T-1811-agent-sendsh---await-reply-synchronous-c.md .context/working .context/aud'
+  task: T-1452
+  flag: --switch-focus
+  caller: check-active-task focus-drift
+  target: T-1811
+  command: git add .context/episodic/T-1811.yaml .tasks/active/T-1811-agent-sendsh---await-reply-synchronous-c.md
+    .tasks/completed/T-1811-agent-sendsh---await-reply-synchronous-c.md .context/working .context/aud
 - timestamp: '2026-05-25T20:40:47Z'
-  task: 'T-1452'
-  flag: '--switch-focus'
-  caller: 'check-active-task focus-drift'
-  target: 'T-1811'
-  command: 'git add .context/episodic/T-1811.yaml .tasks .context/working .context/audits/2026-05-25.yaml .context/project/metrics-history.yaml && .agentic-framework/bin/fw git commit --switch-focus -m "T-1811: f'
+  task: T-1452
+  flag: --switch-focus
+  caller: check-active-task focus-drift
+  target: T-1811
+  command: 'git add .context/episodic/T-1811.yaml .tasks .context/working .context/audits/2026-05-25.yaml
+    .context/project/metrics-history.yaml && .agentic-framework/bin/fw git commit --switch-focus -m "T-1811:
+    f'
 - timestamp: '2026-05-28T12:37:55Z'
-  task: 'T-1830'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1830
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-05-29T12:03:02Z'
-  task: 'T-1865'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1865
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-05-30T12:25:55Z'
-  task: 'T-1791'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1791
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-05-30T12:35:25Z'
-  task: 'T-1425'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1425
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-05-30T21:57:25Z'
-  task: 'T-1884'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1884
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-05-31T10:00:00Z'
-  task: 'T-1892'
-  flag: 'FW_ALLOW_HUMAN_AC_TICK=1 + sed (bypass via Bash, not Edit)'
-  caller: 'human-ac-self-validate'
-  reason: 'Mechanical RUBBER-STAMP AC (bash/jq/grep). Per memory [Validate Human ACs dont punt]. Evidence captured in task Updates 2026-05-31T10:00Z.'
+  task: T-1892
+  flag: FW_ALLOW_HUMAN_AC_TICK=1 + sed (bypass via Bash, not Edit)
+  caller: human-ac-self-validate
+  reason: Mechanical RUBBER-STAMP AC (bash/jq/grep). Per memory [Validate Human ACs dont punt]. Evidence
+    captured in task Updates 2026-05-31T10:00Z.
 - timestamp: '2026-05-31T10:00:00Z'
-  task: 'T-1893'
-  flag: 'FW_ALLOW_HUMAN_AC_TICK=1 + sed'
-  caller: 'human-ac-self-validate'
-  reason: 'Mechanical RUBBER-STAMP AC. Evidence in task Updates.'
+  task: T-1893
+  flag: FW_ALLOW_HUMAN_AC_TICK=1 + sed
+  caller: human-ac-self-validate
+  reason: Mechanical RUBBER-STAMP AC. Evidence in task Updates.
 - timestamp: '2026-05-31T10:00:00Z'
-  task: 'T-1894'
-  flag: 'FW_ALLOW_HUMAN_AC_TICK=1 + sed'
-  caller: 'human-ac-self-validate'
-  reason: 'Mechanical RUBBER-STAMP AC. Evidence in task Updates.'
+  task: T-1894
+  flag: FW_ALLOW_HUMAN_AC_TICK=1 + sed
+  caller: human-ac-self-validate
+  reason: Mechanical RUBBER-STAMP AC. Evidence in task Updates.
 - timestamp: '2026-05-31T10:00:00Z'
-  task: 'T-1895'
-  flag: 'FW_ALLOW_HUMAN_AC_TICK=1 + sed'
-  caller: 'human-ac-self-validate'
-  reason: 'Mechanical RUBBER-STAMP AC. Evidence in task Updates.'
+  task: T-1895
+  flag: FW_ALLOW_HUMAN_AC_TICK=1 + sed
+  caller: human-ac-self-validate
+  reason: Mechanical RUBBER-STAMP AC. Evidence in task Updates.
 - timestamp: '2026-05-31T11:32:00Z'
-  task: 'T-1896'
-  flag: 'FW_ALLOW_HUMAN_AC_TICK=1 + sed (bypass via Bash, not Edit)'
-  caller: 'human-ac-self-validate'
-  reason: 'Mechanical RUBBER-STAMP AC — three bash + jq invocations. Per memory [Validate Human ACs dont punt]. Evidence captured in task Updates 2026-05-31T11:32Z (all three runs printed sensible output, exit 0).'
+  task: T-1896
+  flag: FW_ALLOW_HUMAN_AC_TICK=1 + sed (bypass via Bash, not Edit)
+  caller: human-ac-self-validate
+  reason: Mechanical RUBBER-STAMP AC — three bash + jq invocations. Per memory [Validate Human ACs dont
+    punt]. Evidence captured in task Updates 2026-05-31T11:32Z (all three runs printed sensible output,
+    exit 0).
 - timestamp: '2026-05-31T12:00:00Z'
-  task: 'T-1841'
-  flag: 'FW_ALLOW_HUMAN_AC_TICK=1 + sed (bypass via Bash, not Edit)'
-  caller: 'human-ac-self-validate'
-  reason: 'Mechanical RUBBER-STAMP — script + skill presence checks, all three green. 2026-05-28 implementation evidence still holds (no commits touch be-reachable.sh since). Per memory [Validate Human ACs dont punt] + [Fresh re-smoke].'
+  task: T-1841
+  flag: FW_ALLOW_HUMAN_AC_TICK=1 + sed (bypass via Bash, not Edit)
+  caller: human-ac-self-validate
+  reason: Mechanical RUBBER-STAMP — script + skill presence checks, all three green. 2026-05-28 implementation
+    evidence still holds (no commits touch be-reachable.sh since). Per memory [Validate Human ACs dont
+    punt] + [Fresh re-smoke].
 - timestamp: '2026-05-31T12:00:00Z'
-  task: 'T-1836'
-  flag: 'FW_ALLOW_HUMAN_AC_TICK=1 + sed (bypass via Bash, not Edit)'
-  caller: 'human-ac-self-validate'
-  reason: 'Mechanical RUBBER-STAMP — strings binary check for three MCP tool registrations. All three present in target/release/termlink (mtime 2026-05-31). Per memory [Validate Human ACs dont punt] + [Fresh re-smoke].'
-
+  task: T-1836
+  flag: FW_ALLOW_HUMAN_AC_TICK=1 + sed (bypass via Bash, not Edit)
+  caller: human-ac-self-validate
+  reason: Mechanical RUBBER-STAMP — strings binary check for three MCP tool registrations. All three present
+    in target/release/termlink (mtime 2026-05-31). Per memory [Validate Human ACs dont punt] + [Fresh
+    re-smoke].
 - timestamp: 2026-05-31T16:30Z
   task: T-1889
   gate: human-ac-tick-guard
   bypass_env: FW_ALLOW_HUMAN_AC_TICK=1
   ac_kind: RUBBER-STAMP
-  rationale: |
-    Same-day fresh evidence captured in task Updates 2026-05-31T00:55Z:
-      - before=2261, after=2262, delta=1 (was 2 pre-fix)
-      - stderr captured: "skipping duplicate 192.168.10.107:9100 (same hub as 127.0.0.1:9100, fingerprint=d1bd50f5)"
-      - 4 hubs delivered vs 5 attempts pre-fix
-    Memory [Validate Human ACs, don't punt] + [Fresh re-smoke before rubber-stamp]
-    (fresh = <2wk, this is <16h). Re-broadcasting would pollute the agent-chat-arc
-    rail with no incremental signal. Validated by code inspection
-    (scripts/chat-arc-broadcast.sh:101 has T-1889 dedup block) + the captured smoke.
+  rationale: "Same-day fresh evidence captured in task Updates 2026-05-31T00:55Z:\n  - before=2261, after=2262,\
+    \ delta=1 (was 2 pre-fix)\n  - stderr captured: \"skipping duplicate 192.168.10.107:9100 (same hub\
+    \ as 127.0.0.1:9100, fingerprint=d1bd50f5)\"\n  - 4 hubs delivered vs 5 attempts pre-fix\nMemory [Validate\
+    \ Human ACs, don't punt] + [Fresh re-smoke before rubber-stamp]\n(fresh = <2wk, this is <16h). Re-broadcasting\
+    \ would pollute the agent-chat-arc\nrail with no incremental signal. Validated by code inspection\n\
+    (scripts/chat-arc-broadcast.sh:101 has T-1889 dedup block) + the captured smoke.\n"
   actor: claude-opus-4-7-via-claude-code
-
 - timestamp: 2026-05-31T16:30Z
   task: T-1890
   gate: human-ac-tick-guard
   bypass_env: FW_ALLOW_HUMAN_AC_TICK=1
   ac_kind: RUBBER-STAMP
-  rationale: |
-    Re-ran AC Step 1 live this session:
-      bash scripts/agent-chat-arc-recent.sh --limit 10 --since 24 --exclude-heartbeats --json \
-        | jq -r '.posts[] | [.ts, .sender, .payload_preview] | @tsv' | sort | uniq -c | awk '$1>1'
-    Output: EMPTY (zero rows with count>1). Matches AC Expected.
-    Code inspection: scripts/agent-chat-arc-recent.sh:279-288 has T-1890 group_by dedup.
+  rationale: "Re-ran AC Step 1 live this session:\n  bash scripts/agent-chat-arc-recent.sh --limit 10\
+    \ --since 24 --exclude-heartbeats --json \\\n    | jq -r '.posts[] | [.ts, .sender, .payload_preview]\
+    \ | @tsv' | sort | uniq -c | awk '$1>1'\nOutput: EMPTY (zero rows with count>1). Matches AC Expected.\n\
+    Code inspection: scripts/agent-chat-arc-recent.sh:279-288 has T-1890 group_by dedup.\n"
   actor: claude-opus-4-7-via-claude-code
-
 - timestamp: 2026-05-31T16:35Z
   task: T-1891
   gate: human-ac-tick-guard
   bypass_env: FW_ALLOW_HUMAN_AC_TICK=1
   ac_kind: RUBBER-STAMP
-  rationale: |
-    Live executed all 4 AC Steps this session:
-      Step 1 (--help): printed "T-1891 — /check-outbox: OUTBOUND complement of /check-arc."
-      Step 2 (local):  surfaced 5 local dm:* topics with unread peer (sample
-                       d1993c2c3ec44c94:ffff0000aaaa1111 unread=2)
-      Step 3 (--fleet): surfaced known T-1457 backpressure case verbatim:
-                       "laptop-141 dm:6604a2af482f0cf7:d1993c2c3ec44c94 peer=6604a2af… unread=5
-                        (count=5, peer_acked=-1)"
-      Step 4 (--json): {ok: true, topics_count: 27, summary.hubs_scanned: 1, hubs_failed: 0}
-    All four match AC Expected. Verification gate cmds pass.
+  rationale: "Live executed all 4 AC Steps this session:\n  Step 1 (--help): printed \"T-1891 — /check-outbox:\
+    \ OUTBOUND complement of /check-arc.\"\n  Step 2 (local):  surfaced 5 local dm:* topics with unread\
+    \ peer (sample\n                   d1993c2c3ec44c94:ffff0000aaaa1111 unread=2)\n  Step 3 (--fleet):\
+    \ surfaced known T-1457 backpressure case verbatim:\n                   \"laptop-141 dm:6604a2af482f0cf7:d1993c2c3ec44c94\
+    \ peer=6604a2af… unread=5\n                    (count=5, peer_acked=-1)\"\n  Step 4 (--json): {ok:\
+    \ true, topics_count: 27, summary.hubs_scanned: 1, hubs_failed: 0}\nAll four match AC Expected. Verification\
+    \ gate cmds pass.\n"
   actor: claude-opus-4-7-via-claude-code
-
 - timestamp: 2026-05-31T16:40Z
   task: T-1431
   gate: human-ac-tick-guard
   bypass_env: FW_ALLOW_HUMAN_AC_TICK=1
   ac_kind: RUBBER-STAMP
-  rationale: |
-    Fresh re-smoke evidence captured 2026-05-30T16:18Z (1 day old, well
-    within the [Fresh re-smoke before rubber-stamp] <2wk window):
-      - termlink register --name handoff-rubber-stamp --self → PID 1510636 live
-      - termlink agent contact handoff-rubber-stamp --message "[T-1431] rubber-stamp verification — please ignore"
-      - Result: {"delivered":{"offset":8,"ts":1780150555466}} exit 0
-      - Topic dm:d1993c2c3ec44c94:d1993c2c3ec44c94 now 9 envelopes
-      - Self-fp canonical resolution path verified (PL-195 closure)
-      - All 5 verification gate commands re-pass
-    AC Step 4 ("must include 'delivered':{'offset':N") satisfied by the
-    captured response. No re-run needed.
+  rationale: "Fresh re-smoke evidence captured 2026-05-30T16:18Z (1 day old, well\nwithin the [Fresh re-smoke\
+    \ before rubber-stamp] <2wk window):\n  - termlink register --name handoff-rubber-stamp --self → PID\
+    \ 1510636 live\n  - termlink agent contact handoff-rubber-stamp --message \"[T-1431] rubber-stamp\
+    \ verification — please ignore\"\n  - Result: {\"delivered\":{\"offset\":8,\"ts\":1780150555466}}\
+    \ exit 0\n  - Topic dm:d1993c2c3ec44c94:d1993c2c3ec44c94 now 9 envelopes\n  - Self-fp canonical resolution\
+    \ path verified (PL-195 closure)\n  - All 5 verification gate commands re-pass\nAC Step 4 (\"must\
+    \ include 'delivered':{'offset':N\") satisfied by the\ncaptured response. No re-run needed.\n"
   actor: claude-opus-4-7-via-claude-code
 - timestamp: '2026-06-06T19:57:49Z'
-  task: 'T-1898'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1898
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-06-06T20:20:32Z'
-  task: 'T-1991'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1991
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-06-06T20:25:31Z'
-  task: 'T-1991'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-1991
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-06-07T10:47:39Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-1506'
-  command: 'FW_SWITCH_FOCUS=1 git add .tasks/active/T-1506-agent-recent--timeline--on-thread-expose.md && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-1506: fresh re-smoke evidence — @<offset> r'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-1506
+  command: 'FW_SWITCH_FOCUS=1 git add .tasks/active/T-1506-agent-recent--timeline--on-thread-expose.md
+    && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-1506: fresh re-smoke evidence — @<offset>
+    r'
 - timestamp: '2026-06-07T10:56:44Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-1869'
-  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-1869: move active/→completed/ + episodic (closure side-effect of work-completed)" 2>&1 | tail -5'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-1869
+  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-1869: move active/→completed/
+    + episodic (closure side-effect of work-completed)" 2>&1 | tail -5'
 - timestamp: '2026-06-07T12:10:52Z'
-  task: 'T-2019'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2019
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-06-07T19:40:54Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2018'
-  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2018: complete — move ADR persist task to completed/" 2>&1 | tail -5 && git push origin main 2>&1 | tail -5'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2018
+  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2018: complete — move ADR persist
+    task to completed/" 2>&1 | tail -5 && git push origin main 2>&1 | tail -5'
 - timestamp: '2026-06-07T20:16:55Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2037'
-  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2037: complete — move to completed/" 2>&1 | tail -8'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2037
+  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2037: complete — move to completed/"
+    2>&1 | tail -8'
 - timestamp: '2026-06-07T20:45:58Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2038'
-  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2038: complete — move to completed/" 2>&1 | tail -6'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2038
+  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2038: complete — move to completed/"
+    2>&1 | tail -6'
 - timestamp: '2026-06-07T21:31:30Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2039'
-  command: 'git add -A && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "$(cat <<EOF
-T-2039: extend test coverage — direct bus-level unit tests for claims_summary SQL aggregate
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2039
+  command: 'git add -A && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "$(cat <<EOF T-2039:
+    extend test coverage — direct bus-level unit tests for claims_summary SQL aggregate
 
-The integration te'
+    The integration te'
 - timestamp: '2026-06-10T16:26:39Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2129'
-  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2129: capture PL-206 doc-CLI drift learning + closure artifacts
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2129
+  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2129: capture PL-206 doc-CLI
+    drift learning + closure artifacts
 
-PL-206 captures the recurring class behind the three specific bugs
-T-2129 '
+    PL-206 captures the recurring class behind the three specific bugs T-2129 '
 - timestamp: '2026-06-10T18:24:41Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2136'
-  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2136: closure artifacts (active→completed + episodic)" 2>&1 | tail -10'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2136
+  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2136: closure artifacts (active→completed
+    + episodic)" 2>&1 | tail -10'
 - timestamp: '2026-06-11T16:17:37Z'
-  task: 'T-2169'
-  flag: '--skip-rca'
-  caller: 'check_rca_for_bugfix'
+  task: T-2169
+  flag: --skip-rca
+  caller: check_rca_for_bugfix
   reason: ''
 - timestamp: '2026-06-11T16:42:58Z'
-  task: 'T-2170'
-  flag: '--skip-rca'
-  caller: 'check_rca_for_bugfix'
+  task: T-2170
+  flag: --skip-rca
+  caller: check_rca_for_bugfix
   reason: ''
 - timestamp: '2026-06-11T19:49:17Z'
-  task: 'T-2155'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2155
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-06-12T06:50:38Z'
-  task: 'T-2192'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2193'
-  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw context focus T-2193 2>&1 | tail -1; FW_SWITCH_FOCUS=1 git add .tasks/active/T-2193-add-aliveness-meta-canary-to-preflight-d.md && FW_SWITCH_FOCUS=1 .agenti'
+  task: T-2192
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2193
+  command: FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw context focus T-2193 2>&1 | tail -1; FW_SWITCH_FOCUS=1
+    git add .tasks/active/T-2193-add-aliveness-meta-canary-to-preflight-d.md && FW_SWITCH_FOCUS=1 .agenti
 - timestamp: '2026-06-12T10:24:36Z'
-  task: 'T-2193'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2201'
-  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw context focus T-2194 2>&1 | tail -1; git add .tasks/active/T-219{4,5,6,7,8,9}-* .tasks/active/T-220{0,1}-* .agentic-framework/agents/audit/orchestrator-mcp-'
+  task: T-2193
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2201
+  command: FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw context focus T-2194 2>&1 | tail -1; git add .tasks/active/T-219{4,5,6,7,8,9}-*
+    .tasks/active/T-220{0,1}-* .agentic-framework/agents/audit/orchestrator-mcp-
 - timestamp: '2026-06-12T10:24:49Z'
-  task: 'T-2194'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2201'
-  command: 'git add .tasks/active/T-219{4,5,6,7,8,9}-* .tasks/active/T-220{0,1}-* && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2194..T-2201: file tasks for 2026-06-12 audit findings + inline or'
+  task: T-2194
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2201
+  command: 'git add .tasks/active/T-219{4,5,6,7,8,9}-* .tasks/active/T-220{0,1}-* && FW_SWITCH_FOCUS=1
+    .agentic-framework/bin/fw git commit -m "T-2194..T-2201: file tasks for 2026-06-12 audit findings
+    + inline or'
 - timestamp: '2026-06-12T10:24:57Z'
-  task: 'T-2194'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2201'
-  command: '.agentic-framework/bin/fw work-on T-2194 2>&1 | tail -1 && git add .tasks/active/T-219{4,5,6,7,8,9}-* .tasks/active/T-220{0,1}-* && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2194..T'
+  task: T-2194
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2201
+  command: .agentic-framework/bin/fw work-on T-2194 2>&1 | tail -1 && git add .tasks/active/T-219{4,5,6,7,8,9}-*
+    .tasks/active/T-220{0,1}-* && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2194..T
 - timestamp: '2026-06-12T10:25:18Z'
-  task: 'T-2194'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2201'
-  command: 'git add .tasks/active/T-219{4,5,6,7,8,9}-* .tasks/active/T-220{0,1}-* && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2194..T-2201: file 8 tasks for 2026-06-12 audit findings + chmod f'
+  task: T-2194
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2201
+  command: 'git add .tasks/active/T-219{4,5,6,7,8,9}-* .tasks/active/T-220{0,1}-* && FW_SWITCH_FOCUS=1
+    .agentic-framework/bin/fw git commit -m "T-2194..T-2201: file 8 tasks for 2026-06-12 audit findings
+    + chmod f'
 - timestamp: '2026-06-12T10:52:31Z'
-  task: 'T-2198'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2200'
-  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2198/T-2199/T-2200: execute trivial audit remediations + RCA D14
+  task: T-2198
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2200
+  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2198/T-2199/T-2200: execute trivial
+    audit remediations + RCA D14
 
-T-2199 closed (work-completed): D3 commit velocity confirmed noise — to'
+    T-2199 closed (work-completed): D3 commit velocity confirmed noise — to'
 - timestamp: '2026-06-12T12:05:29Z'
-  task: 'T-2196'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2201'
-  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "$(cat <<EOF
-T-2196/T-2195/T-2201: complete agent-owned audit RCA queue (3 tasks ticked + 2 follow-ups filed + PL-212)
+  task: T-2196
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2201
+  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "$(cat <<EOF T-2196/T-2195/T-2201:
+    complete agent-owned audit RCA queue (3 tasks ticked + 2 follow-ups filed + PL-212)
 
-Executed T-2201 (Arc'
+    Executed T-2201 (Arc'
 - timestamp: '2026-06-12T12:08:45Z'
-  task: 'T-2197'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2203'
-  command: 'git add -A .tasks/active/T-2197-*.md .tasks/active/T-2203-*.md 2>&1 | tail -3; FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "$(cat <<EOF
-T-2197/T-2203: RCA inception-limbo set + flip CT'
+  task: T-2197
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2203
+  command: 'git add -A .tasks/active/T-2197-*.md .tasks/active/T-2203-*.md 2>&1 | tail -3; FW_SWITCH_FOCUS=1
+    .agentic-framework/bin/fw git commit -m "$(cat <<EOF T-2197/T-2203: RCA inception-limbo set + flip
+    CT'
 - timestamp: '2026-06-12T12:14:29Z'
-  task: 'T-2197'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2194'
-  command: 'git add -A .tasks/active/T-2194-*.md; FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "$(cat <<EOF
-T-2194: classify 60 unchecked Human ACs across all human-owned tasks (RCA)
+  task: T-2197
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2194
+  command: 'git add -A .tasks/active/T-2194-*.md; FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit
+    -m "$(cat <<EOF T-2194: classify 60 unchecked Human ACs across all human-owned tasks (RCA)
 
-Sweep wider t'
+    Sweep wider t'
 - timestamp: '2026-06-13T14:24:07Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2212'
-  command: 'cd /opt/termlink
-git add scripts/substrate-cooperative-handoff-demo.sh \
-        docs/reports/T-2212-substrate-cooperative-handoff-demo.md \
-        .context/arcs/arc-parallel-substrate.yaml \
-       '
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2212
+  command: 'cd /opt/termlink git add scripts/substrate-cooperative-handoff-demo.sh \ docs/reports/T-2212-substrate-cooperative-handoff-demo.md
+    \ .context/arcs/arc-parallel-substrate.yaml \ '
 - timestamp: '2026-06-13T14:26:01Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2212'
-  command: 'cd /opt/termlink
-git add docs/operations/substrate-orchestrator-recipe.md
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2212: cross-reference both runnable arc proofs in orchestrator re'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2212
+  command: 'cd /opt/termlink git add docs/operations/substrate-orchestrator-recipe.md FW_SWITCH_FOCUS=1
+    .agentic-framework/bin/fw git commit -m "T-2212: cross-reference both runnable arc proofs in orchestrator
+    re'
 - timestamp: '2026-06-13T14:47:41Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2213'
-  command: 'cd /opt/termlink
-git add scripts/substrate-drain-demo.sh scripts/substrate-smoke.sh .tasks/active/T-2213-*.md \
-        .context/working/focus.yaml .context/episodic/ .context/project/ 2>/dev/null
-ech'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2213
+  command: cd /opt/termlink git add scripts/substrate-drain-demo.sh scripts/substrate-smoke.sh .tasks/active/T-2213-*.md
+    \ .context/working/focus.yaml .context/episodic/ .context/project/ 2>/dev/null ech
 - timestamp: '2026-06-13T15:16:12Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2214'
-  command: 'cd /opt/termlink
-git add .tasks/completed/T-2214-*.md .context/episodic/T-2214.yaml .context/arcs/arc-parallel-substrate.yaml 2>/dev/null
-git status --short | grep -E "T-2214|arc-parallel" 
-FW_SWITCH_'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2214
+  command: cd /opt/termlink git add .tasks/completed/T-2214-*.md .context/episodic/T-2214.yaml .context/arcs/arc-parallel-substrate.yaml
+    2>/dev/null git status --short | grep -E "T-2214|arc-parallel" FW_SWITCH_
 - timestamp: '2026-06-13T15:21:44Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2215'
-  command: 'cd /opt/termlink
-.agentic-framework/bin/fw context add-learning "Doc tables that list error SYMBOLS/strings (failure-modes tables, recovery runbooks) drift from the real protocol because nothing tests'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2215
+  command: cd /opt/termlink .agentic-framework/bin/fw context add-learning "Doc tables that list error
+    SYMBOLS/strings (failure-modes tables, recovery runbooks) drift from the real protocol because nothing
+    tests
 - timestamp: '2026-06-13T16:34:26Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2219'
-  command: 'cd /opt/termlink
-git add -A
-FW_SWITCH_FOCUS=1 git commit -q -m "T-2219: closure tail — episodic + PL-217 (env-var name+value drift learning)
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2219
+  command: 'cd /opt/termlink git add -A FW_SWITCH_FOCUS=1 git commit -q -m "T-2219: closure tail — episodic
+    + PL-217 (env-var name+value drift learning)
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@an'
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@an'
 - timestamp: '2026-06-13T16:39:43Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2220'
-  command: 'cd /opt/termlink
-.agentic-framework/bin/fw fabric register scripts/check-env-var-docs.sh 2>&1 | tail -5
-echo "--- closure tail commit ---"
-git add -A .context .fabric .tasks 2>/dev/null
-FW_SWITCH_FOCU'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2220
+  command: cd /opt/termlink .agentic-framework/bin/fw fabric register scripts/check-env-var-docs.sh 2>&1
+    | tail -5 echo "--- closure tail commit ---" git add -A .context .fabric .tasks 2>/dev/null FW_SWITCH_FOCU
 - timestamp: '2026-06-13T18:00:51Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2221'
-  command: 'cd /opt/termlink
-git add -A .context .tasks 2>/dev/null
-FW_SWITCH_FOCUS=1 git commit -q -m "T-2221: closure tail — episodic
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2221
+  command: 'cd /opt/termlink git add -A .context .tasks 2>/dev/null FW_SWITCH_FOCUS=1 git commit -q -m
+    "T-2221: closure tail — episodic
 
-Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>" 2>&'
+    Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>" 2>&'
 - timestamp: '2026-06-13T18:49:02Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2203'
-  command: 'cd /opt/termlink
-FW_SWITCH_FOCUS=1 git commit -m "T-2203: CTL-028 finalize 157 stale-state completed tasks (status + git-mined date_finished)
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2203
+  command: 'cd /opt/termlink FW_SWITCH_FOCUS=1 git commit -m "T-2203: CTL-028 finalize 157 stale-state
+    completed tasks (status + git-mined date_finished)
 
-157 tasks sat in completed/ with status:started-work + em'
+    157 tasks sat in completed/ with status:started-work + em'
 - timestamp: '2026-06-13T23:02:21Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2225'
-  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2225: closure tail — episodic + PL-219 (canary transient-host classification + helper-stderr-leak learning)" 2>&1 | tail -6'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2225
+  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2225: closure tail — episodic
+    + PL-219 (canary transient-host classification + helper-stderr-leak learning)" 2>&1 | tail -6'
 - timestamp: '2026-06-13T23:30:41Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2226'
-  command: 'cd /opt/termlink; git add .context/project/learnings.yaml
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2226: PL-220 — git-derived VERSION staleness checks must gate on feature-path c'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2226
+  command: 'cd /opt/termlink; git add .context/project/learnings.yaml FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw
+    git commit -m "T-2226: PL-220 — git-derived VERSION staleness checks must gate on feature-path c'
 - timestamp: '2026-06-21T09:40:29Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2229'
-  command: 'git add .tasks/active/T-2229-triage-ring20-cross-hub-federation--hear.md .context/working/focus.yaml 2>/dev/null
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2229: triage ring20 federa'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2229
+  command: 'git add .tasks/active/T-2229-triage-ring20-cross-hub-federation--hear.md .context/working/focus.yaml
+    2>/dev/null FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2229: triage ring20 federa'
 - timestamp: '2026-06-21T09:54:27Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2231'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2231
   command: 'git add .tasks/active/T-2230* .tasks/active/T-2231* .context/working/focus.yaml 2>/dev/null
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2230 + T-2231: file fault-2 fix + G-063 pickup-'
+    FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2230 + T-2231: file fault-2 fix + G-063
+    pickup-'
 - timestamp: '2026-06-21T10:19:04Z'
-  task: 'T-2229'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2231'
-  command: '# Clear stale audit lock if present
-find .context -maxdepth 3 -name *.lock -path *audit* 2>/dev/null
-rm -f .context/working/.audit.lock .context/audits/.lock 2>/dev/null
-ls -la .context/working/*.'
+  task: T-2229
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2231
+  command: '# Clear stale audit lock if present find .context -maxdepth 3 -name *.lock -path *audit* 2>/dev/null
+    rm -f .context/working/.audit.lock .context/audits/.lock 2>/dev/null ls -la .context/working/*.'
 - timestamp: '2026-06-21T10:26:50Z'
-  task: 'T-2229'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2229
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-06-21T10:35:43Z'
-  task: 'T-2229'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2229
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-06-21T12:02:29Z'
-  task: 'T-2234'
-  flag: '--skip-rca'
-  caller: 'check_rca_for_bugfix'
+  task: T-2234
+  flag: --skip-rca
+  caller: check_rca_for_bugfix
   reason: ''
 - timestamp: '2026-06-21T12:07:34Z'
-  task: 'T-2236'
-  flag: '--skip-rca'
-  caller: 'check_rca_for_bugfix'
+  task: T-2236
+  flag: --skip-rca
+  caller: check_rca_for_bugfix
   reason: ''
 - timestamp: '2026-06-21T14:51:26Z'
-  task: 'T-2238'
-  flag: '--skip-rca'
-  caller: 'check_rca_for_bugfix'
+  task: T-2238
+  flag: --skip-rca
+  caller: check_rca_for_bugfix
   reason: ''
 - timestamp: '2026-06-22T02:36:22Z'
-  task: 'T-2240'
-  flag: '--skip-rca'
-  caller: 'check_rca_for_bugfix'
+  task: T-2240
+  flag: --skip-rca
+  caller: check_rca_for_bugfix
   reason: ''
 - timestamp: '2026-06-22T10:14:10Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2241'
-  command: 'cd /opt/termlink
-git add -A .tasks/active/T-2241-discovery-termlink-comms-patterns--failu.md .tasks/completed/T-2241-discovery-termlink-comms-patterns--failu.md .context/episodic/T-2241.yaml
-FW_SWITCH'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2241
+  command: cd /opt/termlink git add -A .tasks/active/T-2241-discovery-termlink-comms-patterns--failu.md
+    .tasks/completed/T-2241-discovery-termlink-comms-patterns--failu.md .context/episodic/T-2241.yaml
+    FW_SWITCH
 - timestamp: '2026-06-22T10:14:16Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2241'
-  command: 'cd /opt/termlink
-git add .context/episodic/T-2241.yaml
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2241: episodic summary" 2>&1 | tail -6
-echo "--- now push ---"
-git status --short | '
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2241
+  command: 'cd /opt/termlink git add .context/episodic/T-2241.yaml FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw
+    git commit -m "T-2241: episodic summary" 2>&1 | tail -6 echo "--- now push ---" git status --short
+    | '
 - timestamp: '2026-06-22T10:14:23Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2241'
-  command: 'cd /opt/termlink
-git add .tasks/completed/T-2241-discovery-termlink-comms-patterns--failu.md
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2241: completion Updates entry" 2>&1 | tail -4'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2241
+  command: 'cd /opt/termlink git add .tasks/completed/T-2241-discovery-termlink-comms-patterns--failu.md
+    FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2241: completion Updates entry" 2>&1
+    | tail -4'
 - timestamp: '2026-06-22T11:48:58Z'
-  task: 'T-2243'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2242'
-  command: 'cd /opt/termlink
-git add .context/arcs/arc-substrate-fitness.yaml docs/plans/T-2242-substrate-fitness-ingestion.md .tasks/active/T-2243-r4-substrate-fitness-dead-letter-the-sil.md
-FW_SWITCH_FOCUS=1 .a'
+  task: T-2243
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2242
+  command: cd /opt/termlink git add .context/arcs/arc-substrate-fitness.yaml docs/plans/T-2242-substrate-fitness-ingestion.md
+    .tasks/active/T-2243-r4-substrate-fitness-dead-letter-the-sil.md FW_SWITCH_FOCUS=1 .a
 - timestamp: '2026-06-22T19:43:53Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2243'
-  command: 'git add -A .tasks/active/T-2243-r4-substrate-fitness-dead-letter-the-sil.md .tasks/completed/T-2243-r4-substrate-fitness-dead-letter-the-sil.md .context/episodic/T-2243.yaml && FW_SWITCH_FOCUS=1 .agen'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2243
+  command: git add -A .tasks/active/T-2243-r4-substrate-fitness-dead-letter-the-sil.md .tasks/completed/T-2243-r4-substrate-fitness-dead-letter-the-sil.md
+    .context/episodic/T-2243.yaml && FW_SWITCH_FOCUS=1 .agen
 - timestamp: '2026-06-22T19:43:59Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2243'
-  command: 'git add -A .tasks/ .context/episodic/T-2243.yaml && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2243: completion — move to completed/ + episodic (R4 arc-substrate-fitness keystone)'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2243
+  command: 'git add -A .tasks/ .context/episodic/T-2243.yaml && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw
+    git commit -m "T-2243: completion — move to completed/ + episodic (R4 arc-substrate-fitness keystone)'
 - timestamp: '2026-06-22T21:34:50Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2245'
-  command: 'cd /opt/termlink
-git status --short | grep -i learning
-.agentic-framework/bin/fw context focus T-1166 >/dev/null 2>&1
-git add .context/project/learnings.yaml
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/f'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2245
+  command: cd /opt/termlink git status --short | grep -i learning .agentic-framework/bin/fw context focus
+    T-1166 >/dev/null 2>&1 git add .context/project/learnings.yaml FW_SWITCH_FOCUS=1 .agentic-framework/bin/f
 - timestamp: '2026-06-23T08:58:29Z'
-  task: 'T-2250'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2252'
-  command: 'git add -A .tasks/ .context/episodic/T-2252.yaml .context/arcs/arc-substrate-fitness.yaml .context/working/ 2>/dev/null; FW_SWITCH_FOCUS=1 git commit -q -m "T-2252: completion — fix P-011 verificati'
+  task: T-2250
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2252
+  command: 'git add -A .tasks/ .context/episodic/T-2252.yaml .context/arcs/arc-substrate-fitness.yaml
+    .context/working/ 2>/dev/null; FW_SWITCH_FOCUS=1 git commit -q -m "T-2252: completion — fix P-011
+    verificati'
 - timestamp: '2026-06-23T13:36:42Z'
-  task: 'T-2256'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2255'
-  command: 'git add -A && FW_SWITCH_FOCUS=1 git commit -m "T-2255: completion — move to completed/ + episodic (worktree-bootstrap fix)
+  task: T-2256
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2255
+  command: 'git add -A && FW_SWITCH_FOCUS=1 git commit -m "T-2255: completion — move to completed/ + episodic
+    (worktree-bootstrap fix)
 
-Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>" 2>&1 | tail -8'
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>" 2>&1 | tail -8'
 - timestamp: '2026-06-23T13:38:45Z'
-  task: 'T-2250'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2255'
-  command: 'git add -A && FW_SWITCH_FOCUS=1 git commit -m "T-2255: completion — move to completed/ + episodic (worktree-bootstrap fix)
+  task: T-2250
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2255
+  command: 'git add -A && FW_SWITCH_FOCUS=1 git commit -m "T-2255: completion — move to completed/ + episodic
+    (worktree-bootstrap fix)
 
-Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>" 2>&1 | tail -8'
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>" 2>&1 | tail -8'
 - timestamp: '2026-06-23T19:41:27Z'
-  task: 'T-2250'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2258'
-  command: 'FW_SWITCH_FOCUS=1 git add .tasks/active/T-2258-*.md .tasks/active/T-2259-*.md .context/working/focus.yaml && FW_SWITCH_FOCUS=1 git commit -m "T-2258: file hub read-path-deadlock (+T-2259 no-federation'
+  task: T-2250
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2258
+  command: 'FW_SWITCH_FOCUS=1 git add .tasks/active/T-2258-*.md .tasks/active/T-2259-*.md .context/working/focus.yaml
+    && FW_SWITCH_FOCUS=1 git commit -m "T-2258: file hub read-path-deadlock (+T-2259 no-federation'
 - timestamp: '2026-06-23T19:41:35Z'
-  task: 'T-2250'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2258'
-  command: 'git add .tasks/active/T-2258-*.md .tasks/active/T-2259-*.md && FW_SWITCH_FOCUS=1 git commit -m "T-2258: file hub read-path-deadlock (+T-2259 no-federation-propagation) from ring20 framework:pickup fin'
+  task: T-2250
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2258
+  command: 'git add .tasks/active/T-2258-*.md .tasks/active/T-2259-*.md && FW_SWITCH_FOCUS=1 git commit
+    -m "T-2258: file hub read-path-deadlock (+T-2259 no-federation-propagation) from ring20 framework:pickup
+    fin'
 - timestamp: '2026-06-23T20:28:37Z'
-  task: 'T-2257'
-  flag: '--skip-acceptance-criteria'
-  caller: 'check_acceptance_criteria'
-  reason: 'Confirmed duplicate of T-2256 (P-047 self-echo into own pickup inbox); human-authorized dedup'
+  task: T-2257
+  flag: --skip-acceptance-criteria
+  caller: check_acceptance_criteria
+  reason: Confirmed duplicate of T-2256 (P-047 self-echo into own pickup inbox); human-authorized dedup
 - timestamp: '2026-06-23T20:29:04Z'
-  task: 'T-2257'
-  flag: '--skip-acceptance-criteria'
-  caller: 'check_acceptance_criteria'
-  reason: 'Confirmed duplicate of T-2256 (P-047 self-echo into own pickup inbox); human-authorized dedup'
+  task: T-2257
+  flag: --skip-acceptance-criteria
+  caller: check_acceptance_criteria
+  reason: Confirmed duplicate of T-2256 (P-047 self-echo into own pickup inbox); human-authorized dedup
 - timestamp: '2026-06-23T20:29:38Z'
-  task: 'T-2257'
-  flag: '--skip-acceptance-criteria'
-  caller: 'check_acceptance_criteria'
-  reason: 'Confirmed duplicate of T-2256 (P-047 self-echo into own pickup inbox); human-authorized dedup, idea remains live under T-2256 — not rejected, so no go/no-go recorded'
+  task: T-2257
+  flag: --skip-acceptance-criteria
+  caller: check_acceptance_criteria
+  reason: Confirmed duplicate of T-2256 (P-047 self-echo into own pickup inbox); human-authorized dedup,
+    idea remains live under T-2256 — not rejected, so no go/no-go recorded
 - timestamp: '2026-06-23T20:29:38Z'
-  task: 'T-2257'
-  flag: '--skip-inception-decision'
-  caller: 'check_inception_decision'
-  reason: 'Confirmed duplicate of T-2256 (P-047 self-echo into own pickup inbox); human-authorized dedup, idea remains live under T-2256 — not rejected, so no go/no-go recorded'
+  task: T-2257
+  flag: --skip-inception-decision
+  caller: check_inception_decision
+  reason: Confirmed duplicate of T-2256 (P-047 self-echo into own pickup inbox); human-authorized dedup,
+    idea remains live under T-2256 — not rejected, so no go/no-go recorded
 - timestamp: '2026-06-23T20:31:21Z'
-  task: 'T-2257'
-  flag: '--skip-acceptance-criteria'
-  caller: 'check_acceptance_criteria'
-  reason: 'Confirmed duplicate of T-2256 (P-047 self-echo into own pickup inbox); human-authorized dedup, idea remains live under T-2256'
+  task: T-2257
+  flag: --skip-acceptance-criteria
+  caller: check_acceptance_criteria
+  reason: Confirmed duplicate of T-2256 (P-047 self-echo into own pickup inbox); human-authorized dedup,
+    idea remains live under T-2256
 - timestamp: '2026-06-23T20:31:22Z'
-  task: 'T-2257'
-  flag: '--skip-inception-decision'
-  caller: 'check_inception_decision'
-  reason: 'Confirmed duplicate of T-2256 (P-047 self-echo into own pickup inbox); human-authorized dedup, idea remains live under T-2256'
+  task: T-2257
+  flag: --skip-inception-decision
+  caller: check_inception_decision
+  reason: Confirmed duplicate of T-2256 (P-047 self-echo into own pickup inbox); human-authorized dedup,
+    idea remains live under T-2256
 - timestamp: '2026-06-23T20:32:22Z'
-  task: 'T-2257'
-  flag: '--skip-acceptance-criteria'
-  caller: 'check_acceptance_criteria'
-  reason: 'dup of T-2256'
+  task: T-2257
+  flag: --skip-acceptance-criteria
+  caller: check_acceptance_criteria
+  reason: dup of T-2256
 - timestamp: '2026-06-23T20:32:22Z'
-  task: 'T-2257'
-  flag: '--skip-inception-decision'
-  caller: 'check_inception_decision'
-  reason: 'dup of T-2256'
+  task: T-2257
+  flag: --skip-inception-decision
+  caller: check_inception_decision
+  reason: dup of T-2256
 - timestamp: '2026-06-23T20:33:03Z'
-  task: 'T-2257'
-  flag: '--skip-acceptance-criteria'
-  caller: 'check_acceptance_criteria'
-  reason: 'Confirmed duplicate of T-2256 (P-047 self-echo into own pickup inbox); human-authorized dedup, idea remains live under T-2256'
+  task: T-2257
+  flag: --skip-acceptance-criteria
+  caller: check_acceptance_criteria
+  reason: Confirmed duplicate of T-2256 (P-047 self-echo into own pickup inbox); human-authorized dedup,
+    idea remains live under T-2256
 - timestamp: '2026-06-23T20:33:03Z'
-  task: 'T-2257'
-  flag: '--skip-inception-decision'
-  caller: 'check_inception_decision'
-  reason: 'Confirmed duplicate of T-2256 (P-047 self-echo into own pickup inbox); human-authorized dedup, idea remains live under T-2256'
+  task: T-2257
+  flag: --skip-inception-decision
+  caller: check_inception_decision
+  reason: Confirmed duplicate of T-2256 (P-047 self-echo into own pickup inbox); human-authorized dedup,
+    idea remains live under T-2256
 - timestamp: '2026-06-23T20:36:14Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2257'
-  command: 'cd /opt/termlink
-git add .tasks/active/T-2257-pickup-worktree-aware-fw-resolution-part.md .tasks/active/T-2256-upstream-worktree-aware-fw-resolution---.md .context/working/.gate-bypass-log.yaml .conte'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2257
+  command: cd /opt/termlink git add .tasks/active/T-2257-pickup-worktree-aware-fw-resolution-part.md .tasks/active/T-2256-upstream-worktree-aware-fw-resolution---.md
+    .context/working/.gate-bypass-log.yaml .conte
 - timestamp: '2026-06-23T20:55:02Z'
-  task: 'T-2260'
-  flag: '--skip-acceptance-criteria'
-  caller: 'check_acceptance_criteria'
-  reason: 'Self-echo duplicate of T-2259 (own outbound pickup round-tripped); human-authorized dedup'
+  task: T-2260
+  flag: --skip-acceptance-criteria
+  caller: check_acceptance_criteria
+  reason: Self-echo duplicate of T-2259 (own outbound pickup round-tripped); human-authorized dedup
 - timestamp: '2026-06-23T20:55:02Z'
-  task: 'T-2260'
-  flag: '--skip-inception-decision'
-  caller: 'check_inception_decision'
-  reason: 'Self-echo duplicate of T-2259 (own outbound pickup round-tripped); human-authorized dedup'
+  task: T-2260
+  flag: --skip-inception-decision
+  caller: check_inception_decision
+  reason: Self-echo duplicate of T-2259 (own outbound pickup round-tripped); human-authorized dedup
 - timestamp: '2026-06-23T20:55:03Z'
-  task: 'T-2261'
-  flag: '--skip-acceptance-criteria'
-  caller: 'check_acceptance_criteria'
-  reason: 'Self-echo duplicate of T-2259 (own outbound pickup round-tripped); human-authorized dedup'
+  task: T-2261
+  flag: --skip-acceptance-criteria
+  caller: check_acceptance_criteria
+  reason: Self-echo duplicate of T-2259 (own outbound pickup round-tripped); human-authorized dedup
 - timestamp: '2026-06-23T20:55:03Z'
-  task: 'T-2261'
-  flag: '--skip-inception-decision'
-  caller: 'check_inception_decision'
-  reason: 'Self-echo duplicate of T-2259 (own outbound pickup round-tripped); human-authorized dedup'
+  task: T-2261
+  flag: --skip-inception-decision
+  caller: check_inception_decision
+  reason: Self-echo duplicate of T-2259 (own outbound pickup round-tripped); human-authorized dedup
 - timestamp: '2026-06-23T20:55:04Z'
-  task: 'T-2263'
-  flag: '--skip-acceptance-criteria'
-  caller: 'check_acceptance_criteria'
-  reason: 'Self-echo duplicate of T-2262 (own outbound pickup round-tripped); human-authorized dedup'
+  task: T-2263
+  flag: --skip-acceptance-criteria
+  caller: check_acceptance_criteria
+  reason: Self-echo duplicate of T-2262 (own outbound pickup round-tripped); human-authorized dedup
 - timestamp: '2026-06-23T20:55:47Z'
-  task: 'T-2260'
-  flag: '--skip-acceptance-criteria'
-  caller: 'check_acceptance_criteria'
-  reason: 'Self-echo duplicate of T-2259 (own outbound pickup round-tripped); human-authorized dedup'
+  task: T-2260
+  flag: --skip-acceptance-criteria
+  caller: check_acceptance_criteria
+  reason: Self-echo duplicate of T-2259 (own outbound pickup round-tripped); human-authorized dedup
 - timestamp: '2026-06-23T20:55:47Z'
-  task: 'T-2260'
-  flag: '--skip-inception-decision'
-  caller: 'check_inception_decision'
-  reason: 'Self-echo duplicate of T-2259 (own outbound pickup round-tripped); human-authorized dedup'
+  task: T-2260
+  flag: --skip-inception-decision
+  caller: check_inception_decision
+  reason: Self-echo duplicate of T-2259 (own outbound pickup round-tripped); human-authorized dedup
 - timestamp: '2026-06-23T20:55:49Z'
-  task: 'T-2261'
-  flag: '--skip-acceptance-criteria'
-  caller: 'check_acceptance_criteria'
-  reason: 'Self-echo duplicate of T-2259 (own outbound pickup round-tripped); human-authorized dedup'
+  task: T-2261
+  flag: --skip-acceptance-criteria
+  caller: check_acceptance_criteria
+  reason: Self-echo duplicate of T-2259 (own outbound pickup round-tripped); human-authorized dedup
 - timestamp: '2026-06-23T20:55:49Z'
-  task: 'T-2261'
-  flag: '--skip-inception-decision'
-  caller: 'check_inception_decision'
-  reason: 'Self-echo duplicate of T-2259 (own outbound pickup round-tripped); human-authorized dedup'
+  task: T-2261
+  flag: --skip-inception-decision
+  caller: check_inception_decision
+  reason: Self-echo duplicate of T-2259 (own outbound pickup round-tripped); human-authorized dedup
 - timestamp: '2026-06-23T20:55:50Z'
-  task: 'T-2263'
-  flag: '--skip-acceptance-criteria'
-  caller: 'check_acceptance_criteria'
-  reason: 'Self-echo duplicate of T-2262 (own outbound pickup round-tripped); human-authorized dedup'
+  task: T-2263
+  flag: --skip-acceptance-criteria
+  caller: check_acceptance_criteria
+  reason: Self-echo duplicate of T-2262 (own outbound pickup round-tripped); human-authorized dedup
 - timestamp: '2026-06-23T20:55:50Z'
-  task: 'T-2263'
-  flag: '--skip-rca'
-  caller: 'check_rca_for_bugfix'
-  reason: 'Self-echo duplicate of T-2262 (own outbound pickup round-tripped); human-authorized dedup'
+  task: T-2263
+  flag: --skip-rca
+  caller: check_rca_for_bugfix
+  reason: Self-echo duplicate of T-2262 (own outbound pickup round-tripped); human-authorized dedup
 - timestamp: '2026-06-23T20:58:20Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2259'
-  command: 'cd /opt/termlink
-git add -A .tasks/active/ .tasks/completed/ .context/pickup/ 2>&1 | head -2
-echo "staged:"; git diff --cached --name-only | head -20
-echo ""
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/f'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2259
+  command: cd /opt/termlink git add -A .tasks/active/ .tasks/completed/ .context/pickup/ 2>&1 | head -2
+    echo "staged:"; git diff --cached --name-only | head -20 echo "" FW_SWITCH_FOCUS=1 .agentic-framework/bin/f
 - timestamp: '2026-06-23T20:58:56Z'
-  task: 'T-2264'
-  flag: '--skip-acceptance-criteria'
-  caller: 'check_acceptance_criteria'
-  reason: 'Self-echo of P-050 (observer-fix report itself); human-authorized dedup'
+  task: T-2264
+  flag: --skip-acceptance-criteria
+  caller: check_acceptance_criteria
+  reason: Self-echo of P-050 (observer-fix report itself); human-authorized dedup
 - timestamp: '2026-06-23T20:58:56Z'
-  task: 'T-2264'
-  flag: '--skip-rca'
-  caller: 'check_rca_for_bugfix'
-  reason: 'Self-echo of P-050 (observer-fix report itself); human-authorized dedup'
+  task: T-2264
+  flag: --skip-rca
+  caller: check_rca_for_bugfix
+  reason: Self-echo of P-050 (observer-fix report itself); human-authorized dedup
 - timestamp: '2026-06-23T20:59:09Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2259'
-  command: 'cd /opt/termlink
-echo "=== recent commits ==="
-git log --oneline -3
-echo ""
-echo "=== commit T-2264 closure ==="
-git add -A .tasks/active/ .tasks/completed/ 2>&1 | head -2
-FW_SWITCH_FOCUS=1 .agentic-f'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2259
+  command: cd /opt/termlink echo "=== recent commits ===" git log --oneline -3 echo "" echo "=== commit
+    T-2264 closure ===" git add -A .tasks/active/ .tasks/completed/ 2>&1 | head -2 FW_SWITCH_FOCUS=1 .agentic-f
 - timestamp: '2026-06-24T19:14:08Z'
-  task: 'T-2274'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2275'
-  command: 'cd /opt/termlink; FW_SWITCH_FOCUS=1 git commit -m "T-2274/T-2275: record code-complete + deploy-pending state (context gate)
+  task: T-2274
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2275
+  command: 'cd /opt/termlink; FW_SWITCH_FOCUS=1 git commit -m "T-2274/T-2275: record code-complete + deploy-pending
+    state (context gate)
 
-Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>" 2>&1 | tail -4'
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>" 2>&1 | tail -4'
 - timestamp: '2026-06-24T19:15:49Z'
-  task: 'T-2274'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2275'
-  command: 'cd /opt/termlink; FW_SWITCH_FOCUS=1 bash -c git add .tasks/active/T-2274-mcp-termlinkagentcontact-gains-hub-param.md .tasks/active/T-2275-cli-agent-contact-falls-back-to-fleet-pr.md && git commit -m '
+  task: T-2274
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2275
+  command: 'cd /opt/termlink; FW_SWITCH_FOCUS=1 bash -c git add .tasks/active/T-2274-mcp-termlinkagentcontact-gains-hub-param.md
+    .tasks/active/T-2275-cli-agent-contact-falls-back-to-fleet-pr.md && git commit -m '
 - timestamp: '2026-06-25T06:31:02Z'
-  task: 'T-2250'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2250
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: NO-GO'
 - timestamp: '2026-06-25T06:31:50Z'
-  task: 'T-2249'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2249
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: NO-GO'
 - timestamp: '2026-06-25T22:54:19Z'
-  task: 'T-2285'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2285
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-06-26T10:01:16Z'
-  task: 'T-2288'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2288
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-06-27T06:38:31Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2290'
-  command: 'cd /opt/termlink
-git add .tasks/completed/T-2290-finalization-bypass-canary--flag-complet.md .context/episodic/T-2290.yaml
-git status --short | grep T-2290
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw '
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2290
+  command: 'cd /opt/termlink git add .tasks/completed/T-2290-finalization-bypass-canary--flag-complet.md
+    .context/episodic/T-2290.yaml git status --short | grep T-2290 FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw '
 - timestamp: '2026-06-27T06:41:20Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2290'
-  command: 'cd /opt/termlink
-python3 -c "import yaml; yaml.safe_load(open(.context/project/concerns.yaml)); print(concerns.yaml parses OK)"
-git add .context/project/concerns.yaml
-FW_SWITCH_FOCUS=1 .agentic-fr'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2290
+  command: cd /opt/termlink python3 -c "import yaml; yaml.safe_load(open(.context/project/concerns.yaml));
+    print(concerns.yaml parses OK)" git add .context/project/concerns.yaml FW_SWITCH_FOCUS=1 .agentic-fr
 - timestamp: '2026-06-27T07:06:37Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2290'
-  command: 'cd /opt/termlink
-python3 -c "import yaml; yaml.safe_load(open(.context/project/concerns.yaml)); print(concerns.yaml parses OK)"
-git add .context/project/concerns.yaml
-FW_SWITCH_FOCUS=1 .agentic-fr'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2290
+  command: cd /opt/termlink python3 -c "import yaml; yaml.safe_load(open(.context/project/concerns.yaml));
+    print(concerns.yaml parses OK)" git add .context/project/concerns.yaml FW_SWITCH_FOCUS=1 .agentic-fr
 - timestamp: '2026-06-27T16:40:17Z'
-  task: 'T-2291'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2291
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-06-28T09:42:09Z'
-  task: 'T-2296'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2295'
-  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2295: V3b closure — work-completed, episodic + decisions captured (5/5 ACs)" 2>&1 | tail -8'
+  task: T-2296
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2295
+  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2295: V3b closure — work-completed,
+    episodic + decisions captured (5/5 ACs)" 2>&1 | tail -8'
 - timestamp: '2026-06-28T09:42:33Z'
-  task: 'T-2296'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2295'
-  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2295: V3b closure — work-completed, episodic + decisions captured (5/5 ACs)" 2>&1 | tail -6'
+  task: T-2296
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2295
+  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2295: V3b closure — work-completed,
+    episodic + decisions captured (5/5 ACs)" 2>&1 | tail -6'
 - timestamp: '2026-06-28T09:43:05Z'
-  task: 'T-2296'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2295'
-  command: 'git add .context/episodic/T-2295.yaml .context/episodic/T-2293.yaml .context/project/decisions.yaml scripts/testdata/unconfirmed-fresh.json scripts/testdata/unconfirmed-stale.json .tasks/completed/T-2'
+  task: T-2296
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2295
+  command: git add .context/episodic/T-2295.yaml .context/episodic/T-2293.yaml .context/project/decisions.yaml
+    scripts/testdata/unconfirmed-fresh.json scripts/testdata/unconfirmed-stale.json .tasks/completed/T-2
 - timestamp: '2026-07-01T21:02:10Z'
-  task: 'T-2296'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2299'
-  command: 'cd /opt/termlink
-git add .tasks/completed/T-2299-v6-s2-transport-select-seam--reachabilit.md .tasks/active/T-2299-v6-s2-transport-select-seam--reachabilit.md .context/episodic/T-2299.yaml 2>/dev/null'
+  task: T-2296
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2299
+  command: cd /opt/termlink git add .tasks/completed/T-2299-v6-s2-transport-select-seam--reachabilit.md
+    .tasks/active/T-2299-v6-s2-transport-select-seam--reachabilit.md .context/episodic/T-2299.yaml 2>/dev/null
 - timestamp: '2026-07-01T21:02:20Z'
-  task: 'T-2296'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2299'
-  command: 'cd /opt/termlink
-git status --short | grep episodic
-git add .context/episodic/T-2299.yaml 2>/dev/null && FW_SWITCH_FOCUS=1 fw git commit -m "T-2299: episodic summary" 2>&1 | tail -4 || echo "(nothing '
+  task: T-2296
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2299
+  command: 'cd /opt/termlink git status --short | grep episodic git add .context/episodic/T-2299.yaml
+    2>/dev/null && FW_SWITCH_FOCUS=1 fw git commit -m "T-2299: episodic summary" 2>&1 | tail -4 || echo
+    "(nothing '
 - timestamp: '2026-07-01T21:14:45Z'
-  task: 'T-2296'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2300'
-  command: 'cd /opt/termlink
-git add .context/episodic/T-2300.yaml 2>/dev/null && FW_SWITCH_FOCUS=1 fw git commit -m "T-2300: episodic summary" 2>&1 | tail -3 || echo "(none)"
-echo "=== budget ==="; cat .context/'
+  task: T-2296
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2300
+  command: 'cd /opt/termlink git add .context/episodic/T-2300.yaml 2>/dev/null && FW_SWITCH_FOCUS=1 fw
+    git commit -m "T-2300: episodic summary" 2>&1 | tail -3 || echo "(none)" echo "=== budget ==="; cat
+    .context/'
 - timestamp: '2026-07-02T07:19:12Z'
-  task: 'T-2296'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2302'
-  command: 'cd /opt/termlink
-git add -A
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2302: finalize V6-S5 — archive task + episodic (work-completed)" 2>&1 | tail -8'
+  task: T-2296
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2302
+  command: 'cd /opt/termlink git add -A FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2302:
+    finalize V6-S5 — archive task + episodic (work-completed)" 2>&1 | tail -8'
 - timestamp: '2026-07-02T07:40:49Z'
-  task: 'T-2297'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2296'
-  command: 'cd /opt/termlink
-# Commit 1: apex finalize (references T-2296, current focus is T-2297 → FW_SWITCH_FOCUS)
-git add .tasks/completed/T-2296*.md .context/episodic/T-2296.yaml .context/arcs/reliable-com'
+  task: T-2297
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2296
+  command: 'cd /opt/termlink # Commit 1: apex finalize (references T-2296, current focus is T-2297 → FW_SWITCH_FOCUS)
+    git add .tasks/completed/T-2296*.md .context/episodic/T-2296.yaml .context/arcs/reliable-com'
 - timestamp: '2026-07-02T09:17:03Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2291'
-  command: 'cd /opt/termlink
-git add docs/reports/arc-003-reliable-comms-close-demo.md
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2291: arc-003 close demo evidence — wire-level e2e (transport '
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2291
+  command: 'cd /opt/termlink git add docs/reports/arc-003-reliable-comms-close-demo.md FW_SWITCH_FOCUS=1
+    .agentic-framework/bin/fw git commit -m "T-2291: arc-003 close demo evidence — wire-level e2e (transport '
 - timestamp: '2026-07-02T09:18:50Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2291'
-  command: 'cd /opt/termlink
-git add .context/arcs/reliable-comms.yaml
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2291: close arc-003 reliable-comms registry — GO, demo evidence attached, clos'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2291
+  command: 'cd /opt/termlink git add .context/arcs/reliable-comms.yaml FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw
+    git commit -m "T-2291: close arc-003 reliable-comms registry — GO, demo evidence attached, clos'
 - timestamp: '2026-07-02T14:17:32Z'
-  task: 'T-2303'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2303
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-07-02T15:42:54Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2304'
-  command: 'FW_SWITCH_FOCUS=1 git add .context/project/learnings.yaml .context/working/ && FW_SWITCH_FOCUS=1 git commit -m "T-2304: register PL-233 — never derive sys.path from __file__ in a python3 - stdin her'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2304
+  command: 'FW_SWITCH_FOCUS=1 git add .context/project/learnings.yaml .context/working/ && FW_SWITCH_FOCUS=1
+    git commit -m "T-2304: register PL-233 — never derive sys.path from __file__ in a python3 - stdin
+    her'
 - timestamp: '2026-07-02T15:42:59Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2304'
-  command: 'FW_SWITCH_FOCUS=1 git add .context/project/learnings.yaml && FW_SWITCH_FOCUS=1 git commit -m "T-2304: register PL-233 — never derive sys.path from __file__ in a python3 - stdin heredoc
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2304
+  command: 'FW_SWITCH_FOCUS=1 git add .context/project/learnings.yaml && FW_SWITCH_FOCUS=1 git commit
+    -m "T-2304: register PL-233 — never derive sys.path from __file__ in a python3 - stdin heredoc
 
-Co-Authored-'
+    Co-Authored-'
 - timestamp: '2026-07-02T16:08:55Z'
-  task: 'T-2307'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2306'
-  command: 'git add .tasks/ .context/episodic/ 2>&1; FW_SWITCH_FOCUS=1 git commit -m "T-2306: finalize WS-S2 (work-completed) — episodic + archive
+  task: T-2307
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2306
+  command: 'git add .tasks/ .context/episodic/ 2>&1; FW_SWITCH_FOCUS=1 git commit -m "T-2306: finalize
+    WS-S2 (work-completed) — episodic + archive
 
-Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>" 2>&1 '
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>" 2>&1 '
 - timestamp: '2026-07-02T16:11:09Z'
-  task: 'T-2307'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2306'
-  command: 'git add .tasks/ .context/episodic/ 2>&1; FW_SWITCH_FOCUS=1 git commit -m "T-2306: finalize WS-S2 (work-completed) — episodic + archive; T-2307 scope S3
+  task: T-2307
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2306
+  command: 'git add .tasks/ .context/episodic/ 2>&1; FW_SWITCH_FOCUS=1 git commit -m "T-2306: finalize
+    WS-S2 (work-completed) — episodic + archive; T-2307 scope S3
 
-Co-Authored-By: Claude Opus 4.8 <noreply@anth'
+    Co-Authored-By: Claude Opus 4.8 <noreply@anth'
 - timestamp: '2026-07-02T16:18:04Z'
-  task: 'T-2307'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-1452'
-  command: 'git add .context/audits/ .context/project/ .tasks/active/T-1452-*.md .termlink-task VERSION && FW_SWITCH_FOCUS=1 git commit -m "T-1452: handover byproducts (audit, metrics, VERSION stamp) for S-2026-0'
+  task: T-2307
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-1452
+  command: 'git add .context/audits/ .context/project/ .tasks/active/T-1452-*.md .termlink-task VERSION
+    && FW_SWITCH_FOCUS=1 git commit -m "T-1452: handover byproducts (audit, metrics, VERSION stamp) for
+    S-2026-0'
 - timestamp: '2026-07-02T16:44:45Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2307'
-  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2307: finalize WS-S3 (work-completed) — episodic + archive (arc-004)" 2>&1 | tail -8'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2307
+  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2307: finalize WS-S3 (work-completed)
+    — episodic + archive (arc-004)" 2>&1 | tail -8'
 - timestamp: '2026-07-02T19:14:11Z'
-  task: 'T-2312'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2312
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-07-02T19:14:36Z'
-  task: 'T-2311'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2311
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-07-02T20:47:03Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2314'
-  command: 'git add .context/episodic/T-2314.yaml .context/project/decisions.yaml .tasks/completed/T-2314-arc-004-build-active-reconnect-to-ws-wit.md .tasks/active/T-2314-arc-004-build-active-reconnect-to-ws-wit.'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2314
+  command: git add .context/episodic/T-2314.yaml .context/project/decisions.yaml .tasks/completed/T-2314-arc-004-build-active-reconnect-to-ws-wit.md
+    .tasks/active/T-2314-arc-004-build-active-reconnect-to-ws-wit.
 - timestamp: '2026-07-02T20:47:21Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2314'
-  command: 'git add .context/episodic/T-2314.yaml .context/project/decisions.yaml .tasks/completed/T-2314-arc-004-build-active-reconnect-to-ws-wit.md .termlink-task 2>/dev/null
-FW_SWITCH_FOCUS=1 .agentic-framewor'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2314
+  command: git add .context/episodic/T-2314.yaml .context/project/decisions.yaml .tasks/completed/T-2314-arc-004-build-active-reconnect-to-ws-wit.md
+    .termlink-task 2>/dev/null FW_SWITCH_FOCUS=1 .agentic-framewor
 - timestamp: '2026-07-02T21:10:46Z'
-  task: 'T-2315'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2315
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-07-02T22:53:48Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2319'
-  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2319: arc-004 registry follow-on lines (T-2318 E2E + T-2319 leak-fix) + PL-234 process-group-reap learning" 2>&1 | tail -5'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2319
+  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2319: arc-004 registry follow-on
+    lines (T-2318 E2E + T-2319 leak-fix) + PL-234 process-group-reap learning" 2>&1 | tail -5'
 - timestamp: '2026-07-02T23:45:13Z'
   task: '<filing: Inception extend push-wake to dm rail for non-live-sender dm posts>'
-  flag: 'FW_ALLOW_EMPTY_RECOMMENDATION'
-  caller: 'create-task.sh'
-  reason: 'empty-recommendation bypass (create-task.sh inception filing)'
+  flag: FW_ALLOW_EMPTY_RECOMMENDATION
+  caller: create-task.sh
+  reason: empty-recommendation bypass (create-task.sh inception filing)
 - timestamp: '2026-07-03T08:35:23Z'
-  task: 'T-2325'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2327'
-  command: 'cd /opt/termlink; git add .tasks/active/T-2327-pushwaker-trap-reaps-only-direct-children.md; FW_SWITCH_FOCUS=1 git commit -q -m "T-2327: capture code-review MINOR — pushwaker trap reaps only direct '
+  task: T-2325
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2327
+  command: 'cd /opt/termlink; git add .tasks/active/T-2327-pushwaker-trap-reaps-only-direct-children.md;
+    FW_SWITCH_FOCUS=1 git commit -q -m "T-2327: capture code-review MINOR — pushwaker trap reaps only
+    direct '
 - timestamp: '2026-07-03T09:49:01Z'
-  task: 'T-2331'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2331
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-07-03T13:36:00Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2333'
-  command: 'FW_SWITCH_FOCUS=1 git commit -m "T-2333: capture PL-238 — reqwest/rustls aws-lc-rs vs ring crypto-provider collision + fix
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2333
+  command: 'FW_SWITCH_FOCUS=1 git commit -m "T-2333: capture PL-238 — reqwest/rustls aws-lc-rs vs ring
+    crypto-provider collision + fix
 
-Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>" 2>&1 | tail -6'
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>" 2>&1 | tail -6'
 - timestamp: '2026-07-03T13:36:09Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2333'
-  command: 'FW_SWITCH_FOCUS=1 git add .context/project/learnings.yaml && FW_SWITCH_FOCUS=1 git commit -m "T-2333: capture PL-238 — reqwest/rustls aws-lc-rs vs ring crypto-provider collision + fix
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2333
+  command: 'FW_SWITCH_FOCUS=1 git add .context/project/learnings.yaml && FW_SWITCH_FOCUS=1 git commit
+    -m "T-2333: capture PL-238 — reqwest/rustls aws-lc-rs vs ring crypto-provider collision + fix
 
-Co-Authored-B'
+    Co-Authored-B'
 - timestamp: '2026-07-03T13:48:08Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2334'
-  command: 'FW_SWITCH_FOCUS=1 git add -A .tasks/completed/T-2334-webhook-fan-out-s3--retrybackoffdead-let.md .context/episodic/T-2334.yaml && FW_SWITCH_FOCUS=1 git commit -m "T-2334: finalize (work-completed) —'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2334
+  command: 'FW_SWITCH_FOCUS=1 git add -A .tasks/completed/T-2334-webhook-fan-out-s3--retrybackoffdead-let.md
+    .context/episodic/T-2334.yaml && FW_SWITCH_FOCUS=1 git commit -m "T-2334: finalize (work-completed)
+    —'
 - timestamp: '2026-07-03T14:09:06Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2335'
-  command: 'FW_SWITCH_FOCUS=1 git commit -m "T-2335: finalize (work-completed) — archive + episodic; webhook S4 governor_status telemetry shipped
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2335
+  command: 'FW_SWITCH_FOCUS=1 git commit -m "T-2335: finalize (work-completed) — archive + episodic; webhook
+    S4 governor_status telemetry shipped
 
-Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>" 2>&1 |'
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>" 2>&1 |'
 - timestamp: '2026-07-03T14:09:49Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2336'
-  command: 'git add ".tasks/active/T-2336-webhook-fan-out-s5--cli-config-verbs-web.md" && FW_SWITCH_FOCUS=1 git commit -m "T-2336: capture — webhook S5 CLI config verbs (add/list/test), decomposed from S4
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2336
+  command: 'git add ".tasks/active/T-2336-webhook-fan-out-s5--cli-config-verbs-web.md" && FW_SWITCH_FOCUS=1
+    git commit -m "T-2336: capture — webhook S5 CLI config verbs (add/list/test), decomposed from S4
 
-Co-A'
+    Co-A'
 - timestamp: '2026-07-03T16:15:47Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2336'
-  command: 'cd /opt/termlink
-FW_SWITCH_FOCUS=1 git commit -m "T-2336: finalize (work-completed) — archive + episodic; webhook S5 CLI verbs shipped
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2336
+  command: 'cd /opt/termlink FW_SWITCH_FOCUS=1 git commit -m "T-2336: finalize (work-completed) — archive
+    + episodic; webhook S5 CLI verbs shipped
 
-Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>" 2>&1 '
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>" 2>&1 '
 - timestamp: '2026-07-03T16:21:35Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2337'
-  command: 'cd /opt/termlink
-git add -A .tasks/active/T-2337-webhook-fan-out-s6--operator-recipe-doc.md \
-        .tasks/completed/T-2337-webhook-fan-out-s6--operator-recipe-doc.md \
-        .context/episodic/T-2'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2337
+  command: cd /opt/termlink git add -A .tasks/active/T-2337-webhook-fan-out-s6--operator-recipe-doc.md
+    \ .tasks/completed/T-2337-webhook-fan-out-s6--operator-recipe-doc.md \ .context/episodic/T-2
 - timestamp: '2026-07-03T16:22:05Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2337'
-  command: 'cd /opt/termlink
-git add .context/project/learnings.yaml \
-        .context/project/decisions.yaml \
-        .tasks/completed/T-2337-webhook-fan-out-s6--operator-recipe-doc.md
-FW_SWITCH_FOCUS=1 git co'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2337
+  command: cd /opt/termlink git add .context/project/learnings.yaml \ .context/project/decisions.yaml
+    \ .tasks/completed/T-2337-webhook-fan-out-s6--operator-recipe-doc.md FW_SWITCH_FOCUS=1 git co
 - timestamp: '2026-07-03T19:10:34Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2339'
-  command: 'cd /opt/termlink
-git add .tasks/active/T-2338-inception--active-ws-reconnect-with-back.md \
-        .tasks/active/T-2339-inception--ws-over-unix-for-co-located-p.md 2>/dev/null
-ls .tasks/active/T-2338'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2339
+  command: cd /opt/termlink git add .tasks/active/T-2338-inception--active-ws-reconnect-with-back.md \
+    .tasks/active/T-2339-inception--ws-over-unix-for-co-located-p.md 2>/dev/null ls .tasks/active/T-2338
 - timestamp: '2026-07-04T09:50:00Z'
-  task: 'T-2325'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2348'
-  command: 'printf \n### 2026-07-04T09:50Z — pickup filed [agent]\n- **Action:** Proposal relayed upstream as /opt/999-Agentic-Engineering-Framework/.pickup/073-reviewer-assisted-inception-decides.md (director'
+  task: T-2325
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2348
+  command: printf \n### 2026-07-04T09:50Z — pickup filed [agent]\n- **Action:** Proposal relayed upstream
+    as /opt/999-Agentic-Engineering-Framework/.pickup/073-reviewer-assisted-inception-decides.md (director
 - timestamp: '2026-07-04T09:50:20Z'
-  task: 'T-2325'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2348'
-  command: 'FW_SWITCH_FOCUS=1 git commit -m "T-2348: AEF pickup 073 filed (reviewer-assisted inception decides) — directory-drop verified" 2>&1 | tail -4'
+  task: T-2325
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2348
+  command: 'FW_SWITCH_FOCUS=1 git commit -m "T-2348: AEF pickup 073 filed (reviewer-assisted inception
+    decides) — directory-drop verified" 2>&1 | tail -4'
 - timestamp: '2026-07-04T09:50:26Z'
-  task: 'T-2325'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2348'
-  command: 'FW_SWITCH_FOCUS=1 git commit -m "T-2348: AEF pickup 073 filed (reviewer-assisted inception decides) — directory-drop verified" 2>&1 | head -20'
+  task: T-2325
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2348
+  command: 'FW_SWITCH_FOCUS=1 git commit -m "T-2348: AEF pickup 073 filed (reviewer-assisted inception
+    decides) — directory-drop verified" 2>&1 | head -20'
 - timestamp: '2026-07-04T09:55:42Z'
-  task: 'T-2348'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2348
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-07-04T22:02:52Z'
-  task: 'T-2338'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2338
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: NO-GO'
 - timestamp: '2026-07-04T22:03:10Z'
-  task: 'T-2339'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2339
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: NO-GO'
 - timestamp: '2026-07-04T22:29:58Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2224'
-  command: 'rm -f .context/working/T-2224-artifact-draft.md && git add docs/reports/T-2224-backpressure-demo-inception.md .tasks/active/T-2224-substrate-backpressure-demo--hub-loud-re.md && FW_SWITCH_FOCUS=1 .age'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2224
+  command: rm -f .context/working/T-2224-artifact-draft.md && git add docs/reports/T-2224-backpressure-demo-inception.md
+    .tasks/active/T-2224-substrate-backpressure-demo--hub-loud-re.md && FW_SWITCH_FOCUS=1 .age
 - timestamp: '2026-07-05T16:52:40Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2364'
-  command: 'cd /opt/termlink
-git reset -q
-git add .tasks/active/T-2364-arc-004-push-wake-capability-live-re-ver.md .tasks/completed/T-2364-arc-004-push-wake-capability-live-re-ver.md .context/episodic/T-2364.yaml'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2364
+  command: cd /opt/termlink git reset -q git add .tasks/active/T-2364-arc-004-push-wake-capability-live-re-ver.md
+    .tasks/completed/T-2364-arc-004-push-wake-capability-live-re-ver.md .context/episodic/T-2364.yaml
 - timestamp: '2026-07-05T19:16:46Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2365'
-  command: 'cd /opt/termlink
-git add .tasks/active/T-2365-fix-g-067-audit-per-file-python-fork--ba.md .tasks/completed/T-2365-fix-g-067-audit-per-file-python-fork--ba.md .context/episodic/T-2365.yaml
-git status -'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2365
+  command: cd /opt/termlink git add .tasks/active/T-2365-fix-g-067-audit-per-file-python-fork--ba.md .tasks/completed/T-2365-fix-g-067-audit-per-file-python-fork--ba.md
+    .context/episodic/T-2365.yaml git status -
 - timestamp: '2026-07-05T19:17:00Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2365'
-  command: 'cd /opt/termlink
-git add .context/episodic/T-2365.yaml
-git status --short | grep -E "T-2365|episodic" | head
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2365: episodic summary (G-067 '
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2365
+  command: 'cd /opt/termlink git add .context/episodic/T-2365.yaml git status --short | grep -E "T-2365|episodic"
+    | head FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2365: episodic summary (G-067 '
 - timestamp: '2026-07-05T19:17:10Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2365'
-  command: 'cd /opt/termlink
-git add .tasks/completed/T-2365-fix-g-067-audit-per-file-python-fork--ba.md
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2365: finalize metadata (status=work-completed'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2365
+  command: 'cd /opt/termlink git add .tasks/completed/T-2365-fix-g-067-audit-per-file-python-fork--ba.md
+    FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2365: finalize metadata (status=work-completed'
 - timestamp: '2026-07-06T10:11:38Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2297'
-  command: 'cd /opt/termlink
-git add .tasks/active/T-2297-v2b-hub-stamped-observed-source-address.md
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2297: capture Human RUBBER-STAMP evidence — obse'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2297
+  command: 'cd /opt/termlink git add .tasks/active/T-2297-v2b-hub-stamped-observed-source-address.md FW_SWITCH_FOCUS=1
+    .agentic-framework/bin/fw git commit -m "T-2297: capture Human RUBBER-STAMP evidence — obse'
 - timestamp: '2026-07-06T13:18:52Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2375'
-  command: 'git add .tasks/active/T-2375-mcp-termlinkfilesend-cannot-reach-offlin.md && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2375: capture MCP termlink_file_send offline-target gap (T-2363'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2375
+  command: 'git add .tasks/active/T-2375-mcp-termlinkfilesend-cannot-reach-offlin.md && FW_SWITCH_FOCUS=1
+    .agentic-framework/bin/fw git commit -m "T-2375: capture MCP termlink_file_send offline-target gap
+    (T-2363'
 - timestamp: '2026-07-09T09:35:29Z'
-  task: 'T-2380'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2380
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-07-10T10:15:35Z'
-  task: 'T-2389'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2391'
-  command: 'cd /opt/termlink 2>/dev/null
-git add -A
-FW_SWITCH_FOCUS=1 git commit -q -m "T-2391: finalize move to completed/ + episodic (work-completed)
+  task: T-2389
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2391
+  command: 'cd /opt/termlink 2>/dev/null git add -A FW_SWITCH_FOCUS=1 git commit -q -m "T-2391: finalize
+    move to completed/ + episodic (work-completed)
 
-Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>" && '
+    Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>" && '
 - timestamp: '2026-07-10T11:44:30Z'
-  task: 'T-2389'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2392'
-  command: 'git add -A .tasks/completed/T-2392-fix-mcp-agent-presence-read-stale-under-.md .context/episodic/T-2392.yaml && git rm --cached --ignore-unmatch .tasks/active/T-2392-fix-mcp-agent-presence-read-stale-'
+  task: T-2389
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2392
+  command: git add -A .tasks/completed/T-2392-fix-mcp-agent-presence-read-stale-under-.md .context/episodic/T-2392.yaml
+    && git rm --cached --ignore-unmatch .tasks/active/T-2392-fix-mcp-agent-presence-read-stale-
 - timestamp: '2026-07-10T15:05:30Z'
-  task: 'T-2393'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2393
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-07-10T19:20:48Z'
-  task: 'T-2397'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2397
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-07-11T06:57:20Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2400'
-  command: 'cd /opt/termlink
-git add .tasks/completed/T-2399-mcp-server-signs-envelopes-as-host-key-n.md \
-        .tasks/completed/T-2400-reachable-agents-launch-mute--tl-claude-.md \
-        .tasks/active/T-239'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2400
+  command: cd /opt/termlink git add .tasks/completed/T-2399-mcp-server-signs-envelopes-as-host-key-n.md
+    \ .tasks/completed/T-2400-reachable-agents-launch-mute--tl-claude-.md \ .tasks/active/T-239
 - timestamp: '2026-07-11T06:57:31Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2400'
-  command: 'cd /opt/termlink
-git add .context/episodic/T-2399.yaml .context/episodic/T-2400.yaml
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2400: capture T-2399 + T-2400 episodics" 2>&1 | tail -'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2400
+  command: 'cd /opt/termlink git add .context/episodic/T-2399.yaml .context/episodic/T-2400.yaml FW_SWITCH_FOCUS=1
+    .agentic-framework/bin/fw git commit -m "T-2400: capture T-2399 + T-2400 episodics" 2>&1 | tail -'
 - timestamp: '2026-07-11T07:34:54Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2401'
-  command: 'cd /opt/termlink
-git add .tasks/completed/T-2401-durable-launch-path-independent-auto-acc.md .tasks/active/T-2401-durable-launch-path-independent-auto-acc.md .context/episodic/T-2401.yaml 2>/dev/null'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2401
+  command: cd /opt/termlink git add .tasks/completed/T-2401-durable-launch-path-independent-auto-acc.md
+    .tasks/active/T-2401-durable-launch-path-independent-auto-acc.md .context/episodic/T-2401.yaml 2>/dev/null
 - timestamp: '2026-07-11T07:35:01Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2401'
-  command: 'cd /opt/termlink
-git status --short | grep -i episodic/T-2401 && git add .context/episodic/T-2401.yaml && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2401: capture episodic" 2>&1 | '
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2401
+  command: 'cd /opt/termlink git status --short | grep -i episodic/T-2401 && git add .context/episodic/T-2401.yaml
+    && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2401: capture episodic" 2>&1 | '
 - timestamp: '2026-07-11T07:37:06Z'
   task: '<filing: Woken-but-silent: make a rung-yet-unanswered agent loud + self-healing>'
-  flag: 'FW_ALLOW_EMPTY_RECOMMENDATION'
-  caller: 'create-task.sh'
-  reason: 'empty-recommendation bypass (create-task.sh inception filing)'
+  flag: FW_ALLOW_EMPTY_RECOMMENDATION
+  caller: create-task.sh
+  reason: empty-recommendation bypass (create-task.sh inception filing)
 - timestamp: '2026-07-11T08:57:06Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2402'
-  command: 'cd /opt/termlink
-git add .tasks/active/T-2402-woken-but-silent-make-a-rung-yet-unanswe.md
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2402: promote inception -> build with 3 determini'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2402
+  command: 'cd /opt/termlink git add .tasks/active/T-2402-woken-but-silent-make-a-rung-yet-unanswe.md
+    FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2402: promote inception -> build with
+    3 determini'
 - timestamp: '2026-07-11T09:16:23Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2402'
-  command: 'cd /opt/termlink
-git add .tasks/active/T-2402-woken-but-silent-make-a-rung-yet-unanswe.md
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2402: remove vestigial inception ACs after build '
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2402
+  command: 'cd /opt/termlink git add .tasks/active/T-2402-woken-but-silent-make-a-rung-yet-unanswe.md
+    FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2402: remove vestigial inception ACs
+    after build '
 - timestamp: '2026-07-19T21:43:31Z'
-  task: 'T-2419'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2419
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-07-21T13:27:20Z'
-  task: 'T-2425'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2425
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-07-21T13:27:33Z'
-  task: 'T-2430'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2430
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-07-21T22:28:04Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2447'
-  command: 'FW_SWITCH_FOCUS=1 git commit .tasks/active/T-2447-round-10-review--authtokenscope-security.md -m "T-2447: round-10 auth/token/scope review — capture 2 MED findings (fail-open peer-cred, uncapped tok'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2447
+  command: 'FW_SWITCH_FOCUS=1 git commit .tasks/active/T-2447-round-10-review--authtokenscope-security.md
+    -m "T-2447: round-10 auth/token/scope review — capture 2 MED findings (fail-open peer-cred, uncapped
+    tok'
 - timestamp: '2026-07-21T22:28:19Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2447'
-  command: 'FW_SWITCH_FOCUS=1 git commit -m "T-2447: round-10 auth/token/scope review — capture 2 MED findings (fail-open peer-cred, uncapped token TTL); security-critical paths verified clean" 2>&1 | tail -6'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2447
+  command: 'FW_SWITCH_FOCUS=1 git commit -m "T-2447: round-10 auth/token/scope review — capture 2 MED
+    findings (fail-open peer-cred, uncapped token TTL); security-critical paths verified clean" 2>&1 |
+    tail -6'
 - timestamp: '2026-07-31T11:00:45Z'
-  task: 'T-2454'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2454
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-07-31T11:00:48Z'
-  task: 'T-2457'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2457
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-07-31T11:00:55Z'
-  task: 'T-2459'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2459
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-07-31T11:01:01Z'
-  task: 'T-2468'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2468
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-07-31T12:37:20Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2472'
-  command: 'cd /opt/termlink
-git add .context/project/concerns.yaml
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2472: close G-089 — OBS-108 false-green dead on both surfaces + deployed (0.11.69'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2472
+  command: 'cd /opt/termlink git add .context/project/concerns.yaml FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw
+    git commit -m "T-2472: close G-089 — OBS-108 false-green dead on both surfaces + deployed (0.11.69'
 - timestamp: '2026-08-01T21:08:26Z'
-  task: 'T-2476'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2476
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-08-01T21:08:26Z'
-  task: 'T-2477'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2477
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-08-01T21:55:32Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2480'
-  command: 'cd /opt/termlink
-git add .context/project/learnings.yaml .context/working/ 2>/dev/null
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2480: capture reuse-existing-gate learning (P3a ship'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2480
+  command: 'cd /opt/termlink git add .context/project/learnings.yaml .context/working/ 2>/dev/null FW_SWITCH_FOCUS=1
+    .agentic-framework/bin/fw git commit -m "T-2480: capture reuse-existing-gate learning (P3a ship'
 - timestamp: '2026-08-01T22:55:37Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2482'
-  command: 'cd /opt/termlink
-git add .context/project/learnings.yaml .context/working/ 2>/dev/null
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2482: capture affirmative-proof-vs-detection learnin'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2482
+  command: 'cd /opt/termlink git add .context/project/learnings.yaml .context/working/ 2>/dev/null FW_SWITCH_FOCUS=1
+    .agentic-framework/bin/fw git commit -m "T-2482: capture affirmative-proof-vs-detection learnin'
 - timestamp: '2026-08-01T23:15:41Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2478'
-  command: 'cd /opt/termlink
-git add .context/project/learnings.yaml .context/working/ 2>/dev/null
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2478: capture mirror-existing-deprecation-convention'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2478
+  command: 'cd /opt/termlink git add .context/project/learnings.yaml .context/working/ 2>/dev/null FW_SWITCH_FOCUS=1
+    .agentic-framework/bin/fw git commit -m "T-2478: capture mirror-existing-deprecation-convention'
 - timestamp: '2026-08-02T06:17:50Z'
-  task: 'T-2486'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2487'
-  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2487: capture PL-274 (durable-log reader must be gap-tolerant) + firing #8 episodic/context" 2>&1 | tail -6'
+  task: T-2486
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2487
+  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2487: capture PL-274 (durable-log
+    reader must be gap-tolerant) + firing #8 episodic/context" 2>&1 | tail -6'
 - timestamp: '2026-08-02T08:17:58Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2488'
-  command: 'git add -A && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2488: complete — episodic + PL-276 (lossy if-let-Ok(true) discards Err, directive-#2 class)
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2488
+  command: 'git add -A && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2488: complete
+    — episodic + PL-276 (lossy if-let-Ok(true) discards Err, directive-#2 class)
 
-Reader-resilience sibling ship'
+    Reader-resilience sibling ship'
 - timestamp: '2026-08-02T08:36:13Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2489'
-  command: 'git add -A && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2489: complete — episodic + learning (skip-then-destroy data-loss trap); file T-2490 (chunk lexical-sort) as backlog
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2489
+  command: 'git add -A && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2489: complete
+    — episodic + learning (skip-then-destroy data-loss trap); file T-2490 (chunk lexical-sort) as backlog
 
-Firin'
+    Firin'
 - timestamp: '2026-08-02T08:56:45Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2490'
-  command: 'git add -A && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2490: complete — episodic + learning (zero-pad filename sort has a hidden magnitude ceiling)
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2490
+  command: 'git add -A && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2490: complete
+    — episodic + learning (zero-pad filename sort has a hidden magnitude ceiling)
 
-Firing #13: drained the sibli'
+    Firing #13: drained the sibli'
 - timestamp: '2026-08-02T09:10:47Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2491'
-  command: 'git add -A && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2491: complete — episodic + learning (inline-defaulted fallible read hides a wrong default; extract one fail-closed helper)'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2491
+  command: 'git add -A && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2491: complete
+    — episodic + learning (inline-defaulted fallible read hides a wrong default; extract one fail-closed
+    helper)'
 - timestamp: '2026-08-02T23:51:37Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2508'
-  command: 'cd /opt/termlink
-git add .context/project/learnings.yaml
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2508: capture PL-294 (durable chunked paths need 3 gates — validity/naming/compl'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2508
+  command: 'cd /opt/termlink git add .context/project/learnings.yaml FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw
+    git commit -m "T-2508: capture PL-294 (durable chunked paths need 3 gates — validity/naming/compl'
 - timestamp: '2026-08-04T09:57:05Z'
-  task: 'T-2520'
-  flag: '--skip-human-ownership'
-  caller: 'owner_change'
+  task: T-2520
+  flag: --skip-human-ownership
+  caller: owner_change
   reason: ''
 - timestamp: '2026-08-04T10:30:09Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2522'
-  command: 'cd /opt/termlink
-echo "=== finalize push status ==="; tail -3 /tmp/.push-2521.out 2>/dev/null
-git add .tasks/active/T-2522-retention-days-mode-prunes-on-client-sup.md
-FW_SWITCH_FOCUS=1 .agentic-framew'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2522
+  command: cd /opt/termlink echo "=== finalize push status ==="; tail -3 /tmp/.push-2521.out 2>/dev/null
+    git add .tasks/active/T-2522-retention-days-mode-prunes-on-client-sup.md FW_SWITCH_FOCUS=1 .agentic-framew
 - timestamp: '2026-08-04T12:25:11Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2527'
-  command: 'git add .tasks/active/T-2527-static-check-for-unclamped-caller-param-.md VERSION
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2527: file turnkey — static check for unclamped caller-p'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2527
+  command: 'git add .tasks/active/T-2527-static-check-for-unclamped-caller-param-.md VERSION FW_SWITCH_FOCUS=1
+    .agentic-framework/bin/fw git commit -m "T-2527: file turnkey — static check for unclamped caller-p'
 - timestamp: '2026-08-08T16:21:01Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2540'
-  command: 'cd /opt/termlink
-git add -A
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2540: file inception — orchestrator.route policy-in-substrate is a charter non-goal #4 violation (subtract ca'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2540
+  command: 'cd /opt/termlink git add -A FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2540:
+    file inception — orchestrator.route policy-in-substrate is a charter non-goal #4 violation (subtract
+    ca'
 - timestamp: '2026-08-08T16:31:11Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2541'
-  command: 'cd /opt/termlink
-git add -A
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2541: file optional charter clarification — strict-star invariant RESPECTED, note local data-plane exception '
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2541
+  command: 'cd /opt/termlink git add -A FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2541:
+    file optional charter clarification — strict-star invariant RESPECTED, note local data-plane exception '
 - timestamp: '2026-08-08T19:34:48Z'
   task: '<filing: Charter non-goal #4: conversation-analytics MCP tool family subtract-vs-keep>'
-  flag: 'FW_ALLOW_EMPTY_RECOMMENDATION'
-  caller: 'create-task.sh'
-  reason: 'empty-recommendation bypass (create-task.sh inception filing)'
+  flag: FW_ALLOW_EMPTY_RECOMMENDATION
+  caller: create-task.sh
+  reason: empty-recommendation bypass (create-task.sh inception filing)
 - timestamp: '2026-08-08T19:37:48Z'
   task: '<filing: Charter non-goal #4: termlink dispatch orchestration-in-substrate subtract-vs-keep>'
-  flag: 'FW_ALLOW_EMPTY_RECOMMENDATION'
-  caller: 'create-task.sh'
-  reason: 'empty-recommendation bypass (create-task.sh inception filing)'
+  flag: FW_ALLOW_EMPTY_RECOMMENDATION
+  caller: create-task.sh
+  reason: empty-recommendation bypass (create-task.sh inception filing)
 - timestamp: '2026-08-09T07:59:41Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2559'
-  command: 'cd /opt/termlink
-git add .context/project/learnings.yaml
-FW_SWITCH_FOCUS=1 git diff --cached --quiet || FW_SWITCH_FOCUS=1 git commit -q -m "T-2559: capture PL — Directive #2 silent-swallow class + f'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2559
+  command: 'cd /opt/termlink git add .context/project/learnings.yaml FW_SWITCH_FOCUS=1 git diff --cached
+    --quiet || FW_SWITCH_FOCUS=1 git commit -q -m "T-2559: capture PL — Directive #2 silent-swallow class
+    + f'
 - timestamp: '2026-08-09T08:07:16Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2560'
-  command: 'cd /opt/termlink
-git add .tasks/active/T-2560*.md
-FW_SWITCH_FOCUS=1 git commit -q -m "T-2560: file PL-021 flap-detector cron-feeder gap (T-2468 antifragility #2, needs design)
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2560
+  command: 'cd /opt/termlink git add .tasks/active/T-2560*.md FW_SWITCH_FOCUS=1 git commit -q -m "T-2560:
+    file PL-021 flap-detector cron-feeder gap (T-2468 antifragility #2, needs design)
 
-Co-Authored-By: Claude '
+    Co-Authored-By: Claude '
 - timestamp: '2026-08-09T08:25:28Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2561'
-  command: 'cd /opt/termlink
-git add .context/project/learnings.yaml
-FW_SWITCH_FOCUS=1 git commit -q -m "T-2561: capture PL — shipped!=live at the canary-install layer
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2561
+  command: 'cd /opt/termlink git add .context/project/learnings.yaml FW_SWITCH_FOCUS=1 git commit -q -m
+    "T-2561: capture PL — shipped!=live at the canary-install layer
 
-Co-Authored-By: Claude Opus 4.8 <noreply@'
+    Co-Authored-By: Claude Opus 4.8 <noreply@'
 - timestamp: '2026-08-09T11:26:02Z'
-  task: 'T-2567'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2570'
-  command: 'cd /opt/termlink
-FW_SWITCH_FOCUS=1 git add -A && FW_SWITCH_FOCUS=1 git commit -q -m "T-2567..T-2570: FILE design/guard findings from T-2468 purpose-review round
+  task: T-2567
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2570
+  command: 'cd /opt/termlink FW_SWITCH_FOCUS=1 git add -A && FW_SWITCH_FOCUS=1 git commit -q -m "T-2567..T-2570:
+    FILE design/guard findings from T-2468 purpose-review round
 
-- T-2567 DESIGN: exec truncated output'
+    - T-2567 DESIGN: exec truncated output'
 - timestamp: '2026-08-09T11:26:21Z'
-  task: 'T-2567'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2570'
-  command: 'cd /opt/termlink
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw work-on T-2567 2>&1 | grep -iE "Ready|started" | head -1
-FW_SWITCH_FOCUS=1 git add -A && FW_SWITCH_FOCUS=1 git commit -q -m "T-2567..T-2570'
+  task: T-2567
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2570
+  command: cd /opt/termlink FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw work-on T-2567 2>&1 | grep -iE
+    "Ready|started" | head -1 FW_SWITCH_FOCUS=1 git add -A && FW_SWITCH_FOCUS=1 git commit -q -m "T-2567..T-2570
 - timestamp: '2026-08-09T11:26:38Z'
-  task: 'T-2567'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2570'
-  command: 'cd /opt/termlink
-FW_SWITCH_FOCUS=1 git add -A && FW_SWITCH_FOCUS=1 git commit -q -m "T-2567..T-2570: FILE design/guard findings from T-2468 purpose-review round
+  task: T-2567
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2570
+  command: 'cd /opt/termlink FW_SWITCH_FOCUS=1 git add -A && FW_SWITCH_FOCUS=1 git commit -q -m "T-2567..T-2570:
+    FILE design/guard findings from T-2468 purpose-review round
 
-- T-2567 DESIGN: exec truncated output'
+    - T-2567 DESIGN: exec truncated output'
 - timestamp: '2026-08-09T22:00:42Z'
-  task: 'T-1291'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2586'
-  command: 'FW_SWITCH_FOCUS=1 git add .tasks/active/T-2585-fix-findidle-applies-no-msgtype-filter-t.md .tasks/active/T-2586-design-find-idle-fixed-60s-live-window-v.md .context/ && FW_SWITCH_FOCUS=1 git commit -q'
+  task: T-1291
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2586
+  command: FW_SWITCH_FOCUS=1 git add .tasks/active/T-2585-fix-findidle-applies-no-msgtype-filter-t.md
+    .tasks/active/T-2586-design-find-idle-fixed-60s-live-window-v.md .context/ && FW_SWITCH_FOCUS=1 git
+    commit -q
 - timestamp: '2026-08-09T22:18:32Z'
-  task: 'T-1291'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2584'
-  command: 'git add -A && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2584: capture PL-315 MCP-flattening bug class (found 4x across T-2578/2580/2583/2584)" 2>&1 | tail -5
-echo "=== push ==="
-git'
+  task: T-1291
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2584
+  command: 'git add -A && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2584: capture PL-315
+    MCP-flattening bug class (found 4x across T-2578/2580/2583/2584)" 2>&1 | tail -5 echo "=== push ==="
+    git'
 - timestamp: '2026-08-09T22:38:37Z'
-  task: 'T-1291'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2587'
-  command: 'git add -A && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2587: finalize + file T-2588 (4-sibling msg_type-post sweep) and T-2589 (check-outbox over-count) from verb-2 hunt" 2>&1 | ta'
+  task: T-1291
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2587
+  command: 'git add -A && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2587: finalize
+    + file T-2588 (4-sibling msg_type-post sweep) and T-2589 (check-outbox over-count) from verb-2 hunt"
+    2>&1 | ta'
 - timestamp: '2026-08-10T19:23:39Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2589'
-  command: 'cd /opt/termlink
-git add .tasks/completed/T-2589-fix-check-outbox-outboundunread-over-cou.md .tasks/active/T-2589-fix-check-outbox-outboundunread-over-cou.md .context/episodic/T-2589.yaml .context/pro'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2589
+  command: cd /opt/termlink git add .tasks/completed/T-2589-fix-check-outbox-outboundunread-over-cou.md
+    .tasks/active/T-2589-fix-check-outbox-outboundunread-over-cou.md .context/episodic/T-2589.yaml .context/pro
 - timestamp: '2026-08-10T19:23:53Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2589'
-  command: 'cd /opt/termlink
-git add .context/episodic/T-2589.yaml .context/project/learnings.yaml
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2589: add episodic + learnings.yaml entry (L for con'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2589
+  command: 'cd /opt/termlink git add .context/episodic/T-2589.yaml .context/project/learnings.yaml FW_SWITCH_FOCUS=1
+    .agentic-framework/bin/fw git commit -m "T-2589: add episodic + learnings.yaml entry (L for con'
 - timestamp: '2026-08-10T19:33:21Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2591'
-  command: 'cd /opt/termlink
-git add .tasks/completed/T-2591-fix-fleet-adoption-snapshot-uniquespeake.md .tasks/active/T-2591-fix-fleet-adoption-snapshot-uniquespeake.md .context/episodic/T-2591.yaml .context/pro'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2591
+  command: cd /opt/termlink git add .tasks/completed/T-2591-fix-fleet-adoption-snapshot-uniquespeake.md
+    .tasks/active/T-2591-fix-fleet-adoption-snapshot-uniquespeake.md .context/episodic/T-2591.yaml .context/pro
 - timestamp: '2026-08-10T19:34:45Z'
-  task: 'T-1166'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2591'
-  command: 'cd /opt/termlink
-git status --short | grep -E episodic/T-2591|learnings || echo "(nothing pending)"
-git add .context/episodic/T-2591.yaml .context/project/learnings.yaml 2>/dev/null
-if ! git diff --'
+  task: T-1166
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2591
+  command: cd /opt/termlink git status --short | grep -E episodic/T-2591|learnings || echo "(nothing pending)"
+    git add .context/episodic/T-2591.yaml .context/project/learnings.yaml 2>/dev/null if ! git diff --
 - timestamp: '2026-08-11T16:54:23Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2614'
-  command: 'cd /opt/termlink
-FW_SWITCH_FOCUS=1 git commit -q -m "T-2612/T-2613/T-2614: file 3 delicate PTY fork/exec/reap findings (T-2468 session-subsystem hunt)
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2614
+  command: 'cd /opt/termlink FW_SWITCH_FOCUS=1 git commit -q -m "T-2612/T-2613/T-2614: file 3 delicate
+    PTY fork/exec/reap findings (T-2468 session-subsystem hunt)
 
-Filed (not built — fork/exec correctness is de'
+    Filed (not built — fork/exec correctness is de'
 - timestamp: '2026-08-11T16:54:30Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2614'
-  command: 'cd /opt/termlink
-git add .tasks/active/T-2612-*.md .tasks/active/T-2613-*.md .tasks/active/T-2614-*.md
-FW_SWITCH_FOCUS=1 git commit -q -m "T-2612/T-2613/T-2614: file 3 delicate PTY fork/exec/reap find'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2614
+  command: 'cd /opt/termlink git add .tasks/active/T-2612-*.md .tasks/active/T-2613-*.md .tasks/active/T-2614-*.md
+    FW_SWITCH_FOCUS=1 git commit -q -m "T-2612/T-2613/T-2614: file 3 delicate PTY fork/exec/reap find'
 - timestamp: '2026-08-11T17:08:40Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2617'
-  command: 'cd /opt/termlink
-git add .tasks/active/T-2615-*.md .tasks/active/T-2616-*.md .tasks/active/T-2617-*.md
-FW_SWITCH_FOCUS=1 git commit -q -m "T-2615/T-2616/T-2617: file 3 durable-delivery/secret-persiste'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2617
+  command: 'cd /opt/termlink git add .tasks/active/T-2615-*.md .tasks/active/T-2616-*.md .tasks/active/T-2617-*.md
+    FW_SWITCH_FOCUS=1 git commit -q -m "T-2615/T-2616/T-2617: file 3 durable-delivery/secret-persiste'
 - timestamp: '2026-08-12T15:14:21Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2645'
-  command: 'cd /opt/termlink
-FW_SWITCH_FOCUS=1 git commit -q -m "T-2645: centralize hub-not-running hint to canonical \`termlink hub start\` (events.rs)
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2645
+  command: 'cd /opt/termlink FW_SWITCH_FOCUS=1 git commit -q -m "T-2645: centralize hub-not-running hint
+    to canonical \`termlink hub start\` (events.rs)
 
-Bounded follow-up to T-2643. 8 events.rs sites inlined the'
+    Bounded follow-up to T-2643. 8 events.rs sites inlined the'
 - timestamp: '2026-08-12T18:41:30Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2648'
-  command: 'cd /opt/termlink
-git add .tasks/active/T-2648-cap-clientcall-response-line-read-agains.md
-FW_SWITCH_FOCUS=1 git commit -m "T-2648: file — cap Client::call response-line read vs unbounded next_line()'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2648
+  command: 'cd /opt/termlink git add .tasks/active/T-2648-cap-clientcall-response-line-read-agains.md
+    FW_SWITCH_FOCUS=1 git commit -m "T-2648: file — cap Client::call response-line read vs unbounded next_line()'
 - timestamp: '2026-08-12T20:37:00Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2660'
-  command: 'cd /opt/termlink; FW_SWITCH_FOCUS=1 git commit -q -m "round-12: file 4 verified delicate findings (fixture/design-decision class)
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2660
+  command: 'cd /opt/termlink; FW_SWITCH_FOCUS=1 git commit -q -m "round-12: file 4 verified delicate findings
+    (fixture/design-decision class)
 
-T-2659 (HIGH): agent contact fleet-walk missing the per-hub timeout(8'
+    T-2659 (HIGH): agent contact fleet-walk missing the per-hub timeout(8'
 - timestamp: '2026-08-12T21:01:25Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2664'
-  command: 'cd /opt/termlink; FW_SWITCH_FOCUS=1 git commit -q -m "round-14: file 2 verified findings (T-2664 request spin-loop, T-2665 cmd_run cleanup) + episodics
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2664
+  command: 'cd /opt/termlink; FW_SWITCH_FOCUS=1 git commit -q -m "round-14: file 2 verified findings (T-2664
+    request spin-loop, T-2665 cmd_run cleanup) + episodics
 
-T-2664: termlink request subscribe-loop swallow'
+    T-2664: termlink request subscribe-loop swallow'
 - timestamp: '2026-08-13T07:16:09Z'
-  task: 'T-2672'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2673'
-  command: 'cd /opt/termlink
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw context focus T-2673 >/dev/null 2>&1
-git add .tasks/active/T-2673-migrate-3-un-migrated-long-poll-busy-spi.md
-FW_SWITCH_FOCUS=1 .agentic-fr'
+  task: T-2672
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2673
+  command: cd /opt/termlink FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw context focus T-2673 >/dev/null
+    2>&1 git add .tasks/active/T-2673-migrate-3-un-migrated-long-poll-busy-spi.md FW_SWITCH_FOCUS=1 .agentic-fr
 - timestamp: '2026-08-13T08:32:44Z'
-  task: 'T-1452'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2676'
-  command: 'cd /opt/termlink
-git add .tasks/active/T-2676-bound-circuitbreakerregistrystates--per-.md
-FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw context focus T-1452 >/dev/null 2>&1
-.agentic-framework/bin/fw git'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2676
+  command: cd /opt/termlink git add .tasks/active/T-2676-bound-circuitbreakerregistrystates--per-.md FW_SWITCH_FOCUS=1
+    .agentic-framework/bin/fw context focus T-1452 >/dev/null 2>&1 .agentic-framework/bin/fw git
+- timestamp: '2026-08-15T22:26:55Z'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2754
+  command: 'FW_SWITCH_FOCUS=1 git add -A && FW_SWITCH_FOCUS=1 git commit -m "T-2754: close — 8 provers
+    reap their topics, hub steady at 771 across a full suite run" 2>&1 | tail -6'
+- timestamp: '2026-08-15T22:28:45Z'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2755
+  command: 'FW_SWITCH_FOCUS=1 git add -A && FW_SWITCH_FOCUS=1 git commit -m "T-2755: file detection gap
+    — topic-count axis unwatched, and the existing sweeper clears 1 of 771" 2>&1 | tail -5'
+- timestamp: '2026-08-15T22:29:04Z'
+  task: T-1452
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2755
+  command: 'FW_SWITCH_FOCUS=1 git add -A && FW_SWITCH_FOCUS=1 git commit -m "T-2755: record PL-348 — size
+    guards are blind to population growth" 2>&1 | tail -4'
 - timestamp: '2026-08-20T17:54:16Z'
-  task: 'T-2540'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2540
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-08-20T17:54:28Z'
-  task: 'T-2548'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2548
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-08-20T17:54:38Z'
-  task: 'T-2549'
-  flag: '--skip-sovereignty'
-  caller: 'check_human_sovereignty'
+  task: T-2549
+  flag: --skip-sovereignty
+  caller: check_human_sovereignty
   reason: 'Inception decision: GO'
 - timestamp: '2026-08-22T10:14:42Z'
-  task: 'T-2828'
-  flag: 'FW_SWITCH_FOCUS=1'
-  caller: 'check-active-task focus-drift'
-  target: 'T-2827'
-  command: 'FW_SWITCH_FOCUS=1 timeout 240 .agentic-framework/bin/fw git commit -m "T-2827: refresh merge-readiness report — main already fixed termlink_topics as T-2687, the duplicate-work detector could not se'
+  task: T-2828
+  flag: FW_SWITCH_FOCUS=1
+  caller: check-active-task focus-drift
+  target: T-2827
+  command: 'FW_SWITCH_FOCUS=1 timeout 240 .agentic-framework/bin/fw git commit -m "T-2827: refresh merge-readiness
+    report — main already fixed termlink_topics as T-2687, the duplicate-work detector could not se'

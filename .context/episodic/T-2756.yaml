@@ -1,0 +1,72 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2756: debris sweeper is blind to this repo's own prover topics
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-15T22:55:41Z
+# ============================================================================
+
+task_id: T-2756
+task_name: "debris sweeper is blind to this repo's own prover topics"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-15T22:45:30Z
+completed: 2026-08-15T22:54:11Z
+duration_days: 0
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  debris sweeper is blind to this repo's own prover topics
+
+# Key outcomes
+outcomes:
+  - 'The summary line reports the full three-way census — denied / allowed / unclassified — so `debris-candidates=N` can no longer be read as "everything else is clean". Live: `topics=771  candidates=1  denied=478 (protected)  unclassified=292 (not swept)`.'
+  - 'The census prints on **every** output path that reports a count: the dry-run path, the `--yes` path, and the `nothing to sweep` path. A clean-looking result is exactly where the disclaimer matters most (T-2680). Fixture 7 pins the clean path specifically.'
+  - 'A scope note names the limitation in words on those same paths: topics outside the allowlist are not swept, and denied topics are protected on purpose — so the reader is told the number is about the allowlist, not about the hub.'
+  - '`--list-only` output is UNCHANGED (bare candidate names, one per line) — it is a piping contract, and census text on stdout would corrupt any consumer. Census/scope text goes to stderr there, or is omitted.'
+  - '`--explain` (or equivalent) lists the unclassified topics, so an operator can see what the tool declined to classify rather than having to diff `channel list` by hand.'
+  - 'Deletion behaviour is byte-for-byte unchanged: the same topic set is deleted for the same inputs. The deny guard, the allowlist, the deny-before-allow order, the dry-run default and the exact-name delete are all untouched. Confirmed against the live hub: the candidate set is the same single topic before and after.'
+  - 'A fixture suite `tests/sweep-debris-census-fixtures.sh` drives the classifier over a canned topic list covering all three classes, and asserts (a) the census counts are correct, (b) a denied topic never reaches the candidate set even if an allow pattern would match it, and (c) `--list-only` stdout stays parseable. 20 assertions.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 8 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 8
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2756-debris-sweeper-is-blind-to-this-repos-ow.md
+generated_by: context-agent-hybrid

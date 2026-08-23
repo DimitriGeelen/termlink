@@ -5,6 +5,14 @@
 # Hybrid approach (D-023): Git owns timeline/metrics/artifacts,
 # task file owns AC + decisions, episodic merges both automatically.
 
+# T-2731: declare our own dependency rather than assuming the caller sourced
+# lib/paths.sh first. context.sh does; tests/unit/context_episodic.bats sources
+# this file directly and did not, so get_yaml_field was undefined and every
+# frontmatter field came back empty. lib/yaml.sh guards against double-sourcing.
+if ! declare -F get_yaml_field >/dev/null 2>&1; then
+    source "${FRAMEWORK_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)}/lib/yaml.sh"
+fi
+
 # =============================================================================
 # Git-mining helper functions
 # =============================================================================
@@ -79,12 +87,20 @@ do_generate_episodic() {
     # =========================================================================
     # Extract frontmatter fields
     # =========================================================================
-    local task_name=$(grep "^name:" "$task_file" | sed 's/name: //;s/^"//;s/"$//')
-    local workflow_type=$(grep "^workflow_type:" "$task_file" | sed 's/workflow_type: //')
-    local created=$(grep "^created:" "$task_file" | sed 's/created: //')
-    local last_update=$(grep "^last_update:" "$task_file" | sed 's/last_update: //')
-    local tags=$(grep "^tags:" "$task_file" | sed 's/tags: //' | tr -d '[]')
-    local description=$(grep "^description:" "$task_file" | sed 's/description: //' | sed 's/^> //')
+    # T-2731: use the shared extractor (lib/yaml.sh, sourced via lib/paths.sh)
+    # rather than six bespoke greps. The bespoke form matched anywhere in the
+    # FILE, not just the frontmatter — T-100202 has a body line beginning
+    # `name:` at line 248, so `$task_name` became two lines and the emitted
+    # `task_name: "…"` scalar spanned lines, making the episodic unparseable
+    # (OBS-129). It also kept only the first physical line, silently truncating
+    # every multi-line name and reducing every folded description to `>`.
+    # get_yaml_field is frontmatter-scoped and folds continuations.
+    local task_name=$(get_yaml_field "$task_file" "name")
+    local workflow_type=$(get_yaml_field "$task_file" "workflow_type")
+    local created=$(get_yaml_field "$task_file" "created")
+    local last_update=$(get_yaml_field "$task_file" "last_update")
+    local tags=$(get_yaml_field "$task_file" "tags" | tr -d '[]')
+    local description=$(get_yaml_field "$task_file" "description")
 
     # Parse Updates section for count
     local updates_section=$(sed -n '/^## Updates/,/^## /p' "$task_file" | head -n -1)
@@ -367,9 +383,18 @@ HEREDOC
                 # Format: "2026-02-17 14:00:00 +0100 T-116: message"
                 local ts=$(echo "$line" | awk '{print $1"T"$2}')
                 local msg=$(echo "$line" | cut -d' ' -f4-)
-                local escaped_msg=$(echo "$msg" | sed 's/"/\\"/g')
-                echo "  - time: \"$ts\"" >> "$episodic_file"
-                echo "    action: \"$escaped_msg\"" >> "$episodic_file"
+                # T-2729: single-quoted YAML — the only escape is ' -> ''. A
+                # DOUBLE-quoted scalar processes backslash escapes, so a commit
+                # subject containing `\x` is an invalid escape (hard parser error)
+                # and one containing `\n` silently becomes a newline instead of the
+                # two literal characters. Escaping only `"` (the previous code) does
+                # not address either. This was the FIFTH emission site in this
+                # writer: T-1871/T-1873 converted decisions, outcomes, challenges
+                # and artifacts for exactly this reason (L-392) and the sibling
+                # sweep stopped one block short of the git timeline.
+                local escaped_msg=$(echo "$msg" | sed "s/'/''/g")
+                echo "  - time: '$ts'" >> "$episodic_file"
+                echo "    action: '$escaped_msg'" >> "$episodic_file"
             fi
         done
     else

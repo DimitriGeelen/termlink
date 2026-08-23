@@ -430,25 +430,54 @@ cron runs `scripts/check-charter-drift-freshness.sh --quiet` (see
 `.context/cron/charter-drift-canary.crontab`) and appends to
 `.context/working/.charter-drift-canary.log`. Empty log = healthy.
 
-The canary reads `termlink help --json` — each tool object carries
-`{name, deprecated}`, where `deprecated` is derived from the registry's own
-`is_deprecated()` (so it trusts the binary's own classification and applies only
-the name pattern). It FIRES (exit 1) when any **LIVE** (`deprecated==false`) tool
-name matches the off-charter social-analytics pattern — i.e. a new such tool was
-added OR a deprecated one got its flag un-marked. After P4 that live set is empty
-(214 live tools scanned, 0 off-charter). The pattern is anchored to avoid
-false-positives on core primitives (`_pin$` not `_ping`; `_star$` not `_start` /
-`_starters`; `_poll_(start|vote|end|results)` not `event_poll`). Ad-hoc check:
-`bash scripts/check-charter-drift-freshness.sh` (exit 0 = healthy, 1 = a live
-off-charter tool, 2 = tooling error); add `--json` for scripting (carries
-`firing[]` with each offending `name`), `--no-heartbeat` (meta-canary uses it).
-Test hook `TERMLINK_CHARTER_DRIFT_TEST_JSON=<file>` feeds a canned
-`termlink help --json` for binary-independent verification (PL-213). Operator
-action on firing: deprecate the named tool(s) (mirror the `remote_inbox_*` T-1166
-convention per `docs/operations/p4-surface-reduction.md`), or — if one genuinely
-traces to a charter verb — rename it / adjust the pattern. `/canaries`
-auto-discovers the log. Pair with the eleven canaries above — all twelve follow
-the same "empty-log = healthy" convention.
+The canary reads `termlink help --json` — a `{category: [tool, ...]}` map whose tool
+objects carry `{name, deprecated}`, `deprecated` derived from the registry's own
+`is_deprecated()`. It trusts the binary's own classification for both liveness and
+category, and applies **two detectors** (T-2680): **name-pattern** (the original
+social-analytics families — reactions / emoji / stars / pins / typing / polls, anchored
+to avoid false-positives on core primitives: `_pin$` not `_ping`; `_star$` not `_start` /
+`_starters`; `_poll_(start|vote|end|results)` not `event_poll`) and **category** (the
+categories the binary itself names as analytics: `agent_rankings`, `agent_stats`,
+`agent_thread_health`, `channel_engagement`, `*_poll`, `*engagement_metrics`). A LIVE
+tool matching EITHER is off-charter.
+
+**Do not read a healthy exit as a full-surface clean bill.** T-2483 originally shipped
+the name detector alone and reported `{checked:214, live_off_charter:0}`, which read as
+"every one of 214 tools traces to the charter". It did not: the regex knew only the six
+families P4 had just deleted, so `termlink_agent_top_reacted` fired while
+`termlink_agent_top_repliers` — a functionally identical leaderboard — passed clean, and
+**28 live tools in explicitly-analytics categories were invisible**. Those 28 are exactly
+what **T-2548** (`owner: human`) is incepting to subtract, so an open decision about ~30
+off-charter tools coexisted with a daily canary calling that surface clean — Directive #2
+violated in the guard layer, the costliest place, because a guard reporting green is why
+nobody looks. T-2680 added the category detector and made every output path carry an
+explicit scope disclaimer: the canary detects known off-charter **shapes**, it does not
+audit every tool's charter traceability. Origin: T-2678 finding F2.
+
+**Acknowledgement allowlist.** Detecting the 28 must not mean alarming daily on a decision
+the human has not made. `.context/checks/charter-drift-allowlist` — **git-tracked on
+purpose**, unlike the four static-check allowlists under gitignored `.context/working/`
+(T-2681) — lists `<tool_name>  # <reason>` entries that are still **counted and reported**
+as off-charter but do not fire. Removing a line re-fires that tool; a NEW off-charter tool
+fires immediately because it is not listed. The allowlist is a ledger of an open question,
+not a permanent exemption: on T-2548's resolution the entries are either deleted (tools
+deprecated) or re-justified against a charter verb.
+
+Ad-hoc check: `bash scripts/check-charter-drift-freshness.sh` (exit 0 = no unacknowledged
+off-charter tool, 1 = drift, 2 = tooling error — fail-closed); add `--json` for scripting
+(`firing[]` with `name`/`why`, plus `acknowledged_count`, `acknowledged[]`,
+`off_charter_total`, `detectors[]`, `scope`), `--allowlist P` for an alternate ledger,
+`--no-heartbeat` (meta-canary uses it). Test hooks `TERMLINK_CHARTER_DRIFT_TEST_JSON=<file>`
+(canned catalog) + `CHARTER_DRIFT_ALLOWLIST=<file>` for binary-independent verification
+(PL-213); fixture suite `bash tests/charter-drift-check-fixtures.sh` (17 assertions,
+including the `top_repliers` regression that passed clean pre-T-2680). Current tree: 214
+live tools scanned by both detectors, 28 off-charter, **all 28 acknowledged pending T-2548**,
+0 unacknowledged. Operator action on firing: deprecate the named tool(s) (mirror the
+`remote_inbox_*` T-1166 convention per `docs/operations/p4-surface-reduction.md`); or, if
+one genuinely traces to a charter verb, rename it / adjust the detector; or, if it is a
+known pending decision, acknowledge it in the allowlist with a cited reason. `/canaries`
+auto-discovers the log. Pair with the eleven canaries above — all twelve follow the same
+"empty-log = healthy" convention.
 
 ### Charter canonical-sentence drift canary (T-2484, G-019 charter-fork prevention)
 
@@ -495,8 +524,18 @@ passive detection: a claim can sit expired, or a work-topic accumulate stuck cla
 for days with nothing firing (an idle worker's slot never reopens; a crashed
 worker's lease never gets noticed). The substrate already ships the detector
 primitive — `channel claims-summary --all --only-stuck --json` (T-2076) computes
-stuckness via the T-2042 heuristic (`expired_count > 0` OR
+stuckness via the T-2042 heuristic (a lease lapsed within the last 15min OR
 `oldest_active_age_ms > 60_000`) and returns a truthful fleet-wide `stuck_count`.
+**T-2709 narrowed the first arm**, which was `expired_count > 0` — a monotonic
+latch. Expired claim rows are reaped lazily and only when the SAME
+`(topic, offset)` is re-claimed, so on a topic nobody re-claims the row persists
+for the life of the hub's SQLite and the "stuck" verdict never clears. Measured
+here: 11 topics latched true, every one with `active_count: 0` (nothing held,
+nothing that *could* be stuck), one carrying 81 expired rows. This canary sat on
+that predicate, so it fired daily on permanent debris — the precise mechanism by
+which a guard teaches its operator to stop reading it. The arm now keys on
+`newest_expired_at_ms` so it self-clears; a hub predating the field reports
+absent, which reads as "no recent expiry", never as stuck.
 A daily cron runs `scripts/check-stuck-claims-freshness.sh --quiet` (see
 `.context/cron/stuck-claims-canary.crontab`) and appends to
 `.context/working/.stuck-claims-canary.log`. Empty log = healthy.
@@ -628,15 +667,37 @@ committed dark and only a self-review caught it). `scripts/check-cron-install-dr
 closes that blindness: for every git-tracked crontab it reads the crontab's OWN
 `# Installed to: <path>` header (robust to naming exceptions like `agentic-audit` →
 `/etc/cron.d/agentic-audit-termlink` — the path is self-declared, not derived from a
-naming rule) and classifies MISSING (declared path absent → FIRES exit 1, the G-069
-class), DRIFT (present but content differs from git → non-firing WARNING by default,
-fires under `--strict`), or OK. This is a **deploy-time / preflight check, NOT itself
-a cron canary** — a canary-to-detect-uninstalled-canaries would itself need
-installing (recursive). Run it ad-hoc after committing a new canary. Exit codes:
-0 = healthy, 1 = a crontab is missing (or drift under `--strict`), 2 = tooling.
-`--json` for scripting; a host without `/etc/cron.d` (macOS/dev) is informational,
-never firing. Test hooks `CRON_DRIFT_SRC_DIR` + `CRON_DRIFT_INSTALLED_DIR` feed
-fixture dirs (PL-213). Operator action on firing: install the named crontab with
+naming rule) and classifies into four states: **MISSING** (declared path absent →
+FIRES, the G-069 class), **UNINSTALLED_JOBS** (present, but the installed file lacks
+cron JOB lines that git declares → FIRES, T-2682), **DRIFT** (present, content
+differs, but no job line is absent — comment churn, env tweaks, an extra
+operator-added job → non-firing WARNING, fires under `--strict`), or **OK**
+(byte-identical).
+
+**Why UNINSTALLED_JOBS is its own class (T-2682).** T-2561 shipped with MISSING vs
+DRIFT only, so every content difference read as one quiet "DRIFT (warning)" line. On
+the origin host that hid two crontabs whose installed copies were missing their
+**meta-canary job line entirely** — T-2175 (substrate-preflight) and T-2176
+(fleet-doorbell-mail), the jobs that detect when the canary itself stops firing. Both
+had never been scheduled, reported as cosmetic drift. A job that was never scheduled
+is not a cosmetic difference; it is exactly the shipped-but-dark condition this check
+exists to catch, so it now fires regardless of `--strict` and prints the specific
+missing line(s) so the operator can install precisely what is absent. Direction
+matters: git-declared work absent from the host fires; an EXTRA job the operator added
+locally does not. Job lines are compared with comments, blanks, and `VAR=value` env
+assignments stripped and whitespace collapsed, so a reformat alone never false-fires.
+Found by the T-2678 charter guard-coverage review (gap G5).
+
+This is a **deploy-time / preflight check, NOT itself a cron canary** — a
+canary-to-detect-uninstalled-canaries would itself need installing (recursive). Run it
+ad-hoc after committing a new canary. Exit codes: 0 = healthy, 1 = firing (missing /
+uninstalled jobs / drift under `--strict`), 2 = tooling. `--json` for scripting
+(adds `uninstalled_jobs_count` + `uninstalled_jobs[]` carrying
+`<crontab>|<installed_path>|<missing line>`); a host without `/etc/cron.d` (macOS/dev)
+is informational, never firing. Test hooks `CRON_DRIFT_SRC_DIR` +
+`CRON_DRIFT_INSTALLED_DIR` feed fixture dirs (PL-213); fixture suite
+`bash tests/cron-install-drift-fixtures.sh` (24 assertions). Operator action on
+firing: install the named crontab with
 `sudo cp .context/cron/<name>.crontab <declared-path>`.
 
 ### Unclamped caller-param → allocation-sink static check (T-2527, G-019 prevention for the T-2523/T-2526 class)
@@ -671,7 +732,7 @@ reverting that clamp makes them fire again (the load-bearing property).
 Output is a **REVIEW list, not a hard gate** — false positives are expected; the
 value is surfacing NEW sinks for a human/agent to confirm-and-clamp. Confirmed-safe
 sites (upstream guard, internally-derived count, library constructor param) are
-acknowledged in `.context/working/.alloc-sink-allowlist`, one drift-stable signature
+acknowledged in `.context/checks/alloc-sink-allowlist`, one drift-stable signature
 per line (`<relpath>::<sink>(<normalized-arg>)`, `as usize` casts stripped); the
 check trends toward empty. The current tree is clean (98 sink calls scanned, 5
 confirmed-safe sites allowlisted with cited reasons — including one, the data-plane
@@ -685,6 +746,24 @@ Ad-hoc check: `bash scripts/check-alloc-sink-clamps.sh`. Fixtures (no live binar
 (`.clamp(1, N)` inline, or a `let x = clamp_*(...)` binding) OR — if confirmed
 bounded-by-construction — add the site's signature to the allowlist with a cited
 reason.
+
+**Allowlists are git-tracked under `.context/checks/` (T-2681).** All four static
+checks (alloc-sink, drain-sink, silent-exit, busy-spin) resolve their allowlist
+**tracked-first**: `.context/checks/<name>-allowlist` when present, falling back to
+the legacy `.context/working/.<name>-allowlist`, with an explicit env var /
+`--allowlist` always winning over both. The legacy home was gitignored
+(`.gitignore:80`), which made the entire guard layer **non-reproducible**: in a
+fresh clone, a CI runner, or a git worktree the allowlists are absent and every
+acknowledged site fires — alloc-sink `ok:false` (5), drain-sink `ok:false` (6),
+busy-spin `ok:false` (4) — while this file documented all three trees as scanning
+CLEAN. That was true only on the single machine holding the untracked copies. It
+also meant the *cited reasons* — the whole justification for the acknowledgement
+mechanism — lived on one disk outside version control, one `rm -rf` from silent
+permanent loss. A guard whose reported health depends on unversioned local state
+is a guard whose green is not evidence (same class as the T-2680 canary that
+over-reported its scope). All 15 acknowledged sites were re-verified by reading
+the code during the migration rather than copied forward on trust. Found by the
+T-2678 charter guard-coverage review (finding F4).
 
 ### Unbounded peer-driven drain-sink static check (T-2531, G-019 prevention for the T-2518/2524/2525/2529 class)
 
@@ -705,7 +784,7 @@ then fix why the framework was blind.
 `<cmd>.output()`, `<reader>.read_to_end(...)`, `<reader>.read_to_string(...)`,
 `<iter>.collect::<Vec<u8>>()`, and `<iter>.bytes().collect` — skipping `//`-comment
 lines and clearing a `<reader>.take(N).read_to_*(...)` bounded read on the same line.
-Confirmed-safe sites are acknowledged in `.context/working/.drain-sink-allowlist` by
+Confirmed-safe sites are acknowledged in `.context/checks/drain-sink-allowlist` by
 a **drift-stable `<relpath>::<enclosing-fn>::<sink>` signature** (fn-name-based, so it
 survives line moves; a fn RENAME re-fires the site — intended re-review on meaningful
 change, mirroring T-2527's line-independence trade-off). The current tree is clean:
@@ -755,7 +834,7 @@ window masks the sibling failure-branch bare exit). **Exit-code-FORWARDING sites
 scope by construction** — `exit(code)` / `exit(exec_result.exit_code)` / `exit(exit_code as
 i32)` forward a wrapped subcommand's own status (may be 0; the wrapped op already emitted
 output), and the regex only matches a non-zero integer literal. Confirmed-loud sites (output
-through a path the window can't see) are acknowledged in `.context/working/.silent-exit-allowlist`,
+through a path the window can't see) are acknowledged in `.context/checks/silent-exit-allowlist`,
 one drift-stable `<relpath>::<enclosing-fn>::silent-exit` signature per line (fn-name-based, so
 it survives line moves; a fn RENAME re-fires — same trade-off as T-2527/T-2531). After the
 T-2667 migration the current tree scans CLEAN (39 non-zero-literal exits scanned, 0 firing, 0
@@ -800,7 +879,7 @@ never dispatch those strings, so they are excluded automatically; every conventi
 long-poll loop carries the 500ms backoff, so it clears on the `sleep` presence. A long-poll
 loop whose error path provably EXITS the loop (`return` / `bail!` — no re-dispatch, hence no
 busy-spin) is SAFE but the grep cannot see that from the body, so it is acknowledged in
-`.context/working/.busy-spin-allowlist` by a drift-stable `<relpath>::<enclosing-fn>::busy-spin`
+`.context/checks/busy-spin-allowlist` by a drift-stable `<relpath>::<enclosing-fn>::busy-spin`
 signature (fn-name-based, survives line moves; a fn RENAME re-fires — same trade-off as the
 sibling checks). The current tree scans CLEAN (14 long-poll loops scanned: 3 fixed in T-2673,
 4 allowlisted as exit-on-error with cited reasons — `events.rs cmd_wait`, `tools.rs`
@@ -1275,6 +1354,354 @@ reviewing for anything machine-local or secret-bearing; **DANGLING** — you can
 the checkout that fires, because the files were never committed and there is nothing to
 pull; fix it in the checkout that still HAS them (run the check there, it reports them as
 UNTRACKED), commit, then update.
+### Platform-lock static check (T-2693, Directive #4 Portability)
+
+The fifth source-level static check (sibling of alloc-sink, drain-sink, silent-exit,
+busy-spin), for the Constitutional Directive no review had ever examined: **#4
+Portability — "no provider/language/environment lock-in"**.
+
+**Why it exists.** README §Platform Support asserts `Yes` for macOS five times (core
+binary, PTY operations, Terminal.app spawn, tmux spawn, TCP hub) and names Homebrew
+the *recommended* macOS install; `release.yml` cross-builds two Darwin targets and
+publishes them. Yet T-2690 found `whoami`'s PID-ancestor fallback reading
+`/proc/<pid>/stat` with `.ok()?` on **both** the CLI and MCP surfaces. There is no
+`/proc` on macOS, so the chain collapsed to `[self]` and `whoami` reported "ambiguous
+— here are all candidates": not a crash but a **plausible wrong answer**, recommending
+an action that could never help. Every existing guard was structurally blind to it —
+alloc/drain/silent-exit/busy-spin all ask about resource safety; none asks "does this
+run off Linux?".
+
+**What it flags** in the product crates: `/proc/` and `/sys/` path literals, and
+`Command::new("<tool>")` for `ss` · `systemctl` · `journalctl` · `ufw` · `setsid` ·
+`nproc` · `lsb_release`. **What it deliberately does not flag:** cross-platform
+subprocesses (`git`, `sh`, `bash`, `ssh`, `tmux`, `pgrep`), `osascript` (macOS-only
+*on purpose* — the Terminal.app spawn backend), and comment lines. The check is about
+*undeclared lock-in*, not about using a subprocess.
+
+**The allowlist rule is stricter than its siblings.** A grep cannot distinguish "reads
+/proc and silently returns the wrong answer" from "reads /proc behind a runtime probe
+that names the limitation" from "unreachable off Linux because the enclosing block
+already required a Linux-only tool". So each entry in
+`.context/checks/platform-lock-allowlist` must state **how the non-Linux path
+behaves**. "It's fine" is not a reason — the acknowledgement *is* the portability
+documentation for macOS, kept next to the signature so it stays in sync with the code.
+What is NOT allowlisted is the interesting part: the whoami defect was **fixed**
+(T-2691), not acknowledged. An entry is for a site that behaves correctly off Linux,
+never for one that fails quietly.
+
+Current tree: 8 sites scanned, all 8 acknowledged with cited degradation reasons
+(3 × `setsid` with an `.or_else(sh -c)` fallback, `ufw`+`ss` unreachable behind an
+`Ok+success` gate, 2 × `/proc` now guarded by `procfs_available()`, 1 cfg-gated test).
+Exit 0 clean / 1 unacknowledged / 2 tooling; `--json`; `--root` + `--allowlist` for
+fixtures. Ad-hoc: `bash scripts/check-platform-lock.sh`. Fixtures:
+`bash tests/platform-lock-check-fixtures.sh` (20 assertions). **It earned its keep on
+first run:** it flagged T-2691's own new test, which asserted `/proc` exists and would
+have failed on the macOS CI runner T-2692 was adding in the same session.
+
+**Companion — macOS CI (T-2692).** `release.yml` gains a `test-macos` job running the
+same `cargo test --workspace` as the Linux job. It is **deliberately non-blocking**
+(`continue-on-error: true`): the macOS result has never been measured, and gating
+releases on an unmeasured suite would violate T-2686's own AC. To promote once a green
+run exists: delete that one line and add `test-macos` to the build jobs' `needs:`.
+
+### Error-code emission check (T-2699, Directive #2 — a refusal is a claim)
+
+The sixth source-level static check. `check-error-code-docs.sh` (T-2213..T-2217)
+verifies that every doc-cited `SYMBOL(-320NN)` pairing matches `control.rs` — that
+guards the **docs** against the **code**. Nothing guarded either against **reality**:
+whether the error can be emitted at all.
+
+**Why it exists.** T-2698 treated the error taxonomy as what it is — a set of
+assertions that the system will refuse you under condition X — and found three of 23
+codes with zero emission sites: `SESSION_BUSY` (-32002), `MESSAGE_EXPIRED` (-32004),
+`PROTOCOL_VERSION_TOO_OLD` (-32011). All three are listed in the T-005 protocol design
+as ordinary refusals, so a client written from that table would infer protections that
+do not exist: that a busy session refuses a second command, that an over-TTL message is
+rejected rather than delivered late, and that the hub turns away peers on too old a
+protocol.
+
+`PROTOCOL_VERSION_TOO_OLD` is the shape that matters. `control.rs` ships
+`check_protocol_version()` which builds the structured error, plus a passing test
+`check_protocol_version_rejects_when_declared_is_older` — and **zero callers**. Every
+conventional coverage signal reads green because the *builder* is covered. **Coverage
+of a builder says nothing about whether the builder is called.** That is the T-2683
+pattern — a guard nothing executes — in compiled Rust rather than shell. Wiring it is
+**T-2700** (`owner: human`): it begins rejecting live peers, and this fleet has hosts
+~1000 commits stale (T-2377).
+
+**It also found a live wire collision.** `artifact.rs` emitted the bare literal
+`-32004` at three sites for "artifact not found" — one wire code carrying two
+incompatible meanings, demanding opposite client responses. Invisible to the doc lint,
+because a hand-written number cites no symbol. Fixed by `ARTIFACT_NOT_FOUND` (-32024),
+pinned by `artifact_not_found_does_not_reuse_message_expired`. The collision had also
+*masked* `MESSAGE_EXPIRED`'s deadness — the value appeared on the wire, just never
+meaning what the taxonomy said.
+
+**What counts as an emission:** a reference to `error_code::NAME`, **or** the bare
+numeric literal, anywhere in the product crates **excluding the defining file** — so
+neither a constant nor a builder sitting beside it counts as its own use. Comments are
+stripped first: prose *about* a code is not a use of it (the check's own first run
+cleared -32011 because a doc comment mentions it).
+
+Genuinely-reserved codes go in `.context/checks/error-code-emission-allowlist`
+(git-tracked, T-2681) with a reason stating why it is not emitted **and what would
+change that** — "reserved" alone is not a reason, because unstated reservation is how
+three of these read as ordinary refusals for months. Current tree: 24 scanned, 3
+declared-reserved, 0 unacknowledged. Ad-hoc:
+`bash scripts/check-error-code-emission.sh` (0 clean / 1 unacknowledged / 2 tooling;
+`--json`; `--def-file` / `--root` / `--allowlist` for fixtures). Fixtures:
+`bash tests/error-code-emission-fixtures.sh` (18 assertions).
+
+### Version-derivation static check (T-2746, G-019 prevention for the T-1458 / T-2744 class)
+
+The seventh source-level static check. A crate that reads `env!("CARGO_PKG_VERSION")`
+gets its own `Cargo.toml` version unless a `build.rs` overrides it with the git-derived
+one. When that override is missing the crate does not fail — it reports a **plausible
+wrong version, indefinitely**, which is the Directive #2 shape (a wrong answer, not an
+error).
+
+**Why it exists: this happened twice, three months apart, in two different crates.**
+T-1458 (2026-05-03) found `termlink-hub` returning `"0.9.0"` from `hub.version` for every
+fleet hub regardless of binary freshness. T-2744 (2026-08-15) found `termlink-session`
+stamping `"0.9.0"` into every session's metadata while the binary reporting it was at
+`0.11.720` — for the entire life of the field.
+
+The first instance produced **PL-148**, which is accurate, specific, and even names the
+detection lever ("if a fleet-wide version histogram shows uniform '0.9.0', or matches the
+workspace Cargo.toml literal exactly, suspect a missing build.rs"). It did not prevent the
+second. A learning that precise failing to prevent a recurrence is the argument for a
+structural check rather than more documentation.
+
+**PL-148 also names why the obvious test cannot catch it:**
+`assert_eq!(reported_version, env!("CARGO_PKG_VERSION"))` passes whether `env!` resolves to
+`0.9.0` or `0.11.1359`, because both sides are the same compile-time constant. The bug is
+invisible from inside the crate that has it — which is what makes it a job for a check
+reading the build configuration from outside, not for a unit test.
+
+`scripts/check-version-derivation.sh` decides two things independently per crate:
+**(1) does it READ the version** (any non-comment `env!`/`option_env!("CARGO_PKG_VERSION")`
+in its sources, `build.rs` excluded — a build script reading its own Cargo.toml value is the
+mechanism, not a surface); **(2) does it DERIVE the version** (a `build.rs` containing a
+non-comment `cargo:rustc-env=CARGO_PKG_VERSION`). Reads-but-does-not-derive fires. A crate
+that does neither is never examined — the check does **not** say "every crate must have a
+build.rs", and `termlink-bus` / `termlink-protocol` / `termlink-test-utils` are live proof
+it discriminates.
+
+**Scope — it detects a MISSING derivation, not a WRONG one.** It reads whether the emit line
+is present; it does not evaluate what the build script computes. The T-2744 regression test
+(`recorded_version_is_the_build_version_not_the_cargo_toml_constant`) covers that other half
+from inside the crate, comparing against a separately-exported copy of the Cargo.toml value
+rather than a literal — which is how it escapes the PL-148 tautology. The two are
+complements; neither alone is sufficient.
+
+A **test-only** read is deliberately treated as a read: that is precisely the tautological
+assertion PL-148 warns about, so a crate whose only use is that one is a crate whose version
+cannot be verified from inside itself. Allowlist:
+`.context/checks/version-derivation-allowlist` (git-tracked per T-2681), `<crate>  # <reason>`;
+entries are counted and reported but do not fire, and the reason must say why the Cargo.toml
+version is the *right* answer for that crate. Currently empty on purpose — every crate here
+that reads the version also derives it.
+
+Current tree: 4 crates scanned (cli / mcp / hub / session), 0 firing, 0 allowlisted. Exit
+0 clean / 1 firing / 2 tooling; `--json`, `--quiet`, `--root`, `--allowlist`. Ad-hoc:
+`bash scripts/check-version-derivation.sh`. Fixtures:
+`bash tests/version-derivation-check-fixtures.sh` (16 assertions). **Load-bearing:** removing
+the emit from `crates/termlink-session/build.rs` fires it with `never emits …`; deleting the
+file fires it with `has no build.rs` — the two failure shapes report distinct reasons.
+
+### MCP/CLI parity census check (T-2747, herdr rank 13 — coverage, not execution)
+
+The eighth source-level static check. `crates/termlink-mcp/tests/parity.rs` asserts that an
+MCP tool and its CLI verb produce the same structured output. **It covers 24 tools. There
+are 260.** The other 236 are not passing — they are UNEXAMINED, and nothing distinguished
+those two states.
+
+That is the T-2680 lesson one layer up. The charter-drift canary once reported
+`{checked:214, live_off_charter:0}`, which read as "all 214 trace to the charter" when it
+had only ever looked for six known families. A suite covering 9.2% of a surface and saying
+nothing about the rest has the same shape: its green is a statement about the 24 and gets
+read as a statement about the 260. The guard layer had no member that knew the two surfaces
+are supposed to correspond (`ls scripts/ | grep -i parit` → nothing).
+
+**Distinct from T-2686.** `parity_topics` WAS covered and DID catch T-2624 — what failed
+from 2026-08-12 is that *nothing ran it*. T-2686 closed the **execution** gap; this closes
+the **coverage** gap. Different bugs.
+
+**What it does not do:** it does not prevent drift and does not verify that any two
+implementations agree. It answers one question — is every MCP tool either ASSERTED by a
+parity case or ACKNOWLEDGED with a cited reason? It converts *unexamined* into
+*acknowledged*. The value is the **ratchet**: all 236 uncovered tools are enumerated in
+`.context/checks/mcp-parity-census-allowlist` (git-tracked per T-2681, a ledger of an open
+question in the T-2483/T-2548 tradition, worked down by **T-2748**), so a NEW MCP tool added
+tomorrow is in neither set and fires on the next run. Today's gap is frozen and visible;
+tomorrow's requires a decision. Both output paths — including the clean one — state the
+census (`260 tools: 24 asserted, 236 acknowledged, 9.2%`) plus the scope disclaimer, so a
+green can never be misread as full coverage.
+
+**Counting note.** Three counts of "`*_mcp` parallel helpers" were circulating — 83 (T-1904),
+68 (`parity.rs` header as of T-2683/T-2689), 94 (herdr worker 3) — none asserted correct.
+Measured: **79** distinct `fn *_mcp` names. They disagree because the unit is ill-defined:
+`fn to_json_mcp` alone occurs 26 times as a small helper redefined inside separate functions,
+and counting it as 26 parallel implementations is as defensible as counting it as one. The
+check therefore counts **tools** (`name = "termlink_…"` inside `#[tool(…)]`) — a unit with
+exactly one meaning — not helpers.
+
+Comment lines are stripped on both sides: `tools.rs` contains a doc comment quoting
+`name = "termlink_help"` that would inflate the total, and `parity.rs` discusses tool names
+in prose that would mark them covered without asserting anything. Exit 0 clean / 1 firing /
+2 tooling (an empty tool surface is a tooling error, never a clean census). `--json`,
+`--tools-file`, `--parity-file`, `--allowlist`. Ad-hoc:
+`bash scripts/check-mcp-parity-census.sh`. Fixtures:
+`bash tests/mcp-parity-census-fixtures.sh` (26 assertions). **Load-bearing:** deleting an
+allowlist line re-fires that tool; renaming a covered tool's reference in `parity.rs` moves
+it from covered to unexamined (24→23, 9.2%→8.8%) and fires it.
+
+### Release-artifact drift check (T-2751, the install path nothing guarded)
+
+The ninth source-level static check. The release artifact-name list exists as **three
+hand-maintained copies** — `install.sh:70-81` (case arms choosing what to download),
+`.github/workflows/release.yml` (the publish block), `homebrew/Formula/termlink.rb` (url
+lines) — and nothing verified they agree. Same shape as T-2484 (the charter sentence as
+three copies with no transclusion), applied to release artifacts instead of prose.
+
+**Why this one is sharper than ordinary drift.** `install.sh` is the **first** option in
+README Quick Start, advertised as "no toolchain required" — the path a new user takes. It
+has zero CI coverage. `install-check.yml` guards the **third** option (`cargo install
+--git`) and its header still calls that "the documented installation path", which is stale.
+So the guarded path is the least-used one, while the unguarded one is piped into `sh` on a
+stranger's machine, where a rename surfaces as `die "failed to download"` on **their** host
+rather than as a red build on ours. Same class as T-2683 (static checks nothing ran) and
+T-2686 (`parity_topics` failing undetected since 2026-08-12).
+
+**install.sh ↔ release.yml is checked bidirectionally**, because the two directions fail
+differently and only one of them is loud: *offered-but-unpublished* (install.sh selects a
+name release.yml does not ship → the user gets a 404) versus *published-but-unreachable*
+(release.yml ships a name install.sh never selects → we build and host a target the primary
+installer cannot deliver, and **nobody sees an error** — the Directive #2 shape). They are
+reported separately.
+
+**The formula is checked as a SUBSET, not an equality.** Every artifact it references must
+be published; a published artifact it omits does not fire — the gnu `linux-x86_64` variant
+is deliberately excluded in favour of the musl static one (T-1135), so equality would fire
+daily on a decision already made. Only `url "…releases/download/…"` lines are parsed, never
+any `termlink-*` token: the formula also contains `Dir["termlink-*"].first`, a runtime glob
+that is not an artifact name.
+
+**Scope — it compares NAMES and nothing else.** It does not verify an asset is
+downloadable, that `checksums.txt` carries a line for it, or that the binary runs. A
+release publishing all five names as empty files passes. Both output paths state this, so a
+green is never misread as "the install path works" (T-2680). There is deliberately **no
+allowlist**: unlike the sibling checks, every mismatch here is a real defect with a real fix,
+so an allowlist could only ever silence a genuine break. An empty extraction from either
+side is exit 2, never a clean census — "0 agrees with 0" is vacuously true and would report
+green over a parse that silently stopped matching (the T-2747 zero-tools lesson).
+
+Current tree: 5 published, 5 offered, 4 in formula — clean. Exit 0 clean / 1 firing /
+2 tooling. `--json`, `--quiet`, `--install-sh`/`--release-yml`/`--formula` for fixtures.
+Ad-hoc: `bash scripts/check-release-artifact-drift.sh`. Fixtures:
+`bash tests/release-artifact-drift-fixtures.sh` (34 assertions, including a PL-219 control
+that the real tree scans clean). **Load-bearing:** renaming one case arm in `install.sh`
+fires it twice — once per direction, correctly attributed — and restoring returns it to clean.
+
+**Origin note.** This came out of herdr backlog **rank 20**, which proposed *building* a
+`curl | sh` user-level installer. That premise was false — `install.sh` has existed since
+T-1134 with checksum verification, multi-arch detection, a no-sudo fallback and a PATH
+warning. Rank 20 is closed as ALREADY-IMPLEMENTED. The gap was never the installer; it was
+that nothing guarded it.
+
+### Running the guard layer — `scripts/run-guard-layer.sh` (T-2684)
+
+**One command runs every source-level guard.** Before T-2684 there was none, and
+nothing automatic ran them at all.
+
+```bash
+bash scripts/run-guard-layer.sh            # all static checks + fixture suites (seconds)
+bash scripts/run-guard-layer.sh --list     # what the layer consists of
+bash scripts/run-guard-layer.sh --tests    # ...plus `cargo test --workspace` (minutes)
+bash scripts/run-guard-layer.sh --json     # {ok, members[], summary} for scripting
+```
+
+TermLink's guards split in two, and only one half was ever automated. The **runtime**
+guards — the 17 cron canaries above — are wired to cron and heartbeat daily. The
+**source-level** guards, which protect the code that changes on every commit, were
+executed by nothing: T-2683 grepped the whole tree and found the four static checks
+referenced only by their own fixture suites and by `.context/episodic/*`, the records
+of the tasks that created them. `release.yml` ran `cargo build --release` and never
+`cargo test`; `doc-lint.yml` ran 2 of 28 check scripts; the pre-push audit runs the
+`structure` section only. That is precisely the disease the static checks exist to
+cure — `check-alloc-sink-clamps.sh`'s own header says "the convention is by
+discipline, not enforced" — reproduced one level up, where nothing was watching.
+
+**Membership is declared, not guessed.** A static check joins the layer by carrying a
+marker in its own header:
+
+```
+# guard-layer: source [extra args...]
+```
+
+`source` means "safe to run anywhere: no live hub, no network, no host state". The
+optional trailing args are how the check wants to be invoked here — chiefly
+`--no-heartbeat`, so a check run from the runner cannot refresh its cron heartbeat and
+mask a dead cron from the T-1723 meta-canary. Fixture suites (`tests/*fixtures*.sh`)
+are members by naming convention; they are hermetic by construction. A
+`scripts/check-*.sh` with **no** marker is reported as unclassified rather than
+silently ignored — a forgotten marker is itself the shipped-but-dark condition. Most
+unmarked checks are legitimately runtime canaries and belong to cron.
+
+**Verdicts preserve the exit-code contract the layer already uses:** `PASS` (rc 0) ·
+`FAIL` (rc 1 — a guard fired, a real finding) · `ERROR` (rc 2 or an unexpected status
+— the guard *could not run*) · `SKIP`. Keeping ERROR distinct from PASS is the point:
+a check that never looked must never read as a clean bill. Roll-up: any FAIL → exit 1;
+else any ERROR → exit 2; else 0 — findings dominate tooling errors, mirroring
+`fleet verify`'s "drift dominates". A member that hangs is bounded by
+`GUARD_LAYER_TIMEOUT` (default 300s) and counts as ERROR, never PASS.
+
+**Wired into CI by T-2686.** `doc-lint.yml` gains a `guard-layer` job (runs on every
+push and PR — no Rust build, seconds), and `release.yml` gains a `test` job running
+`cargo test --workspace` **plus** the guard layer, which both build jobs now `needs:`
+— so a red suite blocks the build and no binary is produced at all. That gate found
+its first real defect immediately: `parity_topics` had been failing since 2026-08-12
+(T-2624 added four partial-inventory fields to the CLI's `topics --json` and never to
+the MCP tool — fixed in T-2687) with nothing to surface it.
+
+Test seams: `GUARD_LAYER_SCRIPTS_DIR`, `GUARD_LAYER_TESTS_DIR`, `GUARD_LAYER_TIMEOUT`.
+Fixtures: `bash tests/guard-layer-runner-fixtures.sh` (27 assertions).
+
+### Canary log hygiene — split the streams (T-2685)
+
+Every canary implements `exit 0 healthy / exit 1 FIRING / exit 2 tooling error`, and
+T-2557 states why the exit-2 class exists: *"This split keeps a firing log meaningful:
+it fills ONLY when session control genuinely broke, never on a transient hub-down."*
+
+**The crontab used to throw that split away.** All 30 job lines across all 24 crontabs
+were written `>> <findings>.log 2>&1`, merging stderr into the findings log — so a
+check that *could not run* wrote into the channel whose entire documented meaning is
+"the watched thing is broken". T-2683 found a live instance:
+`.release-mirror-canary.log` held `error: origin HEAD empty` while the script itself
+exited 0 with "GitHub mirror: synced", which per this file directs an operator to
+rotate a GitHub token for a fault that did not exist.
+
+The compounding harm is worse than one false positive: **"empty log = healthy" is a
+one-bit channel.** Once a tooling error dirties the log, a subsequent genuine finding
+appends to an already-non-empty file and changes nothing an operator can see — the
+canary is not merely noisy, it is *deaf* until someone truncates it by hand.
+
+The correct idiom, now used everywhere:
+
+```
+… bash scripts/check-<x>.sh --quiet >> .context/working/.<x>-canary.log 2>> .context/working/.<x>-canary.log.stderr
+```
+
+Nothing is lost — the diagnostic stream is preserved, just not conflated with the
+signal. The `.stderr` suffix deliberately does not match `/canaries`' `.*-canary.log`
+discovery glob (`canary-status.sh:97`). `2>/dev/null` is **also** wrong: it trades a
+false positive for a silent failure, Directive #2 violated inside the monitoring
+layer. `scripts/check-canary-log-hygiene.sh` enforces this, carries the
+`# guard-layer: source` marker, and fires on either mistake. Ad-hoc:
+`bash scripts/check-canary-log-hygiene.sh` (0 clean / 1 firing / 2 tooling; `--json`;
+seam `CANARY_HYGIENE_SRC_DIR`). Fixtures: `bash tests/canary-log-hygiene-fixtures.sh`
+(19 assertions). See `docs/operations/substrate-cron-recipes.md` § "The redirect
+idiom".
 
 ## Project-Specific Rules
 
@@ -2473,7 +2900,7 @@ T-2068 (closure) added the read-side companion — `fleet governor-history --sin
 | **Governor (BACKPRESSURE-READ)** | **`/governor [--only-pressured] [--json]`** | BACKPRESSURE-READ daily verb (T-2095) — answers "is the hub being rate-limited or at-capacity right now?" by wrapping `termlink fleet governor-status` (substrate primitive #10, T-2048/T-2060/T-2062/T-2070) at the skill layer. **Completes the substrate-read daily-verb quad** alongside `/find-idle` (#2), `/claims` (#1), `/queue-status` (#5). Pure Observe-scope read of `hub.governor_status` JSON-RPC per hub in `hubs.toml` — no auth side-effects, no state mutation. Per-hub block + fleet-wide footer (`hubs_at_capacity` / `hubs_rate_limited` totals). `--only-pressured` (T-2070) filters to hubs needing attention (unreachable, at-capacity, capacity_hits > 0, rate_hits > 0); healthy-fleet path under filter prints `All hubs healthy (0/N pressured)` — affirmative confirmation. Operational reading: `capacity_hits_total > 0` → connection refused (tune `TERMLINK_MAX_CONNECTIONS`); `rate_hits_total > 0` → RPC refused (tune `TERMLINK_RATE_LIMIT_PER_SEC`); `dedupe_hits_total > 0` → spoke retries absorbed (this is **good**, exactly-once working per T-2049). Empty-result loud per-state: steady-state-zero (hint), all-unreachable (points at `fleet doctor` + `fleet verify`). Watch/notify/log/history forms stay at CLI tier (T-2064..T-2069) — same design rationale as siblings. See `.claude/commands/governor.md` + `docs/operations/substrate-governor.md` master recipe. |
 | **CV-keys (BROADCAST-WITH-REPLAY INSPECTION)** | **`/cv-keys <topic> [--hub <addr>] [--json]`** | BROADCAST-WITH-REPLAY inspection daily verb (T-2121) — answers "which cv_keys are currently advertising on this topic, and at what offsets?" by wrapping `termlink channel cv-keys` (substrate primitive #9 inspection, T-2106) at the skill layer. **Natural follow-up to `/governor` when `cv_overflow > 0` fires:** /governor detects the overflow, /cv-keys identifies which keys are on the saturating topic, the operator fixes the producer that is mis-emitting `metadata.cv_key`. Pure Observe-scope read of `channel.cv_keys` JSON-RPC — no auth side-effects, no state mutation. Local-hub-default by ADR §6 #9 design (cv_index is per-hub state per G-060 — no fleet-wide form would aggregate meaningfully). Empty-result path is loud per-state: emits the verb's `no cv_keys recorded on topic` line, then appends a diagnostic ladder distinguishing healthy "broadcast-only topic" from misconfigured-producer cases. Cross-references the cv_overflow observability arc end-to-end (T-2110 telemetry → T-2118 predicate → T-2119 watch/notify/log/history → T-2120 docs → /cv-keys diagnosis). Common pattern: `/governor --only-pressured` → identify pressured hub → `/cv-keys <suspect-topic> --hub <addr>` → check `count` vs `TERMLINK_CV_INDEX_CAP_PER_TOPIC` (default 1000); near-cap = producer bug. Highest-value default invocation: `/cv-keys agent-presence` (one entry per LIVE agent per T-2107 listener-heartbeat wiring). See `.claude/commands/cv-keys.md` + `docs/operations/substrate-broadcast-with-replay.md` master recipe. |
 | **Broadcast-with-replay (BROADCAST-READ)** | **`termlink channel cv-keys <TOPIC> [--json]` / `termlink channel subscribe <TOPIC> --include-current-value` / `termlink_channel_cv_keys` MCP / `termlink_channel_subscribe.include_current_value` MCP** | T-2027/T-2089 substrate primitive #9 — late-joiners read current-state-per-cv_key in O(K) instead of replaying the full event log. T-2103 added the hub-side `cv_index: HashMap<topic, HashMap<cv_key, offset>>` recorded on every post carrying `metadata.cv_key` (last-write-wins, per-topic cap 1000 via `TERMLINK_CV_INDEX_CAP_PER_TOPIC`). T-2104 wired `channel.subscribe` to accept `include_current_value: bool` and respond with `current_values: [{cv_key, offset, msg}, ...]` inline before the regular stream. T-2105 surfaced `--include-current-value` at the CLI + MCP tiers (snapshot is one-shot — sent on first hub call only). T-2106 added the read-only inspection verb `channel.cv_keys` / `termlink channel cv-keys <TOPIC>` / `termlink_channel_cv_keys` answering "what cv_keys are advertising on this topic and at what offsets?" without forcing the operator to subscribe. T-2107 wired `metadata.cv_key=$agent_id` into `listener-heartbeat.sh` as the highest-value producer — every `/be-reachable` heartbeat now populates cv_index, so `channel cv-keys agent-presence` returns one entry per agent (vs O(N_heartbeats) walk). Discovery cost: 5-agent fleet × 30s × 24h drops from ~14,400 envelopes to 5 entries per query. `--no-cv-key` opt-out for tests/migration. Empty cv_index is NOT an error (healthy state). cap-overflow: post stays atomic, only annotation drops (loud-refuse via internal counter). cv_index is in-memory only — process-local to the hub, cleared on restart, repopulated within one heartbeat cycle. See `docs/operations/substrate-broadcast-with-replay.md`. |
-| **Preflight (DEPLOY-TIME)** | **`/preflight [--json]`** | Deploy-time substrate correctness verb (T-2158) — wraps `scripts/substrate-preflight.sh` (T-2154) at the skill layer. Answers "before I trust this substrate, is the environment actually set up right?" — the load-bearing precondition under every runtime-read verb. Six checks: (1) `TERMLINK_RUNTIME_DIR` NOT on /tmp [HIGH — PL-021 prevention; detects BOTH tmpfs mount AND systemd-tmpfiles D-rule wipe], (2) `~/.termlink/hubs.toml` present + has `[hubs.*]` sections [MEDIUM — every heal path / fleet verb depends on it], (3) `~/.termlink/be-reachable.state` PID alive [MEDIUM — "I forgot to /be-reachable again after reboot" footgun], (4) **`termlink --version` >= project root `VERSION`** [MEDIUM — T-2181: catches stale-binary footgun where catalog promises flags like `--only-stuck` (T-2076) or subcommands like `fleet governor-status` (T-2062) that an older binary refuses with `unknown flag` / `unrecognized subcommand`. WARN, not FAIL — substrate still works for primitives the binary has. Skipped silently when run outside the project tree (no VERSION file). Remediation: `cargo build --release && install -m 755 target/release/termlink ~/.cargo/bin/`], (5) **local hub serves T-2139 field** [MEDIUM — T-2184: symmetric companion to Check 4. Probes running hub via `termlink hub status --governor --json` and tests for `rate_buckets_evicted_total` field presence. Absence ⇒ pre-T-2139 hub binary (typically: operator ran `cargo install` but never restarted hub — `/proc/<pid>/exe` shows `...(deleted)`, in-memory binary keeps serving old envelopes). WARN, not FAIL — substrate still works for primitives the hub binary has. Skipped when hub is down (different failure mode — Check 1 territory). Remediation: restart hub to pick up new binary; verify runtime_dir persists secret/cert per Check 1 first. Origin: PL-209 spent ~30min chasing "missing telemetry" that was actually a missing restart], (6) **systemd unit health + detached-ghost detection** [MEDIUM — T-2358, G-070 prevention: WARNs when termlink-hub.service is crash-looping/failed, when the pidfile PID is alive but differs from the unit MainPID (detached ghost serving outside supervision), when a hub runs with the unit inactive (no crash-restart / reboot-survival), or when NRestarts > `TERMLINK_PREFLIGHT_NRESTARTS_MAX` (default 5 — flap residue persists until acknowledged via `systemctl reset-failed termlink-hub`). Origin: G-070, unit crash-looped 2178 times "Hub is already running" while a detached hub held the pidfile and every other surface stayed green. Skips silently on non-systemd / watchdog-launched hosts]. Exit codes: 0 PASS, 1 WARN, 2 FAIL. Read-only, no network, no auth, no state mutation — safe anywhere. **Distinct from `/substrate` (runtime digest), `/self-test` (framework E2E), `fw doctor` (framework health)** — four verbs answer four distinct operational questions; conflating them is how a hub silently regenerates its secret every reboot for 14 days before anyone notices (PL-021 / G-058 class). Contextual Step-5 next-step hints per failed check (runtime_dir → `docs/operations/termlink-hub-runtime-migration.md` + CLAUDE.md §"Special case — volatile runtime_dir"; hubs.toml → `termlink remote profile add`; be-reachable → `/be-reachable start`). PASS path nudges operator to runtime layer: `/substrate` + `/peers --all`. Cold-start sequence (first 5 minutes on a new host): `/preflight` → `/be-reachable start` → `/substrate` → `/peers --all`. See `.claude/commands/preflight.md` + `docs/operations/substrate-getting-started.md`. |
+| **Preflight (DEPLOY-TIME)** | **`/preflight [--json]`** | Deploy-time substrate correctness verb (T-2158) — wraps `scripts/substrate-preflight.sh` (T-2154) at the skill layer. Answers "before I trust this substrate, is the environment actually set up right?" — the load-bearing precondition under every runtime-read verb. Six checks: (1) resolved `runtime_dir` NOT on a volatile filesystem [HIGH — PL-021 prevention; detects BOTH a memory-backed filesystem (tmpfs/ramfs, wherever mounted) AND systemd-tmpfiles D-rule wipe. **T-2729:** the directory is resolved by the binary's own four-step order (`discovery.rs:10-26` — `TERMLINK_RUNTIME_DIR`, `XDG_RUNTIME_DIR/termlink`, `TMPDIR/termlink-$UID`, `/tmp/termlink-$UID`), and volatility is decided by the actual mount type rather than a path prefix. It was previously hardcoded to `${TERMLINK_RUNTIME_DIR:-/tmp/termlink-0}` and matched `/tmp*` literally, so on any host taking the systemd default the check inspected `/tmp/termlink-0` while the hub used `/run/user/<uid>/termlink` — an unrelated path — and reported PASS "persists across reboot" for a tmpfs systemd destroys at *logout*. The guard was most confident precisely where it was most wrong, on the single failure mode it exists to catch, and was correct only on hosts that had already set the override — i.e. the ones that no longer needed it. Test seams `TERMLINK_PREFLIGHT_TEST_MOUNT_OUTPUT` + `TERMLINK_PREFLIGHT_TEST_UID`; fixtures `bash tests/substrate-preflight-runtime-dir-fixtures.sh` (17 assertions, 11 of which fail against the pre-fix script)], (2) `~/.termlink/hubs.toml` present + has `[hubs.*]` sections [MEDIUM — every heal path / fleet verb depends on it], (3) `~/.termlink/be-reachable.state` PID alive [MEDIUM — "I forgot to /be-reachable again after reboot" footgun], (4) **`termlink --version` >= project root `VERSION`** [MEDIUM — T-2181: catches stale-binary footgun where catalog promises flags like `--only-stuck` (T-2076) or subcommands like `fleet governor-status` (T-2062) that an older binary refuses with `unknown flag` / `unrecognized subcommand`. WARN, not FAIL — substrate still works for primitives the binary has. Skipped silently when run outside the project tree (no VERSION file). Remediation: `cargo build --release && install -m 755 target/release/termlink ~/.cargo/bin/`], (5) **local hub serves T-2139 field** [MEDIUM — T-2184: symmetric companion to Check 4. Probes running hub via `termlink hub status --governor --json` and tests for `rate_buckets_evicted_total` field presence. Absence ⇒ pre-T-2139 hub binary (typically: operator ran `cargo install` but never restarted hub — `/proc/<pid>/exe` shows `...(deleted)`, in-memory binary keeps serving old envelopes). WARN, not FAIL — substrate still works for primitives the hub binary has. Skipped when hub is down (different failure mode — Check 1 territory). Remediation: restart hub to pick up new binary; verify runtime_dir persists secret/cert per Check 1 first. Origin: PL-209 spent ~30min chasing "missing telemetry" that was actually a missing restart], (6) **systemd unit health + detached-ghost detection** [MEDIUM — T-2358, G-070 prevention: WARNs when termlink-hub.service is crash-looping/failed, when the pidfile PID is alive but differs from the unit MainPID (detached ghost serving outside supervision), when a hub runs with the unit inactive (no crash-restart / reboot-survival), or when NRestarts > `TERMLINK_PREFLIGHT_NRESTARTS_MAX` (default 5 — flap residue persists until acknowledged via `systemctl reset-failed termlink-hub`). Origin: G-070, unit crash-looped 2178 times "Hub is already running" while a detached hub held the pidfile and every other surface stayed green. Skips silently on non-systemd / watchdog-launched hosts]. Exit codes: 0 PASS, 1 WARN, 2 FAIL. Read-only, no network, no auth, no state mutation — safe anywhere. **Distinct from `/substrate` (runtime digest), `/self-test` (framework E2E), `fw doctor` (framework health)** — four verbs answer four distinct operational questions; conflating them is how a hub silently regenerates its secret every reboot for 14 days before anyone notices (PL-021 / G-058 class). Contextual Step-5 next-step hints per failed check (runtime_dir → `docs/operations/termlink-hub-runtime-migration.md` + CLAUDE.md §"Special case — volatile runtime_dir"; hubs.toml → `termlink remote profile add`; be-reachable → `/be-reachable start`). PASS path nudges operator to runtime layer: `/substrate` + `/peers --all`. Cold-start sequence (first 5 minutes on a new host): `/preflight` → `/be-reachable start` → `/substrate` → `/peers --all`. See `.claude/commands/preflight.md` + `docs/operations/substrate-getting-started.md`. |
 | **Substrate digest (SUBSTRATE-PULSE)** | **`/substrate [--json]`** | Substrate cold-start digest (T-2096) — answers "is the substrate healthy and what's it doing right now?" by composing the four substrate-read daily verbs (`/find-idle` + `/claims --all --only-stuck` + `/queue-status` + `/governor --only-pressured`) in parallel into one unified four-section view. **Pattern parity with T-1860 `/pulse`** (which composes peers + recent-chat for the conversation arc) — same design, different domain. Read-only by composition, no auth side-effects, no `AskUserQuestion`. Parallel-by-default — total latency = max(four reads), not sum-of-four. Graceful degradation: a failed sub-query renders as one stderr line, not a hard stop (per-section `ok:false` in JSON mode, not silent drops). Substrate-healthy path is affirmative: "substrate steady-state: dispatch=0 idle, 0 stuck claims, queue drained, 0 hubs pressured" + pointer at `/peers --all` and `/pulse` if you expected busier. Contextual Step-5 hints tuned to which sub-section flagged (queue-pending → `/queue-status`, hub-pressured → `/governor`, stuck-claims → `/claims --all --only-stuck` + recovery options). Cold-start pairing: `/pulse` (conversation) + `/substrate` (substrate) = two-keystroke full operational picture across both domains. See `.claude/commands/substrate.md`. |
 | **Canaries (CRON-TIER VISIBILITY)** | **`/canaries [--json] [--quiet] [--max-age-hours N]`** | Cron-tier protection visibility verb (T-2172) — wraps `scripts/canary-status.sh` at the skill layer. Answers "are my cron canaries firing AND clean?" by auto-discovering every `.context/working/.*-canary.log` (no hard-coded list — new canaries appear the first time their log is written) and pairing each with its `.heartbeat` companion. Per-canary classification: `HEALTHY` (log empty AND heartbeat fresh), `FIRING` (log has entries newer than heartbeat — cron is finding real problems), `STALE` (heartbeat older than threshold, default 48h — cron may have stopped firing), `NO_HEARTBEAT` (log present but no `.heartbeat` companion — classified by log content alone). Exit codes: 0 = all healthy, 1 = any FIRING/STALE (operator action required), 2 = tooling error. **Signal-bearing line surfacing (T-2180):** FIRING entries render the most-recent log line matching `fail|drift|stale|warn|error|behind` (case-insensitive, last 50 lines) rather than naive `tail -n 1`. For multi-line canary entries (typical fleet-doorbell-mail shape: `=== <ts> ===\\n<verdict line>\\n---`), `tail -n 1` returns the trailing `verdict=pass` separator/footer and makes a FIRING canary look healthy at a glance; the signal-bearing heuristic extracts the actionable mid-log line (e.g. `↳ laptop-141@192.168.10.141:9100: verdict=setup-fail elapsed=8004ms`) instead. Falls back to first non-separator line when no signal keyword matches. Closes the silent-misread failure mode where operators saw `verdict=pass` in the /canaries output and assumed nothing was wrong. `--quiet` renders only problems (cron-friendly, mirror of `check-canary-aliveness.sh` convention); `--json` emits `{ok, summary, canaries[]}` jq-friendly envelope; `--max-age-hours N` tunes the stale threshold (T-1723 meta-canary convention) for non-daily cadences. **Closes PL-168** (canary scripts without an operator-facing trigger are dormant tooling) for the cron-tier layer — the substrate-arc safety set wired N canaries (T-2160 substrate-preflight, T-1696 release-mirror, T-1723 meta-canary-aliveness, fleet-doorbell-mail, ...) but operators had no canonical verb to read them. Substrate-arc framing: completes the safety set visibility tier (CLI/T-2154 preflight → skill/T-2158 → smoke/T-2170 → cron/T-2160 → THIS). **Cold-start three-verb sequence:** `/preflight` (deploy-time) → `/substrate` (runtime) → `/canaries` (cron-tier protection) — three orthogonal questions, three orthogonal answers; pair them at session start when picking up a host. Read-only by contract; never heals. See `.claude/commands/canaries.md` + `docs/operations/substrate-cron-recipes.md` § "Checking that the canaries are firing". |
 | **AEF integration master recipe (T-2018 §9 DOC CLOSURE)** | **`docs/operations/substrate-orchestrator-recipe.md`** | Master integration walkthrough (T-2124) — end-to-end work-stealing pattern combining every shipped substrate primitive: find-idle (#2) + claim (#1) + claim-transfer (#3) + renew (#1) + release (#1) + outbound-queue (#5) + post-idempotency (#5) + cv_index (#9) + governor (#10) + substrate-status (#11). The doc an AEF integration developer reads first when wiring a parallel-worker orchestrator on top of TermLink. Contains: mental model (orchestrator + N workers + shared substrate), the contract (which RPCs the AEF layer depends on, read + write surfaces), canonical orchestrator pattern (5-step shell walkthrough — `find-idle → claim → claim-transfer → contact` with race-correctness rationale per step), canonical worker pattern (heartbeat → poll DM → verify claim ownership → background-renew loop → release ack vs ack=false), failure-modes table (10 symptoms × diagnosis × recovery covering CLAIM_CONFLICT / CLAIM_NOT_OWNED / CLAIM_NOT_FOUND / RATE_LIMITED / HUB_AT_CAPACITY / queue-buffering / cv_overflow / etc.), observability hooks (which read-side verb answers which operational question), cross-hub limits (G-060 — one orchestrator per hub by substrate design, workers belong to one hub), AEF integration checklist (10 wiring items operators ratchet through), and a worked "5-unit queue across 2 workers" walkthrough. Cross-referenced from every per-primitive ops doc (substrate-claim-primitive / substrate-broadcast-with-replay / substrate-offline-queue-recipe / substrate-governor / substrate-post-idempotency / agent-find-idle) and from ADR §9 "Hard dependencies" paragraph. Closes the T-2018 §9 collaboration-seam consumer-facing doc gap that was fragmented across two per-primitive sections (substrate-claim-primitive.md § "Hand a unit to a specific worker" + agent-find-idle.md § "minimum viable orchestrator loop"). T-2125 added the "Recommended retention settings" section — per-topic-pattern table mapping `agent-presence` / `agent-chat-arc` / `agent-listeners-*` / `agent-conv-*` / `dm:*` / work-topics / audit-topics to recommended `Retention` (e.g. `Messages(1000)` for `agent-presence`, `Forever` for framework audit logs) with rationale tied to T-1991 (production agent-presence bloat) and the T-2058 hub-side `is_high_rate_pattern` loud-warn that operators don't always see. Concrete `termlink channel create --retention messages --retention-value N` examples per pattern. The operator-facing complement to T-2058: the hub warns at create time; the recipe doc tells the operator what to set BEFORE deploying agents. Code-level follow-up (auto-pick high-rate retention in CLI's `ensure_topic` helper) logged separately. |

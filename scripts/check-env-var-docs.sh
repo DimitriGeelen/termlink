@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# guard-layer: source
 # check-env-var-docs.sh (T-2220) — Level-C prevention for env-var-name doc drift.
 #
 # Sibling to check-error-code-docs.sh (T-2217). Scans every TERMLINK_* env var

@@ -1,0 +1,14 @@
+id: scripts/tl-claude.sh
+name: tl-claude
+type: script
+subsystem: unknown
+location: scripts/tl-claude.sh
+tags: []
+purpose: 'TODO: describe what this component does'
+depends_on: []
+depended_by:
+- target: scripts/sim-verify.sh
+  type: called_by
+last_verified: 2026-08-14
+created_by: unknown
+last_enriched: '2026-08-14'

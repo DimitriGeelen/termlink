@@ -24,11 +24,36 @@
 #                 exits 0, so without this stage a regression pinning exit_code:0 for
 #                 ALL commands would still report PROVEN — a peer's `exec 'deploy.sh'`
 #                 would then read success on failure. This proves exit-code FIDELITY.
-#   CLEANUP       best-effort teardown (signal TERM + clean); NEVER fatal (a self-reaped
-#                 session makes `signal` legitimately fail).
+#   PTY_SPAWN     (T-2695) a second, `--shell` session registers WITH a real PTY.
+#                 STAGE 1's session is spawned `-- sleep <ttl>` and has `pty: null`,
+#                 so it cannot serve the two PTY verbs below; the sleep-backed session
+#                 is left untouched so the existing stages carry no regression risk.
+#   OUTPUT        (T-2695) `termlink output --strip-ansi --json` returns ok + non-empty
+#                 content — the charter's "stream output" claim. Ordered BEFORE inject
+#                 deliberately: if the observation channel is broken, blaming inject
+#                 for an unobservable effect would be a wrong diagnosis.
+#   INJECT        (T-2695) the charter's "inject keystrokes" claim, proven BY EFFECT.
+#                 Injecting `echo FOO` makes FOO appear twice in the PTY — once as the
+#                 terminal's echo of the keystrokes, once as the command's output — so
+#                 a naive grep would pass on echo alone, proving the bytes ARRIVED but
+#                 not that the shell INTERPRETED them (the same weakness as the
+#                 `command_inject_resolves_keys_no_pty` unit tests). The injected text
+#                 therefore embeds shell quoting the shell strips: the typed line
+#                 contains the quotes, the output line does not, so matching the
+#                 UNQUOTED string can only match the interpreted result.
+#   CLEANUP       best-effort teardown (signal TERM + clean) for BOTH sessions on every
+#                 path including PTY-stage failure; NEVER fatal (a self-reaped session
+#                 makes `signal` legitimately fail).
 # Unlike doorbell-wake (needs a live peer), `termlink exec --json` makes this
 # deterministic and local. This is an on-demand PROVER, NOT a cron canary — the
 # affirmative complement to the detectors, and the 4th sibling of comms-selftest.
+#
+# T-2695 origin: the T-2694 review decomposed the charter's terminal-endpoints noun
+# into the four capabilities it actually lists — stream output, inject keystrokes,
+# exec, doorbell-wake — and found this prover exercised only `exec`, i.e. 1 of 4,
+# while the header above quoted the acknowledged inject gap without closing it.
+# Building the INJECT stage then surfaced T-2697: `termlink inject` reported
+# `{"ok":true,"bytes_injected":N}` for a no-op on a session with no PTY.
 #
 # EXIT CODES:
 #   0  proven   -- SPAWN and EXEC both PASSed: the terminal-session verb works now.
@@ -39,6 +64,7 @@
 # USAGE:
 #   session-selftest.sh [--json] [--ttl <secs>] [--hub <addr>] [--help]
 #     --json        emit {ok, proven, broken_stage, stages, session, sentinel}
+#                   stages: spawn, exec, exec_exitcode, pty_spawn, output, inject, cleanup
 #     --ttl <secs>  scratch-session lifetime (default 30; it self-reaps as a backstop)
 #     --hub <addr>  target hub (default: local hub)
 #
@@ -48,6 +74,11 @@
 #                                                        (set .truncated:true to test F3)
 #   TERMLINK_SESSION_SELFTEST_TEST_EXITCODE_JSON=<json>  canned negative-exec `--json`
 #                                                        output for the EXEC_EXITCODE stage
+#   TERMLINK_SESSION_SELFTEST_TEST_OUTPUT_STATUS=<PASS|FAIL>  canned OUTPUT verdict (T-2695)
+#   TERMLINK_SESSION_SELFTEST_TEST_INJECT_STATUS=<PASS|FAIL>  canned INJECT verdict (T-2695)
+#     Unset ⇒ the PTY stages report "skipped", which never blocks `proven` — so
+#     pre-existing SPAWN/EXEC-focused harness cases stay green without modification.
+#   SESSION_SELFTEST_PTY_ATTEMPTS / _PTY_SLEEP           PTY readiness retry budget
 #
 # See docs/operations/session-selftest.md. Sibling: scripts/comms-selftest.sh.
 set -u
@@ -72,7 +103,7 @@ while [ $# -gt 0 ]; do
         --ttl) TTL="${2:-30}"; shift 2 ;;
         --hub) HUB="${2:-}"; shift 2 ;;
         -h|--help)
-            sed -n '2,52p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+            sed -n '2,83p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
             exit 0 ;;
         *) echo "session-selftest: unknown arg '$1'" >&2; exit 2 ;;
     esac
@@ -196,9 +227,107 @@ if [ "$exec_status" = "PASS" ]; then
     fi
 fi
 
-# --- STAGE 3: CLEANUP (best-effort, never fatal) ----------------------------
+# --- STAGES 3a/3b: OUTPUT + INJECT (T-2695) ---------------------------------
+# WHY these exist. The charter's terminal-endpoints noun makes FOUR claims — peers
+# can "stream output, inject keystrokes, exec, and doorbell-wake" sessions. Until
+# T-2695 this prover exercised exactly one of them (`exec`), while its own header
+# quoted the acknowledged gap ("agent-conversation-selftest.sh says: What it does NOT
+# validate: PTY inject") without closing it. `inject`'s unit tests are named
+# `command_inject_resolves_keys_no_pty` — they prove key RESOLUTION with no PTY
+# attached, which is precisely not the claim.
+#
+# WHY A SECOND SESSION. STAGE 1 spawns `-- sleep $TTL`, which has NO PTY
+# (`status` reports `pty: null`); `output` refuses it with -32007 and `inject` can
+# never reach a terminal through it. Reuse is structurally impossible, so the PTY
+# stages spawn their own `--shell` session. The sleep-backed session is left exactly
+# as it was, so the existing stages — and the T-2557 canary that runs them — carry
+# zero regression risk from this change.
+#
+# WHY THE ODD SENTINEL. Injecting `echo FOO` makes FOO appear TWICE in the PTY: once
+# as the terminal's echo of the keystrokes, once as the command's output. Grepping
+# for FOO would therefore pass on echo alone — proving the bytes ARRIVED but not that
+# the shell INTERPRETED them, which is the same weakness as the no_pty unit tests. So
+# the injected text embeds shell quoting (`echo INJ'-'OK`) that the shell strips:
+# the typed line contains the quotes, the output line does not. Matching the UNQUOTED
+# string can only match the interpreted result.
+pty_status="skipped"; output_status="skipped"; inject_status="skipped"
+PTY_SESSION=""
+PTY_ATTEMPTS="${SESSION_SELFTEST_PTY_ATTEMPTS:-10}"
+PTY_SLEEP="${SESSION_SELFTEST_PTY_SLEEP:-0.5}"
+# Split sentinel: INJ_HEAD'-'INJ_TAIL is typed; INJ_HEAD-INJ_TAIL is what the shell prints.
+INJ_HEAD="INJECT-PROVEN"; INJ_TAIL="${NONCE}"
+INJ_EXPECT="${INJ_HEAD}-${INJ_TAIL}"
+
+if [ "$TEST_MODE" -eq 1 ]; then
+    # Test seams (PL-213): canned verdicts so the canary translation stays verifiable
+    # without a live PTY. Absent seams leave the stages "skipped", which never blocks
+    # `proven` — pre-existing SPAWN/EXEC-focused cases stay green untouched.
+    output_status="${TERMLINK_SESSION_SELFTEST_TEST_OUTPUT_STATUS:-skipped}"
+    inject_status="${TERMLINK_SESSION_SELFTEST_TEST_INJECT_STATUS:-skipped}"
+    [ "$output_status" = "FAIL" ] && broken="${broken:-OUTPUT}"
+    [ "$inject_status" = "FAIL" ] && broken="${broken:-INJECT}"
+elif [ "$spawn_status" = "PASS" ]; then
+    PTY_SESSION="${SESSION}-pty"
+    if "$TERMLINK" spawn --name "$PTY_SESSION" --shell --backend tmux \
+        --wait --wait-timeout 10 "${HUB_ARGS[@]}" >/dev/null 2>&1; then
+        pty_status="PASS"
+
+        # --- STAGE 3a: OUTPUT -------------------------------------------------
+        # Prove the streaming path works at all before blaming inject for a blank
+        # buffer. A shell session always renders at least a prompt.
+        attempt=0
+        while : ; do
+            attempt=$((attempt+1))
+            out_json="$("$TERMLINK" output "$PTY_SESSION" --strip-ansi --json "${HUB_ARGS[@]}" 2>/dev/null || true)"
+            o_ok="$(printf '%s' "$out_json" | jq -r '.ok // false' 2>/dev/null || echo false)"
+            o_txt="$(printf '%s' "$out_json" | jq -r '.output // ""' 2>/dev/null || echo '')"
+            if [ "$o_ok" = "true" ] && [ -n "$o_txt" ]; then
+                output_status="PASS"; break
+            fi
+            if [ "$attempt" -ge "$PTY_ATTEMPTS" ]; then
+                output_status="FAIL"; broken="${broken:-OUTPUT}"; break
+            fi
+            sleep "$PTY_SLEEP"
+        done
+
+        # --- STAGE 3b: INJECT (only if OUTPUT works) --------------------------
+        # Ordered deliberately: if `output` is broken we cannot observe inject's
+        # effect, so attributing the failure to INJECT would be a wrong diagnosis.
+        if [ "$output_status" = "PASS" ]; then
+            if "$TERMLINK" inject "$PTY_SESSION" "echo ${INJ_HEAD}'-'${INJ_TAIL}" \
+                --enter --json "${HUB_ARGS[@]}" >/dev/null 2>&1; then
+                attempt=0
+                while : ; do
+                    attempt=$((attempt+1))
+                    inj_json="$("$TERMLINK" output "$PTY_SESSION" --strip-ansi --json "${HUB_ARGS[@]}" 2>/dev/null || true)"
+                    inj_txt="$(printf '%s' "$inj_json" | jq -r '.output // ""' 2>/dev/null || echo '')"
+                    if printf '%s' "$inj_txt" | grep -qF "$INJ_EXPECT"; then
+                        inject_status="PASS"; break
+                    fi
+                    if [ "$attempt" -ge "$PTY_ATTEMPTS" ]; then
+                        inject_status="FAIL"; broken="${broken:-INJECT}"; break
+                    fi
+                    sleep "$PTY_SLEEP"
+                done
+            else
+                # T-2697 made a no-PTY inject exit non-zero, so a failure here is a
+                # real refusal rather than the silent no-op it used to be.
+                inject_status="FAIL"; broken="${broken:-INJECT}"
+            fi
+        fi
+    else
+        pty_status="FAIL"; broken="${broken:-PTY_SPAWN}"
+    fi
+fi
+
+# --- STAGE 4: CLEANUP (best-effort, never fatal) ----------------------------
 if [ "$TEST_MODE" -eq 0 ] && [ "$spawn_status" = "PASS" ]; then
     "$TERMLINK" signal "$SESSION" TERM "${HUB_ARGS[@]}" >/dev/null 2>&1 || true
+    # Reap the PTY session on EVERY path including PTY-stage failure — a leaked tmux
+    # session per canary run would be a worse defect than the gap being closed.
+    if [ -n "$PTY_SESSION" ]; then
+        "$TERMLINK" signal "$PTY_SESSION" TERM "${HUB_ARGS[@]}" >/dev/null 2>&1 || true
+    fi
     "$TERMLINK" clean >/dev/null 2>&1 || true
     cleanup_status="done"
 fi
@@ -207,27 +336,43 @@ fi
 # proven requires SPAWN + EXEC (happy path) + EXEC_EXITCODE (fidelity). The
 # exitcode stage runs only when EXEC passed, so requiring PASS here also folds in
 # the EXEC precondition — but we assert all three explicitly for clarity.
+# T-2695: a PTY stage that ran and FAILED blocks `proven` — that is the whole point
+# of adding them. A stage that was SKIPPED (test-hook mode without the seam set) does
+# not, so pre-existing SPAWN/EXEC-focused cases stay green without modification.
+pty_ok="true"
+[ "$output_status" = "FAIL" ] && pty_ok="false"
+[ "$inject_status" = "FAIL" ] && pty_ok="false"
+[ "$pty_status" = "FAIL" ] && pty_ok="false"
+
 proven="false"
-[ "$spawn_status" = "PASS" ] && [ "$exec_status" = "PASS" ] && [ "$exitcode_status" = "PASS" ] && proven="true"
+[ "$spawn_status" = "PASS" ] && [ "$exec_status" = "PASS" ] && [ "$exitcode_status" = "PASS" ] \
+    && [ "$pty_ok" = "true" ] && proven="true"
 
 if [ "$JSON_MODE" -eq 1 ]; then
     jq -cn \
         --arg spawn "$spawn_status" --arg exec "$exec_status" --arg exitcode "$exitcode_status" --arg cleanup "$cleanup_status" \
+        --arg pty "$pty_status" --arg output "$output_status" --arg inject "$inject_status" \
         --arg session "$SESSION" --arg sentinel "$SENTINEL" \
         --argjson proven "$proven" \
         --arg broken "$broken" \
         '{ok:$proven, proven:$proven,
           broken_stage:(if $broken=="" then null else $broken end),
-          stages:{spawn:$spawn, exec:$exec, exec_exitcode:$exitcode, cleanup:$cleanup},
+          stages:{spawn:$spawn, exec:$exec, exec_exitcode:$exitcode,
+                  pty_spawn:$pty, output:$output, inject:$inject, cleanup:$cleanup},
           session:$session, sentinel:$sentinel}'
 else
     echo "session-selftest: control-terminal-sessions verb"
     printf '  STAGE 1  SPAWN         %s\n' "$spawn_status"
     printf '  STAGE 2  EXEC          %s%s\n' "$exec_status" "$( [ -n "$exec_detail" ] && echo "  ($exec_detail)" )"
     printf '  STAGE 2b EXEC_EXITCODE %s\n' "$exitcode_status"
-    printf '  STAGE 3  CLEANUP       %s\n' "$cleanup_status"
+    printf '  STAGE 3   PTY_SPAWN    %s\n' "$pty_status"
+    printf '  STAGE 3a  OUTPUT       %s\n' "$output_status"
+    printf '  STAGE 3b  INJECT       %s\n' "$inject_status"
+    printf '  STAGE 4   CLEANUP      %s\n' "$cleanup_status"
     if [ "$proven" = "true" ]; then
-        echo "  → PROVEN: registered a session, exec'd a command (sentinel echoed, not truncated), and a non-zero exit code propagated faithfully."
+        echo "  → PROVEN: registered a session, exec'd a command (sentinel echoed, not truncated),"
+        echo "    a non-zero exit code propagated faithfully, PTY output streamed back, and injected"
+        echo "    keystrokes were INTERPRETED by the shell (not merely echoed)."
     else
         echo "  → BROKEN at $broken. The terminal-session verb is not silently failing — the stage is named."
     fi

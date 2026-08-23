@@ -54,6 +54,14 @@ SMOKE_WORKER_ID="substrate-smoke-worker"
 # Topic name carries a timestamp + pid so concurrent smokes don't collide.
 SMOKE_TOPIC="smoke:t2151-$(date -u +%Y%m%d-%H%M%S)-$$"
 
+# T-2754 — reap the smoke topic on every exit path. `smoke:*` is one of the five
+# T-2426 debris namespaces, so it is born Days(7) and its RECORDS are bounded —
+# but the topic registry entry persisted forever regardless. Bounding records is
+# not the same as removing the topic.
+# shellcheck source=/dev/null
+. "$SCRIPT_DIR/lib/reap-topic.sh"
+trap 'rc=$?; reap_topic "${SMOKE_TOPIC:-}"; exit $rc' EXIT INT TERM
+
 # Stage tracking — we accumulate then render at the end.
 STAGES_PASSED=()
 STAGES_FAILED=()

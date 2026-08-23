@@ -55,6 +55,13 @@ while [[ $# -gt 0 ]]; do
         --recommendation) RECOMMENDATION="$2"; shift 2 ;;
         --rationale) RATIONALE="$2"; shift 2 ;;
         --i-am-human) I_AM_HUMAN=true; shift ;;
+        # T-1890: focus-drift hook sentinel; consumed silently. Sibling of the
+        # identical branch in update-task.sh:1290. T-2830 found this leg missing:
+        # `fw work-on <name> --switch-focus` shells to THIS script on the create
+        # path, so a contract that only update-task.sh honours is incomplete
+        # (L-399 — a bypass mechanism must be honoured by every consumer the
+        # gating hook can route to, or the caller is pushed onto an ungoverned path).
+        --switch-focus) shift ;;
         -h|--help)
             echo "Usage: create-task.sh [options]"
             echo ""
@@ -88,7 +95,48 @@ if [ -n "$RECOMMENDATION" ]; then
     esac
 fi
 
-# Interactive mode if required fields missing
+# T-2543: gate-level enforcement for promote-origin creates (Dimitri sovereignty bar,
+# rail offset 60). When a caller marks a create as originating from `fw bpmn promote`
+# (FW_TASK_ORIGIN=bpmn-promote), the GATE — not the caller — refuses anything but
+# owner:human + captured. This closes the hole a future promote-caller bug could open:
+# an owner:agent or --start promote-origin create is refused HERE, never silently
+# written. Non-promote-origin creates are wholly unaffected (keyed off the marker).
+# T-2577 extends the same gate to designer-ghost origin (T-2571 S4): save-time
+# documentation-task minting for off-page ghost refs must land owner:human +
+# captured — enforced HERE, caller-irrelevant, exactly like promote-origin.
+case "${FW_TASK_ORIGIN:-}" in
+  bpmn-promote|designer-ghost)
+    if [ "$OWNER" != "human" ]; then
+        echo -e "${RED}BLOCKED: ${FW_TASK_ORIGIN}-origin create must be owner:human (got '${OWNER:-<empty>}').${NC}" >&2
+        echo "  Gated writers (fw bpmn promote / designer ghost minting) materialize human-owned tasks; the gate refuses otherwise." >&2
+        echo "  Policy: T-2543 gate-level enforcement (Dimitri sovereignty bar, rail offset 60); T-2577 designer-ghost leg." >&2
+        exit 1
+    fi
+    if [ "$START_WORK" = true ]; then
+        echo -e "${RED}BLOCKED: ${FW_TASK_ORIGIN}-origin create must be captured (no --start).${NC}" >&2
+        echo "  Gated-writer creates land captured for human review before work-start (G-020)." >&2
+        echo "  Policy: T-2543 gate-level enforcement (Dimitri sovereignty bar, rail offset 60); T-2577 designer-ghost leg." >&2
+        exit 1
+    fi
+    ;;
+esac
+
+# Interactive mode if required fields missing.
+# T-100160 (OBS-086): prompt ONLY when stdin is a tty. In no-tty contexts
+# (background dispatch, cron, TermLink workers) stdin is a socket/pipe that
+# never delivers — `read -r` blocks forever (two >1h hangs, 2026-07-04).
+# Non-interactive callers get a fail-fast error naming the missing flags.
+if [ ! -t 0 ]; then
+    _missing=""
+    [ -z "$NAME" ] && _missing="$_missing --name"
+    [ -z "$DESCRIPTION" ] && _missing="$_missing --description"
+    [ -z "$WORKFLOW_TYPE" ] && _missing="$_missing --type"
+    [ -z "$OWNER" ] && _missing="$_missing --owner"
+    if [ -n "$_missing" ]; then
+        die "Missing required flag(s):$_missing (stdin is not a tty — interactive prompts disabled; pass all required flags)"
+    fi
+fi
+
 if [ -z "$NAME" ]; then
     echo -e "${YELLOW}Task name:${NC}"
     read -r NAME
@@ -149,21 +197,97 @@ if ! is_valid_horizon "$HORIZON"; then
     die "Valid horizons: $VALID_HORIZONS"
 fi
 
-# Generate next task ID
+# Validate owner (T-2674, closes the residual G-040 creation-side hole: the
+# predicate existed since T-1180 but was never called here — any --owner string
+# was written verbatim while Watchtower's dropdowns whitelist the enum).
+if ! is_valid_owner "$OWNER"; then
+    error "Invalid owner '$OWNER'"
+    die "Valid owners: $VALID_OWNERS (enum source: status-transitions.yaml)"
+fi
+
+# T-100202 AC4 (recursion guard): refuse names carrying the self-feeding
+# audit-emitter signature — a WARN task named after another WARN task, e.g.
+# "Audit WARN — Task T-2488-audit-warn--task-t-2462-…". The emitter itself is
+# removed from HEAD (audit emits observations via `fw note`, hash-deduped),
+# but this gate makes the recursion class structurally impossible for ANY
+# future emitter path, not just the removed one.
+if printf '%s' "$NAME" | grep -qiE 'audit[ -]?warn.*audit[ -]?warn'; then
+    error "Recursive audit-warn task name refused (T-100202)"
+    error "  A task about an audit-warn task re-audits its own emission and inflates"
+    error "  the ID space unboundedly (origin: T-99971 seed, 2026-07-03)."
+    die   "  Capture the finding as an observation instead: fw note \"<finding>\" (hash-deduped, no ID minted)"
+fi
+
+# Generate next task ID.
+#
+# T-100202: the allocator is "MAIN-CLUSTER max + 1", not "global max + 1".
+# A block of IDs separated from the rest by a gap larger than
+# FW_ID_QUARANTINE_GAP (default 1000) is treated as a quarantined outlier band
+# and excluded from the ceiling. Rationale: a removed self-feeding audit-finding
+# emitter inflated one ID to T-99971 in a single leap (2026-07-03), and the old
+# "global max + 1" then chained every new task into the T-100xxx band while real
+# work sat at ~T-2524. Quarantining lets new tasks resume at sane numbers
+# (T-2525…) WITHOUT renumbering the existing band (zero blast radius — those
+# files keep their IDs and all cross-references). Collision-safe: normal work
+# only ever increments by 1, so a >1000 gap always signals inflation, never
+# legitimate spacing; and the ~97k gap means the main sequence can never climb
+# into the band in any realistic lifetime. Backward-compatible: with no outlier
+# band, the main-cluster max == the global max (original behaviour).
+#
+# Hardening: the id is parsed from the LEADING `^T-<n>` only — never from an
+# embedded T-NNNN inside a recursive inflation-era slug.
+#
+# T-100202 AC3 (cross-view guard): a linked git worktree checks out its own
+# snapshot of .tasks/ — possibly behind the main checkout — so scanning ONE
+# view computes a stale max and mints a duplicate ID (the T-100200 dup class).
+# generate_id therefore union-scans the .tasks/ of EVERY worktree of the repo
+# that owns TASKS_DIR. Falls back to the local view alone when TASKS_DIR is
+# not inside a git repo (test harness, non-git consumers).
+_task_view_dirs() {
+    local base wt
+    base="$(cd "$(dirname "$TASKS_DIR")" 2>/dev/null && pwd)"
+    if [ -n "$base" ] && git -C "$base" rev-parse --git-dir >/dev/null 2>&1; then
+        while IFS= read -r wt; do
+            [ -d "$wt/.tasks" ] && printf '%s\n' "$wt/.tasks"
+        done < <(git -C "$base" worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p')
+    fi
+    printf '%s\n' "$TASKS_DIR"
+}
+
 generate_id() {
-    local max_id=0
+    local gap_threshold="${FW_ID_QUARANTINE_GAP:-1000}"
+    local ids=() f id d
     shopt -s nullglob
-    for f in "$TASKS_DIR"/active/T-*.md "$TASKS_DIR"/completed/T-*.md; do
-        [ -f "$f" ] || continue
-        local id
-        id=$(basename "$f" | grep -oE 'T-[0-9]+' | grep -oE '[0-9]+')
-        # Use 10# to force base-10 interpretation (avoids octal issues with 008, 009)
-        if [ -n "$id" ] && [ "$((10#$id))" -gt "$max_id" ]; then
-            max_id=$((10#$id))
-        fi
-    done
+    while IFS= read -r d; do
+        for f in "$d"/active/T-*.md "$d"/completed/T-*.md; do
+            [ -f "$f" ] || continue
+            id=$(basename "$f" | grep -oE '^T-[0-9]+' | grep -oE '[0-9]+')
+            # Use 10# to force base-10 interpretation (avoids octal issues with 008, 009)
+            [ -n "$id" ] && ids+=("$((10#$id))")
+        done
+    done < <(_task_view_dirs | sort -u)
     shopt -u nullglob
-    printf "T-%03d" $((max_id + 1))
+
+    if [ "${#ids[@]}" -eq 0 ]; then
+        printf "T-%03d" 1
+        return
+    fi
+
+    # Ascending unique; walk up from the bottom and stop at the first gap larger
+    # than the threshold — everything above that cliff is a quarantined band.
+    local n prev="" main_max=0
+    while IFS= read -r n; do
+        if [ -z "$prev" ]; then
+            main_max=$n
+        elif [ $((n - prev)) -gt "$gap_threshold" ]; then
+            break
+        else
+            main_max=$n
+        fi
+        prev=$n
+    done < <(printf '%s\n' "${ids[@]}" | sort -n -u)
+
+    printf "T-%03d" $((main_max + 1))
 }
 
 # Generate slug from name
@@ -177,6 +301,16 @@ TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 # T-1279/T-1424: Acquire lock BEFORE reading max_id; release AFTER file write.
 # Without this, concurrent calls all observe the same max_id and collide.
 # T-1424: unconditional — the source above already guaranteed the primitive is loaded.
+#
+# T-100202 AC3: anchor the allocation lock at the repo's MAIN worktree so that
+# concurrent minting from different worktrees serializes on ONE lock. The
+# per-view default (KEYLOCK_DIR under each checkout's .context/locks) silos the
+# lock per worktree and lets two views race to the same ID even with the
+# cross-view scan above. `git worktree list` emits the main worktree first.
+_main_wt="$(git -C "$(dirname "$TASKS_DIR")" worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p' | head -1)"
+if [ -n "$_main_wt" ] && [ -d "$_main_wt/.context/locks" ]; then
+    KEYLOCK_DIR="$_main_wt/.context/locks"
+fi
 keylock_acquire "task-id-allocation"
 trap 'keylock_release "task-id-allocation" 2>/dev/null' EXIT
 
@@ -271,6 +405,17 @@ else
     STATUS="captured"
 fi
 
+# Validate status before write (T-2675, companion to T-2674's owner leg —
+# 832 rail-316: "two independent holes with separate root causes"). Today
+# STATUS is only ever the two internal constants above, so this guard is a
+# never-fires invariant; it exists so any FUTURE path that derives STATUS
+# from less-trusted input (promote/ghost origins, a --status flag) dies
+# here instead of writing an unvalidated value.
+if ! is_valid_status "$STATUS"; then
+    error "Invalid initial status '$STATUS'"
+    die "Valid statuses: $VALID_STATUSES (enum source: status-transitions.yaml)"
+fi
+
 # Format tags and related_tasks as YAML arrays
 format_yaml_array() {
     local input="$1"
@@ -310,9 +455,20 @@ e = os.environ
 with open(e['TC_TEMPLATE']) as f:
     t = f.read()
 name, desc = sys.argv[1], sys.argv[2]
+def indent_block(s):
+    # T-2778: 'description: >' is a folded scalar, so EVERY line of the value must be
+    # indented, not just the first. Indenting only the first line ends the scalar at the
+    # first newline; YAML then reads the next paragraph as frontmatter. That fails two
+    # different ways, and the loud one is the lucky one: a paragraph containing 'word: word'
+    # parses as a junk top-level key and SILENTLY truncates description to its first line
+    # (no error, audit sees valid YAML), while a paragraph without a colon raises
+    # ScannerError and is caught. Found 5 corpus instances -- 1 loud, 4 silent.
+    # Blank lines are emitted bare: whitespace-only lines inside a block scalar are
+    # separators, and padding them to the indent width leaves trailing spaces.
+    return '\n'.join(('  ' + ln) if ln.strip() else '' for ln in s.split('\n'))
 t = t.replace('id: T-XXX', 'id: ' + e['TC_TASK_ID'])
 t = t.replace('name:', 'name: \"' + name.replace('\"', '\\\\\"') + '\"', 1)
-t = t.replace('description: >', 'description: >\n  ' + desc, 1)
+t = t.replace('description: >', 'description: >\n' + indent_block(desc), 1)
 t = t.replace('status: captured', 'status: ' + e['TC_STATUS'])
 t = t.replace('horizon: now', 'horizon: ' + e['TC_HORIZON'])
 t = t.replace('owner:', 'owner: ' + e['TC_OWNER'], 1)
@@ -336,9 +492,20 @@ e = os.environ
 with open(e['TC_TEMPLATE']) as f:
     t = f.read()
 name, desc = sys.argv[1], sys.argv[2]
+def indent_block(s):
+    # T-2778: 'description: >' is a folded scalar, so EVERY line of the value must be
+    # indented, not just the first. Indenting only the first line ends the scalar at the
+    # first newline; YAML then reads the next paragraph as frontmatter. That fails two
+    # different ways, and the loud one is the lucky one: a paragraph containing 'word: word'
+    # parses as a junk top-level key and SILENTLY truncates description to its first line
+    # (no error, audit sees valid YAML), while a paragraph without a colon raises
+    # ScannerError and is caught. Found 5 corpus instances -- 1 loud, 4 silent.
+    # Blank lines are emitted bare: whitespace-only lines inside a block scalar are
+    # separators, and padding them to the indent width leaves trailing spaces.
+    return '\n'.join(('  ' + ln) if ln.strip() else '' for ln in s.split('\n'))
 t = t.replace('id: T-XXX', 'id: ' + e['TC_TASK_ID'])
 t = t.replace('name:', 'name: \"' + name.replace('\"', '\\\\\"') + '\"', 1)
-t = t.replace('description: >', 'description: >\n  ' + desc, 1)
+t = t.replace('description: >', 'description: >\n' + indent_block(desc), 1)
 t = t.replace('status: captured', 'status: ' + e['TC_STATUS'])
 t = t.replace('workflow_type:', 'workflow_type: ' + e['TC_WORKFLOW_TYPE'], 1)
 t = t.replace('owner:', 'owner: ' + e['TC_OWNER'], 1)
@@ -354,12 +521,15 @@ with open(e['TC_FILEPATH'], 'w') as f:
 " "$NAME" "$DESCRIPTION"
 else
     # Fallback: minimal inline template (only if default.md missing)
+    # T-2778: indent every line of the description, not just the first — see indent_block()
+    # above for why the single-indent form corrupts multi-paragraph descriptions.
+    DESCRIPTION_INDENTED=$(printf '%s\n' "$DESCRIPTION" | awk '{ if (length($0)) print "  " $0; else print "" }')
     cat > "$FILEPATH" << EOF
 ---
 id: $TASK_ID
 name: "$NAME"
 description: >
-  $DESCRIPTION
+$DESCRIPTION_INDENTED
 status: $STATUS
 workflow_type: $WORKFLOW_TYPE
 horizon: $HORIZON

@@ -26,6 +26,12 @@ selffp="$("$TERMLINK" channel info agent-presence --json 2>/dev/null | jq -r '.s
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
+
+# T-2761: this test drives the real agent-send.sh, whose T-2402 give-up path
+# appends to the operator's woken-but-silent canary log. Redirect it into our own
+# tmp dir — "empty log = healthy" is a one-bit channel, so test residue leaves the
+# canary permanently FIRING and therefore deaf to a genuine event.
+export TERMLINK_WOKEN_SILENT_LOG="$tmp/woken-silent-canary.log"
 export TERMLINK_JOURNAL_PATH="$tmp/journal.sqlite"
 export TERMLINK_NOTIFY_DIR="$tmp/notify"
 
