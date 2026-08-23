@@ -4336,3 +4336,9 @@ learnings:
   date: 2026-08-22
   context: Added via context agent
   application: TBD
+- id: PL-360
+  learning: "A long-running Flask/Watchtower process keeps serving a stale ModuleNotFoundError after the missing lib/ file is recovered on disk — importlib's per-directory FileFinder cache is not re-scanned, so the fix is 'fw watchtower restart', not another recovery attempt. Same class as PL-209 (hub kept serving a deleted exe until restarted): the artefact was fixed, the process was not. Tell: the import succeeds in a fresh python3 while the server still 500s on the same import."
+  source: P-001
+  task: T-2837
+  date: 2026-08-23
+  context: Added via context agent

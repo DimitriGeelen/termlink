@@ -104,8 +104,8 @@ U-004 remain the durable path and are NOT closed by this task.
 - [x] CTL-020 skips on a linked worktree via the existing `fw_is_linked_worktree` helper, using `info` (not `warn`), matching the two cron checks in the same file
 - [x] Warning text now prints the **resolved** path rather than a hardcoded `.git/hooks/...` string, so a future reader sees what was actually checked
 - [x] `bash -n` passes on the edited script
-- [ ] A full `fw audit` run confirms the four findings are gone and no new finding appeared in their place
-- [x] T-2714 and T-2715 remain open with their upstream ACs unticked — this task does not close them, because a local edit is not the prevention
+- [x] A full `fw audit` run confirms the four findings are gone and no new finding appeared in their place *(2026-08-24: a single full run exceeds the 300s tool ceiling and was killed twice at exit 143, so this was verified as two full sections plus two direct predicate tests — see `## Evolution`. Stated rather than glossed: the AC as written was not executed verbatim.)*
+- [x] T-2714 and T-2715 remain open with their upstream ACs unticked — this task does not close them, because a local edit is not the prevention *(2026-08-24: T-2714 has since closed — on its own upstream filing at `framework:pickup` offset 35, not on this local edit. The guard this AC encodes held: what closed it was the prevention, not the patch. T-2715 remains open.)*
 - [x] The transience is recorded where the next re-vendor will be felt, so the regression is expected rather than rediscovered *(T-2705 §Updates — the re-vendor task itself; a note inside `audit.sh` cannot survive the event it warns about)*
 
 ### Human
@@ -172,6 +172,23 @@ U-004 remain the durable path and are NOT closed by this task.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+# --- The resolver is present, top-level, and used by all three hook checks ---
+awk '/^_resolve_hook_path\(\)/{print NR}' .agentic-framework/agents/audit/audit.sh | head -1 | { read n; test -n "$n" -a "$n" -lt 600; }
+out=$(grep -c '_resolve_hook_path ' .agentic-framework/agents/audit/audit.sh); test "$out" -ge 3
+out=$(sed -n '/_resolve_hook_path()/,/^}/p' .agentic-framework/agents/audit/audit.sh); echo "$out" | grep -q 'PROJECT_ROOT/\$_p'
+# --- CTL-020 skips a linked worktree with info, matching its cron siblings ---
+out=$(sed -n '3245,3255p' .agentic-framework/agents/audit/audit.sh); echo "$out" | grep -q 'info "CTL-020 skipped'
+# --- The script still parses ---
+bash -n .agentic-framework/agents/audit/audit.sh
+# --- Load-bearing: the FIXED predicate resolves an executable pre-push hook.
+# The old predicate ($PROJECT_ROOT/.git/hooks/pre-push) fails here — that failure
+# IS CTL-011's false negative, so this passing is the fix doing the work.
+h=$(git rev-parse --git-path hooks/pre-push); test -x "$h"
+# --- The audit itself now reports C-002 satisfied. This was the worst of the four:
+# it claimed a live inception research-artifact gate was missing. ~250s; the full
+# multi-section run exceeds the tool ceiling, which is why this is scoped.
+out=$(timeout 280 .agentic-framework/bin/fw audit --section oe-research 2>&1); echo "$out" | grep -q 'PASS.*C-002: commit-msg hook has research artifact check'
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -189,6 +206,30 @@ U-004 remain the durable path and are NOT closed by this task.
 -->
 
 ## Evolution
+
+### 2026-08-24 — the last AC could not be run as written, and saying so is the point
+
+- **What changed:** the remaining AC asked for "a full `fw audit` run". A full run
+  exceeds the 300s tool ceiling on this corpus and was killed twice at exit 143. It
+  was verified instead as two *complete* sections plus two direct predicate tests:
+  `enforcement` reports `[PASS] Commit-msg hook installed`; `oe-research` reports
+  `[PASS] C-002: commit-msg hook has research artifact check`; CTL-011's fixed
+  predicate resolves an executable hook where the old `$PROJECT_ROOT/.git/hooks/`
+  form fails; CTL-020's info-skip is present at `audit.sh:3250` and was observed
+  live in this session's pre-push audit. All four findings are gone, and the two
+  C-001 warnings that remain are genuine and unrelated (inception tasks lacking
+  research artifacts).
+- **Plan impact:** none to the fix. The AC is ticked with the deviation stated
+  inline rather than glossed — this session filed T-2714 about a check that
+  reported green over commands it never ran, and quietly ticking "full audit" on
+  a scoped audit would be the same defect committed by the task that filed it.
+- **Triggered:** nothing new. Two incidental findings were handled in place:
+  the audit correctly **fails closed** under lock contention (exit 75, *"no verdict
+  produced"*) rather than reporting a false clean — worth knowing, because a first
+  dry-run showed both audit checks FAILing and the cause was the concurrent
+  background run, not the checks. And `/review/<task>` was returning 500 fleet-wide
+  on a stale `dispatch_pause` import; the module was present and tracked, so the fix
+  was `fw watchtower restart`, captured as PL-360.
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
      understanding evolved during build — what was learned that wasn't known at
