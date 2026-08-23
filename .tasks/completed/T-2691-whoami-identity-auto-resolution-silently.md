@@ -7,20 +7,20 @@ description: >
   to [self] and whoami always reports ambiguous with every candidate, never signalling
   that auto-resolution is structurally impossible there (T-2690 F2/G2).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/commands/metadata.rs, crates/termlink-mcp/src/tools.rs, scripts/canary-status.sh, scripts/check-alloc-sink-clamps.sh, scripts/check-busy-spin.sh, scripts/check-charter-drift-freshness.sh, scripts/check-charter-sentence-drift.sh, scripts/check-cron-install-drift.sh, scripts/check-dead-letter-freshness.sh, scripts/check-drain-sink-caps.sh, scripts/check-fleet-binary-freshness.sh, scripts/check-fleet-capability-freshness.sh, scripts/check-fleet-doorbell-mail-health.sh, scripts/check-forever-archival-freshness.sh, scripts/check-framework-pickup-freshness.sh, scripts/check-frozen-husk-freshness.sh, scripts/check-mirror-freshness.sh, scripts/check-platform-lock.sh, scripts/check-preflight-doc-set-drift.sh, scripts/check-session-control-freshness.sh, scripts/check-silent-exit.sh, scripts/check-stale-waker-code-freshness.sh, scripts/check-stuck-claims-freshness.sh, scripts/check-task-finalization-freshness.sh, scripts/check-topic-growth-freshness.sh, scripts/check-unconfirmed-delivery-freshness.sh, scripts/check-waker-liveness-freshness.sh, scripts/substrate-preflight.sh, tests/pickup-canary-selffilter-fixtures.sh, tests/platform-lock-check-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T07:26:51Z
-last_update: '2026-08-23T19:13:47Z'
-date_finished:
+last_update: 2026-08-23T20:23:04Z
+date_finished: 2026-08-23T20:23:04Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -248,3 +248,15 @@ have failed on the macOS runner T-2692 added.
 
 ### 2026-08-14T07:27:24Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-b934bc60
+- **Timestamp:** 2026-08-23T20:24:24Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-23T20:23:04Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

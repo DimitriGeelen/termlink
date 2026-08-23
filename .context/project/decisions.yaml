@@ -1092,3 +1092,17 @@ decisions:
   date: 2026-08-20
   task: T-2807
   rationale: Auto-captured from task file on completion
+
+  - id: PD-001
+    decision: "Keep this task, narrowed to the mechanism only."
+    scope: project
+    date: 2026-08-23
+    task: T-2822
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-002
+    decision: "`!.context/working/.*-allowlist`."
+    scope: project
+    date: 2026-08-23
+    task: T-2822
+    rationale: "Auto-captured from task file on completion"

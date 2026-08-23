@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2835: Drain fully-ticked tasks stuck in started-work through the real P-011 gate
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-23T20:49:47Z
+# ============================================================================
+
+task_id: T-2835
+task_name: "Drain fully-ticked tasks stuck in started-work through the real P-011 gate"
+workflow_type: refactor
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-23T20:01:47Z
+completed: 2026-08-23T20:49:41Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Drain fully-ticked tasks stuck in started-work through the real P-011 gate
+
+# Key outcomes
+outcomes:
+  - 'The stuck population is enumerated by a reproducible script, not by hand — `started-work` AND every Agent AC ticked AND zero unticked'
+  - 'Every enumerated non-`owner: human` task is put through `fw task update --status work-completed` with no `--force` anywhere in this task'
+  - 'Each task that finalizes shows all three finalize effects: `date_finished` stamped, moved to `completed/`, episodic generated'
+  - 'Any task whose P-011 verification genuinely FAILS is left open in `active/` and recorded in this task''s Evolution rather than forced through'
+  - 'No `owner: human` task is completed and no `### Human` AC is ticked by this task'
+  - 'The residual is reported: how many landed, how many failed verification, how many were skipped as human-owned'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 47 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 47
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2835-drain-fully-ticked-tasks-stuck-in-starte.md
+generated_by: context-agent-hybrid

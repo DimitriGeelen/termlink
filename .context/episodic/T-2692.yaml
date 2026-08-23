@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2692: macOS binaries are published but no CI job executes anything on macOS
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-23T20:24:37Z
+# ============================================================================
+
+task_id: T-2692
+task_name: "macOS binaries are published but no CI job executes anything on macOS"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-14T07:27:00Z
+completed: 2026-08-23T20:24:32Z
+duration_days: 9
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  README asserts macOS support five times and names Homebrew the recommended macOS install, yet every runs-on is ubuntu-latest except release.yml's build matrix. The 3470-test suite has never run on macOS (T-2690 F1/G1).
+
+# Key outcomes
+outcomes:
+  - 'A CI job executes the workspace test suite on a macOS runner, so the platform README calls "recommended" finally runs code'
+  - 'That job is **non-blocking** on its first landing (`continue-on-error`) — I cannot execute macOS from this host, so gating a release on an unverified suite would violate T-2686''s own AC and could break releases on an assumption'
+  - 'The job''s name and an in-file comment state plainly that it is non-blocking *and why*, so a green-looking checkmark is never mistaken for a passing gate'
+  - 'The comment records the exact promotion step (delete one line) so making it blocking is trivial once a real macOS result exists'
+  - 'The macOS job runs the same `cargo test --workspace` as the Linux job — not a reduced subset, which would re-create the "verified in name only" problem this task exists to fix'
+  - 'The existing Linux `test` job stays blocking and unchanged; this is additive'
+  - 'Both workflow YAMLs still parse and the job graph is unchanged for the blocking path'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 13737 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 13737
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2692-macos-binaries-are-published-but-no-ci-j.md
+generated_by: context-agent-hybrid

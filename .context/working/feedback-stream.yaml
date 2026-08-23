@@ -8550,3 +8550,291 @@ scan_id: R-63d70121
 task_id: T-2687
 payload:
   task_file: .tasks/active/T-2687-mcp-termlinktopics-returns-a-silently-pa.md
+---
+kind: scan_emitted
+timestamp: '2026-08-23T20:00:52Z'
+scan_id: R-6f46e578
+task_id: T-2713
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-23T20:00:52Z'
+scan_id: R-6f46e578
+task_id: T-2713
+payload:
+  task_file: .tasks/active/T-2713-hook-telemetry-counts-intentional-blocks.md
+---
+kind: scan_emitted
+timestamp: '2026-08-23T20:04:19Z'
+scan_id: R-04b635e8
+task_id: T-2680
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-23T20:04:19Z'
+scan_id: R-04b635e8
+task_id: T-2680
+payload:
+  task_file: .tasks/active/T-2680-charter-drift-canary-reports-a-full-surf.md
+---
+kind: scan_emitted
+timestamp: '2026-08-23T20:05:12Z'
+scan_id: R-41d9c8d6
+task_id: T-2681
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-23T20:05:12Z'
+scan_id: R-41d9c8d6
+task_id: T-2681
+payload:
+  task_file: .tasks/active/T-2681-static-check-allowlists-live-under-a-git.md
+---
+kind: scan_emitted
+timestamp: '2026-08-23T20:05:21Z'
+scan_id: R-6c70e81e
+task_id: T-2682
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-23T20:05:21Z'
+scan_id: R-6c70e81e
+task_id: T-2682
+payload:
+  task_file: .tasks/active/T-2682-cron-install-drift-uninstalled-job-lines.md
+---
+kind: scan_emitted
+timestamp: '2026-08-23T20:24:24Z'
+scan_id: R-b934bc60
+task_id: T-2691
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-23T20:24:24Z'
+scan_id: R-b934bc60
+task_id: T-2691
+payload:
+  task_file: .tasks/active/T-2691-whoami-identity-auto-resolution-silently.md
+---
+kind: scan_emitted
+timestamp: '2026-08-23T20:24:33Z'
+scan_id: R-26e33996
+task_id: T-2692
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-23T20:24:33Z'
+scan_id: R-26e33996
+task_id: T-2692
+payload:
+  task_file: .tasks/active/T-2692-macos-binaries-are-published-but-no-ci-j.md
+---
+kind: scan_emitted
+timestamp: '2026-08-23T20:27:14Z'
+scan_id: R-15f4a2cd
+task_id: T-2695
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-23T20:27:14Z'
+scan_id: R-15f4a2cd
+task_id: T-2695
+payload:
+  task_file: .tasks/active/T-2695-session-selftest-proves-exec-only-the-ch.md
+---
+kind: scan_emitted
+timestamp: '2026-08-23T20:28:09Z'
+scan_id: R-c4d3c59a
+task_id: T-2697
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-23T20:28:09Z'
+scan_id: R-c4d3c59a
+task_id: T-2697
+payload:
+  task_file: .tasks/active/T-2697-cli-inject-reports-success-for-a-no-op-o.md
+---
+kind: scan_emitted
+timestamp: '2026-08-23T20:31:14Z'
+scan_id: R-7364be51
+task_id: T-2703
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-23T20:31:14Z'
+scan_id: R-7364be51
+task_id: T-2703
+payload:
+  task_file: .tasks/active/T-2703-the-spoke-to-spoke-mesh-invariant-is-gua.md
+---
+kind: scan_emitted
+timestamp: '2026-08-23T20:31:24Z'
+scan_id: R-6d906976
+task_id: T-2705
+payload:
+  overall: CONCERN
+  finding_count: 3
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-23T20:31:24Z'
+scan_id: R-6d906976
+task_id: T-2705
+payload:
+  task_file: .tasks/active/T-2705-vendored-framework-is-internally-inconsi.md
+---
+kind: scan_emitted
+timestamp: '2026-08-23T20:39:24Z'
+scan_id: R-245e7172
+task_id: T-2409
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-23T20:39:24Z'
+scan_id: R-245e7172
+task_id: T-2409
+payload:
+  task_file: .tasks/active/T-2409-fleet-doorbell-completion--cross-hub-rea.md
+---
+kind: scan_emitted
+timestamp: '2026-08-23T20:39:34Z'
+scan_id: R-6fdd58a3
+task_id: T-2564
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-23T20:39:34Z'
+scan_id: R-6fdd58a3
+task_id: T-2564
+payload:
+  task_file: .tasks/active/T-2564-listener-heartbeat-warn-loudly-when-pres.md
+---
+kind: scan_emitted
+timestamp: '2026-08-23T20:40:07Z'
+scan_id: R-68c8beb0
+task_id: T-2679
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-23T20:40:07Z'
+scan_id: R-68c8beb0
+task_id: T-2679
+payload:
+  task_file: .tasks/active/T-2679-bound-sessioncontextkv--uncapped-hashmap.md
+---
+kind: scan_emitted
+timestamp: '2026-08-23T20:41:40Z'
+scan_id: R-086c7e5f
+task_id: T-2822
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-23T20:41:40Z'
+scan_id: R-086c7e5f
+task_id: T-2822
+payload:
+  task_file: .tasks/active/T-2822-blanket-contextworking-gitignore-makes-s.md
+---
+kind: scan_emitted
+timestamp: '2026-08-23T20:44:23Z'
+scan_id: R-6eb82921
+task_id: T-1885
+payload:
+  overall: CONCERN
+  finding_count: 4
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-23T20:44:23Z'
+scan_id: R-6eb82921
+task_id: T-1885
+payload:
+  task_file: .tasks/active/T-1885-fw-independent-review-v01--local-only-or.md
+---
+kind: scan_emitted
+timestamp: '2026-08-23T20:49:42Z'
+scan_id: R-a639b0b0
+task_id: T-2835
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-23T20:49:42Z'
+scan_id: R-a639b0b0
+task_id: T-2835
+payload:
+  task_file: .tasks/active/T-2835-drain-fully-ticked-tasks-stuck-in-starte.md

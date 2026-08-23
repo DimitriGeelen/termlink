@@ -1,28 +1,23 @@
 ---
-id: T-2703
-name: "The spoke-to-spoke mesh invariant is guarded by nothing (T-2569 guards a different
-  edge)"
+id: T-2835
+name: "Drain fully-ticked tasks stuck in started-work through the real P-011 gate"
 description: >
-  The architecture doc's decisive invariant is 'spokes never connect to one another'.
-  T-2569's tripwire scans only the hub crate and forbids hub-to-hub federation — a
-  different edge. termlink-session ships a generic client that connects to any unix
-  path or TCP host:port, so a spoke-to-spoke mesh could be added and no test would
-  fail (T-2702 F1).
+  Drain fully-ticked tasks stuck in started-work through the real P-011 gate
 
 status: work-completed
-workflow_type: build
+workflow_type: refactor
 owner: agent
 horizon: null
 tags: []
-components: [crates/termlink-session/tests/no_spoke_mesh_tripwire.rs]
+components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-14T11:27:41Z
-last_update: 2026-08-23T20:30:43Z
-date_finished: 2026-08-23T20:30:43Z
+created: 2026-08-23T20:01:47Z
+last_update: 2026-08-23T20:49:41Z
+date_finished: 2026-08-23T20:49:41Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -33,51 +28,39 @@ date_finished: 2026-08-23T20:30:43Z
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
-bvp_scores_proposed:
-  - ts: '2026-08-23T19:13:28Z'
-    estimator: bvp-estimator-v1-heuristic
-    scores:
-      D1: 4
-      D2: 0
-      D3: 2
-      D4: 2
-      F-RECALL: 0
-      F-ORCH: 0
-    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
-      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
-      (no-signal); F-ORCH=0 (no-signal)
-    rubric_sha: e4a00f38e801
-cost_estimate_proposed:
-  - ts: '2026-08-23T19:13:47Z'
-    estimator: bvp-estimator-v1-heuristic
-    cost_estimate:
-      blast_radius: 0
-      tier: 2
-      effort: 8
-    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
-      (no-signal)
-    rubric_sha: e4a00f38e801
 ---
 
-# T-2703: The spoke-to-spoke mesh invariant is guarded by nothing (T-2569 guards a different edge)
+# T-2835: Drain fully-ticked tasks stuck in started-work through the real P-011 gate
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+`scripts/check-stranded-finalized-tasks.sh` (T-2833) detects tasks declaring
+`status: work-completed` in `active/` with no `date_finished` — the finalize
+latch. This task addresses the ADJACENT population that check deliberately does
+NOT fire on: tasks still declaring `status: started-work` whose Agent ACs are
+all ticked and which carry zero unticked ACs. Their work shipped; only the
+register disagrees.
+
+Measured 2026-08-23: 52 such tasks. Not a cosmetic backlog — roughly a quarter
+of the HV/LC head is finished work, so the BVP quadrant is ranking completed
+tasks as available work and mis-ordering everything behind them.
+
+The remedy is to walk them through the REAL P-011 verification gate. Never
+`--force`: a task whose verification genuinely fails is a finding worth having,
+and forcing it would convert a visible defect into a silent one — the exact
+trade the guard layer exists to reverse. `owner: human` tasks are out of scope
+(autonomous mode does not delegate their completion).
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] A tripwire test guards the **spoke↔spoke** edge — the invariant T-2569 does NOT cover, since it scans only the hub crate and forbids hub↔hub federation
-- [x] It enumerates every outbound-connection construction site in `termlink-session/src`, pinning the count and each site's legitimate purpose, so a NEW outbound path fails the build until deliberately acknowledged (the T-2569 `EXPECTED_OUTBOUND_SITES` idiom)
-- [x] Connecting to the **hub** stays legal — the star requires it; the test must distinguish "spoke → hub" from "spoke → spoke", not ban outbound connections
-- [x] Connecting to a **local session socket from an operator tool** stays legal — §3 forbids agents meshing with each other, not a CLI reaching a local session; banning that would be a false positive that makes the guard unusable
-- [x] The test explains in-file WHY the mesh is forbidden, citing §3's decisive argument (a mesh distributes fragility across N² links with no central durable replay and silent partial-partition divergence), so a future reader knows the cost of "just add a direct channel"
-- [x] It documents its own residual: what shape of spoke↔spoke connection it would still miss
-- [x] Load-bearing: adding a simulated peer-to-peer connection site makes it fail; removing it returns to green
-- [x] Comment/string mentions of a socket path do not trip it — prose about connecting is not connecting
-- [x] `cargo test -p termlink-session` green, and `cargo test --workspace` green
+- [x] The stuck population is enumerated by a reproducible script, not by hand — `started-work` AND every Agent AC ticked AND zero unticked
+- [x] Every enumerated non-`owner: human` task is put through `fw task update --status work-completed` with no `--force` anywhere in this task
+- [x] Each task that finalizes shows all three finalize effects: `date_finished` stamped, moved to `completed/`, episodic generated
+- [x] Any task whose P-011 verification genuinely FAILS is left open in `active/` and recorded in this task's Evolution rather than forced through
+- [x] No `owner: human` task is completed and no `### Human` AC is ticked by this task
+- [x] The residual is reported: how many landed, how many failed verification, how many were skipped as human-owned
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -143,53 +126,76 @@ cost_estimate_proposed:
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-cargo test -p termlink-session --test no_spoke_mesh_tripwire
-cargo test -p termlink-session
+test -f /root/.claude/jobs/d638a35c/tmp/drain-results.txt
+test "$(grep -c LANDED /root/.claude/jobs/d638a35c/tmp/drain-results.txt)" -ge 11
+out=$(grep -E '^status:' .tasks/active/T-1885-fw-independent-review-v01--local-only-or.md); echo "$out" | grep -q "started-work"
+out=$(grep 'task update' /root/.claude/jobs/d638a35c/tmp/drain.sh); if echo "$out" | grep -q -- '--force'; then exit 1; else exit 0; fi
+
+## Evolution
+
+### 2026-08-23 — the drain found a hole in the gate it was running through
+
+- **What changed:** The enumerated population was 51, not 52 (T-2713 came off the
+  list when it closed earlier the same session), and only **24 were mine to
+  touch** — 27 are `owner: human` and were skipped untouched. That is the first
+  correction worth banking: the headline "52 stuck tasks" overstated the agent-
+  actionable set by more than half.
+
+  Of the 24: **12 landed** through a complete P-011 run, **13 were blocked**
+  (T-2684 attempted twice). The blocks are not noise and they are not uniform:
+
+  - **8 blocked on one shared cause** — `run-guard-layer.sh` exits 1 because of
+    four PRE-EXISTING, unrelated FAILs (`check-episodic-parse` 29 unreadable
+    episodics, `check-framework-tracking-drift` dangling refs,
+    `check-pickup-deferred-freshness` P-043 stranded, `check-task-id-collisions`).
+    T-2684/85/86/88/93/99, T-2709, T-2758. Their Verification blocks assert
+    *whole-layer green*, so they cannot close until those four backlogs drain.
+    Worth naming as a coupling problem: a task's completion is gated on findings
+    it did not cause and does not own.
+  - **1 blocked on its own subject** — T-2711 (`revisit-due-scan.sh` still exits
+    non-zero). A real, task-specific failure.
+  - **3 blocked on a missing agent artifact**, not a verification failure —
+    T-2822 and T-1885 wanted `## Recommendation`, T-2569 wants `## RCA`. Writing
+    those is authorship, not a bypass; T-2822 was written and landed to T-193
+    partial-complete with its Human AC untouched.
+  - **1 not a block at all** — T-2409 routed to the inception review queue (rc=0).
+
+- **Plan impact — the finding that matters.** T-1885 was written a
+  `## Recommendation` and then *completed*, and it should not have been. Its gate
+  printed `Verification: 3/4 passed ✓` — a checkmark on a fraction that is
+  visibly not whole — with **zero** FAIL lines. Command 4 was never executed.
+
+  Cause, confirmed by minimal repro rather than inference: the P-011 loop
+  (`update-task.sh:~1145`) drives commands with `done <<< "$verify_cmds"`, so the
+  `eval`'d command inherits the herestring as its stdin. Command 3 reads stdin and
+  swallows command 4. `verify_total` is computed independently
+  (`wc -l`, line ~1139) so the skipped command stays in the denominator while
+  incrementing neither counter; the blocking test is `verify_fail -gt 0`, which is
+  false, so the gate falls through to the green branch. Adding `< /dev/null` to the
+  eval takes the repro from `2/4 passed (fail=0)` to `4/4`.
+
+  Command 4 does not merely go unrun — it **fails**: the classifier's confidence is
+  now 60.5% (78/129) against the ≥80% GO threshold T-1885's own AC cites. The
+  corpus grew 84→129 and accuracy fell with it. So the gate closed a task whose
+  central quality claim is currently false. T-1885 was reverted to `started-work`
+  by direct frontmatter repair (`work-completed` has no outgoing CLI transition);
+  `owner: human` was left untouched.
+
+  This is the same defect class as T-2830 approached from the opposite side —
+  there, commands under the wrong heading meant zero ran and the gate passed
+  vacuously; here, a stdin read means the tail never runs and the gate passes
+  visibly-partially. Both are the gate asserting a property adjacent to the one it
+  claims. Swept this session's 12 finalize logs for the signature (a fraction whose
+  halves differ): T-1885 is the only one — the other 11 ran whole.
+
+- **Triggered:** Filed upstream at `framework:pickup` **offset 34** with the repro,
+  the observed instance, and a three-part remedy: close stdin on the eval; assert
+  `pass + fail == total` and treat a mismatch as a FAILURE so the class cannot
+  regress silently; and stop rendering a checkmark on a non-whole fraction.
+  `update-task.sh` is vendored, so it was **not** patched here (G-062) — no file
+  under `.agentic-framework/` was modified by this task.
 
 ## RCA
-
-**Symptom:** the architecture doc the charter calls authoritative declares five
-invariants that "must not be violated". The first — *"Strict star; spokes never connect
-to one another"*, which §3 defends over forty lines and calls decisive — was enforced by
-nothing.
-
-**Root cause:** `no_federation_tripwire.rs` (T-2569) *looks* like it covers this, and
-was cited in T-2678 as closing charter non-goal #1. It does — but non-goal #1 is
-hub↔hub **federation**, and the invariant here is spoke↔spoke **mesh**. Two different
-edges of the same topology. The tripwire scans `CARGO_MANIFEST_DIR/src` of the *hub*
-crate only, so the entire client side was unguarded, while `termlink-session/src`
-ships a generic RPC client that dials any unix path or TCP host:port with nothing
-constraining the target.
-
-**Why structurally allowed:** the two edges share a vocabulary ("strict star", "no
-peer-to-peer"), so a guard on one reads as a guard on both. T-2678 built the matrix of
-charter **non-goals**; nobody had built one for the architecture document's
-**invariants**, and the overlap in wording made the gap invisible from either side.
-
-**Prevention:** `crates/termlink-session/tests/no_spoke_mesh_tripwire.rs` pins the real
-structural property — production connections are confined to four enumerated
-transport/probe modules (`client.rs` 5, `transport.rs` 3, `tofu.rs` 1,
-`ws_consumer.rs` 1), each read and confirmed to dial the hub, a local session control
-plane, or a hub-router proxy. A mesh appears either as a new site inside one (count
-check) or, far more likely, as a socket opened in a fifth module (containment check).
-Proven load-bearing: a simulated peer-to-peer connect in `discovery.rs` fails it;
-removing it returns to green. Comment mentions do not trip it.
-
-**Two corrections made during the build, both kept visible:**
-
-1. The tripwire was first written asserting all connects live in `client.rs`. That
-   premise came from a `grep` truncated at ten results and was simply false — the check
-   failed on its own first run against `transport.rs`, `tofu.rs` and `ws_consumer.rs`.
-   The corrected enumeration is a stronger invariant than the guess, because it is the
-   actual answer to "what can a spoke dial".
-2. The scanner initially removed test code by truncating at the first `#[cfg(test)]`.
-   `discovery.rs` has its test module at line 89 of 176, so that discarded **half the
-   file unscanned** — and the load-bearing probe appended at the end did not fire.
-   Replaced with brace-counting that skips only the guarded item's body. A guard that
-   silently reads less than it claims is the exact failure mode this review series
-   keeps finding elsewhere (T-2680's scope over-report, T-2699's comment-as-emission
-   and digit-blind regex); catching it in my own guard is the same class, not a
-   different one.
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
@@ -252,22 +258,24 @@ removing it returns to green. Comment mentions do not trip it.
 
 ## Updates
 
-### 2026-08-14T11:27:41Z — task-created [task-create-agent]
+### 2026-08-23T20:01:47Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2703-the-spoke-to-spoke-mesh-invariant-is-gua.md
+- **Output:** /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/active/T-2835-drain-fully-ticked-tasks-stuck-in-starte.md
 - **Context:** Initial task creation
-
-### 2026-08-14T11:28:05Z — status-update [task-update-agent]
-- **Change:** status: captured → started-work
 
 ## Reviewer Verdict (v1.5)
 
-- **Scan ID:** R-7364be51
-- **Timestamp:** 2026-08-23T20:31:14Z
+- **Scan ID:** R-a639b0b0
+- **Timestamp:** 2026-08-23T20:49:42Z
 - **Catalogue:** v1.3-seed
-- **Overall:** PASS
+- **Overall:** CONCERN
 - **Needs Human:** no
-- **Findings:** none
+- **Findings:** 1
 
-### 2026-08-23T20:30:43Z — status-update [task-update-agent]
+**Verification-level findings:**
+
+  1. **l387-sigpipe-risk** (partial, heuristic) @ Verification:line 35
+     - evidence: `out=$(grep 'task update' /root/.claude/jobs/d638a35c/tmp/drain.sh); if echo "$out" | grep -q -- '--force'; then exit 1; else exit 0; fi`
+
+### 2026-08-23T20:49:41Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed

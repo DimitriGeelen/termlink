@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2682: cron-install-drift: uninstalled job lines are shipped-dark (G-069) but classify as a non-firing warning
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-23T20:05:30Z
+# ============================================================================
+
+task_id: T-2682
+task_name: "cron-install-drift: uninstalled job lines are shipped-dark (G-069) but classify as a non-firing warning"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-13T23:37:21Z
+completed: 2026-08-23T20:05:19Z
+duration_days: 10
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  cron-install-drift: uninstalled job lines are shipped-dark (G-069) but classify as a non-firing warning
+
+# Key outcomes
+outcomes:
+  - 'New `UNINSTALLED_JOBS` class: git declares cron job lines the installed file lacks → **FIRES** (exit 1) regardless of `--strict`'
+  - 'Job-line extraction ignores comments, blank lines, and `VAR=value` env assignments, and is whitespace-normalized so reformatting alone is not a false positive'
+  - 'Plain content differences with no missing job lines stay a non-firing WARNING (unchanged `--strict` behaviour)'
+  - 'Firing output names the offending crontab AND quotes the specific missing job line(s), so the operator can install exactly what is absent'
+  - 'JSON envelope extended additively: `uninstalled_jobs_count` + `uninstalled_jobs[]` with `{crontab, installed_path, missing_lines[]}`'
+  - 'Exit-code contract documented in the header and `--help`'
+  - 'Fixture suite `tests/cron-install-drift-fixtures.sh` covers: missing file fires, uninstalled-job-line fires, comment-only drift warns (exit 0), env-var-only drift warns, byte-identical is OK, extra INSTALLED job does not fire, no-`Installed to:` header is skipped, absent cron.d is informational'
+  - 'Running against this host reports the 2 real cases as UNINSTALLED_JOBS, naming the T-2175 and T-2176 meta-canary lines'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 14187 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14187
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2682-cron-install-drift-uninstalled-job-lines.md
+generated_by: context-agent-hybrid

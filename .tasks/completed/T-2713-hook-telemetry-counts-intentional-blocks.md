@@ -5,10 +5,10 @@ description: >
   fw_record_hook_fire treats any non-zero exit as failure, so a blocking enforcement
   hook trips the T-1626 hook-decay alarm by working correctly
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -17,8 +17,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T18:54:20Z
-last_update: 2026-08-23T19:37:10Z
-date_finished:
+last_update: 2026-08-23T20:00:51Z
+date_finished: 2026-08-23T20:00:51Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -163,13 +163,13 @@ report — is filed and confirmed present at offset 33.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The claim is evidenced, not asserted: cite `check-human-ac-tick.py:289` as the only non-zero return and `hook-telemetry.sh:28` as the conflation point
-- [ ] The report states that exit 2 is the Claude Code "block" code and that other non-zero codes mean hook error, since the fix depends on that distinction
-- [ ] The blast radius is named — every blocking gate (`check-tier0`, `check-active-task`, `budget-gate`, `check-project-boundary`) is subject to the same false alarm, not just this one hook
-- [ ] A concrete remedy is proposed: count exit 2 as a `blocks` counter separate from `failures`, and threshold only on genuine failures
-- [ ] The report warns against the tempting non-fix — re-baselining via `--register`, which would file a concern against a healthy hook and bury the real T-1626 signal
-- [ ] Filed to `framework:pickup` and the post confirmed present
-- [ ] No file under `.agentic-framework/` is edited by this task
+- [x] The claim is evidenced, not asserted: cite `check-human-ac-tick.py:289` as the only non-zero return and `hook-telemetry.sh:28` as the conflation point
+- [x] The report states that exit 2 is the Claude Code "block" code and that other non-zero codes mean hook error, since the fix depends on that distinction
+- [x] The blast radius is named — every blocking gate (`check-tier0`, `check-active-task`, `budget-gate`, `check-project-boundary`) is subject to the same false alarm, not just this one hook
+- [x] A concrete remedy is proposed: count exit 2 as a `blocks` counter separate from `failures`, and threshold only on genuine failures
+- [x] The report warns against the tempting non-fix — re-baselining via `--register`, which would file a concern against a healthy hook and bury the real T-1626 signal
+- [x] Filed to `framework:pickup` and the post confirmed present
+- [x] No file under `.agentic-framework/` is edited by this task
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -235,6 +235,18 @@ report — is filed and confirmed present at offset 33.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+# The two cited lines still say what the report cites them as saying
+out=$(sed -n '289p' .agentic-framework/agents/context/check-human-ac-tick.py); echo "$out" | grep -q "return 2"
+out=$(sed -n '28p' .agentic-framework/lib/hook-telemetry.sh); echo "$out" | grep -q 'exit_code" != "0"'
+# ...and :289 really is the ONLY non-zero return, which is the load-bearing half of AC 1
+test "$(grep -c 'return [1-9]' .agentic-framework/agents/context/check-human-ac-tick.py)" = "1"
+# The root cause the report names is present: set -e in the dispatcher
+out=$(sed -n '12p' .agentic-framework/bin/fw); echo "$out" | grep -q "set -euo pipefail"
+# The report was filed to framework:pickup and is present on the rail
+out=$(timeout 60 target/release/termlink channel subscribe framework:pickup --cursor 33 --limit 1 2>&1); echo "$out" | grep -q "hook-failure-counter"
+# G-062: no vendored file was edited by this task
+test -z "$(git status --porcelain .agentic-framework/)"
+
 ## RCA
 
 **Symptom:** `fw audit` reports `FAIL|check-human-ac-tick|20|2|0.1000` under a
@@ -277,27 +289,42 @@ someone simplifies the condition.
 
 ## Evolution
 
-<!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
-     understanding evolved during build — what was learned that wasn't known at
-     filing, what in the original plan no longer fits, what triggered pivots
-     or new sub-tasks. Mandatory at slice boundaries (when applicable) and
-     before --status work-completed.
+### 2026-08-23 — the premise inverted under measurement
 
-     Origin: T-1717 grill Q4 — "the understanding of what we need and want
-     evolves with the process of materialisation." Structural counter to §ACD:
-     spec-vs-build divergence is logged as soon as it happens, not lost as
-     folklore.
+- **What changed:** The task was filed to report that `hook-telemetry.sh:28`
+  conflates exit 2 (block) with exit non-zero (hook error). That conflation is
+  real code and the citation holds. But on trying to MEASURE it, the line turned
+  out to be unreachable from the hook dispatch path. `bin/fw:12` is
+  `set -euo pipefail`, and the dispatcher runs `bash "$_hook_script" "$@"` as a
+  simple command in no condition context — so any non-zero return aborts `fw`
+  right there, and both `_hook_rc=$?` and `fw_record_hook_fire` below it never
+  execute. The exit status still reaches Claude Code, so blocking works; only the
+  telemetry is lost.
 
-     Format (one entry per slice boundary or significant insight):
-       ### YYYY-MM-DD — [topic]
-       - **What changed:** [what we learned that we didn't know at filing]
-       - **Plan impact:** [what in the plan no longer fits]
-       - **Triggered:** [new sub-task / pivot / scope cut, with task ID if filed]
+  Measured on the live tree rather than reasoned: a blocking invocation left the
+  FIRE counter at 22→22 while a passing one took it 22→23. That is the decisive
+  observation, because `.hook-counter` is incremented unconditionally *before* the
+  `if` — a fire that does not increment proves the function was never entered, not
+  that the branch went the wrong way. Confirmed with a minimal repro of the shape.
 
-     The completion gate (T-1718) blocks --status work-completed when this
-     section exists but is empty/template-only. Use --skip-evolution to bypass
-     (logged Tier-2). Non-arc tasks may leave this empty.
--->
+- **Plan impact:** The task's own Context asserted "the two recorded failures are
+  two occasions on which the guard worked." That cannot be true — a successful
+  block cannot reach the counter. The only writer surviving `set -e` is the
+  missing-hook branch (`fw_record_hook_fire "$name" 127` followed by `exit 0`,
+  reachable because it is a plain statement, not a failed command). So the likelier
+  reading is the opposite of the one filed: two occasions on which the hook was
+  ABSENT and the call was allowed through. We could not prove which, because the
+  counter stores a name and a tally with no timestamp and no code — and that
+  ambiguity is itself the finding, since "blocked", "errored" and "was not there"
+  are three different conditions the file cannot distinguish.
+
+  The report was filed with the corrected finding rather than the one the ACs were
+  written against. Filing the original would have shipped a claim already disproven
+  on this host.
+
+- **Triggered:** No new task. The remedy is now ordered — fix the `set -e` capture
+  first (nothing else works until it does), then split blocks from failures, then
+  consider a third class for missing-hook. All three are upstream's (G-062).
 
 ## Decisions
 
@@ -330,3 +357,15 @@ someone simplifies the condition.
 ### 2026-08-14T19:13:00Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-6f46e578
+- **Timestamp:** 2026-08-23T20:00:52Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-23T20:00:51Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

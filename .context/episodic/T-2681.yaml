@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2681: static-check allowlists live under a gitignored path — guard layer not reproducible outside the origin checkout
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-23T20:05:16Z
+# ============================================================================
+
+task_id: T-2681
+task_name: "static-check allowlists live under a gitignored path — guard layer not reproducible outside the origin checkout"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-13T23:27:38Z
+completed: 2026-08-23T20:04:26Z
+duration_days: 10
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  static-check allowlists live under a gitignored path — guard layer not reproducible outside the origin checkout
+
+# Key outcomes
+outcomes:
+  - 'All four checks resolve their allowlist via a **tracked-first fallback**: `.context/checks/<name>-allowlist` when present, else the legacy `.context/working/.<name>-allowlist` (so the origin checkout keeps working un-migrated), with the explicit `--allowlist` / env override still winning over both'
+  - 'Tracked allowlists created under `.context/checks/` for alloc-sink (5), drain-sink (6), busy-spin (4), silent-exit (0 entries, header only), each entry carrying a re-verified cited reason'
+  - 'All four tracked allowlists are `git ls-files`-visible (the whole point)'
+  - 'All four checks exit 0 **in this worktree** — i.e. the guard layer is reproducible off the origin checkout, which it was not before'
+  - 'Allowlists remain load-bearing: deleting an entry re-fires that site'
+  - 'Each check''s header documents the tracked path and why it is tracked'
+  - 'Existing fixture suites still pass (`tests/{alloc-sink,drain-sink,silent-exit,busy-spin}-check-fixtures.sh`) — the `--allowlist` override path must be unchanged'
+  - 'CLAUDE.md updated: the four checks'' documented allowlist paths corrected, and the "scans CLEAN" claims made true-anywhere rather than true-on-one-machine'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 14196 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14196
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2681-static-check-allowlists-live-under-a-git.md
+generated_by: context-agent-hybrid

@@ -9,20 +9,20 @@ description: >
   vs termlink at T-2704); the vendored VERSION 1.6.295 vs upstream 1.6.145 is a lineage/tag-epoch
   artifact, not a downgrade (the T-2359 lesson). Re-vendor via fw update.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-bus/src/claim.rs, crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/commands/substrate.rs, crates/termlink-hub/src/channel.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-protocol/src/control.rs, crates/termlink-session/src/claim_client.rs, scripts/check-stuck-claims-freshness.sh, tests/stuck-claims-check-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T12:02:56Z
-last_update: '2026-08-23T19:13:47Z'
-date_finished:
+last_update: 2026-08-23T20:31:22Z
+date_finished: 2026-08-23T20:31:22Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -256,3 +256,24 @@ the file that gets overwritten cannot survive the event it warns about.
 
 ### 2026-08-14T12:03:09Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-6d906976
+- **Timestamp:** 2026-08-23T20:31:24Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 3
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — `lib/arc_membership.py` exists after the re-vendor, so `web/blueprints/arcs.py`'s import resolves
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=lib/arc_membership.py in: `lib/arc_membership.py` exists after the re-vendor, so `web/blueprints/arcs.py`'s import resolves`
+- **AC#5 (Agent)** — The enforcement baseline is checked: if `.claude/settings.json`-governed hooks changed, that is surfaced rather than left to accumulate as a silent `fw doctor` FAIL (L-398)
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=claude/settings.json in: The enforcement baseline is checked: if `.claude/settings.json`-governed hooks changed, that is surfaced rather than left to accumulate as a silent `f`
+- **AC#6 (Agent)** — `bash scripts/run-guard-layer.sh` still passes 25/25 — the guard layer's fixtures shell out to framework paths, so a framework swap could break them
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/run-guard-layer.sh in: `bash scripts/run-guard-layer.sh` still passes 25/25 — the guard layer's fixtures shell out to framework paths, so a framework swap could break them`
+
+### 2026-08-23T20:31:22Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

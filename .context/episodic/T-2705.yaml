@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2705: Vendored framework is internally inconsistent — Watchtower cannot start (missing lib/arc_membership.py)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-23T20:31:33Z
+# ============================================================================
+
+task_id: T-2705
+task_name: "Vendored framework is internally inconsistent — Watchtower cannot start (missing lib/arc_membership.py)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-14T12:02:56Z
+completed: 2026-08-23T20:31:22Z
+duration_days: 9
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  web/blueprints/arcs.py imports lib.arc_membership, which exists zero times in git and zero times on disk under .agentic-framework/. Watchtower crashes at create_app(). Upstream master has the module and is genuinely newer (its arcs.py carries T-2774 vs termlink at T-2704); the vendored VERSION 1.6.295 vs upstream 1.6.145 is a lineage/tag-epoch artifact, not a downgrade (the T-2359 lesson). Re-vendor via fw update.
+
+# Key outcomes
+outcomes:
+  - '`lib/arc_membership.py` exists after the re-vendor, so `web/blueprints/arcs.py`''s import resolves'
+  - 'Watchtower actually **starts and serves** — verified by an HTTP 200, not by "the command returned 0"'
+  - 'The re-vendor uses the sanctioned `fw update` path, which saves a rollback backup, rather than a hand-rolled `rm -rf` + copy'
+  - '`fw doctor` reports no new failures versus the pre-change baseline (the vendored framework supplies the hooks governing this session — replacing it must not silently break enforcement)'
+  - 'The enforcement baseline is checked: if `.claude/settings.json`-governed hooks changed, that is surfaced rather than left to accumulate as a silent `fw doctor` FAIL (L-398)'
+  - '`bash scripts/run-guard-layer.sh` still passes 25/25 — the guard layer''s fixtures shell out to framework paths, so a framework swap could break them'
+  - '`cargo test --workspace` green — the framework swap must not disturb the product build'
+  - 'The version-comparison trap is recorded: vendored 1.6.295 vs upstream 1.6.145 reads as a downgrade but upstream carries T-2774 (> termlink''s T-2704), so the patch numbers are non-comparable across lineages — the T-2359 lesson, and the reason this was nearly mis-actioned'
+  - 'Rollback path stated in the task so the operator can undo it in one command'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 13468 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 13468
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2705-vendored-framework-is-internally-inconsi.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2703: The spoke-to-spoke mesh invariant is guarded by nothing (T-2569 guards a different edge)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-23T20:31:20Z
+# ============================================================================
+
+task_id: T-2703
+task_name: "The spoke-to-spoke mesh invariant is guarded by nothing (T-2569 guards a different edge)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-14T11:27:41Z
+completed: 2026-08-23T20:30:43Z
+duration_days: 9
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  The architecture doc's decisive invariant is 'spokes never connect to one another'. T-2569's tripwire scans only the hub crate and forbids hub-to-hub federation — a different edge. termlink-session ships a generic client that connects to any unix path or TCP host:port, so a spoke-to-spoke mesh could be added and no test would fail (T-2702 F1).
+
+# Key outcomes
+outcomes:
+  - 'A tripwire test guards the **spoke↔spoke** edge — the invariant T-2569 does NOT cover, since it scans only the hub crate and forbids hub↔hub federation'
+  - 'It enumerates every outbound-connection construction site in `termlink-session/src`, pinning the count and each site''s legitimate purpose, so a NEW outbound path fails the build until deliberately acknowledged (the T-2569 `EXPECTED_OUTBOUND_SITES` idiom)'
+  - 'Connecting to the **hub** stays legal — the star requires it; the test must distinguish "spoke → hub" from "spoke → spoke", not ban outbound connections'
+  - 'Connecting to a **local session socket from an operator tool** stays legal — §3 forbids agents meshing with each other, not a CLI reaching a local session; banning that would be a false positive that makes the guard unusable'
+  - 'The test explains in-file WHY the mesh is forbidden, citing §3''s decisive argument (a mesh distributes fragility across N² links with no central durable replay and silent partial-partition divergence), so a future reader knows the cost of "just add a direct channel"'
+  - 'It documents its own residual: what shape of spoke↔spoke connection it would still miss'
+  - 'Load-bearing: adding a simulated peer-to-peer connection site makes it fail; removing it returns to green'
+  - 'Comment/string mentions of a socket path do not trip it — prose about connecting is not connecting'
+  - '`cargo test -p termlink-session` green, and `cargo test --workspace` green'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 13503 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 13503
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2703-the-spoke-to-spoke-mesh-invariant-is-gua.md
+generated_by: context-agent-hybrid

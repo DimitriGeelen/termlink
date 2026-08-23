@@ -10,16 +10,16 @@ description: >
   despite
   CLAUDE.md documenting both as clean. Narrow the rule to contents-plus-re-include.
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: [governance, gitignore, clean-clone, static-checks]
-components: []
+components: [scripts/check-cron-install-drift.sh, scripts/check-framework-pickup-freshness.sh, scripts/check-framework-tracking-drift.sh, scripts/check-verification-pipefail.sh, tests/framework-dangling-ref-fixtures.sh, tests/framework-tracking-drift-fixtures.sh, tests/gitignore-framework-scope-fixtures.sh, tests/pickup-canary-selffilter-fixtures.sh, tests/pickup-failopen-fixtures.sh, tests/verification-pipefail-check-fixtures.sh]
 related_tasks: [T-2819, T-2814, T-2817, T-2527, T-2531, T-2666, T-2672, T-2821]
 created: 2026-08-20
-last_update: '2026-08-20T15:21:22Z'
-date_finished:
+last_update: 2026-08-23T20:41:38Z
+date_finished: 2026-08-23T20:41:38Z
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:38Z'
     estimator: bvp-estimator-v1-heuristic
@@ -210,6 +210,31 @@ and are not allowlists remain untrackable by default. That is deliberate — the
 is to keep scratch state out, and widening it further would trade this defect for the
 opposite one.
 
+## Recommendation
+
+**Recommendation:** GO
+
+**Rationale:** The defect and the fix are both confirmed present in the tree. The
+blanket `.context/working/` rule was the same shape as the `.agentic-framework`
+rule T-2819 fixed: already-tracked files keep working, so nothing looks broken,
+while everything added afterwards is silently untrackable. The consequence was
+not cosmetic — it made the *entire static-check guard layer non-reproducible*,
+because four allowlists carrying the cited reasons for 15 acknowledged sites
+lived only on one machine's disk. CLAUDE.md documented those trees as "clean";
+that was true only on the host holding the untracked copies. A guard whose
+reported green depends on unversioned local state is a guard whose green is not
+evidence.
+
+**Evidence:**
+- `aad7b6660` — "narrow the blanket .context/working ignore so static-check allowlists are trackable" is in this branch's history.
+- `.gitignore` now carries **enumerated** paths (lines 73–99) rather than a bare directory rule; the broad `.context/working/*` at line 131 sits below the specific negations rather than above them.
+- All ten allowlists are now in `git ls-files .context/checks/` — including the four originally stranded (`alloc-sink`, `drain-sink`, `silent-exit`, `busy-spin`).
+- Both Verification commands pass (2/2) on the current tree.
+- Per T-2681, the 15 acknowledged sites were re-verified by reading the code during migration rather than copied forward on trust.
+
+**Residual risk:** none identified for this change. The related `.agentic-framework`
+half is T-2819 (`owner: human`, still open) — the two are siblings, not duplicates.
+
 ## Decisions
 
 ### 2026-08-20 — This is the mechanism half; another branch already did the files
@@ -243,3 +268,15 @@ opposite one.
   tomorrow.
 - **Rejected:** Un-ignoring `.context/working/` entirely. The rule has a real job; the vector
   index and session state genuinely should not be committed.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-086c7e5f
+- **Timestamp:** 2026-08-23T20:41:40Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-23T20:41:38Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
