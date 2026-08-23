@@ -1,0 +1,20 @@
+# stranded-finalized allowlist (T-2833)
+#
+# Tasks that legitimately sit in .tasks/active/ declaring `status:
+# work-completed` with no `date_finished`. One path per line — repo-relative
+# (normal), absolute, or bare filename all match. A trailing `# reason` is
+# required by convention: the reason IS the justification, and "it's fine" is
+# not one.
+#
+# Entries are still COUNTED and REPORTED; they only stop the check firing.
+# Removing a line re-fires that task. A NEW stranded task fires immediately
+# because it is not listed.
+#
+# NOTE: T-193 partial-complete tasks do NOT belong here. They carry a real
+# `date_finished` and are excluded by the detector itself, not by
+# acknowledgement — 58 of them in this corpus. If you find yourself adding one,
+# the discriminator has drifted and the script is what needs fixing.
+#
+# Currently empty on purpose. The two real instances (T-2831, T-2832) were
+# REPAIRED, not acknowledged — an entry here is for a task that is correct as it
+# stands, never for one whose finalize should have completed.

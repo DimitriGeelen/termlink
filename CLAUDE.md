@@ -1669,6 +1669,77 @@ before the repair — extracted straight from git, not a synthetic mutant — it
 commands; against the repaired tree it is clean.
 
 
+### Stranded-finalized task check (T-2833, the finalize latch the T-2290 canary cannot see)
+
+The eleventh source-level static check. `update-task.sh` writes `status: work-completed`
+**unconditionally** at line ~1681 and then runs the finalize block — stamp `date_finished`,
+`git mv` to `completed/`, clear focus, generate episodic — **221 lines later**, behind this
+guard at line ~1902:
+
+```bash
+if [ -n "$NEW_STATUS" ] && [ "$NEW_STATUS" = "work-completed" ] \
+   && [ "$OLD_STATUS" != "work-completed" ]; then
+```
+
+The two writes are not atomic, and **the guard reads the value the first write already
+committed to disk**. So if a run writes the status and then dies before reaching the finalize
+block, every later invocation sees `OLD_STATUS` is already `work-completed`, the condition is
+false, and the whole block is skipped. Not an error — an `if` that does not match. It is a
+**latch**: once entered, the normal command can never leave it, and `date_finished` becomes
+unreachable by any code path.
+
+**Why it is not cosmetic: it deadlocks commits.** P-002 refuses a commit while focus is on a
+completed task; the T-1730 focus-drift gate refuses one while focus is on any *other* task. The
+only exits are a logged Tier-2 bypass or attributing the commit to an unrelated task — which
+commits `2dabb2da5` and `9798e715a` had to do, and said so in their messages.
+
+**A second, partial recovery masks it incompletely.** Re-running the command *does* reach a
+different branch — the partial-complete re-check at line ~1395 — which moves the file to
+`completed/`. That branch never stamps `date_finished`. So the recovery fixes the location and
+not the timestamp, landing the task in exactly the T-2290 **soft, non-firing** class
+(`work-completed` with empty `date_finished`), which is informational by default and only fires
+under `--strict`. Both observed instances (T-2831, T-2832) finalized that way.
+
+**The T-2290 canary is structurally blind to the pre-move state.** It scans `.tasks/completed/`
+only, so a task that never leaves `active/` is outside its corpus by construction. Same end
+state as the G-066 finalization-bypass class (work done, register disagrees) reached from the
+opposite direction.
+
+**The discriminator is the whole precision of the check, and the first draft got it wrong.**
+`work-completed` sitting in `active/` is **not** by itself a defect: T-193 partial-complete is
+exactly that state by design — agent ACs pass, human ACs remain, the task stays in `active/`
+with `owner: human`. The first draft fired on all of them: **58 findings**, every one
+legitimate. A check that is permanently red is a check nobody reads — the fatigue lesson T-2818
+documented from the other direction. What separates the defect is `date_finished`: the finalize
+block stamps it *before* it branches on `PARTIAL_COMPLETE`, so a partial-complete task always
+carries a date, while the latched task can never acquire one. The detector keys on that field
+rather than on `owner: human` deliberately — owner is a convention a future task could vary,
+the date is produced by the code path itself. Partial-complete tasks are **counted and
+reported**, never fired on, so a green is not ambiguous between "none" and "the filter ate them".
+
+**Scope — read a green narrowly (T-2680).** It answers one question: is any file in
+`.tasks/active/` declaring `status: work-completed` with no `date_finished`? It does **not**
+audit whether a task's work is done, whether its ACs are honest, or how tasks in `completed/`
+finalized — that last is T-2290's corpus.
+
+Allowlist: `.context/checks/stranded-finalized-allowlist` (git-tracked per T-2681), one path per
+line with a cited reason; repo-relative, absolute, or bare filename all match. Entries are
+counted and reported but do not fire. Currently empty on purpose — the two real instances were
+**repaired, not acknowledged**.
+
+Exit 0 clean / 1 stranded / 2 tooling — **fail-closed**: a missing tasks dir, an unreadable
+allowlist, absent `python3`, or a corpus with zero task files all exit 2, never a vacuous clean.
+`--json`, `--quiet`, `--tasks-dir`, `--allowlist`, `--no-heartbeat`. Ad-hoc:
+`bash scripts/check-stranded-finalized-tasks.sh`. Fixtures:
+`bash tests/stranded-finalized-check-fixtures.sh` (29 assertions, weighted toward the firing
+cases and the false-positive guards; case 2 pins the 58-finding regression). **Load-bearing:**
+pointed at T-2831 and T-2832 as they stood at commit `389488a65` — extracted straight from git,
+not a synthetic mutant — it fires on both; against the repaired tree it is clean.
+
+**The defect is vendored (G-062).** `update-task.sh` lives under `.agentic-framework/`, so it was
+**not patched here** — a local fix is erased by the next re-vendor. It is filed upstream; this
+check is the local detection that survives one.
+
 ### Running the guard layer — `scripts/run-guard-layer.sh` (T-2684)
 
 **One command runs every source-level guard.** Before T-2684 there was none, and

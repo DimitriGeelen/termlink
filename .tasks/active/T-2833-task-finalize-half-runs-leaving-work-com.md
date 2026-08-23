@@ -83,15 +83,91 @@ the failing line has never actually been seen. If the culprit is in
 `.agentic-framework/`, it is vendored: route upstream per G-062 and register it
 in `.vendor-divergence.yaml` rather than patching in place.
 
+### Root cause — found, and it is a latch
+
+`update-task.sh` writes the status field **unconditionally** at line ~1681 and then
+runs the finalize block — stamp `date_finished` (~1904), `git mv` to `completed/`
+(~1946), clear focus (~2001), generate episodic (~2194) — **221 lines later**,
+behind this guard at line ~1902:
+
+```bash
+if [ -n "$NEW_STATUS" ] && [ "$NEW_STATUS" = "work-completed" ] \
+   && [ "$OLD_STATUS" != "work-completed" ]; then
+```
+
+`$OLD_STATUS` is read from the file at startup. The two writes are not atomic and
+**the guard reads the value the first write already committed to disk**. So a run
+that writes the status and then dies before line 1902 leaves every later
+invocation seeing `OLD_STATUS=work-completed`, the third clause FALSE, and the
+whole finalize block skipped. Not an error — an `if` that does not match.
+
+`date_finished` is written at exactly one site, inside that block. Once the latch
+closes, the field is unreachable by any code path.
+
+**The trigger was almost certainly our own output truncation.** Both prior
+observations were piped through `head`, and the reviewer verdict prints
+immediately before the status write — so `head -N` closes the pipe right there
+and SIGPIPE kills the script inside the two-write window. L-387 again, one layer
+up: this time the SIGPIPE did not fail a verification, it corrupted state.
+
+### The partial recovery hides it rather than fixing it
+
+Re-running the command *does* reach a different branch — the partial-complete
+re-check at ~1395 — which git-mv's the file to `completed/`. **That branch never
+stamps `date_finished`.** Confirmed live on both tasks: each printed
+`Moved to completed/` with no `date_finished set to ...` line, and each now sits
+in `completed/` with `date_finished: null`.
+
+That is precisely the T-2290 canary's **soft, non-firing** class (work-completed
+with empty `date_finished` — informational by default, fires only under
+`--strict`). The system self-heals into its own blind spot.
+
+### Vendored — detection built, fix routed upstream
+
+`agents/task-create/update-task.sh` is under `.agentic-framework/`, so per G-062
+it was **not patched here**; a local fix is deleted by the next re-vendor. Filed
+upstream at `framework:pickup` **offset 32**, with three ordered remediations
+(make the trigger idempotent by also firing when the task claims work-completed
+but carries no date; or write status last; and either way have the ~1395 branch
+stamp the date).
+
+### The first draft of the check was wrong, and that is the durable lesson
+
+Keyed on "work-completed while still in `active/`", it fired **58 times** — every
+one a legitimate T-193 partial-complete task (agent ACs pass, human ACs pending,
+stays in `active/` by design, `owner: human`; all 58 verified). A permanently-red
+check is an unread check — T-2818's fatigue lesson from the other direction, and
+it would have shipped that way had the real corpus not been run before the
+fixtures were written.
+
+The discriminator that works is `date_finished`: the finalize block stamps it
+*before* it branches on `PARTIAL_COMPLETE`, so a partial-complete task always
+carries a date and a latched one structurally cannot. Keyed on the date rather
+than `owner: human` deliberately — owner is a convention a task could legitimately
+vary; the date is produced by the code path itself. The 58 are **counted and
+reported**, never fired on, so a green is never ambiguous between "none" and "the
+filter ate them".
+
+### Honest variance on AC 5
+
+The AC says "red against the current tree (which has two such tasks), green once
+they are resolved". The order actually ran the other way: T-2831 and T-2832 were
+unstuck first (they were blocking commits), so by the time the check existed the
+live tree was already clean. The red leg is therefore proven against the two files
+**as they stood at commit `389488a65`**, extracted straight from git rather than a
+synthetic mutant — the same technique T-2831 used, and pinned to an explicit sha
+for the same reason (a HEAD-relative fixture silently starts reading the fixed
+file and passes for the wrong reason).
+
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] The exact failure point in the finalize path is identified by reading the code — which step sets `status`, which sets `date_finished`, which moves the file, and what stops between them
-- [ ] The finding names whether this is a vendored defect (G-062, route upstream) or locally fixable, with evidence for the call
-- [ ] T-2831 and T-2832 reach a consistent finalized state — either fully finalized, or explicitly left and documented, never silently half-done
-- [ ] A check exists that detects a task whose `status: work-completed` while it is still in `.tasks/active/` — the state the T-2290 canary is structurally blind to because it scans `completed/` only
-- [ ] That check is proven load-bearing: red against the current tree (which has two such tasks), green once they are resolved
+- [x] The exact failure point in the finalize path is identified by reading the code — which step sets `status`, which sets `date_finished`, which moves the file, and what stops between them
+- [x] The finding names whether this is a vendored defect (G-062, route upstream) or locally fixable, with evidence for the call
+- [x] T-2831 and T-2832 reach a consistent finalized state — either fully finalized, or explicitly left and documented, never silently half-done
+- [x] A check exists that detects a task whose `status: work-completed` while it is still in `.tasks/active/` — the state the T-2290 canary is structurally blind to because it scans `completed/` only
+- [x] That check is proven load-bearing: red against the current tree (which has two such tasks), green once they are resolved
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -157,21 +233,67 @@ in `.vendor-divergence.yaml` rather than patching in place.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+# The new check is green against the live tree
+bash scripts/check-stranded-finalized-tasks.sh --no-heartbeat
+# ...and its own fixtures pass, so it was not weakened to go green
+out=$(bash tests/stranded-finalized-check-fixtures.sh 2>&1); echo "$out" | grep -q "0 failed"
+# RED (load-bearing): it fires on T-2831 as it stood at the pinned pre-repair sha.
+# Pinned to an explicit sha, NOT HEAD — a HEAD-relative fixture silently starts
+# reading the REPAIRED file and the red leg passes for the wrong reason (T-2831).
+rm -rf .tmp-stranded-fixture && mkdir -p .tmp-stranded-fixture/active && git show 389488a65:.tasks/active/T-2831-repair-t-2830-verification-block-landed-.md > .tmp-stranded-fixture/active/a.md && ! bash scripts/check-stranded-finalized-tasks.sh --no-heartbeat --quiet --tasks-dir .tmp-stranded-fixture
+rm -rf .tmp-stranded-fixture
+# The VENDORED file was NOT patched — G-062, the fix went upstream instead
+test -z "$(git status --porcelain .agentic-framework/agents/task-create/update-task.sh)"
+# Both previously-stuck tasks are now out of active/ and in completed/
+test -f .tasks/completed/T-2831-repair-t-2830-verification-block-landed-.md
+test -f .tasks/completed/T-2832-register-vendored-framework-divergences-.md
+test ! -f .tasks/active/T-2831-repair-t-2830-verification-block-landed-.md
+test ! -f .tasks/active/T-2832-register-vendored-framework-divergences-.md
+# The allowlist is git-tracked (T-2681) and carries no acknowledgement entries
+git ls-files --error-unmatch .context/checks/stranded-finalized-allowlist
+test -z "$(grep -v '^#' .context/checks/stranded-finalized-allowlist | grep -v '^[[:space:]]*$' || true)"
+# The check is a guard-layer member, so CI runs it on every push
+out=$(bash scripts/run-guard-layer.sh --list 2>&1); echo "$out" | grep -q "check-stranded-finalized-tasks.sh"
+# CLAUDE.md documents the defect and the check
+grep -q "Stranded-finalized task check (T-2833" CLAUDE.md
+
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** `fw task update <id> --status work-completed` wrote `status:
+work-completed` but left `date_finished: null` and never moved the file out of
+`.tasks/active/`. Re-running it changed nothing. The resulting half-state
+deadlocked commits: P-002 refuses a commit while focus is on a completed task and
+the T-1730 focus-drift gate refuses one while focus is on any other task, so two
+commits (`2dabb2da5`, `9798e715a`) had to be attributed to unrelated tasks.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** the status write (`update-task.sh` ~1681) and the finalize block
+(~1902) are not atomic, and the finalize block is guarded on `[ "$OLD_STATUS" !=
+"work-completed" ]` where `$OLD_STATUS` was read from the file at startup. Any
+interruption between the two writes — SIGPIPE from piping the output through
+`head` being the likely trigger, since the reviewer verdict prints immediately
+before the status write — commits the status to disk. Every later invocation then
+reads `OLD_STATUS=work-completed`, the guard is false, and the entire finalize
+block is skipped silently. `date_finished` is written at exactly one site inside
+that block, so the field becomes unreachable. It is a latch, not a transient.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** three failures compounding. (1) The guard reads
+remembered state rather than observed state, so it cannot distinguish "already
+finalized" from "status written but finalize never ran". (2) Skipping the block
+produces no output at all — the Directive #2 shape, where a no-op and a success
+are indistinguishable. (3) The T-2290 task-finalization canary scans
+`.tasks/completed/` only, so a task that never leaves `active/` is outside its
+corpus by construction; and the partial-complete re-check branch (~1395) then
+moves the file WITHOUT stamping the date, landing it in exactly that canary's
+soft, non-firing class. The system self-heals into its own blind spot.
+
+**Prevention:** `scripts/check-stranded-finalized-tasks.sh` fires on any task in
+`.tasks/active/` declaring `status: work-completed` with no `date_finished` — the
+state no healthy code path produces, and the one the T-2290 canary cannot see. It
+is a guard-layer member (`# guard-layer: source`), so CI runs it on every push.
+Fixtures: `tests/stranded-finalized-check-fixtures.sh`, 29 assertions, red leg
+proven against the real pre-repair files at commit `389488a65`. The fix itself is
+vendored and was routed upstream per G-062 (`framework:pickup` offset 32) rather
+than patched locally, so the detection is what survives a re-vendor.
 
 ## Evolution
 
