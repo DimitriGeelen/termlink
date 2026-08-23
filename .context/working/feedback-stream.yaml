@@ -8856,3 +8856,159 @@ scan_id: R-74ccd9f7
 task_id: T-2836
 payload:
   task_file: .tasks/active/T-2836-repair-29-unreadable-episodic-files-so-t.md
+---
+kind: scan_emitted
+timestamp: '2026-08-23T21:13:14Z'
+scan_id: R-2366476f
+task_id: T-2678
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-23T21:13:14Z'
+scan_id: R-2366476f
+task_id: T-2678
+payload:
+  task_file: .tasks/active/T-2678-charter-guard-coverage-review--non-goal-.md
+---
+kind: recommendation_claims_verdict
+timestamp: '2026-08-23T21:13:14Z'
+scan_id: RC-91df3549
+task_id: T-2678
+payload:
+  overall: CONFIRMED
+  claim_count: 12
+---
+kind: scan_emitted
+timestamp: '2026-08-23T21:13:25Z'
+scan_id: R-69d874e9
+task_id: T-2683
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-23T21:13:25Z'
+scan_id: R-69d874e9
+task_id: T-2683
+payload:
+  task_file: .tasks/active/T-2683-termlink-purpose-review-3--is-the-guard-.md
+---
+kind: recommendation_claims_verdict
+timestamp: '2026-08-23T21:13:25Z'
+scan_id: RC-20173441
+task_id: T-2683
+payload:
+  overall: CONFIRMED
+  claim_count: 3
+---
+kind: scan_emitted
+timestamp: '2026-08-23T21:13:33Z'
+scan_id: R-bbfe9cbd
+task_id: T-2690
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-23T21:13:33Z'
+scan_id: R-bbfe9cbd
+task_id: T-2690
+payload:
+  task_file: .tasks/active/T-2690-termlink-purpose-review-4--the-two-const.md
+---
+kind: recommendation_claims_verdict
+timestamp: '2026-08-23T21:13:33Z'
+scan_id: RC-88a083fa
+task_id: T-2690
+payload:
+  overall: CONFIRMED
+  claim_count: 5
+---
+kind: scan_emitted
+timestamp: '2026-08-23T21:13:47Z'
+scan_id: R-f8549f14
+task_id: T-2694
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-23T21:13:47Z'
+scan_id: R-f8549f14
+task_id: T-2694
+payload:
+  task_file: .tasks/active/T-2694-termlink-purpose-review-5--are-the-chart.md
+---
+kind: recommendation_claims_verdict
+timestamp: '2026-08-23T21:13:47Z'
+scan_id: RC-93e7aa11
+task_id: T-2694
+payload:
+  overall: CONFIRMED
+  claim_count: 2
+---
+kind: scan_emitted
+timestamp: '2026-08-23T21:13:53Z'
+scan_id: R-cbea74db
+task_id: T-2698
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-23T21:13:53Z'
+scan_id: R-cbea74db
+task_id: T-2698
+payload:
+  task_file: .tasks/active/T-2698-termlink-purpose-review-6--is-the-refusa.md
+---
+kind: recommendation_claims_verdict
+timestamp: '2026-08-23T21:13:53Z'
+scan_id: RC-23dd2303
+task_id: T-2698
+payload:
+  overall: CONFIRMED
+  claim_count: 6
+---
+kind: scan_emitted
+timestamp: '2026-08-23T21:14:02Z'
+scan_id: R-3ec6c49e
+task_id: T-2702
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-23T21:14:02Z'
+scan_id: R-3ec6c49e
+task_id: T-2702
+payload:
+  task_file: .tasks/active/T-2702-termlink-purpose-review-7--are-the-archi.md
+---
+kind: recommendation_claims_verdict
+timestamp: '2026-08-23T21:14:02Z'
+scan_id: RC-d40e4a91
+task_id: T-2702
+payload:
+  overall: CONFIRMED
+  claim_count: 7
