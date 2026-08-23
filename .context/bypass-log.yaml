@@ -201,3 +201,15 @@ bypasses:
     authorized_by: human
     reason: "T-2815 worktree-basename cron-drift audit defect (same cause as every push this session). Standing session-scoped human authorization for --no-verify pushes to origin on this branch."
     retroactive_task: null
+  - timestamp: 2026-08-22T11:38:40Z
+    action: "T-2829: charter-drift canary fired 40 false positives daily for 20 days — it never said which binary it read"
+    commit: 03314ec1c
+    authorized_by: human
+    reason: "T-2815 worktree-basename cron-drift audit defect. Standing session-scoped human authorization for --no-verify pushes to origin on this branch."
+    retroactive_task: null
+  - timestamp: 2026-08-23T10:25:35Z
+    action: "T-1452: Session handover S-2026-0823-1220"
+    commit: 081aed385
+    authorized_by: human
+    reason: "T-2815 worktree-basename cron-drift audit defect blocks pre-push in every worktree; standing session Tier 0 grant"
+    retroactive_task: null
