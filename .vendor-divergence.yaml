@@ -75,7 +75,18 @@ last_vendor_event:
 #   7. Update `last_vendor_event` here.
 
 divergences:
-  - task: T-2813
+  - task: T-2687
+    also_task_ids: [T-2813]
+    id_note: >
+      ONE fix, TWO task ids — the T-2800 concurrent-allocation class. The work was
+      tracked as T-2813 (this register's founding entry, and the narrative in the
+      header above), but the commit that carries it is tagged T-2687, the id this
+      branch was named for. The register's match key is the task id parsed from the
+      COMMIT SUBJECT, so while this entry said `task: T-2813` the checker reported
+      the commit as UNREGISTERED — a registered divergence reading as unregistered,
+      which is the direction that costs an operator a duplicate entry rather than a
+      silent miss. Corrected to the id the commit actually carries; T-2813 kept here
+      so the header narrative still resolves.
     commit: ed60a64ea
     date: 2026-08-20
     file: .agentic-framework/lib/pickup.sh
@@ -110,6 +121,30 @@ divergences:
       interim. Losing it to a re-vendor would be the third time.
     upstream_ref: "framework:pickup offset 27"
 
+  - task: T-2721
+    commits: [4f9068496, 86e9db17e]
+    date: 2026-08-15
+    file: .agentic-framework/agents/audit/audit.sh
+    status: local-only
+    kind: fix
+    generality: GENERIC
+    symptom: >
+      Two commits, one file. 4f9068496 fixed four worktree-blind audit checks —
+      hooks resolved via `git rev-parse` so they resolve in a linked worktree, and
+      CTL-020 skips cleanly instead of reporting a false finding. 86e9db17e hoisted
+      `_resolve_hook_path` to top level; defined section-locally it made CTL-011
+      resolve to the empty string, so the check silently passed on nothing.
+    evidence: >
+      Load-bearing and observed live this session — the pre-push audit on this
+      branch printed "Cron drift checks skipped — linked worktree (cron is
+      host-level, managed from the main checkout)", which is exactly 4f9068496's
+      behaviour. Without it the audit reports cron drift against a worktree that
+      does not own the host's cron, and the T-2815 basename defect blocks the push.
+    risk: >
+      status is local-only, NOT filed-upstream: no upstream filing exists for
+      either commit. The next `fw upgrade` deletes both, and the symptom returns as
+      a worktree that cannot pass its own pre-push audit.
+
   - task: T-2469
     commit: a46e8e726
     date: 2026-07-31
@@ -128,6 +163,36 @@ divergences:
 # everything that touches the vendored tree, which would make it as unreadable as
 # the commit log it replaces.
 not_divergence:
+  - kind: vendor-event
+    tasks: [T-2705]
+    commit: c933f8eb7
+    date: 2026-08-14
+    reason: >
+      A PERFORMED re-vendor to framework v1.6.145 — 1078 files, +97913/-1614
+      under .agentic-framework/. Replacing the tree is the thing this register
+      warns about, not an instance of it, so it is not local divergence.
+    baseline_note: >
+      DELIBERATELY NOT promoted to `last_vendor_event`. It is newer than the
+      declared baseline (8c1cca561, 2026-06-08), so promoting it would shrink the
+      at-risk window from 16 commits to 4 — and per the header, a baseline that
+      quietly UNDERSTATES the window is the dangerous direction. This is also the
+      commit whose own message says "(UNVERIFIED: budget gate blocked test/doctor/
+      startup checks)", so it is not established that the tree it installed is
+      sound. Promoting the baseline is a deliberate operator act; leaving the
+      window too wide costs a few extra classifications, leaving it too narrow
+      costs a silently deleted fix. Flagged for the human, not decided here.
+
+  - kind: merge-of-upstream
+    tasks: [T-2830]
+    commit: a25afc4b6
+    date: 2026-08-23
+    reason: >
+      The t2687 -> main pre-resolution merge. Its 951-file / +70552 footprint under
+      .agentic-framework/ is origin/main's vendored tree arriving through the
+      merge, not a local edit to framework behaviour. Every conflict resolution in
+      that commit that DID encode a local decision is under scripts/, tests/,
+      CLAUDE.md and .context/ — outside the vendored tree.
+
   - kind: recovery
     tasks: [T-2806, T-2807, T-2811]
     reason: >

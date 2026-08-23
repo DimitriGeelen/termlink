@@ -1,10 +1,10 @@
 ---
-id: T-2832
-name: "register vendored-framework divergences surfaced by the t2687 merge"
+id: T-2833
+name: "task finalize half-runs leaving work-completed tasks in active and deadlocking commits"
 description: >
-  register vendored-framework divergences surfaced by the t2687 merge
+  task finalize half-runs leaving work-completed tasks in active and deadlocking commits
 
-status: work-completed
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-23T17:06:46Z
-last_update: 2026-08-23T17:06:46Z
+created: 2026-08-23T17:14:52Z
+last_update: 2026-08-23T17:14:52Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,55 +30,21 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2832: register vendored-framework divergences surfaced by the t2687 merge
+# T-2833: task finalize half-runs leaving work-completed tasks in active and deadlocking commits
 
 ## Context
 
-The guard layer, run after the T-2687↔main merge, reported **5 unregistered local
-changes to vendored framework code**. Per G-062 every one is deleted by the next
-`fw upgrade` unless upstream carries it, so an unclassified list is a countdown.
-
-Read individually, they are four different things — which is the argument for
-classifying rather than bulk-registering:
-
-| commit | footprint under `.agentic-framework/` | class |
-|---|---|---|
-| `c933f8eb7` T-2705 | 1078 files, +97913 | a PERFORMED re-vendor to v1.6.145 |
-| `a25afc4b6` T-2830 | 951 files, +70552 | main's vendored tree arriving via the merge |
-| `4f9068496` + `86e9db17e` T-2721 | `agents/audit/audit.sh`, +64/-27 | real local fix, **unfiled** |
-| `ed60a64ea` T-2687 | `lib/pickup.sh`, +53/-3 | real local fix, already registered |
-
-**Two findings came out of reading them rather than their subject lines.**
-
-**1. `ed60a64ea` was already registered and still reported unregistered.** The
-register's match key is the task id parsed from the COMMIT SUBJECT; the entry said
-`task: T-2813` while the commit is tagged `T-2687`. One fix, two ids — the T-2800
-concurrent-allocation class — so a correctly-registered divergence read as
-unclassified. That direction is the cheap one (it costs a duplicate entry, not a
-silent deletion), but it would have taught an operator to distrust the register.
-
-**2. The T-2721 audit.sh fix is `local-only` and load-bearing right now.** This
-session watched it work: the pre-push audit printed *"Cron drift checks skipped —
-linked worktree"*, which is exactly that commit's behaviour, and without it the
-T-2815 basename defect blocks every worktree push. It has no upstream filing. The
-next re-vendor removes it and the symptom returns.
-
-**Deliberately NOT done: promoting the baseline.** `c933f8eb7` is a genuine vendor
-event newer than the declared `last_vendor_event` (8c1cca561, 2026-06-08), so
-promoting it would shrink the at-risk window from 16 commits to 4. The register's
-own header says a baseline that quietly UNDERSTATES the window is the dangerous
-direction, and that commit's message ends "(UNVERIFIED: budget gate blocked
-test/doctor/startup checks)" — it is not established that the tree it installed is
-sound. Promotion is an operator act; it is flagged in the register, not decided here.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Every commit `check-vendor-divergence.sh` reports as unregistered is classified in `.vendor-divergence.yaml` — as a real `divergences:` entry or as `not_divergence:` with a cited reason
-- [x] Each classification is made by READING the commit's actual diff against the vendored tree, not inferred from its subject line
-- [x] `bash scripts/check-vendor-divergence.sh` exits 0 against the working tree
-- [x] `bash tests/vendor-divergence-fixtures.sh` still passes, so the register's own checker is not weakened to make it green
+- [ ] The exact failure point in the finalize path is identified by reading the code — which step sets `status`, which sets `date_finished`, which moves the file, and what stops between them
+- [ ] The finding names whether this is a vendored defect (G-062, route upstream) or locally fixable, with evidence for the call
+- [ ] T-2831 and T-2832 reach a consistent finalized state — either fully finalized, or explicitly left and documented, never silently half-done
+- [ ] A check exists that detects a task whose `status: work-completed` while it is still in `.tasks/active/` — the state the T-2290 canary is structurally blind to because it scans `completed/` only
+- [ ] That check is proven load-bearing: red against the current tree (which has two such tasks), green once they are resolved
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -144,17 +110,6 @@ sound. Promotion is an operator act; it is flagged in the register, not decided 
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-# The register parses, and still carries both classes
-python3 -c "import yaml; d=yaml.safe_load(open('.vendor-divergence.yaml')); assert d['divergences'] and d['not_divergence']"
-# Every commit touching vendored code since the declared baseline is classified
-bash scripts/check-vendor-divergence.sh
-# The register was fixed, not the detector — the checker script is unmodified
-test -z "$(git status --porcelain scripts/check-vendor-divergence.sh)"
-# ...and its own fixtures still pass, so it was not weakened to go green
-out=$(bash tests/vendor-divergence-fixtures.sh 2>&1); echo "$out" | grep -q "failed: 0"
-# The T-2721 audit.sh fix this task registers is genuinely still live in the tree
-grep -q "linked worktree" .agentic-framework/agents/audit/audit.sh
-
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -218,16 +173,7 @@ grep -q "linked worktree" .agentic-framework/agents/audit/audit.sh
 
 ## Updates
 
-### 2026-08-23T17:06:46Z — task-created [task-create-agent]
+### 2026-08-23T17:14:52Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/active/T-2832-register-vendored-framework-divergences-.md
+- **Output:** /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/active/T-2833-task-finalize-half-runs-leaving-work-com.md
 - **Context:** Initial task creation
-
-## Reviewer Verdict (v1.5)
-
-- **Scan ID:** R-12176ef4
-- **Timestamp:** 2026-08-23T17:14:15Z
-- **Catalogue:** v1.3-seed
-- **Overall:** PASS
-- **Needs Human:** no
-- **Findings:** none
