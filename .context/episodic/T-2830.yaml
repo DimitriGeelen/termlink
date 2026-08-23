@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2830: Pre-resolve t2687 to main integration on a throwaway branch
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-23T11:26:16Z
+# ============================================================================
+
+task_id: T-2830
+task_name: "Pre-resolve t2687 to main integration on a throwaway branch"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-23T10:27:23Z
+completed: 2026-08-23T11:26:07Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Pre-resolve t2687 to main integration on a throwaway branch
+
+# Key outcomes
+outcomes:
+  - 'Integration branch `integration/t2687-trial` exists, created from the t2687 head, and `origin/main` is merged into it'
+  - 'All 39 conflicted paths are resolved — `git diff --check` clean and no conflict markers remain anywhere in the tree'
+  - 'Append-only registers (`.context/project/{decisions,learnings,metrics-history}.yaml`, `.context/episodic/*`) retain every entry from BOTH sides — no id present before the merge is absent after it'
+  - '`crates/termlink-mcp/src/tools.rs` resolves to main''s version (T-2687 and our T-2824 are the same fix; ours is the duplicate)'
+  - '`cargo build --release` succeeds on the merged tree'
+  - 'The merged tree''s test suite passes, with any pre-existing failure identified as pre-existing by checking it against origin/main'
+  - 'Integration branch pushed to origin; each `--no-verify` push logged as a bypass'
+  - 'Merge-readiness report updated with what the PR contains and what remains a human decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 58 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 58
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2830-pre-resolve-t2687-to-main-integration-on.md
+generated_by: context-agent-hybrid

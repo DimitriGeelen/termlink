@@ -219,3 +219,9 @@ bypasses:
     authorized_by: human
     reason: "T-2815 worktree-basename cron-drift audit defect blocks pre-push in every worktree; standing session Tier 0 grant for --no-verify on non-main branches"
     retroactive_task: null
+  - timestamp: 2026-08-23T11:25:56Z
+    action: "T-2830: merge-readiness report now describes a pushed pre-resolved branch, not a plan"
+    commit: 437447cac
+    authorized_by: human
+    reason: "T-2815 worktree-basename cron-drift audit defect; standing session Tier 0 grant for --no-verify on non-main branches"
+    retroactive_task: null

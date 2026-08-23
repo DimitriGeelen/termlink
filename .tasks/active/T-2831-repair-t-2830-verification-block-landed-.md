@@ -1,23 +1,23 @@
 ---
-id: T-2830
-name: "Pre-resolve t2687 to main integration on a throwaway branch"
+id: T-2831
+name: "Repair T-2830 verification block landed under Evolution so P-011 ran nothing"
 description: >
-  Pre-resolve t2687 to main integration on a throwaway branch
+  Repair T-2830 verification block landed under Evolution so P-011 ran nothing
 
-status: work-completed
+status: started-work
 workflow_type: build
 owner: agent
-horizon: null
+horizon: now
 tags: []
-components: [crates/termlink-bus/src/claim.rs, crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/commands/dispatch.rs, crates/termlink-cli/src/commands/events.rs, crates/termlink-cli/src/commands/execution.rs, crates/termlink-cli/src/commands/metadata.rs, crates/termlink-cli/src/commands/mirror_grid.rs, crates/termlink-cli/src/commands/pty.rs, crates/termlink-cli/src/commands/session.rs, crates/termlink-cli/src/commands/substrate.rs, crates/termlink-cli/src/main.rs, crates/termlink-cli/src/util.rs, crates/termlink-hub/src/artifact.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/server.rs, crates/termlink-hub/tests/no_federation_tripwire.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-mcp/tests/parity.rs, crates/termlink-protocol/src/control.rs, crates/termlink-session/build.rs, crates/termlink-session/src/ansi.rs, crates/termlink-session/src/claim_client.rs, crates/termlink-session/src/executor.rs, crates/termlink-session/src/handler.rs, crates/termlink-session/src/lib.rs, crates/termlink-session/src/pty.rs, crates/termlink-session/src/registration.rs, crates/termlink-session/src/scrollback.rs, crates/termlink-session/tests/no_spoke_mesh_tripwire.rs, scripts/agent-chat-arc-recent.sh, scripts/agent-conversation-selftest.sh, scripts/canary-status.sh, scripts/check-alloc-sink-clamps.sh, scripts/check-busy-spin.sh, scripts/check-canary-log-hygiene.sh, scripts/check-charter-drift-freshness.sh, scripts/check-charter-sentence-drift.sh, scripts/check-cron-install-drift.sh, scripts/check-drain-sink-caps.sh, scripts/check-env-var-docs.sh, scripts/check-error-code-docs.sh, scripts/check-error-code-emission.sh, scripts/check-mcp-parity-census.sh, scripts/check-platform-lock.sh, scripts/check-preflight-doc-set-drift.sh, scripts/check-release-artifact-drift.sh, scripts/check-silent-exit.sh, scripts/check-stuck-claims-freshness.sh, scripts/check-version-derivation.sh, scripts/fleet-adoption-snapshot.sh, scripts/lib/reap-topic.sh, scripts/run-guard-layer.sh, scripts/session-selftest.sh, scripts/substrate-preflight.sh, scripts/substrate-smoke.sh, scripts/substrate-worker-pickup.sh, scripts/sweep-test-debris.sh, scripts/test-agent-conversation-list.sh, scripts/test-agent-conversation-status.sh, scripts/test-agent-respond.sh, scripts/test-agent-send-auto-discover.sh, scripts/test-agent-send-orchestration.sh, scripts/test-agent-send.sh, scripts/test-agent-send-transport.sh, scripts/test-journal-mirror.sh, scripts/test-sidecar-auto-confirm.sh, tests/agent-send-grace-window.sh, tests/agent-send-idle-gate.sh, tests/canary-log-hygiene-fixtures.sh, tests/charter-drift-check-fixtures.sh, tests/chat-arc-recent-fixtures.sh, tests/cron-install-drift-fixtures.sh, tests/error-code-emission-fixtures.sh, tests/guard-layer-runner-fixtures.sh, tests/mcp-parity-census-fixtures.sh, tests/platform-lock-check-fixtures.sh, tests/reap-topic-fixtures.sh, tests/relay-b1-doorbell-rail.sh, tests/relay-b2-send-hops.sh, tests/release-artifact-drift-fixtures.sh, tests/silent-exit-check-fixtures.sh, tests/stuck-claims-check-fixtures.sh, tests/substrate-preflight-hubs-toml-fixtures.sh, tests/substrate-preflight-runtime-dir-fixtures.sh, tests/sweep-debris-census-fixtures.sh, tests/version-derivation-check-fixtures.sh, tests/wake-confirm-reply-match.sh]
+components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-23T10:27:23Z
-last_update: 2026-08-23T11:26:07Z
-date_finished: 2026-08-23T11:26:07Z
+created: 2026-08-23T11:26:48Z
+last_update: 2026-08-23T11:26:48Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -30,24 +30,61 @@ date_finished: 2026-08-23T11:26:07Z
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2830: Pre-resolve t2687 to main integration on a throwaway branch
+# T-2831: Repair T-2830 verification block landed under Evolution so P-011 ran nothing
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+T-2830 completed reporting **"Acceptance criteria: 8/8 checked ✓"** and printed no
+verification run at all. Its `## Verification` heading (line 83 of the completed file) is
+followed only by the template's comment block; the six real commands I wrote landed at
+lines 155–166, under **`## Evolution`**. P-011 extracts commands from the `## Verification`
+section, found none there, and passed **vacuously**.
+
+This is the exact defect class this session has been reporting all day — a check that
+asserts a property adjacent to the one it claims — committed by me, one commit after
+writing it up. The tell holds: *if the check would still pass while the subsystem is
+entirely broken, it is the wrong check*. P-011 would have passed here even if the merge had
+been garbage.
+
+**The evidence is not missing — only the gate is.** Every one of the six commands was run
+by hand during T-2830, before completion, and passed:
+
+| command | result |
+|---|---|
+| `git rev-parse --verify integration/t2687-trial` | rc=0 |
+| `git merge-base --is-ancestor origin/main integration/t2687-trial` | rc=0 |
+| `git grep -l '^<<<<<<< '` | 0 files |
+| `git diff --quiet origin/main -- crates/termlink-mcp/src/tools.rs` | rc=0 |
+| `cargo build --release` | rc=0 |
+| `bash scripts/verify-register-union.sh` | rc=0, 4 registers, nothing lost |
+
+plus `cargo test --release` (2,944 passed / 0 failed) and all 60 `tests/*.sh` suites. So
+T-2830's claims are **true**; what is false is the implication that a gate proved them.
+Those two are worth keeping apart, which is the whole point of the gate existing.
+
+**Why the framework was blind (G-019).** A misfiled block is silent in both directions: the
+section renders identically in the task file, and P-011 reports nothing when it finds
+nothing — "no commands to run" and "all commands passed" are the same output. The
+`## Verification` template is a long comment block, so commands appended near the *end* of
+a template section land visually plausibly but structurally wrong. Nothing checks that a
+task's shell commands are in the section that executes them.
+
+The prevention is the checker in AC#3: shell commands under any heading other than
+`## Verification` are almost always a misfile, and it is mechanically detectable.
+
+**Deliberately not done here:** T-2830 was not reopened or re-completed with `--force`. Its
+ACs are individually true and independently evidenced above; re-running the gate proves
+nothing that this record does not already carry, and forcing a completion to make a gate
+look like it ran would be the same dishonesty in the other direction.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Integration branch `integration/t2687-trial` exists, created from the t2687 head, and `origin/main` is merged into it
-- [x] All 39 conflicted paths are resolved — `git diff --check` clean and no conflict markers remain anywhere in the tree
-- [x] Append-only registers (`.context/project/{decisions,learnings,metrics-history}.yaml`, `.context/episodic/*`) retain every entry from BOTH sides — no id present before the merge is absent after it
-- [x] `crates/termlink-mcp/src/tools.rs` resolves to main's version (T-2687 and our T-2824 are the same fix; ours is the duplicate)
-- [x] `cargo build --release` succeeds on the merged tree
-- [x] The merged tree's test suite passes, with any pre-existing failure identified as pre-existing by checking it against origin/main
-- [x] Integration branch pushed to origin; each `--no-verify` push logged as a bypass
-- [x] Merge-readiness report updated with what the PR contains and what remains a human decision
+- [ ] T-2830's verification commands sit under its `## Verification` heading, not `## Evolution`
+- [ ] Every one of those commands is re-run by hand against the merged tree and passes, so T-2830's 8/8 is backed by evidence rather than by a gate that ran nothing
+- [ ] A check exists that reports any task file carrying shell commands in a section that is NOT `## Verification`
+- [ ] That check is proven load-bearing: red against T-2830's broken shape, green after the repair
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -153,18 +190,6 @@ date_finished: 2026-08-23T11:26:07Z
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
-# The integration branch exists and carries main's history
-git rev-parse --verify integration/t2687-trial
-git merge-base --is-ancestor origin/main integration/t2687-trial
-# No conflict markers survive anywhere in the tree
-test -z "$(git grep -l '^<<<<<<< ' -- . || true)"
-# tools.rs resolved to main's version (the T-2687 side, not our duplicate T-2824)
-git diff --quiet origin/main -- crates/termlink-mcp/src/tools.rs
-# The merged tree builds
-cargo build --release --quiet
-# Register union held: every decision id present on either parent is present now
-bash scripts/verify-register-union.sh
-
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -188,24 +213,7 @@ bash scripts/verify-register-union.sh
 
 ## Updates
 
-### 2026-08-23T10:27:23Z — task-created [task-create-agent]
+### 2026-08-23T11:26:48Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/active/T-2830-pre-resolve-t2687-to-main-integration-on.md
+- **Output:** /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/active/T-2831-repair-t-2830-verification-block-landed-.md
 - **Context:** Initial task creation
-
-## Reviewer Verdict (v1.5)
-
-- **Scan ID:** R-59de1bb3
-- **Timestamp:** 2026-08-23T11:26:08Z
-- **Catalogue:** v1.3-seed
-- **Overall:** CONCERN
-- **Needs Human:** no
-- **Findings:** 1
-
-**Per-AC findings:**
-
-- **AC#4 (Agent)** — `crates/termlink-mcp/src/tools.rs` resolves to main's version (T-2687 and our T-2824 are the same fix; ours is the duplicate)
-  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-mcp/src/tools.rs in: `crates/termlink-mcp/src/tools.rs` resolves to main's version (T-2687 and our T-2824 are the same fix; ours is the duplicate)`
-
-### 2026-08-23T11:26:07Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed
