@@ -34,7 +34,54 @@ date_finished: null
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+`fw task update --status work-completed` **half-runs**: it writes
+`status: work-completed` but leaves `date_finished: null` and never moves the file
+out of `.tasks/active/`. Observed twice in one session, on T-2831 and T-2832 —
+both of which passed every gate first (4/4 and 8/8 ACs, 9/9 and 5/5 P-011
+commands, reviewer PASS).
+
+**Why it matters more than a cosmetic status field:** the half-finalized state
+**deadlocks commits**. P-002 refuses a commit while focus is on a completed task;
+the T-1730 focus-drift gate refuses one while focus is on any *other* task. The
+only exits are a logged Tier-2 bypass or attributing the commit to a different
+task — which is what commits `2dabb2da5` and `9798e715a` had to do, named
+explicitly in their messages. Every subsequent task inherits the problem.
+
+**It is invisible to the existing guard.** The T-2290 task-finalization canary
+scans `.tasks/completed/` only, so a task that never leaves `active/` is
+structurally unreachable by it. Same end-state as the G-066 bypass class (work
+done, register disagrees) arrived at from the opposite direction.
+
+### Diagnosis so far — narrowing, not yet root cause
+
+- **NOT the documented T-2806 path.** CLAUDE.md attributes this class to
+  `lib/evolution_log.sh:52` sourcing `lib/arc_membership.sh` unguarded, which
+  exits 1 after all gates pass when that file is absent. The unguarded source is
+  confirmed present at line 52 — but **`arc_membership.sh` and `arc_membership.py`
+  both exist** in this worktree (7258 / 6103 bytes), so that specific dependency
+  is satisfied and cannot be the cause here.
+- **The stop is between two writes.** A successful run (T-2830, same session)
+  prints, in order: AC check → reviewer scan → `Status: started-work →
+  work-completed` → `date_finished set to ...` → `Moved to completed/` → focus
+  cleared → components resolved → episodic generation. T-2831 and T-2832 reached
+  the status write and produced none of the four steps after it.
+- **Three dangling framework refs are live in this worktree** —
+  `$FRAMEWORK_ROOT/tools/corpus_{explain,lint,spec}.py`, reported by
+  `check-framework-tracking-drift.sh`. They are referenced by
+  `agents/designer/designer.sh` and `bin/fw`, **not** by the finalize path, so
+  they are a separate finding and most likely not this cause. Worth re-checking
+  only after the finalize path itself has been read.
+
+### Next step for whoever picks this up
+
+Read `agents/task-create/update-task.sh` at the finalize block — locate the
+`date_finished` write and the `completed/` move, and find what sits between them
+and the status write that can exit non-zero without printing. Capture a FULL
+run (`fw task update <a fresh task> --status work-completed` with no `head`
+truncation) — both observations here were truncated at the reviewer verdict, so
+the failing line has never actually been seen. If the culprit is in
+`.agentic-framework/`, it is vendored: route upstream per G-062 and register it
+in `.vendor-divergence.yaml` rather than patching in place.
 
 ## Acceptance Criteria
 
