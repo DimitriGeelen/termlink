@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2834: run BVP estimator and pick the next arc-scoped HV/LC landing
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-23T19:16:00Z
+# ============================================================================
+
+task_id: T-2834
+task_name: "run BVP estimator and pick the next arc-scoped HV/LC landing"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-23T19:10:28Z
+completed: 2026-08-23T19:15:55Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  run BVP estimator and pick the next arc-scoped HV/LC landing
+
+# Key outcomes
+outcomes:
+  - 'The BVP estimator runs over active tasks and populates BOTH axes — `fw bvp estimate` for value and the estimator''s `cost-all` for cost, since `fw bvp` does not surface the cost subcommands and a quadrant needs both (a value-only run makes `--quadrant hv-lc` return "No tasks match" while silently meaning "the cost axis is empty")'
+  - '`ruamel` is confirmed present before the estimator writes, so frontmatter comments are not silently stripped by the `yaml.safe_dump` fallback path (T-2809)'
+  - 'The HV/LC quadrant is produced and reported, with HV/HC named separately so the ordering is visible rather than asserted'
+  - 'The next unit of work is picked from that quadrant and scoped to the current arc, or — if the quadrant is empty or entirely out-of-arc — that is stated plainly rather than substituted with an unranked pick'
+  - 'Scores are left as `bvp_scores_proposed` (agent proposes); no confirmed `bvp_scores` are written, since confirmation is §ACD sovereignty-gated to `fw bvp confirm --i-am-human`'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 5
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2834-run-bvp-estimator-and-pick-the-next-arc-.md
+generated_by: context-agent-hybrid

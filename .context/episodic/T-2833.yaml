@@ -1,0 +1,74 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2833: task finalize half-runs leaving work-completed tasks in active and deadlocking commits
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-23T19:09:52Z
+# ============================================================================
+
+task_id: T-2833
+task_name: "task finalize half-runs leaving work-completed tasks in active and deadlocking commits"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-23T17:14:52Z
+completed: 2026-08-23T19:09:44Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  task finalize half-runs leaving work-completed tasks in active and deadlocking commits
+
+# Key outcomes
+outcomes:
+  - 'The exact failure point in the finalize path is identified by reading the code — which step sets `status`, which sets `date_finished`, which moves the file, and what stops between them'
+  - 'The finding names whether this is a vendored defect (G-062, route upstream) or locally fixable, with evidence for the call'
+  - 'T-2831 and T-2832 reach a consistent finalized state — either fully finalized, or explicitly left and documented, never silently half-done'
+  - 'A check exists that detects a task whose `status: work-completed` while it is still in `.tasks/active/` — the state the T-2290 canary is structurally blind to because it scans `completed/` only'
+  - 'That check is proven load-bearing: red against the current tree (which has two such tasks), green once they are resolved'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 114 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 114
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2833-task-finalize-half-runs-leaving-work-com.md
+generated_by: context-agent-hybrid

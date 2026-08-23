@@ -2,7 +2,10 @@
 id: T-2699
 name: "Nothing detects an error code that is defined and documented but never emitted"
 description: >
-  23 codes defined in control.rs::error_code; three have zero emission sites — SESSION_BUSY, MESSAGE_EXPIRED, PROTOCOL_VERSION_TOO_OLD. check-error-code-docs.sh verifies doc-to-definition pairing but never asks whether the code can actually be returned, so the published refusal taxonomy can contain fiction indefinitely (T-2698 G1).
+  23 codes defined in control.rs::error_code; three have zero emission sites — SESSION_BUSY,
+  MESSAGE_EXPIRED, PROTOCOL_VERSION_TOO_OLD. check-error-code-docs.sh verifies doc-to-definition
+  pairing but never asks whether the code can actually be returned, so the published
+  refusal taxonomy can contain fiction indefinitely (T-2698 G1).
 
 status: started-work
 workflow_type: build
@@ -16,8 +19,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T08:25:09Z
-last_update: 2026-08-14T08:50:35Z
-date_finished: null
+last_update: '2026-08-23T19:13:47Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,6 +31,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-23T19:13:28Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 2
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=2 
+      (body:lightly-promoted); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-23T19:13:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2699: Nothing detects an error code that is defined and documented but never emitted

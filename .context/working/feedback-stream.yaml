@@ -8496,3 +8496,39 @@ scan_id: R-12176ef4
 task_id: T-2832
 payload:
   task_file: .tasks/active/T-2832-register-vendored-framework-divergences-.md
+---
+kind: scan_emitted
+timestamp: '2026-08-23T19:09:47Z'
+scan_id: R-c7525e38
+task_id: T-2833
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-23T19:09:47Z'
+scan_id: R-c7525e38
+task_id: T-2833
+payload:
+  task_file: .tasks/active/T-2833-task-finalize-half-runs-leaving-work-com.md
+---
+kind: scan_emitted
+timestamp: '2026-08-23T19:15:56Z'
+scan_id: R-c334c70c
+task_id: T-2834
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-23T19:15:56Z'
+scan_id: R-c334c70c
+task_id: T-2834
+payload:
+  task_file: .tasks/active/T-2834-run-bvp-estimator-and-pick-the-next-arc-.md

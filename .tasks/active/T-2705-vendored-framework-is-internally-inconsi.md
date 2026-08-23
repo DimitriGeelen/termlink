@@ -1,8 +1,13 @@
 ---
 id: T-2705
-name: "Vendored framework is internally inconsistent — Watchtower cannot start (missing lib/arc_membership.py)"
+name: "Vendored framework is internally inconsistent — Watchtower cannot start (missing
+  lib/arc_membership.py)"
 description: >
-  web/blueprints/arcs.py imports lib.arc_membership, which exists zero times in git and zero times on disk under .agentic-framework/. Watchtower crashes at create_app(). Upstream master has the module and is genuinely newer (its arcs.py carries T-2774 vs termlink at T-2704); the vendored VERSION 1.6.295 vs upstream 1.6.145 is a lineage/tag-epoch artifact, not a downgrade (the T-2359 lesson). Re-vendor via fw update.
+  web/blueprints/arcs.py imports lib.arc_membership, which exists zero times in git
+  and zero times on disk under .agentic-framework/. Watchtower crashes at create_app().
+  Upstream master has the module and is genuinely newer (its arcs.py carries T-2774
+  vs termlink at T-2704); the vendored VERSION 1.6.295 vs upstream 1.6.145 is a lineage/tag-epoch
+  artifact, not a downgrade (the T-2359 lesson). Re-vendor via fw update.
 
 status: started-work
 workflow_type: build
@@ -16,8 +21,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T12:02:56Z
-last_update: 2026-08-14T12:13:55Z
-date_finished: null
+last_update: '2026-08-23T19:13:47Z'
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,6 +33,30 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-23T19:13:28Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 2
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=2 
+      (body:default-change); D4=2 (body:env-class-handled); F-RECALL=0 
+      (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+cost_estimate_proposed:
+  - ts: '2026-08-23T19:13:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius: 0
+      tier: 2
+      effort: 8
+    rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2705: Vendored framework is internally inconsistent — Watchtower cannot start (missing lib/arc_membership.py)
