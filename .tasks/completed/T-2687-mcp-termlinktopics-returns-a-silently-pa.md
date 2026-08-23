@@ -9,20 +9,20 @@ description: >
   by parity_topics, which has been red since 2026-08-12 because nothing runs cargo
   test (T-2683 F1).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-bus/src/claim.rs, crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/commands/dispatch.rs, crates/termlink-cli/src/commands/events.rs, crates/termlink-cli/src/commands/execution.rs, crates/termlink-cli/src/commands/metadata.rs, crates/termlink-cli/src/commands/mirror_grid.rs, crates/termlink-cli/src/commands/pty.rs, crates/termlink-cli/src/commands/session.rs, crates/termlink-cli/src/commands/substrate.rs, crates/termlink-cli/src/main.rs, crates/termlink-cli/src/util.rs, crates/termlink-hub/src/artifact.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/server.rs, crates/termlink-hub/tests/no_federation_tripwire.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-mcp/tests/parity.rs, crates/termlink-protocol/src/control.rs, crates/termlink-session/build.rs, crates/termlink-session/src/ansi.rs, crates/termlink-session/src/claim_client.rs, crates/termlink-session/src/executor.rs, crates/termlink-session/src/handler.rs, crates/termlink-session/src/lib.rs, crates/termlink-session/src/pty.rs, crates/termlink-session/src/registration.rs, crates/termlink-session/src/scrollback.rs, crates/termlink-session/tests/no_spoke_mesh_tripwire.rs, scripts/agent-chat-arc-recent.sh, scripts/agent-conversation-selftest.sh, scripts/canary-status.sh, scripts/check-alloc-sink-clamps.sh, scripts/check-busy-spin.sh, scripts/check-canary-log-hygiene.sh, scripts/check-charter-drift-freshness.sh, scripts/check-charter-sentence-drift.sh, scripts/check-cron-install-drift.sh, scripts/check-drain-sink-caps.sh, scripts/check-env-var-docs.sh, scripts/check-error-code-docs.sh, scripts/check-error-code-emission.sh, scripts/check-framework-tracking-drift.sh, scripts/check-mcp-parity-census.sh, scripts/check-platform-lock.sh, scripts/check-preflight-doc-set-drift.sh, scripts/check-release-artifact-drift.sh, scripts/check-silent-exit.sh, scripts/check-stuck-claims-freshness.sh, scripts/check-version-derivation.sh, scripts/fleet-adoption-snapshot.sh, scripts/lib/reap-topic.sh, scripts/run-guard-layer.sh, scripts/session-selftest.sh, scripts/substrate-preflight.sh, scripts/substrate-smoke.sh, scripts/substrate-worker-pickup.sh, scripts/sweep-test-debris.sh, scripts/test-agent-conversation-list.sh, scripts/test-agent-conversation-status.sh, scripts/test-agent-respond.sh, scripts/test-agent-send-auto-discover.sh, scripts/test-agent-send-orchestration.sh, scripts/test-agent-send.sh, scripts/test-agent-send-transport.sh, scripts/test-journal-mirror.sh, scripts/test-sidecar-auto-confirm.sh, tests/agent-send-grace-window.sh, tests/agent-send-idle-gate.sh, tests/canary-log-hygiene-fixtures.sh, tests/charter-drift-check-fixtures.sh, tests/chat-arc-recent-fixtures.sh, tests/cron-install-drift-fixtures.sh, tests/error-code-emission-fixtures.sh, tests/framework-tracking-drift-fixtures.sh, tests/guard-layer-runner-fixtures.sh, tests/mcp-parity-census-fixtures.sh, tests/pickup-failopen-fixtures.sh, tests/platform-lock-check-fixtures.sh, tests/reap-topic-fixtures.sh, tests/relay-b1-doorbell-rail.sh, tests/relay-b2-send-hops.sh, tests/release-artifact-drift-fixtures.sh, tests/silent-exit-check-fixtures.sh, tests/stuck-claims-check-fixtures.sh, tests/substrate-preflight-hubs-toml-fixtures.sh, tests/substrate-preflight-runtime-dir-fixtures.sh, tests/sweep-debris-census-fixtures.sh, tests/version-derivation-check-fixtures.sh, tests/wake-confirm-reply-match.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T06:11:35Z
-last_update: 2026-08-23T19:16:06Z
-date_finished:
+last_update: 2026-08-23T19:16:26Z
+date_finished: 2026-08-23T19:16:26Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -256,3 +256,15 @@ misclassified this one.
 
 ### 2026-08-14T06:12:09Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-63d70121
+- **Timestamp:** 2026-08-23T19:28:15Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-23T19:16:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

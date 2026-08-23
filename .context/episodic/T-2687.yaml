@@ -1,0 +1,75 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2687: MCP termlink_topics returns a silently partial inventory — CLI parity fields never migrated
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-23T19:28:24Z
+# ============================================================================
+
+task_id: T-2687
+task_name: "MCP termlink_topics returns a silently partial inventory — CLI parity fields never migrated"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-14T06:11:35Z
+completed: 2026-08-23T19:16:26Z
+duration_days: 9
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-2624 added sessions_probed/skipped/unreachable/bad_result to the CLI's topics --json as an explicit partial-inventory signal, but never to the MCP termlink_topics tool. An MCP consumer cannot tell the topic set excludes unreachable sessions. Caught by parity_topics, which has been red since 2026-08-12 because nothing runs cargo test (T-2683 F1).
+
+# Key outcomes
+outcomes:
+  - '`termlink_topics` (MCP) emits `sessions_probed`, `sessions_unreachable`, `sessions_bad_result`, `sessions_skipped` — the T-2624 partial-inventory signal the CLI already carries'
+  - 'Probe outcomes are classified the same way as the CLI (`Unreachable` for timeout/transport, `BadResult` for an unwrappable or malformed result), not silently dropped'
+  - 'The zero-session early-return path emits the same field set (all zeros) on BOTH sides — T-2624 missed that path too, so the two surfaces diverged there as well'
+  - '`cargo test -p termlink-mcp --test parity` passes, including `parity_topics`'
+  - 'A unit test covers the classification helper directly (unreachable vs bad-result vs topics, and empty topic lists excluded from `sessions`)'
+  - '`cargo test --workspace` is green — no other suite regressed'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 13744 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 13744
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2687-mcp-termlinktopics-returns-a-silently-pa.md
+generated_by: context-agent-hybrid

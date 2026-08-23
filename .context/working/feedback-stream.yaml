@@ -8532,3 +8532,21 @@ scan_id: R-c334c70c
 task_id: T-2834
 payload:
   task_file: .tasks/active/T-2834-run-bvp-estimator-and-pick-the-next-arc-.md
+---
+kind: scan_emitted
+timestamp: '2026-08-23T19:28:15Z'
+scan_id: R-63d70121
+task_id: T-2687
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-23T19:28:15Z'
+scan_id: R-63d70121
+task_id: T-2687
+payload:
+  task_file: .tasks/active/T-2687-mcp-termlinktopics-returns-a-silently-pa.md
