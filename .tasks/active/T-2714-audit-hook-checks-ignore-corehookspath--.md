@@ -129,14 +129,14 @@ re-vendor. Deliverable is an upstream report, not an edit under
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The report cites all three sites hardcoding `$PROJECT_ROOT/.git/hooks/` — `audit.sh:2393` (commit-msg), the CTL-011 site, and `audit.sh:3022` (C-002)
-- [ ] It shows that the installed hook DOES carry the `inception-research-warnings` marker and the C-001 enforcement block, so C-002's claim is a false negative about a live gate
-- [ ] It shows the worktree evidence: `.git` is a file, `core.hooksPath` is set, and `git rev-parse --git-path hooks/...` resolves elsewhere
-- [ ] It includes the empirical proof that hooks fire regardless (post-commit hook output on a real commit), so upstream does not "fix" this by reinstalling hooks
-- [ ] It states the false-mitigation problem explicitly — `install-hooks` succeeds and the warning survives
-- [ ] A concrete remedy is proposed: resolve via `git rev-parse --git-path hooks/<name>` rather than string-concatenating `.git/hooks`, which handles worktrees and `core.hooksPath` in one call
-- [ ] Filed to `framework:pickup` and the post confirmed present
-- [ ] No file under `.agentic-framework/` is edited by this task
+- [x] The report cites all three sites hardcoding `$PROJECT_ROOT/.git/hooks/` — `audit.sh:2393` (commit-msg), the CTL-011 site, and `audit.sh:3022` (C-002)
+- [x] It shows that the installed hook DOES carry the `inception-research-warnings` marker and the C-001 enforcement block, so C-002's claim is a false negative about a live gate
+- [x] It shows the worktree evidence: `.git` is a file, `core.hooksPath` is set, and `git rev-parse --git-path hooks/...` resolves elsewhere
+- [x] It includes the empirical proof that hooks fire regardless (post-commit hook output on a real commit), so upstream does not "fix" this by reinstalling hooks
+- [x] It states the false-mitigation problem explicitly — `install-hooks` succeeds and the warning survives
+- [x] A concrete remedy is proposed: resolve via `git rev-parse --git-path hooks/<name>` rather than string-concatenating `.git/hooks`, which handles worktrees and `core.hooksPath` in one call
+- [x] Filed to `framework:pickup` and the post confirmed present
+- [x] No file under `.agentic-framework/` is edited by this task
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -201,6 +201,27 @@ re-vendor. Deliverable is an upstream report, not an edit under
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+# --- The report cites all three hardcoded sites ---
+out=$(cat docs/reports/T-2714-audit-hook-path-worktree-blindness.md); echo "$out" | grep -q 'audit.sh:2393'
+out=$(cat docs/reports/T-2714-audit-hook-path-worktree-blindness.md); echo "$out" | grep -q 'audit.sh:3022'
+out=$(cat docs/reports/T-2714-audit-hook-path-worktree-blindness.md); echo "$out" | grep -q 'audit.sh:3375'
+# --- and carries each required piece of evidence ---
+out=$(cat docs/reports/T-2714-audit-hook-path-worktree-blindness.md); echo "$out" | grep -q 'inception-research-warnings'
+out=$(cat docs/reports/T-2714-audit-hook-path-worktree-blindness.md); echo "$out" | grep -q 'core.hooksPath'
+out=$(cat docs/reports/T-2714-audit-hook-path-worktree-blindness.md); echo "$out" | grep -q 'rev-parse --git-path'
+out=$(cat docs/reports/T-2714-audit-hook-path-worktree-blindness.md); echo "$out" | grep -q 'the warning survives'
+out=$(cat docs/reports/T-2714-audit-hook-path-worktree-blindness.md); echo "$out" | grep -q 'Task T-2723 updated'
+# --- The claims are TRUE of this tree, not merely asserted in prose.
+# A report that only greps itself would pass while every fact in it was wrong;
+# these three re-measure the evidence independently of the document.
+test -f .git
+test -n "$(git config core.hooksPath)"
+H=$(git rev-parse --git-path hooks/commit-msg); grep -q 'inception-research-warnings' "$H"
+# --- Filed upstream and the post is present (>=36 == our offset 35 landed) ---
+out=$(timeout 40 termlink channel info framework:pickup --json); echo "$out" | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if d["count"]>=36 else 1)'
+# --- No file under .agentic-framework/ was edited by this task (G-062) ---
+test -z "$(git status --porcelain .agentic-framework/)"
 
 ## RCA
 

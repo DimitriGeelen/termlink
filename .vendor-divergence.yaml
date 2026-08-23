@@ -125,7 +125,7 @@ divergences:
     commits: [4f9068496, 86e9db17e]
     date: 2026-08-15
     file: .agentic-framework/agents/audit/audit.sh
-    status: local-only
+    status: filed-upstream
     kind: fix
     generality: GENERIC
     symptom: >
@@ -141,9 +141,12 @@ divergences:
       behaviour. Without it the audit reports cron drift against a worktree that
       does not own the host's cron, and the T-2815 basename defect blocks the push.
     risk: >
-      status is local-only, NOT filed-upstream: no upstream filing exists for
-      either commit. The next `fw upgrade` deletes both, and the symptom returns as
-      a worktree that cannot pass its own pre-push audit.
+      Filed 2026-08-23 (T-2714), so the fix is no longer one `fw upgrade` from
+      silent deletion — but filed is not landed. Until upstream confirms it carried,
+      a re-vendor still deletes both commits and the symptom returns as a worktree
+      that cannot pass its own pre-push audit. Re-verify this entry after the next
+      vendor event before assuming it is safe.
+    upstream_ref: "framework:pickup offset 35"
 
   - task: T-2469
     commit: a46e8e726
