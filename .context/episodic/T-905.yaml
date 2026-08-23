@@ -1,21 +1,33 @@
-summary: "Added a governance subscriber to the data plane that watches Output frames for configurable regex patterns and emits Governance frames (frame type 0x8) for audit/metrics."
+summary: '"Added a governance subscriber to the data plane that watches Output frames for configurable regex patterns and emits Governance frames (frame type 0x8) for audit/metrics."'
+body: '# T-905: Add data plane governance subscriber for post-hoc pattern detection
 
-# T-905: Add data plane governance subscriber for post-hoc pattern detection
 
-**Completed:** 2026-04-11
-**Type:** build
-**Duration:** 2026-04-08 to 2026-04-11 (3 days)
+  **Completed:** 2026-04-11
 
-## What Was Done
-Added a governance subscriber to the data plane that watches Output frames for configurable regex patterns and emits Governance frames (frame type 0x8) for audit/metrics. Defined GovernanceEvent payload in termlink-protocol. Built GovernanceSubscriber in termlink-session with ANSI stripping, async non-blocking processing via bounded broadcast channel. The system is opt-in and post-hoc (does not block output flow).
+  **Type:** build
 
-## Key Decisions
-None recorded.
+  **Duration:** 2026-04-08 to 2026-04-11 (3 days)
 
-## Patterns Observed
-None.
 
-## Artifacts
-- Modified: `crates/termlink-protocol/src/data.rs` (Governance frame type 0x8, GovernanceEvent)
-- Modified: `crates/termlink-session/` (GovernanceSubscriber)
-- Tests: pattern matching, governance frame emission, ANSI stripping
+  ## What Was Done
+
+  Added a governance subscriber to the data plane that watches Output frames for configurable regex patterns and emits Governance frames (frame type 0x8) for audit/metrics. Defined GovernanceEvent payload in termlink-protocol. Built GovernanceSubscriber in termlink-session with ANSI stripping, async non-blocking processing via bounded broadcast channel. The system is opt-in and post-hoc (does not block output flow).
+
+
+  ## Key Decisions
+
+  None recorded.
+
+
+  ## Patterns Observed
+
+  None.
+
+
+  ## Artifacts
+
+  - Modified: `crates/termlink-protocol/src/data.rs` (Governance frame type 0x8, GovernanceEvent)
+
+  - Modified: `crates/termlink-session/` (GovernanceSubscriber)
+
+  - Tests: pattern matching, governance frame emission, ANSI stripping'
