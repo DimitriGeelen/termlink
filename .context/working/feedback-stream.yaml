@@ -8460,3 +8460,21 @@ scan_id: R-59de1bb3
 task_id: T-2830
 payload:
   task_file: .tasks/active/T-2830-pre-resolve-t2687-to-main-integration-on.md
+---
+kind: scan_emitted
+timestamp: '2026-08-23T17:06:03Z'
+scan_id: R-e07b82f2
+task_id: T-2831
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-23T17:06:03Z'
+scan_id: R-e07b82f2
+task_id: T-2831
+payload:
+  task_file: .tasks/active/T-2831-repair-t-2830-verification-block-landed-.md

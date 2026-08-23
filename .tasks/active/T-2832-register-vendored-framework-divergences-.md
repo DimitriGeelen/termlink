@@ -1,10 +1,10 @@
 ---
-id: T-2831
-name: "Repair T-2830 verification block landed under Evolution so P-011 ran nothing"
+id: T-2832
+name: "register vendored-framework divergences surfaced by the t2687 merge"
 description: >
-  Repair T-2830 verification block landed under Evolution so P-011 ran nothing
+  register vendored-framework divergences surfaced by the t2687 merge
 
-status: work-completed
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -15,8 +15,8 @@ related_tasks: []
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-23T11:26:48Z
-last_update: 2026-08-23T11:26:48Z
+created: 2026-08-23T17:06:46Z
+last_update: 2026-08-23T17:06:46Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -30,61 +30,20 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2831: Repair T-2830 verification block landed under Evolution so P-011 ran nothing
+# T-2832: register vendored-framework divergences surfaced by the t2687 merge
 
 ## Context
 
-T-2830 completed reporting **"Acceptance criteria: 8/8 checked ✓"** and printed no
-verification run at all. Its `## Verification` heading (line 83 of the completed file) is
-followed only by the template's comment block; the six real commands I wrote landed at
-lines 155–166, under **`## Evolution`**. P-011 extracts commands from the `## Verification`
-section, found none there, and passed **vacuously**.
-
-This is the exact defect class this session has been reporting all day — a check that
-asserts a property adjacent to the one it claims — committed by me, one commit after
-writing it up. The tell holds: *if the check would still pass while the subsystem is
-entirely broken, it is the wrong check*. P-011 would have passed here even if the merge had
-been garbage.
-
-**The evidence is not missing — only the gate is.** Every one of the six commands was run
-by hand during T-2830, before completion, and passed:
-
-| command | result |
-|---|---|
-| `git rev-parse --verify integration/t2687-trial` | rc=0 |
-| `git merge-base --is-ancestor origin/main integration/t2687-trial` | rc=0 |
-| `git grep -l '^<<<<<<< '` | 0 files |
-| `git diff --quiet origin/main -- crates/termlink-mcp/src/tools.rs` | rc=0 |
-| `cargo build --release` | rc=0 |
-| `bash scripts/verify-register-union.sh` | rc=0, 4 registers, nothing lost |
-
-plus `cargo test --release` (2,944 passed / 0 failed) and all 60 `tests/*.sh` suites. So
-T-2830's claims are **true**; what is false is the implication that a gate proved them.
-Those two are worth keeping apart, which is the whole point of the gate existing.
-
-**Why the framework was blind (G-019).** A misfiled block is silent in both directions: the
-section renders identically in the task file, and P-011 reports nothing when it finds
-nothing — "no commands to run" and "all commands passed" are the same output. The
-`## Verification` template is a long comment block, so commands appended near the *end* of
-a template section land visually plausibly but structurally wrong. Nothing checks that a
-task's shell commands are in the section that executes them.
-
-The prevention is the checker in AC#3: shell commands under any heading other than
-`## Verification` are almost always a misfile, and it is mechanically detectable.
-
-**Deliberately not done here:** T-2830 was not reopened or re-completed with `--force`. Its
-ACs are individually true and independently evidenced above; re-running the gate proves
-nothing that this record does not already carry, and forcing a completion to make a gate
-look like it ran would be the same dishonesty in the other direction.
+<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] T-2830's verification commands sit under its `## Verification` heading, not `## Evolution`
-- [x] Every one of those commands is re-run by hand against the merged tree and passes, so T-2830's 8/8 is backed by evidence rather than by a gate that ran nothing
-- [x] A check exists that reports any task file carrying shell commands in a section that is NOT `## Verification`
-- [x] That check is proven load-bearing: red against T-2830's broken shape, green after the repair
+- [ ] Every commit `check-vendor-divergence.sh` reports as unregistered is classified in `.vendor-divergence.yaml` — as a real `divergences:` entry or as `not_divergence:` with a cited reason
+- [ ] Each classification is made by READING the commit's actual diff against the vendored tree, not inferred from its subject line
+- [ ] `bash scripts/check-vendor-divergence.sh` exits 0 against the working tree
+- [ ] `bash tests/vendor-divergence-fixtures.sh` still passes, so the register's own checker is not weakened to make it green
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -150,24 +109,6 @@ look like it ran would be the same dishonesty in the other direction.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-# The checker exists, is executable, and is a declared guard-layer member
-test -x scripts/check-verification-misfile.sh
-out=$(bash scripts/run-guard-layer.sh --list 2>&1); echo "$out" | grep -q check-verification-misfile.sh
-# GREEN: the repaired corpus scans clean
-bash scripts/check-verification-misfile.sh
-# RED (load-bearing): it fires on T-2830 as it stood BEFORE the repair, straight from git.
-# Pinned to the explicit pre-repair sha, NOT HEAD: HEAD moves when the repair commit
-# lands, so a HEAD-relative fixture silently starts fetching the FIXED file and the
-# red leg passes for the wrong reason. P-011 caught exactly that here.
-rm -rf .tmp-misfile-fixture && mkdir -p .tmp-misfile-fixture/active
-git show d2442b603:.tasks/completed/T-2830-pre-resolve-t2687-to-main-integration-on.md > .tmp-misfile-fixture/active/T-2830-prerepair.md
-! bash scripts/check-verification-misfile.sh --tasks-dir .tmp-misfile-fixture --quiet
-rm -rf .tmp-misfile-fixture
-# T-2830 now carries its commands under ## Verification, not ## Evolution
-bash scripts/check-verification-misfile.sh --tasks-dir .tasks --quiet
-# Fixture suite green
-out=$(bash tests/verification-misfile-check-fixtures.sh 2>&1); echo "$out" | grep -q "0 failed"
-
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -231,20 +172,7 @@ out=$(bash tests/verification-misfile-check-fixtures.sh 2>&1); echo "$out" | gre
 
 ## Updates
 
-### 2026-08-23T11:26:48Z — task-created [task-create-agent]
+### 2026-08-23T17:06:46Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/active/T-2831-repair-t-2830-verification-block-landed-.md
+- **Output:** /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/active/T-2832-register-vendored-framework-divergences-.md
 - **Context:** Initial task creation
-
-## Reviewer Verdict (v1.5)
-
-- **Scan ID:** R-e07b82f2
-- **Timestamp:** 2026-08-23T17:06:03Z
-- **Catalogue:** v1.3-seed
-- **Overall:** PASS
-- **Needs Human:** yes
-- **Findings:** none
-
-- **Layer-1 escalations:** 1
-  1. **destructive-action** (high) — Destructive operation in verification or AC
-     - matched: `rm -rf`
