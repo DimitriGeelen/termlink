@@ -113,6 +113,18 @@ date_finished: 2026-08-23T11:26:07Z
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
+# The integration branch exists and carries main's history
+git rev-parse --verify integration/t2687-trial
+git merge-base --is-ancestor origin/main integration/t2687-trial
+# No conflict markers survive anywhere in the tree
+test -z "$(git grep -l '^<<<<<<< ' -- . || true)"
+# tools.rs resolved to main's version (the T-2687 side, not our duplicate T-2824)
+git diff --quiet origin/main -- crates/termlink-mcp/src/tools.rs
+# The merged tree builds
+cargo build --release --quiet
+# Register union held: every decision id present on either parent is present now
+bash scripts/verify-register-union.sh
+
 ## RCA
 
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
@@ -152,18 +164,6 @@ date_finished: 2026-08-23T11:26:07Z
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
-
-# The integration branch exists and carries main's history
-git rev-parse --verify integration/t2687-trial
-git merge-base --is-ancestor origin/main integration/t2687-trial
-# No conflict markers survive anywhere in the tree
-test -z "$(git grep -l '^<<<<<<< ' -- . || true)"
-# tools.rs resolved to main's version (the T-2687 side, not our duplicate T-2824)
-git diff --quiet origin/main -- crates/termlink-mcp/src/tools.rs
-# The merged tree builds
-cargo build --release --quiet
-# Register union held: every decision id present on either parent is present now
-bash scripts/verify-register-union.sh
 
 ## Decisions
 

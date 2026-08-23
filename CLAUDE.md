@@ -1609,6 +1609,66 @@ T-1134 with checksum verification, multi-arch detection, a no-sudo fallback and 
 warning. Rank 20 is closed as ALREADY-IMPLEMENTED. The gap was never the installer; it was
 that nothing guarded it.
 
+### Verification-block misfile check (T-2831, G-019 prevention for the P-011 vacuous pass)
+
+The tenth source-level static check. P-011 extracts commands from the `## Verification`
+section **only**. A block that lands under a neighbouring heading is silent in BOTH
+directions: the task file renders identically, and the gate reports nothing when it finds
+nothing — **"no commands to run" and "all commands passed" are the same output.**
+
+**Why it exists.** T-2830 completed reporting *"Acceptance criteria: 8/8 checked"* having
+executed **zero** verification commands. Its six commands — the ones proving a 39-conflict
+merge was sound — sat under `## Evolution`, because the edit that added them anchored on the
+wrong section's closing `-->`. The gate found an empty Verification section and passed
+**vacuously**. It would have passed identically had the merge been garbage.
+
+That is the exact defect class this repo's guard layer exists to catch, committed *in the
+guard layer*, one commit after being written up: **a check that asserts a property adjacent
+to the one it claims.** The tell holds — *if the check would still pass while the subsystem
+is entirely broken, it is the wrong check.*
+
+**The evidence was never missing; only the gate was.** All six commands were run by hand and
+passed, so T-2830's claims are true. What was false is the implication that a gate proved
+them. T-2830 was therefore **repaired, not reopened or `--force`d** — forcing a completion to
+make a gate look like it ran would be the same dishonesty inverted.
+
+`scripts/check-verification-misfile.sh` scans every task file and fires on a command line in
+any section other than `## Verification`. The anchor is deliberately narrow, in the sibling
+checks' precision-over-recall tradition: a line fires only if it is outside HTML comments and
+fenced blocks, at column 0, not a markdown marker, its **leading token is command-shaped**
+(vocabulary MEASURED from the corpus's real Verification blocks — 2559 files, 141 distinct
+leading tokens), it is a **complete statement** (carries a shell operator/flag **or** a
+path-like argument), and it **opens a block** (preceded by a blank, a `#` comment, a heading,
+or another command).
+
+The last two rules are what make it usable. The leading-token rule **alone** yields 49
+candidates across the corpus and **every one is wrapped prose** beginning with `timeout`,
+`test`, `git` or `fw`. Adding them takes that to zero without losing the defect. A check that
+false-positives permanently is a check nobody reads.
+
+**Scope — do not read a green as a full bill of health.** It detects commands in the WRONG
+SECTION. It does **not** verify that a task's verification is adequate, that its commands
+test the ACs, or that a task has any verification at all: **a task with an empty
+`## Verification` passes this check and still gates on nothing.** Both output paths say so.
+
+Allowlist: `.context/checks/verification-misfile-allowlist` (git-tracked per T-2681), one
+`<relpath>::<Section>` per line with a cited reason — the heading text **without** its `##`,
+since a `#` in the signature is eaten by the trailing-comment rule (a bug the fixtures caught
+in this script's own first draft). Entries are counted and reported but do not fire. Currently
+empty on purpose: the one real instance was repaired, and an entry here is for a section
+correct as written, never for commands that should have executed.
+
+Current tree: 2559 task files scanned, 0 misfiled blocks, 0 acknowledged. Exit 0 clean / 1
+firing / 2 tooling — **fail-closed**: a missing tasks dir, an unreadable allowlist, absent
+`python3`, or a corpus with zero task files all exit 2, never a vacuous clean. `--json`,
+`--quiet`, `--tasks-dir`, `--allowlist`. Ad-hoc:
+`bash scripts/check-verification-misfile.sh`. Fixtures:
+`bash tests/verification-misfile-check-fixtures.sh` (29 assertions, weighted toward the
+firing cases and the false-positive guards). **Load-bearing:** pointed at T-2830 as it stood
+before the repair — extracted straight from git, not a synthetic mutant — it fires on all six
+commands; against the repaired tree it is clean.
+
+
 ### Running the guard layer — `scripts/run-guard-layer.sh` (T-2684)
 
 **One command runs every source-level guard.** Before T-2684 there was none, and

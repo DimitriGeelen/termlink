@@ -1,0 +1,16 @@
+# verification-misfile allowlist (T-2831)
+#
+# Signatures for task-file sections that legitimately carry command-shaped lines
+# outside `## Verification`. One `<relpath>::<Section>` per line — the heading text
+# WITHOUT its leading '##' (a '#' in the signature would be eaten by the trailing
+# '# reason' comment rule). A trailing '# reason' is required by convention: the
+# reason IS the justification, and "it's fine" is not one.
+#
+# Entries are still COUNTED and REPORTED as findings; they only stop the check
+# firing. Removing a line re-fires that section. A NEW misfile anywhere fires
+# immediately because it is not listed.
+#
+# Currently empty on purpose: the corpus of 2559 task files scans clean. The one
+# real instance (T-2830, six commands under `## Evolution`) was REPAIRED, not
+# acknowledged — an entry here is for a section that is correct as written, never
+# for one whose commands should have been executed.

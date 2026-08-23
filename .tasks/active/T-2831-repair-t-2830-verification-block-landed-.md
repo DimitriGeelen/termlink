@@ -81,10 +81,10 @@ look like it ran would be the same dishonesty in the other direction.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] T-2830's verification commands sit under its `## Verification` heading, not `## Evolution`
-- [ ] Every one of those commands is re-run by hand against the merged tree and passes, so T-2830's 8/8 is backed by evidence rather than by a gate that ran nothing
-- [ ] A check exists that reports any task file carrying shell commands in a section that is NOT `## Verification`
-- [ ] That check is proven load-bearing: red against T-2830's broken shape, green after the repair
+- [x] T-2830's verification commands sit under its `## Verification` heading, not `## Evolution`
+- [x] Every one of those commands is re-run by hand against the merged tree and passes, so T-2830's 8/8 is backed by evidence rather than by a gate that ran nothing
+- [x] A check exists that reports any task file carrying shell commands in a section that is NOT `## Verification`
+- [x] That check is proven load-bearing: red against T-2830's broken shape, green after the repair
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -149,6 +149,21 @@ look like it ran would be the same dishonesty in the other direction.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+# The checker exists, is executable, and is a declared guard-layer member
+test -x scripts/check-verification-misfile.sh
+out=$(bash scripts/run-guard-layer.sh --list 2>&1); echo "$out" | grep -q check-verification-misfile.sh
+# GREEN: the repaired corpus scans clean
+bash scripts/check-verification-misfile.sh
+# RED (load-bearing): it fires on T-2830 as it stood BEFORE the repair, straight from git
+rm -rf .tmp-misfile-fixture && mkdir -p .tmp-misfile-fixture/active
+git show HEAD:.tasks/completed/T-2830-pre-resolve-t2687-to-main-integration-on.md > .tmp-misfile-fixture/active/T-2830-prerepair.md
+! bash scripts/check-verification-misfile.sh --tasks-dir .tmp-misfile-fixture --quiet
+rm -rf .tmp-misfile-fixture
+# T-2830 now carries its commands under ## Verification, not ## Evolution
+bash scripts/check-verification-misfile.sh --tasks-dir .tasks --quiet
+# Fixture suite green
+out=$(bash tests/verification-misfile-check-fixtures.sh 2>&1); echo "$out" | grep -q "0 failed"
 
 ## RCA
 
