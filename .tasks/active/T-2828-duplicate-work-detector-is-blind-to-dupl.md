@@ -133,15 +133,15 @@ cost_estimate_proposed:
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -198,7 +198,17 @@ Two confirmed instances of the same class in this repo. T-2687 (main) and T-2824
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale:
+
+Two confirmed instances of the same class in this repo. T-2687 (main) and T-2824 (this branch) independently fixed the identical termlink_topics silent-partial-inventory defect eight days apart; it surfaced only as a merge conflict. Earlier, two branches independently wrote check-verification-pipefail.sh. check-task-id-collisions.sh axis C exists precisely to catch this and saw neither reliably: it runs git diff --diff-filter=A so it examines only ADDED files (a fix to an existing file is invisible), and its branch set excludes BASE so duplication against main — where 230 commits landed while this branch was open — is invisible from both directions. The catch on the first instance was luck about the shape (a new file on two feature branches), not coverage. GO rather than DEFER because the evidence is already in hand and the open question is purely design: what signal identifies duplicated fixes without firing on every pair of branches that touch a common file, which is nearly all of them. That threshold question is the whole value of the inception, and if no low-noise signal exists the honest outcome is NO-GO plus a documented manual mitigation — which is itself worth knowing.
+
+Evidence:
+
+**Date**: 2026-08-23T21:14:09Z
 
 ## Updates
 
@@ -207,3 +217,25 @@ Two confirmed instances of the same class in this repo. T-2687 (main) and T-2824
 
 ### 2026-08-22T10:13:46Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-08-23T21:14:03Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale:
+
+Two confirmed instances of the same class in this repo. T-2687 (main) and T-2824 (this branch) independently fixed the identical termlink_topics silent-partial-inventory defect eight days apart; it surfaced only as a merge conflict. Earlier, two branches independently wrote check-verification-pipefail.sh. check-task-id-collisions.sh axis C exists precisely to catch this and saw neither reliably: it runs git diff --diff-filter=A so it examines only ADDED files (a fix to an existing file is invisible), and its branch set excludes BASE so duplication against main — where 230 commits landed while this branch was open — is invisible from both directions. The catch on the first instance was luck about the shape (a new file on two feature branches), not coverage. GO rather than DEFER because the evidence is already in hand and the open question is purely design: what signal identifies duplicated fixes without firing on every pair of branches that touch a common file, which is nearly all of them. That threshold question is the whole value of the inception, and if no low-noise signal exists the honest outcome is NO-GO plus a documented manual mitigation — which is itself worth knowing.
+
+Evidence:
+
+### 2026-08-23T21:14:09Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale:
+
+Two confirmed instances of the same class in this repo. T-2687 (main) and T-2824 (this branch) independently fixed the identical termlink_topics silent-partial-inventory defect eight days apart; it surfaced only as a merge conflict. Earlier, two branches independently wrote check-verification-pipefail.sh. check-task-id-collisions.sh axis C exists precisely to catch this and saw neither reliably: it runs git diff --diff-filter=A so it examines only ADDED files (a fix to an existing file is invisible), and its branch set excludes BASE so duplication against main — where 230 commits landed while this branch was open — is invisible from both directions. The catch on the first instance was luck about the shape (a new file on two feature branches), not coverage. GO rather than DEFER because the evidence is already in hand and the open question is purely design: what signal identifies duplicated fixes without firing on every pair of branches that touch a common file, which is nearly all of them. That threshold question is the whole value of the inception, and if no low-noise signal exists the honest outcome is NO-GO plus a documented manual mitigation — which is itself worth knowing.
+
+Evidence:
