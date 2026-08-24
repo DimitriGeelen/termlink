@@ -146,7 +146,7 @@ divergences:
       a re-vendor still deletes both commits and the symptom returns as a worktree
       that cannot pass its own pre-push audit. Re-verify this entry after the next
       vendor event before assuming it is safe.
-    upstream_ref: "framework:pickup offset 35"
+    upstream_ref: "framework:pickup offsets 35 (hook paths, T-2714) and 36 (CTL-020, T-2715)"
 
   - task: T-2469
     commit: a46e8e726

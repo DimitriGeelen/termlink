@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2715: CTL-020 cron audit check fires unconditionally in linked worktrees
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-24T17:25:05Z
+# ============================================================================
+
+task_id: T-2715
+task_name: "CTL-020 cron audit check fires unconditionally in linked worktrees"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-14T20:19:47Z
+completed: 2026-08-24T17:24:58Z
+duration_days: 10
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  audit.sh CTL-020 tests a gitignored host-local cron dir that a worktree can never have, and its mitigation would install cron pointing at a transient worktree
+
+# Key outcomes
+outcomes:
+  - 'The report cites `audit.sh:3213` (CTL-020 site) and `.gitignore:54` together, showing the directory is gitignored by design and therefore unreachable in a worktree'
+  - 'It cites the two existing skips (`audit.sh:1644`, `audit.sh:1723`) and the `fw_is_linked_worktree` helper as the established in-file precedent'
+  - 'It states why the current mitigation is harmful, not merely useless: `fw audit schedule install` in a worktree aims a host cron entry at a path that will be deleted'
+  - 'It states why `mkdir -p` is not the fix — it converts the warning into "no cron audit files in last hour" and fabricates host state'
+  - 'A concrete remedy is proposed: guard the CTL-020 block with `fw_is_linked_worktree "$PROJECT_ROOT"` and emit the same `info` skip line the two siblings use'
+  - 'Filed to `framework:pickup` and the post confirmed present'
+  - 'No file under `.agentic-framework/` is edited by this task'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 14225 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 14225
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2715-ctl-020-cron-audit-check-fires-unconditi.md
+generated_by: context-agent-hybrid
