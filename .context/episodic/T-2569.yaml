@@ -1,0 +1,83 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2569: GUARD: hub-router federation regression test (charter non-goal #1 tripwire)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-24T20:50:28Z
+# ============================================================================
+
+task_id: T-2569
+task_name: "GUARD: hub-router federation regression test (charter non-goal #1 tripwire)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-09T11:24:14Z
+completed: 2026-08-24T20:50:20Z
+duration_days: 15
+updates_count: 3
+first_commit: 2026-08-14T01:36:22+02:00
+last_commit: 2026-08-14T01:36:22+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  federation tripwire — charter non-goal #1 was guarded by nothing
+
+# Key outcomes
+outcomes:
+  - 'A unit test in the hub crate asserts that handling an inbound RPC never'
+  - 'The test is load-bearing: a deliberate temporary "relay to peer hub" stub in'
+  - 'A one-line note in the charter / ARCHITECTURE ties non-goal #1 to this test so'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-hub/tests/no_federation_tripwire.rs'
+  - 'docs/CHARTER.md'
+  - '.tasks/active/T-2569-guard-hub-router-federation-regression-t.md'
+  - '.tasks/active/T-2681-static-check-allowlists-live-under-a-git.md'
+  - '.termlink-task'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-14T01:36:22'
+    action: 'T-2569: federation tripwire — charter non-goal #1 was guarded by nothing'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 22166 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 22166
+  commits: 1
+  files_changed: 9
+  lines_added: 258
+  lines_removed: 22
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2569-guard-hub-router-federation-regression-t.md
+generated_by: context-agent-hybrid

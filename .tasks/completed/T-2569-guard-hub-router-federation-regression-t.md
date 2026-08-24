@@ -4,20 +4,20 @@ name: "GUARD: hub-router federation regression test (charter non-goal #1 tripwir
 description: >
   Filed from T-2468 purpose-review round (2026-08-09)
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-hub/tests/no_federation_tripwire.rs, crates/termlink-session/tests/no_spoke_mesh_tripwire.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-09T11:24:14Z
-last_update: '2026-08-23T19:13:47Z'
-date_finished:
+last_update: 2026-08-24T20:50:20Z
+date_finished: 2026-08-24T20:50:20Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -153,19 +153,34 @@ grep -q 'no_federation_tripwire' docs/CHARTER.md
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** None observed in production. This is a preventive tripwire, not a defect
+report — filed by the T-2468 purpose-review round as a guard against charter non-goal #1
+(hub-to-hub federation) being reintroduced silently.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause (of the gap the guard closes):** Charter non-goal #1 forbids inter-hub
+federation, but nothing in the build asserted it. The invariant lived only in prose, so a
+future edit adding a peer-hub BusClient call would compile, pass CI, and ship. The gap was
+an unenforced architectural invariant — a property asserted in documentation with no
+executable counterpart.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Fix:** crates/termlink-hub/tests/no_federation_tripwire.rs — three source-level
+assertions over the hub crate:
+  - hub_cannot_learn_peer_hub_addresses
+  - hub_never_builds_a_hub_speaking_client
+  - hub_outbound_connects_are_the_known_session_forwards
+Verified 2026-08-24: `cargo test -p termlink-hub --test no_federation_tripwire`
+-> 3 passed, 0 failed.
+
+**Prevention:** the guard IS the prevention. A sibling tripwire
+(termlink-session/tests/no_spoke_mesh_tripwire.rs) covers the adjacent spoke-to-spoke
+invariant; ARCHITECTURE.md:226 ties non-goal #1 to it.
+
+**Classification note:** this task is NOT bug-class. It was routed into the bug-class RCA
+gate because its title contains the word "regression" — as in "regression test". The gate
+title heuristic (fix|bug|rca|broken|crash|error|regression|fail|hotfix) cannot distinguish
+"a regression occurred" from "a regression test was added", so every guard task that names
+its own test type is forced to invent an RCA for a defect that never existed. Recorded
+rather than worked around.
 
 ## Evolution
 
@@ -224,3 +239,16 @@ grep -q 'no_federation_tripwire' docs/CHARTER.md
 
 ### 2026-08-13T23:33:48Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-e6b49c32
+- **Timestamp:** 2026-08-24T20:50:22Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-24T20:50:20Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** RCA authored; federation tripwire verified green (3 passed)
