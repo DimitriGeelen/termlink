@@ -112,13 +112,13 @@ re-vendor. Deliverable is an upstream report, not an edit under
 ## Acceptance Criteria
 
 ### Agent
-- [ ] The report cites `audit.sh:3213` (CTL-020 site) and `.gitignore:54` together, showing the directory is gitignored by design and therefore unreachable in a worktree
-- [ ] It cites the two existing skips (`audit.sh:1644`, `audit.sh:1723`) and the `fw_is_linked_worktree` helper as the established in-file precedent
-- [ ] It states why the current mitigation is harmful, not merely useless: `fw audit schedule install` in a worktree aims a host cron entry at a path that will be deleted
-- [ ] It states why `mkdir -p` is not the fix — it converts the warning into "no cron audit files in last hour" and fabricates host state
-- [ ] A concrete remedy is proposed: guard the CTL-020 block with `fw_is_linked_worktree "$PROJECT_ROOT"` and emit the same `info` skip line the two siblings use
-- [ ] Filed to `framework:pickup` and the post confirmed present
-- [ ] No file under `.agentic-framework/` is edited by this task
+- [x] The report cites `audit.sh:3213` (CTL-020 site) and `.gitignore:54` together, showing the directory is gitignored by design and therefore unreachable in a worktree
+- [x] It cites the two existing skips (`audit.sh:1644`, `audit.sh:1723`) and the `fw_is_linked_worktree` helper as the established in-file precedent
+- [x] It states why the current mitigation is harmful, not merely useless: `fw audit schedule install` in a worktree aims a host cron entry at a path that will be deleted
+- [x] It states why `mkdir -p` is not the fix — it converts the warning into "no cron audit files in last hour" and fabricates host state
+- [x] A concrete remedy is proposed: guard the CTL-020 block with `fw_is_linked_worktree "$PROJECT_ROOT"` and emit the same `info` skip line the two siblings use
+- [x] Filed to `framework:pickup` and the post confirmed present
+- [x] No file under `.agentic-framework/` is edited by this task
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -188,6 +188,26 @@ re-vendor. Deliverable is an upstream report, not an edit under
 grep -q "^\.context/audits/cron/$" .gitignore
 grep -q 'CRON_DIR="$AUDITS_DIR/cron"' .agentic-framework/agents/audit/audit.sh
 grep -q "fw_is_linked_worktree" .agentic-framework/agents/audit/audit.sh
+
+# --- The report exists and cites each thing the ACs require ---
+out=$(cat docs/reports/T-2715-ctl020-cron-audit-worktree-blindness.md); echo "$out" | grep -q 'audit.sh:3213'
+out=$(cat docs/reports/T-2715-ctl020-cron-audit-worktree-blindness.md); echo "$out" | grep -q '.context/audits/cron/'
+out=$(cat docs/reports/T-2715-ctl020-cron-audit-worktree-blindness.md); echo "$out" | grep -q 'audit.sh:1638'
+out=$(cat docs/reports/T-2715-ctl020-cron-audit-worktree-blindness.md); echo "$out" | grep -q 'fw_is_linked_worktree'
+# the two arguments that distinguish this from a cosmetic warning
+out=$(cat docs/reports/T-2715-ctl020-cron-audit-worktree-blindness.md); echo "$out" | grep -q 'will disappear'
+out=$(cat docs/reports/T-2715-ctl020-cron-audit-worktree-blindness.md); echo "$out" | grep -q 'fabricates host state'
+out=$(cat docs/reports/T-2715-ctl020-cron-audit-worktree-blindness.md); echo "$out" | grep -q 'CTL-020 skipped'
+# --- The claims are TRUE of this tree. A report that only greps itself would
+# pass while every fact in it was wrong, so these re-measure independently. ---
+git check-ignore -q .context/audits/cron/
+test ! -d .context/audits/cron
+out=$(grep -c 'fw_is_linked_worktree "$PROJECT_ROOT"' .agentic-framework/agents/audit/audit.sh); test "$out" -ge 2
+grep -q 'fw_is_linked_worktree()' .agentic-framework/lib/paths.sh
+# --- Filed upstream and the post is present (>=37 == our offset 36 landed) ---
+out=$(timeout 40 termlink channel info framework:pickup --json); echo "$out" | python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin)["count"]>=37 else 1)'
+# --- No file under .agentic-framework/ was edited by this task (G-062) ---
+test -z "$(git status --porcelain .agentic-framework/)"
 # The deliverable is an upstream report, so the vendored tree must stay untouched.
 test -z "$(git status --porcelain .agentic-framework)"
 
