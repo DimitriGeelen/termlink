@@ -424,3 +424,57 @@ assumptions:
   linked_task: T-2331
   created: '2026-07-03'
   resolved_date: null
+- id: A-043
+  statement: A launched agent session can acknowledge delivery from inside its own
+    turn loop without modifying Claude Code itself.
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-2838
+  created: '2026-08-24'
+  resolved_date: null
+- id: A-044
+  statement: For sessions we do not control, PTY-inject plus mandatory read-cursor
+    confirmation converts silent failure into loud diagnosable failure.
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-2838
+  created: '2026-08-24'
+  resolved_date: null
+- id: A-045
+  statement: Liveness sourced from the consuming loop rather than a sidecar heartbeat
+    eliminates the LIVE-not-listening class by construction.
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-2838
+  created: '2026-08-24'
+  resolved_date: null
+- id: A-046
+  statement: A typed result manifest (paths, hashes, summary, status) removes the
+    need for byte transfer between agents sharing a filesystem.
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-2838
+  created: '2026-08-24'
+  resolved_date: null
+- id: A-047
+  statement: termlink-bus requires no change; the entire delivery gap sits above the
+    log engine.
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-2838
+  created: '2026-08-24'
+  resolved_date: null
+- id: A-048
+  statement: Consumption confirmation can be built on existing receipt/read-cursor
+    primitives without a wire-protocol version bump.
+  status: untested
+  validation_method: TBD
+  evidence: []
+  linked_task: T-2838
+  created: '2026-08-24'
+  resolved_date: null
