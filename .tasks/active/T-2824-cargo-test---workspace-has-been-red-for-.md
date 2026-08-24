@@ -183,3 +183,30 @@ rather than widen. Three things today looked two lines deep and were not.
 
 **No regression:** `parity` was 23 passed / 1 failed before this change and is 23 passed /
 1 failed after. The suite is no redder than it was.
+
+## 2026-08-24 re-verification (partial)
+
+The reachability delta that stopped the 2026-08-20 pass appears CLOSED:
+
+    $ cargo test -p termlink-mcp --test parity parity_topics
+    test parity_topics ... ok
+    test result: ok. 1 passed; 0 failed; 27 filtered out
+
+Field sets are now identical on both sides -- tools.rs:14184-14188 vs
+events.rs:1156-1160 both emit total_sessions / sessions_unreachable /
+sessions_bad_result / sessions_skipped / sessions_probed.
+
+The two NOT DONE ACs are LEFT UNTICKED: they require the whole parity suite green,
+and a full `cargo test --workspace` run could not establish that. It reached
+10 suites ok / 0 FAILED and then STALLED >6min on:
+    parity_version, parity_whoami_no_sessions, parity_whoami_session_match
+
+INCONCLUSIVE, not a new failure. parity_whoami_no_sessions asserts an empty session
+registry, and this run had 4 live TermLink sessions registered on the host (spawned
+by the session doing this verification). Those tests shell out to the real CLI, so
+the harness may be observing host state it does not control.
+
+NEXT STEP: run `cargo test -p termlink-mcp --test parity` on a host with NO registered
+termlink sessions. If 24/24, the two ACs tick and T-2824 closes. If parity_whoami_*
+still hangs, that is a separate isolation defect in the parity harness and deserves
+its own task -- do not re-open the topics work.
