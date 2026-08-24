@@ -39,4 +39,4 @@ PATH=/usr/local/bin:/usr/bin:/bin
 */15 * * * * root cd "/opt/termlink" && PROJECT_ROOT="/opt/termlink" "/opt/termlink/.agentic-framework/bin/fw" pickup process 2>&1 | logger -t agentic-cron
 
 # Revisit-due scan (daily 07:00, G-053)
-0 7 * * * root cd "/opt/termlink" && .agentic-framework/agents/context/revisit-due-scan.sh 2>&1 | logger -t agentic-cron
+0 7 * * * root cd "/opt/termlink" && PROJECT_ROOT="$(pwd)" .agentic-framework/agents/context/revisit-due-scan.sh 2>&1 | logger -t agentic-cron
