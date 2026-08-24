@@ -183,6 +183,64 @@ queue, and both items had already been re-derived more than once.
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+## Recommendation
+
+**Recommendation:** Apply (c) locally now - reclassify framework-tool-referenced-but-never-vendored as KNOWN-GAP rather than DANGLING in check-framework-tracking-drift - and for P-043 file BUG 1 (disposition-gate vocabulary mismatch) as its own task, then drop the envelope deliberately. Together these clear both fired guards and unblock seven agent task closures today, without pretending missing files exist. Detail below.
+
+Two operator decisions. Both are now fully evidenced, and together they are the only
+thing standing between us and SEVEN agent task closures (T-2684, T-2685, T-2686,
+T-2688, T-2693, T-2699, T-2758 — each fails exactly one verification, and it is the
+same one: `bash scripts/run-guard-layer.sh --quiet`, 62/64 pass, these 2 fire).
+
+### Decision 1 — corpus_*.py (check-framework-tracking-drift)
+
+RECOMMEND: do NOT attempt local recovery. The AC premise is wrong and chasing it wastes
+a session. Verified: no git history on any branch, nothing on disk in any worktree,
+and neither ./tools/ nor .agentic-framework/tools/ exists. They were never vendored.
+
+The dangling references are in the vendored fw itself (bin/fw:4901/4907/4909/7686) and
+agents/designer/designer.sh:302. Every `fw corpus ...` verb is therefore dead in every
+consumer install; bin/fw:7686 hides its failure behind `2>/dev/null || true`.
+
+Filed upstream 2026-08-25 → framework:pickup offset 40 (G-062: not patched locally).
+
+Your call is which unblock you want:
+  (a) WAIT for the upstream vendor-manifest fix (ships tools/, or gates the verbs
+      honestly). Correct, but we do not control the timing.
+  (b) DECIDE the corpus verbs are not wanted in consumers, and have upstream remove
+      them from the vendored fw. Also correct, and smaller.
+  (c) Interim, locally: treat "framework tool referenced but never vendored" as a
+      KNOWN-GAP class in check-framework-tracking-drift rather than DANGLING, so the
+      guard stops blocking unrelated work while (a)/(b) is pending.
+
+I recommend (c) now + (a) or (b) upstream. (c) is first-party (scripts/), so it is ours
+to make, and it unblocks the seven closures today without pretending the files exist.
+
+### Decision 2 — P-043 disposal (check-pickup-deferred-freshness)
+
+RECOMMEND: file one new task, then drop the envelope deliberately.
+
+Root cause of the 78-day strand is a PICKUP-ID COLLISION, not neglect: there are two
+different `P-043-bug-report.yaml` files —
+  .context/pickup/processed/     P-043 from T-2155 (budget-narration bug) — handled
+  .context/pickup/auto-deferred/ P-043 from T-2018 (this one)          — stranded
+Processing the first marked the ID done, so the second could never be promoted. Same
+root-cause class as the task-ID collision (T-2800 / G-007): IDs allocated by scanning
+one directory only.
+
+Its contents are two bugs, and they are NOT equally live:
+  BUG 2 (heredoc __file__ under python3 stdin) — ALREADY TRACKED as active task T-2232.
+  BUG 1 (T-2190 disposition-gate vocabulary mismatch, update-task.sh:787 — gate accepts
+         answered|deferred|dissolved, authors write resolved|partial|open, silent until
+         --status work-completed runs) — NOT tracked anywhere I can find.
+
+So: create a task for BUG 1, then drop P-043 deliberately. Nothing is lost — half of it
+is already T-2232 and the other half becomes its own task with a real owner.
+
+Note BUG 1 is the same shape as two things filed this session: a gate whose vocabulary
+does not match what authors actually write (cf. pickup offset 39, the RCA gate that
+classifies guard tasks as bug-class because their titles contain "regression").
+
 ## Evolution
 
 <!-- REQUIRED for arc-tagged build tasks (tags include arc:*). Captures how
