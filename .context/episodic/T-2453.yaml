@@ -1,0 +1,80 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2453: flush: check pop result after successful post (round-11 F4, LOW — dedupe-mitigated dup)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-24T20:28:59Z
+# ============================================================================
+
+task_id: T-2453
+task_name: "flush: check pop result after successful post (round-11 F4, LOW — dedupe-mitigated dup)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-07-22T06:10:53Z
+completed: 2026-08-24T20:28:53Z
+duration_days: 33
+updates_count: 2
+first_commit: 2026-07-22T08:11:07+02:00
+last_commit: 2026-07-22T08:11:07+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  capture round-11 durable-delivery F4 backlog (LOW — flush pop-after-success dup, dedupe-mitigated)
+
+# Key outcomes
+outcomes:
+  - 'Fix already present in crates/termlink-session/src/bus_client.rs:315-321 — pop result is captured and pop_action() aborts the flush pass on failure instead of re-POSTing (shipped by T-2497)'
+  - 'Regression tests green: cargo test -p termlink-session pop_action -> 2 passed, 0 failed (pop_action_aborts_pass_on_pop_failure, pop_action_continues_on_pop_success)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-2452.yaml'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.tool-counter'
+  - '.tasks/active/T-2453-flush-check-pop-result-after-successful-.md'
+  - '.tasks/completed/T-2452-flush-poison-double-failure-must-break-n.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-07-22T08:11:07'
+    action: 'T-2453: capture round-11 durable-delivery F4 backlog (LOW — flush pop-after-success dup, dedupe-mitigated)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 48378 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 48378
+  commits: 1
+  files_changed: 7
+  lines_added: 306
+  lines_removed: 15
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2453-flush-check-pop-result-after-successful-.md
+generated_by: context-agent-hybrid

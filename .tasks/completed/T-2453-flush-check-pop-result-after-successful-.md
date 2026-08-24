@@ -4,10 +4,10 @@ name: "flush: check pop result after successful post (round-11 F4, LOW — dedup
 description: >
   Round-11 durable-delivery review Finding 4 (LOW, dedupe-mitigated). In BusClient::flush (bus_client.rs ~191), after a SUCCESSFUL hub post the pop is 'let _ = self.queue.pop(id)' — result ignored. If pop fails, the next flush re-delivers a duplicate. Mitigated because queued posts always carry a minted client_msg_id (channel.rs builder) so hub dedupe absorbs the duplicate — but ONLY within the 5-min dedupe TTL; a pop that stays broken past the TTL yields a genuine duplicate delivery. Fix (small, mirror of T-2452): check the pop result on the success path; on failure log an error and break (retry next tick) rather than proceeding as if removed. Deferred as backlog: LOW severity + dedupe mitigation; batch with any future flush hardening.
 
-status: captured
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: later
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -16,8 +16,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-22T06:10:53Z
-last_update: 2026-07-22T06:11:07Z
-date_finished: null
+last_update: 2026-08-24T20:28:53Z
+date_finished: 2026-08-24T20:28:53Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -40,8 +40,8 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] Fix already present in crates/termlink-session/src/bus_client.rs:315-321 — pop result is captured and pop_action() aborts the flush pass on failure instead of re-POSTing (shipped by T-2497)
+- [x] Regression tests green: cargo test -p termlink-session pop_action -> 2 passed, 0 failed (pop_action_aborts_pass_on_pop_failure, pop_action_continues_on_pop_success)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -174,3 +174,25 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2453-flush-check-pop-result-after-successful-.md
 - **Context:** Initial task creation
+
+### 2026-08-24T20:28:53Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
+- **Change:** horizon: later → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-a4d36409
+- **Timestamp:** 2026-08-24T20:28:54Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — Fix already present in crates/termlink-session/src/bus_client.rs:315-321 — pop result is captured and pop_action() aborts the flush pass on failure instead of re-POSTing (shipped by T-2497)
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-session/src/bus_client.rs in: Fix already present in crates/termlink-session/src/bus_client.rs:315-321 — pop result is captured and pop_action() aborts the flush pass on failure in`
+
+### 2026-08-24T20:28:53Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** duplicate of T-2497 (completed): fix + 2 regression tests already in main at bus_client.rs:315-321
