@@ -237,3 +237,45 @@ queue, and both items had already been re-derived more than once.
 
 ### 2026-08-23T21:53:59Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## 2026-08-25 — the blocking is now measured, and both halves are THIS task
+
+Traced from the other end: seven agent-owned tasks (T-2684, T-2685, T-2686, T-2688,
+T-2693, T-2699, T-2758) all have every Agent AC ticked and all REFUSE to close. Each
+fails exactly one verification, and it is the same one:
+
+    bash scripts/run-guard-layer.sh --quiet     -> exit 1
+
+run-guard-layer.sh has 64 members. 62 pass. The 2 that FIRE are:
+
+  1. check-framework-tracking-drift.sh
+       DANGLING $FRAMEWORK_ROOT/tools/corpus_explain.py
+       DANGLING $FRAMEWORK_ROOT/tools/corpus_lint.py
+       DANGLING $FRAMEWORK_ROOT/tools/corpus_spec.py
+     == this task Human AC #1 (corpus_*.py)
+
+  2. check-pickup-deferred-freshness.sh
+       STRANDED P-043-bug-report.yaml (deferred 78 days ago)
+     == this task Human AC #2 (P-043 disposal)
+
+So the two operator actions this task exists to unblock are, right now, blocking seven
+unrelated task closures. That is the cost of the delay, measured rather than asserted.
+
+CORRECTION TO HUMAN AC #1 PREMISE (evidence, not a tick)
+  The AC says recover corpus_*.py "from /opt/termlink". They are NOT recoverable here:
+    - `git log --all -- *corpus_*.py`            -> no history, any branch
+    - `find /opt/termlink -name corpus_*.py`     -> nothing on disk, incl. all worktrees
+    - ./tools/ and .agentic-framework/tools/     -> neither directory exists
+  They are framework-owned files the vendor manifest never ships. The dangling refs are
+  in the VENDORED fw itself (bin/fw:4901, 4907, 4909, 7686) plus
+  agents/designer/designer.sh:302 (which resolves against $PROJECT_ROOT, not
+  $FRAMEWORK_ROOT -- two different roots for the same three files).
+
+  Consequence: every `fw corpus ...` verb is dead in every consumer install, and
+  bin/fw:7686 hides it behind `2>/dev/null || true`.
+
+  Filed upstream 2026-08-25: framework:pickup offset 40 (G-062, not patched locally).
+  Same class as T-2546.
+
+  => Recovery cannot be done from this checkout. The action is an upstream vendor-manifest
+     fix, or a deliberate decision to drop the corpus verbs from the vendored fw.
