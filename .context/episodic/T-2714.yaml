@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2714: Audit hook checks ignore core.hooksPath — unfixable warning in linked worktrees
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-23T21:44:30Z
+# ============================================================================
+
+task_id: T-2714
+task_name: "Audit hook checks ignore core.hooksPath — unfixable warning in linked worktrees"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-14T18:57:33Z
+completed: 2026-08-23T21:44:24Z
+duration_days: 9
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  audit.sh tests PROJECT_ROOT/.git/hooks/* which cannot exist in a worktree, so CTL-011 and the commit-msg check warn forever and install-hooks cannot clear them
+
+# Key outcomes
+outcomes:
+  - 'The report cites all three sites hardcoding `$PROJECT_ROOT/.git/hooks/` — `audit.sh:2393` (commit-msg), the CTL-011 site, and `audit.sh:3022` (C-002)'
+  - 'It shows that the installed hook DOES carry the `inception-research-warnings` marker and the C-001 enforcement block, so C-002''s claim is a false negative about a live gate'
+  - 'It shows the worktree evidence: `.git` is a file, `core.hooksPath` is set, and `git rev-parse --git-path hooks/...` resolves elsewhere'
+  - 'It includes the empirical proof that hooks fire regardless (post-commit hook output on a real commit), so upstream does not "fix" this by reinstalling hooks'
+  - 'It states the false-mitigation problem explicitly — `install-hooks` succeeds and the warning survives'
+  - 'A concrete remedy is proposed: resolve via `git rev-parse --git-path hooks/<name>` rather than string-concatenating `.git/hooks`, which handles worktrees and `core.hooksPath` in one call'
+  - 'Filed to `framework:pickup` and the post confirmed present'
+  - 'No file under `.agentic-framework/` is edited by this task'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 13126 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 13126
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/t2687-pickup-failopen/.tasks/completed/T-2714-audit-hook-checks-ignore-corehookspath--.md
+generated_by: context-agent-hybrid
