@@ -6,6 +6,27 @@
 # Provides a shell-backed, discoverable session that other agents on the ring20 LAN
 # can target via `termlink agent ask`, `termlink remote exec`, or `termlink remote push`.
 # Handles: termlink doctor, termlink list, termlink discover, fw termlink status, diagnostics.
+#
+# PER-AGENT IDENTITY (T-2838 item 1 / T-2291 / T-1700)
+# ----------------------------------------------------
+# --identity-key gives this session its OWN ed25519 keypair instead of the
+# host-shared $HOME/.termlink/identity.key. Without it every co-resident agent
+# on this host signs as the same fingerprint (d1993c2c3ec44c94), so:
+#   * `channel ack-status` returns ONE row for the whole host — "did THIS agent
+#     consume it?" has no addressable subject;
+#   * attribution falls back to `from_project` / `_from` metadata, which is NOT
+#     covered by the envelope signature and is therefore forgeable;
+#   * `--await-ack` cannot derive a DM peer, because self IS peer.
+# The flag's own help text calls it "Required on shared hosts where co-resident
+# agents must present distinct envelope identities."
+#
+# The key is provisioned OUT-OF-BAND and this unit only reads it: ProtectHome is
+# read-only, so the service cannot auto-create it at $HOME. To provision:
+#   TERMLINK_AGENT_ID=termlink-agent termlink identity show --resolve
+# which creates /root/.termlink/identities/termlink-agent.key chmod 600.
+#
+# Rollback: drop the --identity-key line and re-run .context/systemd/install.sh
+# --only termlink-agent. The session returns to the shared host identity.
 
 [Unit]
 Description=TermLink Agent — persistent shell session (role: termlink, diagnostics)
@@ -23,6 +44,7 @@ Environment=PROJECT_ROOT=/opt/termlink
 
 ExecStart=/root/.cargo/bin/termlink register \
   --name termlink-agent \
+  --identity-key /root/.termlink/identities/termlink-agent.key \
   --roles termlink,diagnostics \
   --tags host=107,project=termlink \
   --cap data_plane,stream \
