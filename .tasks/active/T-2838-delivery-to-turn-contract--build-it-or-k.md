@@ -12,7 +12,7 @@ tags: [comms, substrate, g-083, delivery]
 components: []
 related_tasks: [T-2468, T-2482, T-2485, T-2388, T-2394, T-2395, T-2413, T-2414, T-2416, T-2479, T-1800, T-1249, T-2700]
 created: 2026-08-24T22:35:59Z
-last_update: 2026-08-24T22:38:46Z
+last_update: 2026-08-24T22:39:19Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -105,15 +105,15 @@ Full analysis: docs/reports/T-2838-delivery-to-turn-contract.md (C-001 research 
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
 <!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [x] [REVIEW] Review exploration findings and approve go/no-go decision
   **Steps:**
   1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
   2. Review the Agent Recommendation section and go/no-go criteria evaluation
@@ -160,7 +160,17 @@ GO. G-083 (severity high, status watching) has been diagnosed since 2026-07-10 w
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Recommendation: GO
+
+Rationale:
+
+GO. G-083 (severity high, status watching) has been diagnosed since 2026-07-10 with the root cause named — PTY keystroke injection lands unsubmitted in a busy/manual session and is discarded on --continue, while listener-heartbeat.sh proves a background script alive rather than the session listening, so LIVE != listening by construction. The concern records the fix as "not yet built — pending operator". Everything built since is DETECTION (woken-but-silent canary, wake-confirm.sh, woken-silent-triage.sh, comms-selftest.sh, diagnose-unconsumed.sh, plus G-085 to un-stick the canary), never a delivery contract. Operator reports the symptom persists ("interactive communication is still flaky at best"). Detection is saturated; the mechanism is the remaining gap, and it blocks the stated product goal of interactive agent<->agent and operator<->agent exchange.
+
+Evidence:
+
+**Date**: 2026-08-25T09:18:11Z
 
 ## Updates
 
@@ -169,3 +179,14 @@ GO. G-083 (severity high, status watching) has been diagnosed since 2026-07-10 w
 
 ### 2026-08-24T22:38:46Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+### 2026-08-25T09:18:11Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Recommendation: GO
+
+Rationale:
+
+GO. G-083 (severity high, status watching) has been diagnosed since 2026-07-10 with the root cause named — PTY keystroke injection lands unsubmitted in a busy/manual session and is discarded on --continue, while listener-heartbeat.sh proves a background script alive rather than the session listening, so LIVE != listening by construction. The concern records the fix as "not yet built — pending operator". Everything built since is DETECTION (woken-but-silent canary, wake-confirm.sh, woken-silent-triage.sh, comms-selftest.sh, diagnose-unconsumed.sh, plus G-085 to un-stick the canary), never a delivery contract. Operator reports the symptom persists ("interactive communication is still flaky at best"). Detection is saturated; the mechanism is the remaining gap, and it blocks the stated product goal of interactive agent<->agent and operator<->agent exchange.
+
+Evidence:
