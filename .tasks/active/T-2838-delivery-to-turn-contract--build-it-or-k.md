@@ -44,9 +44,9 @@ Full analysis: docs/reports/T-2838-delivery-to-turn-contract.md (C-001 research 
 
 ## Assumptions
 
-- A-1: A launched agent session can acknowledge delivery from inside its own turn loop without modifying Claude Code itself.
+- A-1: A launched agent session can acknowledge delivery from inside its own turn loop without modifying Claude Code itself. **[CONFIRMED 2026-08-25 by S2 -- live round-trip on t2838-s2-probe.]**
 - A-2: For sessions we do not control, PTY-inject plus mandatory read-cursor confirmation converts silent failure into loud diagnosable failure.
-- A-3: Liveness sourced from the consuming loop rather than a sidecar heartbeat eliminates the LIVE-not-listening class by construction.
+- A-3: Liveness sourced from the consuming loop rather than a sidecar heartbeat eliminates the LIVE-not-listening class by construction. **[CONFIRMED 2026-08-25 by S2 -- no autonomous emitter in termlink-mcp, so receipt implies turn.]**
 - A-4: A typed result manifest (paths, hashes, summary, status) removes the need for byte transfer between agents sharing a filesystem.
 - A-5: termlink-bus requires no change; the entire delivery gap sits above the log engine.
 - A-6: Consumption confirmation can be built on existing receipt/read-cursor primitives without a wire-protocol version bump. **[CONFIRMED 2026-08-25 by S4.]**
@@ -54,8 +54,19 @@ Full analysis: docs/reports/T-2838-delivery-to-turn-contract.md (C-001 research 
 ## Open Questions
 
 - **IW-1: Can a launched agent session ack delivery from inside its own turn loop without modifying Claude Code?**
-  confidence: 1
-  disposition: pending
+  confidence: 5
+  disposition: answered
+  answer: >
+    Yes, and by construction. S2 (2026-08-25) demonstrated it live on scratch topic
+    t2838-s2-probe: an independent process posted an assignment at offset 0; this session acked
+    it from inside its own turn via the in-process MCP tool termlink_channel_ack, producing a
+    receipt at offset 1; a third independent process observed the frontier. Claude Code
+    unmodified. termlink-mcp has no autonomous receipt emitter -- every ack path is an async fn
+    on the tool struct, reachable only by client invocation -- so a receipt cannot exist unless
+    a turn happened. That invariant is A-3 obtained by construction rather than by detector.
+    Scope limit: this proves ack implies turn; it does not prove an agent will choose to ack,
+    nor does it demonstrate a consumer that blocks waiting on delivery. Evidence in
+    docs/reports/T-2838-delivery-to-turn-contract.md section "S2 -- Native consumer spike".
   rationale: Spike S2. The MCP server runs in-process with the session so an MCP-side ack is plausible, but nothing proves the ack coincides with an actual *turn* rather than a tool call.
 
 - **IW-2: What is the minimum viable turn-envelope + result-manifest schema?**
