@@ -454,9 +454,56 @@ receipt.
 3. **Land `assignment.v0` + `result_manifest.v0` as typed helpers.** The schemas are drafted
    and round-tripped (S3); this is codifying a payload convention plus emit/parse helpers, not
    protocol work.
-4. **Make `post` honest.** Return `delivered-unconfirmed` and add a bounded
-   `await-consumption` that resolves against `channel receipts`. This is the actual contract
-   and depends on nothing above except (2) for a trustworthy read.
+4. ~~**Make `post` honest.** Return `delivered-unconfirmed` and add a bounded
+   `await-consumption` that resolves against `channel receipts`.~~
+   **LANDED 2026-08-25 — commit `449b54341`.**
+
+   The spike's framing was half right. The bounded await already existed: T-2286 shipped
+   `--await-ack` with a retry policy, an `AwaitingAckTracker`, and a `channel.receipts` poll,
+   and T-2443 made the first post durable through the offline queue. Nothing needed building
+   there. What was missing was the *reporting*, and that turned out to be the actual defect:
+
+   `channel post` had **two words for three states**. A bare post printed `delivered` when the
+   only thing that had happened was the hub appending bytes to a log — nothing had read it and
+   nothing was necessarily listening. The genuinely-confirmed case, where a recipient receipt
+   covers the offset, printed `acked`. A caller reading `delivered` reasonably concluded the
+   message had arrived somewhere. This is the T-2550 false-success class stated exactly:
+   success claimed on the strength of having written bytes.
+
+   Landed a `DeliveryStatus` seam with two states named for what is actually known —
+   `delivered-unconfirmed` and `consumed` — and wired it through all three arms, including
+   `Exhausted`, which was previously the only honest one by accident and is now honest by
+   construction. IW-3 falls out of this rather than needing a special case: PTY-inject writes
+   bytes to a terminal, so it reports `delivered-unconfirmed` like every other unreceipted mode.
+
+   **The constraint that shaped the change.** 13 call sites already parse `.delivered.offset`
+   (`agent-send.sh:502`, `orchestrator-backlog-drain.sh:264`, five substrate demos,
+   `test-listener-heartbeat.sh`, ...) and two grep the human line `"Posted to agent-chat-arc"`
+   (`chat-arc-multicast.sh:72`, `field-heartbeat.sh:97`). Every one of them fails by reading
+   `empty` — silently — so a rename would have *created* the degradation class this task exists
+   to remove. The change is therefore strictly additive: the legacy shape is preserved
+   byte-for-byte and `status` / `confirmed` are added alongside. A test pins that contract so
+   a future tidy-up fails loudly instead.
+
+   Verified live rather than by test alone:
+
+   ```
+   $ termlink channel post t2838-item4-proof --msg-type note --payload "item 4 proof"
+   Posted to t2838-item4-proof — offset=0, ts=… [delivered-unconfirmed: hub accepted it; no consumer receipt yet]
+
+   $ termlink channel post t2838-item4-proof --json | jq '{o:.delivered.offset, s:.status, c:.confirmed}'
+   { "o": 1, "s": "delivered-unconfirmed", "c": false }
+   ```
+
+   Suite 1134 passed / 0 failed (was 1131). **One honest note, same as item 2:** the three new
+   tests are contract and invariant guards — they pass against the pre-change code too, because
+   what changed is emitted output rather than a computed value. The behaviour change is
+   evidenced by the live A/B above, not by the tests, and they are labelled that way in source.
+
+   Still open, and not claimed by this item: `--await-ack` requires a `dm:<you>:<peer>` topic,
+   so broadcast topics like `agent-chat-arc` have no way to await consumption at all. The
+   `consumed` path is exercised by unit test and by T-2286's existing machinery, not by a live
+   multi-party A/B in this round.
 5. **Hub-side enforcement.** Move the consumption frontier into hub state so the contract is
    enforced rather than observed. Largest item, deliberately last, and genuinely optional until
    1–4 are in use.

@@ -904,6 +904,57 @@ impl Default for AwaitAckOpts {
     }
 }
 
+/// T-2838 item 4: the delivery vocabulary, in one place.
+///
+/// `channel post` had two words for three states, and the mismatch was the
+/// defect. A bare post printed `delivered` when the only thing that had
+/// happened was the hub appending bytes to a log — no consumer had read it and
+/// none was necessarily listening. The confirmed case, where a recipient
+/// receipt actually covers the offset, printed `acked`. A caller reading
+/// `delivered` reasonably concluded the message had arrived somewhere.
+///
+/// This is the T-2550 false-success class: reporting success on the strength
+/// of having written bytes. The states below are named for what is actually
+/// known at the moment of printing, which is the whole point of the contract.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum DeliveryStatus {
+    /// The hub accepted and appended the envelope. Nothing has consumed it.
+    /// This is the honest outcome of every post that does not await a receipt,
+    /// including PTY-inject (IW-3): writing bytes to a terminal is not consumption.
+    DeliveredUnconfirmed,
+    /// A recipient receipt covers this offset — the read side that already
+    /// exists (`channel receipts` / `channel unread`) confirms consumption.
+    Consumed,
+}
+
+impl DeliveryStatus {
+    /// Stable machine-readable token. Emitted as `status` in --json output.
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            DeliveryStatus::DeliveredUnconfirmed => "delivered-unconfirmed",
+            DeliveryStatus::Consumed => "consumed",
+        }
+    }
+
+    /// The single boolean a caller needs to branch on. Kept separate from
+    /// `as_str` so a consumer never has to string-match to learn the answer.
+    pub(crate) fn confirmed(self) -> bool {
+        matches!(self, DeliveryStatus::Consumed)
+    }
+
+    /// Trailing clause for the human line. Appended AFTER the existing text so
+    /// `grep "Posted to <topic>"` keeps matching (chat-arc-multicast.sh:72,
+    /// field-heartbeat.sh:97 both depend on that prefix).
+    pub(crate) fn human_suffix(self) -> &'static str {
+        match self {
+            DeliveryStatus::DeliveredUnconfirmed => {
+                " [delivered-unconfirmed: hub accepted it; no consumer receipt yet]"
+            }
+            DeliveryStatus::Consumed => " [consumed: receipt confirmed]",
+        }
+    }
+}
+
 /// Resolve the effective post payload from the `--payload` flag and the
 /// positional `body` argument (T-2512, E2E finding #4). The flag wins if both
 /// are somehow present (clap `conflicts_with` normally prevents that); otherwise
@@ -1079,11 +1130,16 @@ pub(crate) async fn cmd_channel_post(
                 println!(
                     "{}",
                     serde_json::to_string_pretty(&json!({
-                        "delivered": {"offset": offset, "ts": ts_unix_ms}
+                        "delivered": {"offset": offset, "ts": ts_unix_ms},
+                        "status": DeliveryStatus::DeliveredUnconfirmed.as_str(),
+                        "confirmed": DeliveryStatus::DeliveredUnconfirmed.confirmed()
                     }))?
                 );
             } else {
-                println!("Posted to {topic} — offset={offset}, ts={ts_unix_ms}");
+                println!(
+                    "Posted to {topic} — offset={offset}, ts={ts_unix_ms}{}",
+                    DeliveryStatus::DeliveredUnconfirmed.human_suffix()
+                );
             }
         }
         PostOutcome::Queued { queue_id } => {
@@ -1335,13 +1391,16 @@ async fn run_await_ack(
                 println!(
                     "{}",
                     serde_json::to_string_pretty(&json!({
-                        "acked": {"offset": offset, "attempts": attempts, "recipient": recipient}
+                        "acked": {"offset": offset, "attempts": attempts, "recipient": recipient},
+                        "status": DeliveryStatus::Consumed.as_str(),
+                        "confirmed": DeliveryStatus::Consumed.confirmed()
                     }))?
                 );
             } else {
                 println!(
-                    "Posted to {} — offset={offset}, acked by {recipient} (attempts={attempts})",
-                    pending.topic
+                    "Posted to {} — offset={offset}, acked by {recipient} (attempts={attempts}){}",
+                    pending.topic,
+                    DeliveryStatus::Consumed.human_suffix()
                 );
             }
             Ok(())
@@ -1355,7 +1414,9 @@ async fn run_await_ack(
                 println!(
                     "{}",
                     serde_json::to_string_pretty(&json!({
-                        "exhausted": {"offset": offset, "attempts": attempts, "recipient": recipient}
+                        "exhausted": {"offset": offset, "attempts": attempts, "recipient": recipient},
+                        "status": DeliveryStatus::DeliveredUnconfirmed.as_str(),
+                        "confirmed": DeliveryStatus::DeliveredUnconfirmed.confirmed()
                     }))?
                 );
             }
@@ -14841,6 +14902,61 @@ mod tests {
             json!({"offset": 5, "msg_type": "receipt"}),
         ];
         assert_eq!(latest_content_offset(&msgs), Some(4));
+    }
+
+    // ---- T-2838 item 4: `post` reports what it knows, not what it hopes ----
+
+    #[test]
+    fn delivery_status_separates_hub_accepted_from_consumed() {
+        // The whole contract in one assertion: appending bytes to the log is
+        // NOT consumption, and the type refuses to let the two share a word.
+        assert!(!DeliveryStatus::DeliveredUnconfirmed.confirmed());
+        assert!(DeliveryStatus::Consumed.confirmed());
+        assert_ne!(
+            DeliveryStatus::DeliveredUnconfirmed.as_str(),
+            DeliveryStatus::Consumed.as_str()
+        );
+    }
+
+    #[test]
+    fn delivery_status_tokens_are_the_contract_vocabulary() {
+        // These strings are consumed by scripts and by the T-2838 report; they
+        // are interface, not prose. Pinned so a rename is a deliberate act.
+        assert_eq!(
+            DeliveryStatus::DeliveredUnconfirmed.as_str(),
+            "delivered-unconfirmed"
+        );
+        assert_eq!(DeliveryStatus::Consumed.as_str(), "consumed");
+        // The human suffix must APPEND, never replace: two scripts grep the
+        // line prefix "Posted to <topic>".
+        assert!(DeliveryStatus::DeliveredUnconfirmed
+            .human_suffix()
+            .starts_with(' '));
+        assert!(DeliveryStatus::Consumed.human_suffix().starts_with(' '));
+    }
+
+    #[test]
+    fn post_json_keeps_delivered_offset_for_existing_parsers() {
+        // Regression guard for the 13 call sites that read `.delivered.offset`
+        // (agent-send.sh:502, orchestrator-backlog-drain.sh:264, the substrate
+        // demos, test-listener-heartbeat.sh, ...). Mirrors the exact json! the
+        // bare-post success arm emits. If someone flattens this shape, jq
+        // returns empty and every one of those callers degrades SILENTLY —
+        // which is the bug class this task removes, so it fails loudly here.
+        let offset: u64 = 7;
+        let ts_unix_ms: i64 = 1_700_000_000_000;
+        let emitted = json!({
+            "delivered": {"offset": offset, "ts": ts_unix_ms},
+            "status": DeliveryStatus::DeliveredUnconfirmed.as_str(),
+            "confirmed": DeliveryStatus::DeliveredUnconfirmed.confirmed()
+        });
+
+        // The legacy contract, unchanged.
+        assert_eq!(emitted["delivered"]["offset"].as_u64(), Some(7));
+        assert_eq!(emitted["delivered"]["ts"].as_i64(), Some(ts_unix_ms));
+        // The honest addition, alongside it.
+        assert_eq!(emitted["status"].as_str(), Some("delivered-unconfirmed"));
+        assert_eq!(emitted["confirmed"].as_bool(), Some(false));
     }
 
     #[test]
