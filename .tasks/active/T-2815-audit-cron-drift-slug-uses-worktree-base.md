@@ -177,3 +177,66 @@ is itself the clearest evidence of the defect's severity.
 
 ### 2026-08-22T10:20:17Z — status-update [task-update-agent]
 - **Change:** owner: claude-code → human
+
+## 2026-08-25 — duplicate-execution evidence (agent, T-2838 arc)
+
+Found while triaging the `/approvals` queue by consequence. The open Human AC asks whether to
+remove the "stray" entry. It is **not stray, and it is worse than stray** — it is a strict
+duplicate that is double-executing live automation belonging to another project.
+
+**Recommendation:** remove `/etc/cron.d/agentic-audit-agent-a1edeca4dc54e9ac7`, after
+confirming with the 002-Claude-Partner-Network owner. Evidence below. This is a host mutation
+on another project's automation, so it is an operator action, not an agent one — no agent
+touched it.
+
+### Measured, not inferred
+
+| file | job lines | distinct programs | `cd` target |
+|---|---|---|---|
+| `agentic-audit-002-claude-partner-network` (A) | 47 | 48 | `/opt/002-Claude-Partner-Network` |
+| `agentic-audit-agent-a1edeca4dc54e9ac7` (B) | 35 | 36 | `.../.claude/worktrees/agent-a1edeca4dc54e9ac7` |
+
+`comm -13 A B` — programs present only in B — is **empty**. B is a strict subset of A.
+
+Both files invoke the **same absolute binaries** (`/opt/002-Claude-Partner-Network/bin/...`);
+only the `cd` prefix differs. So these are not two variants running against two trees — they
+are the same program, twice per tick.
+
+### Blast radius
+
+36 programs run twice. Four of them run twice **every minute**:
+
+- `cohort_chat_arc_poll.sh`
+- `cohort_onboarding_ticker.py`
+- `cohort_pen_inbound_poll.sh`
+- `n8n_approval_watcher.py` — fires approval `resume_url`s
+
+and `send_cohort_report_daily.py` runs twice daily, sending a report to a named human.
+
+An approval webhook and an outbound human-facing email are both in the duplicated set. This is
+not merely wasted CPU.
+
+### One deliberate exception
+
+B's `fw audit` line carries `PROJECT_ROOT=".../worktrees/agent-a1edeca4dc54e9ac7"`, so that
+single entry genuinely audits the worktree rather than the project root and is arguably
+intentional. If the worktree audit is wanted, it should be re-registered under a project-scoped
+slug rather than kept as a whole second crontab.
+
+### Why this is T-2815 and not a new task
+
+The filename slug is derived from the **worktree basename** (`agent-a1edeca4dc54e9ac7`) instead
+of the project, which is exactly the drift this task was opened for. The duplicate exists
+because a worktree-rooted install did not recognise it was the same project as the existing
+project-rooted install. Same root cause as the T-2690 worktree-basename class.
+
+### Ground truth for the state above
+
+```
+ls /etc/cron.d/agentic-audit-002-claude-partner-network /etc/cron.d/agentic-audit-agent-a1edeca4dc54e9ac7
+test -d /opt/002-Claude-Partner-Network/.claude/worktrees/agent-a1edeca4dc54e9ac7   # exists: YES
+test -d /opt/002-Claude-Partner-Network                                             # exists: YES
+```
+
+Both the worktree and the parent repo exist, so B is live and firing — not an orphan left by a
+deleted worktree.
