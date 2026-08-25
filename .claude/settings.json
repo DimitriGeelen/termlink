@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/termlink/.agentic-framework/bin/fw hook pre-compact"
+            "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook pre-compact"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/termlink/.agentic-framework/bin/fw hook post-compact-resume"
+            "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook post-compact-resume"
           }
         ]
       },
@@ -26,7 +26,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/termlink/.agentic-framework/bin/fw hook post-compact-resume"
+            "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook post-compact-resume"
+          }
+        ]
+      },
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook post-compact-resume"
           }
         ]
       }
@@ -37,7 +46,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/termlink/.agentic-framework/bin/fw hook block-plan-mode"
+            "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook block-plan-mode"
           }
         ]
       },
@@ -46,7 +55,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/termlink/.agentic-framework/bin/fw hook check-active-task"
+            "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook check-active-task"
           }
         ]
       },
@@ -55,7 +64,31 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/termlink/.agentic-framework/bin/fw hook check-human-ac-tick"
+            "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook check-human-ac-tick"
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook check-active-completed-dup"
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook check-arc-id"
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook check-heredoc-cmd-sub"
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook check-inception-decisions"
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook check-inception-schema"
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook check-onboarding-gate"
           }
         ]
       },
@@ -64,7 +97,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/termlink/.agentic-framework/bin/fw hook check-tier0"
+            "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook check-tier0"
           }
         ]
       },
@@ -73,7 +106,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/termlink/.agentic-framework/bin/fw hook check-agent-dispatch"
+            "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook check-agent-dispatch"
           }
         ]
       },
@@ -82,7 +115,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/termlink/.agentic-framework/bin/fw hook check-project-boundary"
+            "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook check-project-boundary"
           }
         ]
       },
@@ -91,7 +124,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/termlink/.agentic-framework/bin/fw hook budget-gate"
+            "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook budget-gate"
           }
         ]
       },
@@ -100,7 +133,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/termlink/.agentic-framework/bin/fw hook block-task-tools"
+            "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook block-task-tools"
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__termlink__termlink_channel_post",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook check-rail-mcp-label"
           }
         ]
       }
@@ -111,7 +153,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/termlink/.agentic-framework/bin/fw hook checkpoint post-tool"
+            "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook checkpoint post-tool"
           }
         ]
       },
@@ -120,7 +162,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/termlink/.agentic-framework/bin/fw hook error-watchdog"
+            "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook error-watchdog"
           }
         ]
       },
@@ -129,7 +171,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/termlink/.agentic-framework/bin/fw hook check-dispatch"
+            "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook check-dispatch"
           }
         ]
       },
@@ -138,7 +180,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/termlink/.agentic-framework/bin/fw hook loop-detect"
+            "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook loop-detect"
           }
         ]
       },
@@ -147,7 +189,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/termlink/.agentic-framework/bin/fw hook check-fabric-new-file"
+            "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook check-fabric-new-file"
           }
         ]
       },
@@ -156,7 +198,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/termlink/.agentic-framework/bin/fw hook commit-cadence"
+            "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook commit-cadence"
+          },
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook check-settings-edit"
           }
         ]
       },
@@ -165,7 +211,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/opt/termlink/.agentic-framework/bin/fw hook audit-task-tools"
+            "command": "${CLAUDE_PROJECT_DIR}/.agentic-framework/bin/fw hook audit-task-tools"
           }
         ]
       }

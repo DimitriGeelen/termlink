@@ -11,6 +11,10 @@
     "termlink": {
       "command": "termlink",
       "args": ["mcp", "serve"]
+    },
+    "fw": {
+      "command": "python3",
+      "args": [".agentic-framework/agents/mcp/framework_mcp_server.py"]
     }
   }
 }
