@@ -1,188 +1,172 @@
-# Framework-agent prompt — fix CLAUDE.md governance-section clobber on `fw upgrade` (PL-124 / G-055)
+# Framework-agent prompt — `fw upgrade` destroys consumer work on four surfaces (PL-124 / G-055)
 
 **Operator: copy everything inside the fenced block below into a fresh
 `/opt/999-AEF` session. The prompt is self-contained.**
 
+> **Revision history.** First written 2026-06-06 against a single observation:
+> "today's run lost 18 lines of CLAUDE.md". That framing was wrong by two orders
+> of magnitude and named the wrong surface as the only one. Rewritten 2026-08-25
+> after two controlled runs on a clean tree. The CLAUDE.md half now has a fix
+> that is **proven by re-running the operation that caused the loss**; the other
+> three surfaces do not, and that is the actual ask below.
+
 ---
 
 ```
-PL-124 / G-055 — `fw upgrade` step 1 ("CLAUDE.md governance sections")
-silently destroys project-specific operating guidance every run. PL-124
-was registered against T-1447; PL-022 (T-1069) documents the broader
-clobber pattern. G-055 codifies the gap. Today's run on /opt/termlink
-lost 18 lines including the entire conversation-arc skill table (10
-operator-facing slash commands). Operator restored via `cp CLAUDE.md.bak
-CLAUDE.md`. The framework knew it was destructive (printed a warning
-listing the lost lines) but did not block. Please prioritize.
+PL-124 / G-055 — `fw upgrade` silently deletes shipped consumer work.
 
-This is a sibling to T-2099 in the bare-from-consumer cluster — same
-root pathology ("framework overrides project intent during handoff/
-refresh"), different code path.
+CLAUDE.md is the surface this was originally filed against and it is the
+SMALLEST one. Measured by git, twice, on a clean tree, on /opt/termlink:
 
-## Symptom
+    .claude/commands/     497 deletions across 6 files
+    scripts/             1561 deletions across 9 files
+    .agentic-framework/   676 files modified (a full re-vendor)
+    CLAUDE.md              40 lines
 
-Running `fw upgrade` (or `--force-downgrade`, etc.) executes step 1 of 10:
+Both runs produced IDENTICAL counts on the same files, so this is
+deterministic, not a race or a one-off bad state.
 
-    [1/10] CLAUDE.md governance sections
-      UPDATED  Governance sections refreshed from framework template. Backup: CLAUDE.md.bak
-      !  N line(s) in CLAUDE.md.bak are absent from the new CLAUDE.md.
-          These may be project-specific inline customizations the template
-          merge cannot preserve. First lines:
-            <... actual project-specific lines ...>
-          Review and re-apply if needed, then remove CLAUDE.md.bak to clear.
-          Background: G-055 / PL-124
+## What the deletions contained
 
-The framework correctly identifies it lost N project-specific lines but
-takes no action — no block, no auto-restore, no opt-out flag. The agent/
-operator must remember to manually restore from `.bak`, OR the lines
-are lost permanently on the next commit.
+Not stale scratch. Deliverables of tasks marked work-completed:
 
-## Reproducer (file:// upstream — no network)
+  * check-arc.md lost the ENTIRE T-2402 Stage 6 wake protocol — drain all
+    unread topics, post a receipt per topic, reply-or-explicitly-decline,
+    the hop-budget relay-loop circuit breaker, ack on the exact rail that
+    rang you. T-2402's own AC cited that text as its evidence. `fw upgrade`
+    deleted the deliverable and left the task closed and the AC ticked.
 
-    cd /tmp && rm -rf t-2015-{upstream,consumer}
-    git clone --depth=1 /opt/999-AEF /tmp/t-2015-upstream
-    mkdir /tmp/t-2015-consumer && cd /tmp/t-2015-consumer
-    /opt/999-AEF/bin/fw init . --provider generic
-    /opt/999-AEF/bin/fw vendor .
-    cat >> .framework.yaml <<EOF
-    upstream_repo: file:///tmp/t-2015-upstream
-    EOF
-    # Add a project-specific line outside any framework-managed block:
-    cat >> CLAUDE.md <<EOF
+  * agent-handoff.md lost T-2295's delivery-confirming path (the
+    confirm-by-default vs fire-and-forget distinction).
+  * peers.md lost T-2091's --filter-capability / --with-capabilities.
+  * be-reachable.md lost the --capabilities advertisement.
+  * pulse.md lost per-hub failure-data handling ("surface it inline,
+    never silently swallow").
 
-    ## Project-Specific Override
-    TEST_MARKER_PROJECT_LINE_PRESERVED — must survive fw upgrade
-    EOF
-    git -c user.email=t@t -c user.name=t add -A && \
-        git -c user.email=t@t -c user.name=t commit -q -m "seed"
+Every one is a shipped feature whose only user-facing documentation is the
+skill file that was deleted.
 
-    # Run upgrade:
-    .agentic-framework/bin/fw upgrade 2>&1 | head -30
+## Why nobody notices
 
-    # Verify:
-    grep -q "TEST_MARKER_PROJECT_LINE_PRESERVED" CLAUDE.md && echo "PASS: preserved" || echo "FAIL: clobbered"
+The CLAUDE.md step at least prints "N line(s) ... are absent from the new
+CLAUDE.md" and names a few. The skill and script sync print only:
 
-Expected (after fix): "PASS: preserved".
-Observed (current bug): "FAIL: clobbered" + warning message listing the
-lost lines from `.bak`.
+    UPDATED  scripts/agent-send.sh (backup: .bak)
 
-Cleanup: `rm -rf /tmp/t-2015-{upstream,consumer}`.
+...and move on. No diff, no count, no warning. The operator sees a green
+UPDATED line while 466 lines of their own work are removed from that one
+file.
 
-## Root cause shape
+The recovery window is ONE upgrade wide. `.bak` is the only witness for
+anything uncommitted, and the next upgrade overwrites `.bak`. Two upgrades
+and the original is gone.
 
-`lib/upgrade.sh` step 1 ("CLAUDE.md governance sections") replaces the
-whole CLAUDE.md governance-section text with the framework's template
-content. The implementation is whole-section overwrite, not block-aware
-merge. The framework template has no `<!-- fw-upgrade:section-start -->`
-/ `<!-- fw-upgrade:section-end -->` markers; consumer CLAUDE.md files
-have no opt-out flag per section. So the only way to retain project-
-specific governance is to never let `fw upgrade` run that step — which
-conflicts with the framework's goal of getting consumers onto the
-latest governance rules.
+## REQUEST 1 — make the skill/script sync warn like the CLAUDE.md step does
 
-The framework KNOWS this is happening (it emits the warning) but
-chooses to proceed rather than block.
+Diff before replacing. Print the deletion count and the first few removed
+lines, exactly as step 1 already does for CLAUDE.md. This is the single
+highest-value change and it is small: the comparison already happens, it
+is just not reported.
 
-## Recommended fix shape
+## REQUEST 2 — give the skills a safe zone, or stop shipping over them
 
-### Primary — sentinel markers (RECOMMENDED)
+CLAUDE.md survives because lib/upgrade.sh:1139-1206 splits it positionally:
 
-Wrap framework-managed content in CLAUDE.md template with HTML-comment
-sentinels:
+    project_header = everything BEFORE "## Core Principle"   -> PRESERVED
+    governance     = template from "## Core Principle" on    -> REPLACED
 
-    <!-- fw-upgrade:governance-start -->
-    [framework-managed governance text]
-    <!-- fw-upgrade:governance-end -->
+That split is why a fix was possible downstream at all. The skills have no
+equivalent: whole-file replace, no header/governance boundary. A consumer
+carrying project-specific skill content has NO protection except git.
 
-`lib/upgrade.sh` step 1 only rewrites text BETWEEN the markers. Project-
-specific lines OUTSIDE the marker block are preserved automatically.
+We fixed our CLAUDE.md side by relocating the at-risk content above the
+split, and PROVED it by re-running the upgrade:
 
-Operators who want to extend the governance section can:
-- Add lines AFTER `<!-- fw-upgrade:governance-end -->` (preserved across upgrade)
-- Add lines AFTER `<!-- fw-upgrade:authority-end -->` (or whichever sub-block)
+    before fix: 40 lines lost
+    after fix :  5 lines lost, all 5 verified still present above the split
 
-Lines they DO want auto-managed go INSIDE the markers (rare).
+Landed at dd6f2caea. Any consumer can copy that. Nobody can copy it for
+skills, because there is no line to move things above.
 
-This is a non-breaking change for consumers that have never customized
-CLAUDE.md — their content sits inside the markers and continues to be
-auto-refreshed. Consumers that have customized just need a one-time
-migration: move their custom lines outside the markers (or add the
-markers around the framework block manually).
+## REQUEST 3 — a task's deliverable can be un-delivered while its ACs stay ticked
 
-### Secondary — per-section opt-out
+T-2402 is the demonstration. Its deliverable was vendored-template text;
+a routine maintenance command deleted it; the task record still says
+work-completed with the AC checked; no surface anywhere reports the
+difference. This is the same class as the verification-gate work: the
+record says done and the artefact is gone.
 
-`.framework.yaml` declares which step-1 sub-blocks are managed:
+Worth a check that closed tasks whose evidence is a file path still have
+that evidence present.
 
-    governance_sections:
-      authority_model:     managed   # default
-      task_system:         managed
-      enforcement_tiers:   managed
-      project_specific:    custom    # opt-out — never touched by step 1
+## REQUEST 4 — `--check` should say what it is about to overwrite
 
-Step 1 only refreshes blocks marked `managed`. Operators with deep
-customization opt their relevant blocks out wholesale.
+List the vendored files that differ from upstream and are about to be
+replaced, so a consumer can see the loss BEFORE applying rather than
+reconstructing it from a divergence register afterwards.
 
-### Tertiary — block unless `--accept-clobber`
+## AND A CORRECTION TO SOMETHING WE FILED EARLIER — PLEASE DO NOT BUILD IT
 
-Make the warning a refusal. Today's print becomes:
+We previously reported (framework:pickup offset 42) that `fw update --check`
+"offers a 116-version downgrade and calls it an update" (v1.6.145 ->
+v1.6.29), and asked you to refuse a lower target without --force-downgrade.
 
-    REFUSED  Step 1 would lose N line(s) of project-specific content.
-             To proceed anyway: re-run with --accept-clobber.
+THAT REQUEST WAS WRONG AND WOULD BE HARMFUL. Retracted at offset 44.
 
-This is the cheapest fix but moves the problem from "silently
-destructive" to "noisy but still destructive when bypassed".
+v1.6.29 is NEWER than v1.6.145. Decided by content, since string order
+cannot decide: the 1.6.29 tree contains T-3110..T-3129, tasks absent from
+the 1.6.145 tree entirely and in flight in 999-AEF at the time of writing.
+Had the guard been built, every consumer would have been refused the
+current framework until they passed --force-downgrade to move FORWARD.
 
-### Regression test
+VERSION is a resetting counter. Our own divergence register records
+1.6.260 -> 1.6.160 -> 1.6.7 -> 1.6.295 -> 1.6.145 across five vendor
+events, and `fw --version` on a vendored copy says it outright: "Commit:
+(none — vendored copy; VERSION file is the only identity)".
 
-Add to `tests/e2e/upgrade-test.sh`:
+If you want an ordering guarantee, ship a monotonic vendor-time field —
+commit date or an incrementing vendor serial — and compare that. Until
+then "Update available" is the honest string precisely because the tool
+cannot know the direction. Request 4 above is the decision-useful output.
 
-- Seed a consumer with a marker line outside any framework block
-- Run `fw upgrade`
-- Assert the marker line still exists in CLAUDE.md
-- Assert .bak is created (so manual restore is still possible)
+## Second correction, same class
 
-The test should be PURE file:// (no network).
+We also reported that a re-vendor "deleted three of our four recorded
+divergences". At least one of those was not deleted, it was SUPERSEDED:
+our inline _resolve_hook_path went to zero occurrences because upstream
+replaced it with lib/hook_paths.py + lib/hook_portability.py (T-2468
+generalizing T-2465/OBS-080, updated by T-2709), which re-derive the
+project root from the per-call stdin cwd and are immune to the T-2446
+daemon-poison class ours was not. Strictly better. Post-upgrade doctor
+gained "27 hooks, all portable" and "23 hook(s) resolve from foreign CWD"
+— the second being the exact worktree symptom our local patch existed for,
+now covered upstream by a test.
 
-### Doc
-
-Add a comment at the step 1 site in `lib/upgrade.sh` stating the
-invariant: "Project-specific content outside the sentinel markers MUST
-survive an upgrade. Inside-marker content may be regenerated. Operators
-who want to extend governance text put it outside the markers."
-
-## Acceptance — when is this done?
-
-1. The reproducer above runs to completion and prints "PASS: preserved".
-2. `tests/e2e/upgrade-test.sh` includes the marker-preservation
-   regression and it passes.
-3. PL-124 is updated to point at the fix commit. G-055 is closed.
-4. Optional but recommended: existing template CLAUDE.md is migrated
-   to use markers, with a short upgrade-guide section for operators.
-
-## Consumer-side state (FYI for context)
-
-- /opt/termlink T-2015 captures this RCA and the prompt artifact.
-- /opt/termlink CLAUDE.md was restored from .bak after today's clobber.
-- T-1447 / T-1069 / T-1063 (PL-018 / PL-022 / PL-123 / PL-124) are
-  prior-art on the broader "fw upgrade clobbers project state" pattern.
-- T-2014 / T-2099 are the sibling fork-bomb arc — same family of bug
-  (bare-from-consumer handoff doesn't preserve parent intent).
-
-## Out of scope for this fix
-
-- The fork-bomb fix (T-2099 — already shipped).
-- The `--force-downgrade` flag drop during bare-from-consumer replay
-  (separate TermLink T-2016 dispatch — same handoff code area).
-- Any GitHub mirror behavior (G-058 unrelated).
-- Watchtower UI changes (not impacted).
+Flagging it because the same reasoning error produced both wrong reports:
+a marker going to zero has two causes that look identical to grep —
+deleted, or superseded — and only reading the replacement separates them.
 ```
 
 ---
 
-## Notes for the operator
+## Operator notes (NOT part of the prompt above)
 
-- Paste **only** the fenced block above into the framework-agent session at `/opt/999-AEF`.
-- The reproducer uses `file://` upstream — runs on any host without GitHub traffic.
-- If `tests/e2e/upgrade-test.sh` already covers something similar, point the agent at the existing structure to amend rather than duplicate.
-- Sibling dispatch in this session: T-2016 (CLAUDE.md/framework-agent prompt for the `--force-downgrade` drop bug). They share the bare-from-consumer code area but address different observable symptoms.
-- When the fix lands and mirrors to GitHub, the next `fw upgrade` should leave project-specific lines untouched. At that point T-2015 closes via the verification block and PL-124 is updated.
+**What is already fixed downstream and needs nothing from upstream:**
+
+| surface | status | evidence |
+|---|---|---|
+| CLAUDE.md | **fixed here** | `dd6f2caea` — relocation above `## Core Principle`; re-run gave 40 → 0 changed |
+| `.gitignore` allowlist | **fixed here** | `0bd97f38a` — `tools/`, `vendor/`, `status-transitions.yaml` re-included |
+| `.claude/commands/` | **not fixed** | git-tracked, so restorable; no upstream protection |
+| `scripts/` | **not fixed** | git-tracked, so restorable; no upstream protection |
+
+**The one-command check any consumer can run before their next upgrade:**
+
+```
+for d in .agentic-framework/*/; do f=$(find "$d" -type f ! -name '*.pyc' | head -1); [ -n "$f" ] && git check-ignore -q "$f" && echo "DROPPED: $d"; done
+```
+
+If anything prints, git is silently discarding framework code that `bin/fw` executes.
+
+**Before every upgrade from here on:** snapshot, upgrade, snapshot, diff. One clean
+run proves nothing about the next — our first run did not re-vendor and our second did.
