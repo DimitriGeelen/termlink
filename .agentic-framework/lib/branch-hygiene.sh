@@ -11,13 +11,18 @@
 #
 # Finding classes (one token-prefixed line each):
 #   merged-undeleted <branch>                    local branch tip contained in TARGET
-#   behind-threshold <branch> behind=<n> (threshold <t>)
+#   behind-threshold <branch> behind=<n> days=<d> (threshold <t>)
 #                                                live (unmerged) branch more than
 #                                                FW_BRANCH_BEHIND_WARN (default 50)
-#                                                commits behind TARGET, and NOT
-#                                                ahead (pure lag — land with
-#                                                `fw integrate run`)
-#   diverged-fork <branch> ahead=<a> behind=<b> (threshold <t>)
+#                                                commits behind TARGET, NOT ahead
+#                                                (pure lag — land with `fw integrate
+#                                                run`), AND untouched for at least
+#                                                FW_BRANCH_STALE_DAYS days (T-3094).
+#                                                Both conditions are required: the
+#                                                behind-count alone crosses 50 in
+#                                                ~1.2 days on a busy repo and fires
+#                                                on every healthy branch.
+#   diverged-fork <branch> ahead=<a> behind=<b> days=<d> (threshold <t>)
 #                                                live branch ahead of TARGET by MORE
 #                                                than the threshold AND behind by more
 #                                                than the threshold — a genuine
@@ -28,8 +33,26 @@
 #                                                behind-threshold: it lands cleanly.)
 #   worktree-merged <path> branch=<branch>       linked worktree parked on an
 #                                                already-merged branch
+#   worktree-unlanded <path> branch=<branch> ahead=<n> days=<d>
+#                                                linked worktree whose branch
+#                                                carries <n> commits NOT reachable
+#                                                from TARGET, last touched <d> days
+#                                                ago. The strand class: a worktree
+#                                                that still holds work nobody has
+#                                                landed. Judged against the same
+#                                                TARGET as every other class, so a
+#                                                worktree is never both merged and
+#                                                unlanded (T-3101).
 #   remote-contained origin/<branch>             remote ref fully contained in
 #                                                TARGET (ahead:0 — deletable)
+#   remote-unlanded origin/<branch> ahead=<n>    remote ref carrying <n> commits
+#                                                that are NOT in TARGET. Judged
+#                                                independently of any local branch
+#                                                of the same name — the two can be
+#                                                in opposite states (T-3092).
+#                                                Excludes the current branch's own
+#                                                upstream: that is where you are
+#                                                standing, not a strand.
 #
 # Origin: T-100139 inception measured 29 merged-but-undeleted branches and live
 # strands 215-248 commits behind master, all invisible. C1 (T-100142) deletes
@@ -41,9 +64,25 @@
 # made a go-live `git merge origin/master` explode into 100+ conflicts. The
 # `diverged-fork` class separates the two so the WARN can name the right remedy.
 
+# T-3094 (T-3093 slice 1): days since the last commit ON a ref, or "" if unknown.
+# Staleness has to be measured on the branch, not on the target. The behind-count
+# answers "how much happened elsewhere", which on this repo is ~41 commits/day and
+# 88% governance churn — it crosses a 50-commit threshold in ~1.2 days and fires on
+# every healthy branch. "Nobody has touched this in N days" is the question that
+# actually separates a strand from work in progress. Same unit and default as
+# FW_STALE_ARC_DAYS (T-1855).
+_bh_days_since_commit() {
+    local repo="$1" ref="$2" last now
+    last=$(git -C "$repo" log -1 --format=%ct "$ref" 2>/dev/null) || return 0
+    [ -z "$last" ] && return 0
+    now=$(date +%s 2>/dev/null) || return 0
+    echo $(( (now - last) / 86400 ))
+}
+
 fw_branch_hygiene() {
     local repo="${1:-.}"
     local behind_warn="${FW_BRANCH_BEHIND_WARN:-50}"
+    local stale_days="${FW_BRANCH_STALE_DAYS:-30}"
 
     local target
     if git -C "$repo" rev-parse --verify -q origin/master >/dev/null 2>&1; then
@@ -64,6 +103,16 @@ fw_branch_hygiene() {
         else
             behind=$(git -C "$repo" rev-list --count "refs/heads/$br..$target" 2>/dev/null || echo 0)
             ahead=$(git -C "$repo" rev-list --count "$target..refs/heads/$br" 2>/dev/null || echo 0)
+            # T-3094: a branch someone is actively working on is not a strand,
+            # however far behind it has fallen. Recency gates BOTH staleness
+            # classes; an unknown date (shallow clone, broken ref) is treated as
+            # stale so the rail fails loud rather than silent.
+            local _days
+            _days=$(_bh_days_since_commit "$repo" "refs/heads/$br")
+            if [ -n "$_days" ] && [ "$_days" -lt "$stale_days" ]; then
+                continue
+            fi
+            local _dtag="days=${_days:-unknown}"
             if [ "${behind:-0}" -gt "$behind_warn" ] && [ "${ahead:-0}" -gt "$behind_warn" ]; then
                 # Bidirectional fork (T-100195): BOTH directions past threshold.
                 # An unmerged branch behind master always has >=1 unique commit
@@ -73,17 +122,38 @@ fw_branch_hygiene() {
                 # ALSO substantially ahead: a `git merge` conflicts and even a
                 # one-way `fw integrate` cannot absorb what master has. Distinct
                 # finding so the WARN names the reconcile-while-small remedy.
-                echo "diverged-fork $br ahead=$ahead behind=$behind (threshold $behind_warn)"
+                echo "diverged-fork $br ahead=$ahead behind=$behind $_dtag (threshold $behind_warn)"
             elif [ "${behind:-0}" -gt "$behind_warn" ]; then
                 # Pure lag (small ahead): landable with a one-way `fw integrate`.
-                echo "behind-threshold $br behind=$behind (threshold $behind_warn)"
+                echo "behind-threshold $br behind=$behind $_dtag (threshold $behind_warn)"
             fi
         fi
     done < <(git -C "$repo" for-each-ref --format='%(refname:short)' refs/heads/)
 
-    # ── linked worktrees parked on merged branches ──
+    # ── linked worktrees: parked on a merged branch, or holding unlanded work ──
     # First porcelain block is the main worktree — skip it; the branch findings
     # above already cover MAIN's checkout.
+    #
+    # T-3101 (slice 2 of T-2822 F5). This loop asked one question — "is this
+    # worktree parked on something already landed?" — and said nothing about the
+    # opposite, far more expensive, state: a worktree holding work that is NOT on
+    # master. Two linked worktrees in this repo held 43 unlanded commits (6 + 37)
+    # dormant from 2026-07-01 and no surface reported a count or an age for five
+    # weeks. `worktree-merged` is the deletable case; `worktree-unlanded` is the
+    # lossy one.
+    #
+    # PRECEDENCE: merged wins, and is tested first. This is not a tie-break — the
+    # two classes are mutually exclusive by construction. A branch that is an
+    # ancestor of TARGET has, by definition, zero commits in `TARGET..branch`, so
+    # the `ahead > 0` guard can never fire for a merged branch. The if/else plus
+    # the guard is belt-and-braces: if a future edit loosens the ancestor test
+    # (e.g. to content-equality, the way `fw worktree gc` compares), the ordering
+    # still keeps a single verdict per worktree. Never emit both for one path —
+    # "delete this" and "you will lose 37 commits" are opposite instructions.
+    #
+    # An empty rev-list result is a sentinel, not a zero: a failed count must stay
+    # silent rather than manufacture a strand out of an error (same reasoning as
+    # the remote loop below).
     local first_wt=1 wt_path="" wtb=""
     while IFS= read -r line; do
         case "$line" in
@@ -92,25 +162,92 @@ fw_branch_hygiene() {
                 wtb="${line#branch refs/heads/}"
                 if [ "$first_wt" = "1" ]; then
                     first_wt=0
-                elif [ "$wtb" != "master" ] && \
-                     git -C "$repo" merge-base --is-ancestor "refs/heads/$wtb" "$target" 2>/dev/null; then
-                    echo "worktree-merged $wt_path branch=$wtb"
+                elif [ "$wtb" != "master" ]; then
+                    if git -C "$repo" merge-base --is-ancestor "refs/heads/$wtb" "$target" 2>/dev/null; then
+                        echo "worktree-merged $wt_path branch=$wtb"
+                    else
+                        local _wt_ahead _wt_days
+                        _wt_ahead=$(git -C "$repo" rev-list --count "$target..refs/heads/$wtb" 2>/dev/null || echo "")
+                        if [ -n "$_wt_ahead" ] && [ "$_wt_ahead" -gt 0 ]; then
+                            # Age is measured on the branch's own last commit, the
+                            # same question `_bh_days_since_commit` answers for the
+                            # local-branch classes (T-3094). No recency gate here:
+                            # unlanded work is a strand on day 0 as much as on day
+                            # 50 — the count is the risk, the age is the context.
+                            _wt_days=$(_bh_days_since_commit "$repo" "refs/heads/$wtb")
+                            echo "worktree-unlanded $wt_path branch=$wtb ahead=$_wt_ahead days=${_wt_days:-unknown}"
+                        fi
+                    fi
                 fi
                 ;;
         esac
     done < <(git -C "$repo" worktree list --porcelain 2>/dev/null)
 
-    # ── remote refs fully contained in TARGET (ahead:0) ──
+    # ── remote refs: contained (deletable) vs carrying unlanded commits ──
+    #
+    # T-3092. This loop originally asked one question — "which remote refs can I
+    # delete?" — and emitted nothing for the complement. A remote ref carrying
+    # UNLANDED commits matched no arm: not reported as risky, not reported at all.
+    #
+    # The live miss that produced this fix: origin/t2416-fw-safe-mode-hook-timing
+    # held 202 unlanded commits — two test files, five research artefacts and six
+    # unread .pickup/ messages that existed nowhere else — and was invisible here,
+    # while its LOCAL namesake (an ancestor of origin/master) was reported
+    # `merged-undeleted`. Same name, opposite states. An operator reading the scan
+    # concluded t2416 was landed and deletable. Local and remote are judged
+    # independently on purpose: neither verdict may suppress the other.
+    #
+    # The current branch's own upstream is excluded. It is not a strand — it is
+    # where you are standing, fw_branch_divergence below reports it in detail, and
+    # a permanent WARN for your own working branch is exactly the noise that
+    # trains people to stop reading this section.
+    local remote_ahead upstream=""
+    upstream=$(git -C "$repo" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || echo "")
     while IFS= read -r br; do
         [ -z "$br" ] && continue
         case "$br" in origin/master|origin/HEAD*) continue ;; esac
-        ahead=$(git -C "$repo" rev-list --count "$target..refs/remotes/$br" 2>/dev/null || echo 1)
-        if [ "${ahead:-1}" = "0" ]; then
+        [ -n "$upstream" ] && [ "$br" = "$upstream" ] && continue
+        # An empty sentinel, not the old `|| echo 1`. That fallback was harmless
+        # while ahead!=0 was the silent case; now that it emits, a failed rev-list
+        # would manufacture a finding out of an error. Stay silent instead.
+        remote_ahead=$(git -C "$repo" rev-list --count "$target..refs/remotes/$br" 2>/dev/null || echo "")
+        [ -z "$remote_ahead" ] && continue
+        if [ "$remote_ahead" = "0" ]; then
             echo "remote-contained $br"
+        else
+            echo "remote-unlanded $br ahead=$remote_ahead"
         fi
     done < <(git -C "$repo" for-each-ref --format='%(refname:short)' refs/remotes/origin/)
 
     return 0
+}
+
+# ── T-3092: class-representative truncation for callers with a display cap ──
+#
+# fw_doctor prints at most 12 findings. That cap was positional (`head -12`), and
+# the emission order is local branches → worktrees → remote refs, so on a repo
+# with 12+ local findings the remote classes were cut off ENTIRELY. On this repo
+# at the time of writing: 19 findings, and 0 of the 4 `remote-unlanded` lines
+# survived the cap. A finding class that is always truncated has not shipped.
+#
+# Reads findings on stdin, writes at most $1 of them to stdout: first one line
+# per distinct class (so every class that fired is visible), then the remainder
+# in original order until the cap. Fewer findings than the cap passes through
+# unchanged. Order within the output is not contractual; coverage is.
+fw_branch_hygiene_head() {
+    local cap="${1:-12}"
+    awk -v cap="$cap" '
+        { line[NR] = $0; cls[NR] = $1 }
+        END {
+            n = 0
+            for (i = 1; i <= NR; i++) {
+                if (!(cls[i] in seen) && n < cap) { seen[cls[i]] = 1; pick[i] = 1; n++ }
+            }
+            for (i = 1; i <= NR; i++) {
+                if (!pick[i] && n < cap) { pick[i] = 1; n++ }
+            }
+            for (i = 1; i <= NR; i++) if (pick[i]) print line[i]
+        }'
 }
 
 # ── T-100144 (C3 of T-100139): divergence summary for handover ──

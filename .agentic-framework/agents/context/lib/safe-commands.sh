@@ -114,6 +114,58 @@ _fw_single_command_is_safe() {
     cmd="${cmd#"${cmd%%[![:space:]]*}"}"
     cmd="${cmd%"${cmd##*[![:space:]]}"}"
 
+    # T-2988: strip shell grouping punctuation from the segment's edges.
+    #
+    # Both readers below take a token positionally — `awk '{print $1}'` for the
+    # base and `awk '{print $2}'` for the sub-verb — so a grouping character
+    # touching either token corrupts it. Measured, all previously blocked:
+    #
+    #     (fw doctor)      base `(fw`     no case arm matches
+    #     ( fw doctor )    base `(`       the paren IS the first word
+    #     (bin/fw doctor)  base `fw` ✓, sub-verb `doctor)` ✗
+    #
+    # The third is why this hid for so long: `s|.*/||` in the base extraction
+    # eats a leading `(` as a side effect whenever a path follows it, so the
+    # path-ful spellings agents use in this repo (`bin/fw …`) classify correctly
+    # more often than the bare `fw …` a consumer's shim produces. Correctness
+    # there was an accident of the path, not of the parser.
+    #
+    # Iterate: `( fw doctor )` needs paren, then whitespace, then paren.
+    #
+    # This cannot widen the allowlist. Punctuation contributes nothing to the
+    # safety verdict — write patterns are judged separately by
+    # has_bash_write_pattern against the ORIGINAL, unstripped command line in
+    # check-active-task.sh, so `(fw doctor > /tmp/x)` stays blocked on the
+    # redirect. Stripping only ever exposes the real command to the same case
+    # arms: `(rm -rf /tmp/x)` becomes `rm -rf /tmp/x`, which no arm matches.
+    #
+    # Same family as the env-prefix stripper immediately below (T-1908) and
+    # L-547 / T-2834 — three incidents now of a positional token reader meeting
+    # a prefix it was not taught about.
+    # Stripped with `case`, not `${cmd%[)};]}`: a `}` inside a bracket expression
+    # closes the parameter expansion early, so that form silently APPENDS `;]}`
+    # to cmd on every pass and the loop never converges. (Found by hanging this
+    # function for five minutes — the same class of defect as the one being
+    # fixed, one layer down: a pattern reader meeting punctuation nobody taught
+    # it about.) `case` arms need no such escaping, and cmd can only shrink here,
+    # so termination is structural rather than hoped for.
+    local _prev=""
+    while [ "$cmd" != "$_prev" ]; do
+        _prev="$cmd"
+        case "$cmd" in
+            '('*|'{'*) cmd="${cmd#?}" ;;
+        esac
+        case "$cmd" in
+            *')'|*'}'|*';') cmd="${cmd%?}" ;;
+        esac
+        cmd="${cmd#"${cmd%%[![:space:]]*}"}"
+        cmd="${cmd%"${cmd##*[![:space:]]}"}"
+    done
+
+    # A segment that was nothing but grouping punctuation (`}` from `{ cmd; }`)
+    # carries no command, so there is nothing in it to judge unsafe.
+    [ -z "$cmd" ] && return 0
+
     # T-1908: strip leading env-var prefixes (`KEY=val [KEY2=val2 ...] cmd args`).
     # Without this, the L-399 / T-1890 bypass-mechanism contract that promises
     # `FW_SWITCH_FOCUS=1 fw work-on T-XXX` works actually fails — the awk
@@ -123,6 +175,96 @@ _fw_single_command_is_safe() {
     # message recommended. Strip one prefix at a time until none remain.
     while [[ "$cmd" =~ ^[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]+[[:space:]]+(.*)$ ]]; do
         cmd="${BASH_REMATCH[1]}"
+    done
+
+    # T-3096: strip TRANSPARENT WRAPPERS and judge the command they wrap.
+    #
+    # `timeout 30 termlink agent inbox` extracts base `timeout`, matches no arm, and
+    # reads unsafe — so wrapping any allowed command in a timeout gated it. This is the
+    # THIRD recorded instance of one class: a positional token reader meeting a prefix
+    # nobody taught it about. The other two are named directly above (T-1908 env-var
+    # prefixes) and at :117 (T-2988 grouping punctuation). Adding `timeout` to the
+    # allowlist as if it were a command would have been the fourth patch of a symptom;
+    # a wrapper is not a command, it is a prefix, and prefixes belong in a stripper.
+    #
+    # This is strictly SAFER than an allowlist entry would have been, and it closes a
+    # pre-existing hole rather than opening one: `env` sat in Category 5 as
+    # unconditionally safe, so `env ./anything.sh` classified safe on the strength of
+    # the word `env`. After stripping, the same line is judged on `./anything.sh` —
+    # which no arm matches, so it gates. Measured both ways in the task's Decisions.
+    #
+    # Every failure direction here is toward BLOCKING. An option we do not recognise, a
+    # missing duration, an empty remainder, or a wrapper whose own argument grammar does
+    # not match leaves `cmd` untouched, so the base stays the wrapper name, which no arm
+    # matches. `xargs` is deliberately NOT a wrapper: its command is assembled from stdin
+    # at runtime, so there is nothing static to judge.
+    local _wprev=""
+    while [ "$cmd" != "$_wprev" ]; do
+        _wprev="$cmd"
+        local _wbase _wrest _wtok _wnext
+        _wbase=$(printf '%s' "$cmd" | awk '{print $1}' | sed 's|.*/||')
+        case "$_wbase" in
+            timeout|nohup|nice|stdbuf|command|env|flock) ;;
+            *) break ;;
+        esac
+        # `command -v X` / `command -V X` do not RUN X, they print where it lives —
+        # read-only, and Category 3 already answers for them. Stripping would hand the
+        # judge `X` itself, so `command -v git` would be decided as if it were `git`
+        # with no sub-verb, and gate. Leave the wrapper in place for the query forms.
+        if [ "$_wbase" = "command" ] && [[ "${cmd#*[[:space:]]}" == -[vV]* ]]; then
+            break
+        fi
+        _wrest="${cmd#*[[:space:]]}"
+        [ "$_wrest" = "$cmd" ] && break     # bare wrapper, no wrapped command
+        _wrest="${_wrest#"${_wrest%%[![:space:]]*}"}"
+        [ -z "$_wrest" ] && break
+
+        # 1. the wrapper's own options, including the ones that consume a value.
+        while [[ "$_wrest" == -* ]]; do
+            _wtok=$(printf '%s' "$_wrest" | awk '{print $1}')
+            _wnext="${_wrest#*[[:space:]]}"
+            [ "$_wnext" = "$_wrest" ] && { _wrest=""; break; }
+            _wrest="${_wnext#"${_wnext%%[![:space:]]*}"}"
+            # Value-taking options are per-wrapper, not global: `-n` is nice's
+            # adjustment (takes a value) and flock's --nonblock (takes none). A global
+            # list would make `flock -n /tmp/l true` eat the lock path as -n's value,
+            # then eat `true` as flock's positional, and gate a safe line.
+            case "$_wbase:$_wtok" in
+                timeout:-s|timeout:--signal|timeout:-k|timeout:--kill-after|\
+                nice:-n|nice:--adjustment|\
+                stdbuf:-i|stdbuf:-o|stdbuf:-e|stdbuf:--input|stdbuf:--output|stdbuf:--error|\
+                flock:-w|flock:--wait|flock:-E|flock:--conflict-exit-code)
+                    # consumes the following token as its value
+                    _wnext="${_wrest#*[[:space:]]}"
+                    [ "$_wnext" = "$_wrest" ] && { _wrest=""; break; }
+                    _wrest="${_wnext#"${_wnext%%[![:space:]]*}"}"
+                    ;;
+            esac
+        done
+        [ -z "$_wrest" ] && break
+
+        # 2. the wrapper's own positional argument, where it has one.
+        case "$_wbase" in
+            timeout)
+                _wtok=$(printf '%s' "$_wrest" | awk '{print $1}')
+                [[ "$_wtok" =~ ^[0-9]+(\.[0-9]+)?[smhd]?$ ]] || break
+                _wnext="${_wrest#*[[:space:]]}"
+                [ "$_wnext" = "$_wrest" ] && break
+                _wrest="${_wnext#"${_wnext%%[![:space:]]*}"}"
+                ;;
+            flock)
+                # the lock path — any single non-option token
+                _wnext="${_wrest#*[[:space:]]}"
+                [ "$_wnext" = "$_wrest" ] && break
+                _wrest="${_wnext#"${_wnext%%[![:space:]]*}"}"
+                ;;
+        esac
+        [ -z "$_wrest" ] && break
+        cmd="$_wrest"
+        # `env`'s K=V assignments are re-stripped by re-entering the T-1908 loop.
+        while [[ "$cmd" =~ ^[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]+[[:space:]]+(.*)$ ]]; do
+            cmd="${BASH_REMATCH[1]}"
+        done
     done
 
     # Extract the base command (first word, strip path).
@@ -201,13 +343,235 @@ _fw_single_command_is_safe() {
             return 0
             ;;
 
+        # Category 2b (T-3096): stdout-only text filters.
+        #
+        # None of these can write anywhere except through a redirect, and a redirect is
+        # judged by has_bash_write_pattern against the WHOLE original command line
+        # BEFORE this function is consulted (check-active-task.sh :220). So the safety
+        # argument is not "these tools are harmless" — it is that their only write route
+        # is already gated one layer up, which is the same argument the T-2887 comment
+        # on the echo branch makes.
+        #
+        # `awk` is here despite having a write form (`{print > "f"}`): that form needs a
+        # literal `>`, which the outer redirect scan sees whether or not it sits inside
+        # quotes. Verified in the task's Decisions rather than assumed.
+        #
+        # `sed` is here despite `sed -i`: has_bash_write_pattern carries a dedicated
+        # `\bsed\b.*-i` rule (:430), so in-place edits never reach this arm. Same
+        # verified-not-assumed treatment. `yq` is deliberately EXCLUDED for the mirror
+        # reason — yq v4's `-i` writes in place and NO rule catches it.
+        #
+        # Derived, not remembered (T-2888 precedent): the set is the read-only bases
+        # appearing in this repo's own .sh/.py/.bats and task verification lines that
+        # measured GATED. `xargs` is excluded — it runs a command assembled at runtime.
+        # `bats`, `make`, `python3 <file>` and `./script.sh` are excluded on the Tier 0
+        # scope boundary (CLAUDE.md §Enforcement Tiers, T-2742): a file's contents are
+        # not visible to a command-string scan, so executing one is never provably read-only.
+        sed|awk|sort|uniq|cut|tr|nl|od|paste|join|fold|expand|unexpand|rev|comm|cmp|diff|colordiff|column|jq|seq|base64|md5sum|sha1sum|sha256sum|cksum|strings|xxd|tput|zcat|gunzip)
+            return 0
+            ;;
+
+        # Category 3b (T-3096): read-only process / system inspection.
+        # Verb-scoped where the tool has both forms; omitted entirely where it does not
+        # (`kill`, `ip`, `mount` and friends are NOT here — `ip addr` reads but `ip link
+        # set` writes, and a verb-level split there is wider than this task measured).
+        pgrep|pidof|getent|journalctl|dmesg|tty|logname|groups|locale|ulimit)
+            return 0
+            ;;
+        systemctl)
+            local sc_sub
+            sc_sub=$(echo "$cmd" | awk '{print $2}')
+            case "$sc_sub" in
+                status|show|is-active|is-enabled|is-failed|list-units|list-timers|list-unit-files|cat)
+                    return 0
+                    ;;
+            esac
+            ;;
+
+        # Category 4b (T-3096): TermLink read verbs, scoped exactly like git and fw.
+        #
+        # The mutating half is the larger half and stays gated: inject, spawn, dispatch,
+        # exec, run, interact, signal, clean, send, post, reply, react, emit, register,
+        # deregister, tag, resize, kv set/del, hub start/stop/restart, remote inject/exec,
+        # file send, token create, channel create/claim/release. CLAUDE.md's own
+        # cross-agent protocol table turns on that read/write split, so encoding it here
+        # keeps one boundary rather than two that can disagree (L-399).
+        termlink)
+            local tl_sub tl_sub2
+            tl_sub=$(echo "$cmd" | awk '{print $2}')
+            tl_sub2=$(echo "$cmd" | awk '{print $3}')
+            case "$tl_sub" in
+                list|status|discover|overview|whoami|info|version|help|topics|output|doctor|events|ping)
+                    return 0
+                    ;;
+                agent)
+                    case "$tl_sub2" in
+                        inbox|unread|recent|history|thread|threads|search|peers|identity|\
+                        who_is|who-is|describe|info|help|stats|overview|mentions|digest|\
+                        state|timeline|dms|listeners|presence_now|active_now)
+                            return 0
+                            ;;
+                    esac
+                    ;;
+                channel)
+                    case "$tl_sub2" in
+                        list|info|members|search|thread|threads|unread|state|pinned|\
+                        digest|snippet|receipts|describe|claims)
+                            return 0
+                            ;;
+                    esac
+                    ;;
+                remote)
+                    # remote list/ping are network reads; remote inject/exec are not.
+                    case "$tl_sub2" in
+                        list|ping|doctor)
+                            return 0
+                            ;;
+                    esac
+                    ;;
+                kv)
+                    case "$tl_sub2" in
+                        get|list)
+                            return 0
+                            ;;
+                    esac
+                    ;;
+                hub)
+                    case "$tl_sub2" in
+                        status|probe|fingerprint)
+                            return 0
+                            ;;
+                    esac
+                    ;;
+                fleet)
+                    case "$tl_sub2" in
+                        status|history|doctor|verify)
+                            return 0
+                            ;;
+                    esac
+                    ;;
+            esac
+            ;;
+
         # Category 4: FW diagnostics
         fw|bin/fw)
             local fw_sub
             fw_sub=$(echo "$cmd" | awk '{print $2}')
+            local fw_sub3
+            fw_sub3=$(echo "$cmd" | awk '{print $3}')
             case "$fw_sub" in
                 doctor|metrics|audit|version|resume|help|status|fabric|gaps|promote)
                     return 0
+                    ;;
+
+                # ── T-3096: the rest of fw's read-only surface ──────────────────
+                #
+                # The ten names above were the whole allowlist; measurement found 92 more
+                # READ (command, sub-verb) pairs unreachable through it, out of 120 READ
+                # of 299 total pairs. The consequence was not theoretical: CLAUDE.md
+                # prescribes `curl -sf "$(bin/fw watchtower url)/page"` as THE way to
+                # avoid hard-coding port 3000, and `fw watchtower url` gated — so the
+                # framework's own canonical idiom was refused whenever focus was null or
+                # completed. Same for `fw reviewer`, `fw review-queue`, `fw learnings`,
+                # `fw recall`, `fw ask` and `fw bus manifest`, all of which the Quick
+                # Reference tells agents to reach for reflexively.
+                #
+                # Derived by classifying every arm of bin/fw's dispatch case against the
+                # function it routes to, with file:line evidence per verdict, in
+                # docs/reports/T-3096-fw-verb-classification.md. MIXED and UNKNOWN pairs
+                # (20 + 4) are excluded by construction — a verb whose read and write
+                # forms differ by an argument cannot be decided on the verb alone, which
+                # is the same rule that keeps `git config` and `git symbolic-ref` out.
+                #
+                # Two deliberate departures from that derivation, both toward gating:
+                #
+                #   `orchestrator improve` was classified READ because it is currently a
+                #   stub that prints. A stub is a temporary property, not a contract, and
+                #   the verb's name declares an intent to act — the day it is implemented
+                #   the gate would silently permit it. Excluded.
+                #
+                #   Nothing already allowed above is NARROWED here. The derivation
+                #   proposed scoping `integrate` to check|classify and `resume` to quick;
+                #   both are whole-command allows today for stated deadlock reasons
+                #   (T-2471 runs integrate from a worktree whose PROJECT_ROOT resolves to
+                #   the main repo, i.e. null focus). Tightening them would re-open a
+                #   deadlock this file has already been patched four times to close.
+                ask|recall|search|decisions|timeline|learnings|patterns|practices|policy|\
+                costs|review-queue|sessions|approvals)
+                    return 0
+                    ;;
+                watchtower)
+                    case "$fw_sub3" in port|url|status) return 0 ;; esac
+                    ;;
+                config)
+                    case "$fw_sub3" in get|list|overrides) return 0 ;; esac
+                    ;;
+                git)
+                    case "$fw_sub3" in status|log|worker-commits) return 0 ;; esac
+                    ;;
+                arc)
+                    case "$fw_sub3" in list|ls|show|review|show-suggestions|help) return 0 ;; esac
+                    ;;
+                bvp)
+                    # bare `fw bvp` is the ranking; `fw bvp T-123` is per-task detail.
+                    case "$fw_sub3" in ""|arcs|--quadrant|--include-proposed|--include-completed|--help|-h|T-*) return 0 ;; esac
+                    ;;
+                healing)
+                    case "$fw_sub3" in diagnose|patterns|suggest) return 0 ;; esac
+                    ;;
+                inception)
+                    case "$fw_sub3" in status) return 0 ;; esac
+                    ;;
+                orchestrator)
+                    case "$fw_sub3" in status|routes|next-dispatch|pre-flight) return 0 ;; esac
+                    ;;
+                resolver)
+                    case "$fw_sub3" in workflows|explain|stalled|latched) return 0 ;; esac
+                    ;;
+                outcome)
+                    # `evaluate` prints (lib/outcome.py:347-350); `backprop` appends to
+                    # dispatch-outcomes.jsonl (:368) and is deliberately absent.
+                    case "$fw_sub3" in evaluate|read|list) return 0 ;; esac
+                    ;;
+                bus)
+                    case "$fw_sub3" in manifest|read) return 0 ;; esac
+                    ;;
+                pause|assumption|pending)
+                    case "$fw_sub3" in list) return 0 ;; esac
+                    ;;
+                dispatch)
+                    case "$fw_sub3" in hosts) return 0 ;; esac
+                    ;;
+                rail)
+                    case "$fw_sub3" in identity|status) return 0 ;; esac
+                    ;;
+                mcp)
+                    case "$fw_sub3" in manifest-show|show|check|wire-fragment|status) return 0 ;; esac
+                    ;;
+                tier0|onboarding|traceability|enforcement|mirror|release|notify|worktree|designer)
+                    case "$fw_sub3" in status|path|url|pending) return 0 ;; esac
+                    ;;
+                prompt)
+                    case "$fw_sub3" in list|ls|show|cat|copy|render) return 0 ;; esac
+                    ;;
+                termlink)
+                    case "$fw_sub3" in check|status|result) return 0 ;; esac
+                    ;;
+                cron)
+                    case "$fw_sub3" in status|list) return 0 ;; esac
+                    ;;
+                corpus)
+                    case "$fw_sub3" in lint|explain) return 0 ;; esac
+                    ;;
+                write-set)
+                    case "$fw_sub3" in check) return 0 ;; esac
+                    ;;
+                reviewer)
+                    # `fw reviewer T-XXX` SCANS and writes a verdict block into the task
+                    # file, so the bare form is NOT here. Only the override reader is.
+                    if [ "$fw_sub3" = "override" ] && [ "$(echo "$cmd" | awk '{print $4}')" = "list" ]; then
+                        return 0
+                    fi
                     ;;
                 context)
                     local ctx_sub

@@ -96,31 +96,422 @@ REVERSE_EDGE_TYPE = {
 # Pattern detectors — each returns list of (target_location, edge_type)
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Bash source-argument resolution (T-3122)
+# ---------------------------------------------------------------------------
+
+# Characters that may appear in a literal (unexpanded) path fragment.
+_PATH_CHARS = set(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._+-/@"
+)
+
+# A `source` / `.` command, at a shell command position (start of line, or after
+# a separator / block keyword). The argument itself is scanned by hand below,
+# because it may contain quotes, `&&` and nested `$( )` that no regex should try
+# to balance.
+_SOURCE_CMD_RE = re.compile(
+    r'(?:^|[;&|(){}]|\bthen\b|\bdo\b|\belse\b)[ \t]*(?:source|\.)[ \t]+',
+    re.MULTILINE,
+)
+
+
+def _read_shell_word(text, i):
+    """Return the single shell word starting at ``text[i]``.
+
+    Tracks quote state and `$( )` nesting so that an argument like
+    ``"$(cd "$(dirname "$0")/.." && pwd)/lib/config.sh"`` is read whole instead
+    of being cut at the embedded `&&`.
+    """
+    quote = None
+    stack = []
+    out = []
+    while i < len(text):
+        ch = text[i]
+        if ch == '\n':
+            break
+        if ch == '\\' and i + 1 < len(text):
+            out.append(ch)
+            out.append(text[i + 1])
+            i += 2
+            continue
+        if ch == '$' and text.startswith('$(', i):
+            stack.append(quote)
+            quote = None
+            out.append('$(')
+            i += 2
+            continue
+        if ch == ')' and stack:
+            quote = stack.pop()
+            out.append(ch)
+            i += 1
+            continue
+        if quote is None and ch in '"\'':
+            quote = ch
+        elif quote == ch:
+            quote = None
+        elif quote is None and not stack and (ch.isspace() or ch in ';&|<>#'):
+            break
+        out.append(ch)
+        i += 1
+    return ''.join(out)
+
+
+def _iter_source_args(content):
+    """Yield the raw argument of every `source`/`.` command in ``content``."""
+    for m in _SOURCE_CMD_RE.finditer(content):
+        arg = _read_shell_word(content, m.end())
+        if arg:
+            yield arg
+
+
+def _trailing_literal_path(arg):
+    """Extract the trailing literal path from a source argument, or None.
+
+    ``"$FRAMEWORK_ROOT/lib/config.sh"``, ``"$fw_root/lib/config.sh"``,
+    ``"${ANYTHING}/lib/config.sh"``, ``"$(dirname "$0")/lib/config.sh"``,
+    ``./lib/config.sh`` and ``lib/config.sh`` all yield ``lib/config.sh``.
+    Whatever precedes the literal tail is irrelevant — the variable's *name* is
+    never consulted.
+    """
+    a = arg.strip()
+    bare = a.lstrip('"\'')
+    # Not project sources: absolute system paths and home-relative paths.
+    if not bare or bare[0] in '~/' or bare.startswith('$HOME'):
+        return None
+
+    # Blank out every expansion so only literal text survives the scan below.
+    s = a.replace('"', '').replace("'", '')
+    s = s.replace('$(', '\x00(')
+    s = re.sub(r'\$\{[^}]*\}', '\x00', s)
+    s = re.sub(r'\$[A-Za-z_][A-Za-z0-9_]*', '\x00', s)
+    s = re.sub(r'\$[0-9@*#?!$-]', '\x00', s)
+
+    i = len(s)
+    while i > 0 and s[i - 1] in _PATH_CHARS:
+        i -= 1
+    path = s[i:].lstrip('/')
+    while path.startswith('./'):
+        path = path[2:]
+    if not path or path.endswith('/') or path in ('.', '..'):
+        return None
+    return path
+
+
+def _resolve_source_path(rel, source_dir, framework_root):
+    """Resolve a literal source path against the source dir, then the root.
+
+    Order (first hit wins, existence-guarded at every step):
+      a) <source_dir>/<rel>
+      b) <source_dir>/lib/<rel>     — preserves the old `$LIB_DIR` behaviour
+      c) <project_root>/<rel>       — the `$FRAMEWORK_ROOT/...` idiom
+    """
+    for cand in (os.path.join(source_dir, rel),
+                 os.path.join(source_dir, 'lib', rel),
+                 rel):
+        cand = os.path.normpath(cand)
+        if os.path.isabs(cand) or cand.startswith('..'):
+            continue
+        if os.path.isfile(os.path.join(framework_root, cand)):
+            return cand
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Bash invocation resolution (T-3123)
+# ---------------------------------------------------------------------------
+#
+# Shell composes two ways. `source X` / `. X` splices X's TEXT into the caller
+# — that is the T-3122 path above. The other way is INVOCATION: the caller runs
+# X as a subprocess (`./x.sh`, `bash x.sh`, `exec "$D/x.sh"`). That edge was not
+# modelled at all, so a script whose only dependency is what it executes got a
+# card with zero edges.
+#
+# Everything below keys on SHELL grammar only — command position, POSIX
+# builtins, shell interpreter names. No directory name, no variable name and no
+# package prefix from this or any other tree appears here. That restraint is the
+# point: T-3121 hardcoded `web|lib|agents|tools`, T-3122 hardcoded four $VAR
+# names, and both broke the moment a file was written in a different idiom.
+
+# A command position: start of line, or immediately after a separator /
+# grouping character. Same construction as _SOURCE_CMD_RE, minus the fixed
+# command name — here it is the word AT the position that gets read.
+_CMD_POS_RE = re.compile(r'(?:^|[;&|(){}`])[ \t]*', re.MULTILINE)
+
+# Words that stand in FRONT of the real command and hand off to it. POSIX
+# builtins and coreutils wrappers, plus bats' `run`. Compared by basename, so
+# `/usr/bin/env` matches `env`.
+_CMD_PREFIX_WORDS = frozenset({
+    'exec', 'command', 'builtin', 'env', 'nohup', 'nice', 'sudo', 'time',
+    'if', 'elif', 'while', 'until', 'then', 'do', 'else', '!', 'run',
+})
+
+# Shell interpreters. After one of these, the script is the first non-option
+# argument rather than the command word itself.
+_SHELL_INTERPRETERS = frozenset({'sh', 'bash', 'zsh', 'ksh', 'dash', 'ash'})
+
+_ENV_ASSIGN_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*=')
+
+
+def _mask_comment_lines(content):
+    """Blank out whole-line `#` comments, preserving line structure.
+
+    Usage banners and commented-out calls are prose, not composition; without
+    this a `# bash tools/x.sh` example line becomes a dependency edge.
+    """
+    return re.sub(r'^[ \t]*#.*$', '', content, flags=re.MULTILINE)
+
+
+_HEREDOC_START_RE = re.compile(r'<<-?\s*(["\']?)([A-Za-z_][A-Za-z0-9_]*)\1')
+
+
+def _mask_inert_regions(content):
+    """Blank the INSIDE of quoted strings, trailing comments and heredoc bodies.
+
+    Used only to locate command positions. A `;` inside an echo message and a
+    `(` inside an embedded `python3 - <<PY` body are text, not shell
+    separators — but the command-position regex cannot tell, so it opened a
+    bogus command at every one of them. That is where every false edge in this
+    repo's corpus came from: `add_issue "... see .context/inbox.yaml"` and
+    `print(f"  History: .context/bvp-weight-history.yaml")` both resolve to real
+    files and both are prose.
+
+    The result has the SAME length as ``content``, so a match offset found in it
+    indexes the original unchanged. Callers read the word itself from the
+    original, which is why masking a quoted argument is harmless: `exec
+    "$D/x.sh"` is found at the position of `exec`, then read raw.
+
+    Quote state is scoped to a LINE (heredocs excepted). Real shell is not a
+    language a 60-line lexer can track — an `awk` program, a regex class or an
+    apostrophe in a trailing comment will eventually desync it. Resetting per
+    line bounds the damage of any desync to that one line instead of blanking
+    the rest of a 5000-line file, which is exactly what an unscoped version did
+    here: it silently cost 90% of the real edges and looked like a clean run.
+    """
+    out = list(content)
+    heredoc = None          # (delimiter, allow_leading_tabs)
+    pos = 0
+    n = len(content)
+    while pos < n:
+        eol = content.find('\n', pos)
+        if eol == -1:
+            eol = n
+        line = content[pos:eol]
+
+        if heredoc is not None:
+            delim, strip_tabs = heredoc
+            if (line.lstrip('\t') if strip_tabs else line).strip() == delim:
+                heredoc = None
+            else:
+                for k in range(pos, eol):
+                    out[k] = ' '
+            pos = eol + 1
+            continue
+
+        quote = None        # None | "'" | '"' | '`'
+        stack = []          # quote states saved across $( ) nesting
+        i = pos
+        while i < eol:
+            ch = content[i]
+
+            if ch == '\\' and quote != "'" and i + 1 < eol:
+                out[i + 1] = ' '
+                i += 2
+                continue
+
+            if quote != "'" and content.startswith('$(', i):
+                stack.append(quote)
+                quote = None
+                i += 2
+                continue
+
+            if quote is None and stack and ch == ')':
+                quote = stack.pop()
+                i += 1
+                continue
+
+            if quote is None:
+                if ch == '#' and (i == pos or content[i - 1] in ' \t;&|('):
+                    for k in range(i, eol):
+                        out[k] = ' '
+                    break
+                if ch in '"\'`':
+                    quote = ch
+                    i += 1
+                    continue
+                if content.startswith('<<', i) and not content.startswith('<<<', i):
+                    m = _HEREDOC_START_RE.match(content, i)
+                    if m:
+                        heredoc = (m.group(2), content.startswith('<<-', i))
+                        i = m.end()
+                        continue
+            elif ch == quote:
+                quote = None
+                i += 1
+                continue
+            else:
+                out[i] = ' '
+
+            i += 1
+
+        pos = eol + 1
+
+    return ''.join(out)
+
+
+def _is_executable(rel, framework_root):
+    """Whether the resolved path can actually be RUN as a command.
+
+    The shell's own rule, used as the shell uses it: a bare command word only
+    invokes a file that carries the execute bit. A README, a YAML config or a
+    settings.json mentioned in passing cannot be a subprocess, so it cannot be
+    an invocation edge. Not applied behind an interpreter — `bash x.sh` runs a
+    file whether or not it is chmod +x.
+    """
+    return os.access(os.path.join(framework_root, rel), os.X_OK)
+
+
+def _trim_word_tail(word):
+    """Drop closer punctuation that a word scan carries along.
+
+    `_read_shell_word` stops at separators but not at an unmatched closer, so
+    `$(bash a/b.sh)` hands back `a/b.sh)`. The trailing literal-path scan reads
+    backwards from the end, so one stray `)` erases the whole path.
+    """
+    return word.rstrip(')}`;,')
+
+
+def _skip_blanks(text, i):
+    """Advance past spaces, tabs and backslash-newline continuations."""
+    while i < len(text):
+        if text[i] in ' \t':
+            i += 1
+        elif text.startswith('\\\n', i):
+            i += 2
+        else:
+            break
+    return i
+
+
+def _iter_shell_invocations(content):
+    """Yield the argument of every script INVOCATION in ``content``.
+
+    Yields ``(word, via_interpreter)`` where ``word`` is the raw shell word
+    naming the script and ``via_interpreter`` records whether it was reached
+    through `bash`/`sh`/... (in which case it need not look like a path) or as
+    the command word itself (in which case it must).
+
+    Recognised, with any number of prefix words in front:
+        ./a/b.sh          bash a/b.sh        sh b.sh        bash -e b.sh
+        exec "$D/b.sh"    "$D/b.sh" a1 a2    $(dirname "$0")/b.sh
+        command bash b.sh    VAR=1 exec ./b.sh    /usr/bin/env bash b.sh
+
+    Deliberately NOT recognised: `bash -c "..."` (the argument is an inline
+    command string, not a file), and any command word without a `/` — a bare
+    name is a PATH lookup, not a script in this tree, so `grep x.sh` and
+    `[ -f x.sh ]` never become edges.
+    """
+    scan = _mask_inert_regions(content)
+    for m in _CMD_POS_RE.finditer(scan):
+        # A line reached by backslash-continuation carries ARGUMENTS of the
+        # command above it, not a new command. Without this, every entry of a
+        # `for f in \` list and every wrapped `warn "..." \ "$D/x.sh"` argument
+        # reads as an invocation — 11 of this repo's first 24 new edges were
+        # exactly that, and every one pointed at a real executable file.
+        p = m.start()
+        if p > 0 and scan[p - 1] == '\n' and p >= 2 and scan[p - 2] == '\\':
+            continue
+        i = _skip_blanks(content, m.end())
+        via_interpreter = False
+        # Bounded: a real invocation reaches its script within a few words.
+        for _ in range(8):
+            word = _read_shell_word(content, i)
+            if not word:
+                break
+            nxt = _skip_blanks(content, i + len(word))
+            bare = word.strip('"\'')
+
+            if via_interpreter:
+                if bare.startswith('-'):
+                    # `-c` (alone or bundled, e.g. `-ec`) means the next word is
+                    # a command STRING. Abandon this command entirely.
+                    if 'c' in bare.lstrip('-').split('=', 1)[0]:
+                        break
+                    i = nxt
+                    continue
+                # `bash -euo pipefail x.sh` — `pipefail` is the argument of an
+                # option, not the script. A script argument is a path or carries
+                # a suffix; a bare suffixless word is not one, so keep scanning.
+                if '/' in bare or '.' in bare.rsplit('/', 1)[-1]:
+                    yield _trim_word_tail(word), True
+                    break
+                i = nxt
+                continue
+
+            if _ENV_ASSIGN_RE.match(bare):
+                i = nxt
+                continue
+
+            name = bare.rsplit('/', 1)[-1]
+            if name in _CMD_PREFIX_WORDS:
+                i = nxt
+                continue
+            if name in _SHELL_INTERPRETERS:
+                via_interpreter = True
+                i = nxt
+                continue
+
+            # The command word itself. Only a path can name a script in-tree.
+            if '/' in bare:
+                yield _trim_word_tail(word), False
+            break
+
+
 def detect_bash_sources(content, source_location, framework_root):
-    """Detect bash source/dot-source, exec, and variable-path patterns."""
+    """Detect bash source/dot-source, exec, and variable-path patterns.
+
+    `source X` / `. X` is resolved by extracting the TRAILING LITERAL PATH from
+    the argument and resolving that against the filesystem (T-3122). The prior
+    implementation matched on the *variable name* — it recognised only
+    `$LIB_DIR`, `$SCRIPT_DIR`, `$AGENTS_DIR` and `$FW_LIB_DIR`, so 127 of this
+    repo's 194 source statements (65%) emitted no edge at all, including the 88
+    written with the framework's own `$FRAMEWORK_ROOT/...` idiom. Same class as
+    the hardcoded `web|lib|agents|tools` prefix list fixed in T-3121: resolve
+    the path, don't trust a name list.
+    """
     edges = []
+    seen = set()
     source_dir = os.path.dirname(source_location)
 
-    # Pattern: source "$LIB_DIR/file.sh" or . "$LIB_DIR/file.sh"
-    for m in re.finditer(
-        r'(?:source|\.)\s+"?\$(?:LIB_DIR|SCRIPT_DIR)/([^"$\s]+)"?', content
-    ):
-        target_file = m.group(1)
-        candidates = [
-            os.path.join(source_dir, "lib", target_file),
-            os.path.join(source_dir, target_file),
-        ]
-        for c in candidates:
-            c = os.path.normpath(c)
-            if os.path.exists(os.path.join(framework_root, c)):
-                edges.append((c, "calls"))
-                break
+    def add(target, relation="calls"):
+        """Record an edge, guarding self-edges and duplicate targets."""
+        if target and target != source_location and target not in seen:
+            seen.add(target)
+            edges.append((target, relation))
+
+    # Pattern: source <arg> / . <arg> — any argument shape.
+    for arg in _iter_source_args(content):
+        rel = _trailing_literal_path(arg)
+        if rel:
+            add(_resolve_source_path(rel, source_dir, framework_root))
+
+    # Pattern: INVOCATION — the caller runs the target as a subprocess rather
+    # than splicing its text (T-3123). Resolved through exactly the same
+    # trailing-literal-path machinery as `source`, so `bash "$ANY_VAR/x.sh"`
+    # lands on the same target as `source "$ANY_VAR/x.sh"`. Shares `add()`, so
+    # a script both sourced and invoked yields one edge, not two.
+    for word, via_interpreter in _iter_shell_invocations(_mask_comment_lines(content)):
+        rel = _trailing_literal_path(word)
+        if not rel:
+            continue
+        target = _resolve_source_path(rel, source_dir, framework_root)
+        if target and (via_interpreter or _is_executable(target, framework_root)):
+            add(target)
 
     # Pattern: exec "$AGENTS_DIR/agent/script.sh" "$@"
     for m in re.finditer(r'exec\s+"?\$AGENTS_DIR/([^"$\s]+)"?', content):
         target = os.path.normpath(os.path.join("agents", m.group(1)))
         if os.path.exists(os.path.join(framework_root, target)):
-            edges.append((target, "calls"))
+            add(target)
 
     # Pattern: source/exec "$FW_LIB_DIR/file.sh"
     for m in re.finditer(
@@ -128,19 +519,19 @@ def detect_bash_sources(content, source_location, framework_root):
     ):
         target = os.path.normpath(os.path.join("lib", m.group(1)))
         if os.path.exists(os.path.join(framework_root, target)):
-            edges.append((target, "calls"))
+            add(target)
 
     # Pattern: exec python3 "$AGENTS_DIR/path"
     for m in re.finditer(r'exec\s+python3\s+"?\$AGENTS_DIR/([^"$\s]+)"?', content):
         target = os.path.normpath(os.path.join("agents", m.group(1)))
         if os.path.exists(os.path.join(framework_root, target)):
-            edges.append((target, "calls"))
+            add(target)
 
     # Pattern: exec python3 -m web.module
     for m in re.finditer(r'exec\s+python3\s+-m\s+(web\.\w+)', content):
         mod = m.group(1).replace(".", "/") + ".py"
         if os.path.exists(os.path.join(framework_root, mod)):
-            edges.append((mod, "calls"))
+            add(mod)
 
     # Pattern: "$FRAMEWORK_ROOT/path.sh" or "$PROJECT_ROOT/path.sh" (called as command)
     for m in re.finditer(
@@ -148,8 +539,7 @@ def detect_bash_sources(content, source_location, framework_root):
     ):
         target = os.path.normpath(m.group(1))
         if os.path.exists(os.path.join(framework_root, target)):
-            if target != source_location:
-                edges.append((target, "calls"))
+            add(target)
 
     # Pattern: "$FRAMEWORK_ROOT/agents/X/Y.sh" via variable like GIT_AGENT=
     for m in re.finditer(
@@ -157,8 +547,7 @@ def detect_bash_sources(content, source_location, framework_root):
     ):
         target = os.path.normpath(m.group(1))
         if os.path.exists(os.path.join(framework_root, target)):
-            if target != source_location:
-                edges.append((target, "calls"))
+            add(target)
 
     # Pattern: "$FRAMEWORK_ROOT/metrics.sh" or standalone script paths
     for m in re.finditer(
@@ -166,8 +555,7 @@ def detect_bash_sources(content, source_location, framework_root):
     ):
         target = os.path.normpath(m.group(1))
         if os.path.exists(os.path.join(framework_root, target)):
-            if target != source_location:
-                edges.append((target, "calls"))
+            add(target)
 
     # Pattern: "$FRAMEWORK_ROOT/bin/fw" / "$PROJECT_ROOT/bin/fw" — suffixless
     # invocation (T-2511). The FRAMEWORK_ROOT/*.sh pattern above requires a
@@ -176,7 +564,7 @@ def detect_bash_sources(content, source_location, framework_root):
     # not prose — distinct from the bare `bin/fw` grep-pattern false-positive class.
     if re.search(r'"\$(?:FRAMEWORK_ROOT|PROJECT_ROOT)/bin/fw"', content) \
        and source_location != "bin/fw" and os.path.exists(os.path.join(framework_root, "bin/fw")):
-        edges.append(("bin/fw", "calls"))
+        add("bin/fw")
 
     # Pattern: exec python3 "$(dirname "$0")/sibling.py"  (T-2511)
     # The fw hook dispatcher loads a thin .sh that exec's its own-dir .py sibling
@@ -185,7 +573,7 @@ def detect_bash_sources(content, source_location, framework_root):
     for m in re.finditer(r'\$\(\s*dirname\s+"?\$0"?\s*\)/([^"$\s]+\.(?:sh|py))', content):
         target = os.path.normpath(os.path.join(source_dir, m.group(1)))
         if os.path.exists(os.path.join(framework_root, target)) and target != source_location:
-            edges.append((target, "calls"))
+            add(target)
 
     return edges
 
@@ -251,6 +639,16 @@ def detect_bats_deps(content, source_location, framework_root):
     # fw routing depends on bin/fw, even when the path isn't quoted explicitly.
     if re.search(r'\bbin/fw\b', content) and "bin/fw" != source_location:
         edges.append(("bin/fw", "tests"))
+
+    # A .bats file that runs a script TESTS it. The generic bash detectors above
+    # label the same reference `calls` (T-3123 sees `run bash "$R/x.sh"` as an
+    # invocation, which it is), so without this a test file would carry two
+    # edges to one subject under two relations — and the reverse pass would
+    # write both `called_by` and `tested_by` onto the subject's card. The more
+    # specific relation wins.
+    tested = {t for t, etype in edges if etype == "tests"}
+    edges = [(t, etype) for t, etype in edges
+             if not (etype == "calls" and t in tested)]
 
     # De-duplicate while preserving order (multiple patterns may emit the same edge)
     seen = set()
@@ -434,14 +832,18 @@ def detect_template_deps(content, source_location, framework_root):
 
 def detect_generic_python_imports(content, source_location, project_root):
     """
-    Detect standard Python imports: from X import Y
+    Detect standard Python imports: `from X import Y` and `import X`.
 
-    Attempts to resolve module names to actual files in the project,
-    inferring paths based on source file location and common patterns.
+    Handles dotted module paths (`from pkg.mod import Y`, `import pkg.mod`),
+    resolving each to either `pkg/mod.py` or `pkg/mod/__init__.py` relative to
+    the source file's directory, then its parent. Flat imports resolve exactly
+    as before (T-3121 — the `\\w` pattern excluded `.`, so 114 dotted imports in
+    this repo emitted no edge at all).
 
     This is a prototype for consumer project support (L-CONSUMER-001).
     """
     edges = []
+    seen = set()
 
     # Get directory containing source file
     source_dir = os.path.dirname(source_location)
@@ -456,37 +858,68 @@ def detect_generic_python_imports(content, source_location, project_root):
         'flask', 'jinja2', 'werkzeug', 'requests', 'numpy', 'pandas'
     }
 
-    # Pattern: from module import something
-    for m in re.finditer(r'from\s+(\w+)\s+import', content):
-        module_name = m.group(1)
+    def resolve(module_name):
+        """Resolve a (possibly dotted) module name to a project-relative path."""
+        # Relative imports (`from . import x`) carry no resolvable root segment
+        if module_name.startswith('.') or module_name.endswith('.'):
+            return None
 
-        # Skip standard library and common third-party modules
-        if module_name in SKIP_MODULES:
-            continue
+        parts = module_name.split('.')
+        if not all(parts):
+            return None
 
-        # Try to resolve module to file
+        # SKIP_MODULES is consulted on the ROOT segment: `yaml.parser` is still
+        # third-party even though `yaml` alone is what the set lists.
+        if parts[0] in SKIP_MODULES:
+            return None
+
+        subpath = os.path.join(*parts)
+
+        candidates = []
         # Strategy 1: Same directory as source
-        target = os.path.join(source_dir, module_name + '.py')
-        if os.path.exists(os.path.join(project_root, target)):
-            if target != source_location:
-                edges.append((target, "uses"))
-            continue
-
+        candidates.append(os.path.join(source_dir, subpath + '.py'))
         # Strategy 2: Package init file
-        target = os.path.join(source_dir, module_name, '__init__.py')
-        if os.path.exists(os.path.join(project_root, target)):
-            if target != source_location:
-                edges.append((target, "uses"))
-            continue
-
+        candidates.append(os.path.join(source_dir, subpath, '__init__.py'))
         # Strategy 3: Check parent directory (for shared modules)
         parent_dir = os.path.dirname(source_dir)
         if parent_dir:
-            target = os.path.join(parent_dir, module_name + '.py')
+            candidates.append(os.path.join(parent_dir, subpath + '.py'))
+            candidates.append(os.path.join(parent_dir, subpath, '__init__.py'))
+
+        # Strategy 4: project-root-relative (T-3121). A dotted import is normally
+        # rooted at the project, not at the importing file's directory —
+        # `web/blueprints/tasks.py` doing `from web.shared import x` means
+        # `<root>/web/shared.py`, which strategies 1-3 cannot reach from
+        # `web/blueprints/`. Without this the generic detector returns zero edges
+        # for ANY nested source file, which is why detect_python_imports carries a
+        # hardcoded `web|lib|agents|tools` prefix list: that list is this strategy,
+        # written out for one project's top-level packages. Last so local
+        # resolution still wins, and existence-guarded like the rest.
+        candidates.append(subpath + '.py')
+        candidates.append(os.path.join(subpath, '__init__.py'))
+
+        for target in candidates:
             if os.path.exists(os.path.join(project_root, target)):
-                if target != source_location:
-                    edges.append((target, "uses"))
-                continue
+                return target
+        return None
+
+    def add(module_name):
+        target = resolve(module_name)
+        # Never a self-edge, never a duplicate target from one file
+        if target and target != source_location and target not in seen:
+            seen.add(target)
+            edges.append((target, "uses"))
+
+    # Pattern: from module.path import something
+    for m in re.finditer(r'^[ \t]*from\s+([\w.]+)\s+import\b', content, re.MULTILINE):
+        add(m.group(1))
+
+    # Pattern: import a.b, c as d
+    for m in re.finditer(r'^[ \t]*import\s+([^\n#;]+)', content, re.MULTILINE):
+        for chunk in m.group(1).split(','):
+            name = chunk.strip().split(' as ')[0].strip()
+            if name and re.fullmatch(r'[\w.]+', name):
+                add(name)
 
     return edges
 

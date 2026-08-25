@@ -128,6 +128,24 @@ CRONEOF
                 exit 1
             fi
 
+            # T-3070: this command and 'fw cron install' used to be two
+            # independent generators writing the SAME git-tracked source file
+            # ($CRON_SOURCE) — this one from a hardcoded heredoc
+            # (_cron_generate_source, below), 'fw cron install' from
+            # .context/cron-registry.yaml. T-1112/T-1114 built the
+            # registry-driven 'fw cron install' as the intended single
+            # chokepoint, but this legacy entry point was never redirected to
+            # it, so running 'fw audit schedule install' after editing the
+            # registry silently reverted every registry-sourced schedule
+            # fix back to the hardcoded template — confirmed live 2026-08-23
+            # (three collision fixes reverted in one call). When a registry
+            # exists, delegate entirely; the hardcoded heredoc path below
+            # remains only for pre-T-448 consumer projects with no registry.
+            if [ -f "$PROJECT_ROOT/.context/cron-registry.yaml" ]; then
+                shift
+                exec "$FW_PATH" cron install "$@"
+            fi
+
             # Migrate legacy cron if present
             if [ -f "$LEGACY_CRON_FILE" ]; then
                 legacy_project=$(grep -m1 'PROJECT_ROOT=' "$LEGACY_CRON_FILE" 2>/dev/null | sed 's/.*PROJECT_ROOT="\([^"]*\)".*/\1/')
@@ -337,7 +355,22 @@ done
 AUDIT_LOCK_DIR="${CONTEXT_DIR}/locks"
 mkdir -p "$AUDIT_LOCK_DIR" 2>/dev/null
 AUDIT_LOCK_FILE="$AUDIT_LOCK_DIR/audit.lock"
-AUDIT_TIMEOUT="${FW_AUDIT_TIMEOUT:-600}"
+
+# T-3070: a full (unscoped) run walks all ~28 section headers, including a
+# whole-tree secret/large-file scan and several sub-timeouts (bats 300s +
+# corpus-lint 120s + corpus-health 90s) that section-scoped cron runs never
+# touch. 600s is sized for those cron runs (each a handful of sections,
+# minutes at most) — a full run measured on this corpus was still only
+# 43% through its sections (12/28, killed mid EPISODIC MEMORY CHECKS) at
+# the 590s mark, confirming 600s is not a contention artifact but simply too
+# short for the unscoped case. FW_AUDIT_TIMEOUT still overrides either mode;
+# FW_AUDIT_FULL_TIMEOUT is a full-run-only override for tuning without
+# touching the cron-facing default.
+if [ -z "$SECTIONS" ]; then
+    AUDIT_TIMEOUT="${FW_AUDIT_TIMEOUT:-${FW_AUDIT_FULL_TIMEOUT:-3000}}"
+else
+    AUDIT_TIMEOUT="${FW_AUDIT_TIMEOUT:-600}"
+fi
 
 # Clean up stale lock files (older than timeout + 60s buffer)
 if [ -f "$AUDIT_LOCK_FILE" ]; then
@@ -403,6 +436,10 @@ should_run_section() {
 PASS_COUNT=0
 WARN_COUNT=0
 FAIL_COUNT=0
+# T-3126: FAIL_COUNT partitioned by scope. Their sum equals FAIL_COUNT.
+FAIL_REF_COUNT=0
+FAIL_WORKTREE_COUNT=0
+declare -a FAIL_WORKTREE_TITLES
 
 # Priority actions
 declare -a PRIORITY_ACTIONS
@@ -431,10 +468,35 @@ warn() {
     FINDINGS+=("WARN|$1|$3")
 }
 
+# T-3126: findings carry their SCOPE.
+#
+# The audit reads the working tree; that is what a health check is for. But the
+# pre-push gate consumes this audit to decide a REF operation, and a FAIL owned
+# by uncommitted edits, untracked files, or host state is not a property of the
+# commit being pushed. Observed live 2026-08-23: two FAILs from a concurrent
+# session's uncommitted bin/fw + agents/audit/audit.sh and two untracked
+# tests/lint/*.bats files refused a push of a ref containing neither.
+#
+# The partition is emitted, not enforced, here. Verdicts are untouched: a FAIL is
+# still a FAIL, still counted, still exit 2. Only the fourth argument is new, and
+# it defaults to "ref" so every existing call site keeps blocking exactly as
+# before. Callers that can PROVE a finding cannot be in any ref pass "worktree".
+#
+#   fail "<title>" "<evidence>" "<mitigation>" [ref|worktree] [<reason>]
 fail() {
+    local _scope="${4:-ref}" _reason="${5:-}"
+    case "$_scope" in ref|worktree) ;; *) _scope="ref" ;; esac
     echo -e "${RED}[FAIL]${NC} $1"
     echo "       Evidence: $2"
     echo "       Mitigation: $3"
+    if [ "$_scope" = "worktree" ]; then
+        echo "       Scope: worktree${_reason:+ ($_reason)} — not present in any committed ref"
+        FAIL_WORKTREE_COUNT=$((FAIL_WORKTREE_COUNT + 1))
+        FAIL_WORKTREE_TITLES+=("$1")
+    else
+        echo "       Scope: ref — property of committed content"
+        FAIL_REF_COUNT=$((FAIL_REF_COUNT + 1))
+    fi
     FAIL_COUNT=$((FAIL_COUNT + 1))
     PRIORITY_ACTIONS+=("$3")
     FINDINGS+=("FAIL|$1|$3")
@@ -446,31 +508,121 @@ info() {
     FINDINGS+=("INFO|$1|")
 }
 
-# T-2714: resolve a git hook path correctly in BOTH a normal checkout and a
-# linked worktree. In a worktree `.git` is a FILE, not a directory, so the
-# literal "$PROJECT_ROOT/.git/hooks/<name>" can NEVER exist and every hook
-# check reported a false negative — including C-002, which claimed a live
-# safety gate was missing while it was installed and enforcing.
-# `git rev-parse --git-path` resolves both layouts and also honours
-# core.hooksPath, so the checks verify rather than skip.
+# --- Verdict-over-a-set emitters (T-3105) ---
 #
-# MUST live at top level, NOT inside a `should_run_section` block: the hook
-# checks are spread across the `enforcement`, `oe-research`, and `oe-daily`
-# sections, and `--section oe-daily` alone would otherwise call an undefined
-# function and silently resolve to the empty string — a false WARN with a
-# blank Evidence line. (Found exactly that way; a full run masked it because
-# `enforcement` happens to define it first.)
-_resolve_hook_path() { # $1 = hook name → absolute path (may not exist)
-    local _p
-    _p=$(git -C "$PROJECT_ROOT" rev-parse --git-path "hooks/$1" 2>/dev/null) || _p=""
-    if [ -z "$_p" ]; then
-        printf '%s\n' "$PROJECT_ROOT/.git/hooks/$1"
-        return
-    fi
-    case "$_p" in
-        /*) printf '%s\n' "$_p" ;;
-        *)  printf '%s\n' "$PROJECT_ROOT/$_p" ;;
+# THE RULE: a check may only PASS over the set it actually evaluated, and must
+# report that set's size. An empty or unenumerable candidate set is a WARN, not
+# a PASS.
+#
+# Origin — three same-day instances of one class. None of them lied; each was
+# true of what it looked at. The defect is that none STATED what it looked at,
+# so "I found nothing" and "I looked nowhere" rendered identically:
+#
+#   1. The GO-scope-not-propagated scan (repaired by hand in T-3099) gated on a
+#      prose phrase matching 2 of 444 completed inceptions, and 0 after the next
+#      filter. Its candidate set was empty by construction, so every PASS it ever
+#      printed asserted nothing — with 179 approved inceptions invisible behind
+#      it.
+#   2. This file's duplicate-task-ID check scans the main checkout only. Three
+#      duplicate IDs living in worktree replicas were invisible for seven weeks
+#      while it printed PASS.
+#   3. Off-framework sibling: an errors store that returns "No errors found"
+#      when it cannot read the store — byte-identical to a genuinely clean run.
+#
+# "No duplicate task IDs" is not falsifiable. "No duplicate task IDs among 3124
+# task file(s)" is: a reader who believes the corpus is larger than 3124 now has
+# something to disagree with. That is the whole point — the count is not
+# decoration, it is the claim's scope, and a claim without a scope cannot be
+# wrong, which is why it also cannot be trusted.
+#
+#   pass_over <count> "<set-description>" "<message>" [<evidence>] [<mitigation>]
+#     count > 0         -> pass "<message> — examined <count> <set-description>"
+#     count == 0        -> warn "<message> — NOT EVALUATED: candidate set empty"
+#     empty/non-numeric -> routed to warn_unenumerable (see below)
+#
+#   warn_unenumerable "<source>" "<message>" [<evidence>] [<mitigation>]
+#     -> warn "<message> — NOT EVALUATED: could not read <source>"
+#
+# Two verbs rather than one, because the two failures are known at different
+# moments. "The set was empty" is known AFTER enumeration returns a number.
+# "Could not enumerate" is known BEFORE any number exists — a missing store, an
+# unreadable path, an absent dependency, a `$(python3 ... 2>/dev/null)` that
+# collapsed to the empty string. T-3099's hand implementation had exactly this
+# two-part shape: it tested for an empty pre-scan summary and warned, then
+# parsed the counts and branched on zero. Folding both into one verb would force
+# every caller to invent a sentinel count for "I never got one", and the obvious
+# sentinel — 0 — is precisely the value that must NOT be conflated with it.
+#
+# pass_over therefore routes a non-numeric count to warn_unenumerable rather
+# than trusting it: a caller whose command substitution collapsed to "" must not
+# be reported as having measured a set of size 0. It measured nothing.
+#
+# Both paths WARN, never FAIL. audit's exit code 2 means a real failure; a check
+# that did not evaluate is an unknown, and an unknown that exits 2 would train
+# readers to ignore it. The same reasoning as the audit's own lock-contention
+# exit 75 above: "did not run" is its own verdict, distinct from both pass and
+# fail.
+pass_over() {
+    local _count="${1//[[:space:]]/}" _set="$2" _msg="$3" _evidence="${4:-}" _mitigation="${5:-}"
+    case "$_count" in
+        ''|*[!0-9]*)
+            warn_unenumerable "$_set" "$_msg" "$_evidence" "$_mitigation"
+            return
+            ;;
     esac
+    if [ "$_count" -gt 0 ]; then
+        pass "$_msg — examined $_count $_set"
+    else
+        warn "$_msg — NOT EVALUATED: candidate set empty (0 $_set)" \
+             "${_evidence:-The check ran and found nothing, because there was nothing to look at. A PASS here would assert coverage the check does not have (T-3105).}" \
+             "${_mitigation:-Confirm that 0 $_set is the real corpus state and not a mis-scoped enumeration or a predicate that matches nothing}"
+    fi
+}
+
+# --- T-3126 scope predicates -------------------------------------------------
+#
+# Three helpers, all fail-safe: when they cannot answer, they answer "ref", so an
+# unanswerable question keeps the pre-push gate blocking. A gate that could not
+# decide is not a gate that passed (same reasoning as the exit-75 branch above).
+#
+# $1 is a git work tree root for every one of them; callers pass the root of the
+# tree the check actually read (FRAMEWORK_ROOT for the vendored/lint checks),
+# because in a split-root consumer that is a different repo from PROJECT_ROOT.
+
+# 0 when <root> is a usable git work tree with a resolvable HEAD.
+_t3126_git_ok() {
+    git -C "$1" rev-parse --verify -q HEAD >/dev/null 2>&1
+}
+
+# 0 when <root>/<rel> is NOT in HEAD, or differs from its HEAD blob. i.e. "this
+# path's current bytes exist nowhere in the committed history of this branch".
+_t3126_path_uncommitted() {
+    local _root="$1" _rel="$2"
+    git -C "$_root" rev-parse -q --verify "HEAD:$_rel" >/dev/null 2>&1 || return 0
+    git -C "$_root" diff --quiet HEAD -- "$_rel" 2>/dev/null || return 0
+    return 1
+}
+
+# 0 when the self-vendor pair <rel> vs .agentic-framework/<rel> ALSO drifts in
+# HEAD — i.e. the drift is committed and a consumer vendoring from origin would
+# inherit it. Mirrors T-3125's _t3125_committed_drift decision (missing-dest
+# counts as drift, because vendor-self syncs on absent OR different).
+_t3126_pair_drifts_in_head() {
+    local _root="$1" _rel="$2" _src _ven
+    _src=$(git -C "$_root" rev-parse -q --verify "HEAD:$_rel" 2>/dev/null || true)
+    _ven=$(git -C "$_root" rev-parse -q --verify "HEAD:.agentic-framework/$_rel" 2>/dev/null || true)
+    # Neither side is in HEAD at all: the pair is entirely uncommitted, so no ref
+    # carries this drift.
+    [ -z "$_src" ] && [ -z "$_ven" ] && return 1
+    [ "$_src" = "$_ven" ] && return 1
+    return 0
+}
+
+warn_unenumerable() {
+    local _source="$1" _msg="$2" _evidence="${3:-}" _mitigation="${4:-}"
+    warn "$_msg — NOT EVALUATED: could not read $_source" \
+         "${_evidence:-Enumeration of $_source failed or returned nothing parseable, so this check produced no verdict at all (T-3105).}" \
+         "${_mitigation:-Repair or restore $_source, then re-run — this check asserts nothing until its candidate set can be enumerated}"
 }
 
 # --- New Project Grace Period (T-301) ---
@@ -577,51 +729,183 @@ else
          "Copy zzz-default.md to .tasks/templates/default.md"
 fi
 
-# T-1279 (G-052): Detect duplicate task IDs across active/ and completed/.
-# ID collisions are silent downstream failures (episodic confusion, fabric
-# ambiguity, commit traceability loss). Any two files sharing `id: T-NNNN`
-# in their frontmatter should fail the audit.
-dup_output=$(python3 -c "
-import os, re, sys
-from collections import defaultdict
-tasks_dir = os.environ.get('TASKS_DIR', '.tasks')
-id_to_files = defaultdict(list)
-for sub in ('active', 'completed'):
-    d = os.path.join(tasks_dir, sub)
-    if not os.path.isdir(d):
-        continue
-    for f in sorted(os.listdir(d)):
-        if not f.startswith('T-') or not f.endswith('.md'):
-            continue
-        path = os.path.join(d, f)
-        try:
-            with open(path) as fh:
-                for i, line in enumerate(fh):
-                    if i > 30:
-                        break
-                    m = re.match(r'^id:\s*(T-\d+)\s*$', line)
-                    if m:
-                        id_to_files[m.group(1)].append(path)
-                        break
-        except Exception:
-            pass
-dups = {k: v for k, v in id_to_files.items() if len(v) > 1}
-if dups:
-    print('DUPLICATE_IDS_FOUND')
-    for task_id, files in sorted(dups.items()):
-        print(f'  {task_id}:')
-        for f in files:
-            print(f'    - {f}')
-    sys.exit(1)
-print('OK')
-" 2>&1)
-if [ $? -eq 0 ]; then
-    pass "No duplicate task IDs across active/ and completed/"
+# T-1279 (G-052) / T-3107 (slice 2 of 3): duplicate task IDs, over the WHOLE
+# corpus rather than the main checkout alone.
+#
+# A git worktree checks out its own snapshot of `.tasks/`, so "the task corpus"
+# is the UNION of every worktree's view (see fw_task_view_dirs, lib/paths.sh,
+# T-3104). Scanning one view printed "No duplicate task IDs" for seven weeks
+# while T-2505, T-2506 and T-2428 each named a DIFFERENT task in a worktree
+# replica.
+#
+# THE DISCRIMINATOR IS IDENTITY, NOT CONTENT. Git hands the same committed task
+# to every worktree, and a worktree pinned to an older commit holds an older
+# REVISION of that task — same task, different bytes. On this repo's corpus a
+# content-hash compare yields 2744 findings and dies of irrelevance; `created:`
+# (fixed at allocation, never rewritten) yields exactly 3 — the three known
+# collisions, zero false positives. Falls back to the filename slug for the 18
+# legacy files with no parseable `created:`. Do not "simplify" this back to a
+# hash compare; tests/unit/t3107_corpus_duplicate_ids.bats tests 5-7 pin it.
+#
+# Four classes, three verdicts:
+#   same ID twice INSIDE one view      -> FAIL (allocator bug, live)
+#   across views, identity differs     -> WARN (fork artifact: two tasks, one number)
+#   across views, identity same        -> silent, counted as differing revisions
+#   across views, byte-identical       -> silent, counted as replication
+# The FAIL and the WARN are emitted independently: an ID can be both, and
+# neither may mask the other (test 7).
+if ! declare -F fw_task_view_dirs >/dev/null 2>&1; then
+    warn_unenumerable "the corpus view set" \
+         "No duplicate task IDs" \
+         "fw_task_view_dirs is undefined — lib/paths.sh is stale relative to this audit (T-3104 lifted the view enumerator there). The corpus could not be enumerated, so this check asserted nothing." \
+         "Run 'fw upgrade' (or re-sync lib/paths.sh) so fw_task_view_dirs is defined, then re-run the audit"
 else
-    fail "Duplicate task IDs detected (G-052)" \
-         "$dup_output" \
-         "Rename one of each pair: edit filename AND 'id:' frontmatter to a fresh T-NNNN"
+    dup_views=$(fw_task_view_dirs 2>/dev/null)
+    if [ -z "$dup_views" ]; then
+        warn_unenumerable "the corpus view set" \
+             "No duplicate task IDs" \
+             "fw_task_view_dirs returned zero views. Even a repo with no worktrees must yield the local view, so an empty set means the enumeration is broken, not that the corpus is empty." \
+             "Check 'git worktree list' and TASKS_DIR resolution, then re-run the audit"
+    else
+        dup_py=$(cat <<'DUP_PY'
+import hashlib, os, re, sys
+from collections import defaultdict
+
+ID_RE = re.compile(r'^id:\s*(T-\d+)\s*$')
+CREATED_RE = re.compile(r'^created:\s*(.+?)\s*$')
+SLUG_RE = re.compile(r'^T-\d+-(.*)\.md$')
+
+views, seen = [], set()
+for line in sys.stdin:
+    v = line.strip()
+    if not v or not os.path.isdir(v):
+        continue
+    real = os.path.realpath(v)
+    if real in seen:
+        continue
+    seen.add(real)
+    views.append(v)
+
+# record: (view, path, created, slug, content-hash)
+by_id = defaultdict(list)
+for view in views:
+    for sub in ('active', 'completed'):
+        d = os.path.join(view, sub)
+        if not os.path.isdir(d):
+            continue
+        for f in sorted(os.listdir(d)):
+            if not f.startswith('T-') or not f.endswith('.md'):
+                continue
+            path = os.path.join(d, f)
+            try:
+                with open(path, 'rb') as fh:
+                    raw = fh.read()
+            except Exception:
+                continue
+            text = raw.decode('utf-8', 'replace')
+            tid = created = None
+            for i, line in enumerate(text.splitlines()):
+                if i > 30:
+                    break
+                m = ID_RE.match(line)
+                if m and tid is None:
+                    tid = m.group(1)
+                m = CREATED_RE.match(line)
+                if m and created is None:
+                    val = m.group(1).strip().strip('"').strip("'")
+                    if val and val.lower() not in ('null', '~'):
+                        created = val
+            if tid is None:
+                continue
+            sm = SLUG_RE.match(f)
+            slug = sm.group(1) if sm else f
+            by_id[tid].append((view, path, created, slug,
+                               hashlib.sha256(raw).hexdigest()))
+
+files = sum(len(v) for v in by_id.values())
+within_lines, fork_lines = [], []
+n_identical = n_revisions = n_within = n_forks = 0
+
+for tid in sorted(by_id, key=lambda t: (len(t), t)):
+    recs = by_id[tid]
+
+    # (a) same ID twice inside one view -> FAIL. Reported once per ID, not once
+    #     per view: git replicates the offending pair into every worktree, so
+    #     per-view reporting would multiply one allocator bug by the view count.
+    per_view = defaultdict(list)
+    for r in recs:
+        per_view[r[0]].append(r)
+    offending = sorted(p for v in per_view.values() if len(v) > 1 for p in (r[1] for r in v))
+    if offending:
+        n_within += 1
+        within_lines.append('WITHIN %s (same ID twice inside one corpus view)' % tid)
+        within_lines.extend('    - %s' % p for p in offending)
+
+    # (b) across views: same task, or two tasks on one number?
+    if len(per_view) < 2:
+        continue
+    by_created = all(r[2] for r in recs)
+    ident = (lambda r: r[2]) if by_created else (lambda r: r[3])
+    if len(set(ident(r) for r in recs)) > 1:
+        n_forks += 1
+        fork_lines.append('FORK %s (identity differs by %s)'
+                          % (tid, 'created:' if by_created else 'filename slug'))
+        for r in sorted(recs, key=lambda r: r[1]):
+            fork_lines.append('    - %s  [%s]'
+                              % (r[1], r[2] if by_created else 'slug: ' + r[3]))
+    elif len(set(r[4] for r in recs)) == 1:
+        n_identical += 1
+    else:
+        n_revisions += 1
+
+print('=== WITHIN ===')
+print('\n'.join(within_lines))
+print('=== FORK ===')
+print('\n'.join(fork_lines))
+print('=== STATS ===')
+print('files=%d views=%d identical=%d revisions=%d within=%d forks=%d'
+      % (files, len(views), n_identical, n_revisions, n_within, n_forks))
+DUP_PY
+)
+        dup_output=$(printf '%s\n' "$dup_views" | python3 -c "$dup_py" 2>&1)
+        dup_rc=$?
+        dup_stats=$(printf '%s\n' "$dup_output" | sed -n '/^=== STATS ===$/,$p' | sed -n '2p')
+        if [ $dup_rc -ne 0 ] || [ -z "$dup_stats" ]; then
+            warn_unenumerable "the corpus view set" \
+                 "No duplicate task IDs" \
+                 "The corpus scanner exited $dup_rc with no STATS line. First 5 lines of its output: $(printf '%s\n' "$dup_output" | head -5)" \
+                 "Re-run the scanner by hand over 'fw_task_view_dirs' output to see the error, then re-run the audit"
+        else
+            dup_field() { printf '%s\n' "$dup_stats" | tr ' ' '\n' | sed -n "s/^$1=//p"; }
+            dup_files=$(dup_field files); dup_nviews=$(dup_field views)
+            dup_ident=$(dup_field identical); dup_revs=$(dup_field revisions)
+            dup_within=$(printf '%s\n' "$dup_output" | sed -n '/^=== WITHIN ===$/,/^=== FORK ===$/p' | sed '1d;$d' | grep -v '^$')
+            dup_forks=$(printf '%s\n' "$dup_output" | sed -n '/^=== FORK ===$/,/^=== STATS ===$/p' | sed '1d;$d' | grep -v '^$')
+            dup_nforks=$(dup_field forks)
+
+            [ -n "$dup_within" ] && fail "Duplicate task IDs detected (G-052)" \
+                 "$dup_within" \
+                 "Rename one of each pair: edit filename AND 'id:' frontmatter to a fresh T-NNNN"
+
+            [ -n "$dup_forks" ] && warn "Cross-view task-ID collisions: $dup_nforks ID(s) name a different task in another corpus view" \
+                 "$dup_forks" \
+                 "Two tasks were minted onto one number across views (L-506 leg 2). Re-number the losing side in its worktree, or land/discard that worktree so the corpus holds one task per ID"
+
+            if [ -z "$dup_within" ] && [ -z "$dup_forks" ]; then
+                dup_set="task file(s) across $dup_nviews corpus view(s)"
+                if [ "${dup_ident:-0}" -gt 0 ] || [ "${dup_revs:-0}" -gt 0 ]; then
+                    dup_set="$dup_set ($dup_ident ID(s) byte-identical in every view, $dup_revs same-task at differing revisions)"
+                fi
+                pass_over "$dup_files" \
+                     "$dup_set" \
+                     "No duplicate task IDs" \
+                     "Scanned every view fw_task_view_dirs enumerated, not just the main checkout (T-3107). Replication across views is counted, not reported — only a differing identity is a finding." \
+                     "An empty or single-view corpus where you expect worktrees means the enumeration is mis-rooted — check 'git worktree list' and TASKS_DIR"
+            fi
+        fi
+    fi
 fi
+# end duplicate-task-ID scan
 
 # Validate all project YAML files parse correctly (T-207 regression test).
 # T-1816: extended to .context/arcs/ — broken arc YAML silently 404s the
@@ -689,8 +973,9 @@ except yaml.YAMLError as e:
              "Fix .context/inbox.yaml — a note body with a backslash/quote corrupts it (T-2456); fw note now escapes new entries"
     fi
 fi
-if [ "$yaml_fail_count" -eq 0 ] && [ "$yaml_pass_count" -gt 0 ]; then
-    pass "All $yaml_pass_count project YAML files parse correctly"
+if [ "$yaml_fail_count" -eq 0 ]; then
+    pass_over "$yaml_pass_count" "project YAML file(s)" "All project YAML files parse correctly" \
+         "" "No YAML files were found to parse — check that .context/, policy/ and .context/arcs/ exist and are populated"
 fi
 
 # T-2067: task-frontmatter parse check.
@@ -816,8 +1101,110 @@ if [ -d "$PROJECT_ROOT/.context/arcs" ]; then
         fi
     done
 fi
-if [ "$anchor_checked" -gt 0 ] && [ "$anchor_missing" -eq 0 ]; then
-    pass "All $anchor_checked arc anchor_task references resolve to existing tasks"
+if [ "$anchor_missing" -eq 0 ]; then
+    pass_over "$anchor_checked" "arc anchor_task reference(s)" \
+         "All arc anchor_task references resolve to existing tasks" \
+         "" "0 arcs declared a non-null anchor_task — either .context/arcs/ is empty or every arc has anchor_task: null"
+fi
+
+# T-2980 (arc-017, onboarding-curriculum): seed → corpus-map reference resolution.
+#
+# arc-017 chose to have the onboarding curriculum ROUTE to corpus maps rather than
+# embed their content. That created a reference class nothing checked: each seeded
+# task's `## For the Operator` section ends with `fw corpus explain <id>`, and if
+# that id stops resolving the operator gets a tool error in their first hour, from
+# a system they have no model of yet.
+#
+# FAIL rather than WARN, deliberately diverging from the anchor_task sibling above.
+# Three reasons: the reference is a command we TELL a first-time operator to run,
+# so the blast radius is the framework's first impression; the seeds are templates
+# copied into every consumer project by `fw init`, so a dangling ref ships to every
+# install made after it lands and is found one confused operator at a time; and the
+# fix is a one-line edit. Warning about a deterministic, trivially-fixable,
+# operator-facing dead end would be the wrong tier.
+#
+# Scope is seed → corpus-map only. Watchtower path refs (/fabric, /designer) resolve
+# through a different mechanism and are not checked here.
+seed_ref_missing=0
+seed_ref_checked=0
+if [ -d "$PROJECT_ROOT/lib/seeds/tasks" ] && [ -d "$PROJECT_ROOT/.context/designer/projects" ]; then
+    while IFS= read -r _line; do
+        [ -z "$_line" ] && continue
+        _sfile="${_line%%:*}"
+        _sref="${_line##* }"
+        [ -z "$_sref" ] && continue
+        seed_ref_checked=$((seed_ref_checked + 1))
+        if [ ! -d "$PROJECT_ROOT/.context/designer/projects/$_sref" ]; then
+            fail "Seed '${_sfile#"$PROJECT_ROOT"/}' routes to corpus map '$_sref', which is not in the store" \
+                 "The seed tells a first-time operator to run 'fw corpus explain $_sref'; that command will error. Seeds are copied into every project by 'fw init', so this ships to new installs." \
+                 "Either the reference is stale (fix the id in the seed — check 'ls .context/designer/projects/' for the current name), or the map is genuinely missing (restore it, or drop the 'Go deeper' line rather than leaving it dangling)"
+            seed_ref_missing=$((seed_ref_missing + 1))
+        fi
+    done <<SEEDREFS
+$(grep -roE --include='*.md' "corpus explain [a-z0-9][a-z0-9-]*" "$PROJECT_ROOT/lib/seeds/tasks" 2>/dev/null)
+SEEDREFS
+fi
+if [ "$seed_ref_missing" -eq 0 ]; then
+    pass_over "$seed_ref_checked" "onboarding-seed corpus reference(s)" \
+         "All onboarding-seed corpus references resolve to existing maps" \
+         "" "No 'fw corpus explain <id>' reference was found in lib/seeds/tasks — either the seeds stopped routing to maps, or lib/seeds/tasks is absent"
+fi
+
+# T-2985 (arc-014, designer-corpus): corpus-lint findings reach the daily audit.
+#
+# The detectors work; nothing converted their output into work. `fw corpus lint` is
+# not in audit, not on cron, not in any `## Verification` block — so a finding
+# persisted exactly as long as nobody happened to type the command. T-2984 is the
+# worked example: lane-geometry (T-2684) and lane-overflow (T-2688/T-2689) both fired
+# on aef-session-lifecycle for ~4 weeks. That map is vendored into every consumer
+# (T-2942) and is the one existing-project/T-001 routes a first-time operator to. It
+# was found by hand-auditing arc-014, which is not a mechanism.
+#
+# WARN, not FAIL — and unlike the T-2980 sibling directly above, that divergence is
+# the point. Seed→map references are homogeneous: dangling is always broken. Corpus
+# findings are not. `emitterless-typed-event` on aef-dispatch-loop@v3 is a real seam
+# (a typed catch whose throw legitimately lives outside the corpus), and `legacy-ref`
+# on t2584-scratch is a scratch artefact. A blanket FAIL would exit 2 on a correct
+# corpus, and an audit that fails for a known-acceptable reason trains people to stop
+# reading it — which costs more than the findings do.
+#
+# Silent where the linter or the store is absent: vendored consumers may not carry
+# tools/, and a fresh project has no map store. No traceback, no spurious WARN, and
+# no PASS line claiming a scan that did not happen.
+corpus_lint_findings=0
+corpus_lint_scanned=0
+_corpus_lint_py="$PROJECT_ROOT/tools/corpus_lint.py"
+if [ -f "$_corpus_lint_py" ] && [ -d "$PROJECT_ROOT/.context/designer/projects" ]; then
+    _cl_json=$(cd "$PROJECT_ROOT" && timeout 120 python3 "$_corpus_lint_py" --json 2>/dev/null)
+    _cl_rows=$(printf '%s' "$_cl_json" | python3 -c '
+import json, sys
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    sys.exit(0)
+print("SCANNED\t%d\t\t" % len(d.get("scanned", [])))
+for f in d.get("findings", []):
+    print("FINDING\t%s\t%s\t%s\t%s" % (
+        f.get("rule", "?"), f.get("map", "?"), f.get("node", "") or "-",
+        " ".join(str(f.get("detail", "")).split())))
+' 2>/dev/null)
+    while IFS=$'\t' read -r _clk _cl1 _cl2 _cl3 _cl4; do
+        case "$_clk" in
+            SCANNED) corpus_lint_scanned="${_cl1:-0}" ;;
+            FINDING)
+                warn "Corpus lint [$_cl1] ${_cl2} :: ${_cl3}" \
+                     "${_cl4}" \
+                     "Inspect with 'fw corpus explain ${_cl2%@*}'. Fix the map, or — if the finding is a genuine seam rather than a defect — mark it (aef:meta seamPending=\"...\") so it stops reporting and the marker records the judgement"
+                corpus_lint_findings=$((corpus_lint_findings + 1))
+                ;;
+        esac
+    done <<CORPUSLINT
+$_cl_rows
+CORPUSLINT
+fi
+if [ "$corpus_lint_findings" -eq 0 ] && [ -f "$_corpus_lint_py" ] && [ -d "$PROJECT_ROOT/.context/designer/projects" ]; then
+    pass_over "$corpus_lint_scanned" "corpus map(s)" "Corpus maps lint clean" \
+         "" "tools/corpus_lint.py ran but reported 0 maps scanned — check its --json output by hand (a 120s timeout also lands here)"
 fi
 
 # T-1855 (T-NEW-7): Stale-arc warning.
@@ -836,10 +1223,24 @@ if [ -d "$PROJECT_ROOT/.context/arcs" ] && command -v git >/dev/null 2>&1 \
     # fork inside per-arc loop — 8 arcs × 2,261 tasks = ~18K awk subprocesses,
     # ~90-100s wall-clock). Now: 1 python3 read of all task heads, in-memory
     # filter per arc. Skips T-Test-* sentinels (T-2228 parity with _is_test_sentinel).
+    # T-2970: the map must union BOTH membership forms — `arc_id:` (T-1849
+    # canonical) and the legacy `tags: [arc:<slug>]` — because arc_tasks_for
+    # (lib/arc_membership.sh:108) does, and it is the reader everything else
+    # agrees with. Reading arc_id: alone made four arcs read as ZERO tasks
+    # (onboarding 015/016/017 and ladder-trigger-producer) and undercounted four
+    # more; they then hit the zero-population `continue` below, whose stated
+    # reason is "no tasks" and which therefore absorbed "tasks this map cannot
+    # see" without distinction.
+    #
+    # This union already exists in this file at ~5250, added by T-1875 after the
+    # same class cost 163 task-arc relationships across 5 arcs. T-2298's
+    # performance rewrite of THIS pass (awk-fork-per-task → single python read)
+    # did not carry it across. Keep both readers in step.
     task_arc_map=$(python3 -c "
 import os, re
 project_root = '$PROJECT_ROOT'
 arc_id_re = re.compile(r'^arc_id:\s*([^\s#]+)', re.M)
+arc_tag_re = re.compile(r'^tags:.*?\barc:([A-Za-z0-9_-]+)', re.M)
 for d in ('active', 'completed'):
     tdir = os.path.join(project_root, '.tasks', d)
     if not os.path.isdir(tdir):
@@ -859,11 +1260,19 @@ for d in ('active', 'completed'):
                 head = f.read(4096)
         except Exception:
             continue
+        # T-2970: emit one row per membership declaration; the per-arc filter
+        # below matches on either, and duplicates are harmless (a task matching
+        # both forms of the same arc still yields one arc).
+        emitted = set()
         m = arc_id_re.search(head)
-        if not m:
-            continue
-        tag = m.group(1).strip().strip('\"').strip(chr(39))
-        if tag and tag != 'null':
+        if m:
+            tag = m.group(1).strip().strip('\"').strip(chr(39))
+            if tag and tag != 'null':
+                emitted.add(tag)
+        mt = arc_tag_re.search(head)
+        if mt:
+            emitted.add(mt.group(1).strip())
+        for tag in emitted:
             print(f'{path}\t{tag}')
 " 2>/dev/null)
 
@@ -883,14 +1292,27 @@ for d in ('active', 'completed'):
         # T-2298: filter pre-computed map by this arc's slug or arc-NNN id —
         # was per-task awk fork (one awk per task per arc). Now in-memory only.
         matching_tasks=()
+        seen_paths=" "
         while IFS=$'\t' read -r tp ttag; do
             [ -z "$tp" ] && continue
             if [ "$ttag" = "$arc_slug" ] || [ "$ttag" = "$arc_numeric" ]; then
+                # T-2970: a task may declare membership via BOTH arc_id: and the
+                # legacy arc:<slug> tag, emitting two rows. Dedupe by path so the
+                # "(N task(s) in arc)" count matches `fw arc list`.
+                case "$seen_paths" in *" $tp "*) continue;; esac
+                seen_paths="${seen_paths}${tp} "
                 matching_tasks+=("$tp")
             fi
         done <<< "$task_arc_map"
 
         # Zero-population arcs can't be assessed for staleness — skip.
+        #
+        # T-2970: this skip is a reasoned EXCLUSION (staleness is not a
+        # meaningful question for an arc with no constituents), and it used to
+        # double as a HOLE — arcs whose tasks the map could not read landed here
+        # too, indistinguishable. The union above closes the hole; the exclusion
+        # stands. The PASS line below now reports the assessed count so the two
+        # can never silently merge again.
         [ "${#matching_tasks[@]}" -eq 0 ] && continue
 
         arcs_checked_for_staleness=$((arcs_checked_for_staleness + 1))
@@ -907,8 +1329,71 @@ for d in ('active', 'completed'):
         fi
     done
 fi
-if [ "$arcs_checked_for_staleness" -gt 0 ] && [ "$stale_arc_count" -eq 0 ]; then
-    pass "All $arcs_checked_for_staleness in-progress arc(s) had task commits within ${stale_arc_threshold} days"
+if [ "$stale_arc_count" -eq 0 ]; then
+    # T-2970: name the ASSESSED count, not "all". The previous wording ("All N
+    # in-progress arc(s) ...") read as total coverage while N was whatever the
+    # membership map happened to see — a census over survivors. Stating the
+    # denominator is what makes a future shortfall visible. T-3105 moved the
+    # census onto the shared verb, which also turns the previously-silent
+    # zero-population case into a WARN instead of no line at all.
+    pass_over "$arcs_checked_for_staleness" "in-progress arc(s) with constituents" \
+         "All assessed arcs had task commits within ${stale_arc_threshold} days" \
+         "" "No in-progress arc has any constituent task — either .context/arcs/ holds no in-progress entries, or the arc_id:/arc: tag join is resolving to nothing"
+fi
+
+# T-2969: draft arc with all constituents complete. `fw arc close` requires
+# `in-progress` (lib/arc.sh:665), so an arc left in `draft` whose constituent
+# tasks are all work-completed has no path to closure and nothing reports
+# it — the stale-arc check above is silent on draft arcs BY DESIGN (right
+# question, wrong population: draft-with-no-activity is backlog, not stall),
+# and the close refusal itself names no remedy. Reuses task_arc_map computed
+# above (same membership union: arc_id: + legacy arc:<slug> tag).
+draft_complete_count=0
+if [ -d "$PROJECT_ROOT/.context/arcs" ] && [ -n "${task_arc_map:-}" ]; then
+    for af in "$PROJECT_ROOT/.context/arcs"/*.yaml; do
+        [ -f "$af" ] || continue
+
+        status_val=$(awk -F': ' '/^status:/ {sub(/^status:[[:space:]]*/, ""); print; exit}' "$af" \
+                     | tr -d ' "' | head -c 32)
+        [ "$status_val" = "draft" ] || continue
+
+        arc_numeric=$(awk -F': ' '/^id:/ {sub(/^id:[[:space:]]*/, ""); print; exit}' "$af" \
+                      | tr -d ' "' | head -c 32)
+        arc_slug=$(awk -F': ' '/^slug:/ {sub(/^slug:[[:space:]]*/, ""); print; exit}' "$af" \
+                   | tr -d ' "' | head -c 64)
+        [ -z "$arc_slug" ] && arc_slug=$(basename "$af" .yaml)
+
+        matching_tasks=()
+        seen_paths=" "
+        while IFS=$'\t' read -r tp ttag; do
+            [ -z "$tp" ] && continue
+            if [ "$ttag" = "$arc_slug" ] || [ "$ttag" = "$arc_numeric" ]; then
+                case "$seen_paths" in *" $tp "*) continue;; esac
+                seen_paths="${seen_paths}${tp} "
+                matching_tasks+=("$tp")
+            fi
+        done <<< "$task_arc_map"
+
+        # Zero-population draft arcs don't warn: 0/0 is vacuously "all
+        # complete", which would fire on every empty draft arc — the
+        # always-answers shape this whole class exists to avoid.
+        [ "${#matching_tasks[@]}" -eq 0 ] && continue
+
+        all_complete=1
+        for tp in "${matching_tasks[@]}"; do
+            case "$tp" in
+                */completed/*) ;;
+                *) all_complete=0; break ;;
+            esac
+        done
+
+        if [ "$all_complete" -eq 1 ]; then
+            warn "Arc '$arc_slug' is draft with all ${#matching_tasks[@]} constituent task(s) work-completed" \
+                 "Draft arcs can't be closed directly ('fw arc close' requires in-progress) — this arc's work is finished but there's no path out of draft" \
+                 "Run 'fw arc start $arc_slug' to move it to in-progress, then close via Watchtower (/arcs/$arc_slug/close)"
+            draft_complete_count=$((draft_complete_count + 1))
+        fi
+    done
 fi
 
 # T-2169 (T-NEW-C, value-drivers v3 follow-up): retire_when advisory.
@@ -1224,8 +1709,13 @@ arc_tag_only_evidence=""
 # in either `tags: [...]` or as a raw pattern argument. Excludes
 # `current_arc:` and `arc_id:` which are different namespaces.
 arc_tag_only_pattern='grep[^|]*"\^?tags:.*arc:|grep[^|]*arc:[A-Za-z0-9_-]'
+# T-3105: count the files the scan actually walks. A grep that matches nothing
+# and a grep that walked nothing print the same "no violations" line otherwise.
+arc_tag_only_scanned=0
 for scan_dir in lib web agents bin tools; do
     [ -d "$PROJECT_ROOT/$scan_dir" ] || continue
+    arc_tag_only_scanned=$((arc_tag_only_scanned + $(find "$PROJECT_ROOT/$scan_dir" \
+        \( -name '*.sh' -o -name '*.py' -o -name '*.bash' \) -type f 2>/dev/null | wc -l)))
     while IFS= read -r hit; do
         [ -z "$hit" ] && continue
         # Allowlist by path prefix.
@@ -1242,7 +1732,9 @@ for scan_dir in lib web agents bin tools; do
                    "$PROJECT_ROOT/$scan_dir" 2>/dev/null || true)
 done
 if [ "$arc_tag_only_violations" -eq 0 ]; then
-    pass "No inline arc:<slug> tag-only scans outside canonical lib (T-1881)"
+    pass_over "$arc_tag_only_scanned" "source file(s) under lib/ web/ agents/ bin/ tools/" \
+         "No inline arc:<slug> tag-only scans outside canonical lib (T-1881)" \
+         "" "The scan walked no files — check that lib/ web/ agents/ bin/ tools/ exist under PROJECT_ROOT"
 else
     fail "Found $arc_tag_only_violations inline arc:<slug> tag-only scan(s) outside canonical lib" \
          "$(printf '%b' "$arc_tag_only_evidence" | head -5)" \
@@ -1274,8 +1766,11 @@ fi
 splitroot_violations=0
 splitroot_evidence=""
 splitroot_pattern='PROJECT_ROOT[[:space:]]*/[[:space:]]*["'\''](lib|agents|policy|bin|web)["'\'']'
+# T-3105: population = the Python files this scan walks (see arc_tag_only above).
+splitroot_scanned=0
 for scan_dir in web lib; do
     [ -d "$PROJECT_ROOT/$scan_dir" ] || continue
+    splitroot_scanned=$((splitroot_scanned + $(find "$PROJECT_ROOT/$scan_dir" -name '*.py' -type f 2>/dev/null | wc -l)))
     while IFS= read -r hit; do
         [ -z "$hit" ] && continue
         case "$hit" in
@@ -1291,7 +1786,9 @@ for scan_dir in web lib; do
                    "$PROJECT_ROOT/$scan_dir" 2>/dev/null || true)
 done
 if [ "$splitroot_violations" -eq 0 ]; then
-    pass "No PROJECT_ROOT resolution of framework-owned assets in web/ + lib/ Python (T-2648, OBS-097)"
+    pass_over "$splitroot_scanned" "Python file(s) under web/ + lib/" \
+         "No PROJECT_ROOT resolution of framework-owned assets (T-2648, OBS-097)" \
+         "" "The scan walked no .py files under web/ or lib/ — the OBS-097 rail asserted nothing this run"
 else
     fail "Found $splitroot_violations PROJECT_ROOT resolution(s) of framework-owned assets (breaks split-root consumers)" \
          "$(printf '%b' "$splitroot_evidence" | head -5)" \
@@ -1316,8 +1813,12 @@ fi
 # Allowlist: tests/, docs/, .fabric/, .context/, .tasks/, audit.sh itself.
 stale_slice_count=0
 stale_slice_evidence=""
+# T-3105: population = the files this scan walks (see arc_tag_only above).
+stale_slice_scanned=0
 for scan_dir in web/templates web/blueprints lib; do
     [ -d "$PROJECT_ROOT/$scan_dir" ] || continue
+    stale_slice_scanned=$((stale_slice_scanned + $(find "$PROJECT_ROOT/$scan_dir" \
+        \( -name '*.html' -o -name '*.py' -o -name '*.sh' \) -type f 2>/dev/null | wc -l)))
     while IFS= read -r hit; do
         [ -z "$hit" ] && continue
         # Allowlist (out-of-scope or self-referential)
@@ -1343,7 +1844,9 @@ for scan_dir in web/templates web/blueprints lib; do
                    "$PROJECT_ROOT/$scan_dir" 2>/dev/null || true)
 done
 if [ "$stale_slice_count" -eq 0 ]; then
-    pass "No stale-slice-references (L-417)"
+    pass_over "$stale_slice_scanned" "file(s) under web/templates web/blueprints lib" \
+         "No stale-slice-references (L-417)" \
+         "" "The scan walked no files — the L-417 rail asserted nothing this run"
 else
     warn "Found $stale_slice_count stale-slice-reference(s) — satellite text references a completed task as if still pending" \
          "$(printf '%b' "$stale_slice_evidence" | head -5)" \
@@ -1353,121 +1856,218 @@ fi
 # T-2096 (OBS-036, sibling to L-417/T-1975): GO-scope-not-propagated scan.
 # Forwards-pointing companion to the L-417 detector above. L-417 catches
 # satellite text claiming "ships in T-NNNN" where T-NNNN is already
-# completed (backwards staleness). This detector catches the inverse:
-# completed inceptions whose Recommendation/Decision claim sub-tasks
-# were filed, but related_tasks: [] AND no other task back-references
-# the inception in their own related_tasks. The GO scope was promised
-# but never actually propagated — humans following the breadcrumbs
-# find a dead-end.
+# completed (backwards staleness). This detector catches the inverse: a
+# completed inception that recorded a GO and then propagated nothing — no
+# related_tasks:, nobody back-referencing it, no build task declaring it via
+# unlocks_inception_decision:. The GO scope was approved but never became
+# work; humans following the breadcrumbs find a dead-end.
 # Origin: T-2078 (May-29) — Recommendation said "V1 build slices (filed on GO)"
 # but related_tasks: [] and the V1-a/b/c/d slices did not exist until T-2091's
-# G-052 sweep backfilled them as T-2092..T-2095. WARN (not FAIL) until
-# FP rate is measured.
-go_scope_unprop_count=0
-go_scope_unprop_evidence=""
-# T-2298: single python3 pre-scan (was per-completed-task grep fan-out — ~1500
-# completed tasks × 3-4 greps + cross-file grep per survivor = 30-60s wall-clock).
-# Pass 1: find candidate inceptions (workflow_type=inception + claim phrase +
-# empty/absent related_tasks). Pass 2: build set of ALL t_ids referenced inline
-# in any task's related_tasks: line — O(M+N) instead of original O(M*N) per-
-# candidate cross-file scan. Skips T-Test-* sentinels (T-2228 parity).
-go_scope_unprop_list=$(python3 -c "
+# G-052 sweep backfilled them as T-2092..T-2095. WARN (not FAIL): a finding is
+# "somebody should triage this", and the standing backlog is pre-existing debt,
+# not a regression.
+#
+# T-3099: the candidate gate is STRUCTURAL. It was a regex over prose --
+#   CLAIM_RE = r'filed on GO|sub-tasks (filed|created)|build slices (filed|created)
+#               |child tasks (filed|spun off)'
+# -- which measured 2 matches across 444 completed inceptions, 0 of which
+# survived the related_tasks filter. The candidate set was empty by
+# construction, so every PASS this check ever printed was vacuous. A rail keyed
+# to how an author phrased a promise is silent exactly when the author writes
+# carefully: an inverse correlation with the thing being measured. T-2822 --
+# whose unbuilt keystone slice kept the worktree class alive for two weeks past
+# its own approval -- says "each is a separate build slice", which the regex
+# does not match. See docs/reports/T-3097-worktree-rca.md IW-4.
+# There is no vocabulary anywhere in the predicate now: GO recorded, no
+# related_tasks, no back-reference, no unlocks_inception_decision.
+#
+# T-2298 (preserved): single python3 pre-scan, O(M+N). Pass 1 walks completed/
+# once to find candidates; pass 2 walks active/+completed/ once to build the set
+# of every task id referenced by a related_tasks: line or an
+# unlocks_inception_decision: entry. The original per-candidate grep fan-out
+# (~1500 completed tasks x 3-4 greps + a cross-file grep per survivor) took
+# 30-60s wall-clock. Skips T-Test-* sentinels (T-2228 parity).
+GO_SCOPE_REPORT_DIR="$AUDITS_DIR/go-scope-unpropagated"
+mkdir -p "$GO_SCOPE_REPORT_DIR" 2>/dev/null || true
+GO_SCOPE_REPORT_PATH="$GO_SCOPE_REPORT_DIR/LATEST.md"
+go_scope_summary=$(python3 -c "
 import os, re
+
 project_root = '$PROJECT_ROOT'
+report_path = '$GO_SCOPE_REPORT_PATH'
 completed_dir = os.path.join(project_root, '.tasks', 'completed')
 active_dir = os.path.join(project_root, '.tasks', 'active')
 
 WORKFLOW_RE = re.compile(r'^workflow_type: inception\$', re.M)
-CLAIM_RE = re.compile(r'filed on GO|sub-tasks (filed|created)|build slices (filed|created)|child tasks (filed|spun off)', re.I)
+# Structural GO marker: the field 'fw inception decide' writes into ## Decision.
+# Anchored on the field, so NO-GO / DEFER / SUPERSEDED cannot match, and no
+# prose phrasing is consulted.
+GO_RE = re.compile(r'^\*\*Decision\*\*:[ \t]*GO\b', re.M)
 EMPTY_RT_RE = re.compile(r'^related_tasks: \[\]', re.M)
 HAS_RT_RE = re.compile(r'^related_tasks:', re.M)
 ID_RE = re.compile(r'^(T-\d+)')
 INLINE_RT_LINE_RE = re.compile(r'^related_tasks:.*\bT-\d+\b.*\$', re.M)
+# Inline list form plus the indented block form both occur in the corpus.
+UNLOCKS_RE = re.compile(r'^unlocks_inception_decision:.*(?:\n[ \t]+-.*)*', re.M)
 TID_RE = re.compile(r'\bT-\d+\b')
 
-# Pass 1: candidate inceptions
-candidates = []  # (path, t_id)
-if os.path.isdir(completed_dir):
+
+def task_files(d):
+    if not os.path.isdir(d):
+        return
     try:
-        names = os.listdir(completed_dir)
+        names = sorted(os.listdir(d))
     except OSError:
-        names = []
+        return
     for fn in names:
         if not (fn.startswith('T-') and fn.endswith('.md')):
             continue
         if fn.startswith('T-Test-'):
             continue
-        path = os.path.join(completed_dir, fn)
+        path = os.path.join(d, fn)
         try:
             with open(path) as f:
                 content = f.read()
         except Exception:
-            continue
-        if not WORKFLOW_RE.search(content):
-            continue
-        if not CLAIM_RE.search(content):
-            continue
-        # related_tasks: must be empty (\`[]\`) OR absent
-        if EMPTY_RT_RE.search(content):
-            pass
-        elif not HAS_RT_RE.search(content):
-            pass
-        else:
             continue
         m = ID_RE.match(fn)
         if not m:
             continue
-        candidates.append((path, m.group(1)))
+        yield path, fn, m.group(1), content
 
-# Pass 2: collect ALL t_ids appearing inline in any task's related_tasks: line.
-referenced_ids = set()
-for tdir in (active_dir, completed_dir):
-    if not os.path.isdir(tdir):
-        continue
-    try:
-        names = os.listdir(tdir)
-    except OSError:
-        continue
-    for fn in names:
-        if not (fn.startswith('T-') and fn.endswith('.md')):
-            continue
-        if fn.startswith('T-Test-'):
-            continue
-        path = os.path.join(tdir, fn)
-        try:
-            with open(path) as f:
-                content = f.read()
-        except Exception:
-            continue
-        for m in INLINE_RT_LINE_RE.finditer(content):
-            for tid_match in TID_RE.finditer(m.group(0)):
-                referenced_ids.add(tid_match.group(0))
 
-# Emit candidates that are NOT back-referenced
-for path, t_id in candidates:
-    if t_id not in referenced_ids:
-        print(path)
+def no_related_tasks(content):
+    if EMPTY_RT_RE.search(content):
+        return True
+    return not HAS_RT_RE.search(content)
+
+
+# Pass 1: walk completed/ once. Count the population actually examined, and
+# collect the structural candidates.
+total_inceptions = 0
+go_inceptions = 0
+candidates = []   # (t_id, path)
+completed_cache = []
+for path, fn, t_id, content in task_files(completed_dir):
+    completed_cache.append((t_id, content))
+    if not WORKFLOW_RE.search(content):
+        continue
+    total_inceptions += 1
+    if not GO_RE.search(content):
+        continue
+    go_inceptions += 1
+    if no_related_tasks(content):
+        candidates.append((t_id, path))
+
+# Pass 2: walk active/ once and reuse the completed/ read from pass 1. Collect
+# every task id referenced by a related_tasks: line or an
+# unlocks_inception_decision: entry. Self-references do not count as
+# propagation.
+referenced = set()
+
+
+def harvest(owner_id, content):
+    for m in INLINE_RT_LINE_RE.finditer(content):
+        for tm in TID_RE.finditer(m.group(0)):
+            if tm.group(0) != owner_id:
+                referenced.add(tm.group(0))
+    for m in UNLOCKS_RE.finditer(content):
+        for tm in TID_RE.finditer(m.group(0)):
+            if tm.group(0) != owner_id:
+                referenced.add(tm.group(0))
+
+
+for t_id, content in completed_cache:
+    harvest(t_id, content)
+for path, fn, t_id, content in task_files(active_dir):
+    harvest(t_id, content)
+
+findings = [(t_id, path) for t_id, path in candidates if t_id not in referenced]
+
+
+def id_key(pair):
+    return int(pair[0].split('-')[1])
+
+
+findings.sort(key=id_key, reverse=True)
+
+lines = []
+lines.append('# GO-scope-not-propagated inceptions')
+lines.append('')
+lines.append('Generated by fw audit (T-2096, structural predicate since T-3099).')
+lines.append('Read-only: no task is closed, no status changed, no box ticked.')
+lines.append('')
+lines.append('## Criterion (structural — no prose is consulted)')
+lines.append('')
+lines.append('A completed task qualifies when ALL of:')
+lines.append('')
+lines.append('1. workflow_type: inception')
+lines.append('2. the ## Decision block records a GO')
+lines.append('3. related_tasks: is empty or absent')
+lines.append('4. no task in active/ or completed/ names it on a related_tasks: line')
+lines.append('5. no task declares unlocks_inception_decision: pointing at it')
+lines.append('')
+lines.append('## Population examined')
+lines.append('')
+lines.append('- completed inceptions: ' + str(total_inceptions))
+lines.append('- with a GO recorded:   ' + str(go_inceptions))
+lines.append('- findings:             ' + str(len(findings)))
+lines.append('')
+lines.append('These are candidates for triage, not confirmed abandoned decisions:')
+lines.append('some may have shipped work that was simply never linked back. Deciding')
+lines.append('which is which is the judgement this check exists to force.')
+lines.append('')
+lines.append('## Findings (most recent first)')
+lines.append('')
+if findings:
+    for t_id, path in findings:
+        lines.append('- ' + t_id + ' — ' + os.path.relpath(path, project_root))
+else:
+    lines.append('_None._')
+
+try:
+    with open(report_path, 'w') as f:
+        f.write('\n'.join(lines) + '\n')
+except Exception:
+    pass
+
+sample = ', '.join(t_id for t_id, _ in findings[:5])
+overflow = len(findings) - min(5, len(findings))
+if overflow > 0:
+    sample += ' (+' + str(overflow) + ' more)'
+print('|'.join([str(total_inceptions), str(go_inceptions), str(len(findings)), sample]))
 " 2>/dev/null)
 
-while IFS= read -r task_file; do
-    [ -z "$task_file" ] && continue
-    go_scope_unprop_count=$((go_scope_unprop_count + 1))
-    go_scope_unprop_evidence="$go_scope_unprop_evidence$task_file\n"
-done <<< "$go_scope_unprop_list"
-if [ "$go_scope_unprop_count" -eq 0 ]; then
-    pass "No GO-scope-not-propagated inception(s) (sibling to L-417)"
+if [ -z "$go_scope_summary" ]; then
+    # A scan that did not evaluate must not read as a scan that found nothing —
+    # that is the exact defect T-3099 removed from this check. T-3105 replaced
+    # the hand implementation with the shared verb: the behaviour is unchanged,
+    # but there is now one definition of the rule rather than two that can drift.
+    warn_unenumerable "the python3 pre-scan over $PROJECT_ROOT/.tasks" \
+         "GO-scope-not-propagated scan" \
+         "the pre-scan produced no summary line" \
+         "Re-run the pre-scan without 2>/dev/null to see the error; the check asserts nothing until it does"
 else
-    warn "Found $go_scope_unprop_count GO-scope-not-propagated inception(s) — Recommendation claims sub-tasks were filed but related_tasks:[] and no task back-references" \
-         "$(printf '%b' "$go_scope_unprop_evidence" | head -5)" \
-         "Backfill related_tasks: in the inception OR file the promised siblings (origin: T-2078, T-2091; sibling to L-417/T-1975)"
+    IFS='|' read -r _gs_inceptions _gs_go _gs_count _gs_sample <<< "$go_scope_summary"
+    if [ "${_gs_count:-0}" -eq 0 ]; then
+        pass_over "${_gs_go:-0}" "GO-recorded completed inception(s) of ${_gs_inceptions:-0} completed inception(s)" \
+             "No GO-scope-not-propagated inception(s) (sibling to L-417)" \
+             "the workflow_type:inception filter matched ${_gs_inceptions:-0} completed task(s), of which 0 recorded a GO" \
+             "Check the GO predicate against .tasks/completed/ by hand — an empty GO set is what T-3099 found and repaired, and it can regress"
+    else
+        warn "Found $_gs_count GO-scope-not-propagated inception(s) of ${_gs_go:-0} GO-recorded completed inception(s) examined — GO recorded, related_tasks empty, nobody back-references, no unlocks_inception_decision" \
+             "$_gs_sample" \
+             "Triage: per inception either backfill related_tasks: / unlocks_inception_decision:, or file the slices its GO approved. Full list: cat $GO_SCOPE_REPORT_PATH (origin: T-2078, T-2091, T-3099; sibling to L-417/T-1975)"
+    fi
 fi
+# end GO-scope-not-propagated scan (T-3099)
 
 # Fabric drift detection (T-212 — component topology integrity)
 if [ -d "$PROJECT_ROOT/.fabric/components" ]; then
     fabric_cards=$(find "$PROJECT_ROOT/.fabric/components/" -maxdepth 1 -name '*.yaml' -type f 2>/dev/null | wc -l)
     if [ "$fabric_cards" -gt 0 ]; then
         drift_result=$(python3 -c "
-import yaml, glob, os
+import yaml, glob, os, re
 
 PROJECT_ROOT = '$PROJECT_ROOT'
 FABRIC_DIR = os.path.join(PROJECT_ROOT, '.fabric')
@@ -1497,7 +2097,14 @@ for card_path in glob.glob(os.path.join(COMP_DIR, '*.yaml')):
     with open(card_path) as f:
         data = yaml.safe_load(f)
     if data and data.get('location'):
-        if not os.path.exists(os.path.join(PROJECT_ROOT, data['location'])):
+        loc = data['location']
+        # T-3049: skip URL locations. Same fix as agents/fabric/lib/drift.sh —
+        # both sites answer 'is this card's file still there', and a hosted
+        # service has no file to be missing. They must agree, or the CLI and the
+        # daily audit report different orphan counts for one corpus.
+        if re.match(r'^[a-zA-Z][a-zA-Z0-9+.-]*://', loc):
+            continue
+        if not os.path.exists(os.path.join(PROJECT_ROOT, loc)):
             orphaned += 1
 
 print(f'{len(registered)} {orphaned}')
@@ -1632,7 +2239,8 @@ DRIFTEOF
         # where drift_total is the CARD count — so it read as "N files were
         # checked" while N was the registry size. 832 hit exactly this: their
         # "(15 cards)" sat on a watch file that expanded to zero files.
-        pass "Fabric drift: all $drift_watched watched file(s) registered"
+        pass_over "$drift_watched" "watched file(s)" "Fabric drift: all watched files registered" \
+             "" "watch-patterns.yaml expanded to zero files — 832 shipped exactly this state with a green line on it (T-2737)"
     fi
 
     # T-2737: the watch file is the denominator of every coverage check above,
@@ -1708,14 +2316,20 @@ elif [ -f "$_cron_registry" ]; then
         if diff -q "$_cron_source" "$_cron_target" >/dev/null 2>&1; then
             pass "Cron registry in sync with $_cron_target"
         else
+            # T-3126: the comparand is $_cron_target_dir (host state, /etc/cron.d
+            # by default). No git ref contains it, and no push creates or clears
+            # it — so this FAIL cannot be a property of the ref being pushed.
             fail "Cron drift: $_cron_source differs from deployed $_cron_target" \
                  "Registry edits or generator output have not been deployed — cron jobs may be running stale or absent" \
-                 "Run: fw cron install"
+                 "Run: fw cron install" \
+                 worktree "host state: $_cron_target_dir"
         fi
     elif [ -f "$_cron_source" ] && [ ! -f "$_cron_target" ]; then
+        # T-3126: host-state comparand, same as the deployed-drift arm above.
         fail "Cron drift: generated but not installed at $_cron_target" \
              "Generated crontab exists but is not deployed — scheduled jobs are not running" \
-             "Run: fw cron install"
+             "Run: fw cron install" \
+             worktree "host state: $_cron_target_dir"
     elif [ ! -f "$_cron_source" ]; then
         warn "Cron drift: registry present but not generated" \
              "$_cron_registry exists but $_cron_source is missing" \
@@ -1789,11 +2403,82 @@ elif [ -d "$_cron_lint_dir" ]; then
         if [ -n "$_cf_install" ]; then
             pass "cron(${_cf_base}): USER-field syntax installed at $_cf_install"
         else
+            # T-3126: host-state comparand ($_cron_lint_target_dir).
             fail "cron(${_cf_base}): USER-field syntax but no install in $_cron_lint_target_dir" \
                  "Source: $_cf. Dormant -- scheduled jobs are not running (PL-173 / G-058 prevention)." \
-                 "Install: sudo cp $_cf $_cron_lint_target_dir/${_cron_lint_slug}-$_cf_base && sudo systemctl reload cron"
+                 "Install: sudo cp $_cf $_cron_lint_target_dir/${_cron_lint_slug}-$_cf_base && sudo systemctl reload cron" \
+                 worktree "host state: $_cron_lint_target_dir"
         fi
     done
+fi
+
+# T-3095 (T-3093 slice 2): branch hygiene promoted onto the audit cron.
+#
+# The rail shipped 2026-07-04 with exactly one caller — `bin/fw doctor` — and
+# doctor appears on ZERO cron lines. So nothing has ever put branch hygiene in
+# front of anyone on a schedule, which is why four real strands (43-55 days,
+# 202 unlanded commits on one of them) sat unread. This block is the same
+# promotion `bin/fw doctor` -> audit that T-1771/T-1942/T-1943 did for cron
+# drift: same surface, same cron, no new alert channel.
+#
+# It CALLS lib/branch-hygiene.sh rather than mirroring its classification. The
+# cron-drift precedent above mirrored doctor's logic, and that second copy is
+# the L-399 producer/consumer split this slice deliberately does not repeat —
+# there is one predicate (fw_branch_hygiene) and both surfaces read it.
+#
+# WARN, never FAIL: T-3093 ruled out a blocking gate and per-strand auto-filing
+# because both act on a signal whose false-positive rate was only fixed in
+# slice 1 (T-3094 — recency, not behind-count), and both are much harder to
+# walk back than a WARN. Audit's exit code is therefore unchanged by branch
+# findings alone: warnings exit 1, never 2.
+_bh_lib="$FRAMEWORK_ROOT/lib/branch-hygiene.sh"
+if [ -f "$_bh_lib" ] && git -C "$PROJECT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+    if fw_is_linked_worktree "$PROJECT_ROOT"; then
+        # Same guard and same reasoning as the cron blocks above (T-2435 /
+        # T-2437, OBS-077): branch hygiene is a whole-repository concern
+        # evaluated from the canonical checkout. A linked worktree derives a
+        # different branch set and would report its own transient branch as
+        # debris. Environment state, not content state -> INFO, never WARN.
+        info "Branch hygiene skipped — linked worktree (branch set is whole-repo, evaluated from the main checkout)"
+    elif ! git -C "$PROJECT_ROOT" rev-parse --verify -q origin/master >/dev/null 2>&1 \
+         && ! git -C "$PROJECT_ROOT" rev-parse --verify -q master >/dev/null 2>&1; then
+        # fw_branch_hygiene returns silently when there is no master lineage to
+        # judge against — indistinguishable at the call site from a tidy repo.
+        # Reporting that as "clean" is the false-green class this framework has
+        # hit repeatedly (T-2732, OBS-185): a check that could not run must not
+        # report as a check that ran and found nothing.
+        info "Branch hygiene skipped — no master lineage to judge against (origin/master and master both absent)"
+    else
+        source "$_bh_lib"
+        _bh_out=$(fw_branch_hygiene "$PROJECT_ROOT" 2>/dev/null || true)
+        if [ -n "$_bh_out" ]; then
+            _bh_count=$(printf '%s\n' "$_bh_out" | grep -c .)
+            # T-3092: class-representative, not positional. A flat `head -N` is
+            # what hid every remote finding in doctor (0 of 4 shown on this repo)
+            # because emission order is local -> worktree -> remote and the local
+            # classes filled the cap. Audit prints more sections than doctor, so
+            # a truncated class here is even less likely to be noticed.
+            _bh_shown=$(printf '%s\n' "$_bh_out" | fw_branch_hygiene_head 12 | sed '2,$s/^/         /')
+            _bh_full="bash -c 'source \"$_bh_lib\"; fw_branch_hygiene \"$PROJECT_ROOT\"'"
+            if [ "$_bh_count" -gt 12 ]; then
+                _bh_shown="$_bh_shown
+         … $((_bh_count - 12)) more (shown lines are one-per-class, not the worst)"
+            fi
+            _bh_fix="Cleanup: git branch -d <name> (merged); fw integrate run (overdue merge-back). Full list: $_bh_full"
+            if printf '%s\n' "$_bh_out" | grep -q '^diverged-fork '; then
+                # T-100195 (RCA T-100194): a fork is BOTH ahead and behind, so a
+                # go-live `git merge origin/master` conflicts and a one-way
+                # `fw integrate` cannot absorb what master has. Different remedy,
+                # so it has to be named separately or the mitigation is wrong.
+                _bh_fix="$_bh_fix — FORK present: reconcile while small (merge origin/master INTO the branch, or reset if its commits already landed). Do NOT use fw integrate on a fork."
+            fi
+            warn "Branch hygiene: $_bh_count finding(s) — stale branches, worktrees or remote refs" \
+                 "$_bh_shown" \
+                 "$_bh_fix"
+        else
+            pass "Branch hygiene: no stale branches, worktrees or remote refs"
+        fi
+    fi
 fi
 
 # T-1631 (B-3b of T-1626): Hook-failure threshold check.
@@ -1816,38 +2501,8 @@ if [ -f "$HOOK_THRESHOLD_HELPER" ] && [ -f "$HOOK_COUNTER_FILE" ]; then
     fi
 fi
 
-# T-1845: Audit-time secret-scan + large-file scan. These were both pre-commit
-# only, which misses: --no-verify bypasses, files committed before the hook
-# existed, hook installation drift on cron-run hosts. Audit-mode scan-tree
-# closes the gap — same shape as the cron registry sync check above (the gate
-# was wired but not measured at the audit horizon).
-SECRET_SCANNER="$FRAMEWORK_ROOT/agents/git/lib/secret-scan.sh"
-if [ -x "$SECRET_SCANNER" ]; then
-    _ss_out=$(PROJECT_ROOT="$PROJECT_ROOT" "$SECRET_SCANNER" scan-tree 2>&1)
-    _ss_rc=$?
-    if [ "$_ss_rc" -ne 0 ]; then
-        _ss_count=$(echo "$_ss_out" | grep -c "^  \[" || true)
-        fail "Secret scan: $_ss_count finding(s) in tracked tree (T-1844)" \
-             "$(echo "$_ss_out" | head -5)" \
-             "Remove the secret from source + history (filter-repo if already committed); allowlist false-positives in .secret-scan-allowlist"
-    else
-        pass "Secret scan: tracked tree clean"
-    fi
-fi
-
-LARGE_FILE_SCANNER="$FRAMEWORK_ROOT/agents/git/lib/large-file-scan.sh"
-if [ -x "$LARGE_FILE_SCANNER" ]; then
-    _lf_out=$(PROJECT_ROOT="$PROJECT_ROOT" "$LARGE_FILE_SCANNER" scan-tree 2>&1)
-    _lf_rc=$?
-    if [ "$_lf_rc" -ne 0 ]; then
-        _lf_count=$(echo "$_lf_out" | grep -c "\[BLOCK\]" || true)
-        warn "Large-file gate: $_lf_count tracked file(s) above block threshold (T-1845)" \
-             "$(echo "$_lf_out" | head -5)" \
-             "Untrack + add to .gitignore, or allowlist if deliberate: git rm --cached <path> && echo <path> >> .gitignore"
-    else
-        pass "Large-file gate: tracked tree clean"
-    fi
-fi
+# T-3062: the T-1845 whole-tree scanners used to live here, inside `structure`.
+# They now live in SECTION 1b below. See that block for why.
 
 # T-2244: Self-vendor drift FAIL (F2 N×M daily-cron backstop). Mirrors
 # `bin/fw doctor` Check 2b (T-1434 + T-2243) and the pre-push gate
@@ -1869,6 +2524,12 @@ check_self_vendor_drift() {
 
     local _sv_libs=0 _sv_tpl=0
     local _sv_libs_list="" _sv_tpl_list=""
+    # T-3126: of the drifting pairs, how many still drift in HEAD. A pair whose
+    # committed blobs already agree is drift a concurrent session created in the
+    # working tree — real for `fw vendor self`, absent from every ref.
+    local _sv_libs_head=0 _sv_tpl_head=0
+    local _sv_git_ok=0
+    _t3126_git_ok "$FRAMEWORK_ROOT" && _sv_git_ok=1
 
     # libs class: .agentic-framework/{bin,lib,agents,web}/* vs source
     while IFS= read -r _vf; do
@@ -1879,6 +2540,10 @@ check_self_vendor_drift() {
             _sv_libs=$((_sv_libs + 1))
             if [ "$_sv_libs" -le 5 ]; then
                 _sv_libs_list="$_sv_libs_list $_rel"
+            fi
+            # Cannot read git → count every pair as committed (fail-safe → ref).
+            if [ "$_sv_git_ok" != "1" ] || _t3126_pair_drifts_in_head "$FRAMEWORK_ROOT" "$_rel"; then
+                _sv_libs_head=$((_sv_libs_head + 1))
             fi
         fi
     # T-2304 (OBS-068) + T-2307 (follow-on): `*.md` is in scope for parity with
@@ -1916,6 +2581,9 @@ check_self_vendor_drift() {
                 if [ "$_sv_tpl" -le 5 ]; then
                     _sv_tpl_list="$_sv_tpl_list $_rel"
                 fi
+                if [ "$_sv_git_ok" != "1" ] || _t3126_pair_drifts_in_head "$FRAMEWORK_ROOT" "$_rel"; then
+                    _sv_tpl_head=$((_sv_tpl_head + 1))
+                fi
             fi
         done < <(find "$FRAMEWORK_ROOT/.agentic-framework/.tasks/templates" -type f -name "*.md" 2>/dev/null)
     fi
@@ -1933,16 +2601,21 @@ check_self_vendor_drift() {
         # scope this libs-class check scans. Recommend `fw vendor self` so the
         # FAIL's fix command AGREES with the canonical sync verb (and with
         # `fw vendor self --check`, the read-only verifier added in T-2436).
+        # T-3126: ref-scoped iff at least one drifting pair still drifts in HEAD.
         fail "Self-vendor drift: libs class — $_sv_libs file(s) out of sync (T-2244)" \
              "First $([ $_sv_libs -gt 5 ] && echo 5 || echo $_sv_libs):$_sv_libs_list" \
-             "Run: fw vendor self  (syncs all vendored .agentic-framework/ classes — verify with: fw vendor self --check)"
+             "Run: fw vendor self  (syncs all vendored .agentic-framework/ classes — verify with: fw vendor self --check)" \
+             "$([ "$_sv_libs_head" -gt 0 ] && echo ref || echo worktree)" \
+             "$_sv_libs_head of $_sv_libs drifting pair(s) also drift in HEAD"
     fi
     if [ "$_sv_tpl" -gt 0 ]; then
         # Templates class is correctly scoped to 'fw vendor self' — it syncs
         # .tasks/templates as a sibling of lib/ (lib/upgrade.sh _self_vendor_templates).
         fail "Self-vendor drift: templates class — $_sv_tpl file(s) out of sync (T-2244)" \
              "First $([ $_sv_tpl -gt 5 ] && echo 5 || echo $_sv_tpl):$_sv_tpl_list" \
-             "Run: fw vendor self  (sync .agentic-framework/ templates with source)"
+             "Run: fw vendor self  (sync .agentic-framework/ templates with source)" \
+             "$([ "$_sv_tpl_head" -gt 0 ] && echo ref || echo worktree)" \
+             "$_sv_tpl_head of $_sv_tpl drifting pair(s) also drift in HEAD"
     fi
 }
 check_self_vendor_drift
@@ -1981,21 +2654,83 @@ check_invariant_suite() {
     _red=$(printf '%s\n' "$_out" | grep -c '^not ok' || true)
     _total=$(printf '%s\n' "$_out" | grep -cE '^(not ok|ok) ' || true)
 
-    if [ "$_total" -eq 0 ]; then
-        warn "Invariant suite produced no TAP results (T-2837)" \
-             "bats ran but emitted neither 'ok' nor 'not ok' — a harness error, not a green suite" \
+    if [ "$_red" -eq 0 ]; then
+        # T-2837 hand-implemented the zero-population WARN here; T-3105 folded it
+        # onto the shared verb so there is one definition of the rule. The
+        # bespoke evidence and mitigation are preserved verbatim — a harness that
+        # emits no TAP at all is a more specific diagnosis than "set empty".
+        pass_over "$_total" "structural invariant(s) (tests/lint/)" "Invariant suite green" \
+             "bats ran but emitted neither 'ok' nor 'not ok' — a harness error, not a green suite (T-2837)" \
              "Run manually and read the output: fw test invariants"
         return 0
     fi
 
-    if [ "$_red" -eq 0 ]; then
-        pass "Invariant suite: $_total structural invariant(s) green (tests/lint/)"
-        return 0
+    # T-3126: decide, per RED test, whether the failure is a property of the
+    # COMMIT or of the working tree. The origin case (2026-08-23) was two
+    # UNTRACKED tests/lint/*.bats files a concurrent session had dropped in: bats
+    # collects them, an invariant goes red, and a ref containing neither file is
+    # refused.
+    #
+    # Two independent grounds make one RED test worktree-scoped:
+    #   (a) the .bats file DECLARING it is untracked-in-HEAD or modified-vs-HEAD
+    #       — the assertion itself is not in any ref;
+    #   (b) its failure evidence names at least one repo path and EVERY path it
+    #       names is untracked-in-HEAD or modified-vs-HEAD — the assertion is
+    #       committed, but everything it is complaining about is not. This is the
+    #       shape of `no-untracked-test-files.bats`, whose whole subject is files
+    #       that exist nowhere but the working tree.
+    # The declaring file named by bats's own `(in test file …)` line is excluded
+    # from (b)'s path harvest: it is present in every failure block and is
+    # normally committed, so counting it would make (b) unreachable.
+    #
+    # The whole FINDING is worktree-scoped only when EVERY red test is, and at
+    # least one was attributable. Any red test in committed code about committed
+    # content, and any red test that cannot be attributed at all, makes it
+    # ref-scoped — a mixture must keep blocking.
+    local _inv_scope="ref" _inv_reason=""
+    local _inv_dirty=0 _inv_clean=0 _inv_unattributed=0
+    if _t3126_git_ok "$FRAMEWORK_ROOT"; then
+        local _inv_decl _inv_evs _inv_ev _inv_any_ev _inv_all_unc
+        while IFS='|' read -r _inv_decl _inv_evs; do
+            if [ -z "$_inv_decl" ] && [ -z "$_inv_evs" ]; then
+                _inv_unattributed=$((_inv_unattributed + 1))
+                continue
+            fi
+            # (a) the assertion itself is not committed
+            if [ -n "$_inv_decl" ] && _t3126_path_uncommitted "$FRAMEWORK_ROOT" "$_inv_decl"; then
+                _inv_dirty=$((_inv_dirty + 1))
+                continue
+            fi
+            # (b) everything the assertion names is not committed
+            _inv_any_ev=0; _inv_all_unc=1
+            local _oldifs="$IFS"; IFS=';'
+            for _inv_ev in $_inv_evs; do
+                [ -z "$_inv_ev" ] && continue
+                _inv_any_ev=1
+                _t3126_path_uncommitted "$FRAMEWORK_ROOT" "$_inv_ev" || _inv_all_unc=0
+            done
+            IFS="$_oldifs"
+            if [ "$_inv_any_ev" = "1" ] && [ "$_inv_all_unc" = "1" ]; then
+                _inv_dirty=$((_inv_dirty + 1))
+            else
+                _inv_clean=$((_inv_clean + 1))
+            fi
+        done < <(printf '%s\n' "$_out" | python3 "$FRAMEWORK_ROOT/lib/bats_red_attribution.py" "$FRAMEWORK_ROOT" 2>/dev/null)
+
+        if [ "$_inv_clean" -eq 0 ] && [ "$_inv_unattributed" -eq 0 ] && [ "$_inv_dirty" -gt 0 ]; then
+            _inv_scope="worktree"
+            _inv_reason="all $_inv_dirty RED test(s) are about state not committed to HEAD"
+        else
+            _inv_reason="$_inv_clean RED test(s) about committed content, $_inv_unattributed unattributed"
+        fi
+    else
+        _inv_reason="git HEAD unreadable — scope undecidable, defaulting to ref"
     fi
 
     fail "Invariant suite: $_red of $_total structural invariant(s) RED (T-2837)" \
          "$(printf '%s\n' "$_out" | grep '^not ok' | head -3 | sed 's/^not ok [0-9]* //' | tr '\n' ';')" \
-         "Run: fw test invariants"
+         "Run: fw test invariants" \
+         "$_inv_scope" "$_inv_reason"
 }
 check_invariant_suite
 
@@ -2140,8 +2875,104 @@ check_stale_drafts() {
 }
 check_stale_drafts
 
+# T-2994 (build slice of T-2992). A .gitignore rule is the only common
+# suppression that emits nothing when it fires — no run, no report, no moment at
+# which it says "I am suppressing something". So a comment beside one that
+# promises future work is the single place where deferral prose is a strong
+# signal rather than noise (measured: 184 false positives if the same
+# vocabulary is scanned across lib/ + agents/).
+#
+# WARN, never FAIL. The remedy is "file it or name it", which is a judgement the
+# operator makes, not a condition a gate can settle.
+check_gitignore_register() {
+    [ "${FW_GITIGNORE_REGISTER_ADVISORY:-1}" != "0" ] || return 0
+    [ -f "$FRAMEWORK_ROOT/lib/gitignore-register.sh" ] || return 0
+    # shellcheck source=/dev/null
+    source "$FRAMEWORK_ROOT/lib/gitignore-register.sh"
+
+    local _out _n _first
+    if _out=$(fw_gitignore_unregistered_defers "$PROJECT_ROOT"); then
+        return 0
+    fi
+    _n=$(echo "$_out" | grep -c .)
+    _first=$(echo "$_out" | head -1 | cut -f2 | cut -c1-72)
+    warn ".gitignore: $_n comment block(s) defer work without naming a register entry" \
+         "First at line $(echo "$_out" | head -1 | cut -f1): $_first" \
+         "File it (fw work-on / concerns.yaml) and name the id in the comment, or drop the promise. Origin T-2990: 'root-cause task pending' beside two rules, no task ever filed, 56MB over three months. Silence with FW_GITIGNORE_REGISTER_ADVISORY=0."
+}
+check_gitignore_register
+
 echo ""
 fi # end structure
+
+# ============================================
+# SECTION 1b: WHOLE-TREE SCANS
+# ============================================
+# T-1845: Audit-time secret-scan + large-file scan. These were both pre-commit
+# only, which misses: --no-verify bypasses, files committed before the hook
+# existed, hook installation drift on cron-run hosts. Audit-mode scan-tree
+# closes the gap — same shape as the cron registry sync check above (the gate
+# was wired but not measured at the audit horizon).
+#
+# T-3062: they belong to the DAILY horizon T-1845 named, and they were in
+# `structure`, which is the horizon the pre-push hook runs on every push. That
+# mismatch is why they are their own section now.
+#
+# Measured on this repo, `--section structure` before the split:
+#
+#   everything up to the hook-threshold check   51s
+#   secret scan   (scan-tree)                  188s
+#   large-file    (scan-tree)                   95s
+#   the remaining nine checks                   13s
+#   ------------------------------------------------
+#   total                                      347s
+#
+# The pre-push hook bounds a push at 60s (handover.sh `_push_timeout`), so the
+# gate could not finish inside the window it is given, on any path. Pushes were
+# not blocked — they were killed partway through, which looks the same from the
+# outside and reports nothing. Seven commits sat unpushed across four sessions.
+# The same 283s was also being paid every 30 minutes by the `structural-30m`
+# cron, which is where the audit lock contention in T-1719/OBS-221 came from.
+#
+# Scoping, so this stays honest: `should_run_section` is true for every section
+# when no `--section` filter is given, so a full audit (`fw audit --cron`, the
+# daily 08:00 job) still runs these. What changes is that a caller who asks for
+# `structure` by name no longer gets them. Coverage moves from every-30-minutes
+# to daily — which is the horizon T-1845 asked for in the first place. To run
+# them on demand: `fw audit --section tree`.
+if should_run_section "tree"; then
+echo "=== WHOLE-TREE SCANS ==="
+
+SECRET_SCANNER="$FRAMEWORK_ROOT/agents/git/lib/secret-scan.sh"
+if [ -x "$SECRET_SCANNER" ]; then
+    _ss_out=$(PROJECT_ROOT="$PROJECT_ROOT" "$SECRET_SCANNER" scan-tree 2>&1)
+    _ss_rc=$?
+    if [ "$_ss_rc" -ne 0 ]; then
+        _ss_count=$(echo "$_ss_out" | grep -c "^  \[" || true)
+        fail "Secret scan: $_ss_count finding(s) in tracked tree (T-1844)" \
+             "$(echo "$_ss_out" | head -5)" \
+             "Remove the secret from source + history (filter-repo if already committed); allowlist false-positives in .secret-scan-allowlist"
+    else
+        pass "Secret scan: tracked tree clean"
+    fi
+fi
+
+LARGE_FILE_SCANNER="$FRAMEWORK_ROOT/agents/git/lib/large-file-scan.sh"
+if [ -x "$LARGE_FILE_SCANNER" ]; then
+    _lf_out=$(PROJECT_ROOT="$PROJECT_ROOT" "$LARGE_FILE_SCANNER" scan-tree 2>&1)
+    _lf_rc=$?
+    if [ "$_lf_rc" -ne 0 ]; then
+        _lf_count=$(echo "$_lf_out" | grep -c "\[BLOCK\]" || true)
+        warn "Large-file gate: $_lf_count tracked file(s) above block threshold (T-1845)" \
+             "$(echo "$_lf_out" | head -5)" \
+             "Untrack + add to .gitignore, or allowlist if deliberate: git rm --cached <path> && echo <path> >> .gitignore"
+    else
+        pass "Large-file gate: tracked tree clean"
+    fi
+fi
+
+echo ""
+fi # end tree
 
 # ============================================
 # SECTION 2: TASK COMPLIANCE CHECKS
@@ -2177,7 +3008,7 @@ if [ "$task_count" -eq 0 ]; then
          "Create tasks for ongoing work"
 else
     if [ "$valid_task_count" -eq "$task_count" ]; then
-        pass "All $task_count active tasks are valid"
+        pass_over "$task_count" "active task(s)" "All active tasks are valid"
     else
         echo "       $valid_task_count of $task_count tasks fully valid"
     fi
@@ -2211,11 +3042,119 @@ for item in data['quality']['issues']:
 fi
 
 if [ "$quality_issues" -eq 0 ]; then
-    pass "All active tasks meet quality thresholds"
+    pass_over "$task_count" "active task(s)" "All active tasks meet quality thresholds" \
+         "" "0 active tasks were scanned for quality — the thresholds asserted nothing this run"
 fi
 
 echo ""
 fi # end quality
+
+# ============================================
+# SECTION 2C: UNCLOSED-BUT-SATISFIED TASKS (T-3061, OBS-316/OBS-317)
+# ============================================
+# Active tasks where every Agent AC is ticked and no Human AC is left
+# unticked, but the task is still sitting in started-work/issues. T-3060
+# swept the corpus by hand and found 17 of 43 in-flight tasks in this state —
+# this section is the recurring rail. Proposes only: it changes no status,
+# ticks no box (A2). A ticked checkbox is a claim the agent that wrote it
+# made, not evidence a human or a gate has verified — see CLAUDE.md's Human
+# Task Completion Rule, which is exactly why this is a WARN, not a FAIL (A5).
+if should_run_section "quality"; then
+if [ -n "$ACTIVE_SCAN" ]; then
+    UNCLOSED_REPORT_DIR="$AUDITS_DIR/unclosed-satisfied"
+    mkdir -p "$UNCLOSED_REPORT_DIR"
+    UNCLOSED_REPORT_PATH="$UNCLOSED_REPORT_DIR/LATEST.md"
+
+    _unclosed_summary=$(echo "$ACTIVE_SCAN" | python3 -c "
+import json, sys
+
+data = json.load(sys.stdin)
+u = data.get('unclosed_satisfied', {})
+tasks = u.get('tasks', [])
+count = u.get('count', 0)
+no_verif = u.get('no_verification_count', 0)
+
+report_path = '$UNCLOSED_REPORT_PATH'
+lines = []
+lines.append('# Unclosed-but-satisfied active tasks')
+lines.append('')
+lines.append('_Generated by \`fw audit\` (T-3061). Read-only — no task is closed, no')
+lines.append('status changed, no box ticked by this scan._')
+lines.append('')
+lines.append('## Criterion')
+lines.append('')
+lines.append('A task in \`.tasks/active/\` qualifies when: frontmatter \`status:\` is')
+lines.append('\`started-work\` or \`issues\`; the Acceptance Criteria section has at least')
+lines.append('one Agent AC; every Agent AC is ticked \`- [x]\`; zero Human AC checkboxes')
+lines.append('are left unticked. Lines inside HTML comment blocks (including the task')
+lines.append('template\'s own example ACs) are excluded, so an unedited template never')
+lines.append('self-qualifies.')
+lines.append('')
+lines.append('## Limits — read before acting on this list')
+lines.append('')
+lines.append('**A ticked box is a claim, not evidence.** This scan reads checkbox')
+lines.append('characters; it does not run the task\'s \`## Verification\` block, does not')
+lines.append('re-derive whether the described work actually shipped, and cannot tell a')
+lines.append('genuinely finished task from one where an agent ticked ahead of itself.')
+lines.append('Each row below is a **candidate for close, never a closure** — verify with')
+lines.append('\`fw task verify T-XXX\` or a per-task review before touching')
+lines.append('\`fw task update --status work-completed\`. Never batch-close on this list')
+lines.append('alone (CLAUDE.md Human Task Completion Rule).')
+lines.append('')
+lines.append(f'Rows with an empty \`## Verification\` block need that scrutiny most —')
+lines.append('nothing mechanical would gate their close.')
+lines.append('')
+lines.append(f'## Qualifying tasks ({count})')
+lines.append('')
+if tasks:
+    lines.append('| Task | Status | Workflow | Name | Agent ACs | Verification cmds? |')
+    lines.append('|------|--------|----------|------|----------:|--------------------|')
+    for t in tasks:
+        name = (t.get('name') or '').replace('|', '\\\\|')
+        if len(name) > 55:
+            name = name[:52] + '...'
+        verif = 'yes' if t.get('has_verification') else '**no**'
+        lines.append(f\"| {t['id']} | {t['status']} | {t['workflow_type']} | {name} | {t['agent_ac_count']} | {verif} |\")
+else:
+    lines.append('None found — every started-work/issues task with satisfied ACs has')
+    lines.append('already been closed or has an outstanding box.')
+lines.append('')
+
+with open(report_path, 'w') as f:
+    f.write('\n'.join(lines) + '\n')
+
+# T-3105: print unconditionally. This line used to fire only when count > 0,
+# so an empty summary meant EITHER no-findings OR the-python-above-died (its
+# stderr goes to /dev/null) — and the shell below scored both as PASS.
+# Emitting the count on every run lets the shell tell the two apart.
+capped_ids = [t['id'] for t in tasks[:10]]
+overflow = count - len(capped_ids)
+id_str = ', '.join(capped_ids)
+if overflow > 0:
+    id_str += f' (+{overflow} more)'
+print(f'{count}|{no_verif}|{id_str}')
+" 2>/dev/null)
+
+    if [ -z "$_unclosed_summary" ]; then
+        warn_unenumerable "the unclosed-satisfied scan over .tasks/active/" \
+             "Satisfied-but-unclosed active tasks" \
+             "the python3 pass over ACTIVE_SCAN produced no summary line (its stderr is discarded)" \
+             "Re-run the block without 2>/dev/null to see the error; until then this rail asserts nothing"
+    else
+        IFS='|' read -r _u_count _u_no_verif _u_ids <<< "$_unclosed_summary"
+        if [ "${_u_count:-0}" -gt 0 ]; then
+            warn "$_u_count active task(s) have every Agent AC ticked and no Human AC outstanding, but are still started-work/issues" \
+                 "$_u_ids — $_u_no_verif of these have an empty ## Verification block (no mechanical close gate)" \
+                 "Candidates for close, not closures — spot-check with 'fw task verify T-XXX' per task, then 'fw task update T-XXX --status work-completed'. Full list: $UNCLOSED_REPORT_PATH"
+        else
+            pass_over "$(find "$PROJECT_ROOT/.tasks/active" -maxdepth 1 -name 'T-*.md' -type f 2>/dev/null | wc -l)" \
+                 "active task(s)" "No active tasks are satisfied-but-unclosed" \
+                 "" ".tasks/active/ holds no task files — the scan had nothing to qualify"
+        fi
+    fi
+fi
+echo ""
+fi # end unclosed-satisfied
 
 # ============================================
 # SECTION 3: GIT TRACEABILITY CHECKS
@@ -2279,46 +3218,85 @@ if git -C "$PROJECT_ROOT" rev-parse --git-dir > /dev/null 2>&1; then
     unset _SESSION_STATE_FILTER _ALL_DIRTY _REAL_DIRTY _NOISE_COUNT _REAL_COUNT
 
     # Quality Check: Verify task refs in commits exist as actual tasks
+    #
+    # T-3053: a commit subject may name more than one task ("T-A/T-B-side: ...",
+    # "T-A: ...; T-B recommendation"). The question this check asks is whether the
+    # commit is traceable to a real task, so ANY resolving ref answers it. Reading
+    # only the first (`grep -oE "T-[0-9]+" | head -1`) reported a false orphan
+    # whenever the leading ref did not resolve but a later one did.
+    #
+    # The traceability percentage at :2432 already counts a commit as referencing a
+    # task when *any* T-ref is present — this loop was the only place that silently
+    # narrowed that to the first, so the two measures disagreed about the same
+    # commit. Any-resolves is the reading that makes them agree.
     orphan_refs=0
     # shellcheck disable=SC2086 # trace_range intentionally unquoted
     while IFS= read -r commit_line; do
-        task_ref=$(echo "$commit_line" | grep -oE "T-[0-9]+" | head -1)
-        if [ -n "$task_ref" ]; then
-            # Check if task file exists (active or completed)
-            task_file=$(find "$TASKS_DIR" -name "${task_ref}-*.md" -type f 2>/dev/null | head -1)
-            if [ -z "$task_file" ]; then
-                # T-2058: suppress WARN when a later commit explicitly reverted this task
-                # (deliberate orphan). Pattern: any commit message containing "revert ... T-NNNN".
-                # Capture-then-grep avoids SIGPIPE on truncation (L-387 safe pattern).
-                _revert_log=$(git -C "$PROJECT_ROOT" log --all --format=%s 2>/dev/null)
-                if echo "$_revert_log" | grep -qiE "revert[^A-Za-z0-9_].*${task_ref}([^0-9]|$)"; then
-                    # Revert-chain detected — task was intentionally removed from history
-                    continue
-                fi
-                unset _revert_log
-                commit_sha=$(echo "$commit_line" | cut -d' ' -f1)
-                # T-2851: a root commit predates every task by construction, so it
-                # cannot reference one. `fw init`'s bootstrap commit (lib/init.sh:742)
-                # is exactly this case and made every fresh project fail its own
-                # traceability audit on day zero. Keyed on parentlessness, not on the
-                # `T-000` sentinel — see lib/traceability.sh for why that distinction
-                # is what stops this being a general P-002 escape hatch.
-                if trace_is_root_commit "$PROJECT_ROOT" "$commit_sha"; then
-                    continue
-                fi
-                if [ "$orphan_refs" -eq 0 ]; then
-                    echo ""
-                fi
-                warn "Commit $commit_sha references non-existent task $task_ref" \
-                     "Task file for $task_ref not found in .tasks/" \
-                     "Create task or fix commit reference"
-                orphan_refs=$((orphan_refs + 1))
-            fi
-        fi
-    done < <(git -C "$PROJECT_ROOT" log --oneline $trace_range 2>/dev/null)
+        # Every ref in the subject, de-duplicated, order preserved.
+        _refs=$(echo "$commit_line" | grep -oE "T-[0-9]+" | awk '!seen[$0]++')
+        [ -n "$_refs" ] || continue
 
-    if [ "$orphan_refs" -eq 0 ] && [ "$task_commits" -gt 0 ]; then
-        pass "All commit task refs resolve to actual tasks"
+        _any_resolved=0
+        _unresolved=""
+        while IFS= read -r _ref; do
+            [ -n "$_ref" ] || continue
+            if [ -n "$(find "$TASKS_DIR" -name "${_ref}-*.md" -type f 2>/dev/null | head -1)" ]; then
+                _any_resolved=1
+            else
+                _unresolved="${_unresolved}${_ref} "
+            fi
+        done <<< "$_refs"
+
+        # At least one named task exists → the commit is traceable, which is what
+        # this check measures. Unresolved siblings are deliberately not reported:
+        # warning about them would re-introduce the noise class in the other
+        # direction (a real task plus a stale mention is not an orphan commit).
+        [ "$_any_resolved" -eq 1 ] && continue
+
+        # Nothing resolved. Both pre-existing escapes still apply below.
+        #
+        # T-2058: suppress WARN when a later commit explicitly reverted this task
+        # (deliberate orphan). Pattern: any commit message containing "revert ... T-NNNN".
+        # Capture-then-grep avoids SIGPIPE on truncation (L-387 safe pattern).
+        # T-3053: suppress only when EVERY unresolved ref has a revert chain — one
+        # reverted task must not hide a genuinely orphaned sibling. For a single-ref
+        # commit this is bit-identical to the pre-T-3053 test.
+        _revert_log=$(git -C "$PROJECT_ROOT" log --all --format=%s 2>/dev/null)
+        _all_reverted=1
+        for _ref in $_unresolved; do
+            if ! echo "$_revert_log" | grep -qiE "revert[^A-Za-z0-9_].*${_ref}([^0-9]|$)"; then
+                _all_reverted=0
+                break
+            fi
+        done
+        unset _revert_log
+        [ "$_all_reverted" -eq 1 ] && continue
+
+        commit_sha=$(echo "$commit_line" | cut -d' ' -f1)
+        # T-2851: a root commit predates every task by construction, so it
+        # cannot reference one. `fw init`'s bootstrap commit (lib/init.sh:742)
+        # is exactly this case and made every fresh project fail its own
+        # traceability audit on day zero. Keyed on parentlessness, not on the
+        # `T-000` sentinel — see lib/traceability.sh for why that distinction
+        # is what stops this being a general P-002 escape hatch.
+        if trace_is_root_commit "$PROJECT_ROOT" "$commit_sha"; then
+            continue
+        fi
+        if [ "$orphan_refs" -eq 0 ]; then
+            echo ""
+        fi
+        _ref_list=$(echo "$_unresolved" | sed 's/ *$//; s/ /, /g')
+        warn "Commit $commit_sha references non-existent task $_ref_list" \
+             "Task file(s) for $_ref_list not found in .tasks/" \
+             "Create task or fix commit reference"
+        orphan_refs=$((orphan_refs + 1))
+    done < <(git -C "$PROJECT_ROOT" log --oneline $trace_range 2>/dev/null)
+    unset _refs _ref _any_resolved _unresolved _all_reverted _ref_list
+
+    if [ "$orphan_refs" -eq 0 ]; then
+        pass_over "$task_commits" "task-referencing commit(s) in ${trace_range:-full history}" \
+             "All commit task refs resolve to actual tasks" \
+             "" "No commit in the traceability range carried a T-XXX reference, so nothing was resolved — check the range and the reference convention"
     fi
 
     # T-1255 (G-007): mirror drift check — github vs origin HEAD divergence.
@@ -2345,6 +3323,68 @@ fi
 
 echo ""
 fi # end traceability
+
+# ============================================
+# SECTION: CORPUS HEALTH (T-3013, T-3005 slice 4)
+# ============================================
+#
+# The one check in this file that actually retrieves something. Every other
+# signal over the vector index counts rows or reads timestamps, which is why
+# T-3004 ran five months green: nothing anywhere exercised embed → chunk →
+# store → retrieve end to end.
+#
+# Its own section, deliberately NOT part of `structure`. `structure` is what
+# pre-push runs, and pre-push already exceeds 180s and blocks every push
+# (OBS-253); two embed round-trips would make a bad situation worse and would
+# couple every push to Ollama being up. This runs on the 6-hourly cron instead.
+if should_run_section "corpus-health"; then
+echo "=== CORPUS HEALTH ==="
+
+_ch_json=$(cd "$PROJECT_ROOT" && timeout 90 python3 -c '
+import json, sys
+try:
+    from web.embeddings import corpus_health
+except Exception as exc:
+    print(json.dumps({"status": "unimportable", "detail": type(exc).__name__}))
+    sys.exit(0)
+try:
+    h = corpus_health()
+    print(json.dumps({"status": h.get("status"), "detail": h.get("detail", "")}))
+except Exception as exc:
+    print(json.dumps({"status": "error", "detail": str(exc)[:200]}))
+' 2>/dev/null || echo '{"status":"timeout","detail":"corpus_health did not return within 90s"}')
+
+_ch_status=$(echo "$_ch_json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("status",""))' 2>/dev/null || echo "")
+_ch_detail=$(echo "$_ch_json" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("detail",""))' 2>/dev/null || echo "")
+
+case "$_ch_status" in
+    ok)
+        pass "Corpus canaries: retrieval verified end to end"
+        ;;
+    fault)
+        # A planted document did not come back for its own paraphrase. Either
+        # the index is stale, embedding is dead, or chunks are being truncated —
+        # the canary cannot tell you which, only that retrieval is broken.
+        fail "Corpus canaries: FAULT — $_ch_detail" \
+             "A canary document is not the top hit for its own probe" \
+             "Rebuild the index (fw serve, then /search), then re-run: fw audit --section corpus-health"
+        ;;
+    unknown)
+        warn "Corpus canaries: index has no manifest — cannot verify" \
+             "$_ch_detail" \
+             "Index predates T-3011. Rebuild to plant canaries and write a manifest."
+        ;;
+    unimportable)
+        info "Corpus canaries: web.embeddings not importable here — skipped"
+        ;;
+    timeout|error|"")
+        warn "Corpus canaries: check did not complete" \
+             "${_ch_detail:-no output from corpus_health}" \
+             "Check the embedder: fw doctor, and Config.EMBED_HOST"
+        ;;
+esac
+
+fi
 
 # ============================================
 # SECTION 4: ENFORCEMENT CHECKS
@@ -2417,12 +3457,11 @@ else
 fi
 
 # Check for commit-msg hook (validates task references)
-_commit_msg_hook=$(_resolve_hook_path commit-msg)
-if [ -f "$_commit_msg_hook" ]; then
+if [ -f "$PROJECT_ROOT/.git/hooks/commit-msg" ]; then
     pass "Commit-msg hook installed"
 else
     warn "No commit-msg hook" \
-         "$_commit_msg_hook not found" \
+         ".git/hooks/commit-msg not found" \
          "Install hooks: ./agents/git/git.sh install-hooks"
 fi
 
@@ -2489,26 +3528,39 @@ if [ -f "$PRACTICES_MD" ]; then
         # Check if practices have origins
         practices_with_origin=$(grep -c "Origin:" "$PRACTICES_MD" 2>/dev/null || true)
         if [ "$practices_with_origin" -ge "$practice_count" ]; then
-            pass "All practices have traceable origins"
+            pass_over "$practice_count" "documented practice(s)" "All practices have traceable origins"
 
             # Quality Check: Verify practice origins reference existing tasks
+            # T-3053 (A3): the same `head -1` shape lived here, but it is the
+            # opposite question and so needs the opposite fix. A commit subject
+            # naming two tasks is traceable if EITHER resolves; an
+            # `Origin: T-A, T-B` line asserts that BOTH are where the practice came
+            # from, so every ref must resolve and each failure is its own broken
+            # citation. Reading only the first was therefore a false GREEN here —
+            # a stale second origin passed silently — where at the commit site it
+            # was a false FAIL. No multi-ref Origin line exists in 015-Practices.md
+            # today (7 Origin lines, all single-ref), so this closes a latent hole
+            # rather than an observed one; the regression test supplies the case
+            # the corpus does not.
             orphan_origins=0
             while IFS= read -r origin_line; do
-                task_ref=$(echo "$origin_line" | grep -oE "T-[0-9]+" | head -1)
-                if [ -n "$task_ref" ]; then
+                practice_id=$(echo "$origin_line" | grep -oE "P-[0-9]+" | head -1)
+                while IFS= read -r task_ref; do
+                    [ -n "$task_ref" ] || continue
                     task_file=$(find "$TASKS_DIR" -name "${task_ref}-*.md" -type f 2>/dev/null | head -1)
                     if [ -z "$task_file" ]; then
-                        practice_id=$(echo "$origin_line" | grep -oE "P-[0-9]+" | head -1)
                         warn "Practice ${practice_id:-unknown} references non-existent task $task_ref" \
                              "Origin task $task_ref not found in .tasks/" \
                              "Fix origin reference in 015-Practices.md"
                         orphan_origins=$((orphan_origins + 1))
                     fi
-                fi
+                done < <(echo "$origin_line" | grep -oE "T-[0-9]+" | awk '!seen[$0]++')
             done < <(grep "Origin:" "$PRACTICES_MD" 2>/dev/null)
 
             if [ "$orphan_origins" -eq 0 ]; then
-                pass "All practice origins resolve to actual tasks"
+                pass_over "$practices_with_origin" "practice Origin: line(s)" \
+                     "All practice origins resolve to actual tasks" \
+                     "" "No Origin: line was found to resolve, so this check asserted nothing about 015-Practices.md"
             fi
         else
             warn "Some practices missing origin" \
@@ -2602,7 +3654,10 @@ if [ -n "$COMPLETED_SCAN" ]; then
 fi
 
 if [ "$missing_episodic" -eq 0 ]; then
-    pass "All completed tasks have episodic summaries"
+    _ep_pop=$(echo "$COMPLETED_SCAN" | python3 -c "import sys,json; print(json.load(sys.stdin).get('stats',{}).get('total',0))" 2>/dev/null || echo "")
+    pass_over "$_ep_pop" "completed task(s)" "All completed tasks have episodic summaries" \
+         "" "completed-task-scan reported no completed tasks — the coverage claim covers nothing"
+    unset _ep_pop
 fi
 
 # Check 2: Episodic quality (non-empty required fields, enrichment status)
@@ -2649,9 +3704,8 @@ fi
 
 if [ "$pending_enrichment" -eq 0 ] && [ "$low_quality_episodic" -eq 0 ]; then
     episodic_count=$(find "$episodic_dir" -name "T-*.yaml" -type f 2>/dev/null | wc -l)
-    if [ "$episodic_count" -gt 0 ]; then
-        pass "All $episodic_count episodic summaries have quality content"
-    fi
+    pass_over "$episodic_count" "episodic summary file(s)" "All episodic summaries have quality content" \
+         "" "$episodic_dir holds no T-*.yaml — the quality claim covers nothing"
 fi
 
 # Check 3: Orphaned episodic files (no matching task)
@@ -2672,8 +3726,10 @@ if [ -d "$episodic_dir" ]; then
     shopt -u nullglob
 fi
 
-if [ "$orphaned_episodic" -eq 0 ] && [ -d "$episodic_dir" ]; then
-    pass "No orphaned episodic files"
+if [ -d "$episodic_dir" ] && [ "$orphaned_episodic" -eq 0 ]; then
+    pass_over "$(find "$episodic_dir" -maxdepth 1 -name "T-*.yaml" -type f 2>/dev/null | wc -l)" \
+         "episodic file(s)" "No orphaned episodic files" \
+         "" "$episodic_dir exists but holds no T-*.yaml — nothing could be orphaned because nothing is there"
 fi
 
 echo ""
@@ -2997,12 +4053,13 @@ if [ -n "$COMPLETED_SCAN" ]; then
 fi
 
 if [ "$missing_research" -eq 0 ]; then
-    inception_count=$(echo "$COMPLETED_SCAN" | python3 -c "import sys,json; print(json.load(sys.stdin).get('stats',{}).get('inception_count',0))" 2>/dev/null || echo "0")
-    if [ "$inception_count" -gt 0 ]; then
-        pass "All $inception_count completed inceptions have research artifacts"
-    else
-        pass "No completed inception tasks to check"
-    fi
+    inception_count=$(echo "$COMPLETED_SCAN" | python3 -c "import sys,json; print(json.load(sys.stdin).get('stats',{}).get('inception_count',0))" 2>/dev/null || echo "")
+    # T-3105: "No completed inception tasks to check" used to be a PASS. It is
+    # the empty-set case stated out loud and then scored as a success — the
+    # exact shape this rule exists to remove.
+    pass_over "$inception_count" "completed inception(s)" \
+         "All completed inceptions have research artifacts" \
+         "" "completed-task-scan reported no completed inceptions — C-001 coverage asserted nothing this run"
 fi
 
 echo ""
@@ -3014,18 +4071,29 @@ fi # end research
 if should_run_section "oe-research"; then
 echo "=== RESEARCH PERSISTENCE OE CHECKS ==="
 
-# C-001 OE: Active inception tasks with started-work should have docs/reports/ artifact (T-955: uses scan)
+# C-001 OE: Inceptions being WORKED (started-work) or being DECIDED (carrying a
+# substantive ## Recommendation) should have a docs/reports/ artifact.
+# T-955: uses the single-pass scan. T-3073: set widened from started-work-only to
+# include recommendation-bearing inceptions at any status — an inception asking the
+# operator for a go/no-go has finished researching, whatever its status field says.
+# The two populations are counted and reported separately so widening the set does
+# not silently inflate a number the operator has learned to read one way.
 c001_missing=0
 if [ -n "$ACTIVE_SCAN" ]; then
-    while IFS='|' read -r task_id issue_type artifact_name; do
+    while IFS='|' read -r task_id issue_type issue_reason artifact_name; do
         [ -z "$task_id" ] && continue
+        if [ "$issue_reason" = "recommendation" ]; then
+            _c001_population="awaiting decision — carries a substantive ## Recommendation, so research is finished"
+        else
+            _c001_population="in progress — status started-work"
+        fi
         if [ "$issue_type" = "missing" ]; then
-            warn "C-001: Inception $task_id has no research artifact in docs/reports/" \
-                 "Active inception task without persisted research" \
+            warn "C-001: Inception $task_id ($issue_reason) has no research artifact in docs/reports/" \
+                 "Inception $_c001_population, with no persisted research" \
                  "Create docs/reports/${task_id}-*.md — the thinking trail IS the artifact"
             c001_missing=$((c001_missing + 1))
         elif [ "$issue_type" = "unreferenced" ]; then
-            warn "C-001: Inception $task_id has artifact but task doesn't reference it" \
+            warn "C-001: Inception $task_id ($issue_reason) has artifact but task doesn't reference it" \
                  "$artifact_name exists but not linked in task Updates" \
                  "Add artifact reference to ## Updates section of $task_id"
         fi
@@ -3033,26 +4101,37 @@ if [ -n "$ACTIVE_SCAN" ]; then
 import sys, json
 data = json.load(sys.stdin)
 for item in data['research']['issues']:
-    print(f\"{item['id']}|{item['type']}|{item.get('artifact','')}\")
+    print(f\"{item['id']}|{item['type']}|{item.get('reason','started-work')}|{item.get('artifact','')}\")
 " 2>/dev/null)
 fi
 
+# Population breakdown — printed whether or not anything is missing, so the
+# operator can always see WHICH set produced the number (T-3073 A4).
+_c001_counts=$(echo "$ACTIVE_SCAN" | python3 -c "
+import sys, json
+r = json.load(sys.stdin).get('research', {})
+print('%d|%d|%d|%d' % (
+    r.get('inception_active', 0), r.get('c001_missing_started', 0),
+    r.get('inception_recommendation', 0), r.get('c001_missing_recommendation', 0)))
+" 2>/dev/null || echo "0|0|0|0")
+IFS='|' read -r _c001_n_started _c001_miss_started _c001_n_rec _c001_miss_rec <<< "$_c001_counts"
+
 if [ "$c001_missing" -eq 0 ]; then
-    inception_active=$(echo "$ACTIVE_SCAN" | python3 -c "import sys,json; print(json.load(sys.stdin)['research']['inception_active'])" 2>/dev/null || echo "0")
-    if [ "$inception_active" -gt 0 ]; then
-        pass "C-001: All $inception_active active inceptions have research artifacts"
+    if [ $((_c001_n_started + _c001_n_rec)) -gt 0 ]; then
+        pass "C-001: All inceptions have research artifacts — $_c001_n_started started-work, $_c001_n_rec awaiting decision"
     else
         pass "C-001: No active inception tasks to check"
     fi
+else
+    info "C-001 population breakdown: $_c001_miss_started/$_c001_n_started started-work missing an artefact, $_c001_miss_rec/$_c001_n_rec awaiting-decision missing an artefact"
 fi
 
 # C-002 OE: Check commit-msg hook has research artifact check installed
-_c002_hook=$(_resolve_hook_path commit-msg)   # T-2714: worktree-safe resolution
-if grep -q "inception-research-warnings" "$_c002_hook" 2>/dev/null; then
+if grep -q "inception-research-warnings" "$PROJECT_ROOT/.git/hooks/commit-msg" 2>/dev/null; then
     pass "C-002: commit-msg hook has research artifact check"
 else
     warn "C-002: commit-msg hook missing research artifact check" \
-         "Hook at $_c002_hook doesn't contain C-002 gate" \
+         "Hook at .git/hooks/commit-msg doesn't contain C-002 gate" \
          "Reinstall hooks: fw git install-hooks (or manually add C-002)"
 fi
 
@@ -3103,7 +4182,11 @@ while IFS= read -r task_id; do
 done < <(find_inceptions_without_recommendation "$PROJECT_ROOT/.tasks/active" 2>/dev/null)
 
 if [ "$c006_missing" -eq 0 ]; then
-    pass "C-006: All active inceptions have a real Recommendation block"
+    _c006_pop=$(grep -rl '^workflow_type:[[:space:]]*inception' "$PROJECT_ROOT/.tasks/active" 2>/dev/null | wc -l)
+    pass_over "$_c006_pop" "active inception(s)" \
+         "C-006: All active inceptions have a real Recommendation block" \
+         "" "No active task declares workflow_type: inception — the Recommendation rail covered nothing this run"
+    unset _c006_pop
 fi
 
 echo ""
@@ -3241,14 +4324,7 @@ fi
 
 # CTL-020 OE: Continuous Audit — cron audit files produced recently
 CRON_DIR="$AUDITS_DIR/cron"
-if fw_is_linked_worktree "$PROJECT_ROOT"; then
-    # T-2715: cron is HOST-level and `.context/audits/cron/` is gitignored, so a
-    # linked worktree can never contain it — the check was structurally unable to
-    # pass here. Worse, its own mitigation was harmful: `fw audit schedule install`
-    # would aim a host cron entry at a path that disappears with the worktree.
-    # Same skip idiom as the cron-drift and cron-misload checks above.
-    info "CTL-020 skipped — linked worktree (cron audits are host-level, produced from the main checkout)"
-elif [ -d "$CRON_DIR" ]; then
+if [ -d "$CRON_DIR" ]; then
     recent_cron=$(find "$CRON_DIR" -name '*.yaml' -mmin -60 -not -name 'LATEST*' 2>/dev/null | wc -l | tr -d ' ')
     if [ "$recent_cron" -gt 0 ]; then
         pass "CTL-020: $recent_cron cron audit file(s) in last hour"
@@ -3408,12 +4484,11 @@ else
 fi
 
 # CTL-011 OE: Audit Push Gate — pre-push hook installed
-_prepush_hook=$(_resolve_hook_path pre-push)   # T-2714: worktree-safe resolution
-if [ -x "$_prepush_hook" ]; then
+if [ -x "$PROJECT_ROOT/.git/hooks/pre-push" ]; then
     pass "CTL-011: pre-push hook installed and executable"
 else
     warn "CTL-011: pre-push hook missing or not executable" \
-         "$_prepush_hook" \
+         "$PROJECT_ROOT/.git/hooks/pre-push" \
          "Run: fw git install-hooks"
 fi
 
@@ -3584,7 +4659,9 @@ except Exception: print(0)" 2>/dev/null || echo 0)
     if [ "$vq_red" = "-1" ]; then
         info "CTL-013b: review-queue verification re-run produced no verdict (skipped)"
     elif [ "$vq_red" = "0" ]; then
-        pass "CTL-013b: review-queue verification re-run: $vq_checked task(s), 0 red"
+        pass_over "$vq_checked" "review-queue task(s) re-run" \
+             "CTL-013b: review-queue verification re-run, 0 red" \
+             "" "fw verify-queue reported 0 red out of 0 checked — the rotating cursor covered no task this run"
     else
         vq_ids=$(echo "$vq_json" | python3 -c "import json,sys
 d=json.load(sys.stdin)
@@ -3623,7 +4700,16 @@ for item in data['ownership']['issues']:
 " 2>/dev/null)
 fi
 
-# CTL-029 OE: stuck partial-complete after Human-AC re-class (T-1903, L-403)
+# CTL-031 OE: stuck partial-complete after Human-AC re-class (T-1903, L-403)
+#
+# FORMERLY CTL-029 (renumbered T-3035). This control and the completable-but-not-
+# completed detector below both shipped as CTL-029 — T-1903 claimed the id first,
+# T-2055 reused it. The id stayed with T-2055's control because every downstream
+# reference had attached to it (tests/unit/test_audit_completable_not_completed.bats
+# asserts the literal "CTL-029: ... has all Agent ACs ticked", and
+# docs/reports/T-2137 cites CTL-029 four times meaning that control). Renumbering
+# this one touched only audit.sh. Audit logs and reports predating 2026-08-16 that
+# say CTL-029 may mean either — disambiguate on the message text, not the id.
 # Detects tasks in active/ with status: work-completed AND zero unchecked
 # checkboxes (after HTML-comment strip). These are archive-eligible but
 # didn't auto-archive because the partial-complete recheck only re-fires
@@ -3662,10 +4748,12 @@ print('|'.join(stuck))
 PYAUDIT_ARCHIVE
 )
 if [ -z "$ARCHIVE_ELIGIBLE_OUT" ]; then
-    pass "CTL-029: No archive-eligible stuck partial-complete tasks (T-1903/L-403)"
+    pass_over "$(find "$PROJECT_ROOT/.tasks/active" -maxdepth 1 -name 'T-*.md' -type f 2>/dev/null | wc -l)" \
+         "active task(s)" "CTL-031: No archive-eligible stuck partial-complete tasks (T-1903/L-403)" \
+         "" ".tasks/active/ holds no task files, so nothing could be stuck"
 else
     stuck_count=$(echo "$ARCHIVE_ELIGIBLE_OUT" | tr '|' '\n' | wc -l)
-    warn "CTL-029: $stuck_count stuck partial-complete task(s) — all ACs ticked, in active/ — run: bin/fw task archive-eligible" \
+    warn "CTL-031: $stuck_count stuck partial-complete task(s) — all ACs ticked, in active/ — run: bin/fw task archive-eligible" \
          "Tasks: $(echo "$ARCHIVE_ELIGIBLE_OUT" | tr '|' ' ')" \
          "Sweep with: bin/fw task archive-eligible (origin: T-1903, L-403)"
 fi
@@ -3712,7 +4800,7 @@ if should_run_section "compliance" || should_run_section "oe-daily"; then
             [ -z "$task_id" ] && continue
             warn "CTL-028: $task_id is in .tasks/completed/ but frontmatter status='$observed_status' (expected: work-completed)" \
                  "Likely cause: git mv bypassed the state machine (L-390)" \
-                 "Fix: bin/fw task update $task_id --status work-completed --force, or hand-edit frontmatter to status: work-completed + set date_finished"
+                 "Fix: bin/fw task update $task_id --status work-completed — the normal close runs the AC and verification gates and usually passes (832 measured 3 of 4 real drifted tasks closing clean two weeks stale). If a gate legitimately fails, fix the work or re-open it. Only as a last resort: add --force, which BYPASSES those gates and logs a Tier-2 entry. Do not hand-edit frontmatter — that is the git-mv bypass (L-390) this control detects."
             status_desync_fail=$((status_desync_fail + 1))
         done < <(echo "$COMPLETED_SCAN" | python3 -c "
 import sys, json
@@ -3722,7 +4810,9 @@ for item in data.get('status_desync', []):
 " 2>/dev/null)
     fi
     if [ "$status_desync_fail" -eq 0 ]; then
-        pass "CTL-028: All completed/ tasks have frontmatter status: work-completed"
+        pass_over "$(echo "$COMPLETED_SCAN" | python3 -c "import sys,json; print(json.load(sys.stdin).get('stats',{}).get('total',0))" 2>/dev/null || echo "")" \
+             "completed task(s)" "CTL-028: All completed/ tasks have frontmatter status: work-completed" \
+             "" "completed-task-scan reported no completed tasks — the status-desync rail covered nothing"
     fi
 fi
 
@@ -3751,7 +4841,9 @@ for item in data.get('horizon_drift', []):
 " 2>/dev/null)
     fi
     if [ "$horizon_drift_fail" -eq 0 ]; then
-        pass "CTL-030: All completed/ tasks have null/absent stored horizon (arc-009)"
+        pass_over "$(echo "$COMPLETED_SCAN" | python3 -c "import sys,json; print(json.load(sys.stdin).get('stats',{}).get('total',0))" 2>/dev/null || echo "")" \
+             "completed task(s)" "CTL-030: All completed/ tasks have null/absent stored horizon (arc-009)" \
+             "" "completed-task-scan reported no completed tasks — the horizon-drift rail covered nothing"
     fi
 fi
 
@@ -3847,7 +4939,9 @@ PYEOF
 )
     fi
     if [ "$completable_warn" -eq 0 ]; then
-        pass "CTL-029: No completable-but-not-completed active tasks"
+        pass_over "$(find "$PROJECT_ROOT/.tasks/active" -maxdepth 1 -name 'T-*.md' -type f 2>/dev/null | wc -l)" \
+             "active task(s)" "CTL-029: No completable-but-not-completed active tasks" \
+             "" ".tasks/active/ holds no task files — the completability scan had nothing to consider"
     fi
 fi
 
@@ -3892,8 +4986,9 @@ for item in data.get('unchecked_ac', []):
 " 2>/dev/null)
     fi
     if [ "$ac_fail" -eq 0 ]; then
-        completed_count=$(echo "$COMPLETED_SCAN" | python3 -c "import sys,json; print(json.load(sys.stdin).get('stats',{}).get('total',0))" 2>/dev/null || echo "0")
-        pass "CTL-012: All $completed_count completed tasks have checked ACs"
+        completed_count=$(echo "$COMPLETED_SCAN" | python3 -c "import sys,json; print(json.load(sys.stdin).get('stats',{}).get('total',0))" 2>/dev/null || echo "")
+        pass_over "$completed_count" "completed task(s)" "CTL-012: All completed tasks have checked ACs" \
+             "" "completed-task-scan reported no completed tasks — the AC-coverage claim covered nothing"
     fi
 fi
 
@@ -4107,8 +5202,18 @@ case "$d10_level" in
              "Human-owned inception/spec tasks completed without human AC verification" \
              "Review flagged tasks — human dialogue may have been skipped"
         ;;
-    *)
+    PASS)
         pass "D10: Decision-without-dialogue — none detected"
+        ;;
+    *)
+        # T-3105: the old catch-all `*)` scored an EMPTY detector result as a
+        # PASS. The detector's stdout is the only channel, so a python that
+        # dies produces "" -> level "" -> the success arm. Did-not-run and
+        # ran-clean must not share a branch.
+        warn_unenumerable "the D10 decision-without-dialogue detector" \
+             "D10: Decision-without-dialogue" \
+             "the detector emitted no recognised level (got: '${d10_level:-<empty>}')" \
+             "Re-run the D10 python block by hand and read its stderr"
         ;;
 esac
 
@@ -4161,8 +5266,18 @@ D11EOF
                  "Gaps in watching status for over 30 days" \
                  "Review: fw gaps — close or escalate stale gaps"
             ;;
-        *)
+        PASS)
             pass "D11: Gap register staleness — all gaps fresh"
+            ;;
+        *)
+            # T-3105: the old catch-all `*)` scored an EMPTY detector result
+            # as a PASS. The detector's stdout is the only channel, so a
+            # python that dies produces "" -> level "" -> the success arm.
+            # Did-not-run and ran-clean must not share a branch.
+            warn_unenumerable "the D11 gap-register staleness detector" \
+                 "D11: Gap register staleness" \
+                 "the detector emitted no recognised level (got: '${d11_level:-<empty>}')" \
+                 "Re-run the D11 python block by hand and read its stderr"
             ;;
     esac
 else
@@ -4417,8 +5532,18 @@ case "$d5_level" in
              "Tasks with unusual cycle times detected" \
              "Review flagged tasks for process issues"
         ;;
-    *)
+    PASS)
         pass "D5: Task lifecycle — no anomalies"
+        ;;
+    *)
+        # T-3105: the old catch-all `*)` scored an EMPTY detector result as a
+        # PASS. The detector's stdout is the only channel, so a python that
+        # dies produces "" -> level "" -> the success arm. Did-not-run and
+        # ran-clean must not share a branch.
+        warn_unenumerable "the D5 task-lifecycle detector" \
+             "D5: Task lifecycle" \
+             "the detector emitted no recognised level (got: '${d5_level:-<empty>}')" \
+             "Re-run the D5 python block by hand and read its stderr"
         ;;
 esac
 
@@ -4498,8 +5623,18 @@ case "$d13_level" in
              "Decision recorded but workflow stuck in active/" \
              "Recover both classes with: bin/fw inception sweep (T-1514)"
         ;;
-    *)
+    PASS)
         pass "D13: Inception limbo — no stuck inceptions"
+        ;;
+    *)
+        # T-3105: the old catch-all `*)` scored an EMPTY detector result as a
+        # PASS. The detector's stdout is the only channel, so a python that
+        # dies produces "" -> level "" -> the success arm. Did-not-run and
+        # ran-clean must not share a branch.
+        warn_unenumerable "the D13 inception-limbo detector" \
+             "D13: Inception limbo" \
+             "the detector emitted no recognised level (got: '${d13_level:-<empty>}')" \
+             "Re-run the D13 python block by hand and read its stderr"
         ;;
 esac
 
@@ -4959,8 +6094,18 @@ case "$d15_level" in
              "Inception with all Human ACs ticked but no decision recorded — operator forgot to run fw inception decide" \
              "Run: fw inception decide T-XXX go|no-go|defer --rationale '...'"
         ;;
-    *)
+    PASS)
         pass "D15: Inception limbo state — none ($d15_result)"
+        ;;
+    *)
+        # T-3105: the old catch-all `*)` scored an EMPTY detector result as a
+        # PASS. The detector's stdout is the only channel, so a python that
+        # dies produces "" -> level "" -> the success arm. Did-not-run and
+        # ran-clean must not share a branch.
+        warn_unenumerable "the D15 inception-limbo-state detector" \
+             "D15: Inception limbo state" \
+             "the detector emitted no recognised level (got: '${d15_level:-<empty>}')" \
+             "Re-run the D15 python block by hand and read its stderr"
         ;;
 esac
 
@@ -5697,6 +6842,17 @@ METRICS_EOF
 fi
 
 echo ""
+# T-3126: machine-readable scope partition of FAIL_COUNT, for callers that act on
+# a REF rather than on the working tree (agents/git/lib/hooks.sh pre-push).
+#
+# Emitted unconditionally, including when there are no failures, so a consumer can
+# tell "this audit partitions its findings" from "this audit predates T-3126".
+# The pre-push gate treats an ABSENT line as ref=unknown and keeps blocking — an
+# old vendored audit must not be read as a clean bill of health.
+echo "AUDIT-SCOPE: fails=$FAIL_COUNT ref=$FAIL_REF_COUNT worktree=$FAIL_WORKTREE_COUNT"
+for _t3126_wt in "${FAIL_WORKTREE_TITLES[@]:-}"; do
+    [ -n "$_t3126_wt" ] && echo "AUDIT-SCOPE-WORKTREE: $_t3126_wt"
+done
 echo "=== END AUDIT ==="
 
 # Restore stdout if quiet mode was active

@@ -235,6 +235,134 @@ if [ -z "${PROJECT_ROOT:-}" ] || _project_root_is_stale "${PROJECT_ROOT:-}"; the
     fi
 fi
 
+# ─── R7 leg L2: run the AUTHORITY's fw, never the replica's (T-3111) ──────────
+#
+# The problem this closes, stated once: the framework's rules are enforced by
+# code; code is tracked content; so a linked worktree checks out its own copy of
+# the code that is supposed to constrain it. A session opened in a worktree cut
+# in July allocates task IDs the pre-T-100202 way and writes governance freely,
+# because the enforcement fixed on master in August is simply not in that
+# checkout. That is how T-2505, T-2506 and T-2428 were each minted twice on one
+# day (docs/design/task-corpus-concurrency-model.md §R7).
+#
+# The fix: when fw finds itself running against a linked worktree, it re-execs
+# the MAIN checkout's bin/fw with the same argv. The authority's libraries, its
+# agents, its allocator — one exec, and the replica's stale code never runs.
+#
+# WHAT MOVES AND WHAT DOES NOT.
+#   FRAMEWORK_ROOT moves to the authority. It must, and it must move in the same
+#   step as the exec: fw honours an inherited FRAMEWORK_ROOT over its own
+#   location (the T-2099 fork-bomb fix, ~line 940). Exec the authority's binary
+#   while a replica-scoped FRAMEWORK_ROOT is still exported and the authority
+#   politely loads the replica's libraries — output byte-identical to having
+#   changed nothing. T-2845 measured exactly that trap in
+#   _t2094_emit_doctor_advisory. Binary and root move together or not at all.
+#
+#   PROJECT_ROOT does NOT move. The worktree is still the project you are
+#   working in: `fw git commit`, `fw doctor`, `fw test` must act on the checkout
+#   the operator is standing in. Moving it would silently redirect commits to
+#   master's tree. Allocation is fixed anyway, because the authority's allocator
+#   union-scans every view (T-100202/T-3104) including this one — the fix rides
+#   in with the code, not with the working directory.
+#
+# HONEST LIMIT: future-facing only. The redirect must already be in the
+# replica's checkout to fire, so it does nothing for the worktrees that produced
+# the incidents. That is why L1 — the shared pre-commit corpus guard, which
+# lives in .git/hooks and therefore does not fork — is the keystone, and this
+# leg is the complete-but-late one.
+_fw_reexec_authority() {
+    # Sentinel first: the authority's fw runs this same code and must not bounce
+    # back. Checked before any git call, so a redirected process pays nothing.
+    [ -n "${FW_REEXEC_DEPTH:-}" ] && return 0
+
+    # Both libs are sourceable-and-side-effect-free by contract; lib/paths.sh is
+    # not (it resolves and exports paths on source), which is why the predicate
+    # lives in lib/worktree-identity.sh. Resolved from THIS binary's own tree —
+    # the replica's, necessarily: bootstrapping a redirect out of a replica can
+    # only start with the replica's own code. An older checkout without these
+    # files simply does not redirect, which is the same as before this shipped.
+    local _l="$FW_BIN_DIR/../lib"
+    [ -f "$_l/worktree-identity.sh" ] && [ -f "$_l/hook-parity.sh" ] || return 0
+    # shellcheck source=/dev/null
+    source "$_l/worktree-identity.sh" 2>/dev/null || return 0
+    # shellcheck source=/dev/null
+    source "$_l/hook-parity.sh" 2>/dev/null || return 0
+
+    # TWO SUBJECTS, ONE HAZARD. A replica reaches the running process by two
+    # independent routes and either alone is enough to run stale enforcement:
+    #
+    #   PROJECT_ROOT is a worktree  → resolve_framework() prefers the project's
+    #       own vendored tree (T-498), so even the AUTHORITY's binary loads the
+    #       replica's lib/ and agents/. The binary is fine; the code is not.
+    #   FW_BIN_DIR is in a worktree → the replica's binary itself was invoked.
+    #       Its FRAMEWORK_ROOT is the replica whatever PROJECT_ROOT says.
+    #
+    # Checking only the first misses `\.claude/worktrees/x/bin/fw` run from a
+    # session rooted at the main checkout — which is how a replica's July code
+    # gets executed by an August session without anything looking unusual.
+    local _subj=""
+    if [ -n "${PROJECT_ROOT:-}" ] && fw_is_linked_worktree "$PROJECT_ROOT"; then
+        _subj="$PROJECT_ROOT"
+    elif fw_is_linked_worktree "$FW_BIN_DIR"; then
+        # Normalise to the worktree's top level, not bin/. Both resolve the same
+        # authority, but _subj is also what the bypass log names as "the replica",
+        # and `<wt>/bin` is not a checkout anyone can act on.
+        _subj=$(git -C "$FW_BIN_DIR" rev-parse --show-toplevel 2>/dev/null) || _subj="$FW_BIN_DIR"
+    else
+        return 0
+    fi
+
+    local _auth
+    _auth=$(fw_hook_parity_authority_root "$_subj") || return 0
+    [ -n "$_auth" ] && [ -x "$_auth/bin/fw" ] || return 0
+
+    # No "already the right binary?" short-circuit on purpose. When PROJECT_ROOT
+    # is the worktree the exec is what pins FRAMEWORK_ROOT to the authority, so
+    # skipping it because the binary already matches would skip the half that
+    # matters. The sentinel bounds this at exactly one exec either way.
+
+    # Escape hatch, checked HERE rather than first: a bypass is only a bypass
+    # once something was actually going to happen. Above the detection it would
+    # log every main-checkout invocation as a skipped redirect, which is how a
+    # Tier-2 log stops being read. Logged rather than silent — "I ran the
+    # replica's fw on purpose" is exactly the fact a later forensic needs and
+    # cannot reconstruct from the outcome.
+    if [ -n "${FW_NO_REEXEC:-}" ]; then
+        local _log_dir="${PROJECT_ROOT:-$_subj}/.context/working"
+        if [ -d "$_log_dir" ]; then
+            {
+                echo "- timestamp: '$(date -u +%Y-%m-%dT%H:%M:%SZ)'"
+                echo "  flag: 'FW_NO_REEXEC=1'"
+                echo "  caller: 'bin/fw:_fw_reexec_authority'"
+                echo "  reason: 'R7 leg L2 authority redirect skipped (T-3111)'"
+                printf "  replica: '%s'\n" "$_subj"
+                printf "  authority: '%s'\n" "$_auth"
+            } >> "$_log_dir/.gate-bypass-log.yaml" 2>/dev/null || true
+        fi
+        return 0
+    fi
+
+    # FRAMEWORK_ROOT for the authority, in the authority's own terms. Order
+    # mirrors resolve_framework(): framework-repo first (T-1346-B1), vendored
+    # second (T-498). Deriving it here rather than letting the authority
+    # re-resolve is deliberate — its resolver would consult PROJECT_ROOT, which
+    # is still the worktree, and land back on the replica's vendored copy.
+    local _auth_fw=""
+    if [ -f "$_auth/FRAMEWORK.md" ] && [ -d "$_auth/agents" ]; then
+        _auth_fw="$_auth"
+    elif [ -f "$_auth/.agentic-framework/FRAMEWORK.md" ]; then
+        _auth_fw="$_auth/.agentic-framework"
+    else
+        return 0
+    fi
+
+    export FW_REEXEC_DEPTH=1
+    export FRAMEWORK_ROOT="$_auth_fw"
+    if [ -n "${PROJECT_ROOT:-}" ]; then export PROJECT_ROOT; fi
+    exec "$_auth/bin/fw" "$@"
+}
+_fw_reexec_authority "$@"
+
 # T-1346-B2: Detect which framework copy resolved (vendored, framework-repo, global).
 # Must be called AFTER FRAMEWORK_ROOT and PROJECT_ROOT are populated.
 # Returns one of: vendored | framework-repo | global | unknown
@@ -451,8 +579,15 @@ do_vendor() {
         # seventh map is added, which is the exact shape of the bug this task
         # fixes. Naming the drafts instead means new aef-* maps vendor themselves.
         # (636K of drafts excluded, 196K of aef maps shipped.)
+        # T-2989 removed a sibling line here that named `t2584-scratch`
+        # explicitly. It was a scratch artefact carrying a deliberately dangling
+        # ghost ref, excluded for exactly the reasons drafts are, and hard-coded
+        # only because its name predated this convention. Renaming it to
+        # `draft-t2584-scratch` brought it under the glob — and under
+        # corpus_lint's `draft-` skip at the same time, which is what the second
+        # subsystem needed. If a future not-for-consumers map appears, name it
+        # `draft-*` rather than adding a line back.
         ".context/designer/projects/draft-*"
-        ".context/designer/projects/t2584-scratch"
     )
 
     if [ "$dry_run" = true ]; then
@@ -472,6 +607,19 @@ do_vendor() {
         # here so the dry run still describes what a real run does.
         if [ -e "$vendor_source/FRAMEWORK.md" ]; then
             echo -e "  ${GREEN}+${NC} FRAMEWORK.md (last — completeness sentinel)"
+        fi
+        # T-3064: also not in includes[] — one file out of vendor/designer/,
+        # named by the pin. Listed for the same reason FRAMEWORK.md is: a dry run
+        # that omits a real run's writes is a dry run nobody can plan from.
+        if [ -f "$vendor_source/policy/designer-pin.yaml" ]; then
+            local _vdd_line _vdd_rel
+            _vdd_line="$(grep -E '^vendored_path:' "$vendor_source/policy/designer-pin.yaml" 2>/dev/null | head -1 || true)"
+            _vdd_rel="${_vdd_line#vendored_path:}"
+            _vdd_rel="${_vdd_rel%%#*}"
+            _vdd_rel="$(printf '%s' "$_vdd_rel" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//')"
+            if [ -n "$_vdd_rel" ] && [ -f "$vendor_source/$_vdd_rel" ]; then
+                echo -e "  ${GREEN}+${NC} $_vdd_rel (pinned designer build)"
+            fi
         fi
         echo ""
         echo "Would exclude: .git, .context, .tasks/{active,completed}, .fabric, install.sh"
@@ -540,6 +688,60 @@ do_vendor() {
             echo -e "  ${YELLOW}⊘${NC} $item (not found, skipping)"
         fi
     done
+
+    # T-3064 (A2/A5): ship the ONE pinned Workflow Designer build.
+    #
+    # Not an includes[] entry, because `vendor/` is not a directory a consumer
+    # should receive: it holds nine historical builds (~7.7 MB) of which exactly
+    # one is pinned. The pinned name comes from policy/designer-pin.yaml — which
+    # the `policy` include above has just copied — so a pin bump retargets this
+    # by itself.
+    #
+    # Before this, a consumer received the DECLARATION and not the ARTIFACT: the
+    # vendored pin named a file that was never in the copy, so `/designer`
+    # rendered an error page in every consumer that ever onboarded. `fw init`
+    # installs from what lands here (lib/init.sh, same task) — a local copy with
+    # a local sha256 check, no network, so onboarding cannot hang on 832's
+    # internal OneDev being unreachable (A4).
+    #
+    # The four lines that read the pin are inlined rather than sourced from
+    # lib/upgrade.sh's `_designer_pin_vendored_path`. A defensive `source … ||
+    # true` here would fail SILENTLY on a fresh machine and take the designer
+    # with it — reintroducing, in the fix, the exact class this task exists to
+    # close. Reading one YAML scalar two ways is the cheaper risk.
+    local _vd_pin="$vendor_source/policy/designer-pin.yaml"
+    if [ -f "$_vd_pin" ]; then
+        local _vd_line _vd_rel
+        _vd_line="$(grep -E '^vendored_path:' "$_vd_pin" 2>/dev/null | head -1 || true)"
+        _vd_rel="${_vd_line#vendored_path:}"
+        _vd_rel="${_vd_rel%%#*}"
+        _vd_rel="$(printf '%s' "$_vd_rel" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/^"//' -e 's/"$//')"
+        if [ -n "$_vd_rel" ] && [ -f "$vendor_source/$_vd_rel" ]; then
+            mkdir -p "$(dirname "$dest/$_vd_rel")"
+            # rm first: the vendored copy is 0444 (never edited in place — same
+            # contract `fw designer sync` installs under), so cp over it fails.
+            rm -f "$dest/$_vd_rel"
+            cp "$vendor_source/$_vd_rel" "$dest/$_vd_rel"
+            chmod 0444 "$dest/$_vd_rel"
+            echo -e "  ${GREEN}✓${NC} $_vd_rel (pinned designer build)"
+            # Drop superseded builds. The copy above adds the pinned build;
+            # nothing removes the one it replaced, so a consumer re-vendored
+            # across a pin bump would carry both (~900 KB each) with only one of
+            # them named by the pin. Mirrors the prune in
+            # lib/upgrade.sh:_self_vendor_designer, for the same reason.
+            local _vd_old
+            for _vd_old in "$(dirname "$dest/$_vd_rel")"/aef-workflow-designer-*.html; do
+                [ -f "$_vd_old" ] || continue
+                if [ "$_vd_old" = "$dest/$_vd_rel" ]; then
+                    continue
+                fi
+                rm -f "$_vd_old"
+                echo -e "  ${GREEN}✓${NC} pruned superseded designer build $(basename "$_vd_old")"
+            done
+        elif [ -n "$_vd_rel" ]; then
+            echo -e "  ${YELLOW}⊘${NC} $_vd_rel (pinned designer build absent at source — run: fw designer sync --from-tag)"
+        fi
+    fi
 
     # Create VERSION file
     echo "$FW_VERSION" > "$dest/VERSION"
@@ -994,11 +1196,13 @@ show_help() {
     echo -e "  ${GREEN}resolver${NC} <cmd>       Workflow lookup + prompt assembly (workflows, dispatch, run, explain)"
     echo -e "  ${GREEN}outcome${NC} <cmd>        Outcome evaluation + back-prop (evaluate, backprop, read, list)"
     echo -e "  ${GREEN}write-set${NC} check <T-A> <T-B>  Disjoint write-set validator (0=disjoint, 1=overlap, 2=undecidable)"
+    echo -e "  ${GREEN}triage${NC} route          Route recovered hub messages by msg_type (routed/surfaced/deferred/dropped)"
     echo ""
     echo -e "${BOLD}Design & corpus:${NC}"
     echo -e "  ${GREEN}designer${NC} <cmd>       Vendor + serve the pinned Workflow Designer build"
     echo -e "  ${GREEN}bpmn${NC} <cmd>           Compile a BPMN diagram into AEF task skeletons"
     echo -e "  ${GREEN}corpus${NC} <cmd>         Spec-driven corpus authoring (derive, generate, canon, diff, prove, lint, explain)"
+    echo -e "  ${GREEN}index${NC} <cmd>          Vector index maintenance (reindex — incremental, cron-driven)"
     echo ""
     echo -e "${BOLD}Setup:${NC}"
     echo -e "  ${GREEN}init${NC} [dir]           Bootstrap a new project (auto-detects interactive mode)"
@@ -1186,6 +1390,11 @@ do_doctor() {
     # run prints 'command not found' twice and the consumer checks silently
     # no-op (empty loop is indistinguishable from "no consumers").
     source "$FRAMEWORK_ROOT/lib/config.sh"
+    # T-3112: fw_hook_parity_delta / fw_hook_parity_linked_worktrees — shared by
+    # the Consumer Projects loop and the Worktrees audit below (same predicate,
+    # two subjects). Same reason as the source above: an unsourced function makes
+    # the check silently no-op, which reads exactly like a clean bill of health.
+    source "$FRAMEWORK_ROOT/lib/hook-parity.sh"
 
     echo -e "${BOLD}fw doctor${NC} - Framework Health Check"
     if [ "$quick_mode" = "1" ]; then
@@ -1419,6 +1628,26 @@ do_doctor() {
         else
             echo -e "  ${GREEN}OK${NC}  Large-file gate: no tracked files above warn threshold"
         fi
+    fi
+
+    # T-2990: root-level pollution — the UNtracked sibling of the check above.
+    # The large-file gate watches what git knows about; these files were never
+    # added, and two of them were gitignored on a wrong guess, so no git-facing
+    # surface could see them. Four accumulated over three months (56MB).
+    source "$FRAMEWORK_ROOT/lib/root-pollution.sh"
+    local rp_out rp_count
+    if rp_out=$(fw_root_pollution_scan "$PROJECT_ROOT"); then
+        echo -e "  ${GREEN}OK${NC}  Repo root: no untracked binary files"
+    else
+        rp_count=$(echo "$rp_out" | grep -c . || true)
+        echo -e "  ${YELLOW}WARN${NC}  Repo root: $rp_count untracked binary file(s) — not source, not screenshots"
+        echo "$rp_out" | while IFS=$'\t' read -r _sz _nm _ty; do
+            echo -e "         $(numfmt --to=iec --suffix=B "$_sz" 2>/dev/null || echo "${_sz}B")\t$_nm — $_ty"
+        done
+        echo -e "         A file here is usually a stray tool writing to the repo root."
+        echo -e "         If it is PostScript named after a Python module, it is the P-011"
+        echo -e "         line-splitting class — see T-2990. Inspect, then delete."
+        warnings=$((warnings + 1))
     fi
 
     # Check 5b: Git user identity (T-685; probe corrected T-2883)
@@ -1870,6 +2099,68 @@ else:
         fi
     fi
 
+    # Check: vector index freshness (T-3013, T-3005 slice 4)
+    #
+    # Before this the vector substrate had NO doctor coverage at all — which is
+    # the reason T-3004 ran for five months. `is_index_ready()` counts rows and
+    # `built_at` recorded when the handle opened, so nothing anywhere could
+    # report an index as old.
+    #
+    # Logic lives in lib/index-health.sh so its three verdicts can be pinned
+    # without five full doctor runs per test suite. Embed-free: manifest read
+    # plus a stat. The canary (which does embed) runs in
+    # `fw audit --section corpus-health`, never here and never in pre-push.
+    source "$FRAMEWORK_ROOT/lib/index-health.sh"
+    _idx_line=$(index_freshness_verdict)
+    _idx_verdict="${_idx_line%%|*}"
+    _idx_rest="${_idx_line#*|}"
+    _idx_msg="${_idx_rest%%|*}"
+    _idx_hint="${_idx_rest#*|}"
+    case "$_idx_verdict" in
+        OK)
+            echo -e "  ${GREEN}OK${NC}  $_idx_msg"
+            ;;
+        WARN)
+            echo -e "  ${YELLOW}WARN${NC}  $_idx_msg"
+            [ -n "$_idx_hint" ] && echo -e "         $_idx_hint"
+            warnings=$((warnings + 1))
+            ;;
+        *)
+            echo -e "  ${CYAN}SKIP${NC}  $_idx_msg"
+            ;;
+    esac
+
+    # Check: recall usage — the "Used" signal (T-3019, T-3005 slice 6a)
+    #
+    # The check above says the index is fresh. This one says whether anyone is
+    # querying it. They are different failures with different remedies, and a
+    # substrate that is fresh, online and correct while nothing calls it passes
+    # every other control in this file — the G-064 zero-consumer shape.
+    #
+    # Reads .context/working/recall-telemetry.jsonl. Embed-free for the same
+    # reason as its sibling: a usage check that needed the embedder would go
+    # quiet exactly when usage stopped.
+    source "$FRAMEWORK_ROOT/lib/recall-usage.sh"
+    _use_line=$(recall_usage_verdict)
+    _use_verdict="${_use_line%%|*}"
+    _use_rest="${_use_line#*|}"
+    _use_msg="${_use_rest%%|*}"
+    _use_hint="${_use_rest#*|}"
+    case "$_use_verdict" in
+        OK)
+            echo -e "  ${GREEN}OK${NC}  $_use_msg"
+            ;;
+        WARN)
+            echo -e "  ${YELLOW}WARN${NC}  $_use_msg"
+            [ -n "$_use_hint" ] && echo -e "         $_use_hint"
+            warnings=$((warnings + 1))
+            ;;
+        *)
+            echo -e "  ${CYAN}SKIP${NC}  $_use_msg"
+            ;;
+    esac
+
+
     # Check: designer pin ↔ vendored build drift (T-2524, T-2521 integration hardening)
     # Sibling of the MCP manifest + cron registry→generated drift classes. Content-compares
     # (sha256, never mtime — T-2290/T-2432) the vendored Workflow Designer build against
@@ -1889,7 +2180,19 @@ else:
         if [ -z "$_dz_want" ] || [ -z "$_dz_vp" ]; then
             echo -e "  ${CYAN}SKIP${NC}  designer pin present but missing sha256/vendored_path"
         elif [ ! -f "$_dz_file" ]; then
-            echo -e "  ${CYAN}SKIP${NC}  designer not yet vendored — run: fw designer sync --from <build>"
+            # T-3064 A1: WARN, not SKIP. A pin that names a build the project does
+            # not have is an actionable condition, not an inapplicable check — the
+            # designer IS wanted here, that is what the pin says. SKIP reads as "not
+            # applicable to this project", so the state needing attention rendered as
+            # unremarkable while mere pin-drift (the *less* serious condition, below)
+            # got the louder verdict. Same false-green shape as T-3062.
+            #
+            # Consumers without a pin are unaffected: the enclosing `if [ -f "$_dz_pin" ]`
+            # means no pin ⇒ no check at all, so this WARN only reaches a project that
+            # has declared it wants the designer.
+            echo -e "  ${YELLOW}WARN${NC}  designer pinned but not vendored — /designer will render an error page"
+            echo -e "         Run: fw designer sync --from-tag   (or --from <build> for a delivered file)"
+            warnings=$((warnings + 1))
         else
             _dz_have=$(sha256sum "$_dz_file" 2>/dev/null | cut -d' ' -f1)
             if [ "$_dz_have" = "$_dz_want" ]; then
@@ -1898,6 +2201,65 @@ else:
                 echo -e "  ${YELLOW}WARN${NC}  designer vendored build drifted from pin"
                 echo -e "         pin=${_dz_want:0:12}... vendored=${_dz_have:0:12}... — run: fw designer sync --from <build>"
                 warnings=$((warnings + 1))
+            fi
+        fi
+    fi
+
+    # Check: designer pin CURRENCY — is a newer release available upstream? (T-3119)
+    # Sibling of, but distinct from, the pin<->vendored drift check above. That one
+    # measures EXPOSURE (does what we run match what we pinned); this one measures
+    # CURRENCY (is what we pinned still the newest thing the origin publishes).
+    # Only both-green means "consistent AND up to date" — designer-v0.9.0 through
+    # v0.11.0 sat unconsumed for three releases with every instrument reporting OK,
+    # because nothing on either side ever looked at the origin's tag list.
+    #
+    # Resolves the newest `designer-v*` tag at the pin's own `source_origin:` via
+    # `git ls-remote --tags` and compares SEMANTICALLY (sort -V). A lexical compare
+    # ranks 0.8.0 above 0.10.0 and inverts the entire check.
+    #
+    # An unreachable origin gets its OWN state and never reads as "current"
+    # (L-575 / T-2916: a guard that cannot read its input must not report the same
+    # thing as a guard that read it and found nothing). It does not count as a warning.
+    #
+    # The probe is bounded by `timeout` and runs with GIT_TERMINAL_PROMPT=0 plus ssh
+    # BatchMode=yes, so an unreachable or credential-prompting origin cannot hang
+    # `fw doctor`. It is a network probe, so --quick skips it like the other host
+    # probes; FW_SKIP_DESIGNER_CURRENCY=1 skips it in full mode (offline / CI runs).
+    # Both skips print a line — never silence, which would read as "current".
+    # FW_DESIGNER_PIN_FILE points the check at a temp pin copy for tests (T-2547),
+    # exactly as the drift check above does.
+    local _dc_pin="${FW_DESIGNER_PIN_FILE:-$PROJECT_ROOT/policy/designer-pin.yaml}"
+    if [ -f "$_dc_pin" ]; then
+        if [ "${FW_SKIP_DESIGNER_CURRENCY:-0}" = "1" ]; then
+            echo -e "  ${CYAN}SKIP${NC}  designer pin currency probe disabled (FW_SKIP_DESIGNER_CURRENCY=1)"
+        elif _doctor_quick_skip "designer pin currency (origin ls-remote)"; then
+            :
+        else
+            local _dc_ver _dc_origin _dc_ls _dc_latest _dc_newest
+            _dc_ver=$(python3 -c "import yaml;d=yaml.safe_load(open('$_dc_pin'));print(d.get('version','') or '')" 2>/dev/null)
+            _dc_origin=$(python3 -c "import yaml;d=yaml.safe_load(open('$_dc_pin'));print(d.get('source_origin','') or '')" 2>/dev/null)
+            if [ -z "$_dc_ver" ] || [ -z "$_dc_origin" ]; then
+                echo -e "  ${CYAN}SKIP${NC}  designer pin currency not checkable (pin has no version/source_origin)"
+            elif _dc_ls=$(GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5" timeout 10 git ls-remote --tags "$_dc_origin" 'designer-v*' 2>/dev/null); then
+                _dc_latest=$(printf '%s\n' "$_dc_ls" | sed -e 's|.*refs/tags/||' -e 's|\^{}$||' | grep '^designer-v' | sed -e 's|^designer-v||' | sort -V | tail -1 || true)
+                if [ -z "$_dc_latest" ]; then
+                    echo -e "  ${CYAN}SKIP${NC}  designer pin currency unknown — origin publishes no designer-v* tags"
+                    echo -e "         origin: $_dc_origin"
+                else
+                    _dc_newest=$(printf '%s\n%s\n' "$_dc_ver" "$_dc_latest" | sort -V | tail -1)
+                    if [ "$_dc_latest" != "$_dc_ver" ] && [ "$_dc_newest" = "$_dc_latest" ]; then
+                        echo -e "  ${YELLOW}WARN${NC}  designer pin is behind its origin — pinned $_dc_ver, newest released $_dc_latest"
+                        echo -e "         tag designer-v$_dc_latest at $_dc_origin"
+                        echo -e "         Run: fw designer sync --from-tag   (re-pin + sha256-verify at the tag)"
+                        warnings=$((warnings + 1))
+                    else
+                        echo -e "  ${GREEN}OK${NC}  designer pin current with origin (newest released $_dc_latest)"
+                    fi
+                fi
+            else
+                echo -e "  ${CYAN}SKIP${NC}  designer pin currency UNKNOWN — could not reach origin $_dc_origin"
+                echo -e "         This is not 'current': the origin's newest release was never read."
+                echo -e "         Set FW_SKIP_DESIGNER_CURRENCY=1 to skip this probe on offline runs."
             fi
         fi
     fi
@@ -2207,6 +2569,43 @@ for e in d.get('errors',[])[:3]:
         local tl_version
         tl_version=$(termlink --version 2>/dev/null | head -1)
         echo -e "  ${GREEN}OK${NC}  TermLink ($tl_version)"
+
+        # T-3040: a topic that does not exist on the LOCAL hub REJECTS posts
+        # to it rather than queuing them — there is no client-side retry, so a
+        # missing topic silently discards every peer message sent to it. The
+        # outbound side self-heals via `channel post --ensure-topic` (T-1445),
+        # but that only creates the topic the SENDER targets; it cannot fix a
+        # topic missing on OUR hub before a peer posts to us. Check the
+        # well-known cross-project convention topics exist locally so this
+        # can be caught proactively instead of discovered months later
+        # (origin: framework:pickup was silently rejecting posts for months).
+        if _doctor_quick_skip "TermLink topic existence check"; then :; else
+        local _tl_expected_topics="framework:pickup broadcast:global broadcast-chat"
+        local _tl_topic_list _tl_missing_topics=""
+        _tl_topic_list=$(termlink channel list --json 2>/dev/null)
+        if [ -n "$_tl_topic_list" ]; then
+            local _tl_topic
+            for _tl_topic in $_tl_expected_topics; do
+                if ! echo "$_tl_topic_list" | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(1)
+names = data if isinstance(data, list) else data.get('topics', data.get('items', []))
+names = [n.get('name', n) if isinstance(n, dict) else n for n in names]
+sys.exit(0 if '$_tl_topic' in names else 1)
+" 2>/dev/null; then
+                    _tl_missing_topics="$_tl_missing_topics $_tl_topic"
+                fi
+            done
+            if [ -n "$_tl_missing_topics" ]; then
+                echo -e "  ${YELLOW}WARN${NC}  TermLink topic(s) missing on local hub:$_tl_missing_topics — peer posts to these are silently rejected, not queued"
+                echo "         Fix: termlink channel create <topic> --retention forever  (per missing topic)"
+                warnings=$((warnings + 1))
+            fi
+        fi
+        fi  # T-2452/F6-style --quick guard
     else
         _doctor_warn_host "TermLink not installed (cargo install termlink)"
     fi
@@ -2262,6 +2661,44 @@ for e in d.get('errors',[])[:3]:
             echo -e "  ${GREEN}OK${NC}  ollama reachable (http://192.168.10.107:11434)"
         else
             _doctor_warn_host "ollama not reachable on http://192.168.10.107:11434; ollama-loop workflows will fail"
+        fi
+    fi
+
+    # Check: embed endpoint reachable (T-3045).
+    #
+    # This check exists because its absence is INVISIBLE BY CONSTRUCTION. T-3017
+    # made the embed path fail over to the other configured host, so a dead
+    # primary produces working embeddings — the only signal is a stderr WARNING
+    # nobody aggregates. This install pinned embed_host at a loopback sidecar
+    # (127.0.0.1:11435) that died 2026-08-15 with no systemd unit able to restart
+    # it, and ran on its backup for a day while every surface said fine.
+    #
+    # It is also unreachable by any test: .context/settings.yaml is gitignored, so
+    # a hand-pinned dead host is absent from code review and from CI. doctor is the
+    # only place that can see the resolved value AND probe it on this machine.
+    #
+    # Resolution goes through web/config.py rather than re-reading settings.yaml,
+    # so env overrides (FW_EMBED_HOST) and the `or OLLAMA_HOST` fallback are
+    # honoured exactly as the embed path honours them — a check that resolved the
+    # host differently from the code under test would be worse than none.
+    if [ -f "$FRAMEWORK_ROOT/web/embeddings.py" ]; then
+        local _embed_host
+        _embed_host="$(PROJECT_ROOT="$PROJECT_ROOT" python3 -c "
+import sys
+sys.path.insert(0, '$FRAMEWORK_ROOT/web')
+try:
+    from config import Config
+    print(Config.EMBED_HOST or '')
+except Exception:
+    print('')
+" 2>/dev/null)"
+        if [ -z "$_embed_host" ]; then
+            echo -e "  ${CYAN}INFO${NC}  embed endpoint not configured (no embed_host, no ollama_host)"
+        elif curl -sf --max-time 3 "${_embed_host%/}/api/tags" >/dev/null 2>&1; then
+            echo -e "  ${GREEN}OK${NC}  embed endpoint reachable ($_embed_host)"
+        else
+            _doctor_warn_host "embed endpoint not reachable on $_embed_host; embeds still succeed via T-3017 failover, so nothing else will report this"
+            echo -e "         Unset embed_host in .context/settings.yaml to resolve to ollama_host, or start the endpoint. See T-3045."
         fi
     fi
     fi  # T-2452/F6: end --quick guard for litellm/ollama curls
@@ -2426,34 +2863,10 @@ print(sum(1 for e in entries if (e.get('status') or 'pending') == 'pending'))
             local consumer_settings="$consumer_dir/.claude/settings.json"
             local hook_info="ok"
             if [ -f "$consumer_settings" ] && [ -f "$fw_settings_file" ]; then
-                hook_info=$(FW_FILE="$fw_settings_file" CONSUMER_FILE="$consumer_settings" python3 -c "
-import json, os
-def extract_hooks(path):
-    hooks = set()
-    try:
-        with open(path) as f:
-            data = json.load(f)
-        for event, entries in data.get('hooks', {}).items():
-            for entry in entries:
-                for hook in entry.get('hooks', []):
-                    cmd = hook.get('command', '')
-                    if 'fw hook' in cmd:
-                        name = cmd.split('fw hook ')[-1].strip()
-                    else:
-                        name = cmd.strip().split('/')[-1]
-                    hooks.add((event, name))
-    except (json.JSONDecodeError, FileNotFoundError):
-        pass
-    return hooks
-fw_hooks = extract_hooks(os.environ['FW_FILE'])
-consumer_hooks = extract_hooks(os.environ['CONSUMER_FILE'])
-missing = fw_hooks - consumer_hooks
-if missing:
-    names = ', '.join(n for _, n in sorted(missing))
-    print(f'missing {len(missing)}: {names}')
-else:
-    print(f'ok {len(consumer_hooks)}/{len(fw_hooks)}')
-" 2>/dev/null || echo "parse-error")
+                # T-3112: predicate lives in lib/hook-parity.sh — the worktree
+                # audit below asks the identical question of a different subject,
+                # and two inline copies would drift independently.
+                hook_info=$(fw_hook_parity_delta "$fw_settings_file" "$consumer_settings")
             fi
             # Report (T-1838: asymmetric remediation for consumer-ahead case)
             if [ "$version_ok" = true ] && [[ "$hook_info" == ok* ]]; then
@@ -2508,6 +2921,81 @@ else:
             echo -e "  ${CYAN}SKIP${NC}  No consumer projects found in /opt"
         elif [ "$consumer_issues" -eq 0 ]; then
             echo -e "  ${GREEN}OK${NC}  All $consumer_count consumer(s) current"
+        fi
+    fi
+
+    # Check: Linked-worktree enforcement parity (T-3112, R7 leg 3)
+    #
+    # The Consumer Projects loop above asks "does this replica carry the hooks
+    # the authority carries?" of vendored consumers. A linked worktree is the
+    # same shape of replica and was asked nothing — for the seven weeks that
+    # produced the T-2505 / T-2506 / T-2428 duplicate-ID incidents, the framework
+    # could not see that its own worktrees were running six-week-old enforcement.
+    #
+    # Deliberately NOT gated on FRAMEWORK_ROOT = PROJECT_ROOT (unlike the
+    # consumer loop): worktree drift is a property of any project that uses
+    # worktrees, and consumers use them too.
+    #
+    # This leg REPORTS the drift. It does not close it — L2 (T-3111) redirects
+    # the binary and L4 (T-3113) names stale worktrees at upgrade time.
+    local wt_authority wt_auth_settings
+    wt_authority=$(fw_hook_parity_authority_root "$PROJECT_ROOT" 2>/dev/null || true)
+    echo ""
+    echo -e "  ${BOLD}Worktrees${NC}"
+    if [ -z "$wt_authority" ]; then
+        # T-3105: unenumerable set is a WARN, never a silent pass. "Not a git
+        # repo" is a legitimate state, but it is a state in which this check
+        # proves nothing — say so rather than printing an OK it did not earn.
+        echo -e "  ${YELLOW}WARN${NC}  Cannot enumerate worktrees — $PROJECT_ROOT is not a git repository"
+        echo -e "         Enforcement parity across worktrees is UNCHECKED, not clean."
+        warnings=$((warnings + 1))
+    else
+        wt_auth_settings="$wt_authority/.claude/settings.json"
+        local wt_list wt_count=0 wt_issues=0
+        if ! wt_list=$(fw_hook_parity_linked_worktrees "$PROJECT_ROOT" 2>/dev/null); then
+            echo -e "  ${YELLOW}WARN${NC}  git worktree list failed — worktree set unenumerable"
+            echo -e "         Enforcement parity across worktrees is UNCHECKED, not clean."
+            warnings=$((warnings + 1))
+        elif [ ! -f "$wt_auth_settings" ]; then
+            echo -e "  ${YELLOW}WARN${NC}  Authority has no .claude/settings.json ($wt_auth_settings)"
+            echo -e "         Nothing to compare replicas against — parity UNCHECKED."
+            warnings=$((warnings + 1))
+        else
+            local wt wname wdelta
+            while IFS= read -r wt; do
+                [ -n "$wt" ] || continue
+                wt_count=$((wt_count + 1))
+                wname=$(basename "$wt")
+                wdelta=$(fw_hook_parity_delta "$wt_auth_settings" "$wt/.claude/settings.json")
+                case "$wdelta" in
+                    ok*)
+                        echo -e "  ${GREEN}OK${NC}  $wname (${wdelta#ok } hooks)"
+                        ;;
+                    absent)
+                        echo -e "  ${YELLOW}WARN${NC}  $wname (settings absent — no .claude/settings.json)"
+                        echo -e "         This worktree enforces NOTHING. Path: $wt"
+                        warnings=$((warnings + 1))
+                        wt_issues=$((wt_issues + 1))
+                        ;;
+                    *)
+                        echo -e "  ${YELLOW}WARN${NC}  $wname ($wdelta)"
+                        echo -e "         Path: $wt"
+                        warnings=$((warnings + 1))
+                        wt_issues=$((wt_issues + 1))
+                        ;;
+                esac
+            done < <(printf '%s\n' "$wt_list")
+
+            # T-3105 set-reporting: every branch below states the size of the set
+            # actually examined. An empty set is stated, not passed over.
+            if [ "$wt_count" -eq 0 ]; then
+                echo -e "  ${CYAN}SKIP${NC}  No linked worktrees — examined 0 linked worktree(s)"
+            elif [ "$wt_issues" -eq 0 ]; then
+                echo -e "  ${GREEN}OK${NC}  Enforcement parity clean — examined $wt_count linked worktree(s)"
+            else
+                echo -e "         $wt_issues of $wt_count linked worktree(s) drifted from the authority's hook set."
+                echo -e "         Refresh: fw upgrade <worktree-path>, or land and remove the worktree."
+            fi
         fi
     fi
 
@@ -2590,14 +3078,17 @@ else:
     local cron_registry="$PROJECT_ROOT/.context/cron-registry.yaml"
     # T-2435 (OBS-077): cron is host-level (installed once from the canonical main
     # checkout). In a linked worktree the derived target is worktree-named and never
-    # installed, so the drift checks below are pure worktree artifacts. Detect a linked
-    # worktree inline (bin/fw does not source lib/paths.sh) — git-dir != git-common-dir.
-    local _fw_gd _fw_gcd _fw_is_wt=0
-    _fw_gd=$(git -C "$PROJECT_ROOT" rev-parse --git-dir 2>/dev/null || echo .git)
-    _fw_gcd=$(git -C "$PROJECT_ROOT" rev-parse --git-common-dir 2>/dev/null || echo .git)
-    case "$_fw_gd"  in /*) ;; *) _fw_gd="$PROJECT_ROOT/$_fw_gd" ;; esac
-    case "$_fw_gcd" in /*) ;; *) _fw_gcd="$PROJECT_ROOT/$_fw_gcd" ;; esac
-    [ "$_fw_gd" != "$_fw_gcd" ] && _fw_is_wt=1
+    # installed, so the drift checks below are pure worktree artifacts.
+    # T-3111 replaced the inline git-dir/git-common-dir comparison that used to sit
+    # here with the shared predicate. bin/fw still cannot source lib/paths.sh (it
+    # resolves and exports paths on source), which is exactly why the predicate now
+    # lives in a side-effect-free lib of its own — sourced, not copied. The source is
+    # idempotent (_FW_WORKTREE_IDENTITY_LOADED), so the L2 redirect having already
+    # loaded it costs nothing here.
+    local _fw_is_wt=0
+    # shellcheck source=/dev/null
+    source "$FRAMEWORK_ROOT/lib/worktree-identity.sh" 2>/dev/null || true
+    if fw_is_linked_worktree "$PROJECT_ROOT" 2>/dev/null; then _fw_is_wt=1; fi
     if [ "$_fw_is_wt" = "1" ]; then
         # T-2466: surface worktree topology so a session knows whether its branch is
         # live on this host (hooks run MAIN's bin/fw; merge-to-master ≠ live until
@@ -2901,6 +3392,26 @@ if len(rows) > 5:
     set -e
     fi  # T-2452/F6: end --quick guard for mirror divergence
 
+    # T-3088: mirror sync stuck DIVERGED — the cron-driven `fw mirror sync`
+    # refuses to auto-push a diverged mirror by design (human recovery
+    # required), which is the correct fail-safe direction but is also silent:
+    # nothing surfaces a mirror parked in `diverged` for days. Read the sync
+    # log's last few entries per remote and WARN when the tail is uniformly
+    # `diverged` — the exact "fails safe, forever, unnoticed" class this
+    # closes.
+    if _doctor_quick_skip "Mirror sync stuck diverged (.mirror-sync.log)"; then :; else
+    source "$FW_LIB_DIR/mirror.sh"
+    local _mirror_sync_log="$PROJECT_ROOT/.context/working/.mirror-sync.log"
+    local _mirror_stuck_n=4  # 4 consecutive 15-min cron runs = ~1 hour stuck
+    local _mirror_stuck_remote
+    while IFS= read -r _mirror_stuck_remote; do
+        [ -z "$_mirror_stuck_remote" ] && continue
+        echo -e "  ${YELLOW}WARN${NC}  Mirror '$_mirror_stuck_remote' stuck DIVERGED for $_mirror_stuck_n+ consecutive sync runs (T-3088) — needs human recovery"
+        echo -e "         Investigate: tail -20 $_mirror_sync_log | grep -F \$'\\t$_mirror_stuck_remote\\t'"
+        warnings=$((warnings + 1))
+    done < <(mirror_stuck_diverged_check "$_mirror_sync_log" "$_mirror_stuck_n")
+    fi  # T-3088: end --quick guard for mirror-stuck-diverged
+
     # Check: Workflow file schema linter (T-1694 / Q14)
     # Lints all .context/project/workflows/*.yaml against ADR-0003 schema:
     #   - inline:true workflows must NOT carry dispatch fields
@@ -2979,9 +3490,14 @@ if len(rows) > 5:
             echo -e "  ${YELLOW}WARN${NC}  Branch hygiene: $_bh_count finding(s)"
             while IFS= read -r _bl; do
                 echo -e "         $_bl"
-            done < <(printf '%s\n' "$_bh_out" | head -12)
+            done < <(printf '%s\n' "$_bh_out" | fw_branch_hygiene_head 12)
             if [ "$_bh_count" -gt 12 ]; then
-                echo -e "         … $((_bh_count - 12)) more (full list: git branch --merged origin/master)"
+                # T-3092: the shown lines are class-representative, not the first
+                # 12 — a positional cap hid every remote finding on this repo. The
+                # representative is the FIRST of its class, not the worst, so the
+                # full list has to be reachable and `git branch --merged` does not
+                # show remote strands at all.
+                echo -e "         … $((_bh_count - 12)) more (full list: bash -c 'source lib/branch-hygiene.sh; fw_branch_hygiene .')"
             fi
             echo -e "         Cleanup: git branch -d <name> (merged); fw integrate run (overdue merge-back)"
             if printf '%s\n' "$_bh_out" | grep -q '^diverged-fork '; then
@@ -2992,6 +3508,28 @@ if len(rows) > 5:
             warnings=$((warnings + 1))
         else
             echo -e "  ${GREEN}OK${NC}  Branch hygiene clean"
+        fi
+    fi
+
+    # T-3063 (leg 2 of T-3062): stuck push — the handover's unpushed count is a
+    # snapshot and cannot distinguish "not pushed yet" from "has failed to push
+    # for four sessions". lib/push-state.sh keeps the streak; this is where an
+    # operator or agent can reach it deliberately, rather than only at session
+    # end when nobody is reading. Silent unless a streak of 2+ is live, and the
+    # read self-heals when the commits have since landed by any route.
+    if [ -f "$FRAMEWORK_ROOT/lib/push-state.sh" ] && git -C "$PROJECT_ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+        . "$FRAMEWORK_ROOT/lib/push-state.sh"
+        local _ps_out _ps_n _ps_since _ps_kind _ps_un
+        _ps_out=$(fw_push_state_read "$PROJECT_ROOT" 2>/dev/null || true)
+        if [ -n "$_ps_out" ]; then
+            _ps_n=$(printf '%s\n' "$_ps_out" | grep -o 'failures=[0-9]*' | cut -d= -f2)
+            _ps_un=$(printf '%s\n' "$_ps_out" | grep -o 'unpushed=[^ ]*' | cut -d= -f2)
+            _ps_since=$(printf '%s\n' "$_ps_out" | grep -o 'since=[^ ]*' | cut -d= -f2)
+            _ps_kind=$(printf '%s\n' "$_ps_out" | grep -o 'kind=[^ ]*' | cut -d= -f2)
+            echo -e "  ${YELLOW}WARN${NC}  Push STUCK: failed $_ps_n consecutive session(s) since $_ps_since"
+            echo -e "         $_ps_un commit(s) exist only in this working copy (last failure: $_ps_kind)"
+            echo -e "         $(fw_push_state_advice "$_ps_kind")"
+            warnings=$((warnings + 1))
         fi
     fi
 
@@ -4308,36 +4846,115 @@ case "$cmd" in
         bvp_dispatch "$@"
         exit $?
         ;;
+    triage)
+        # T-3046 (slice 1 of the T-3044 GO): static msg_type router over the
+        # recovered hub-message archive. Records dispositions; does not execute
+        # handlers — wiring execution is slice 2, behind operator approval of
+        # the routing table.
+        tr_subcmd="${1:-}"
+        shift || true
+        case "$tr_subcmd" in
+            route)
+                exec env PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/message_router.py" "$@"
+                ;;
+            ""|--help|-h|help)
+                cat <<'EOF'
+fw triage route [--dry-run] [--json]
+
+Classify every message in .context/message-archive/raw/ and record exactly one
+disposition for each in .context/triage-dispositions.jsonl (T-3046).
+
+Dispositions:
+  routed     a handler exists and should act (slice 1 records, slice 2 runs)
+  surfaced   needs the operator — goes to /approvals, never auto-filed
+  deferred   genuinely actionable, handler out of slice 1 scope, with reason
+  dropped    a recorded decision not to act, with reason. Never deleted.
+
+An unrecognised msg_type is a hard error, not a silent default: a new producer
+must surface as a failure rather than be swallowed. Add an EXACT entry or a
+FAMILIES prefix in lib/message_router.py.
+
+Idempotent on the message content hash — the archive carries no id field of
+any kind, and (topic, offset) collides 3,593 times across hubs. A second run
+appends zero rows.
+
+Flags:
+  --dry-run   classify and print, write nothing
+  --json      machine-readable counts and per-type dispositions
+
+Examples:
+  fw triage route --dry-run        # see the table before it writes anything
+  fw triage route --dry-run --json # same, for scripts
+  fw triage route                  # record dispositions
+EOF
+                exit 0
+                ;;
+            *)
+                echo "ERROR: unknown triage subcommand: $tr_subcmd" >&2
+                echo "Run 'fw triage --help' for usage." >&2
+                exit 64
+                ;;
+        esac
+        ;;
+
     write-set)
         # T-2337 (arc-011 M1 §3): disjoint write-set validator.
         # Verbs: check <T-A> <T-B> — compare two tasks' declared write_set: frontmatter
-        # Exit codes: 0=disjoint, 1=overlap, 2=undecidable
+        # Exit codes: 0=disjoint, 1=overlap|converging, 2=undecidable (T-3039)
         ws_subcmd="${1:-}"
         shift || true
         case "$ws_subcmd" in
             check)
                 if [ $# -lt 2 ]; then
-                    echo "usage: fw write-set check <T-A> <T-B>" >&2
+                    echo "usage: fw write-set check <T-A> <T-B> [--json] [--declared-only]" >&2
                     exit 64
                 fi
-                exec env PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/write_set.py" check "$1" "$2"
+                # Forward ALL remaining args, not just the two ids — otherwise
+                # --json / --declared-only are silently swallowed here and the
+                # flags appear broken rather than unsupported (T-3039).
+                exec env PROJECT_ROOT="$PROJECT_ROOT" python3 "$FRAMEWORK_ROOT/lib/write_set.py" check "$@"
                 ;;
             ""|--help|-h|help)
                 cat <<'EOF'
-fw write-set check <T-A> <T-B>
+fw write-set check <T-A> <T-B> [--json] [--declared-only]
 
-Compare two tasks' declared `write_set:` frontmatter and report whether
-they are disjoint, overlap, or undecidable. Used by the arc-011 orchestrator
-before emitting parallel dispatch (T-2337, arc-011 M1 §3).
+Report whether two tasks can safely run in parallel. Used by the arc-011
+orchestrator before emitting parallel dispatch (T-2337, arc-011 M1 §3).
+
+Compares each task's declared `write_set:` frontmatter AND the implicit
+framework write-set — the state every task writes without declaring it
+(inbox.yaml, learnings.yaml, concerns.yaml, focus.yaml, session.yaml),
+because the framework writes those on the task's behalf (T-3039).
+
+Verdicts:
+  disjoint     no overlap of any kind
+  converging   declared paths are disjoint, but shared framework state
+               forces a serial write leg — fan out on reads, fan in
+               serially on writes (CLAUDE.md §Execution Model)
+  overlap      the tasks declare a path in common; do not run concurrently
+  undecidable  at least one task lacks write_set: frontmatter, so declared
+               overlap is unknown. Convergence is still reported — it
+               follows from both being framework tasks.
 
 Exit codes:
-  0  disjoint    — both write-sets declared, no path overlap
-  1  overlap     — both declared, at least one shared path
-  2  undecidable — at least one task lacks write_set: frontmatter
+  0  disjoint
+  1  overlap OR converging   (both mean: do not naively parallelise)
+  2  undecidable
+
+`converging` shares exit 1 with `overlap` on purpose — the 0/1/2 contract
+is what callers branch on, and a fourth code would break every existing
+consumer. The verdict string carries the distinction.
+
+Flags:
+  --json            full detail: verdict, declared_overlap, converging
+  --declared-only   pre-T-3039 behaviour (declared paths only). This can
+                    return `disjoint` for tasks that DO collide on
+                    framework state — that false green is why T-3039 exists.
 
 Examples:
-  fw write-set check T-PAR-A T-PAR-B    # Two disjoint tasks → exit 0
-  fw write-set check T-COL-A T-COL-B    # Two overlapping tasks → exit 1
+  fw write-set check T-PAR-A T-PAR-B           # → converging, exit 1
+  fw write-set check T-COL-A T-COL-B           # → overlap, exit 1
+  fw write-set check T-A T-B --json            # which paths, and why
 EOF
                 exit 0
                 ;;
@@ -4604,7 +5221,7 @@ with open(cron_source, 'w') as f:
 
 print(f'Generated {cron_source}')
 print(f'  {active} active, {paused} paused ({len(jobs)} total)')
-print(f'  Install with: fw audit schedule install')
+print(f'  Install with: fw cron install')
 "
                 ;;
             status)
@@ -4870,6 +5487,56 @@ print(f'  Run \"fw cron generate\" to update the crontab file')
             *)
                 echo -e "${RED}Unknown cron subcommand:${NC} $cron_subcmd"
                 echo "Run 'fw cron help' for usage."
+                exit 1
+                ;;
+        esac
+        ;;
+    index)
+        # T-3014 (T-3005 slice 5): scheduled incremental reindex. Cron entry
+        # point — see .context/cron-registry.yaml id `index-reindex-hourly`.
+        idx_subcmd="${1:-}"
+        shift || true
+        case "$idx_subcmd" in
+            reindex)
+                if [ "${1:-}" = "-h" ] || [ "${1:-}" = "--help" ]; then
+                    echo "Usage: fw index reindex"
+                    echo "Incrementally re-embeds changed/added/removed corpus files."
+                    echo "Run 'fw index --help' for the full description."
+                    exit 0
+                fi
+                cd "$PROJECT_ROOT" && python3 -c '
+import json, sys
+try:
+    from web.embeddings import reindex_incremental
+except Exception as exc:
+    print(json.dumps({"status": "unimportable",
+                       "detail": f"{type(exc).__name__}: {str(exc)[:200]}"}))
+    sys.exit(0)
+try:
+    stats = reindex_incremental()
+    stats["status"] = "ok"
+    print(json.dumps(stats))
+except Exception as exc:
+    print(json.dumps({"status": "error", "detail": str(exc)[:300]}))
+    sys.exit(1)
+'
+                ;;
+            ""|-h|--help)
+                echo "Usage: fw index reindex"
+                echo ""
+                echo "Incrementally re-embed changed/added/removed corpus files and replant"
+                echo "the freshness canaries (T-3014, T-3005 slice 5). Diffs collect_files()"
+                echo "against the file_state table by content hash — only the changed set is"
+                echo "re-embedded, not the whole 393k-chunk corpus. Bootstraps with one full"
+                echo "build the first time no index exists yet."
+                echo ""
+                echo "Atomic: builds on a copy of the database and only swaps it into place"
+                echo "(os.replace) once fully committed, then writes the manifest. A process"
+                echo "killed mid-run leaves the previous index (and its manifest) untouched."
+                ;;
+            *)
+                echo -e "${RED}Unknown index subcommand:${NC} $idx_subcmd"
+                echo "Run 'fw index reindex' or 'fw index --help'"
                 exit 1
                 ;;
         esac
@@ -5966,6 +6633,13 @@ DEPLOYEOF
         # Tier 0 enforcement — approve or inspect blocked commands
         tier0_subcmd="${1:-}"
         shift || true
+        # T-3080: quote the RESOLVED grant window, never a hard-coded number.
+        # Same resolution order as agents/context/check-tier0.sh (which states it
+        # in full): TIER0_WATCHTOWER_TTL explicit > FW_TIER0_APPROVAL_TTL / config
+        # > registry default. Prose that restates a literal is prose that drifts.
+        source "$FRAMEWORK_ROOT/lib/config.sh"
+        TIER0_TTL_RESOLVED="${TIER0_WATCHTOWER_TTL:-$(fw_config_int TIER0_APPROVAL_TTL)}"
+        TIER0_TTL_HUMAN=$(_fw_humanize_seconds "$TIER0_TTL_RESOLVED")
         case "$tier0_subcmd" in
             approve)
                 PENDING_FILE="$PROJECT_ROOT/.context/working/.tier0-approval.pending"
@@ -5981,7 +6655,7 @@ DEPLOYEOF
                 echo -e "  Approving command with hash: ${CYAN}${PENDING_HASH:0:16}...${NC}"
                 echo ""
                 echo -e "  ${YELLOW}This allows a blocked destructive command to execute once.${NC}"
-                echo -e "  The approval expires in 5 minutes and is logged for audit."
+                echo -e "  The approval expires in ${TIER0_TTL_HUMAN} (${TIER0_TTL_RESOLVED}s) and is logged for audit."
                 echo ""
                 # Write the approval (hash + current timestamp)
                 echo "$PENDING_HASH $(date +%s)" > "$APPROVAL_FILE"
@@ -6218,8 +6892,14 @@ print('0')
                 echo "Approvals are created when check-tier0.sh blocks a destructive command."
                 echo "They can be approved via 'fw tier0 approve' (CLI) or via Watchtower web UI."
                 echo ""
+                # T-3080: quote the resolved grant window, not a literal.
+                source "$FRAMEWORK_ROOT/lib/config.sh"
+                _t0_ttl="${TIER0_WATCHTOWER_TTL:-$(fw_config_int TIER0_APPROVAL_TTL)}"
                 echo "Environment:"
-                echo "  TIER0_WATCHTOWER_TTL  Approval TTL in seconds (default: 3600)"
+                echo "  Granted approvals admit the command for ${_t0_ttl}s ($(_fw_humanize_seconds "$_t0_ttl")) — currently resolved value."
+                echo "    FW_TIER0_APPROVAL_TTL / 'fw config set TIER0_APPROVAL_TTL <s>'  sets it (both legs, CLI and Watchtower)."
+                echo "    TIER0_WATCHTOWER_TTL                                            legacy override, still honoured when set explicitly."
+                echo "  This is the GRANT window, not the pending-request staleness window."
                 ;;
             *)
                 echo -e "${RED}Unknown approvals subcommand: $approvals_subcmd${NC}"
@@ -7334,8 +8014,8 @@ path = os.path.join(project_root, '.context', 'project', 'learnings.yaml')
 with open(path) as f:
     data = yaml.safe_load(f) or {}
 
-learnings = data.get('learnings', [])
-candidates = data.get('candidates', [])
+learnings = data.get('learnings') or []
+candidates = data.get('candidates') or []
 
 print(f'{BOLD}Learnings{NC} ({len(learnings)} confirmed, {len(candidates)} candidates)')
 print()
@@ -7719,6 +8399,7 @@ PYSEARCH
                 echo "  - .agentic-framework/bin/                 ← bin/fw             (T-2264)"
                 echo "  - .agentic-framework/agents/              ← agents/**/*.{sh,py} (T-2266)"
                 echo "  - .agentic-framework/web/                 ← web/**/*.{sh,py}    (T-2267)"
+                echo "  - .agentic-framework/vendor/designer/     ← the ONE pinned build   (T-3064)"
                 echo ""
                 echo "T-1217 / T-2078 §F2 / T-2095 V1-D / T-2241. Extracted from do_upgrade so it can be"
                 echo "invoked explicitly (cron, pre-push, manual) without firing the full upgrade flow."
@@ -7762,6 +8443,11 @@ PYSEARCH
                 _self_vendor_agents "$_vs_dry"
                 # T-2267: web/ drift class (6th class).
                 _self_vendor_web "$_vs_dry"
+                # T-3064: pinned Workflow Designer build (8th class). Inside the
+                # CHECKED set, unlike VERSION below: the artifact only changes at
+                # a pin bump, so a gate on it is satisfiable — clear it once with
+                # `fw vendor self` and it stays clear until the next re-pin.
+                _self_vendor_designer "$_vs_dry"
                 # T-2793 (OBS-151): VERSION — the copy's own identity, which the
                 # six content classes never covered.
                 #
@@ -8218,19 +8904,36 @@ PYPREDICT
                 [ "$_lint_fail" -gt 0 ] && _test_exit=1
                 ;;
             --unit|unit)
-                # Bats unit tests only
-                if ! command -v bats >/dev/null 2>&1; then
-                    echo -e "${RED}ERROR: bats is not installed${NC}" >&2
-                    exit 1
-                fi
+                # Bats + Pytest unit tests (T-2745: wire pytest tests/unit/)
                 shift
                 [ "${1:-}" = "--" ] && shift
-                echo -e "${BOLD}=== Bats Unit Tests ===${NC}"
-                # T-1588: extra args (file paths, glob patterns) are passed through.
-                if [ "$#" -gt 0 ]; then
-                    bats "$@" || _test_exit=1
-                else
-                    bats "$FRAMEWORK_ROOT/tests/unit/" || _test_exit=1
+
+                # Run Bats tests if available
+                if command -v bats >/dev/null 2>&1; then
+                    echo -e "${BOLD}=== Bats Unit Tests ===${NC}"
+                    if [ "$#" -gt 0 ]; then
+                        bats "$@" || _test_exit=1
+                    # T-3048: guard the directory, as the integration/governance/lint
+                    # legs already do. Unguarded, a vendored consumer that ships no
+                    # tests/unit/ got a bats hard error where every sibling leg skips.
+                    elif [ -d "$FRAMEWORK_ROOT/tests/unit/" ] && ls "$FRAMEWORK_ROOT/tests/unit/"*.bats >/dev/null 2>&1; then
+                        bats "$FRAMEWORK_ROOT/tests/unit/" || _test_exit=1
+                    else
+                        echo "  No bats unit tests found."
+                    fi
+                    echo ""
+                fi
+
+                # Run Pytest tests from tests/unit/ if available (T-2745)
+                if python3 -c "import pytest" 2>/dev/null; then
+                    if [ -d "$FRAMEWORK_ROOT/tests/unit/" ]; then
+                        echo -e "${BOLD}=== Pytest Unit Tests ===${NC}"
+                        if [ "$#" -gt 0 ]; then
+                            cd "$FRAMEWORK_ROOT" && python3 -m pytest "$@" -v || _test_exit=1
+                        else
+                            cd "$FRAMEWORK_ROOT" && python3 -m pytest tests/unit/ -v || _test_exit=1
+                        fi
+                    fi
                 fi
                 ;;
             --integration|integration)
@@ -8342,10 +9045,42 @@ PYPREDICT
                 # 1. Bats unit tests
                 if command -v bats >/dev/null 2>&1; then
                     echo -e "${BOLD}--- Bats Unit Tests ---${NC}"
-                    bats "$FRAMEWORK_ROOT/tests/unit/" || _test_exit=1
+                    # T-3048: same guard as the `unit` subcommand above.
+                    if [ -d "$FRAMEWORK_ROOT/tests/unit/" ] && ls "$FRAMEWORK_ROOT/tests/unit/"*.bats >/dev/null 2>&1; then
+                        bats "$FRAMEWORK_ROOT/tests/unit/" || _test_exit=1
+                    else
+                        echo "  No bats unit tests found."
+                    fi
                     echo ""
                 else
                     echo -e "${YELLOW}SKIP: bats not installed${NC}"
+                fi
+
+                # 1b. Pytest unit tests (T-2745, gated by T-1719/OBS-293)
+                #
+                # OPT-IN, deliberately. T-2745 wired 2306 pytest tests in here
+                # after sampling 20 of them from 3 files. Measured afterwards:
+                # 1274 passed / 17 FAILED / 5 skipped at 56% of the suite, which
+                # was still running when a 900s timeout killed it. So this leg
+                # adds an estimated ~27 minutes and turns `fw test all` RED on
+                # roughly 30 pre-existing failures nobody has triaged.
+                #
+                # `fw test all` gates pushes. A target that is red for reasons
+                # unrelated to your change trains people to ignore it, which is
+                # worse than not running the tests at all. Run the leg directly
+                # via `fw test unit` (which does invoke pytest unconditionally),
+                # or set FW_TEST_PYTEST=1 here once the failures are triaged and
+                # filed. Removing this gate without fixing them re-reds the rail.
+                if [ "${FW_TEST_PYTEST:-0}" = "1" ] && python3 -c "import pytest" 2>/dev/null; then
+                    if [ -d "$FRAMEWORK_ROOT/tests/unit/" ]; then
+                        echo -e "${BOLD}--- Pytest Unit Tests ---${NC}"
+                        cd "$FRAMEWORK_ROOT" && python3 -m pytest tests/unit/ -v || _test_exit=1
+                        echo ""
+                    fi
+                elif python3 -c "import pytest" 2>/dev/null; then
+                    echo -e "${YELLOW}SKIP: pytest unit tests (~27min, 17+ known failures — OBS-293)${NC}"
+                    echo -e "      Run them: ${BOLD}fw test unit${NC}  or  ${BOLD}FW_TEST_PYTEST=1 fw test all${NC}"
+                    echo ""
                 fi
 
                 # 2. Bats integration tests
@@ -8413,7 +9148,7 @@ PYPREDICT
                 echo -e "${BOLD}Usage:${NC} fw test [all|unit|integration|governance|web|playwright|lint]"
                 echo ""
                 echo "  all           Run all tests (default)"
-                echo "  unit          Bats unit tests only"
+                echo "  unit          Bats + Pytest unit tests (tests/unit/)"
                 echo "  integration   Bats integration tests only"
                 echo "  governance    Bats red-team governance harness (T-1601 arc)"
                 echo "  web           Pytest web tests only"

@@ -43,7 +43,15 @@ SETTINGS = [
     # from the registry — so they were env-var-only and never rendered here.
     ("BRANCH_BEHIND_WARN", "50", "Commits-behind-origin/master threshold for the branch-hygiene WARN and handover merge-back nudge; T-100143/T-100144"),
     ("STALE_ARC_DAYS", "30", "Days without a constituent-task commit before fw audit WARNs an in-progress arc as stale; T-1855"),
+    ("BRANCH_STALE_DAYS", "30", "Days without a commit ON a branch before its behind-count may raise a branch-hygiene staleness finding; gates BRANCH_BEHIND_WARN so a busy master cannot make every healthy branch stale; T-3094"),
     ("RETIRE_WHEN_ADVISORY", "1", "Enable the audit retire_when advisory rail for free drivers; 0 silences the section; T-2169"),
+    ("GITIGNORE_REGISTER_ADVISORY", "1", "Enable the audit WARN for .gitignore comment blocks that defer work without naming a T-/G-/OBS-/L- entry; 0 silences it; T-2994"),
+    ("INDEX_STALE_DAYS", "7", "Days before fw doctor WARNs that the vector index is stale, measured from the corpus manifest's build time; T-3013"),
+    ("RECALL_USAGE_DAYS", "7", "Window fw doctor looks back over for semantic-recall queries; zero rows in the window WARNs — the G-064 zero-consumer signal; T-3019"),
+    ("INDEX_HANDOVERS", "1", "Include .context/handovers/ in the semantic index (web/search_utils.py:collect_files). 0 excludes them: ~90MB / 1,710 files leave fw ask, fw recall, /search and the RAG path. Reversible; deletes nothing. T-3024"),
+    ("HANDOVER_DIGEST", "1", "Digest the three handover state dumps (Observation Inbox, Work in Progress, Awaiting Your Action) to count + regenerating command + top-N. 0 emits the full dumps as before. Narrative sections are unaffected either way. T-3028"),
+    ("HANDOVER_DIGEST_TOP_N", "5", "How many entries each digested handover section retains in full before referring the reader to the regenerating command. T-3028"),
+    ("TIER0_APPROVAL_TTL", "300", "Seconds a granted Tier 0 approval admits the command, for BOTH the 'fw tier0 approve' and Watchtower legs (agents/context/check-tier0.sh). Legacy TIER0_WATCHTOWER_TTL still wins when explicitly set. NOT the pending-request staleness window. T-3080"),
 ]
 
 

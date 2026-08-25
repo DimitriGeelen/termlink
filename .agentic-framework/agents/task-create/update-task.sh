@@ -127,6 +127,40 @@ check_acceptance_criteria() {
     has_agent_header=$(echo "$ac_section" | grep -c '^### Agent' || true)
     has_human_header=$(echo "$ac_section" | grep -c '^### Human' || true)
 
+    # T-3029 (origin: T-2417/T-2418/T-2420): the ac_section extraction above
+    # closes at the FIRST `## ` heading following `## Acceptance Criteria`. A
+    # `### Human` block placed after an intervening `## ` heading (e.g.
+    # `## Measured Result`) is invisible to has_human_header, and the code
+    # below would silently treat HUMAN_AC_TOTAL as 0 — the exact defect that
+    # let T-3028 archive to completed/ with an unticked [REVIEW] AC still in
+    # the body. T-2420's PreToolUse hook prevents this at write-time, but
+    # only once wired into .claude/settings.json, and only for agent-driven
+    # writes — this is the close-time backstop for every other path (manual
+    # edits, pre-existing offenders, the bypass window). Detect a `### Human`
+    # heading anywhere in the file that fell outside the extracted section
+    # and refuse rather than silently reporting zero.
+    #
+    # The raw-file grep this originally used had a ~10% false-positive rate: a
+    # `### Human` line quoted inside an HTML comment (the AC-routing guidance in
+    # the default template does exactly that) tripped it on 6 of 60 task files
+    # that have no misplaced heading at all. Strip comments the same way
+    # ac_section is stripped above, so both sides of the comparison see the same
+    # document. Measured before and after — 60 raw hits, 54 real.
+    _acs_body=$(sed -E 's/<!--([^-]|-[^-]|--[^>])*-->//g' "$TASK_FILE" 2>/dev/null | sed '/<!--/,/-->/d')
+    if [ "$has_human_header" -eq 0 ] && echo "$_acs_body" | grep -qE '^### Human\b'; then
+        if [ "${FW_ALLOW_AC_STRUCTURE_DRIFT:-0}" = "1" ]; then
+            echo -e "${YELLOW}WARNING: \`### Human\` heading found outside \`## Acceptance Criteria\` — Human ACs reported as 0 (FW_ALLOW_AC_STRUCTURE_DRIFT=1 bypass)${NC}"
+            log_gate_bypass "FW_ALLOW_AC_STRUCTURE_DRIFT=1" "check_acceptance_criteria"
+        else
+            echo -e "${RED}ERROR: \`### Human\` heading found but positioned outside \`## Acceptance Criteria\` — an intervening \`## \` heading (e.g. \`## Measured Result\`) closed the block before reaching it.${NC}" >&2
+            echo "Human ACs would silently be reported as 0/0 and this task would archive as fully complete." >&2
+            echo "" >&2
+            echo "Fix: move the ### Human section so it directly follows ### Agent, with no ## heading in between." >&2
+            echo "Bypass: FW_ALLOW_AC_STRUCTURE_DRIFT=1 (logged Tier-2, same override as the T-2420 PreToolUse hook)." >&2
+            exit 1
+        fi
+    fi
+
     if [ "$has_agent_header" -gt 0 ]; then
         agent_acs=$(echo "$ac_section" | awk '/^### Agent/{f=1; next} /^### /{f=0} f')
         ac_total=$(echo "$agent_acs" | grep -cE '^\s*-\s*\[[ x]\]' || true)
@@ -1133,6 +1167,18 @@ run_verification_commands() {
 
     [ -z "$verify_cmds" ] && return 0
 
+    # T-2991: refuse an unparseable block BEFORE the read loop below evals any
+    # line of it. Order is the whole point — a multi-line `python3 -c "` block's
+    # Python body is eval'd as bash by that loop, which is how 56MB of
+    # ImageMagick PostScript reached this repo's root (T-2990). Checking after
+    # the loop would report the same finding and prevent nothing.
+    if ! check_verification_parseable "$verify_cmds"; then
+        exit 1
+    fi
+    if [ "${FW_ALLOW_UNPARSEABLE_VERIFICATION:-0}" = "1" ]; then
+        log_gate_bypass "FW_ALLOW_UNPARSEABLE_VERIFICATION" "verification block has unparseable line(s)" 2>/dev/null || true
+    fi
+
     check_verification_port_literals "$verify_cmds"
     check_verification_unjudged_test_runs "$verify_cmds"
 
@@ -1231,6 +1277,10 @@ SKIP_INCEPTION_SCOPE_TRACE=false
 SKIP_RENDER_REVIEW=false
 SKIP_RENDER_REVIEW_REASON=""
 SCOPE_REDUCTION_ACK=""  # T-1762/P-012: --scope-reduction-acknowledged "rationale"
+# T-1719 A2: retrieval-happiness signal. Feeds the embeddings routing loop —
+# the rating is the outcome half of "recall returned chunks → was that useful?".
+HAPPINESS=""
+HAPPINESS_REASON=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -1241,6 +1291,8 @@ while [[ $# -gt 0 ]]; do
         --horizon) NEW_HORIZON="$2"; shift 2 ;;
         --type|-t) NEW_TYPE="$2"; shift 2 ;;
         --reason|-r) REASON="$2"; shift 2 ;;
+        --happiness) HAPPINESS="$2"; shift 2 ;;
+        --happiness-reason) HAPPINESS_REASON="$2"; shift 2 ;;
         --skip-sovereignty) SKIP_SOVEREIGNTY=true; shift ;;
         --skip-acceptance-criteria) SKIP_AC=true; shift ;;
         --skip-verification) SKIP_VERIFICATION=true; shift ;;
@@ -1300,6 +1352,10 @@ while [[ $# -gt 0 ]]; do
             echo "  --add-tag     Add tag(s) to existing (comma-separated)"
             echo "  --horizon     Priority horizon: now, next, later"
             echo "  --reason, -r  Reason for status change (logged in Updates)"
+            echo "  --happiness N Retrieval-happiness signal, -5..-1 or +1..+5 (T-1719 A2)"
+            echo "                Appends to .context/working/happiness.jsonl. 0 is rejected —"
+            echo "                the scale has no neutral, so a 0 is a mis-typed rating."
+            echo "  --happiness-reason \"...\"  Optional free-text alongside --happiness"
             echo "  --skip-sovereignty          Bypass human ownership completion gate (R-033)"
             echo "  --skip-acceptance-criteria   Bypass AC gate (P-010)"
             echo "  --skip-verification          Bypass verification gate (P-011)"
@@ -1340,6 +1396,51 @@ fi
 if [ -z "$TASK_FILE" ] || [ ! -f "$TASK_FILE" ]; then
     echo -e "${RED}ERROR: Task $TASK_ID not found${NC}" >&2
     exit 1
+fi
+
+# ── T-1719 A2: retrieval-happiness signal ────────────────────────────────────
+# Validated BEFORE any mutation (L-286: body-mutation gates must validate before
+# mutating). A rejected rating must not leave a half-updated task behind.
+if [ -n "$HAPPINESS" ]; then
+    if ! [[ "$HAPPINESS" =~ ^[+-]?[0-9]+$ ]]; then
+        echo -e "${RED}ERROR: --happiness must be an integer, got '$HAPPINESS'${NC}" >&2
+        exit 1
+    fi
+    _hv=$((HAPPINESS))
+    # Range is -5..-1 and +1..+5. Zero is deliberately excluded: the scale has no
+    # neutral, so a 0 is a mis-typed rating rather than an opinion.
+    if [ "$_hv" -eq 0 ] || [ "$_hv" -lt -5 ] || [ "$_hv" -gt 5 ]; then
+        echo -e "${RED}ERROR: --happiness must be in -5..-1 or +1..+5 (got $_hv)${NC}" >&2
+        echo "  The scale has no neutral — 0 is rejected as a mis-typed rating." >&2
+        exit 1
+    fi
+
+    _happiness_file="$PROJECT_ROOT/.context/working/happiness.jsonl"
+    mkdir -p "$(dirname "$_happiness_file")"
+    # source: agent when running under an agent harness, else human.
+    _hsource="human"
+    if [ "${CLAUDECODE:-0}" = "1" ] || [ -n "${FW_AGENT_SOURCE:-}" ]; then
+        _hsource="agent"
+    fi
+    HAPPINESS_JSON_LINE=$(TASK_ID="$TASK_ID" HV="$_hv" HSRC="$_hsource" \
+        HREASON="$HAPPINESS_REASON" python3 -c '
+import json, os, datetime
+row = {
+    "task_id": os.environ["TASK_ID"],
+    "ts": datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z"),
+    "source": os.environ["HSRC"],
+    "value": int(os.environ["HV"]),
+}
+reason = os.environ.get("HREASON", "").strip()
+if reason:
+    row["reason"] = reason
+print(json.dumps(row, sort_keys=True))
+') || {
+        echo -e "${RED}ERROR: failed to build happiness record${NC}" >&2
+        exit 1
+    }
+    printf '%s\n' "$HAPPINESS_JSON_LINE" >> "$_happiness_file"
+    echo -e "${GREEN}Happiness recorded:${NC} $_hv → .context/working/happiness.jsonl"
 fi
 
 # Acquire per-task lock to prevent concurrent modifications (T-587)
@@ -1549,10 +1650,11 @@ PY
         # the estimator's output is advisory; a missing proposed score does
         # not block any downstream gate.
         if [ "$NEW_STATUS" = "started-work" ] && [ -n "$TASK_ID" ]; then
-            if [ -x "$FRAMEWORK_ROOT/agents/termlink/bvp-estimator/bvp-estimator.sh" ]; then
+            # T-3051: -f + bash, not -x — git tracks this estimator as 100644.
+            if [ -f "$FRAMEWORK_ROOT/agents/termlink/bvp-estimator/bvp-estimator.sh" ]; then
                 (
                     PROJECT_ROOT="$PROJECT_ROOT" FRAMEWORK_ROOT="$FRAMEWORK_ROOT" \
-                    "$FRAMEWORK_ROOT/agents/termlink/bvp-estimator/bvp-estimator.sh" \
+                    bash "$FRAMEWORK_ROOT/agents/termlink/bvp-estimator/bvp-estimator.sh" \
                         one "$TASK_ID" >/dev/null 2>&1
                 ) &
                 disown 2>/dev/null || true

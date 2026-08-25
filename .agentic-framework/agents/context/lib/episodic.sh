@@ -133,22 +133,20 @@ do_generate_episodic() {
     # =========================================================================
     # Parse Decisions section from task file
     # =========================================================================
+    # T-3015: delegate to extract_decisions.py. The previous parse read this
+    # block-structured section one line at a time, which produced three defects
+    # from that one assumption: it filtered the comment DELIMITERS but not the
+    # comment INTERIOR (so the template's own `[what was decided]` placeholders
+    # were emitted as real decisions — 77% of episodics in this tree), it cut
+    # multi-line values at the first newline, and it capped at 20 silently.
+    # Reported by 050-email-archive, reproduced independently by 832 at 81%.
+    # The extractor emits the YAML body whole; do not reintroduce a line filter
+    # here — `tests/unit/test_extract_decisions.py` pins all three.
     local decisions_raw=""
     local has_decisions=false
-    local decisions_section=$(sed -n '/^## Decisions/,/^## /p' "$task_file" 2>/dev/null | head -n -1)
-    if [ -n "$decisions_section" ]; then
-        # Check for actual content (not just comments/empty)
-        # T-1631 / G-082 fix: use '^## ' (with trailing space) so we strip the
-        # H2 section delimiter `## Decisions` but preserve `### date — topic`
-        # H3 headings that label each decision. The prior regex `^##` greedily
-        # consumed H3 headings, leaving the `^### ` handler below with nothing
-        # to fire on and producing decisions blocks whose Chose/Why/Rejected
-        # fields merged into a single flat mapping (silent data corruption).
-        local decision_content=$(echo "$decisions_section" | grep -v '^## ' | grep -v '^<!--' | grep -v '^-->' | grep -v '^\s*$' | head -20)
-        if [ -n "$decision_content" ]; then
-            decisions_raw="$decision_content"
-            has_decisions=true
-        fi
+    decisions_raw=$(python3 "$(dirname "${BASH_SOURCE[0]}")/extract_decisions.py" "$task_file" 2>/dev/null)
+    if [ -n "$decisions_raw" ]; then
+        has_decisions=true
     fi
 
     # =========================================================================
@@ -164,7 +162,24 @@ do_generate_episodic() {
     local lines_removed=0
     local files_changed_count=0
 
-    if command -v git >/dev/null 2>&1 && [ -d "$PROJECT_ROOT/.git" ]; then
+    # T-3129 (AC3): distinguish "could not measure" from "measured, found none".
+    # The four counters above are INITIALISED to 0. If the mining block below is
+    # skipped, those zeros are not results — they are the absence of a result. The
+    # emitter keys on this flag and writes `null` rather than `0` in that case, so
+    # a reader (human or code) can tell the two apart. Sibling of L-575.
+    local git_mining_ran=false
+
+    # T-3129 (AC1): test REACHABILITY, not the shape of a path. In a linked git
+    # worktree `$PROJECT_ROOT/.git` is a regular FILE holding a `gitdir:` pointer,
+    # so the old `[ -d ... ]` was false and this entire block — every mine_git_*
+    # call plus the --numstat metrics — was skipped, even though the very next
+    # line's `git -C "$PROJECT_ROOT" log` works perfectly from inside a worktree.
+    # `fw worktree create` is the framework's own sanctioned path for parallel
+    # work, so the tasks most likely to record a zero footprint were the ones the
+    # framework itself routed into isolation. `rev-parse --is-inside-work-tree`
+    # asks the question the code below actually depends on: can git answer here?
+    if command -v git >/dev/null 2>&1 && git -C "$PROJECT_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        git_mining_ran=true
         git_summary=$(mine_git_summary "$task_id")
         git_challenges=$(mine_git_challenges "$task_id")
         git_artifacts=$(mine_git_artifacts "$task_id")
@@ -333,26 +348,11 @@ HEREDOC
     echo "# Decisions (from task file Decisions section)" >> "$episodic_file"
     echo "decisions:" >> "$episodic_file"
     if [ "$has_decisions" = true ]; then
-        # Parse decision entries from markdown format
-        # Expected format: ### date — topic / - **Chose:** / - **Why:** / - **Rejected:**
-        # T-1871: Single-quoted YAML scalars — only escape is '→''. Avoids
-        # the L-392 class where backticks/backslashes inside double-quoted
-        # scalars trigger yaml.scanner.ScannerError ("unknown escape character").
-        echo "$decisions_raw" | while read -r line; do
-            if echo "$line" | grep -q '^### '; then
-                local topic=$(echo "$line" | sed 's/^### //' | sed "s/'/''/g")
-                echo "  - decision: '$topic'" >> "$episodic_file"
-            elif echo "$line" | grep -q '^\*\*Chose:\*\*\|^- \*\*Chose:\*\*'; then
-                local chose=$(echo "$line" | sed 's/.*\*\*Chose:\*\* *//' | sed "s/'/''/g")
-                echo "    chose: '$chose'" >> "$episodic_file"
-            elif echo "$line" | grep -q '^\*\*Why:\*\*\|^- \*\*Why:\*\*'; then
-                local why=$(echo "$line" | sed 's/.*\*\*Why:\*\* *//' | sed "s/'/''/g")
-                echo "    rationale: '$why'" >> "$episodic_file"
-            elif echo "$line" | grep -q '^\*\*Rejected:\*\*\|^- \*\*Rejected:\*\*'; then
-                local rej=$(echo "$line" | sed 's/.*\*\*Rejected:\*\* *//' | sed "s/'/''/g")
-                echo "    alternatives_rejected: ['$rej']" >> "$episodic_file"
-            fi
-        done
+        # T-3015: already YAML, already escaped. extract_decisions.py emits
+        # single-quoted scalars with ' doubled (T-1871 / L-392 / L-385) — the
+        # same escape strategy the line-by-line version used, kept because
+        # double-quoted scalars break on backticks and backslashes in prose.
+        printf '%s\n' "$decisions_raw" >> "$episodic_file"
     else
         echo "  # No decisions recorded (mechanical task or old template)" >> "$episodic_file"
     fi
@@ -409,7 +409,28 @@ HEREDOC
         echo "  - description: \"[TODO: What worked well?]\"" >> "$episodic_file"
         echo "    why: \"[TODO: Why did it work?]\"" >> "$episodic_file"
     else
-        echo "  # Completed successfully in $commit_count commit(s), $wall_minutes min" >> "$episodic_file"
+        if [ "$git_mining_ran" = true ]; then
+            echo "  # Completed successfully in $commit_count commit(s), $wall_minutes min" >> "$episodic_file"
+        else
+            echo "  # Completed successfully in $wall_minutes min (commit count not measured)" >> "$episodic_file"
+        fi
+    fi
+
+    # T-3129 (AC3): a skipped measurement must not emit its initialised value as
+    # a result. `commits: 0` reads as "measured, answer none"; `commits: null`
+    # reads as "not measured". Only the git-derived counters are affected —
+    # wall_clock_minutes comes from the task frontmatter and is always measured.
+    local m_commits="$commit_count"
+    local m_files_changed="$files_changed_count"
+    local m_lines_added="$lines_added"
+    local m_lines_removed="$lines_removed"
+    local git_mining_status=ok
+    if [ "$git_mining_ran" != true ]; then
+        git_mining_status=skipped
+        m_commits=null
+        m_files_changed=null
+        m_lines_added=null
+        m_lines_removed=null
     fi
 
     # Static sections
@@ -426,11 +447,15 @@ tags: [$tags]
 
 # Passive metrics (derived automatically — do not edit)
 metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: $git_mining_status
   wall_clock_minutes: $wall_minutes
-  commits: $commit_count
-  files_changed: $files_changed_count
-  lines_added: $lines_added
-  lines_removed: $lines_removed
+  commits: $m_commits
+  files_changed: $m_files_changed
+  lines_added: $m_lines_added
+  lines_removed: $m_lines_removed
 
 # Metadata
 source_file: $task_file
@@ -465,14 +490,30 @@ HEREDOC
         rm -f /tmp/episodic-yaml-err.$$
     fi
 
+    # T-1719 A1: make the episodic retrievable now rather than at the next hourly
+    # reindex. Deliberately placed AFTER the YAML validation above — indexing a
+    # file that failed to parse would put malformed content into recall and the
+    # validation block right above exists precisely to stop that propagating.
+    # Best-effort: never fails the close (see lib/post-write-index.sh).
+    if [ -f "$FRAMEWORK_ROOT/lib/post-write-index.sh" ]; then
+        # shellcheck source=/dev/null
+        . "$FRAMEWORK_ROOT/lib/post-write-index.sh"
+        fw_post_write_index "$episodic_file"
+    fi
+
     echo -e "${GREEN}Episodic generated: $episodic_file${NC}"
     echo ""
     echo "  Status: $status_icon $enrichment_status ($status_label)"
     echo "  Task: $task_name"
     echo "  Duration: $duration_days days ($wall_minutes min)"
     echo "  Updates: $update_count"
-    echo "  Commits: $commit_count"
-    echo "  Lines: +$lines_added -$lines_removed across $files_changed_count files"
+    if [ "$git_mining_ran" = true ]; then
+        echo "  Commits: $commit_count"
+        echo "  Lines: +$lines_added -$lines_removed across $files_changed_count files"
+    else
+        # T-3129: do not print the initialised zeros as if they were counted.
+        echo "  Commits: not measured (git unreachable from $PROJECT_ROOT)"
+    fi
     [ -n "$outcomes" ] && echo "  Outcomes: $(echo "$outcomes" | wc -l | tr -d ' ') AC checked"
     [ -n "$git_challenges" ] && echo "  Challenges: $(echo "$git_challenges" | wc -l | tr -d ' ') detected from git"
     [ -n "$git_artifacts" ] && echo "  Artifacts: $(echo "$git_artifacts" | wc -l | tr -d ' ') files tracked"

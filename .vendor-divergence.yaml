@@ -31,6 +31,8 @@ last_vendor_event:
   commit: 8c1cca561
   date: 2026-06-08
   description: "fw update v1.6.7 -> v1.6.295 (444 files)"
+  # NOT promoted to the 2026-08-25 event below — see vendor_events[] for why the
+  # baseline stays wide on purpose.
   note: >
     The baseline for "at risk". Commits touching .agentic-framework/ BEFORE this
     were either carried by the update or already lost; only later ones are
@@ -125,7 +127,7 @@ divergences:
     commits: [4f9068496, 86e9db17e]
     date: 2026-08-15
     file: .agentic-framework/agents/audit/audit.sh
-    status: filed-upstream
+    status: landed-upstream
     kind: fix
     generality: GENERIC
     symptom: >
@@ -141,11 +143,27 @@ divergences:
       behaviour. Without it the audit reports cron drift against a worktree that
       does not own the host's cron, and the T-2815 basename defect blocks the push.
     risk: >
-      Filed 2026-08-23 (T-2714), so the fix is no longer one `fw upgrade` from
-      silent deletion — but filed is not landed. Until upstream confirms it carried,
-      a re-vendor still deletes both commits and the symptom returns as a worktree
-      that cannot pass its own pre-push audit. Re-verify this entry after the next
-      vendor event before assuming it is safe.
+      RESOLVED 2026-08-25. The re-verification this entry asked for has been done.
+      `fw upgrade` re-vendored the tree and `_resolve_hook_path` went to zero
+      occurrences — which looks like the deletion this entry feared, and is not.
+      Upstream superseded the inline shell helper with dedicated modules,
+      lib/hook_paths.py and lib/hook_portability.py (T-2468, generalizing
+      T-2465/OBS-080, updated by T-2709). Those solve a strictly larger problem:
+      they re-derive the project root from the per-call stdin `cwd` Claude Code
+      supplies, which is fresh rather than inherited, so they are immune to the
+      T-2446 daemon-poison class that limits CLAUDE_PROJECT_DIR trust.
+    verified_by: >
+      `fw doctor` on the re-vendored tree reports two checks that did not exist
+      before: "Hook path validation: 27 hooks, all portable" and "Hook exercise
+      from /tmp: 23 PreToolUse/PostToolUse hook(s) resolve from foreign CWD".
+      The second is the worktree symptom this divergence existed for, now covered
+      by an upstream test rather than by a local patch.
+    lesson: >
+      Marker-count deltas are not evidence of loss. A divergence disappearing from
+      the tree has two causes that look identical to grep — deleted by re-vendor,
+      or superseded by a better upstream fix — and only reading the replacement
+      tells them apart. This is the same NONE-vs-NOT-LOOKED-AT class as the
+      corpus_*.py "never vendored" error (see not_divergence/recovery, T-2819).
     upstream_ref: "framework:pickup offsets 35 (hook paths, T-2714) and 36 (CTL-020, T-2715)"
 
   - task: T-2469
@@ -197,12 +215,21 @@ not_divergence:
       CLAUDE.md and .context/ — outside the vendored tree.
 
   - kind: recovery
-    tasks: [T-2806, T-2807, T-2811]
+    tasks: [T-2806, T-2807, T-2811, T-2819]
     reason: >
       These ADD files that already exist upstream but were untracked here (the
       T-2814 blanket .gitignore). A re-vendor restores them from upstream, so
       erasure costs nothing. They are recovery of our own tracking, not a change
       to framework behaviour.
+
+      T-2819 (0bd97f38a) is the same kind with a different cause. `.gitignore:37`
+      blanket-ignores `.agentic-framework/*` and re-includes a FIXED allowlist
+      generated from `git ls-files` at a point in time, so any directory upstream
+      adds later is dropped silently on every vendor event. `tools/` (30 files,
+      including the corpus_*.py that bin/fw:4901/4907/4909 exec directly),
+      `vendor/` and `status-transitions.yaml` were arriving on disk and being
+      discarded the same second. `git log` cannot distinguish that from "never
+      vendored"; `git check-ignore` can.
   - kind: upstream-port
     tasks: [T-2418, T-2061, T-2365]
     reason: >

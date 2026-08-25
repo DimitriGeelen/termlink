@@ -104,28 +104,10 @@ pickup_validate_envelope() {
 pickup_dedup_hash() {
     local file="$1"
 
-    # T-2687: the three greps below swallow every failure (`2>/dev/null || true`),
-    # so an absent/unreadable envelope used to extract three empty strings and hash
-    # to the CONSTANT digest sha256("||") =
-    # 565d240f5343e625ae579a4d45a770f1f02c6368b5ed4d06da4fbe6f47c28866. That constant
-    # collides across unrelated envelopes: once it lands in the dedup ledger, every
-    # later envelope that also fails to extract matches it and is silently dropped as
-    # a "duplicate". A fail-open detection path degrading into silent data loss.
-    # Refuse to produce a hash we cannot stand behind — callers handle non-zero.
-    if [ ! -r "$file" ]; then
-        echo "pickup_dedup_hash: envelope not readable: $file" >&2
-        return 1
-    fi
-
     local pickup_type source_project summary
     pickup_type=$({ grep "^type:" "$file" 2>/dev/null || true; } | head -1 | sed 's/^type:[[:space:]]*//' | tr -d '"' | tr -d "'")
     source_project=$({ grep "^  project:" "$file" 2>/dev/null || true; } | head -1 | sed 's/^  project:[[:space:]]*//' | tr -d '"' | tr -d "'")
     summary=$({ grep "^  summary:" "$file" 2>/dev/null || true; } | head -1 | sed 's/^  summary:[[:space:]]*//' | tr -d '"' | tr -d "'")
-
-    if [ -z "$pickup_type" ] && [ -z "$summary" ] && [ -z "$source_project" ]; then
-        echo "pickup_dedup_hash: all dedup fields (type, payload.summary, source.project) extracted empty from $file — refusing to emit the constant sha256(\"||\") digest" >&2
-        return 1
-    fi
 
     # Normalize: lowercase, collapse whitespace
     local normalized
@@ -139,13 +121,7 @@ pickup_dedup_check() {
     local cooldown_days="${2:-7}"
 
     local hash
-    # T-2687: an uncomputable hash must never be treated as a match. Degrade to
-    # "not a duplicate" (fail-safe: at worst the envelope is processed twice, which
-    # is recoverable; silently dropping it is not) and say so loudly.
-    if ! hash=$(pickup_dedup_hash "$file"); then
-        echo "pickup_dedup_check: cannot compute dedup hash for $file — treating as NOT a duplicate (fail-safe)" >&2
-        return 1
-    fi
+    hash=$(pickup_dedup_hash "$file")
 
     if [ ! -f "$PICKUP_DEDUP_LOG" ]; then
         return 1  # No log = not a dupe
@@ -170,12 +146,7 @@ pickup_dedup_check() {
 pickup_record_dedup() {
     local file="$1"
     local hash
-    # T-2687: never append a row we cannot compute — that is exactly how the
-    # constant sha256("||") poison entries got into the ledger.
-    if ! hash=$(pickup_dedup_hash "$file"); then
-        echo "pickup_record_dedup: refusing to record an uncomputable dedup hash for $file — ledger left unchanged" >&2
-        return 1
-    fi
+    hash=$(pickup_dedup_hash "$file")
     local ts
     ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
     echo "${ts}|${hash}|$(basename "$file")" >> "$PICKUP_DEDUP_LOG"
@@ -285,7 +256,7 @@ pickup_promote_deferred() {
             if [ "$dry_run" = true ]; then
                 echo -e "${CYAN}WOULD PROMOTE${NC}  $basename_f — blocker $blocking is complete"
             else
-                if mv "$f" "$PICKUP_INBOX/" 2>/dev/null; then
+                if pickup_move_preserving "$f" "$PICKUP_INBOX" >/dev/null; then
                     rm -f "$crumb"
                     echo -e "${GREEN}PROMOTE${NC} $basename_f — blocker $blocking shipped; back to inbox"
                 else
@@ -325,14 +296,56 @@ pickup_write_breadcrumb() {
     } > "$breadcrumb"
 }
 
+# --- Collision-safe moves (T-3052) ---
+
+# Move a pickup envelope into a pickup directory without ever overwriting a file
+# already there. Echoes the destination actually used; returns non-zero on
+# failure, so callers can branch instead of assuming the basename survived.
+#
+# Plain `mv` is silent on collision by design, which is the wrong default for a
+# directory whose filenames ARE identities (:566 — `${pickup_id}-${type}.yaml`).
+# A collision here means two envelopes were issued the same id; that is a bug
+# somewhere upstream, and the one thing that must not happen is losing the
+# evidence of it. Keep both, and say so.
+pickup_move_preserving() {
+    local src="$1" destdir="$2"
+
+    local base stem ext
+    base=$(basename "$src")
+    case "$base" in
+        *.yaml) stem="${base%.yaml}"; ext=".yaml" ;;
+        *.yml)  stem="${base%.yml}";  ext=".yml"  ;;
+        *)      stem="$base";         ext=""      ;;
+    esac
+
+    local dest="$destdir/$base"
+    if [ -e "$dest" ]; then
+        local n=1
+        while [ -e "$destdir/${stem}.dup-${n}${ext}" ]; do
+            n=$((n + 1))
+        done
+        dest="$destdir/${stem}.dup-${n}${ext}"
+        echo -e "${YELLOW}WARN${NC}    pickup id collision: ${base} already exists in $(basename "$destdir")/ — keeping both, filed the arriving one as $(basename "$dest")" >&2
+    fi
+
+    mv "$src" "$dest" 2>/dev/null || return 1
+    printf '%s\n' "$dest"
+}
+
 # --- ID generation ---
 
 pickup_next_id() {
     local max_id=0
 
-    # Scan inbox, processed, and rejected for highest P-NNN
+    # Scan every directory an envelope can occupy for the highest P-NNN.
+    #
+    # auto-deferred/ is not archive and must be counted (T-3052): :259 promotes
+    # its envelopes back into the inbox once their blocking task ships, so an id
+    # parked there is live work. Omitting it made the high-water mark too low,
+    # the next send reissued the id, and — filenames being identities — the
+    # arriving envelope overwrote the parked one.
     local dir
-    for dir in "$PICKUP_INBOX" "$PICKUP_PROCESSED" "$PICKUP_REJECTED"; do
+    for dir in "$PICKUP_INBOX" "$PICKUP_PROCESSED" "$PICKUP_REJECTED" "$PICKUP_AUTO_DEFERRED"; do
         [ -d "$dir" ] || continue
         local f
         for f in "$dir"/*.yaml "$dir"/*.yml; do
@@ -359,21 +372,6 @@ pickup_create_inception() {
     source_project=$({ grep "^  project:" "$file" 2>/dev/null || true; } | head -1 | sed 's/^  project:[[:space:]]*//' | tr -d '"' | tr -d "'")
     summary=$({ grep "^  summary:" "$file" 2>/dev/null || true; } | head -1 | sed 's/^  summary:[[:space:]]*//' | tr -d '"' | tr -d "'")
     source_task=$({ grep "^  task_id:" "$file" 2>/dev/null || true; } | head -1 | sed 's/^  task_id:[[:space:]]*//' | tr -d '"' | tr -d "'")
-
-    # T-2687: refuse rather than mint a content-free task. Without this guard an
-    # extraction failure produced tasks literally named "Pickup:  (from )" with
-    # description "Source: . Type: ." — four of them reached the operator's register
-    # (T-2683..T-2686) and, being unscored-but-inception, ranked BVP 70 / hv-hc,
-    # displacing real work at the top of `fw bvp --quadrant hv-hc`.
-    if [ -z "$summary" ] || [ -z "$source_project" ]; then
-        local missing_fields=""
-        [ -z "$summary" ] && missing_fields="payload.summary"
-        [ -z "$source_project" ] && missing_fields="${missing_fields:+$missing_fields, }source.project"
-        echo "pickup_create_inception: refusing to create a task from $(basename "$file") — empty field(s): ${missing_fields}" >&2
-        echo "  The envelope passed key-presence validation but the value(s) extracted empty." >&2
-        echo "  Inspect the envelope and re-run \`fw pickup process\` once the field(s) carry a value." >&2
-        return 1
-    fi
 
     local task_name="Pickup: ${summary} (from ${source_project})"
 
@@ -446,7 +444,7 @@ pickup_process_one() {
     if ! pickup_validate_envelope "$file"; then
         echo -e "${RED}REJECT${NC}  $basename_f — invalid envelope" >&2
         if [ "$dry_run" != true ]; then
-            mv "$file" "$PICKUP_REJECTED/" 2>/dev/null || true
+            pickup_move_preserving "$file" "$PICKUP_REJECTED" >/dev/null || true
         fi
         return 1
     fi
@@ -455,7 +453,7 @@ pickup_process_one() {
     if pickup_dedup_check "$file"; then
         echo -e "${YELLOW}DEDUP${NC}   $basename_f — seen within cooldown window"
         if [ "$dry_run" != true ]; then
-            mv "$file" "$PICKUP_REJECTED/" 2>/dev/null || true
+            pickup_move_preserving "$file" "$PICKUP_REJECTED" >/dev/null || true
         fi
         return 0
     fi
@@ -465,7 +463,7 @@ pickup_process_one() {
         echo -e "${YELLOW}AUTO-DEFER${NC}  $basename_f — source task already completed in this project"
         if [ "$dry_run" != true ]; then
             mkdir -p "$PICKUP_AUTO_DEFERRED"
-            mv "$file" "$PICKUP_AUTO_DEFERRED/" 2>/dev/null || true
+            pickup_move_preserving "$file" "$PICKUP_AUTO_DEFERRED" >/dev/null || true
         fi
         return 0
     fi
@@ -476,8 +474,13 @@ pickup_process_one() {
         echo -e "${YELLOW}AUTO-DEFER${NC}  $basename_f — triple collision with active $blocking_task"
         if [ "$dry_run" != true ]; then
             mkdir -p "$PICKUP_AUTO_DEFERRED"
-            if mv "$file" "$PICKUP_AUTO_DEFERRED/" 2>/dev/null; then
-                pickup_write_breadcrumb "$PICKUP_AUTO_DEFERRED/$basename_f" "$blocking_task" "triple-dedup"
+            local deferred_path
+            # The breadcrumb must name the file that actually landed — on a
+            # collision the helper renames, and a breadcrumb pointing at the
+            # pre-existing envelope would attribute one pickup's blocker to
+            # another (T-3052 A4).
+            if deferred_path=$(pickup_move_preserving "$file" "$PICKUP_AUTO_DEFERRED"); then
+                pickup_write_breadcrumb "$deferred_path" "$blocking_task" "triple-dedup"
             fi
         fi
         return 0
@@ -495,13 +498,7 @@ pickup_process_one() {
     echo -e "${GREEN}PROCESS${NC} $basename_f — $summary"
 
     # Create inception task
-    # T-2687: a refused creation must stop the pipeline here. Continuing would record
-    # a dedup row and mv the envelope to processed/, burying an envelope that produced
-    # nothing — the envelope stays in the inbox instead, inspectable and re-runnable.
-    if ! pickup_create_inception "$file"; then
-        echo -e "${RED}REFUSE${NC}  $basename_f — task creation refused; envelope left in inbox for inspection" >&2
-        return 1
-    fi
+    pickup_create_inception "$file"
 
     # Notify human
     if type fw_notify >/dev/null 2>&1; then
@@ -514,14 +511,23 @@ pickup_process_one() {
     pickup_record_dedup "$file"
 
     # Move to processed
-    mv "$file" "$PICKUP_PROCESSED/" 2>/dev/null || true
+    local processed_path
+    processed_path=$(pickup_move_preserving "$file" "$PICKUP_PROCESSED") || processed_path=""
 
     # T-1165: mirror envelope to channel bus (one-way, non-fatal).
     # Shell pickup stays portable — bridge silently no-ops on any failure.
-    local processed_path="$PICKUP_PROCESSED/$basename_f"
+    # processed_path comes from the move itself (T-3052 A4) — reconstructing it
+    # from basename_f assumed the name survived, so on a collision the bridge
+    # would have mirrored the envelope already sitting there instead of this one.
     local bridge="${FRAMEWORK_ROOT:-}/lib/pickup-channel-bridge.sh"
-    if [ -f "$processed_path" ] && [ -x "$bridge" ]; then
-        "$bridge" "$processed_path" 2>/dev/null || true
+    # T-3051: gate on existence, invoke through `bash`. Gating on the exec bit
+    # made this a no-op on every install derived from a git clone — git tracked
+    # the bridge as 100644, so the branch was skipped and `fw pickup process`
+    # reported success while the channel mirror never ran. The surrounding code
+    # is deliberately non-fatal, which is exactly why nobody noticed for two
+    # months: a skipped bridge and a successful one look identical from outside.
+    if [ -f "$processed_path" ] && [ -f "$bridge" ]; then
+        bash "$bridge" "$processed_path" 2>/dev/null || true
     fi
 
     return 0
