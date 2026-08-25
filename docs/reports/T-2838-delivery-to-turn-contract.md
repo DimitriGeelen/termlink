@@ -259,6 +259,75 @@ job, silently divergent because nothing compares them. Third instance this week.
 *Scratch topic `t2838-s2-probe` was left on the hub as evidence; it holds three envelopes and
 no real content.*
 
+## S3 — Envelope schema draft (2026-08-25, post-GO)
+
+Question (IW-2 / A-4): what is the minimum viable assignment envelope + result manifest, and
+does it round-trip on the existing artifact path?
+
+**Result: A-4 CONFIRMED, IW-2 disposed. It round-trips today with no new wire type.**
+
+### The two envelope types, as drafted and actually posted
+
+`termlink.assignment.v0` — posted with `--msg-type assignment`, offset 3:
+
+```json
+{"schema":"termlink.assignment.v0","assignment_id":"AS-0001","issued_by":"orchestrator",
+ "agent_profile":{"role":"analyst","min_capabilities":["read","write"]},
+ "task":"summarise S4 findings","deadline_unix_ms":0,"artifacts_in":[]}
+```
+
+`termlink.result_manifest.v0` — posted with `--msg-type result_manifest --reply-to 3`, offset 4:
+
+```json
+{"schema":"termlink.result_manifest.v0","assignment_id":"AS-0001","in_reply_to":3,
+ "status":"ok","summary":"...","host":"107","repo":"/opt/termlink",
+ "artifacts_out":[{"path":"...","sha256":"...","bytes":14762,"media_type":"text/markdown"},
+                  {"path":"...","sha256":"...","bytes":14073,"media_type":"text/markdown"}]}
+```
+
+### What the round-trip proved
+
+Read back by an independent process:
+
+| property | result |
+|---|---|
+| free-form `msg_type` accepted | yes — `assignment`, `result_manifest`, no registration |
+| correlation preserved | `metadata.in_reply_to: "3"` set by `--reply-to` |
+| dialog grouping preserved | `metadata.conversation_id: "AS-0001"` |
+| `artifact_ref` preserved verbatim | `ref://sha256/49307347f678df34...` |
+| payload byte-exact | 584-byte JSON, unmodified |
+| **every referenced artifact verified** | **2/2 VERIFIED by sha256 + size** |
+
+`MANIFEST_RESOLVES: True`.
+
+The manifest is 584 bytes; the content it describes is 28,835 bytes. Nothing of the file
+content crossed the bus, and the manifest size is O(number of artifacts), not O(bytes). A
+downstream agent sharing the filesystem consumes conclusions by reference and can verify it got
+the exact bytes the producer meant — which is precisely the operator's stated goal.
+
+### Why no new wire type is needed
+
+`msg_type` is a free-form string (`channel post --msg-type`, default `note`). `--reply-to`
+already sets `metadata.in_reply_to` (T-1313, the Matrix `m.in_reply_to` analogue).
+`--artifact-ref` is documented as an "optional opaque pointer" and is carried inside canonical
+signed bytes. The schema therefore lives entirely in the payload, versioned by its own
+`schema` field, and old readers see an envelope they can skip by `msg_type`.
+
+This is the charter-compliant shape: non-goal #2 says manifests reference artifacts and never
+archive them. `artifacts_out[]` carries `path` + `sha256` + `bytes`, never content.
+`crates/termlink-bus/src/artifact_store.rs` (`put -> sha256_hex`, `get(sha)`) remains available
+for the cross-host case where the filesystem is not shared, but the common same-host case needs
+none of it.
+
+### Residual, and it is the same one S2 found
+
+The manifest asserts `"issued_by":"orchestrator"` and the assignment asserts an
+`agent_profile`. Neither is authenticated: the hub verifies only that `sender_id` matches the
+key fingerprint, and every agent in this fleet shares one key. So `issued_by` is decoration
+today. A profile assertion that cannot be attributed to a distinct principal is a convention,
+not a contract — the same per-agent-keypair prerequisite S2 identified, arriving from the other
+direction.
+
 ## Dialogue Log
 
 **2026-08-24 — operator, on the goal.** Clarified the objective is an interactive communication

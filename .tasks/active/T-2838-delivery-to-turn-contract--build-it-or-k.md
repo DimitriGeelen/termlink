@@ -47,7 +47,7 @@ Full analysis: docs/reports/T-2838-delivery-to-turn-contract.md (C-001 research 
 - A-1: A launched agent session can acknowledge delivery from inside its own turn loop without modifying Claude Code itself. **[CONFIRMED 2026-08-25 by S2 -- live round-trip on t2838-s2-probe.]**
 - A-2: For sessions we do not control, PTY-inject plus mandatory read-cursor confirmation converts silent failure into loud diagnosable failure.
 - A-3: Liveness sourced from the consuming loop rather than a sidecar heartbeat eliminates the LIVE-not-listening class by construction. **[CONFIRMED 2026-08-25 by S2 -- no autonomous emitter in termlink-mcp, so receipt implies turn.]**
-- A-4: A typed result manifest (paths, hashes, summary, status) removes the need for byte transfer between agents sharing a filesystem.
+- A-4: A typed result manifest (paths, hashes, summary, status) removes the need for byte transfer between agents sharing a filesystem. **[CONFIRMED 2026-08-25 by S3 -- round-tripped on t2838-s2-probe, 2/2 artifacts verified by sha256.]**
 - A-5: termlink-bus requires no change; the entire delivery gap sits above the log engine.
 - A-6: Consumption confirmation can be built on existing receipt/read-cursor primitives without a wire-protocol version bump. **[CONFIRMED 2026-08-25 by S4.]**
 
@@ -70,8 +70,20 @@ Full analysis: docs/reports/T-2838-delivery-to-turn-contract.md (C-001 research 
   rationale: Spike S2. The MCP server runs in-process with the session so an MCP-side ack is plausible, but nothing proves the ack coincides with an actual *turn* rather than a tool call.
 
 - **IW-2: What is the minimum viable turn-envelope + result-manifest schema?**
-  confidence: 1
-  disposition: pending
+  confidence: 5
+  disposition: answered
+  answer: >
+    Two payload-level schemas, no new wire type: termlink.assignment.v0
+    (assignment_id, issued_by, agent_profile, task, deadline_unix_ms, artifacts_in) and
+    termlink.result_manifest.v0 (assignment_id, in_reply_to, status, summary, host, repo,
+    artifacts_out[{path, sha256, bytes, media_type}]). S3 (2026-08-25) posted both to
+    t2838-s2-probe at offsets 3 and 4 and read them back from an independent process:
+    free-form msg_type accepted, metadata.in_reply_to correlation preserved via --reply-to,
+    conversation_id preserved, artifact_ref preserved verbatim, payload byte-exact, and all
+    referenced artifacts verified by sha256 (MANIFEST_RESOLVES: True). 584-byte manifest for
+    28835 bytes of content; no file bytes crossed the bus. Residual: issued_by and
+    agent_profile are unauthenticated while the fleet shares one keypair. Evidence in
+    docs/reports/T-2838-delivery-to-turn-contract.md section "S3 -- Envelope schema draft".
   rationale: Spike S3. T-1249 encodes the right instinct; no assignment/manifest envelope type exists anywhere.
 
 - **IW-3: Does PTY-inject stay a supported delivery mode or narrow to operator-only?**
