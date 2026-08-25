@@ -8524,6 +8524,25 @@ impl AckStatusRow {
 /// - Senders who posted content but no receipt: `up_to = None`, `lag = latest + 1`
 ///
 /// Sorted by lag descending; ties break on sender_id ascending. Pure — no I/O.
+/// T-2838 (S2/S1): pure seam for `channel ack-status` — derive the topic
+/// frontier from `envelopes`, then build the rows.
+///
+/// Extracted so the frontier definition is testable. `cmd_channel_ack_status`
+/// previously computed it inline as a naive `max(offset)` over EVERY envelope.
+pub(crate) fn ack_status_rows(
+    envelopes: &[Value],
+    receipts: &std::collections::HashMap<String, (u64, i64)>,
+) -> Vec<AckStatusRow> {
+    // T-2838: the frontier must count CONTENT only. Every ack appends a
+    // `msg_type=receipt` envelope, so counting meta made each ack raise the
+    // offset it was chasing — `lag: 0` was unreachable and a fully caught-up
+    // consumer reported a permanent phantom lag. `latest_content_offset`
+    // (T-1334) is the same definition `channel unread` uses, so the read-side
+    // surfaces now agree by construction rather than by convention.
+    let latest_offset = latest_content_offset(envelopes).unwrap_or(0);
+    compute_ack_status(envelopes, receipts, latest_offset)
+}
+
 pub(crate) fn compute_ack_status(
     envelopes: &[Value],
     receipts: &std::collections::HashMap<String, (u64, i64)>,
@@ -8586,11 +8605,9 @@ pub(crate) async fn cmd_channel_ack_status(
         println!("Topic '{topic}' is empty.");
         return Ok(());
     }
-    let latest_offset = envelopes
-        .iter()
-        .filter_map(|e| e.get("offset").and_then(|v| v.as_u64()))
-        .max()
-        .unwrap_or(0);
+    // T-2838: frontier + rows both come from `ack_status_rows` now; the
+    // inline naive `max(offset)` counted receipt envelopes.
+    let latest_offset = latest_content_offset(&envelopes).unwrap_or(0);
 
     // Latest-receipt per sender via channel.receipts RPC (with envelope-walk
     // fallback for old hubs).
@@ -8669,7 +8686,7 @@ pub(crate) async fn cmd_channel_ack_status(
         }
     }
 
-    let mut rows = compute_ack_status(&envelopes, &receipts, latest_offset);
+    let mut rows = ack_status_rows(&envelopes, &receipts);
     if pending_only {
         rows.retain(|r| r.lag > 0);
     }
@@ -16397,6 +16414,78 @@ mod tests {
         })
     }
 
+
+    // ---- T-2838: ack-status frontier must exclude receipt/meta envelopes ----
+
+    fn receipt_env(off: u64, sender: &str, ts: i64, up_to: u64) -> Value {
+        use base64::Engine;
+        let p = base64::engine::general_purpose::STANDARD.encode(format!("up_to={up_to}"));
+        json!({
+            "offset": off,
+            "msg_type": "receipt",
+            "sender_id": sender,
+            "ts": ts,
+            "payload_b64": p,
+            "metadata": { "up_to": up_to.to_string() },
+        })
+    }
+
+    /// A consumer that has read every CONTENT message is caught up. Before the
+    /// fix the receipt it posted raised the frontier it was chasing, so `lag`
+    /// could never reach 0 no matter how many times it acked.
+    #[test]
+    fn ack_status_lag_zero_is_reachable_after_acking() {
+        let envs = vec![
+            chat_env(0, "alice", 100, "msg"),
+            receipt_env(1, "bob", 110, 0),
+        ];
+        let receipts = ack_receipts(&[("bob", 0, 110)]);
+        let rows = ack_status_rows(&envs, &receipts);
+        let bob = rows.iter().find(|r| r.sender_id == "bob").unwrap();
+        assert_eq!(bob.up_to, Some(0));
+        assert_eq!(bob.lag, 0, "acking every content message must reach lag 0");
+    }
+
+    /// Acking repeatedly must converge, not chase its own tail: each ack adds a
+    /// receipt envelope, and if those count toward the frontier the lag is
+    /// pinned at 1 forever.
+    #[test]
+    fn ack_status_repeated_acks_converge() {
+        let envs = vec![
+            chat_env(0, "alice", 100, "msg"),
+            receipt_env(1, "bob", 110, 0),
+            receipt_env(2, "bob", 120, 1),
+        ];
+        let receipts = ack_receipts(&[("bob", 1, 120)]);
+        let rows = ack_status_rows(&envs, &receipts);
+        let bob = rows.iter().find(|r| r.sender_id == "bob").unwrap();
+        assert_eq!(bob.lag, 0, "a second ack must not create new lag");
+    }
+
+    /// "never read anything" and "read everything" must not render the same.
+    ///
+    /// NOTE: this is an INVARIANT GUARD, not coverage — it passes against the
+    /// pre-fix frontier too, because on a two-envelope topic the never-acked
+    /// sentinel (latest+1) and the phantom lag happen to differ. The collision
+    /// was observed live on a single-content-message topic. Kept because the
+    /// invariant is worth pinning, but it did not go red and is not counted as
+    /// regression coverage for this fix.
+    #[test]
+    fn ack_status_never_acked_differs_from_caught_up() {
+        let envs = vec![
+            chat_env(0, "alice", 100, "msg"),
+            receipt_env(1, "bob", 110, 0),
+        ];
+        let receipts = ack_receipts(&[("bob", 0, 110)]);
+        let rows = ack_status_rows(&envs, &receipts);
+        let bob = rows.iter().find(|r| r.sender_id == "bob").unwrap();   // caught up
+        let alice = rows.iter().find(|r| r.sender_id == "alice").unwrap(); // never acked
+        assert!(alice.up_to.is_none());
+        assert_ne!(
+            alice.lag, bob.lag,
+            "never-acked and caught-up must be distinguishable on lag"
+        );
+    }
     #[test]
     fn compute_emoji_stats_empty() {
         assert!(compute_emoji_stats(&[]).is_empty());
