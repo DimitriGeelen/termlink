@@ -456,7 +456,7 @@ receipt.
    protocol work.
 4. ~~**Make `post` honest.** Return `delivered-unconfirmed` and add a bounded
    `await-consumption` that resolves against `channel receipts`.~~
-   **LANDED 2026-08-25 — commit `449b54341`.**
+   **LANDED 2026-08-25 — commit `cf782f3ed`.**
 
    The spike's framing was half right. The bounded await already existed: T-2286 shipped
    `--await-ack` with a retry policy, an `AwaitingAckTracker`, and a `channel.receipts` poll,
