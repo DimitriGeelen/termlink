@@ -328,6 +328,131 @@ today. A profile assertion that cannot be attributed to a distinct principal is 
 not a contract — the same per-agent-keypair prerequisite S2 identified, arriving from the other
 direction.
 
+## S1 — Deterministic reproduction (2026-08-25, post-GO)
+
+Goal: drive a rung-but-not-consumed delivery on purpose and record exactly what the sender-side
+surfaces report about it.
+
+### Recipe (reproduces in under a second, no second host required)
+
+```
+termlink channel create t2838-s1-unconsumed
+termlink channel post   t2838-s1-unconsumed '{"schema":"termlink.assignment.v0", ...}' \
+                        --msg-type assignment --json
+# ...and simply never ack.
+termlink channel info    t2838-s1-unconsumed --json
+termlink channel ack-status t2838-s1-unconsumed --json
+termlink channel receipts   t2838-s1-unconsumed --json
+```
+
+### What the sender is told
+
+| surface | output | honest? |
+|---|---|---|
+| `channel post` | `{"delivered":{"offset":0,"ts":...}}` | **no** |
+| `channel info` | `"receipts": []`, `"count": 1` | yes |
+| `channel receipts` | `{"receipts": []}` | yes |
+| `channel ack-status` | `{"up_to": null, "lag": 1, "latest": 0}` | ambiguous |
+
+### Finding 1 — "delivered" is the whole bug, in one word
+
+`channel post` returns **`delivered`** for a message that no process will ever read.
+It means *the log accepted the write*. It is the sender's only success signal, and it is
+returned identically for a message that is consumed within milliseconds and one that is never
+consumed at all.
+
+The substrate is not lying about anything it was asked. Nobody asked it about consumption.
+
+### Finding 2 — the information already exists; the success path just never consults it
+
+`channel info` carries a `receipts` array and `channel receipts` is a dedicated verb. Both
+correctly report `[]` here. The substrate **can** already answer "has anyone consumed this?"
+and answers it correctly.
+
+So the contract does not need a new detector — Finding 2 of the original analysis said the
+detector layer is already saturated, and this confirms it from the other side. What is missing
+is that the *sender's success path* terminates at `delivered` without ever reading the surface
+that would contradict it. The fix is to make the sender's notion of success conditional on a
+receipt, not to add a ninth detector that notices afterwards.
+
+### Finding 3 — `ack-status` collides "never read it" with "read everything"
+
+From `compute_ack_status` (`channel.rs:8527`), a sender with no receipt gets
+`lag: latest_offset + 1`. Here that is `lag: 1` (latest 0). In the S2 probe, a **fully
+caught-up** consumer also reported `lag: 1` (latest 2, up_to 1, because the receipt itself
+raised the frontier).
+
+Two opposite states, one headline number:
+
+| state | up_to | latest | lag |
+|---|---|---|---|
+| never consumed anything | `null` | 0 | **1** |
+| consumed everything | 1 | 2 | **1** |
+
+They remain distinguishable via `up_to` (`null` vs a value), so this is a reporting collision
+rather than data loss. But `lag` is the column the dashboard sorts and renders on, and on that
+column the best and worst cases are identical. Combined with the S2 finding that `lag: 0` is
+unreachable, `ack-status` should not be load-bearing for the contract. Build on
+`channel receipts` / `channel unread`, both of which are correct.
+
+---
+
+## Recommendation (2026-08-25, all four spikes complete)
+
+**Build it.** Every assumption the GO criteria named as a precondition is now confirmed by
+demonstration rather than argument: A-1 and A-3 (S2), A-4 (S3), A-6 (S4). Three of five open
+questions are disposed. Nothing found in the spikes requires a wire-protocol break, so the work
+is not sequenced behind T-2700, and no charter non-goal is breached — delivery stays
+hub-mediated and manifests reference rather than archive.
+
+The scope is also smaller than the inception feared. The substrate already carries every
+primitive the contract needs: `receipt` as a wire `msg_type`, `artifact_ref` inside canonical
+signed bytes, `--reply-to` correlation, and a correct `receipts`/`unread` read side. The work
+is not "build a delivery plane"; it is **make the sender's success conditional on the read side
+that already exists**, and fix two surfaces that misreport it.
+
+### IW-3 — PTY-inject stays, but loses the right to claim success
+
+Recommend: keep PTY-inject as a supported delivery mode. It is the only route into a session we
+did not launch and cannot be deleted. But it may **never** report success on the strength of
+having written bytes to a terminal. Under the contract it returns `delivered-unconfirmed` and
+must be resolved by a receipt like any other mode. This is the honest form of the T-2550
+false-success class rather than a special case.
+
+### IW-5 — client-side is where it can be built, hub-side is where it must be enforced
+
+Recommend: **both, in that order.** S4 showed the contract is expressible entirely client-side
+today (0 ack references in bus/hub/protocol/session; 49 in cli/mcp). But convention is exactly
+what failed for the heartbeat, and a client that simply declines to ack is indistinguishable
+from one that crashed. Ship the client-side contract first because it is cheap and immediately
+useful; do not call it done until the hub can refuse to call a delivery complete without a
+receipt.
+
+### Bounded build decomposition — separately shippable, in dependency order
+
+1. **Per-agent identity provisioning.** The blocker both S2 and S3 arrived at independently.
+   The hub already enforces `sender_id == fingerprint(sender_pubkey_hex)` (T-1427, live,
+   verified by a rejected spoof). All 60 fleet sessions share one keypair, so `ack-status`
+   returns a single row for the whole fleet and `issued_by` in an assignment is decoration.
+   Until an agent is a distinct principal, no delivery contract can answer "did *this* agent
+   consume it?". Folds in T-1427 and T-1457, which are currently filed as connectivity hygiene
+   and are in fact prerequisites.
+2. **Fix `ack-status`.** Exclude receipt envelopes from `latest_offset`, and distinguish
+   never-acked from caught-up rather than reporting `lag: 1` for both. Local defect in
+   `crates/termlink-cli`, no wire change, independently shippable.
+3. **Land `assignment.v0` + `result_manifest.v0` as typed helpers.** The schemas are drafted
+   and round-tripped (S3); this is codifying a payload convention plus emit/parse helpers, not
+   protocol work.
+4. **Make `post` honest.** Return `delivered-unconfirmed` and add a bounded
+   `await-consumption` that resolves against `channel receipts`. This is the actual contract
+   and depends on nothing above except (2) for a trustworthy read.
+5. **Hub-side enforcement.** Move the consumption frontier into hub state so the contract is
+   enforced rather than observed. Largest item, deliberately last, and genuinely optional until
+   1–4 are in use.
+
+Items 2, 3 and 4 are shippable now. Item 1 gates *attribution*, not the mechanism, so 2–4
+deliver value in a single-principal fleet and become correct as soon as 1 lands.
+
 ## Dialogue Log
 
 **2026-08-24 — operator, on the goal.** Clarified the objective is an interactive communication

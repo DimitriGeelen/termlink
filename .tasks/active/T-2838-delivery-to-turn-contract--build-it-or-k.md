@@ -45,10 +45,10 @@ Full analysis: docs/reports/T-2838-delivery-to-turn-contract.md (C-001 research 
 ## Assumptions
 
 - A-1: A launched agent session can acknowledge delivery from inside its own turn loop without modifying Claude Code itself. **[CONFIRMED 2026-08-25 by S2 -- live round-trip on t2838-s2-probe.]**
-- A-2: For sessions we do not control, PTY-inject plus mandatory read-cursor confirmation converts silent failure into loud diagnosable failure.
+- A-2: For sessions we do not control, PTY-inject plus mandatory read-cursor confirmation converts silent failure into loud diagnosable failure. **[SUPPORTED 2026-08-25 by S1 -- `channel receipts` already reports the unconsumed case correctly; only the sender success path ignores it.]**
 - A-3: Liveness sourced from the consuming loop rather than a sidecar heartbeat eliminates the LIVE-not-listening class by construction. **[CONFIRMED 2026-08-25 by S2 -- no autonomous emitter in termlink-mcp, so receipt implies turn.]**
 - A-4: A typed result manifest (paths, hashes, summary, status) removes the need for byte transfer between agents sharing a filesystem. **[CONFIRMED 2026-08-25 by S3 -- round-tripped on t2838-s2-probe, 2/2 artifacts verified by sha256.]**
-- A-5: termlink-bus requires no change; the entire delivery gap sits above the log engine.
+- A-5: termlink-bus requires no change; the entire delivery gap sits above the log engine. **[CONFIRMED 2026-08-25 by S4 -- 0 ack/cursor references in termlink-bus; all 49 are in the cli/mcp adapters.]**
 - A-6: Consumption confirmation can be built on existing receipt/read-cursor primitives without a wire-protocol version bump. **[CONFIRMED 2026-08-25 by S4.]**
 
 ## Open Questions
@@ -87,8 +87,14 @@ Full analysis: docs/reports/T-2838-delivery-to-turn-contract.md (C-001 research 
   rationale: Spike S3. T-1249 encodes the right instinct; no assignment/manifest envelope type exists anywhere.
 
 - **IW-3: Does PTY-inject stay a supported delivery mode or narrow to operator-only?**
-  confidence: 2
-  disposition: pending
+  confidence: 4
+  disposition: answered
+  answer: >
+    Stays supported, but loses the right to claim success. It is the only route into a session
+    we did not launch and cannot be deleted. Under the contract it returns
+    delivered-unconfirmed and must be resolved by a receipt like any other mode -- the honest
+    form of the T-2550 false-success class rather than a special case. Operator decision;
+    recommendation recorded in docs/reports/T-2838-delivery-to-turn-contract.md.
   rationale: Decision, not spike. It is the only route into a session we did not launch, so it cannot be deleted; the question is whether it may ever report success without confirmation.
 
 - **IW-4: Does the contract need a wire-protocol version bump, and is that safe today?**
@@ -104,8 +110,15 @@ Full analysis: docs/reports/T-2838-delivery-to-turn-contract.md (C-001 research 
   rationale: Spike S4. T-2699 found PROTOCOL_VERSION_TOO_OLD has zero emission sites; T-2700 (wiring it) is captured, owner human; fleet hubs run ~1000 commits stale (T-2377). A wire change today has no compatibility gate.
 
 - **IW-5: Does the contract live hub-side (enforced) or client-side (convention)?**
-  confidence: 1
-  disposition: pending
+  confidence: 4
+  disposition: answered
+  answer: >
+    Both, in that order. S4 showed it is expressible entirely client-side today (0 ack refs in
+    bus/hub/protocol/session, 49 in cli/mcp), so ship client-side first because it is cheap and
+    immediately useful. But convention is exactly what failed for the heartbeat, and a client
+    that declines to ack is indistinguishable from one that crashed -- so it is not done until
+    the hub can refuse to call a delivery complete without a receipt. Sequenced as items 1-4
+    then 5 in the build decomposition.
   rationale: Spikes S2+S4. Convention is what failed for the heartbeat.
 
 ## Exploration Plan
