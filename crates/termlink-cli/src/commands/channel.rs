@@ -955,6 +955,27 @@ impl DeliveryStatus {
     }
 }
 
+/// The exact JSON `channel post` emits on the bare (unreceipted) path.
+///
+/// Extracted as a pure fn for one reason: the test that pins this wire contract
+/// must exercise THE PRODUCTION SHAPE. The previous test built its own `json!`
+/// literal and asserted against that, which pinned nothing — mutation testing
+/// proved it by deleting `delivered` from the real emit site and watching all
+/// 1134 tests stay green.
+///
+/// 13 call sites read `.delivered.offset` (agent-send.sh:502,
+/// orchestrator-backlog-drain.sh:264, five substrate demos,
+/// test-listener-heartbeat.sh, ...) and every one of them fails by reading
+/// `empty` — silently. One definition, exercised by the test, is what makes a
+/// breaking edit loud.
+pub(crate) fn post_success_json(offset: i64, ts_unix_ms: i64, status: DeliveryStatus) -> Value {
+    json!({
+        "delivered": {"offset": offset, "ts": ts_unix_ms},
+        "status": status.as_str(),
+        "confirmed": status.confirmed()
+    })
+}
+
 /// Resolve the effective post payload from the `--payload` flag and the
 /// positional `body` argument (T-2512, E2E finding #4). The flag wins if both
 /// are somehow present (clap `conflicts_with` normally prevents that); otherwise
@@ -1129,11 +1150,11 @@ pub(crate) async fn cmd_channel_post(
             if json_output {
                 println!(
                     "{}",
-                    serde_json::to_string_pretty(&json!({
-                        "delivered": {"offset": offset, "ts": ts_unix_ms},
-                        "status": DeliveryStatus::DeliveredUnconfirmed.as_str(),
-                        "confirmed": DeliveryStatus::DeliveredUnconfirmed.confirmed()
-                    }))?
+                    serde_json::to_string_pretty(&post_success_json(
+                        offset,
+                        ts_unix_ms,
+                        DeliveryStatus::DeliveredUnconfirmed
+                    ))?
                 );
             } else {
                 println!(
@@ -14943,16 +14964,17 @@ mod tests {
         // bare-post success arm emits. If someone flattens this shape, jq
         // returns empty and every one of those callers degrades SILENTLY —
         // which is the bug class this task removes, so it fails loudly here.
-        let offset: u64 = 7;
+        let offset: i64 = 7;
         let ts_unix_ms: i64 = 1_700_000_000_000;
-        let emitted = json!({
-            "delivered": {"offset": offset, "ts": ts_unix_ms},
-            "status": DeliveryStatus::DeliveredUnconfirmed.as_str(),
-            "confirmed": DeliveryStatus::DeliveredUnconfirmed.confirmed()
-        });
+        // Calls the PRODUCTION emit fn. An earlier version of this test built
+        // its own json! literal here and therefore pinned nothing — mutation
+        // M4 deleted `delivered` from the real emit site and the suite stayed
+        // green. Exercising production is the whole point of the test.
+        let emitted =
+            post_success_json(offset, ts_unix_ms, DeliveryStatus::DeliveredUnconfirmed);
 
         // The legacy contract, unchanged.
-        assert_eq!(emitted["delivered"]["offset"].as_u64(), Some(7));
+        assert_eq!(emitted["delivered"]["offset"].as_i64(), Some(7));
         assert_eq!(emitted["delivered"]["ts"].as_i64(), Some(ts_unix_ms));
         // The honest addition, alongside it.
         assert_eq!(emitted["status"].as_str(), Some("delivered-unconfirmed"));

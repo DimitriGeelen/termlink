@@ -7,6 +7,23 @@
 # can target via `termlink agent ask`, `termlink remote exec`, or `termlink remote push`.
 # Handles: fw pickup process, fw audit, fw task list, and general framework operations.
 
+# PER-AGENT IDENTITY (T-2838 item 1 / T-2291 / T-1700)
+# ----------------------------------------------------
+# --identity-key gives this session its OWN ed25519 keypair instead of the
+# host-shared $HOME/.termlink/identity.key. Without it every co-resident agent
+# signs as the same fingerprint, so `channel ack-status` returns ONE row for the
+# whole host and attribution falls back to `from_project` / `_from` metadata --
+# which canonical_sign_bytes does NOT cover, and is therefore forgeable.
+#
+# This agent holds the `pickup` role and posts to framework:pickup and
+# agent-chat-arc, so it is the one whose attribution matters most.
+#
+# The key is provisioned OUT-OF-BAND (this unit only reads it):
+#   TERMLINK_AGENT_ID=framework-agent-systemd termlink identity show --resolve
+# creating /root/.termlink/identities/framework-agent-systemd.key chmod 600.
+#
+# Rollback: drop the --identity-key line, re-run .context/systemd/install.sh.
+#
 [Unit]
 Description=TermLink Framework Agent — persistent shell session (role: framework)
 After=termlink-hub.service
@@ -23,6 +40,7 @@ Environment=PROJECT_ROOT=/opt/termlink
 
 ExecStart=/root/.cargo/bin/termlink register \
   --name framework-agent-systemd \
+  --identity-key /root/.termlink/identities/framework-agent-systemd.key \
   --roles framework,pickup \
   --tags host=107,project=termlink \
   --cap data_plane,stream \
