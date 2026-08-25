@@ -203,6 +203,42 @@ not_divergence:
       window too wide costs a few extra classifications, leaving it too narrow
       costs a silently deleted fix. Flagged for the human, not decided here.
 
+  - kind: vendor-event
+    tasks: [T-2015]
+    commit: 9b47462c5
+    date: 2026-08-25
+    reason: >
+      A PERFORMED and VERIFIED re-vendor — 676 files under .agentic-framework/,
+      applied by `fw upgrade` and kept deliberately. Replacing the tree is the
+      thing this register warns about, not an instance of local divergence.
+    why_kept: >
+      The incoming tree reads VERSION 1.6.29 against our 1.6.145, which looks
+      like a downgrade and is not. VERSION is a resetting counter, so direction
+      was decided by CONTENT: the incoming tree cites T-3110..T-3129, task ids
+      absent from ours entirely and in flight upstream at the time. It is far
+      newer. The previous session reverted this same tree on the version-string
+      reading, discarding months of upstream work to protect one local patch
+      that upstream had already fixed better — see the T-2714 entry under
+      divergences, now landed-upstream.
+    verified: >
+      `fw doctor` green apart from a stray .deb; `fw corpus explain`, `fw gaps`
+      and `fw review-queue` all exit 0; status-transitions.yaml validates for
+      the first time ("8 transitions, no orphaned/unreachable states"), a check
+      that could not run before the T-2819 allowlist fix. Consumer surfaces
+      (.claude/commands/, scripts/) were restored from HEAD rather than kept —
+      measured, not assumed: our agent-send.sh is 717 lines and carries every
+      feature of the incoming 229-line template, with more of each.
+    baseline_note: >
+      DELIBERATELY NOT promoted to `last_vendor_event`, for the same reason
+      c933f8eb7 was not: promoting shrinks the at-risk window, and per the
+      header a baseline that understates the window is the dangerous direction.
+      Promotion is an operator act.
+    identity_note: >
+      This event recorded version_sha 67aeacc735006f6aed489fce7af0ec9248587917
+      into .framework.yaml (T-2713). That sha — not the VERSION string — is the
+      only reliable identity of a vendored tree, and is what future comparisons
+      should use.
+
   - kind: merge-of-upstream
     tasks: [T-2830]
     commit: a25afc4b6
