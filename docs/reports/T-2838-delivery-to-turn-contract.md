@@ -437,9 +437,20 @@ receipt.
    Until an agent is a distinct principal, no delivery contract can answer "did *this* agent
    consume it?". Folds in T-1427 and T-1457, which are currently filed as connectivity hygiene
    and are in fact prerequisites.
-2. **Fix `ack-status`.** Exclude receipt envelopes from `latest_offset`, and distinguish
-   never-acked from caught-up rather than reporting `lag: 1` for both. Local defect in
-   `crates/termlink-cli`, no wire change, independently shippable.
+2. **Fix `ack-status`.** ~~Exclude receipt envelopes from `latest_offset`, and distinguish
+   never-acked from caught-up rather than reporting `lag: 1` for both.~~
+   **LANDED 2026-08-25 — commit `6f42f2b0d`.** The frontier now uses `latest_content_offset`
+   (T-1334), the same definition `channel unread` already applied, so the two read-side
+   surfaces agree by construction rather than by convention. `ack_status_rows` was extracted
+   as a pure seam because the logic sat inline in an async command fn and was untestable.
+   Two regression tests verified RED first (`left: 1, right: 0`) then green; full suite
+   1131 passed / 0 failed. Live A/B on `t2838-s1-unconsumed`: `lag 1 / latest 1` →
+   `lag 0 / latest 0`, matching `unread`'s `unread_count: 0`.
+
+   One honest note: a third test (`ack_status_never_acked_differs_from_caught_up`) passes
+   against the pre-fix frontier too — on a two-envelope topic the never-acked sentinel and
+   the phantom lag happen to differ. It is an invariant guard, not regression coverage, and
+   is labelled as such in the source rather than counted toward the fix.
 3. **Land `assignment.v0` + `result_manifest.v0` as typed helpers.** The schemas are drafted
    and round-tripped (S3); this is codifying a payload convention plus emit/parse helpers, not
    protocol work.
@@ -450,7 +461,7 @@ receipt.
    enforced rather than observed. Largest item, deliberately last, and genuinely optional until
    1–4 are in use.
 
-Items 2, 3 and 4 are shippable now. Item 1 gates *attribution*, not the mechanism, so 2–4
+Item 2 is **landed** (`6f42f2b0d`). Items 3 and 4 remain shippable now. Item 1 gates *attribution*, not the mechanism, so 2–4
 deliver value in a single-principal fleet and become correct as soon as 1 lands.
 
 ## Dialogue Log
