@@ -337,3 +337,67 @@ CORRECTION TO HUMAN AC #1 PREMISE (evidence, not a tick)
 
   => Recovery cannot be done from this checkout. The action is an upstream vendor-manifest
      fix, or a deliberate decision to drop the corpus verbs from the vendored fw.
+
+## 2026-08-25 — AC#1 (corpus_*.py) is now satisfiable; earlier premise corrected
+
+**Recommendation:** tick AC#1. The three files are in the vendored framework and
+committed from `/opt/termlink` (`0bd97f38a`), and the verbs they back now run. Evidence
+below. The AC is left unchecked because only the operator ticks Human ACs.
+
+### The earlier finding was half right, and the wrong half mattered
+
+An earlier pass on this task concluded the three `corpus_*.py` files were **never vendored** —
+no git history, nothing on disk, `tools/` absent — and filed that upstream (framework:pickup
+offset 40). The git half was correct. The disk half was not, and the reason is the interesting
+part.
+
+`.gitignore:37` blanket-ignores `.agentic-framework/*` and re-includes a fixed allowlist:
+`agents/ bin/ docs/ lib/ policy/ web/ .tasks/` plus named files. The file's own comment states
+that list "is exactly what `git ls-files .agentic-framework` already tracks" — it was generated
+from a snapshot in time. **Anything upstream adds later is dropped silently, forever, on every
+vendor event.**
+
+`tools/` is not on that list. So the corpus scripts arrive on disk with each vendor event and
+are immediately invisible to git. `git log -- '.agentic-framework/tools/*'` is empty, which
+reads exactly like "never vendored" and is not the same claim.
+
+Upstream had already noticed the consumer-side symptom: `bin/fw:400-401` carries a comment
+naming this precise failure — `python3: can't open file '<proj>/.agentic-framework/tools/corpus_explain.py'`.
+
+### What was actually dropped
+
+| entry | files | invoked by |
+|---|---|---|
+| `tools/` | 30 | `bin/fw:4901/4907/4909` → `corpus_{lint,explain,spec}.py` |
+| `vendor/` | 1 | designer HTML asset |
+| `status-transitions.yaml` | 1 | status-transition validation |
+
+### Verified, not assumed
+
+Extended the allowlist with `!.agentic-framework/tools/`, `!.agentic-framework/vendor/`,
+`!.agentic-framework/status-transitions.yaml`, then ran the verb that used to be a dangling
+reference:
+
+```
+$ fw corpus explain --search "verification"
+  corpus map: aef-task-lifecycle (v3) — matches: completion gates: Agent ACs (P-010) + ## Verification commands (P-011)
+    read it: fw corpus explain aef-task-lifecycle
+$ echo $?
+0
+```
+
+`corpus_lint.py` 857 lines, `corpus_explain.py` 227, `corpus_spec.py` 799 — all now tracked.
+33 files committed in `0bd97f38a`.
+
+### How they arrived
+
+A `fw upgrade` re-vendored `.agentic-framework/` and brought `tools/` with it. That same
+re-vendor also deleted three of our four recorded divergences (`_resolve_hook_path` 4→0,
+`pickup_dedup_hash` 5→3, `pickup_create_inception` 4→3), so the vendored tree was restored from
+git and only the previously-ignored directories were kept. Divergence markers re-verified
+intact afterwards. This is why the gitignore fix is the durable part: without it the next
+vendor event drops `tools/` again and the corpus verbs break again, silently.
+
+### Bearing on the other ACs
+
+None. AC#2 (T-2690/91/92 renumbering) and AC#3 (P-043 disposal) are unaffected by this.
