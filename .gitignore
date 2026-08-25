@@ -41,6 +41,14 @@ Thumbs.db
 !.agentic-framework/lib/
 !.agentic-framework/policy/
 !.agentic-framework/web/
+# T-2819/T-2837: these arrive with every vendor event and bin/fw invokes them
+# directly (tools/corpus_{lint,explain,spec}.py at bin/fw:4901/4907/4909).
+# The allowlist above was generated from `git ls-files` at a point in time, so
+# anything upstream added later was dropped silently — which is why git history
+# shows the corpus scripts as 'never vendored' while they exist on disk.
+!.agentic-framework/tools/
+!.agentic-framework/vendor/
+!.agentic-framework/status-transitions.yaml
 !.agentic-framework/.tasks/
 !.agentic-framework/.fw-not-a-project
 !.agentic-framework/.gitignore
