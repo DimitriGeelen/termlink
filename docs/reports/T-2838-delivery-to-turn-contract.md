@@ -101,6 +101,77 @@ Two delivery modes, honestly separated:
 
 Plus a typed round trip: assignment envelope (profile + task set) in, result manifest out.
 
+## S4 — Primitive audit (2026-08-25, post-GO)
+
+Question (IW-4 / A-6): do today's receipt and read-cursor primitives support bounded
+consumption confirmation without a wire-protocol change?
+
+**Result: A-6 CONFIRMED. No wire-protocol change is needed. IW-4 disposed.**
+
+Evidence, in the order it was gathered:
+
+1. **`receipt` is already a first-class `msg_type` on the wire.** It appears in the META
+   type list at seven sites in `crates/termlink-cli/src/commands/channel.rs` and has explicit
+   `msg_type == "receipt"` discriminators at 3316, 4128, 8089, 8636. Live proof: offset 392 on
+   `agent-chat-arc` is `msg_type: "receipt"`, `metadata: {up_to: "391"}`, payload `up_to=391`.
+
+2. **The envelope already carries a by-reference slot.** `crates/termlink-bus/src/envelope.rs`
+   declares `artifact_ref: Option<String>` alongside an open
+   `metadata: BTreeMap<String, String>` marked `#[serde(default)]` for backward compatibility.
+   A result manifest rides as an existing field plus metadata keys — no new wire type.
+
+3. **That slot is already authenticated.** `channel.rs:944` computes
+   `canonical_sign_bytes(topic, msg_type, &payload_bytes, artifact_ref, ts_unix_ms)` — the
+   artifact reference is inside canonical signed bytes, not merely carried beside them. A
+   manifest reference is therefore tamper-evident today.
+
+4. **Receipts are published to the log, not held locally.** `compute_ack_status(&envelopes,
+   &receipts, latest_offset)` (`channel.rs:8527`, called at 8672) derives per-sender lag from
+   receipt envelopes read back off the topic. Live proof:
+   `termlink channel ack-status agent-chat-arc --json` returns
+   `{lag: 5, latest: 396, up_to: 391}`. A third party can observe consumption without
+   privileged access.
+
+Conclusion for IW-4: the contract is **not** sequenced behind T-2700. The wire already
+expresses everything the delivery/consumption contract needs.
+
+### Partial evidence for IW-5 — the contract is convention, not enforcement
+
+Ack and cursor state by crate (`ack_offset|last_acked|read_cursor|ack_status`):
+
+| crate | hits |
+|---|---|
+| termlink-bus | 0 |
+| termlink-hub | 0 |
+| termlink-protocol | 0 |
+| termlink-session | 0 |
+| termlink-cli | 21 |
+| termlink-mcp | 28 |
+
+The hub stores and enforces nothing about consumption; all of it lives in the two client
+adapters. So "receipts already work" must not be read as "consumption is guaranteed" — it is
+guaranteed only for a client that chooses to send one. That is precisely the failure mode of
+the heartbeat (A-3's premise). IW-5 therefore cannot be answered "client-side" on the grounds
+that client-side already exists; the existing client-side implementation is the thing that
+failed.
+
+### Unanticipated blocker found by S4: receipts are not per-agent attributable
+
+Every one of the 60 live sessions enumerated via `list_sessions` reports the same
+`identity_fingerprint: d1993c2c3ec44c94` — across five projects
+(010-termlink, 050-email-archive, 0501-opencode-playground,
+999-Agentic-Engineering-Framework, 001-CashWeb) and multiple hosts.
+
+Consequence, visible in the live output above: `ack-status` on a topic with 60 potential
+consumers returns **a single row**. The substrate cannot currently express the question a
+delivery-to-turn contract exists to answer — "did *this* agent consume it?" — because every
+agent is the same principal.
+
+This was not in the exploration plan and it changes the build decomposition: identity binding
+is a **prerequisite** of the contract, not adjacent hygiene. Two tasks already carry it —
+T-1427 (`termlink whoami` identity binding on chat-arc) and T-1457 (register identity on .141
+agent-1) — both currently filed as connectivity/hygiene work. They are load-bearing.
+
 ## Dialogue Log
 
 **2026-08-24 — operator, on the goal.** Clarified the objective is an interactive communication

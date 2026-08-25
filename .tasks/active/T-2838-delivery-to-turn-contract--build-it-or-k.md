@@ -49,7 +49,7 @@ Full analysis: docs/reports/T-2838-delivery-to-turn-contract.md (C-001 research 
 - A-3: Liveness sourced from the consuming loop rather than a sidecar heartbeat eliminates the LIVE-not-listening class by construction.
 - A-4: A typed result manifest (paths, hashes, summary, status) removes the need for byte transfer between agents sharing a filesystem.
 - A-5: termlink-bus requires no change; the entire delivery gap sits above the log engine.
-- A-6: Consumption confirmation can be built on existing receipt/read-cursor primitives without a wire-protocol version bump.
+- A-6: Consumption confirmation can be built on existing receipt/read-cursor primitives without a wire-protocol version bump. **[CONFIRMED 2026-08-25 by S4.]**
 
 ## Open Questions
 
@@ -69,8 +69,15 @@ Full analysis: docs/reports/T-2838-delivery-to-turn-contract.md (C-001 research 
   rationale: Decision, not spike. It is the only route into a session we did not launch, so it cannot be deleted; the question is whether it may ever report success without confirmation.
 
 - **IW-4: Does the contract need a wire-protocol version bump, and is that safe today?**
-  confidence: 1
-  disposition: pending
+  confidence: 5
+  disposition: answered
+  answer: >
+    No bump needed. S4 (2026-08-25) confirmed A-6. `receipt` is already a first-class wire
+    msg_type; `Envelope.artifact_ref` already exists and is already inside canonical signed
+    bytes (channel.rs:944); receipts are published to the topic and read back by
+    compute_ack_status, so consumption is third-party observable today. The contract is
+    therefore NOT sequenced behind T-2700. Evidence in
+    docs/reports/T-2838-delivery-to-turn-contract.md section "S4 — Primitive audit".
   rationale: Spike S4. T-2699 found PROTOCOL_VERSION_TOO_OLD has zero emission sites; T-2700 (wiring it) is captured, owner human; fleet hubs run ~1000 commits stale (T-2377). A wire change today has no compatibility gate.
 
 - **IW-5: Does the contract live hub-side (enforced) or client-side (convention)?**
