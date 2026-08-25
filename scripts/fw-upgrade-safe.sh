@@ -52,13 +52,25 @@ hr() { printf -- '--------------------------------------------------------------
 
 canary_count() { grep -c -- "$2" "$1" 2>/dev/null || true; }
 
-# Lines present in the working copy but nowhere in the committed version.
-# Whitespace-normalised and sorted so pure reflowing is not reported as new.
-new_lines() {
-  comm -13 \
-    <(git show "HEAD:$1" 2>/dev/null | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -v '^$' | sort -u) \
-    <(sed 's/^[[:space:]]*//;s/[[:space:]]*$//' "$1" | grep -v '^$' | sort -u) \
-    | wc -l | tr -d ' '
+# Non-empty line count of the committed version vs the working copy.
+#
+# HOLD/RESTORE is decided by DIRECTION OF SIZE, not by presence of novel lines.
+# v1 of this script held any file containing a line absent from HEAD; the live
+# test held 10 of 15 files and lost all three canaries. The reason is measured:
+# `fw upgrade` replaces our files with the LEANER upstream template
+# (scripts/agent-send.sh 717 lines -> 229), and the "new" lines are reformatting
+# and rewording of features we already carry — every one of ours was a superset.
+# Novelty is therefore a bad signal here; size direction is a good one.
+head_lines()     { git show "HEAD:$1" 2>/dev/null | grep -cv '^[[:space:]]*$' || true; }
+working_lines()  { grep -cv '^[[:space:]]*$' "$1" 2>/dev/null || true; }
+
+# Does this file carry a canary? Canaries outrank the size heuristic: restoring
+# is what brings back a closed task's cited evidence.
+has_canary() {
+  for c in "${CANARIES[@]}"; do
+    [ "${c%%:*}" = "$1" ] && return 0
+  done
+  return 1
 }
 
 # --- 1. refuse on a dirty tree ------------------------------------------------
@@ -98,14 +110,18 @@ needs_human=0
 hold=""
 restore=""
 for f in $changed; do
-  n=$(new_lines "$f")
-  if [ "${n:-0}" -gt 0 ]; then
-    say "  HOLD  $f — carries $n line(s) absent from HEAD; NOT auto-restored."
-    say "        review with: git diff -- $f"
+  h=$(head_lines "$f"); w=$(working_lines "$f")
+  if has_canary "$f"; then
+    say "  restore $f — carries a closed task's cited evidence ($h -> $w lines)"
+    restore="$restore $f"
+  elif [ "${w:-0}" -lt "${h:-0}" ]; then
+    say "  restore $f — incoming is smaller ($h -> $w lines); pure-loss direction"
+    restore="$restore $f"
+  else
+    say "  HOLD    $f — incoming is NOT smaller ($h -> $w lines); may carry real"
+    say "          additions. Not auto-restored. Review: git diff -- $f"
     needs_human=1
     hold="$hold $f"
-  else
-    restore="$restore $f"
   fi
 done
 
