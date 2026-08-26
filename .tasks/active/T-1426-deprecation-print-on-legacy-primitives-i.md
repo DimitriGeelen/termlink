@@ -84,6 +84,72 @@ target/release/termlink inbox list bogus 2>&1 | grep -q DEPRECATED
 target/release/termlink inbox clear bogus 2>&1 | grep -q DEPRECATED
 target/release/termlink file send bogus /tmp/nonexistent 2>&1 | grep -q DEPRECATED
 
+## Recommendation
+
+**Recommendation:** CLOSE — the deliverable works and the reason it existed has
+already been served; close it, but repair the Verification block first.
+
+**Rationale:** This task shipped a soft deprecation whose stated dual purpose was
+to nudge vendored agents off the legacy primitives and to give T-1166 its
+cut-readiness telemetry. T-1166 is `work-completed` (date_finished
+2026-08-20T16:16:41Z) and `fleet doctor --legacy-usage` reports `CUT-READY` with
+0 legacy invocations fleet-wide. Both purposes are discharged. The one thing
+standing between this task and a clean close is not the feature — it is that the
+task's own `## Verification` block, written in April, no longer passes under the
+shell P-011 runs it in.
+
+**Evidence:** Re-measured 2026-08-27 against `target/release/termlink`
+(v0.11.1612). All six legacy verbs still emit exactly one correct
+`[DEPRECATED]` line — `remote push` → `channel post`, `event broadcast` →
+`channel post`, `file send` → `channel post --file`, `inbox status` →
+`channel info`, `inbox list` → `channel subscribe`, `inbox clear` →
+`channel subscribe --cursor` — and `TERMLINK_NO_DEPRECATION_WARN=1` reduces the
+count to `0`. `fleet doctor --legacy-usage` today: `Verdict: CUT-READY`, `total
+legacy invocations across fleet: 0`, all four reachable hubs CLEAN, with the
+line "T-1166 cut already landed in T-1415; verdict is informational". The
+`cargo build` / `cargo test` lines of the Verification block were **not**
+re-measured in this session.
+
+**The problem you have to deal with before closing.** Every one of the seven
+non-cargo Verification lines FAILS today, and none of the failures is a
+regression in the feature. Measured under `set -euo pipefail`, which is what the
+P-011 gate uses:
+
+| Verification line | rc | Why |
+|---|---|---|
+| `remote push … \| grep -q DEPRECATED` | 1 | warning IS printed; `remote push` then exits non-zero ("Failed to connect to hub" — the address is deliberately bogus) and pipefail propagates it |
+| `event broadcast topic-x \| grep -q DEPRECATED` | 101 | same shape, upstream exit 101 |
+| `inbox status` / `inbox clear bogus` / `file send bogus …` | 101 | same shape |
+| `inbox list bogus \| grep -q DEPRECATED` | 1 | same shape |
+| `TERMLINK_NO_DEPRECATION_WARN=1 … \| grep -c DEPRECATED \| grep -qx 0` | 1 | the count IS `0` when run directly; the pipeline still fails on the upstream's status |
+
+This is the L-387 / T-2818 class the guard layer already documents: a
+verification line whose *command under test is expected to fail* cannot be
+composed into a pipeline under `pipefail` and still report the property it is
+actually asserting. The property here — "the warning fires *before* any I/O,
+even when the command itself fails" — is exactly AC #8, and it is true. The
+block just measures it wrongly.
+
+**What you are actually deciding.** Three options, and they differ in what they
+cost later, not in whether the feature works:
+
+| Option | Action | Cost |
+|---|---|---|
+| Repair then close | rewrite the seven lines in the safe form (`out=$(cmd 2>&1) \|\| true; echo "$out" \| grep -q DEPRECATED`), re-run, close cleanly | ~15 minutes; the gate then genuinely proves the deprecation prints |
+| Close with `--force` | bypass P-011, logged | fast, but records a task as verified when its verification could not run — and this is the seventh-oldest active task, so the record will be read |
+| Keep open | leave as-is | the block stays broken and the next re-smoke session pays the same diagnosis cost again; this is the fourth recorded re-validation (2026-05-04, 2026-05-18, 2026-06-01, 2026-06-13) |
+
+**Why I should not decide this alone.** The close itself needs your `[REVIEW]`
+box — the AC asks a judgement I cannot make for you ("informative without being
+noisy"). And the repair-vs-`--force` choice is a sovereignty call: `--force`
+bypasses a structural gate, which the framework's autonomous-mode boundaries
+reserve to you per action. I have not edited the Verification block, ticked
+anything, or run any mutating command.
+
+**If you want the repair:** the safe rewrites are in CLAUDE.md §"Verification-block
+pipefail auditor"; `bash scripts/check-verification-pipefail.sh --active-only`
+will list this file among its findings.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

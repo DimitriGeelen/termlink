@@ -195,6 +195,64 @@ cargo test -p termlink-hub --test no_legacy_callers
 # Consumers still have the migration guide they were pointed at.
 test -f docs/migrations/T-1166-retire-legacy-primitives.md
 
+## Recommendation
+
+**Recommendation:** CLOSE — the deletion landed 2026-05-31, all ten Agent ACs are
+ticked, every verification line passes today, and the bake metric is clean on a
+window ~12× longer than the one the task asks for.
+
+**Rationale:** The three gates in the Context section are the whole contract: cut
+authorized, bake window passed, roll-back window closed. All three are satisfied and
+have been for months. What kept this open is not doubt about the work — it is that
+the two `[REVIEW]` ACs are worded as SSH-to-each-host steps, and the evidence they
+ask for has been obtainable over the wire since May. The task record spent 10 weeks
+reading as though source cleanup were pending when it had already landed.
+
+**Evidence:** Re-measured 2026-08-27 in this tree. All five `## Verification` lines
+pass: `grep LEGACY_PRIMITIVES_ENABLED|legacy_primitives_disabled crates/` → **0**;
+`grep call_legacy_inbox_|*_with_fallback crates/` → **0**; `"legacy_primitives":
+false` present in `router.rs` → **1**; `cargo test -p termlink-hub --test
+no_legacy_callers` → **4 passed, 0 failed** (including `allowlist_is_load_bearing`);
+migration doc present. `fw metrics api-usage --cut-ready --json` → `{"cut_ready":
+true, "window_days": 7, "legacy_attributable": 0, "legacy_unattributable_pre_t1409":
+0}`. The 2026-08-20 capabilities table in the Human AC block above shows all four
+reachable hubs serving `legacy_primitives: false` at `control_plane_version: 3`,
+including `.121` on the markedly older `0.11.588` — so the cut is not a property of
+a recent build. The ≥7-day bake requirement is met with ~14 weeks to spare
+(both `.122` and `.121` recorded flag-off on 2026-05-15).
+
+**Not measured, and it is the one thing missing.** Step 3 of the first `[REVIEW]` AC
+asks for `journalctl -u termlink-hub --since "7 days ago" | grep -E
+'(event.broadcast|inbox.(list|status|clear))'` on each production hub — a check that
+*nobody is still calling the retired methods and getting rejected*. That needs shell
+access on each host, which this session does not have. Zero attributable legacy calls
+across 1d/7d/30d/60d in the local audit log is adjacent evidence, not the same check:
+it covers callers this host's audit log sees. `laptop-141` was unreachable when the
+capabilities table was taken and is unreachable now (`No route to host`), so it is
+excluded entirely — it is declared expected-transient in
+`.context/cron/fleet-version-floors.conf`.
+
+**What you are actually deciding.** Whether over-the-wire `hub.capabilities` plus a
+clean 60-day bake metric substitutes for the per-host `journalctl` grep the AC text
+specifies.
+
+| Option | What it buys | Cost |
+|---|---|---|
+| CLOSE on the wire evidence (recommended) | closes a task whose code work finished ~12 weeks ago | the journalctl check is never run; a rejected caller on a host whose RPCs miss the local audit log would go unseen |
+| Run the journalctl check first | the literal AC, on `.107` / `.121` / `.122` | needs a session with host access; `.141` cannot be checked at all and would have to be waived regardless |
+| KEEP-OPEN | nothing new | the code is deleted and shipped; holding the record open does not un-delete it, and the deletion has already been in the field ~12 weeks |
+
+**Why I should not decide this.** The AC names a specific command on specific hosts
+and I substituted a different measurement for it. Accepting a substitute for a
+written verification step is exactly the call the `[REVIEW]` marker reserves for you,
+and this task's own history shows why: the previous "close it" moment in June rested
+on `cut_ready: false, legacy_attributable: 5`, which turned out to be a real residual
+caller on `.122`. It has since gone to zero — but the pattern of a clean-looking
+close hiding a live caller has already happened once here.
+
+**If you disagree:** the check is one command per host and the task's Human AC block
+lists them.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

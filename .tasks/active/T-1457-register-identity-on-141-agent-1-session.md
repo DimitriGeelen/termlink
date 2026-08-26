@@ -127,6 +127,51 @@ out=$(./target/release/termlink channel members --hub laptop-141 agent-chat-arc 
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
 
+## Recommendation
+
+**Recommendation:** CLOSE — record .141 as a vendored *host* (heartbeat-only), not
+a vendored *agent*. Current state is the desired end state.
+
+**Rationale:** The [REVIEW] AC asks you to pick between two end states and says
+plainly what follows from the second: "Close this task as out-of-scope — current
+state is the desired end state." Three and a half months of evidence point one way.
+The write side has worked since day one and nothing has ever consumed the read
+side. The remaining Agent AC cannot be driven from .107 by construction — it needs
+a hand on the .141 host — and .141 is not currently on the network at all.
+
+**Evidence:** Fleet sweep 2026-08-27: `scripts/agent-listeners-fleet.sh --json`
+reports `laptop-141` in `hubs_failed` with `No route to host (os error 113)`; the
+host is unreachable, not merely idle. Fleet-wide there are 2 LIVE listeners
+(`ring20-concierge` on .122, `ring20-dashboard-agent` on .121) and neither is on
+.141. The last measurement of .141 itself (2026-05-31, in Updates) found 418
+heartbeat posts from `6604a2af482f0cf7`, 0 listeners, and 5 DMs on
+`dm:6604a2af482f0cf7:d1993c2c3ec44c94` with `receipts=[]` — never read by anyone.
+Not measured: whether .141 is powered off, renumbered, or firewalled — only that
+it does not answer.
+
+**What you are actually deciding.** Whether .141 should ever be an interactive
+peer, or whether fan-in of its heartbeats is all you want from it.
+
+| Option | What it costs |
+|---|---|
+| **CLOSE as vendored host** (recommended) | .141 stays broadcast-only. If you later want it interactive that is new work, and it starts from a host that is currently off-net |
+| Keep open pending .141 returning | the task has been open since 2026-05-03 waiting on exactly this and the host has since gone unreachable; keeping it open does not make anyone go touch .141 |
+| Convert .141 to a peer now | blocked before it starts — no route to host. Needs the host back on the network, then SSH/WSL access, session re-registration with `--identity`, and an attached Claude reading `dm:6604a2af:*` |
+
+**One thing the close does not settle.** Those 5 DMs were sent to a mailbox with
+no reader. If any of them still matters, closing this task does not surface them —
+it only records that nobody will. The T-2295 unconfirmed-delivery canary covers
+that class on the await-ack path; these predate it.
+
+**Why I should not decide this alone.** "Is this host meant to be an agent or a
+target?" is a statement about how you intend to run the fleet, not something the
+code can answer. The evidence makes one option much cheaper; it does not make the
+other wrong. A host being offline today is also weak grounds for a permanent
+scope decision — that is your judgement about .141's future, not mine.
+
+**If you pick the peer path instead:** the reproducer in the [RUBBER-STAMP] AC is
+still accurate; step 0 is getting .141 to answer on 192.168.10.141:9100 again.
+
 ## Decisions
 
 ### 2026-05-03T20:54Z — Reframe: write-side works, read-side is the gap

@@ -144,6 +144,64 @@ grep -q "TERMLINK_RUNTIME_DIR" crates/termlink-hub/src/server.rs
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** CLOSE — the deliverable shipped, is live fleet-wide, and has
+since been deliberately *broadened* by later work. Tick and complete, but read the
+AC-drift note first because one ticked AC no longer describes the code.
+
+**Rationale:** The investigation conclusion is the substance of this task and it
+held: there was no binary regression, `discovery::runtime_dir()` never had a
+uid-aware branch, and the .122 symptom was a lost env on a bare respawn. The code
+deliverable — a one-shot startup warning — exists, is invoked from `run_with_tcp`,
+and its tests pass today. The Human AC asks you to confirm the warning behaves
+correctly on a deploy, and that has been observable across two production hubs for
+three months.
+
+**Evidence:** `cargo test -p termlink-hub --lib runtime_dir_warn` on 2026-08-27:
+**7 passed, 0 failed**, including `warns_when_root_and_tmp_and_env_unset` (the
+positive case) and `silent_when_env_set` (the silent-when-correct case the AC's
+Expected names). `crates/termlink-hub/src/server.rs` shows the predicate live and
+`grep -q TERMLINK_RUNTIME_DIR` passes. Fleet-wide, .122 (`0.11.1411`) and .121
+(`0.11.588`) both answer authenticated with no re-pin incidents. **Not measured:**
+nobody has read .122's journal for the warning line itself. The
+warns-when-unset half rests on the unit test, not on a live log — deliberately, per
+the 2026-05-15 entry, which judged reproducing it on a production hub not worth the
+intentional misconfiguration. That judgement still looks right; it is worth stating
+that it is a judgement.
+
+**The AC drift you should see before ticking.** Agent AC #7 reads "warning does NOT
+fire when `TERMLINK_RUNTIME_DIR` is explicitly set (even to /tmp), **or when
+uid != 0**", and it is ticked. The second clause is no longer true. **T-2734
+removed the `uid == 0` condition on purpose**, with the reasoning recorded in the
+doc comment at `server.rs:44`: `substrate-preflight.sh` already treated the same
+state as a failure at any uid, so the two guards contradicted each other about
+identical state, and PL-021's consequence does not depend on who owns the
+directory. The original `silent_when_non_root` test is gone, replaced by
+`warns_when_non_root_on_volatile_path` — the same case, asserted the opposite way.
+The predicate also widened from `/tmp` to a `VOLATILE_DEFAULT_ROOTS` set including
+`/run/user`, which is why the suite is 7 tests and not 4.
+
+This is supersession, not rot: the AC was true when ticked and a later task
+knowingly changed the behaviour with a better argument. But it means the ticked box
+is now evidence of what was built in May, not a description of what runs today, and
+the AC's own "no false positive" framing has been rejected — non-root volatile is
+now considered a true positive.
+
+**What you are actually deciding.** Whether to close on that basis, or to reconcile
+first.
+
+| Option | What it costs |
+|---|---|
+| **Close as-is** (recommended) | the ticked AC #7 is left describing superseded behaviour; anyone auditing later reads it as current and is wrong |
+| Amend AC #7 to cite T-2734, then close | a task-file edit; costs minutes, and leaves the record honest |
+| Capture a live warning line before closing | needs a hub deliberately started without the env on a volatile path — a real misconfiguration on a real host to prove a unit-tested branch |
+
+**Why I should not decide this alone.** Amending a ticked acceptance criterion
+edits the record of what was accepted, and that is yours to authorise, not mine —
+even when the amendment only makes it more accurate. The third option also trades a
+small real risk for evidence you may not need.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

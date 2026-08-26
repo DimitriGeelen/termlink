@@ -205,6 +205,55 @@ safe to ignore.
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** GO — build the fix, using a throttled one-shot hint that
+keeps the attach loop alive, rather than auto-detach.
+
+**Rationale:** The convention this task proposes already exists in the same file,
+applied to the sibling path. T-2697 hardened the *non-interactive* `command.inject`
+surface for a closely-related silent failure (the RPC returning success with
+`status: "resolved"` — keys resolved, nothing written, reported as "Injected N
+bytes"). The interactive attach loop was not migrated. That is the "hardened in one
+place, siblings not migrated" divergence the guard layer exists to catch, and it
+means the fix here is applying a decided convention rather than inventing one.
+Between the two candidate behaviours, a throttled hint degrades gracefully on a
+transient hub blip; auto-detach ejects the operator from a session that may still
+be alive, trading a missed keystroke for a lost session.
+
+**Evidence:** The defect is still live, confirmed 2026-08-27. `let _ =
+client::rpc_call(socket, "command.inject", params).await;` sits at
+`crates/termlink-cli/src/commands/pty.rs:817`, directly under the comment
+"Fire-and-forget — don't block on response", eight lines below the Ctrl-] (`0x1d`)
+detach branch. (The task filed it at ~488; the line has drifted to 817 — same call,
+same discarded `Err`.) The hardened sibling is in the same file at `:447`–`:521`,
+carrying T-2697's explanatory comment. **Not measured:** nothing here is
+regression-testable end-to-end — there is no PTY harness in this repo, which the
+RCA already names as the reason the gap survived. Only an extracted throttle
+helper can carry a unit test; the terminal-render behaviour is provable solely by
+the manual attach test in the Human AC.
+
+**What you are actually deciding.** Whether to authorise a behavioural change to
+the interactive raw-terminal loop — the one code path in the CLI with no automated
+coverage — and which of two signals it emits:
+
+| Option | Behaviour | Cost |
+|---|---|---|
+| Throttled one-shot hint (recommended) | first consecutive inject error prints one line; loop stays attached | a genuinely dead session keeps accepting keystrokes after the single hint scrolls away |
+| Auto-detach with a message | first inject error breaks the loop and returns to the shell | a transient hub blip ejects the operator from a live session mid-work |
+| Leave as-is | keystrokes vanish silently | the Directive #2 violation this task was filed for |
+
+**Why I should not decide this alone.** The choice turns on how you actually use
+attach — whether being dropped out of a working session is more or less annoying
+than typing into a dead one. That is operator taste about a live terminal, and the
+verification for it is a human sitting at a real PTY (the Human AC), not a
+command I can run. The `[REVIEW]` AC as written is the right gate and should not
+be waived.
+
+**If you disagree:** say which of the two signals you want and the change is
+confined to one branch of one loop — the failure arm at `pty.rs:817`. The
+detach-key path and the output-poll branch are untouched either way.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

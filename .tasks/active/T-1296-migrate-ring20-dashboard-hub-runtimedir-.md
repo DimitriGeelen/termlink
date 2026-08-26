@@ -107,6 +107,62 @@ Mirror of T-1294 for the OTHER ring20 hub at .121 (proxmox4 ct 101 ring20-dashbo
 # Agent-runnable: confirm fleet still green after operator finishes (post-AC 3)
 termlink fleet doctor 2>&1 | grep -q 'ring20-dashboard.*PASS'
 
+## Recommendation
+
+**Recommendation:** CLOSE — the migration landed on 2026-05-03 and the ground-truth
+invariant it exists to establish has now held for ~16 weeks. Read the verification-block
+note below before you run the gate, because it will block you for a reason that has
+nothing to do with the work.
+
+**Rationale:** This task's real acceptance test is one thing: does `.121`'s hub identity
+survive a reboot? Everything else — patching the watchdog, pre-seeding
+`/var/lib/termlink`, re-pinning from `.102` — is mechanism in service of that. The
+identity has survived. The TLS fingerprint recorded when the migration was executed
+(`sha256:1389a831016…`, 2026-05-03) is byte-for-byte the fingerprint `.121` serves
+today. On the pre-migration `/tmp/termlink-0` layout that fingerprint rotated on every
+boot; it has not rotated once since. The three unticked RUBBER-STAMP boxes are asking
+the operator to perform steps that were already performed and whose outcome is
+observable now.
+
+**Evidence:** `termlink fleet doctor` 2026-08-27 → `ring20-dashboard
+(192.168.10.121:9100) [PASS] connected in 42ms (version: 0.11.588)`. `termlink tofu
+list` → `192.168.10.121:9100  sha256:1389a831016…  FIRST SEEN 2026-07-04T11:31:46Z
+LAST SEEN 2026-08-26T23:03:00Z`. That prefix matches the one this task's 2026-05-03
+Updates entry recorded as preserved through the migration, so the identity is unchanged
+across ~115 days; the 2026-07-04 first-seen date is when *this client's* `known_hubs`
+was re-pinned, not a hub rotation. The 2026-05-31 entry independently shows
+`hub.cert.pem` / `hub.key.pem` / `hub.secret` under `/var/lib/termlink/` with mtime
+`May 2 06:05` against a container boot of `May 28 20:45` — files older than the boot
+that would have destroyed them.
+
+**Read this before running the completion gate.** The `## Verification` line above is
+`termlink fleet doctor 2>&1 | grep -q 'ring20-dashboard.*PASS'`, and it **fails today
+even though the hub is PASS** — I ran it, exit 1. `fleet doctor` prints the profile name
+and the `[PASS]` verdict on *separate* lines, so no single line ever matches both. The
+check has never been able to pass in the form it is written. P-011 will therefore block
+`--status work-completed` on a healthy hub. Two ways past it: fix the line (a
+`grep -A1`-style match, or `grep -q '192.168.10.121'` against the PASS block), or
+`--force` with the reason logged. **Fixing the line is the better option** — a `--force`
+here trains the reflex that this project's guard-layer notes repeatedly identify as how
+a gate stops being read. Note also that as written it carries the L-387 shape
+(`cmd | grep -q` exits 141 on a *match* under `pipefail`), so it could not reliably pass
+even if the pattern were right.
+
+**What you are actually deciding.** Whether ~16 weeks of an unchanged fingerprint is the
+reboot-persistence proof AC 4 asks for, or whether you want the literal test — `pct
+reboot 101` then compare `sha256sum /var/lib/termlink/hub.secret`. The literal test is
+strictly stronger and costs a deliberate reboot of a live hub; the passive evidence is
+weaker per-event but covers a far longer window and many more reboots than one
+controlled one would.
+
+**Why I should not decide this.** AC 4's own text says "If not, escalate — `/var/lib/
+termlink` itself is volatile in CT 101", which is a instruction to a human holding
+console access I do not have. And accepting passive evidence in place of a written
+active test is a call about how much proof a rubber-stamp needs — yours, not mine.
+
+**If you disagree:** the active test is three commands and they are already written out
+in AC 4.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

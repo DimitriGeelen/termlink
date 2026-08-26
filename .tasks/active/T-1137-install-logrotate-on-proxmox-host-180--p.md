@@ -108,6 +108,70 @@ See `.context/project/concerns.yaml` entry G-009 for full diagnosis.
 
 # No agent-runnable verification — this is entirely host-side operator work.
 
+## Recommendation
+
+**Recommendation:** CLOSE — the cascade this task exists to prevent was removed by
+a different change, and the two open ACs measure a host that no longer exists in
+the shape they describe.
+
+**Rationale:** T-1137's whole premise is that `/var/log` on .180 lives on a 224 MiB
+zram0 volume, so a 145 MiB `access.log` fills it and PVE starts killing containers.
+That premise is false today. `log2ram` — the mechanism that put `/var/log` in RAM —
+is installed but **disabled and inactive**, there is no zram mount, and `/var/log`
+is a plain directory on the 68 GB `pve-root` filesystem holding 76 MB. There is no
+longer a small volume to fill, so pveproxy log growth cannot cascade. AC 2 asks for
+"`/var/log` below 50 %"; the number `df` now returns for that path (56 %) is the
+whole root filesystem and is not a measurement of anything this task is about. AC 3
+asks whether **CT 200** stopped rebooting; CT 200 is not on .180 at all — `pct list`
+shows nine containers and none is 200.
+
+**Evidence:** Measured on .180 over SSH, 2026-08-27. `mount | grep -i zram` → no
+matches. `df -h /var/log` → `/dev/mapper/pve-root 68G 36G 29G 56% /`. `du -sh
+/var/log` → 76M. `systemctl is-enabled log2ram` → `disabled`; `is-active` →
+`inactive`. `uptime` → up 52 days. `pct list` → VMIDs 108/109/162/170/201/310/400/
+401/450; no 200. Rotation of `/var/log/pveproxy/access.log` **is** happening —
+`access.log.1.gz` (606 KB, Aug 27 00:11) and `access.log.2.gz` (635 KB, Aug 26
+21:17) are present — but it is stock `/etc/logrotate.d/pve` doing it (`rotate 2`,
+`daily`, `maxsize 10M`, `compress`), not this task's file.
+
+**The one finding that argues the other way.** `/etc/logrotate.d/pveproxy-access` —
+the file AC 1 was ticked for on 2026-04-26 — **no longer exists on .180**. The
+artifact this task delivered is gone, presumably lost in whatever host work removed
+log2ram. Its function is covered by the stock `pve` config above, which is stricter
+on size (`maxsize 10M`) and looser on retention (`rotate 2` vs 3), so nothing is
+unrotated; but if you close this on the strength of AC 1, close it knowing the file
+it certifies is not there.
+
+**What you are actually deciding.** Not whether logrotate works — it does, via stock
+config. You are deciding what to do with a task whose remaining two criteria have
+been overtaken by host changes nobody recorded here.
+
+| Option | Effect | Cost |
+|---|---|---|
+| CLOSE (recommended) | task closes on "premise dissolved", AC 2/AC 3 unmet as written | the record shows two unticked ACs at close; the reason is in this section, not in a tick |
+| Re-scope the ACs to today's host | AC 2 becomes "/var/log stays bounded on pve-root", AC 3 drops (CT 200 gone) | rewrites acceptance criteria after the fact to fit the evidence — the shape that makes a gate stop meaning anything |
+| KEEP-OPEN | waits for AC 2/AC 3 as written | they can never be satisfied: there is no 224M volume to get below 50 % of, and no CT 200 to stop rebooting |
+
+**What closing does NOT do.** G-009 stays `status: watching`. Two of its four
+`what_remains` items are untouched by anything here: a **framework cross-host
+disk-pressure check** was never built, and log2ram is disabled rather than removed,
+so a future re-enable puts `/var/log` back on a RAM disk and nothing in this repo
+would notice. Closing the task should not be read as closing the gap.
+
+**Not measured.** I did not verify that container reboots have stopped. CT 200 is
+absent so its boot history is unreadable from here, and `~/.termlink/rotation.log`
+holds only three May smoke-test rows — no watch loop has ever captured this fleet,
+so it is not evidence either way. Note also that a stable TLS fingerprint no longer
+proves stability: T-1294 moved the hub's runtime_dir off `/tmp`, so certs now
+survive reboots by design. `.122` has held `sha256:22c19fedafd…` from 2026-07-04 to
+2026-08-26, which proves the cert persists — **not** that the container stayed up.
+
+**Why I should not decide this.** The evidence settles the mechanism but not the
+bookkeeping. Whether a task closes with unmet criteria, or its criteria get
+rewritten to match a changed world, is a judgement about what your task record is
+for — and the change that actually fixed this (disabling log2ram) happened outside
+this project with no entry here, which is itself worth your eye.
+
 ## Decisions
 
 ## Updates

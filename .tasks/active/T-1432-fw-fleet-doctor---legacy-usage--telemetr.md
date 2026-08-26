@@ -89,6 +89,69 @@ target/release/termlink fleet doctor --legacy-usage --json 2>&1 | python3 -c "im
 target/release/termlink fleet doctor --legacy-usage 2>&1 | grep -q "T-1166 cut-readiness"
 target/release/termlink fleet doctor --legacy-usage --json 2>&1 | head -1 | grep -q "^{"
 
+## Recommendation
+
+**Recommendation:** CLOSE — this is the strongest-evidenced of the four open
+T-1425 picks. The telemetry works, and the decision it was built to inform has
+already been made using it.
+
+**Rationale:** The Human AC asks one question: is the cut-readiness signal
+actionable enough that an operator would trust it to flip
+`LEGACY_PRIMITIVES_ENABLED=false`? That question has been answered by events
+rather than by argument. T-1166 — the cut this telemetry existed to gate — is
+`work-completed`, and the doctor's own output now describes itself as
+informational because the cut has landed. A signal that drove a real irreversible
+decision and was not contradicted afterwards is as validated as this kind of
+telemetry gets.
+
+**Evidence:** Measured 2026-08-27 against `target/release/termlink` (v0.11.1612).
+All seven Verification lines pass under `set -euo pipefail` — including the
+`--json` schema assertion (`legacy_summary` present, verdict in the allowed set)
+and both `--help` flag greps. Live output:
+
+```
+=== T-1166 cut-readiness (7d window) ===
+Verdict: CUT-READY
+  total legacy invocations across fleet: 0
+  CLEAN (7d): local-test, ring20-dashboard, ring20-management, workstation-107-public
+  → no live legacy callers (T-1166 cut already landed in T-1415; verdict is informational).
+```
+
+`.tasks/completed/T-1166-*.md` carries `status: work-completed`,
+`date_finished: 2026-08-20T16:16:41Z`. All 10 Agent ACs are ticked. The verdict
+has walked the full ladder in this task's own history and tracked reality at each
+step: `WAIT`-era traffic (2026-06-06, 2 aliased hubs with framework-pickup-bridge
+residual) → `CUT-READY-DECAYING` (2026-06-01 and 2026-06-13, residue correctly
+distinguished from live callers by the 300s recency probe) → `CUT-READY` today.
+The `cargo build` / `cargo test --release -p termlink-hub` lines were **not**
+re-measured in this session.
+
+**One thing the evidence does not cover.** Steps 2–3 of the Human AC — trigger a
+deliberate legacy call, confirm the count increments and `days_since_last`
+resets — have never been executed; the 2026-06-13 entry records them as
+"operator-env, not run". So the signal is proven to report **zero correctly** and
+proven to have reported **non-zero correctly in the past** (the decay-residue
+captures above are real non-zero readings with per-caller attribution down to
+`addr:192.168.10.122`), but the increment path has not been exercised
+deliberately since the cut. Whether that gap matters is the judgement in front of
+you.
+
+**What you are actually deciding.**
+
+| Option | Action | Cost |
+|---|---|---|
+| Close on observed evidence | tick `[REVIEW]`, close | the increment path is never deliberately exercised. Low risk: the counter is read from `rpc-audit.jsonl` by `summarize_legacy_usage`, which has three unit tests, and it demonstrably produced non-zero readings in June |
+| Exercise Steps 2–3 first | fire one legacy call at a reachable hub, confirm the count moves, then close | ~10 min, and it dirties the audit log of a production hub with a deliberate legacy invocation right after the cut landed |
+| Keep open | leave as-is | the telemetry's own subject is closed; the task now tracks nothing that can change |
+
+**Why I should not decide this alone.** The `[REVIEW]` box is yours by
+construction, and option 2 means deliberately invoking a retired primitive
+against a live fleet hub — a mutating action on shared infrastructure that I
+should not take on my own initiative. My read is that option 1 is well supported
+and option 2 buys little, but "well supported" is my assessment of your
+acceptance criterion, not a substitute for it. Nothing here was ticked and no
+mutating command was run.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

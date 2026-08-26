@@ -88,6 +88,68 @@ target/release/termlink channel info agent-chat-arc 2>&1 | grep -qi "msg_type"
 target/release/termlink channel info agent-chat-arc 2>&1 | grep -qi "deprecated\|inbox.push"
 target/release/termlink channel info agent-chat-arc 2>&1 | grep -qi "in_reply_to\|thread"
 
+## Recommendation
+
+**Recommendation:** KEEP-OPEN — the deliverable is gone from the live hub. The
+canonical description this task shipped has been replaced by a 35-character
+stub, and all three of the task's own Verification commands fail today.
+
+**Rationale:** Every prior Update on this task recommends closing it, and each
+was correct when written. It is no longer correct. The whole deliverable was a
+single piece of durable state on one topic — and that state did not survive.
+Closing now would record as verified a description that a reader of
+`agent-chat-arc` cannot see. Worse, the task would leave behind no signal that
+the self-doc it is credited with is absent, which is precisely the condition the
+task existed to end ("every subscriber sees the topic's own canon").
+
+**Evidence:** Measured 2026-08-27 against the local hub via
+`termlink channel info agent-chat-arc` (binary 0.11.1612). The stored
+description is now, in full and verbatim from the `--json` field:
+`agent-chat-arc — protocol stack ...` — 35 characters, ending in a literal
+ellipsis. Not the 334-character five-invariant text recorded at offset 17 on
+2026-05-01, and not the longer text quoted in the 2026-05-04 Update. All three
+Verification lines FAIL:
+
+```
+FAIL: msg_type
+FAIL: deprecated|inbox.push
+FAIL: in_reply_to|thread
+```
+
+Topic state alongside it: `retention: {kind: messages, value: 1000}` — the topic
+is **no longer `forever`**, which is what T-1425 Q5=A specified and what
+`ensure_topic` created it as — with `count: 589`, `latest_offset: 588`, and a
+replay of offsets 0–588 returning **zero** `topic_metadata` envelopes.
+
+**What is not measured, and I am not going to guess at it.** I did not establish
+*how* the description was lost. Two mechanisms are consistent with what is on
+disk — a hub restart recreating the topic (the description's own text warns
+"Topic state is hub-memory-only — recreate on swap (G-050)") followed by an
+abbreviated re-describe, or a direct overwrite with the shortened string that
+appears in this task's own Updates section. I have no evidence separating them,
+and the difference matters a great deal for what you do next.
+
+**What you are actually deciding.** Not whether to re-run `channel describe` —
+that part is a one-line fix. You are deciding whether this task's deliverable is
+*a string on a hub* or *a string that stays on a hub*:
+
+| Option | Action | Cost |
+|---|---|---|
+| Re-describe and close | one `channel describe` with the canonical text, verification goes green, close | ~5 min. But if the loss mechanism is retention or hub restart, you have restored something that will disappear again, and the next re-smoke pays this diagnosis cost a third time |
+| Re-describe, restore `forever` retention, then close | also `channel set-retention agent-chat-arc --retention forever` | slightly more; addresses one of the two candidate mechanisms. Note the topic-growth canary watches `agent-chat-arc` precisely because it is high-rate, so `forever` here is in tension with T-2252 |
+| Re-describe, close, and open a follow-up on durability | close this on its original scope; the "self-doc must survive a hub swap" question becomes its own task | keeps this task honest to what it chartered, at the cost of one more open item |
+
+**Why I should not decide this alone.** Restoring the description mutates live
+hub state on the shared coordination topic every agent in the fleet subscribes
+to, and the retention question directly contradicts a canary's watch list — that
+is a fleet-policy call, not a task-file edit. I have not run `channel describe`,
+`set-retention`, or any other mutating command, and I have not ticked anything.
+
+**If you want the text back:** the canonical 334-char wording is preserved in
+this task's 2026-05-04 Update and in the 2026-06-13 re-smoke entry; the current
+live string is not a truncation artefact of the display — `--json` returns the
+same 35 characters.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

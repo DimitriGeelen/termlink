@@ -126,6 +126,58 @@ grep -q "control_plane_version" crates/termlink-hub/src/router.rs
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** CLOSE — the [REVIEW] AC's Expected condition is live on both
+production hubs today. The evidence settles it; tick and complete.
+
+**Rationale:** The AC asks for exactly one observation: `hub.capabilities` on .122
+returning both `protocol_version: 1` and `control_plane_version: 3`. That was
+captured once in June against a 0.11.473 build, and the 2026-06-13 re-smoke could
+not reproduce it because .122 was then running a pre-deploy 0.11.806. Neither
+caveat survives. Re-measured today against the *current* deployed binaries, both
+fields are present, and the two-axis split this task exists to establish
+(control-plane semantics vs frame format) is visible on the wire.
+
+**Evidence:** 2026-08-27, `hub.capabilities` scope=execute —
+**.122** (`hub_version: 0.11.1411`): `control_plane_version: 3`,
+`protocol_version: 1`, `features.legacy_primitives: false`, 37 methods, no retired
+names. **.121** (`hub_version: 0.11.588`): identical on all four. Locally,
+`crates/termlink-hub/src/router.rs` emits `CONTROL_PLANE_VERSION` at both sites
+(`:822` hub.version, `:1076` hub.capabilities) and
+`hub_version_returns_binary_version_and_protocol_version` passes, asserting the
+field directly.
+
+**What you are actually deciding.** Only whether the wire evidence above is what
+you wanted to see. There is no design question left open — the two rejected
+alternatives (bump `default_protocol_version()`, bump `DATA_PLANE_VERSION`) were
+settled in Context on evidence that the AC's original premise was wrong, and
+nothing since has disturbed that.
+
+**Two things to know before you tick, because both would otherwise mislead.**
+
+1. **The AC's Steps are not runnable as written.** `termlink remote call --method
+   hub.capabilities` does not exist in the CLI — `unrecognized subcommand 'call'`
+   from both `target/release/termlink` and the installed `0.11.1612`. The
+   2026-06-13 re-smoke hit this and correctly logged it as operator-env-skip. The
+   working path is the `termlink_remote_call` MCP tool, which is what produced the
+   evidence above. If you want the recipe re-runnable later the AC text needs
+   updating; that is a task-file edit, not a code change.
+2. **One Verification line now passes vacuously.**
+   `cargo test -p termlink-hub --lib hub_capabilities` matches **zero tests** today
+   and therefore exits 0 — the cut-path test AC #5 cites,
+   `cut_path::capabilities_emits_control_plane_version`, no longer exists in the
+   tree (`grep` finds no definition). A filter matching nothing and a filter
+   matching a green test produce the same exit code, so P-011 cannot tell them
+   apart. This is the T-2830 vacuous-pass shape. It does **not** weaken the case
+   for closing — the live wire probe is stronger evidence than the deleted test
+   ever was, and the surviving `hub_version_returns…` test does assert the field.
+   It is worth knowing the gate here is thinner than it looks.
+
+**Why I am not just closing this.** The deliverable is proven, but the Human AC is
+a sovereignty gate and only you tick it. The two caveats above are also exactly the
+kind of thing where "the agent judged it fine" is the wrong record to leave.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

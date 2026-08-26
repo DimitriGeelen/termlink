@@ -175,6 +175,56 @@ date_finished: null
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** KEEP-OPEN — the remediation is branch-dependent on one fact
+only you hold ("is that laptop supposed to be on?"), and 13 days of evidence has
+narrowed everything else.
+
+**Rationale:** Both branches are cheap and neither is safe to guess. If the laptop
+is meant to be online, this is a real host outage and removing it from `hubs.toml`
+would delete the only thing reporting it. If it is meant to be off, leaving it
+listed makes every fleet sweep report a permanent `fail: 1`, which is the same
+signal-erosion problem T-2706/T-2709 spent a session correcting — a red number that
+is always red teaches its reader to stop looking. I can measure the outage; I
+cannot measure your intent for the machine, and guessing wrong is harmful in
+whichever direction I guess.
+
+**Evidence:** Re-measured on this host 2026-08-27, **13 days after filing**, and
+the picture is unchanged. `ping -c 2 192.168.10.141` → 100% packet loss;
+`/dev/tcp/192.168.10.141/9100` → `No route to host`; `fleet doctor --json` →
+`{"fail": 1, "pass": 4, "total": 5}` with the sole failure reading `Cannot connect
+to 192.168.10.141:9100 — is the hub running?: No route to host (os error 113)`.
+The other four hubs are serving (0.11.1196 ×2, 0.11.1411, 0.11.588), so the fleet
+is otherwise up. The Agent ACs' central claim is therefore confirmed and hardened
+by duration: this is HOST-level, not hub-level, and `systemctl restart
+termlink-hub` cannot be the fix for a machine you cannot route to. Note the
+de-noising is already **partially** done — `.context/cron/fleet-version-floors.conf`
+line 80 carries `laptop-141 -`, exempting it from the binary-freshness canary; what
+remains noisy is `fleet doctor`'s own `fail: 1`. **Not measured:** whether the
+laptop is powered off, off-network, or on a different subnet — `No route to host`
+cannot distinguish those.
+
+**What you are actually deciding.** One bit, then a follow-on:
+
+| Answer | Meaning | Action |
+|---|---|---|
+| "It should be online" | 13-day host outage nobody escalated | power/network/routing to .141; PL-219's informational-only rule is why nothing escalated — worth asking whether that rule is right for a hub down this long |
+| "It's a laptop, it's shut" | expected-offline, permanently listed | drop `[hubs.laptop-141]` from `hubs.toml`, or keep it and accept a permanent `fail: 1` — the cost of keeping it is that `pass: 4/5` stops meaning anything |
+
+**Why I should not decide this alone.** Removing a hub from `hubs.toml` is
+outward-facing configuration that silences a real signal. If the machine matters
+and I quiet it, the next genuine outage is invisible; that is precisely the
+blindness class this project files gaps about. The question takes you seconds and
+takes me an unverifiable assumption.
+
+**Worth recording either way (a clean bill, since this task is otherwise all bad
+news).** The follow-up probe noted in the Agent AC block found
+`topic_durability=true` DURABLE across all four reachable hubs — every one on
+`runtime_dir=/var/lib/termlink` with `runtime_dir_volatile=false`. PL-021, the
+volatile-`/tmp` rotation that historically broke this fleet most often, is
+structurally closed fleet-wide.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

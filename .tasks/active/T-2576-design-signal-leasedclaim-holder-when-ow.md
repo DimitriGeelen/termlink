@@ -168,6 +168,60 @@ worker recovers) is a design decision, not a mechanical fix.
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** GO on the advisory half only — expose the at-risk predicate the
+code already computes, and make the example worker consult it. Leave
+advisory-vs-mandatory as a separate, later decision.
+
+**Rationale:** The task was filed as an expensive contract change. Reading the code
+today, the plumbing already exists and the remaining work is a few lines. The
+renew task publishes `claimed_until` into a shared atomic; `LeasedClaim` already
+exposes it publicly; and the exact at-risk predicate is already written and in use
+— it is just private and wired only to a `warn!`. So the holder-side signal is not
+a design problem, it is an accessor. What genuinely remains a human decision is the
+*semantics* (advisory flag vs hard stop, and how a worker recovers), and that half
+does not need to block the cheap half.
+
+**Evidence (measured 2026-08-27, `crates/termlink-session/src/claim_client.rs`):**
+- `pub fn claimed_until(&self) -> i64` at **line 599–601** — already public, reads
+  `Arc<AtomicI64>` that the renew task stores into at line 679. So a worker can
+  compute its own at-risk state today, from the public API, with no contract change
+  at all.
+- `fn transient_renew_lease_at_risk(now_ms, claimed_until) -> bool { now_ms >= claimed_until }`
+  at **line 662–663** — the predicate the task describes as needing design is
+  already written and documented (inclusive boundary, matching the hub's own
+  `claimed_until <= now` expiry). It is private and consumed only by the T-2575
+  `warn!` at line ~697.
+- `crates/termlink-session/examples/parallel_worker.rs:170` — the canonical worker
+  sleeps for `FAKE_WORK_MS`, then acks. It **never consults `claimed_until()`**.
+  Its comment even asserts "long sleeps wouldn't lose the slot", which is the belief
+  this task exists to correct. The example teaches the unsafe pattern.
+- Whether duplicate work has actually occurred in the field: **not measured**. The
+  risk is structural, not an observed incident.
+
+**What you are actually deciding.** The task bundles two questions of very
+different cost. Separating them:
+
+| Option | Cost |
+|---|---|
+| **Advisory accessor + fix the example** (recommended GO) | Small and additive: promote the existing predicate to a public `ownership_in_doubt()`, have the example check it before `ack()`, add a test that a lapsed lease reports true. Nothing existing breaks. |
+| Mandatory hard-stop (`ack()` refuses when in doubt) | Changes what a correct worker is, and can refuse an ack for work that genuinely completed inside the lease. Needs your call. |
+| Do nothing; T-2575's `warn!` is enough | Free, but the warning goes to the operator, not to the worker — the holder still cannot ask, and the example still teaches the unsafe pattern. |
+
+**Why I should not decide the second row alone.** Whether a doubtful claim must
+*stop* a worker is a correctness-vs-availability trade in your workload: a hard stop
+prevents duplicate work at the price of discarding work that actually finished in
+time. That depends on whether your units are idempotent, which is a property of the
+work, not of the substrate.
+
+**If you take the GO:** the third Human AC asks for a build task with concrete ACs
+and a load-bearing test. The load-bearing one is the example: a worker that observes
+ownership-in-doubt and declines to ack, failing if the accessor is reverted. Note
+that this recommendation narrows the filed scope — the mandatory half stays open,
+and should be recorded as such rather than treated as closed by the cheap half
+shipping.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

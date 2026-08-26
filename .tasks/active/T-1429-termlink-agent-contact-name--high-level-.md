@@ -134,6 +134,63 @@ target/release/termlink agent contact --help 2>&1 | grep -q "Phase-1"
 target/release/termlink agent contact --help 2>&1 | grep -q "T-1427"
 target/release/termlink agent contact framework-agent --message "x" 2>&1 | grep -q "T-1436"
 
+## Recommendation
+
+**Recommendation:** CLOSE — the verb this task chartered is built, shipped and in
+daily use; the three unticked ACs are a different piece of work and should be
+split out rather than held here.
+
+**Rationale:** The task's charter was "wrap the discover → resolve-DM-topic →
+post pattern into one verb so vendored agents stop improvising primitives". That
+is done and has been for months. What is holding the task open is not the verb —
+it is three Agent ACs explicitly labelled Phase-2, one of which is blocked on
+another task that has not shipped. Holding a delivered verb open on a blocker it
+does not own means the register disagrees with reality, and every re-smoke
+session re-pays the cost of working out which parts are real.
+
+**Evidence:** Measured 2026-08-27 against `target/release/termlink` (v0.11.1612).
+Three of four Verification lines pass under `set -euo pipefail`: `--help`
+contains `T-1425`/`RFC`, `Phase-1`, and `T-1427`. The fourth fails, and it is a
+**stale assertion, not a regression** — `agent contact framework-agent --message
+x` no longer says "T-1436"; it now returns the better message "Session
+'framework-agent' not found locally or as a LIVE peer on any hub in hubs.toml …
+Run `termlink agent find-idle` (or the /peers skill) … or pass --target-fp
+<hex>". The grep is asserting wording that was deliberately improved. Blocking
+dependency **T-1427 is still `started-work`** in `.tasks/active/`. Of the ACs
+above, 22 are ticked (including all of Phase-1 and the shipped Phase-2 flags
+`--thread`, `--file`, `--require-online`, `--online-window-secs`,
+`--ack-required`, `--ack-timeout-secs`, `--target-fp`) and 3 are not. Live
+end-to-end posting to a named remote peer was **not measured** in this session —
+the last such measurement is the 2026-06-13 dry-run entry in Updates.
+
+**What you are actually deciding.** Not whether the verb works. You are deciding
+where the remaining three ACs live:
+
+- `name@hub:port` federated name syntax — needs a cross-hub discovery overlay
+  that does not exist. `--target-fp <hex>` is the shipped workaround and is
+  documented in the verb's own error message.
+- `metadata.from` stamping with hub-side strict-reject — **blocked on T-1427**,
+  which is still open. Nothing in this task can move it.
+- `docs/reference/cli.md` entry — real doc debt, currently in-CLI help only.
+
+| Option | Action | Cost |
+|---|---|---|
+| Descope + close | move the three ACs into a follow-up task, repair the stale grep, close cleanly | ~20 min; register matches reality; the federated-name work gets its own visible home |
+| Close with `--force` | bypass P-010/P-011 | fast, but leaves three unticked ACs inside a completed task, where nobody will find them again |
+| Keep open until T-1427 ships | leave as-is | T-1427 has been open since April; this task then stays open indefinitely for a reason it does not control |
+
+**Why I should not decide this alone.** Two of the three routes need a
+sovereignty-gated action I am not permitted to take autonomously: closing with
+unticked Agent ACs requires `--force`, and the `[REVIEW]` Human AC is yours by
+construction. The descope route also creates a task, which is a scoping decision
+about how much of Phase-2 you still want — I can execute it, I should not choose
+it. Note also that the Human AC's Steps cite the pre-rename flags `--ack-wait`
+and exit codes 6/7; the shipped names are `--ack-timeout-secs` / exit 10 and
+`--require-online` / exit 9. If you walk those steps verbatim they will not
+parse — the AC text needs the same repair as the grep.
+
+**Nothing was ticked or mutated here.** No live post was sent to any peer.
+
 ## Decisions
 
 ### 2026-05-01 — Identity-discovery prereq blocks Phase-1 build

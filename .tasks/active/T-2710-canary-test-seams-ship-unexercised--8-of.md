@@ -201,6 +201,56 @@ Nothing tests that today.
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** CLOSE this task, and file the remaining 7 fixture suites as a
+separate backlog item — later, not now.
+
+**Rationale:** This task delivered a complete, self-contained slice: it measured
+the gap honestly and built the single highest-value suite, chosen because that
+canary's blindness is the one with a measured cost (T-2709 fired daily on latched
+debris for ~62 days with no test noticing). Folding 7 more suites in would break
+"one task = one deliverable" and turn a finished slice into an open one. Building
+them *later* rather than *now* is the weaker half of my recommendation and rests
+on a real limit: the remaining 7 protect an exit-code contract that is currently
+unverified but not currently known to be wrong. That is worth closing, but it is
+maintenance value, not incident value — no measured defect is waiting on it.
+
+**Evidence:** Re-measured on this host 2026-08-27 and the table in Context is
+accurate. `grep -l "_TEST_JSON\|_TEST_RC" scripts/check-*.sh` returns exactly the
+9 named canaries; `tests/` contains `charter-drift-check-fixtures.sh` and
+`stuck-claims-check-fixtures.sh` and no other member of that set — so 9 seams, 2
+suites, **7 remaining**, unchanged since filing. 10 of 11 Agent ACs are ticked.
+The 11th ("the remaining 7 are named in this task") is **satisfied in substance**
+by the table in Context, which names all seven with their seam status — I have not
+ticked it, and it is yours or the agent's to tick. **Not measured:** whether any
+of the 7 canaries actually mistranslates a verdict today. Nobody has run them
+against canned JSON — that is the whole point of the gap, and it means "probably
+fine" is an assumption, not a finding.
+
+**What you are actually deciding.** Pure scope, per the Human AC:
+
+| Option | Cost | Consequence |
+|---|---|---|
+| File the 7 as backlog, close this (recommended) | ~0 now | contract stays unverified for 7 canaries; the gap is visible and dated rather than forgotten |
+| Build all 7 now | ~140 assertions, 7 × the shape of `stuck-claims-check-fixtures.sh` | the exit-code contract every canary depends on becomes verified fleet-wide |
+| Do neither | ~0 | the gap reverts to implicit — the PL-168 state this task exists to end |
+
+**Why I should not decide this alone.** "Build all 7 now" is genuinely defensible:
+T-2557 states plainly that keeping tooling errors out of the firing class is what
+makes a firing log meaningful, and a canary returning 0 when it should return 2
+reports a broken substrate as healthy. Whether that unverified contract is worth a
+session now is a backlog-priority judgement against everything else competing for
+one, and I cannot see that queue the way you can. The one option I would argue
+against is the third — the AC's own words are that the point is "they are not
+silently forgotten."
+
+**Honest scope note, restated because it is easy to lose.** A fixture feeds the
+canary canned JSON, so it verifies only the canary's *translation* of a hub verdict
+into an exit code. None of these 7 suites would have caught T-2709 itself, which
+lived upstream in the CLI predicate computing `stuck_count`. Do not read a
+completed sweep as coverage of the canaries' subject matter.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

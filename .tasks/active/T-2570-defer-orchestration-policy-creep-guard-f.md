@@ -163,6 +163,58 @@ until a human decides whether periodic architectural review is worth formalising
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** CLOSE — record non-goal #4 as a knowingly-accepted gap guarded
+by human architectural review, not by an automated check.
+
+**Rationale:** The task's third Human AC already names this as a valid outcome
+("if 'no automated guard', close with that rationale so the gap is
+knowingly-accepted, not silently open"), and the repo's own guard-design experience
+argues for it. This codebase has repeatedly found that a detector with no reliable
+signature is worse than none: T-2818 documents 150 findings teaching an operator to
+force past a gate, and T-2833's first draft produced 58 findings that were all
+legitimate and had to be narrowed before the check was usable. "A scheduler loop, a
+retry-policy default, a priority heuristic" have no syntactic form to anchor on, so
+a grep-shaped guard lands squarely in that class. Closing with the reason recorded
+converts an open question into a documented decision; leaving it open converts it
+into a recurring re-litigation.
+
+**Evidence (measured 2026-08-27, this repo):**
+- `non-goal #4` appears in **exactly one file**,
+  `crates/termlink-session/src/ack_retry.rs` (2 lines), confirming the task's claim
+  that the only guard is one self-documenting doc-comment. Read in place: it states
+  auto-resume "is orchestration policy that belongs to the AEF layer, not the hub".
+- No static check, canary, or fixture references non-goal #4 or mechanism-vs-policy.
+- Whether policy has ALREADY crept into the substrate crates: **not measured**. I
+  did not audit the crates against the non-goal. That matters — see below.
+
+**What you are actually deciding.** Whether periodic human architectural review is
+an acceptable guard for a semantic non-goal:
+
+| Option | Cost |
+|---|---|
+| **Close as knowingly-accepted** (recommended) | Non-goal #4 has no daily detection. Real, but it never did, and a bad detector would not give it one. |
+| Curated denylist of policy-shaped constructs | Someone must maintain the list; it catches only shapes already thought of, and reads as full coverage when it is not — the T-2680 failure mode. |
+| ADR gate on new substrate-crate public APIs | The most defensible option and the only one that scopes to a real decision point. Costs process on every new public API, forever. |
+
+**The gap in my own recommendation, stated plainly.** I am recommending you close a
+guard task without anyone having checked whether the thing it guards is currently
+violated. A one-off audit of the substrate crates against non-goal #4 is a different
+and cheaper question than a standing guard, and it would tell you whether you are
+accepting a clean boundary or an already-blurred one. If that answer would change
+your decision, get it before closing.
+
+**Why I should not decide this alone.** Whether the mechanism/policy boundary is
+worth process cost is an architectural judgement about how you intend the substrate
+and AEF to evolve. I can show that a cheap detector would be bad; I cannot tell you
+whether an ADR gate is worth its friction.
+
+**If you prefer to keep it open:** the ADR-gate option is the one to pursue —
+narrow it to "new public API on a substrate crate requires a one-line
+mechanism-vs-policy justification", which is a review checklist item rather than a
+static check.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

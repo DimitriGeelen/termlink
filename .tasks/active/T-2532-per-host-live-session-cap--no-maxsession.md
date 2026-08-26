@@ -189,6 +189,64 @@ fork-bomb safety, not adversarial-peer defense** — lower severity than a remot
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** DEFER — do not ship a cap until someone measures the real
+live-session distribution on this fleet. Set a revisit trigger rather than guessing
+a default.
+
+**Rationale:** The finding is confirmed: there is no bound of any kind. But every
+one of the four open questions reduces to one number nobody has measured — how many
+sessions a legitimate orchestrator actually runs. A cap set too low refuses real
+work with a loud error on a path that currently always succeeds, which is a
+*worse* failure than the unbounded case it prevents, because it fires on correct
+usage. The unbounded case fires only on a bug that has not been observed here. That
+asymmetry says measure first, and the task's own filing agrees ("Do NOT
+guess-and-ship").
+
+**Evidence (measured 2026-08-27, this repo):**
+- `grep -rn "MAX_SESSIONS" crates/` → **zero hits**. So do
+  `TOO_MANY_SESSIONS`, `max_sessions`, `session_cap`. The absence is total, not
+  partial — there is no cap to tune, anywhere.
+- Spawn/register entry points found: `session.rs:225 cmd_register`,
+  `execution.rs:394 cmd_spawn`, MCP `tools.rs:12489 termlink_spawn` — plus a
+  **fourth the task does not name**: `session.rs:499 cmd_register_self`, which its
+  own comment describes as "parity with cmd_register" (duplicated, not delegating).
+  It is event-only, so it costs a process and a session file but no PTY FD pair —
+  a different cost profile, still uncapped. Any cap scoped to the three named
+  entry points leaves this one open.
+- Actual live-session counts on this or any fleet host: **not measured**. The
+  runtime dir is outside this project's boundary and I did not sample it.
+- Remote reachability of the spawn path: I did not re-verify the task's
+  `register_remote`-only claim; treat it as the filing agent's finding, not mine.
+
+**What you are actually deciding.** Not "is the gap real" — it is. You are choosing
+between three postures:
+
+| Option | Cost |
+|---|---|
+| **Defer with a trigger** (recommended) | The gap stays open. Cheap, because the exposure is local-only and self-inflicted; a host that fork-bombs itself is a host you already control. |
+| Ship a per-host cap now with a guessed default | You will pick a number with no data. If it is low, legitimate orchestration starts failing loudly; if it is high enough to be safe, it stops being a meaningful bound. |
+| Close as knowingly-accepted, document the footgun | Honest and cheap, but discards the finding — including the fourth entry point above, which nothing else records. |
+
+**A cheaper middle path worth considering.** The four questions all assume the
+remedy is a cap. Emitting the current live-session count as telemetry costs no
+policy decision at all, cannot refuse anyone's work, and produces exactly the
+measurement that unblocks every one of the four. If you want progress without a
+policy call, that is the move.
+
+**Why I should not decide this alone.** "Default value needs an operator's sense of
+realistic fleet session counts" is the task's own framing and it is correct. A
+number I invent becomes a refusal that fires on your workload, not mine. The
+per-host-vs-per-caller question is likewise structural: caller identity is genuinely
+absent at the spawn site, so choosing per-host is choosing to accept that a single
+misbehaving caller consumes the whole budget.
+
+**If you defer:** set `revisit_at` plus `revisit_evidence_needed:` naming the
+measurement — e.g. "observed peak live-session count across the fleet over 30 days"
+— so the G-053 scan can surface it when that number exists. A bare defer with no
+trigger is how this returns unchanged in six months.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

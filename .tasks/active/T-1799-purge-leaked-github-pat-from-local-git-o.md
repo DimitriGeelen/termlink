@@ -130,6 +130,61 @@ test "$(git for-each-ref refs/replace 2>/dev/null | wc -l)" = "0"
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** CLOSE — the security outcome is intact and re-verified today;
+clear the 690 regressed `refs/replace/*` first so the close is honest rather than
+forced.
+
+**Rationale:** The purpose of this task was to make the live PAT unreachable from
+the object store and unable to be re-committed. Both hold as of 2026-08-27. What
+does NOT hold is one housekeeping assertion: a SECOND `git filter-repo` run on
+2026-06-08 (a week after the "closure-ready" update below) re-created 690
+`refs/replace/*` refs, so the task's own `## Verification` line asserting that
+count is `0` fails right now and P-011 will block completion. Those refs anchor no
+token — the object scan proves it — so this is a stale assertion, not a reopened
+leak. It should be cleared, not `--force`d past.
+
+**Evidence (measured 2026-08-27, this repo):**
+- `git check-ignore .context/approvals/resolved-772d160ab769.yaml` → ignored. OK
+- Both known token-bearing blobs `1167a726…` / `71ab1eed…` → `cat-file -e` **absent**. OK
+- Full object-store scan, **42441 blobs** (up from 21518 at the last check):
+  **zero** strings matching a real fine-grained-PAT shape
+  (`github_pat_[A-Za-z0-9]{22}_[A-Za-z0-9]{59}`). The 154 lines that match the bare
+  substring `github_pat_` are prose mentions plus test fixtures
+  (`github_pat_AAA`, `github_pat_TESTTESTTEST`, `github_pat_finegrained`) — checked,
+  not assumed. OK
+- `git for-each-ref refs/replace | wc -l` → **690**, not 0. **FAILS** the task's own
+  Verification. `.git/filter-repo/*` is dated 2026-06-08, identifying the cause.
+- Whether the PAT is revoked on GitHub: **not measured** — I cannot see
+  github.com/settings/tokens. The 2026-06-01 update below records rotation on
+  2026-05-18 from session memory; that is a report, not evidence I re-confirmed.
+
+**What you are actually deciding.** Two things, and only the first is genuinely
+yours:
+
+1. **Is the Human REVIEW AC satisfied?** Only you can open
+   github.com/settings/tokens and confirm the token ending `…7ehL` shows revoked.
+   If it does, the AC is met and this closes. If it does not, the credential is
+   still live and this stops being a housekeeping task and becomes an incident —
+   the git cleanup does nothing about a token that is still valid.
+2. **How to clear the failing Verification line.** Options:
+
+| Option | Cost |
+|---|---|
+| `git replace -d $(git for-each-ref --format='%(refname:short)' refs/replace)` then re-run Verification | A minute; restores the assertion truthfully. Recommended. |
+| Amend the Verification line to tolerate filter-repo cruft | Cheap, but silently weakens a check that has already caught one regression — this one. |
+| `--force` past the gate | Records a completion whose stated evidence is false. |
+
+**Why I should not decide this alone.** The only remaining question that matters is
+whether a real credential is still valid on a third-party service, and that is not
+observable from inside this repo. An agent asserting "rotated" on the strength of a
+prior session's note is exactly the kind of confident-but-unverified claim that
+makes a security closure worthless.
+
+**If the token is NOT revoked:** do not close. Revoke it, mint a replacement,
+update OneDev's `github-push-token`, then return here.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

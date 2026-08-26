@@ -177,6 +177,58 @@ different cost/telemetry/compat profile — a human/design call.
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** GO — adopt option (b): fold a gap indicator into the
+`channel.subscribe` response whenever the walk started past `oldest_offset`.
+
+**Rationale:** All three options accept that bounded retention deletes old
+records — that part is charter non-goal #2 working as designed and is not in
+dispute. What is in dispute is only whether the subscriber is *told*. Option (b)
+is the sole option that delivers the signal at the moment of loss, to the party
+that suffered it, without anyone having to remember to ask. Option (c) leaves
+detection opt-in, which is PL-168's dormant-tooling class — the failure this repo
+has closed repeatedly elsewhere. Option (a) fixes silence by refusing the sweep,
+which converts a detectable data-loss problem into an unbounded-growth one: an
+abandoned subscriber's stale cursor would pin its topic forever, exactly the
+failure T-2562's forever-archival canary exists to catch, reached from the other
+direction.
+
+**Evidence:** Measured in-tree 2026-08-27. `sweep_records`
+(`crates/termlink-bus/src/meta.rs:333`) takes `(topic, keep_after_ts_ms,
+keep_last_n)` — there is no cursor parameter at all, confirming the filed claim of
+zero cursor awareness. `Bus::gap_before` exists at
+`crates/termlink-bus/src/lib.rs:329` with two tests (`:1191` fell-behind,
+`:1214` no-false-positive-when-caught-up), so the detection primitive is already
+built and pinned — option (b) is wiring an existing capability into the default
+path, not new detection logic. **Not measured:** whether any real subscriber has
+ever lost unread records here. That absence is not evidence of safety — the
+subscribe reply is by construction indistinguishable from a healthy read, so a
+live occurrence would leave no trace to count.
+
+**What you are actually deciding.** Not whether the gap is real — the repro in
+Context is deterministic and the code confirms it. You are deciding what TermLink
+*promises* a subscriber: that it will be told when it lost records, or that
+checking is its own job.
+
+| Option | Behaviour | Cost |
+|---|---|---|
+| (b) inline gap in subscribe (recommended) | every subscribe past `oldest_offset` carries `gap: {from, to}` | response-shape change (additive, so older clients ignore it); one extra `oldest_offset` read per subscribe on a hot path |
+| (c) keep opt-in verbs + document | `gap_before` / `oldest_offset` stay the sanctioned path | the silent path stays silent; detection depends on a caller remembering — PL-168 dormant tooling |
+| (a) sweep-side guard below min live cursor | refuse/warn when a sweep would delete below the lowest live cursor | an abandoned subscriber pins its topic and it grows unboundedly (T-2562 inverted); also needs a "live subscriber" liveness definition that does not exist today |
+
+**Why I should not decide this alone.** Options (b) and (c) are both defensible
+readings of the charter, and they disagree about what "durable" means — (b) says
+durability includes being told when it lapsed, (c) says durability is
+best-effort-with-tools-to-check. That is a promise the project makes to its
+consumers, not a correctness question the code can settle. Option (a) I would
+argue against on evidence; between (b) and (c) I can only state the trade.
+
+**If you pick (c):** the second Human AC still matters — record *where* the
+contract is stated, or the sanctioned detection path is folklore. **If you pick
+(b):** the load-bearing test named in the third Human AC is the repro already
+written in Context, asserted to return a gap rather than a clean read.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

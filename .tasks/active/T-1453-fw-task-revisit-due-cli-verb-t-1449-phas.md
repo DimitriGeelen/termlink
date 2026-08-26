@@ -81,6 +81,58 @@ Channel-1 mirror to upstream `/opt/999-AEF` is in scope (per task tag `channel-1
 test -x .agentic-framework/agents/context/revisit-due-scan.sh
 bash .agentic-framework/agents/context/tests/fw-task-revisit-due-test.sh
 
+## Recommendation
+
+**Recommendation:** GO — approve the [REVIEW] AC. The verb works, and it turned
+out to be the only working half of the G-053 revisit trio.
+
+**Rationale:** When this task's evidence was last refreshed (2026-06-13) the verb
+printed "No revisits due today" and that read as a clean pass. It was not proof of
+anything — the repo genuinely had nothing ripe, so the populated path was never
+exercised. Today it is, and the verb resolves it correctly. More than that: T-2810
+established that the *cron* half of this mechanism (T-1452) had been silently
+finding nothing for months because `revisit-due-scan.sh` walks up from its own
+`BASH_SOURCE` and stops at the vendored `FRAMEWORK.md`. The on-demand verb escapes
+that because `fw` exports `PROJECT_ROOT` before delegating. So the deliverable is
+not merely working, it is the surface that made two long-ripe revisits visible.
+
+**Evidence:** `fw task revisit-due` run in this repo 2026-08-27 prints
+`Ripe revisits (2026-08-26 UTC) — 2 task(s):` followed by
+`T-1898 fires 2026-07-06:` and `T-2250 fires 2026-07-25:` — the exact line format
+AC #2 specifies, exit 0. Those are the same two tasks CLAUDE.md records as having
+been ripe 45 and 26 days with nothing surfacing them. Against that: the fourth
+Verification line, `bash .agentic-framework/agents/context/tests/fw-task-revisit-due-test.sh`,
+**FAILS today** (`FAIL: ripe-found case — T-9001 line missing or malformed`, exit 1).
+
+**What you are actually deciding.** Not whether the verb works — that is measured
+above. You are deciding how to close a task whose own verification command is now
+broken by a defect in vendored code.
+
+The test builds a sandbox `PROJECT_ROOT` and runs the verb with PWD inside it. It
+no longer isolates: from any CWD the verb scans `/opt/termlink` regardless. Shown
+directly — `cd $sandbox && fw task revisit-due` returned this repo's 2 real
+revisits, while `PROJECT_ROOT=$sandbox fw task revisit-due` returned
+`T-9001 fires 1999-01-01: ripe fixture`. That is the **same PROJECT_ROOT
+resolution defect T-2810 documented**, hitting the test harness instead of the
+cron. The verb is fine; the fixture is unreachable.
+
+| Option | What it costs |
+|---|---|
+| Complete with `--force`, noting the test failure and its cause | a logged Tier-2 bypass on a task whose gate genuinely fails; the broken test stays broken and will fail for the next person |
+| Fix the test to export `PROJECT_ROOT`, then complete cleanly | the test is **vendored** (`.agentic-framework/agents/context/tests/`) — G-062 says the next `fw upgrade` deletes the fix. Belongs upstream, and this landing session is scoped to task files only |
+| Keep open until the upstream PROJECT_ROOT resolution lands | the deliverable has been done since May and is demonstrably load-bearing; the task stays open on someone else's repo |
+
+**Why I should not decide this.** Every route out of here needs something the
+agent is not permitted to do alone: `--force` is a Tier-2 bypass and CLAUDE.md's
+Autonomous Mode Boundaries name it explicitly as not delegated; the clean fix
+edits vendored code this session is scoped away from. Which of the three is right
+also depends on whether you want the upstream filing made first, which is your
+call about sequencing, not a correctness question.
+
+**If you disagree:** the one thing worth not losing is that the test failure is a
+harness defect, not a regression in the verb. Anyone reading a red P-011 gate here
+in six months will reasonably assume the opposite.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

@@ -216,6 +216,65 @@ test -f target/release/termlink
 ./target/release/termlink remote exec laptop-141 "$(./target/release/termlink remote list laptop-141 2>/dev/null | tail -n +3 | awk 'NF>0 {print $1}' | head -1)" 'PATH=/home/dimitri/bin:/usr/local/bin:/usr/bin:/bin termlink channel --help' 2>&1 | grep -cE '^  [a-z]' | grep -q "^53$"
 ./target/release/termlink channel members --hub laptop-141 agent-chat-arc 2>/dev/null | grep -q "6604a2af482f0cf7"
 
+## Recommendation
+
+**Recommendation:** CLOSE — the deploy succeeded on 2026-04-30, was independently
+re-smoked green on 2026-05-31, and `.141` is now a host the fleet config itself
+declares usually-unreachable. Waiting for it to return will not produce better
+evidence than what is already recorded.
+
+**Rationale:** The deliverable was "get `.141` off `0.9.1482` onto a build with all
+53 channel subcommands." It was done twice over: the base64-over-remote-exec transfer
+landed `0.9.1591` with a verified sha, and a month later `.141` was independently
+observed on `0.9.1702` — the laptop had pulled further upstream on its own cadence —
+still at 53/53, with its hub up and its agent identity actively posting to
+`agent-chat-arc`. There is no plausible reading in which the 29-command gap this task
+names still exists. What blocks closure is not doubt, it is that all three Human ACs
+and all three verification lines require a live `.141`, and `.141` is off the network.
+
+**Evidence:** `termlink fleet doctor` 2026-08-27 → `laptop-141 (192.168.10.141:9100)
+[FAIL] Cannot connect — No route to host (os error 113)`; `termlink remote list
+laptop-141` → same. `.context/cron/fleet-version-floors.conf:80` sets `laptop-141 -`
+(floor-exempt) with the comment *"Expected-transient WSL laptop (PL-219): usually
+unreachable; when up it runs its own install cadence."* The green evidence is the
+2026-05-31 Updates entry: `termlink --version` → `0.9.1702`; `channel --help |
+grep -cE "^  [a-z]"` → `53`; `hub status` → running PID 121265; `channel members
+--hub laptop-141 agent-chat-arc` → identity `6604a2af482f0cf7` with 432 posts,
+last post ~14 minutes before capture.
+
+**Read this before running the completion gate.** All three `## Verification` lines
+dial `.141` over `remote exec`. They cannot pass today and will block
+`--status work-completed` for the host's absence, not for anything about the work.
+The version regex they carry (`termlink 0.9.15xx`–`0.9.9xxx`) is also now historical:
+the rest of the fleet is on `0.11.x`, and `.141` was already past the pinned target
+in May. So the gate is asserting a `0.9`-era threshold about an offline machine.
+
+**What you are actually deciding.** Whether a rubber-stamp may rest on evidence
+captured 12 weeks ago from a host that is expected to be offline most of the time.
+
+| Option | What happens | Cost |
+|---|---|---|
+| CLOSE on the May evidence (recommended) | task closes; the verification block has to be relaxed or `--force`d | you sign off on a state you cannot re-observe today; if `.141` was rebuilt since May, nobody would know |
+| KEEP-OPEN until `.141` returns | you get a live re-smoke | the host is *declared* usually-unreachable — this is an open-ended wait with no scheduled end, on a task whose subject was a `0.9.x` build the fleet left ~1000 commits behind |
+| Re-verify opportunistically, then close | strongest evidence | requires someone to notice `.141` is up and act in that window |
+
+**On the `--force` question specifically.** If you close this, the verification block
+needs changing rather than forcing — a `--force` here would be logged as "bypassed the
+gate" when the honest statement is "the gate targets a decommission-adjacent host and
+a superseded version threshold." Those are different facts and the record should say
+the second one. I have not touched the block; that edit is a decision about what the
+task should assert, which is yours.
+
+**Not measured.** I could not confirm `.141`'s current binary, its hub state, or
+whether it still exists as a fleet member. Nothing here distinguishes "laptop is off"
+from "laptop was reimaged" — the two look identical from this side, and only the first
+is consistent with closing on May's evidence.
+
+**Why I should not decide this.** Both remaining Human ACs are `[RUBBER-STAMP]`, which
+in this framework means mechanical-but-yours; and the underlying question — is a
+transient laptop still a fleet host we hold tasks open for — is a scope call about the
+fleet, not a fact I can read out of the repo.
+
 ## Decisions
 
 ### 2026-04-30 — Why two methods (build-on-target + binary-push)
