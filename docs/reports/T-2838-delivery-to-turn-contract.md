@@ -452,7 +452,7 @@ receipt.
    the phantom lag happen to differ. It is an invariant guard, not regression coverage, and
    is labelled as such in the source rather than counted toward the fix.
 3. ~~**Land `assignment.v0` + `result_manifest.v0` as typed helpers.**~~
-   **LANDED 2026-08-26 — commit `%COMMIT%`.** `crates/termlink-session/src/assignment.rs`.
+   **LANDED 2026-08-26 — commit `dc342d4f7`.** `crates/termlink-session/src/assignment.rs`.
 
    S3's finding held: no protocol change was needed, so the module sits in `termlink-session`
    next to `ack_retry` rather than in `termlink-protocol`. `msg_type` stays free-form,
