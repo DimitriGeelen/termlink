@@ -4348,3 +4348,15 @@ learnings:
   task: T-1427
   date: 2026-08-26
   context: Added via context agent
+- id: PL-362
+  learning: "A deduplication that adds the shared definition without DELETING the copies leaves the codebase strictly worse than before: same duplication, plus a document asserting it is gone. web/shared.py:681 render_markdown_safe says it was 'promoted here to break the blueprint-private parser pattern (T-1575 RCA)' — the promotion happened and tasks.py:364 _render_md_inline + tasks.py:385 _render_md_block survived alongside it. Three implementations of one contract, all handing the same unstated '| safe' obligation to callers, and a docstring telling the next maintainer the pattern was broken. Caught only because 832-Workflow-designer measured their own instance instead of trusting our trace; our one-line fix to the promoted renderer would have left /approvals broken while the file a maintainer opens to verify looked correct. When collapsing N implementations into one, the landing is the DELETION, not the addition."
+  source: unknown
+  task: T-2839
+  date: 2026-08-26
+  context: Added via context agent
+- id: PL-363
+  learning: "SCOPE THE SEARCH TO WHERE THE FACT IS ALLOWED TO LIVE. Three instances in one week, same root, escalating cost: (1) a '## Decisions' heading anchor matched a backticked mention of it inside an acceptance criterion — caught by an assert; (2) a '- [ ] [REVIEW]' count matched the task template's worked EXAMPLE inside an HTML comment, so my count read 3 where the canonical predicate (count_unchecked_human_acs, which strips comments) read 2; (3) a '^revisit_at:' frontmatter scan matched BODY PROSE in T-2090 where the author had written three times that the trigger is consumer-demand-based and not date-based — I read the sentence as config and OVERWROTE A DOCUMENTED DECISION with a default date. (4) grepping approvals.py with '^from|^import' found no renderer because the import is inside a function at :336, so I filed an upstream bug naming the wrong producer. Frontmatter keys are meaningful above the closing ---; headings are meaningful at column 0; imports can live inside functions. A regex over a whole document cannot tell a declaration from a mention of one, and the failure is silent and confident."
+  source: unknown
+  task: T-2839
+  date: 2026-08-26
+  context: Added via context agent
