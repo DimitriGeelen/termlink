@@ -325,6 +325,35 @@ as T-2801, whose own AC asserts this repo reports P-043 as STRANDED), so the gua
 firing correctly and holding the envelope visible for your disposal. That disposal is a
 decision, not a measurement, and it is the one thing here nobody can do for you.
 
+**What AC#3 actually unblocks, measured 2026-08-26.** The recommendation above says
+disposing of P-043 "unblocks seven agent task closures today". Confirmed mechanically,
+and it is exactly seven. These active tasks each have every Agent AC ticked, nothing
+outstanding for a human, and a `## Verification` leg that runs the guard layer — which
+is red for one reason only, `check-pickup-deferred-freshness` firing on P-043:
+
+    T-2684  single entry point for the source-level guard layer   (4 legs)
+    T-2685  canary crontabs merge tooling errors into findings     (2 legs)
+    T-2686  release pipeline publishes binaries without running    (1 leg)
+    T-2688  check-silent-exit misses a bare exit                   (1 leg)
+    T-2693  nothing detects a new platform-locked primitive        (2 legs)
+    T-2699  nothing detects a defined-but-unused error code        (1 leg)
+    T-2758  recent-chat goes blind on retention-trimmed topics     (1 leg)
+
+Measured by attempting the closure: `fw task update T-2684 --status work-completed`
+refuses with "Cannot complete — 1/5 verification(s) failed", and the failing leg is the
+guard layer with `FAIL static-check check-pickup-deferred-freshness.sh`. The gate is
+behaving correctly; the tasks are genuinely finished and genuinely blocked.
+
+So AC#3 is not housekeeping. One decision — dispose of P-043 deliberately, act on it or
+drop it — turns seven finished tasks from blocked to closable. The other ten tasks in
+the same "finished but still started-work" pile (T-1291, T-1423, T-1427, T-1428, T-1431,
+T-1451, T-1452, T-212, T-2259, T-2325) do NOT touch the guard layer and are unaffected
+either way.
+
+The daily audit has been recording this pile all along as
+`[WARN] 20 active task(s) have every Agent AC ticked and no Human AC outstanding, but
+are still started-work/issues`. Nothing here was discovered; it was already written down.
+
 One correction to the record while re-measuring it: `.context/pickup/` holds TWO
 different envelopes numbered P-043 — task_id T-2018 in `auto-deferred/`, T-2155 in
 `processed/`. Comparing filenames rather than contents makes the stranded one look like
