@@ -72,6 +72,9 @@ cases = [
     # every task in the repo and stops meaning anything.
     ("build",     0, False, 200, "NONE"),
     ("inception", 0, False, 200, "NONE"),
+    ("owner-completion", 1, True,  200, "PENDING"),
+    ("owner-completion", 1, True,  500, "BROKEN"),
+    ("owner-completion", 0, False, 200, "NONE"),
     ("build",     1, True,  500, "BROKEN"),    # route does not answer
     ("inception", 1, True,  200, "PENDING"),
     ("inception", 1, False, 200, "BROKEN"),    # decision recorded, no marker
@@ -109,7 +112,8 @@ print("  FIRES ONLY when a pending action would open to a card nobody can act on
 print()
 
 rc = 0
-for kind, path in (("build", "review"), ("inception", "inception")):
+for kind, path in (("build", "review"), ("inception", "inception"),
+                   ("owner-completion", "review")):
     sel = [r for r in rows if r["surface"] == kind]
     ready = [r for r in sel if classify(kind, r["pending"], r["gate"], r["http"]) == "PENDING"]
     broke = [r for r in sel if classify(kind, r["pending"], r["gate"], r["http"]) == "BROKEN"]

@@ -9,6 +9,15 @@ so reordering the shipped code left the self-test green.
 Every predicate that decides whether a HUMAN sees something is the framework's own:
   * count_unchecked_human_acs      web/shared.py       — drives /approvals
   * audit_inception_recommendation lib/task-audit.sh   — BLOCKS review emission
+
+Three operator surfaces, not one:
+  build             a Human AC is unchecked -> /review/<id>
+  inception         a Decision is recorded + the .reviewed marker exists -> /inception/<id>
+  owner-completion  owner: human, every Agent AC ticked, NO Human AC outstanding, still
+                    started-work. R-033 forbids an agent closing these at all, and
+                    count_unchecked_human_acs returns 0, so they are gated on the operator
+                    and appear in NO queue. Found by attempting the closure and reading the
+                    refusal -- not by reading the ACs, which is what got it wrong first.
 Re-implementing either is how a task looks ready in our check and blank in the operator's.
 """
 import importlib.util
@@ -107,6 +116,32 @@ def scan(base):
 
         n = shared.count_unchecked_human_acs(body)
         if not n:
+            # No Human AC pending — but that is not the same as nothing pending.
+            # A human-OWNED task whose Agent ACs are all ticked cannot be closed by an
+            # agent at all (R-033 sovereignty gate, which keys on `owner:` and not on
+            # ACs). Its work is finished and only the operator can end it, yet
+            # count_unchecked_human_acs reports 0, so it appears in no queue. The
+            # framework prints /review/<id> when it refuses the close; that route is
+            # the surface, and this is what enumerates it.
+            st = re.search(r"^status:\s*(\S+)", body, re.M)
+            st = st.group(1) if st else ""
+            owner = re.search(r"^owner:\s*(\S+)", body, re.M)
+            owner = owner.group(1) if owner else ""
+            if st not in ("started-work", "issues") or owner != "human":
+                continue
+            stripped = re.sub(r"<!--.*?-->", "", body, flags=re.S)
+            am = re.search(r"^### Agent\b(.*?)(?=^### |^## |\Z)", stripped, re.S | re.M)
+            sec = am.group(1) if am else ""
+            done = len(re.findall(r"^- \[x\]", sec, re.M | re.I))
+            openn = len(re.findall(r"^- \[ \]", sec, re.M))
+            if openn or not done:
+                continue
+            code = _http(f"{base}/review/{tid}")
+            rows.append({
+                "id": tid, "surface": "owner-completion", "pending": 1, "gate": True,
+                "http": code, "why": f"{done} Agent AC(s) done",
+                "blocker": f"route returned {code}",
+            })
             continue
         gate = _rec_gate(p)
         code = _http(f"{base}/review/{tid}")
