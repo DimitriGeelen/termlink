@@ -85,6 +85,28 @@ for surface, pending, gate, code, want in cases:
     if got != want:
         print(f"self-test: FAIL {surface} pending={pending} gate={gate} http={code} -> {got}, want {want}")
         fail = 1
+
+# defer_state is a SECOND predicate and needs its own arms. Shipping new branching
+# logic with nothing that can go red is the exact failure this file documents.
+from approval_surfaces import defer_state  # noqa: E402
+import datetime as _d  # noqa: E402
+_past  = (_d.date.today() - _d.timedelta(days=5)).isoformat()
+_fut   = (_d.date.today() + _d.timedelta(days=5)).isoformat()
+_today = _d.date.today().isoformat()
+for body, want, msg in [
+    (f"**Decision**: DEFER\nrevisit_at: {_fut}\n",   False, "future date must NOT be pending"),
+    (f"**Decision**: DEFER\nrevisit_at: {_past}\n",  True,  "overdue date MUST be pending"),
+    # the boundary: due TODAY is due, not tomorrow's problem
+    (f"**Decision**: DEFER\nrevisit_at: {_today}\n", True,  "due today must be pending"),
+    ("**Decision**: DEFER\n",                        True,  "no revisit_at must be pending"),
+    # T-2090's real value. An unparseable date LOOKS like a return path and never fires.
+    ("**Decision**: DEFER\nrevisit_at: Not\n",       True,  "unparseable must be pending"),
+]:
+    _label, got = defer_state(body)
+    if got != want:
+        print(f"self-test: FAIL defer_state — {msg} (got pending={got})")
+        fail = 1
+
 if fail:
     sys.exit(2)
 print("self-test: PASS — pending-and-usable, pending-but-unusable and nothing-pending are three distinct verdicts")

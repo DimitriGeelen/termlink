@@ -20,9 +20,11 @@ Three operator surfaces, not one:
                     refusal -- not by reading the ACs, which is what got it wrong first.
 Re-implementing either is how a task looks ready in our check and blank in the operator's.
 """
+import datetime as _dt
 import importlib.util
 import os
 import re
+import re as re_mod
 import subprocess
 import sys
 import urllib.request
@@ -52,6 +54,33 @@ def classify(surface, pending, gate_ok, http_code):
         return "BROKEN"
     return "PENDING"
 
+
+def defer_state(body):
+    """-> (label, is_pending) for a task whose recorded decision is DEFER.
+
+    G-053 / T-1451 added `revisit_at` so that a DEFER is a PAUSE rather than a silent
+    drop. That makes the field, not the verdict, the thing worth reading:
+
+      future date   parked deliberately and correctly     -> not pending
+      date today/past  the return date arrived; decide now -> PENDING
+      absent        deferred with no way back              -> PENDING
+      unparseable   a date that never arrives              -> PENDING, and loudly:
+                    T-2090 carries `revisit_at: Not`, on which every date-based scan
+                    fails silent. An unparseable date is worse than a missing one
+                    because it LOOKS like a return path.
+    """
+    m = re_mod.search(r"^revisit_at:\s*(\S+)", body, re_mod.MULTILINE)
+    if not m:
+        return "DEFER, no revisit_at — no way back", True
+    raw = m.group(1)
+    try:
+        when = _dt.date.fromisoformat(raw)
+    except ValueError:
+        return f"DEFER, revisit_at={raw!r} UNPARSEABLE — never fires", True
+    today = _dt.date.today()
+    if when <= today:
+        return f"DEFER, revisit DUE {raw} ({(today - when).days}d overdue)", True
+    return f"DEFER, parked until {raw}", False
 
 def _load_shared():
     spec = importlib.util.spec_from_file_location("fw_shared", SHARED)
@@ -104,11 +133,21 @@ def scan(base):
             dm = re.search(r"^\*\*Decision\*\*:\s*(GO|NO-GO|DEFER)", body, re.M)
             if not dm:
                 continue  # no decision recorded -> nothing pending on this surface
+            verdict = dm.group(1)
+            why, pend = f"decision={verdict}", True
+            if verdict == "DEFER":
+                # A recorded DEFER is a decision ALREADY MADE. Surfacing it as one to make
+                # is manufacturing work — and it buried the two whose revisit date had
+                # actually arrived among nine that needed nothing. DEFER is pending only
+                # when its return path is due, absent, or unusable.
+                why, pend = defer_state(body)
+            if not pend:
+                continue
             marker = os.path.exists(os.path.join(ROOT, ".context/working", f".reviewed-{tid}"))
             code = _http(f"{base}/inception/{tid}")
             rows.append({
                 "id": tid, "surface": "inception", "pending": 1, "gate": marker,
-                "http": code, "why": f"decision={dm.group(1)}",
+                "http": code, "why": why,
                 "blocker": ("no .reviewed marker — `fw inception decide` is gated (T-973)"
                             if not marker else f"route returned {code}"),
             })
