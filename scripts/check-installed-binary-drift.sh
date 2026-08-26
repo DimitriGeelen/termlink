@@ -46,8 +46,14 @@ PROBE_PATHS=(
   /root/.local/bin/termlink
   /usr/local/bin/termlink
   /usr/bin/termlink
-  /opt/termlink/target/release/termlink
 )
+
+# NOT an install path. target/release is where the BUILD lands; it running ahead
+# of the installs is a PENDING DEPLOY, which is the normal state during
+# development, not drift. Counting it as drift made this check go red for the
+# wrong reason within hours of shipping — it conflated "where consumers execute"
+# with "where output lands". Reported separately, never as a failure.
+BUILD_ARTIFACT=/opt/termlink/target/release/termlink
 
 EXPECT=""
 [ "${1:-}" = "--expect" ] && EXPECT="${2:-}"
@@ -88,6 +94,16 @@ fi
 
 distinct=$(printf '%s\n' "${versions[@]}" | sort -u | tr '\n' ' ' | sed 's/ $//')
 n_distinct=$(printf '%s\n' "${versions[@]}" | sort -u | wc -l)
+
+if [ -x "$BUILD_ARTIFACT" ]; then
+  bv=$("$BUILD_ARTIFACT" --version 2>/dev/null | awk '{print $NF}')
+  say ""
+  say "  build artifact: $BUILD_ARTIFACT = ${bv:-unknown}"
+  if [ -n "${bv:-}" ] && [ "$bv" != "$distinct" ]; then
+    say "                  PENDING DEPLOY — the build is ahead of every install"
+    say "                  path. Informational: this is normal after a rebuild."
+  fi
+fi
 
 say ""
 if [ "$n_distinct" -gt 1 ]; then
