@@ -1,0 +1,14 @@
+id: workflow/aef-tier0-escalation/te_hum_review
+name: te_hum_review
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-tier0-escalation/v1.bpmn
+tags:
+- workflow-step
+- aef-tier0-escalation
+- designer
+purpose: Workflow step (aef:uid te_hum_review, node hum_1_disposition, userTask) — review pending Tier 0 request
+workflow: aef-tier0-escalation
+aef_uid: te_hum_review
+bpmn_node_id: hum_1_disposition
+created_by: T-2839

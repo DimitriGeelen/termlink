@@ -1,0 +1,15 @@
+id: workflow/aef-inception-flow/if_artifact
+name: if_artifact
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-inception-flow/v1.bpmn
+tags:
+- workflow-step
+- aef-inception-flow
+- designer
+purpose: Workflow step (aef:uid if_artifact, node agt_2_artifact, serviceTask) — create research artifact FIRST (C-001) —
+  docs/reports/T-XXX, dialogue log, incremental commits
+workflow: aef-inception-flow
+aef_uid: if_artifact
+bpmn_node_id: agt_2_artifact
+created_by: T-2839

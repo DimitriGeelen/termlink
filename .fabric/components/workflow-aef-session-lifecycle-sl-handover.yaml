@@ -1,0 +1,15 @@
+id: workflow/aef-session-lifecycle/sl_handover
+name: sl_handover
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-session-lifecycle/v1.bpmn
+tags:
+- workflow-step
+- aef-session-lifecycle
+- designer
+purpose: Workflow step (aef:uid sl_handover, node agt_5_fw, serviceTask) — fw handover --commit — generate + auto-commit +
+  push to all remotes (T-1144)
+workflow: aef-session-lifecycle
+aef_uid: sl_handover
+bpmn_node_id: agt_5_fw
+created_by: T-2839

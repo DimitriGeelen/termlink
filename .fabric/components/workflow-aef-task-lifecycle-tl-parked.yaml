@@ -1,0 +1,14 @@
+id: workflow/aef-task-lifecycle/tl_parked
+name: tl_parked
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-task-lifecycle/v3.bpmn
+tags:
+- workflow-step
+- aef-task-lifecycle
+- designer
+purpose: 'Workflow step (aef:uid tl_parked, node agt_4_parked, serviceTask) — parked in backlog (horizon: next/later)'
+workflow: aef-task-lifecycle
+aef_uid: tl_parked
+bpmn_node_id: agt_4_parked
+created_by: T-2839

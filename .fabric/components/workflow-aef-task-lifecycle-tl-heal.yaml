@@ -1,0 +1,14 @@
+id: workflow/aef-task-lifecycle/tl_heal
+name: tl_heal
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-task-lifecycle/v3.bpmn
+tags:
+- workflow-step
+- aef-task-lifecycle
+- designer
+purpose: 'Workflow step (aef:uid tl_heal, node agt_8_healing, serviceTask) — healing loop (status: issues → diagnose → resolve)'
+workflow: aef-task-lifecycle
+aef_uid: tl_heal
+bpmn_node_id: agt_8_healing
+created_by: T-2839

@@ -1,0 +1,14 @@
+id: workflow/aef-tier0-escalation/te_reject
+name: te_reject
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-tier0-escalation/v1.bpmn
+tags:
+- workflow-step
+- aef-tier0-escalation
+- designer
+purpose: Workflow step (aef:uid te_reject, node hum_2_reject, serviceTask) — write resolved(rejected) + feedback
+workflow: aef-tier0-escalation
+aef_uid: te_reject
+bpmn_node_id: hum_2_reject
+created_by: T-2839

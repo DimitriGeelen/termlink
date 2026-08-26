@@ -1,0 +1,15 @@
+id: workflow/aef-audit-cron/ac_sweep
+name: ac_sweep
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-audit-cron/v1.bpmn
+tags:
+- workflow-step
+- aef-audit-cron
+- designer
+purpose: Workflow step (aef:uid ac_sweep, node agt_2_fw, serviceTask) — fw audit — compliance sweep (exit 0 pass / 1 warnings
+  / 2 failures)
+workflow: aef-audit-cron
+aef_uid: ac_sweep
+bpmn_node_id: agt_2_fw
+created_by: T-2839

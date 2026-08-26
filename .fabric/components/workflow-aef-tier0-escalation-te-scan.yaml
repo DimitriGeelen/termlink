@@ -1,0 +1,15 @@
+id: workflow/aef-tier0-escalation/te_scan
+name: te_scan
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-tier0-escalation/v1.bpmn
+tags:
+- workflow-step
+- aef-tier0-escalation
+- designer
+purpose: Workflow step (aef:uid te_scan, node fw_1_scan, serviceTask) — scan command — keyword pre-filter + detailed pattern
+  match
+workflow: aef-tier0-escalation
+aef_uid: te_scan
+bpmn_node_id: fw_1_scan
+created_by: T-2839

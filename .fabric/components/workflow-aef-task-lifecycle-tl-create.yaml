@@ -1,0 +1,14 @@
+id: workflow/aef-task-lifecycle/tl_create
+name: tl_create
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-task-lifecycle/v3.bpmn
+tags:
+- workflow-step
+- aef-task-lifecycle
+- designer
+purpose: 'Workflow step (aef:uid tl_create, node agt_2_create, serviceTask) — create task — fw work-on (status: captured)'
+workflow: aef-task-lifecycle
+aef_uid: tl_create
+bpmn_node_id: agt_2_create
+created_by: T-2839

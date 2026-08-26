@@ -1,0 +1,14 @@
+id: workflow/aef-tier0-escalation/te_retry
+name: te_retry
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-tier0-escalation/v1.bpmn
+tags:
+- workflow-step
+- aef-tier0-escalation
+- designer
+purpose: Workflow step (aef:uid te_retry, node agt_1_retry, serviceTask) — retry same command
+workflow: aef-tier0-escalation
+aef_uid: te_retry
+bpmn_node_id: agt_1_retry
+created_by: T-2839

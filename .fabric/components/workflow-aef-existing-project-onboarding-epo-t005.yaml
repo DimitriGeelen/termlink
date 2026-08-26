@@ -1,0 +1,14 @@
+id: workflow/aef-existing-project-onboarding/epo_t005
+name: epo_t005
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-existing-project-onboarding/v1.bpmn
+tags:
+- workflow-step
+- aef-existing-project-onboarding
+- designer
+purpose: 'Workflow step (aef:uid epo_t005, node agt_5_handover, serviceTask) — T-005: Generate Your First Handover'
+workflow: aef-existing-project-onboarding
+aef_uid: epo_t005
+bpmn_node_id: agt_5_handover
+created_by: T-2839

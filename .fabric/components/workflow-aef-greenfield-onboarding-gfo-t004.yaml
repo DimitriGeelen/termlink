@@ -1,0 +1,14 @@
+id: workflow/aef-greenfield-onboarding/gfo_t004
+name: gfo_t004
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-greenfield-onboarding/v2.bpmn
+tags:
+- workflow-step
+- aef-greenfield-onboarding
+- designer
+purpose: 'Workflow step (aef:uid gfo_t004, node agt_4_lifecycle, serviceTask) — T-004: Walk Through Task States and Gates'
+workflow: aef-greenfield-onboarding
+aef_uid: gfo_t004
+bpmn_node_id: agt_4_lifecycle
+created_by: T-2839

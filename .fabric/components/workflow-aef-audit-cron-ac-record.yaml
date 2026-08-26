@@ -1,0 +1,15 @@
+id: workflow/aef-audit-cron/ac_record
+name: ac_record
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-audit-cron/v1.bpmn
+tags:
+- workflow-step
+- aef-audit-cron
+- designer
+purpose: Workflow step (aef:uid ac_record, node agt_3_record, serviceTask) — record findings — .context/audits/date.yaml +
+  LATEST refs
+workflow: aef-audit-cron
+aef_uid: ac_record
+bpmn_node_id: agt_3_record
+created_by: T-2839

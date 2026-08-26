@@ -1,0 +1,14 @@
+id: workflow/aef-existing-project-onboarding/epo_t004
+name: epo_t004
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-existing-project-onboarding/v1.bpmn
+tags:
+- workflow-step
+- aef-existing-project-onboarding
+- designer
+purpose: 'Workflow step (aef:uid epo_t004, node agt_4_lifecycle, serviceTask) — T-004: Walk One Task All the Way Round'
+workflow: aef-existing-project-onboarding
+aef_uid: epo_t004
+bpmn_node_id: agt_4_lifecycle
+created_by: T-2839

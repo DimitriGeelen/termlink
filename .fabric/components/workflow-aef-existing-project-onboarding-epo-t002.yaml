@@ -1,0 +1,14 @@
+id: workflow/aef-existing-project-onboarding/epo_t002
+name: epo_t002
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-existing-project-onboarding/v1.bpmn
+tags:
+- workflow-step
+- aef-existing-project-onboarding
+- designer
+purpose: 'Workflow step (aef:uid epo_t002, node agt_2_first_commit, serviceTask) — T-002: Your First Governed Commit'
+workflow: aef-existing-project-onboarding
+aef_uid: epo_t002
+bpmn_node_id: agt_2_first_commit
+created_by: T-2839

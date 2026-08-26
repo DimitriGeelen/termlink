@@ -1,0 +1,14 @@
+id: workflow/aef-session-lifecycle/sl_tmr_restart
+name: sl_tmr_restart
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-session-lifecycle/v1.bpmn
+tags:
+- workflow-step
+- aef-session-lifecycle
+- designer
+purpose: Workflow step (aef:uid sl_tmr_restart, node agt_8_wrapper, intermediateCatchEvent) — wrapper cancel window
+workflow: aef-session-lifecycle
+aef_uid: sl_tmr_restart
+bpmn_node_id: agt_8_wrapper
+created_by: T-2839

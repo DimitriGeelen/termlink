@@ -1,0 +1,14 @@
+id: workflow/aef-tier0-escalation/te_consume
+name: te_consume
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-tier0-escalation/v1.bpmn
+tags:
+- workflow-step
+- aef-tier0-escalation
+- designer
+purpose: Workflow step (aef:uid te_consume, node fw_3_consume, serviceTask) — consume approval token
+workflow: aef-tier0-escalation
+aef_uid: te_consume
+bpmn_node_id: fw_3_consume
+created_by: T-2839

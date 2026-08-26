@@ -1,0 +1,14 @@
+id: workflow/aef-tier0-escalation/te_halt
+name: te_halt
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-tier0-escalation/v1.bpmn
+tags:
+- workflow-step
+- aef-tier0-escalation
+- designer
+purpose: Workflow step (aef:uid te_halt, node fw_4_halt, serviceTask) — HALT — block tool call (exit 2), write pending approval
+workflow: aef-tier0-escalation
+aef_uid: te_halt
+bpmn_node_id: fw_4_halt
+created_by: T-2839

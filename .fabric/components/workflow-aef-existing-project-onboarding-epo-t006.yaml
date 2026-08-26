@@ -1,0 +1,14 @@
+id: workflow/aef-existing-project-onboarding/epo_t006
+name: epo_t006
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-existing-project-onboarding/v1.bpmn
+tags:
+- workflow-step
+- aef-existing-project-onboarding
+- designer
+purpose: 'Workflow step (aef:uid epo_t006, node agt_6_learning, serviceTask) — T-006: Record Your First Project Learning'
+workflow: aef-existing-project-onboarding
+aef_uid: epo_t006
+bpmn_node_id: agt_6_learning
+created_by: T-2839

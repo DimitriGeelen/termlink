@@ -1,0 +1,15 @@
+id: workflow/aef-task-lifecycle/tl_archive
+name: tl_archive
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-task-lifecycle/v3.bpmn
+tags:
+- workflow-step
+- aef-task-lifecycle
+- designer
+purpose: 'Workflow step (aef:uid tl_archive, node agt_13_archive, serviceTask) — archive: move to completed/, generate episodic
+  memory'
+workflow: aef-task-lifecycle
+aef_uid: tl_archive
+bpmn_node_id: agt_13_archive
+created_by: T-2839

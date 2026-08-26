@@ -1,0 +1,15 @@
+id: workflow/aef-existing-project-onboarding/epo_human_alongside
+name: epo_human_alongside
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-existing-project-onboarding/v1.bpmn
+tags:
+- workflow-step
+- aef-existing-project-onboarding
+- designer
+purpose: 'Workflow step (aef:uid epo_human_alongside, node hum_alongside, userTask) — You: reading alongside, correcting when
+  it matters (never blocking)'
+workflow: aef-existing-project-onboarding
+aef_uid: epo_human_alongside
+bpmn_node_id: hum_alongside
+created_by: T-2839

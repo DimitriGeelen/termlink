@@ -1,0 +1,15 @@
+id: workflow/aef-inception-flow/if_children
+name: if_children
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-inception-flow/v1.bpmn
+tags:
+- workflow-step
+- aef-inception-flow
+- designer
+purpose: 'Workflow step (aef:uid if_children, node agt_4_children, serviceTask) — file build children (GO-scope traceability:
+  inception_decisions / unlocks_inception_decision, T-1984)'
+workflow: aef-inception-flow
+aef_uid: if_children
+bpmn_node_id: agt_4_children
+created_by: T-2839

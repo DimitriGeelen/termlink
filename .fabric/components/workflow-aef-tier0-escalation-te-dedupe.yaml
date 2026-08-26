@@ -1,0 +1,15 @@
+id: workflow/aef-tier0-escalation/te_dedupe
+name: te_dedupe
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-tier0-escalation/v1.bpmn
+tags:
+- workflow-step
+- aef-tier0-escalation
+- designer
+purpose: Workflow step (aef:uid te_dedupe, node fw_2_dedupe, serviceTask) — dedupe + pre-auth check — idempotency sentinel,
+  prior approval/resolved-file hash+TTL match
+workflow: aef-tier0-escalation
+aef_uid: te_dedupe
+bpmn_node_id: fw_2_dedupe
+created_by: T-2839

@@ -1,0 +1,14 @@
+id: workflow/aef-tier0-escalation/te_notify
+name: te_notify
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-tier0-escalation/v1.bpmn
+tags:
+- workflow-step
+- aef-tier0-escalation
+- designer
+purpose: Workflow step (aef:uid te_notify, node fw_5_notify, serviceTask) — human notification — push + Watchtower surface
+workflow: aef-tier0-escalation
+aef_uid: te_notify
+bpmn_node_id: fw_5_notify
+created_by: T-2839

@@ -1,0 +1,14 @@
+id: workflow/aef-task-lifecycle/tl_start
+name: tl_start
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-task-lifecycle/v3.bpmn
+tags:
+- workflow-step
+- aef-task-lifecycle
+- designer
+purpose: 'Workflow step (aef:uid tl_start, node agt_5_start, serviceTask) — start work (status: started-work, focus set)'
+workflow: aef-task-lifecycle
+aef_uid: tl_start
+bpmn_node_id: agt_5_start
+created_by: T-2839

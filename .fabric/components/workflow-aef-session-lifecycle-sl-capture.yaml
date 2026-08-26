@@ -1,0 +1,15 @@
+id: workflow/aef-session-lifecycle/sl_capture
+name: sl_capture
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-session-lifecycle/v1.bpmn
+tags:
+- workflow-step
+- aef-session-lifecycle
+- designer
+purpose: Workflow step (aef:uid sl_capture, node agt_4_session, serviceTask) — session capture — uncaptured work → tasks,
+  decisions/learnings recorded (agents/session-capture)
+workflow: aef-session-lifecycle
+aef_uid: sl_capture
+bpmn_node_id: agt_4_session
+created_by: T-2839

@@ -1,0 +1,15 @@
+id: workflow/aef-greenfield-onboarding/gfo_t001
+name: gfo_t001
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-greenfield-onboarding/v2.bpmn
+tags:
+- workflow-step
+- aef-greenfield-onboarding
+- designer
+purpose: 'Workflow step (aef:uid gfo_t001, node agt_1_orientation, serviceTask) — T-001: Orientation and Framework Health
+  Check'
+workflow: aef-greenfield-onboarding
+aef_uid: gfo_t001
+bpmn_node_id: agt_1_orientation
+created_by: T-2839

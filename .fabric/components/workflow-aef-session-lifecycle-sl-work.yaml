@@ -1,0 +1,15 @@
+id: workflow/aef-session-lifecycle/sl_work
+name: sl_work
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-session-lifecycle/v1.bpmn
+tags:
+- workflow-step
+- aef-session-lifecycle
+- designer
+purpose: Workflow step (aef:uid sl_work, node agt_2_work, serviceTask) — work loop — task-gated work, commit cadence P-009
+  (commit every meaningful unit, 15-20 min)
+workflow: aef-session-lifecycle
+aef_uid: sl_work
+bpmn_node_id: agt_2_work
+created_by: T-2839
