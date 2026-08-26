@@ -135,7 +135,44 @@ contextual pointers depending on which check tripped:
 Never silent on failure. The whole point of this verb is loud-refusal at
 deploy time so the silent-failure cascade never starts.
 
-## Step 6: When PASS, recommend the next verb
+## Step 6: Canary-install drift (separate concern, same timing)
+
+Also run:
+
+```
+bash scripts/check-cron-install-drift.sh
+```
+
+**Why this lives here.** `scripts/check-cron-install-drift.sh` (T-2561) names `/preflight`
+as its consumer in its own header — "Run it ad-hoc after committing a new canary, or fold
+it into `/preflight`" — and until then nothing ran it at all. It is deliberately NOT a
+cron canary: a canary that detects uninstalled canaries would itself need installing, and
+the recursion has to stop somewhere. That stop is here.
+
+**It answers a different question from the six checks above, and the distinction matters.**
+`substrate-preflight.sh` asks *is this environment able to host a substrate*.
+This asks *are the canaries I committed to `.context/cron/` actually scheduled in
+`/etc/cron.d`* — the shipped≠live class (G-069). A canary committed to git but never
+installed is dark: it never fires, and the heartbeat-based aliveness check (T-1723)
+structurally cannot see it, because there is no heartbeat to be stale.
+
+Render it as its **own** labelled section with its own exit code. Do not merge its result
+into the six-check table or the `--json` envelope — those come from `substrate-preflight.sh`
+and callers parse that schema.
+
+Reading its exit code (they are not the same as this skill's):
+
+| Exit | Meaning | Action |
+|------|---------|--------|
+| `0` | No MISSING canaries. **May still report DRIFT** — plain content drift is a deliberate non-firing warning, so read the text, not just the code | If the output says "not firing, but NOT clean", say so explicitly rather than reporting a clean preflight |
+| `1` | MISSING or UNINSTALLED_JOBS — a committed canary is dark | Install it to the path its own `# Installed to:` header declares |
+| `2` | Could not run | No verdict. Never render as healthy |
+
+The exit-0-with-drift case is the one to get right when reporting: the script is careful
+never to print the word "healthy" when it is not clean, and a wrapper that collapses its
+output to its exit code would undo that care.
+
+## Step 7: When PASS, recommend the next verb
 
 For exit 0 (all PASS), after the script's "substrate-ready" line, suggest:
 
@@ -190,6 +227,9 @@ Non-zero exit → page the operator.
 ## Related
 
 - T-2154 — the underlying `substrate-preflight.sh` script.
+- T-2561 — `check-cron-install-drift.sh`, run at Step 6. Its header named this
+  skill as its consumer; wiring it here is what makes it run at all (G-069
+  shipped≠live at the canary layer; learnings.yaml:2917).
 - T-2018 — arc-parallel-substrate ADR; this skill closes the deploy-time
   observability gap that complements the runtime-read primitives.
 - T-2096 / `/substrate` — runtime composition digest; the complementary
