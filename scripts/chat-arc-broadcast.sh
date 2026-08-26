@@ -20,7 +20,7 @@
 #   2 — tooling/usage error (missing payload, missing sender, jq/termlink missing)
 #
 # Usage:
-#   chat-arc-broadcast.sh --payload "TEXT" [--from ID] [--hubs-file P]
+#   chat-arc-broadcast.sh --payload "TEXT" [--from ID] [--hubs-file P] [--dry-run]
 #                          [--timeout-secs N] [--json]
 set -u
 
@@ -31,6 +31,7 @@ PER_HUB_TIMEOUT=8   # PL-189 — same per-call bound as the discovery verbs
 FORMAT=human
 PAYLOAD=""
 FROM=""
+DRY_RUN=0
 
 die() {
     if [ "$FORMAT" = json ]; then
@@ -49,6 +50,7 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --payload)        PAYLOAD="${2:-}"; shift 2 ;;
         --from)           FROM="${2:-}"; shift 2 ;;
+        --dry-run)        DRY_RUN=1; shift ;;
         --hubs-file)      HUBS_FILE="${2:-}"; shift 2 ;;
         --timeout-secs)   PER_HUB_TIMEOUT="${2:-}"; shift 2 ;;
         --json)           FORMAT=json; shift ;;
@@ -116,6 +118,29 @@ attempted=0
 delivered=0
 failed=0
 results_payload=""
+
+# --dry-run: render what WOULD be sent and exit without posting.
+#
+# Deliberately prints the RESOLVED state rather than echoing the arguments back.
+# The sender is resolved from one of three sources and the hub list survives
+# parsing, dedup and probing — those are the parts a caller cannot predict, and
+# they are what makes a broadcast surprising. The payload is shown last because
+# it is the part the caller already knows.
+if [ "$DRY_RUN" = "1" ]; then
+    printf 'chat-arc-broadcast --dry-run: nothing will be posted\n\n'
+    printf '  resolved sender : %s\n' "$FROM"
+    printf '  topic           : agent-chat-arc\n'
+    printf '  msg-type        : chat\n'
+    printf '  metadata        : agent_id=%s _from=%s\n' "$FROM" "$FROM"
+    printf '  per-hub timeout : %ss\n' "$PER_HUB_TIMEOUT"
+    printf '\n  hubs that would receive it (after parse, dedup and probe):\n'
+    printf '%s\n' "$addrs" | while IFS= read -r a; do
+        [ -n "$a" ] && printf '    %s\n' "$a"
+    done
+    printf '\n  payload (%s bytes):\n' "$(printf '%s' "$PAYLOAD" | wc -c | tr -d ' ')"
+    printf '%s\n' "$PAYLOAD" | sed 's/^/    | /'
+    exit 0
+fi
 
 # Per-hub post loop. Each call internally bounded by PER_HUB_TIMEOUT;
 # failures append to the result envelope but don't abort the loop.
