@@ -338,3 +338,48 @@ T-2812 registered this week.
 **Remaining AC unchanged and still unticked.** "Confirm the flag survives" needs an upstream fix
 to exist first. Filing does not satisfy it, and ticking it would be the installation-vs-outcome
 error this session has now found four times.
+
+## 2026-08-26 — consumer-side guard landed; and a correction I owe this task
+
+**Recommendation:** leave every AC as it stands. Nothing here is a fix; the defect
+is in vendored code and remains upstream's (G-062).
+
+### What landed
+
+`scripts/fw-upgrade-safe.sh` now warns **before** the run when an invocation
+carries a flag the bare-from-consumer handoff would discard
+(`--force-downgrade`, `--strict`, `--no-self-vendor`). Verified with three
+negative controls — `--force`, `--dry-run` and `--dedupe-user-hooks` do not warn
+— and two positives. The warning is deliberately placed ahead of the
+dirty-tree refusal: a warning about the operator's own input costs nothing and
+is useful even when the script then declines to run. The first version had it
+after, and printed nothing in exactly the case that surfaced it.
+
+This protects this consumer only. The wrapper's hand-maintained list will drift
+from the framework's parser the same way the framework's replay list drifted
+from its own — which is an argument for the inversion proposed at
+`framework:pickup` offset 28, not for copying the wrapper.
+
+### The correction
+
+I re-derived this task's scope from scratch and filed it upstream as new
+(`framework:pickup` offset 46), stating that "our own task did not name
+`--strict`". **That is false.** The Agent AC block above carries a dated
+2026-08-20 note reading *"the scope corrected — three live flags are dropped
+(`--force-downgrade`, `--strict`, `--no-self-vendor`), not one"*, and offset 28
+filed all three on 2026-08-18 — with a better remedy than the one I proposed.
+
+Offset 46 is withdrawn; retraction at offset 47.
+
+What went wrong is worth keeping, because it is this task's own failure mode
+inverted. I checked the CODE carefully — enumerated the parser's case arms,
+verified the `--dry-run` short-circuit before believing it, ran negative
+controls. I did not check the RECORD. I read the `description:` frontmatter,
+which names only `--force-downgrade`, and stopped. "Nothing in the description
+names `--strict`" and "nothing names `--strict`" are different claims, and I
+published the second having established only the first.
+
+Offset 28 closes on obligations written where no reader looks. This is the
+inverse: a report written without looking where the reader already wrote. Same
+root, opposite direction — and the cheap guard against it is to read a task's
+AC block, not just its description, before claiming novelty.
