@@ -286,6 +286,51 @@ classifies guard tasks as bug-class because their titles contain "regression").
      without auto-creating; T-1832 added auto-create as fallback for
      legacy tasks lacking this section. -->
 
+## Evidence re-measured 2026-08-26 (agent; ticks nothing)
+
+Re-measured against the tree rather than re-read from this file. Two of the three
+recorded blockers have MOVED since they were written.
+
+**AC#1 — condition now TRUE.** All three files are present in the vendored framework:
+
+    .agentic-framework/tools/corpus_spec.py       PRESENT
+    .agentic-framework/tools/corpus_lint.py       PRESENT
+    .agentic-framework/tools/corpus_explain.py    PRESENT
+
+and `bash scripts/check-framework-tracking-drift.sh` exits 0 — "no load-bearing drift
+(2634 file(s) scanned, 59 reference(s) resolved)", zero DANGLING. The DANGLING list at
+:310-312 of this task is STALE; it describes a state the tree has left. Nothing here
+ticks the AC — the measurement is mine, the acceptance is yours.
+
+**AC#2 — the premise is wrong, and in your favour.** This AC says "the two sibling
+branches". Measured with `git ls-tree -r --name-only <branch> .tasks/`:
+
+    main                                T-2690 purpose-review-4 · T-2691 whoami · T-2692 macos
+    integration/t2687-trial             identical to main — NO collision
+    worktree-charter-review-2026-0814   identical to main — NO collision
+    worktree-governance-canary-signal   T-2690 canary-stderr-sink-severs-detection
+                                        T-2691 heartbeat-proves-scheduling-not-completion
+                                        T-2692 static-check-allowlists-untracked
+                                        ^^^ DIFFERENT tasks under the same three ids
+
+So exactly ONE branch still collides, not two. `worktree-governance-canary-signal` is
+the only merge that would collide three task ids against main. The renumbering already
+done in this checkout (T-2815←T-2690, T-2819←T-2694, T-2822←T-2698) is unrelated to
+main's own T-2690/91/92, which are legitimate completed tasks — worth stating because
+the two look identical from the id alone and invite exactly the wrong fix.
+
+**AC#3 — genuinely still open.** `check-pickup-deferred-freshness` exits 1; P-043 is
+still stranded. Both of its blockers are handled (BUG 2 carried upstream, BUG 1 filed
+as T-2801, whose own AC asserts this repo reports P-043 as STRANDED), so the guard is
+firing correctly and holding the envelope visible for your disposal. That disposal is a
+decision, not a measurement, and it is the one thing here nobody can do for you.
+
+One correction to the record while re-measuring it: `.context/pickup/` holds TWO
+different envelopes numbered P-043 — task_id T-2018 in `auto-deferred/`, T-2155 in
+`processed/`. Comparing filenames rather than contents makes the stranded one look like
+processed residue.
+
+
 ## Updates
 
 ### 2026-08-23T21:51:44Z — task-created [task-create-agent]
