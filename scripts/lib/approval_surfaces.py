@@ -69,7 +69,14 @@ def defer_state(body):
                     fails silent. An unparseable date is worse than a missing one
                     because it LOOKS like a return path.
     """
-    m = re_mod.search(r"^revisit_at:\s*(\S+)", body, re_mod.MULTILINE)
+    # FRONTMATTER ONLY. Searching the whole document reads body prose as config:
+    # T-2090 explains in three separate places that its revisit_at is "Not set (no
+    # calendar trigger — trigger is consumer-demand-based)". A whole-document scan
+    # matched that sentence, called the task malformed, and I overwrote a documented
+    # decision with a default before catching it. The key is only meaningful above the
+    # closing `---`.
+    fm = body.split("\n---", 1)[0] if body.startswith("---") else ""
+    m = re_mod.search(r"^revisit_at:\s*(\S+)", fm, re_mod.MULTILINE)
     if not m:
         return "DEFER, no revisit_at — no way back", True
     raw = m.group(1)

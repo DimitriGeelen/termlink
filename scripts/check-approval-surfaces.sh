@@ -93,14 +93,39 @@ import datetime as _d  # noqa: E402
 _past  = (_d.date.today() - _d.timedelta(days=5)).isoformat()
 _fut   = (_d.date.today() + _d.timedelta(days=5)).isoformat()
 _today = _d.date.today().isoformat()
+# Fixtures are whole task DOCUMENTS, not bare key lines: defer_state reads FRONTMATTER
+# only, and a fixture without a `---` block cannot exercise that. The bare-string version
+# passed until the frontmatter fix landed and then failed correctly — the suite discriminated
+# between "reads the whole file" and "reads the frontmatter", which is the distinction that
+# cost T-2090 a documented decision.
+def _doc(front="", body=""):
+    return f"---\nid: T-TEST\nworkflow_type: inception\n{front}---\n\n**Decision**: DEFER\n{body}"
+
 for body, want, msg in [
-    (f"**Decision**: DEFER\nrevisit_at: {_fut}\n",   False, "future date must NOT be pending"),
-    (f"**Decision**: DEFER\nrevisit_at: {_past}\n",  True,  "overdue date MUST be pending"),
+    (_doc(f"revisit_at: {_fut}\n"),   False, "future date must NOT be pending"),
+    (_doc(f"revisit_at: {_past}\n"),  True,  "overdue date MUST be pending"),
     # the boundary: due TODAY is due, not tomorrow's problem
-    (f"**Decision**: DEFER\nrevisit_at: {_today}\n", True,  "due today must be pending"),
-    ("**Decision**: DEFER\n",                        True,  "no revisit_at must be pending"),
-    # T-2090's real value. An unparseable date LOOKS like a return path and never fires.
-    ("**Decision**: DEFER\nrevisit_at: Not\n",       True,  "unparseable must be pending"),
+    (_doc(f"revisit_at: {_today}\n"), True,  "due today must be pending"),
+    (_doc(),                          True,  "no revisit_at must be pending"),
+    # an unparseable FRONTMATTER value must be pending, not silently skipped
+    (_doc("revisit_at: Not\n"),       True,  "unparseable must be pending"),
+    # T-2090's real shape: the key appears only in PROSE, where it is a sentence and not
+    # config. Must be read as "no frontmatter revisit_at", never as the value "Not".
+    # T-2090's REAL shape, and the fixture matters: it has the key in prose THREE times,
+    # once as `**revisit_at:**` (bold, which `^revisit_at:` never matches anyway) and twice
+    # BARE at column 0. Only the bare form reproduces the bug. My first fixture used the
+    # bold one, the whole-document mutation survived it, and the leg proved nothing —
+    # a partial reproduction is not a control, which is the lesson this file keeps relearning.
+    (_doc(body="revisit_at: Not set (no calendar trigger — consumer-demand-based).\n"),
+                                      True,  "bare prose mention must not be read as config"),
+    # THE DISCRIMINATING INPUT, and it took three tries to find. The two candidate readings
+    # (whole-document vs frontmatter-only) AGREE on `pending` for every case above — an
+    # unparseable prose value and an absent one are both pending, differing only in label.
+    # They disagree on exactly one shape: a prose line carrying a VALID FUTURE date with no
+    # such key in the frontmatter. Whole-document reads it and calls the task parked;
+    # frontmatter-only correctly says there is no return path. Nothing else pins the scope.
+    (_doc(body=f"revisit_at: {_fut} is when we might look again.\n"),
+                                      True,  "a future date in PROSE must not park the task"),
 ]:
     _label, got = defer_state(body)
     if got != want:

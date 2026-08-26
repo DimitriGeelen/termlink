@@ -13,6 +13,11 @@ components: []
 related_tasks: [T-1898, T-469]
 created: 2026-05-31T17:52:28Z
 last_update: 2026-06-06T12:32:57Z
+revisit_at: 2026-09-25
+  # T-2839 2026-08-26: DEFER had no usable return path, so this task could never
+  # resurface (G-053/T-1451 — revisit_at makes DEFER a pause, not a silent drop).
+  # Date is a DEFAULT (+30d), not an assessment: all six repaired tasks share it
+  # deliberately so it reads as agent-set. The DEFER verdict is unchanged.
 date_finished: null
 ---
 
