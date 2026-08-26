@@ -161,6 +161,34 @@ bash tests/gitignore-framework-scope-fixtures.sh
 # that the check is load-bearing: it flagged its own author, one commit after shipping.
 test -z "$(git status --porcelain .agentic-framework/)"
 
+## Recommendation
+
+**Recommendation:** GO
+
+**Rationale:** all nine Agent ACs are ticked and the load-bearing one is proven in both
+directions — the fixture shows a path under `lib/` is addable by a plain `git add` after
+the change and was NOT before it. What remains is a one-time catch-up `git add` in the
+main checkout, which is an operator action because only you can confirm that nothing
+machine-local, host-specific or secret-bearing is in that list. That is a judgement about
+this host's contents, not an evidence gap.
+
+**Evidence:**
+- The blanket `.agentic-framework` ignore is replaced by a contents-plus-re-include form;
+  every currently-tracked top-level entry is re-included, so no tracked path became
+  ignored, and `git status` stays clean in this checkout.
+- `policy/` — the live casualty that motivated the task — is re-included; the framework's
+  own `.context/`, `tests/`, `tools/`, `.git/` and the `__pycache__`/`*.pyc` patterns
+  inside re-included subtrees remain ignored.
+- The fixture is host-independent (scratch repo, no real framework), so it proves the
+  rule rather than this machine's state.
+- Correction worth your attention: the fixture suite initially FAILED after this change,
+  asserting `.agentic-framework/tools/ollama-tool-loop.py` must be ignored. That
+  assertion encoded a premise this task's own corpus work disproved — the file is exec'd
+  by agents/termlink/termlink.sh:853 preferring the vendored copy, so ignoring it would
+  ship a dangling exec target. The fixture was inverted with reasoning inline (978686900)
+  and the suite is 27/0. It failed loudly in the direction of undoing a correct fix,
+  which is the one shape of stale test that argues against itself.
+
 ## Decisions
 
 **Re-include the tracked subset, not everything.** Deleting the rule outright would surface

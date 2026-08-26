@@ -233,6 +233,30 @@ unconfirmed-registration status (fails if someone re-introduces a bare `ok:true`
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** GO on option (b) — keep the fast default, add a disclosing field.
+
+**Rationale:** (b) is already built and green, and it is the only one of the three that is
+both non-breaking and honest. (a) makes every spawn pay a confirmation round-trip to fix a
+disclosure problem; (c) leaves the wire format asserting a registration nobody checked and
+merely writes that down elsewhere. The one Agent AC still unticked is deliberately blocked
+on your choice, so this is a decision gap, not an evidence gap.
+
+**Evidence:**
+- The default (non-`--wait`) envelope no longer reports a bare `ok:true`. It emits
+  `"registered":"unconfirmed"` plus a note; `--wait` emits `"registered":"confirmed"` and
+  `"ready":true`.
+- `ready:false` is deliberately NOT emitted on the unchecked path. That path does not know
+  the session is unready — only that nobody looked — and emitting a confident-looking
+  false would replace one unearned claim with another.
+- The `--wait` path is behaviourally unchanged: still polls `find_session`, still fails
+  loud on timeout.
+- A test asserts the default envelope discloses unconfirmed registration, and
+  `cargo test -p termlink` is green.
+- Strictly additive: 13 existing call sites parse `.delivered.offset` and two grep the
+  human-readable line; neither is touched.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

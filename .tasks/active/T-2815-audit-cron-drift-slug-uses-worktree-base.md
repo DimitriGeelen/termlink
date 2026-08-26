@@ -184,6 +184,8 @@ Found while triaging the `/approvals` queue by consequence. The open Human AC as
 remove the "stray" entry. It is **not stray, and it is worse than stray** — it is a strict
 duplicate that is double-executing live automation belonging to another project.
 
+## Recommendation
+
 **Recommendation:** remove `/etc/cron.d/agentic-audit-agent-a1edeca4dc54e9ac7`, after
 confirming with the 002-Claude-Partner-Network owner. Evidence below. This is a host mutation
 on another project's automation, so it is an operator action, not an agent one — no agent
