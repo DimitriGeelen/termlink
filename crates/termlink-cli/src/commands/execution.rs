@@ -314,6 +314,83 @@ pub(crate) struct SpawnOpts {
     pub command: Vec<String>,
 }
 
+/// T-2550: what `spawn` actually knows about registration at the moment it prints.
+///
+/// Spawning is two steps that can fail independently: the launcher starts a
+/// terminal/tmux/background process, and `termlink register` then runs INSIDE
+/// that process. The default path returned `ok:true` after step one, so a
+/// registration that never happened — hub down, bad runtime_dir, tmux missing —
+/// was reported as success. This is the same false-success class as
+/// T-2838 item 4, where `delivered` meant "bytes appended" rather than "someone
+/// read it".
+///
+/// `Unconfirmed` is deliberately NOT a failure. It is an unknown, and it is the
+/// honest answer when the caller asked for speed and we did not wait to find out.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SpawnRegistration {
+    /// Launcher started; registration has not been observed.
+    Unconfirmed,
+    /// `find_session` returned a registration for this session name.
+    Confirmed,
+}
+
+impl SpawnRegistration {
+    /// Stable machine-readable token, emitted as `registered`.
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            SpawnRegistration::Unconfirmed => "unconfirmed",
+            SpawnRegistration::Confirmed => "confirmed",
+        }
+    }
+
+    /// The one boolean a caller branches on, so nobody has to string-match.
+    pub(crate) fn is_confirmed(self) -> bool {
+        matches!(self, SpawnRegistration::Confirmed)
+    }
+}
+
+/// The exact JSON `spawn --json` emits on a non-error path.
+///
+/// Pure, and shared by production AND its test. On T-2838 item 4 the equivalent
+/// test built its own `json!` literal and therefore pinned nothing — a mutation
+/// deleting the field from the real emit site left the suite green. One
+/// definition is what makes a breaking edit observable.
+///
+/// `ready` is emitted ONLY when registration was actually checked. Emitting
+/// `ready:false` on the default path would assert "not ready", which is a
+/// different and false claim: we did not look.
+pub(crate) fn spawn_result_json(
+    session_name: &str,
+    backend: &str,
+    registration: SpawnRegistration,
+    session_id: Option<&str>,
+) -> serde_json::Value {
+    let mut v = serde_json::json!({
+        "ok": true,
+        "session_name": session_name,
+        "backend": backend,
+        "registered": registration.as_str(),
+    });
+    if let Some(obj) = v.as_object_mut() {
+        if registration.is_confirmed() {
+            obj.insert("ready".to_string(), serde_json::Value::Bool(true));
+            if let Some(id) = session_id {
+                obj.insert("session_id".to_string(), serde_json::Value::String(id.to_string()));
+            }
+        } else {
+            obj.insert(
+                "note".to_string(),
+                serde_json::Value::String(
+                    "launcher started; `termlink register` runs inside the spawned \
+                     shell and has not been observed to succeed. Pass --wait to confirm."
+                        .to_string(),
+                ),
+            );
+        }
+    }
+    v
+}
+
 pub(crate) async fn cmd_spawn(opts: SpawnOpts) -> Result<()> {
     let SpawnOpts { name, roles, tags, cap, env_vars, wait, wait_timeout, shell, backend, json, command } = opts;
     let session_name = name.clone().unwrap_or_else(|| {
@@ -343,6 +420,12 @@ pub(crate) async fn cmd_spawn(opts: SpawnOpts) -> Result<()> {
 
     if !json {
         println!("Spawned session '{}' via {} backend", session_name, resolved);
+        if !wait {
+            println!(
+                "  registration unconfirmed — the launcher started, but `termlink register` \
+                 runs inside the spawned shell. Pass --wait to confirm it registered."
+            );
+        }
     }
 
     if wait {
@@ -355,13 +438,12 @@ pub(crate) async fn cmd_spawn(opts: SpawnOpts) -> Result<()> {
         loop {
             if let Ok(reg) = manager::find_session(&session_name) {
                 if json {
-                    println!("{}", serde_json::json!({
-                        "ok": true,
-                        "session_name": session_name,
-                        "backend": resolved.to_string(),
-                        "ready": true,
-                        "session_id": reg.id.as_str(),
-                    }));
+                    println!("{}", spawn_result_json(
+                        &session_name,
+                        &resolved.to_string(),
+                        SpawnRegistration::Confirmed,
+                        Some(reg.id.as_str()),
+                    ));
                 } else {
                     println!("Session '{}' is ready", session_name);
                 }
@@ -388,11 +470,12 @@ pub(crate) async fn cmd_spawn(opts: SpawnOpts) -> Result<()> {
     }
 
     if json {
-        println!("{}", serde_json::json!({
-            "ok": true,
-            "session_name": session_name,
-            "backend": resolved.to_string(),
-        }));
+        println!("{}", spawn_result_json(
+            &session_name,
+            &resolved.to_string(),
+            SpawnRegistration::Unconfirmed,
+            None,
+        ));
     }
 
     Ok(())
@@ -814,5 +897,52 @@ mod tests {
         assert_eq!(format!("{}", SpawnBackend::Terminal), "terminal");
         assert_eq!(format!("{}", SpawnBackend::Tmux), "tmux");
         assert_eq!(format!("{}", SpawnBackend::Background), "background");
+    }
+
+    // ---- T-2550: spawn discloses what it knows about registration ----
+
+    #[test]
+    fn default_spawn_does_not_claim_registration_it_never_checked() {
+        // The defect in one assertion: the fast path used to return a bare
+        // ok:true after the LAUNCHER started, while `termlink register` runs
+        // inside the spawned shell and can still fail.
+        let v = spawn_result_json("s1", "tmux", SpawnRegistration::Unconfirmed, None);
+        assert_eq!(v["ok"].as_bool(), Some(true), "still a successful launch");
+        assert_eq!(v["registered"].as_str(), Some("unconfirmed"));
+        assert!(v["note"].is_string(), "must say why it is unconfirmed");
+        // `ready:false` would assert "not ready", a different and false claim —
+        // we did not look. Absent is the honest encoding of unknown.
+        assert!(v.get("ready").is_none(), "must not claim readiness it never checked");
+    }
+
+    #[test]
+    fn confirmed_spawn_reports_ready_and_session_id() {
+        let v = spawn_result_json("s2", "background", SpawnRegistration::Confirmed, Some("tl-abc"));
+        assert_eq!(v["registered"].as_str(), Some("confirmed"));
+        assert_eq!(v["ready"].as_bool(), Some(true));
+        assert_eq!(v["session_id"].as_str(), Some("tl-abc"));
+        assert!(v.get("note").is_none(), "no disclaimer once it is confirmed");
+    }
+
+    #[test]
+    fn spawn_registration_states_are_distinguishable() {
+        assert!(!SpawnRegistration::Unconfirmed.is_confirmed());
+        assert!(SpawnRegistration::Confirmed.is_confirmed());
+        assert_ne!(
+            SpawnRegistration::Unconfirmed.as_str(),
+            SpawnRegistration::Confirmed.as_str()
+        );
+    }
+
+    #[test]
+    fn spawn_envelope_keeps_the_legacy_keys() {
+        // T-562 established session_name + backend + ok on this envelope. The
+        // T-2550 disclosure is ADDITIVE; nothing that existed may move.
+        for reg in [SpawnRegistration::Unconfirmed, SpawnRegistration::Confirmed] {
+            let v = spawn_result_json("keep", "terminal", reg, Some("tl-x"));
+            assert_eq!(v["ok"].as_bool(), Some(true));
+            assert_eq!(v["session_name"].as_str(), Some("keep"));
+            assert_eq!(v["backend"].as_str(), Some("terminal"));
+        }
     }
 }
