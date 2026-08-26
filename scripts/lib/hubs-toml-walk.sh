@@ -53,6 +53,35 @@ _TERMLINK_HUBS_TOML_WALK_LOADED=1
 #
 # Args:
 #   $1 — log prefix for stderr lines (default: "hubs-toml-walk")
+# Every hub address configured in hubs.toml, one per line, sorted unique.
+#
+# THE DEFINITION OF "THE FLEET" (operator ruling, 2026-08-26): every CONFIGURED
+# hub, not every reachable one. An address that is currently unreachable is
+# still a member — callers must decide loudly what to do about it rather than
+# silently omitting it, because a broadcast that quietly skips a recipient is a
+# false claim about delivery.
+#
+# Extracted here because the same awk lived inline in chat-arc-broadcast.sh and
+# is duplicated in fleet-adoption-snapshot.sh and agent-chat-arc-recent.sh. Two
+# broadcast paths resolving "the fleet" independently is what produced the
+# divergence that required the ruling; one definition is what stops it
+# recurring.
+#
+# $1 = path to hubs.toml
+hub_addrs_from_toml() {
+    local hubs_file="$1"
+    [ -f "$hubs_file" ] || return 1
+    awk '
+        /^\[hubs\.[^]]+\]/ { in_hub=1; next }
+        /^\[/             { in_hub=0; next }
+        in_hub && /^address[[:space:]]*=/ {
+            gsub(/.*=[[:space:]]*"/, "")
+            gsub(/".*$/, "")
+            print
+        }
+    ' "$hubs_file" | sort -u
+}
+
 dedup_addrs_by_fp() {
     local prefix="${1:-hubs-toml-walk}"
     local termlink="${TERMLINK:-termlink}"

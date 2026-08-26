@@ -88,15 +88,13 @@ fi
 # Extract unique hub addresses from hubs.toml. Uses the same minimal TOML
 # parsing as fleet-adoption-snapshot.sh / agent-chat-arc-recent.sh — only
 # top-level `address = "..."` lines under `[hubs.NAME]` sections.
-addrs="$(awk '
-    /^\[hubs\.[^]]+\]/ { in_hub=1; next }
-    /^\[/             { in_hub=0; next }
-    in_hub && /^address[[:space:]]*=/ {
-        gsub(/.*=[[:space:]]*"/, "")
-        gsub(/".*$/, "")
-        print
-    }
-' "$HUBS_FILE" | sort -u)"
+_self_script="${BASH_SOURCE[0]}"
+_self_libdir="$(cd "$(dirname "$_self_script")" && pwd)/lib"
+# shellcheck source=/dev/null
+. "$_self_libdir/hubs-toml-walk.sh"
+
+# One definition of "the fleet", shared with chat-arc-multicast.sh.
+addrs="$(hub_addrs_from_toml "$HUBS_FILE")"
 
 [ -n "$addrs" ] || die "no hub addresses parsed from $HUBS_FILE"
 
@@ -106,10 +104,6 @@ addrs="$(awk '
 # workstation-107-public at 192.168.10.107:9100 AND local-test at
 # 127.0.0.1:9100 both hit the same hub bound to 0.0.0.0:9100). Without
 # dedup, every broadcast posts to that hub twice.
-_self_script="${BASH_SOURCE[0]}"
-_self_libdir="$(cd "$(dirname "$_self_script")" && pwd)/lib"
-# shellcheck source=/dev/null
-. "$_self_libdir/hubs-toml-walk.sh"
 addrs="$(printf '%s\n' "$addrs" | dedup_addrs_by_fp chat-arc-broadcast | sed '/^$/d')"
 
 [ -n "$addrs" ] || die "no addresses left after dedup (all probes failed?)"

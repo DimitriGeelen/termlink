@@ -7,8 +7,14 @@
 # documented as posting to every hub in the fleet. They resolve recipients by
 # different mechanisms:
 #
-#   broadcast  ~/.termlink/hubs.toml -> dedup by hub FINGERPRINT -> probe
-#   multicast  `fleet status`        -> UP only, minus local-test
+#   Both, since 2026-08-26: hub_addrs_from_toml (shared) -> alias dedup by hub
+#   FINGERPRINT -> fail open on unreachable.
+#
+#   Historically they differed — multicast read `fleet status` and kept UP rows
+#   only, minus local-test — which is the divergence this check was written to
+#   surface. The operator ruled that the fleet means EVERY CONFIGURED HUB, and
+#   multicast was changed to match. The check remains because two callers of one
+#   definition can still drift if someone re-implements either side.
 #
 # Until both grew --dry-run (f0259e2b0, 8f8d36ea7) the only way to ask either
 # one who it would reach was to send a real message to everyone, so "do these
@@ -119,19 +125,17 @@ M_RAW="$(preview_hubs scripts/chat-arc-multicast.sh --dry-run probe)"
 
 ALIASES="$(alias_pairs)"
 
-# Both sides -> addresses -> canonical address -> profile. Doing it in address
-# space is what lets the alias map apply; profile names cannot express "these
-# two are one hub".
-profile_to_addr() {
-  local map="$1"
-  while IFS= read -r p; do
-    [ -n "$p" ] || continue
-    printf '%s\n' "$(printf '%s\n' "$map" | awk -F'\t' -v P="$p" '$1==P {print $2; exit}')"
-  done
-}
-
+# Both previews emit ADDRESSES (since multicast began sharing
+# hub_addrs_from_toml with broadcast), so the pipeline is symmetric: canonicalise
+# aliases in address space — profile names cannot express "these two are one
+# hub" — then map to profiles for a readable report.
+#
+# An earlier version ran multicast's side through a profile->address step. That
+# was correct when multicast named profiles and became a FALSE DISAGREE the
+# moment it did not. Recorded because a checker whose parsing assumption silently
+# expires is the same class of defect it exists to catch.
 B="$(printf '%s\n' "$B_RAW" | canonicalise "$ALIASES" | addr_to_profile "$MAP" | sort -u)"
-M="$(printf '%s\n' "$M_RAW" | profile_to_addr "$MAP" | canonicalise "$ALIASES" | addr_to_profile "$MAP" | sort -u)"
+M="$(printf '%s\n' "$M_RAW" | canonicalise "$ALIASES" | addr_to_profile "$MAP" | sort -u)"
 
 echo "check-fleet-recipient-agreement: comparing resolved recipients"
 echo "  PREDICATE: both --dry-run previews, normalised to PROFILE names via"
@@ -141,9 +145,9 @@ echo "             divergence. Addresses that broadcast itself reports as the"
 echo "             SAME hub (fingerprint dedup) are folded to one recipient."
 echo "             Run --self-test to confirm the normaliser works."
 echo ""
-echo "  broadcast (hubs.toml -> fingerprint-dedup -> probe):"
+echo "  broadcast (hub_addrs_from_toml -> alias dedup; unreachable kept):"
 printf '%s\n' "$B" | sed 's/^/    /'
-echo "  multicast (fleet status, UP only, minus local-test):"
+echo "  multicast (hub_addrs_from_toml -> alias dedup; unreachable kept):"
 printf '%s\n' "$M" | sed 's/^/    /'
 echo ""
 
@@ -171,6 +175,8 @@ echo "  hub is reported by the per-hub loop rather than silently omitted). A hub
 echo "  listed here as broadcast-only with fleet status DOWN is that behaviour,"
 echo "  not a defect."
 echo ""
-echo "  Not reconciled here: whether the fleet means every CONFIGURED hub or"
-echo "  every currently-UP one is a topology decision, not a scripting one."
+echo "  OPERATOR RULING 2026-08-26: the fleet means EVERY CONFIGURED HUB, not"
+echo "  every currently-UP one. Both paths resolve from hubs.toml via the shared"
+echo "  hub_addrs_from_toml, so a divergence here now means one of them has"
+echo "  drifted from that definition — which is a defect, not an open question."
 exit 1

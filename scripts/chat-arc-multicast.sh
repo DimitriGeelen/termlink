@@ -57,13 +57,27 @@ fi
 
 log "multicast starting — thread=$THREAD from_project=$FROM_PROJECT"
 
-# Pick UP hubs (excludes self / down / auth-fail)
-mapfile -t HUBS < <(termlink fleet status 2>&1 \
-  | sed -E 's/\x1B\[[0-9;]*[a-zA-Z]//g' \
-  | awk '/^[[:space:]]*UP[[:space:]]/ && $2 !~ /^(local-test)/ {print $2}')
+# EVERY CONFIGURED HUB (operator ruling, 2026-08-26) — not every UP one.
+#
+# This previously read `fleet status` and kept only UP rows, additionally
+# dropping local-test. That silently excluded configured hubs: any hub that
+# happened to be down, plus local-test unconditionally, while still reporting
+# the message as having gone to the fleet.
+#
+# Now shares hub_addrs_from_toml + dedup_addrs_by_fp with chat-arc-broadcast.sh,
+# so both paths resolve recipients from ONE definition rather than agreeing by
+# coincidence. Unreachable hubs are KEPT and the per-hub loop reports their real
+# error — see the fail-open note in hubs-toml-walk.sh.
+_mc_libdir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib"
+# shellcheck source=/dev/null
+. "$_mc_libdir/hubs-toml-walk.sh"
+
+HUBS_FILE="${HUBS_FILE:-${HOME}/.termlink/hubs.toml}"
+mapfile -t HUBS < <(hub_addrs_from_toml "$HUBS_FILE" \
+  | dedup_addrs_by_fp chat-arc-multicast | sed '/^$/d')
 
 if [ ${#HUBS[@]} -eq 0 ]; then
-  log "no UP hubs — nothing to multicast"
+  log "no hubs configured in $HUBS_FILE — nothing to multicast"
   exit 1
 fi
 
@@ -78,7 +92,8 @@ if [ "$DRY_RUN" = "1" ]; then
   fi
   printf '  metadata        : _from=workstation-107-multicast _thread=%s from_project=%s\n' \
     "$THREAD" "$FROM_PROJECT"
-  printf '\n  hubs that would receive it (fleet status = UP, excluding local-test):\n'
+  printf '\n  hubs that would receive it (every hub configured in hubs.toml,\n'
+  printf '  alias-deduped; unreachable hubs are KEPT — operator ruling 2026-08-26):\n'
   for h in "${HUBS[@]}"; do printf '    %s\n' "$h"; done
   printf '\n  payload (%s bytes):\n' "$(printf '%s' "$PAYLOAD" | wc -c | tr -d ' ')"
   printf '%s\n' "$PAYLOAD" | sed 's/^/    | /'
