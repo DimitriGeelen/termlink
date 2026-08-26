@@ -193,6 +193,55 @@ cost_estimate_proposed:
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** CLOSE — all four inception decisions are on record, and the one
+thread still genuinely live (T-1898's expired DEFER) is now carried by a reminder
+mechanism that is verifiably firing again.
+
+**Rationale:** This task is a tracker, and its single Human `[REVIEW]` asks for a
+GO/NO-GO/DEFER on four inceptions. All four carry a recorded decision today —
+T-2025 NO-GO and T-2028 GO are decided and archived, T-1635's GO is in its
+`## Decision` section, and T-1898's DEFER is in its own. The task was sitting not
+because a decision was missing but because part of what it tracked depended on a
+reminder that could never arrive: `revisit-due-scan.sh` was resolving the wrong
+`PROJECT_ROOT` and exiting 0 every morning. That was diagnosed and fixed under
+T-2810, and the fix is now demonstrably working, which is what makes closing this
+tracker safe rather than merely tidy.
+
+**Evidence:** `.tasks/completed/T-2025-…` and `.tasks/completed/T-2028-…` both
+`status: work-completed`, `date_finished: 2026-07-02T15:40:51Z`.
+`.tasks/active/T-1635-…` is `status: work-completed` with one unticked box, a
+`[REVIEW]` of its own seam-response artifact — that belongs to T-1635, not here.
+`.tasks/active/T-1898-…` is `status: captured`, `## Decision` = DEFER,
+`revisit_at: 2026-07-06` — **52 days ripe as of today**. The restored scan wrote
+`.context/working/.revisits-due.txt` at 2026-08-26 22:30 naming both T-1898 and
+T-2250, and the handover banner carries it (`S-2026-0824-1942.md:41`).
+
+**What you are actually deciding.** Not four decisions — that framing is 10 weeks
+stale. You are deciding whether this tracker has done its job, given that its
+remaining content has migrated to the tasks it was tracking:
+
+| Option | Behaviour | Cost |
+|---|---|---|
+| CLOSE (recommended) | tracker closes; T-1898 and T-1635 carry their own remaining items | relies on the daily revisit scan and T-1635's own review queue to keep those visible |
+| KEEP-OPEN | T-1898's overdue DEFER stays pinned to a second surface | one more permanently-red tracker; the thing it pins is already surfacing daily on its own |
+| DEFER | re-date this tracker | defers a bookkeeping question rather than the substantive one, which is T-1898's spike budget |
+
+**What CLOSE does not settle.** T-1898's DEFER is expired and its
+`revisit_evidence_needed` names exactly two routes back to actionable: you
+authorize the ~5h-agent + 24h-observation spike budget for S1–S8, or
+ring20-management goes silent >24h again and makes the cost concrete. Neither has
+happened. Closing this tracker does not answer that — it hands the question back
+to T-1898, where `fw inception decide` belongs.
+
+**Why I should not decide this alone.** Two reasons, and the second is the real
+one. Ticking a `[REVIEW]` box is yours under the Authority Model. And the argument
+for CLOSE rests on trusting a reminder that was silently broken for months and was
+repaired seven days ago — I can show you it fired last night, but whether one
+observation is enough to stop pinning T-1898 by hand is a judgement about how much
+you trust a fresh fix, not a fact I can measure.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

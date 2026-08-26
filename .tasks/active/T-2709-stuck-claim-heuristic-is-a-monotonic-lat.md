@@ -394,13 +394,22 @@ nothing held and nothing that *could* be stuck, one carrying 81 expired rows.
 A canary firing daily on permanent debris is how an operator learns to stop
 reading it.
 
-**The caveat that is not cosmetic.** The measured `stuck_count: 0` on this host
-comes from the **back-compat path**, not from the recency window — the local hub
-predates `newest_expired_at_ms` and omits it, so the abandoned-claim arm cannot
-fire here at all. AC #10 made that visible rather than letting `0` read as proven
-(`expired_arm_inert` on the CLI, `DEGRADED:` on the canary). So this decision is
-being made on the *argument*, not on a live measurement of the new arm. A hub
-upgrade is what would turn it into one.
+**The caveat that WAS load-bearing, and has since cleared.** When AC #10 was
+written the measured `stuck_count: 0` came from the **back-compat path**, not
+from the recency window: the local hub predated `newest_expired_at_ms` and
+omitted it, so the abandoned-claim arm could not fire here at all. AC #10 made
+that visible rather than letting `0` read as proven (`expired_arm_inert` on the
+CLI, `DEGRADED:` on the canary), and the recommendation originally rested on the
+argument rather than on a live measurement.
+
+Re-measured 2026-08-27 against hub binary `0.11.1612`:
+`channel claims-summary --all --json` now reports **`expired_arm_inert: false`**
+over 19 topics with `stuck_count: 0`, and the canary prints plain
+`healthy (19 topics, 0 stuck)` with no `DEGRADED:` suffix. **The recency arm is
+live and green.** So the green number is now a real measurement of the new
+predicate, not the degraded path — the decision below is better-evidenced than
+when it was first written, and the hub upgrade this caveat was waiting on has
+already happened.
 
 **Why I should not decide this.** The two rejected options are defensible. Which
 signal you want out of the claim rail is a judgement about how you intend to use

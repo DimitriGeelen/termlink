@@ -168,6 +168,70 @@ These interact with the offline-queue design (T-2051) and presence semantics
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** GO on Q1 — stop queuing ephemeral presence (drop or
+coalesce). NO change on Q2 — the T-2564 warn is sufficient; do not add an
+exit-after-N policy yet.
+
+**Rationale:** Q1 has an asymmetry the design discussion did not name. A queued
+heartbeat delivers almost nothing on flush, because presence is derived from
+RECENCY, not from record count: `listener-heartbeat.sh:23-25` defines LIVE as
+"newer than 2×interval" and OFFLINE as "older than 5×interval" — 60s and 150s at
+the 30s default. A batch of heartbeats replayed after an outage is a batch of
+records that all read OFFLINE except possibly the newest, and the agent's next
+live heartbeat arrives within 30s anyway. Meanwhile the cost is real and falls on
+someone else: the outbound queue is a single shared per-host FIFO
+(`~/.termlink/outbound.sqlite`) with `cap: 1000`, and on QueueFull the R3 loud-fail
+(T-2051) rejects everything — including the guaranteed messages the queue exists
+to protect. Ephemeral traffic evicting durable traffic from a shared bounded
+resource is the trade to fix, and it is a bad one in both directions.
+
+**Evidence:** Measured on this host 2026-08-27 — `channel queue-status --json`
+reports `{"cap":1000,"pending":0}`, so nothing is currently backed up. Heartbeat
+interval defaults to 30s (`listener-heartbeat.sh:95`, min 5). At 30s, one agent
+emits 120 posts/hour, so a single agent alone fills the entire shared 1000-row
+cap in ~8.3 hours of hub outage; three agents on one host do it in under three.
+`agent-presence` retention here is `{"kind":"messages","value":1000}`, and
+CLAUDE.md documents cv_index as last-write-wins per `cv_key` — so even on a
+successful flush the replayed batch collapses to one current value. **Not
+measured:** any real outage on this host long enough to have hit the cap; the
+`pending:0` reading means this is arithmetic on measured constants, not an
+observed incident.
+
+**On Q2 specifically.** The mechanism is already half-built and that is the
+argument against finishing it: `queued_run` is already computed and incremented
+at `listener-heartbeat.sh:221-223`, so adding an exit threshold is a one-line
+change on an existing variable. It has not been done because the *value* is
+unproven, not because the code is hard. Exiting non-zero only helps if a
+supervisor is actually watching — and the failure it would respond to is "the
+hub is down", which restarting the heartbeat does not fix. That is the flap the
+task itself flags. Q1 is worth doing; Q2 is a change looking for evidence.
+
+**What you are actually deciding.**
+
+| Q1 option | Behaviour | Cost |
+|---|---|---|
+| (a) keep queuing (status quo) | replay on reconnect | ephemeral traffic can starve guaranteed traffic out of a shared 1000-cap queue |
+| (b) drop on unreachable | fire-and-forget | a ~30s window where nothing records the attempt; the T-2564 warn is the only trace |
+| (c) coalesce to latest-per-agent | one row per agent survives | needs enqueue-time dedupe in the queue layer — real work, and the surviving row still reads OFFLINE by flush time |
+
+Between (b) and (c) the evidence does not separate them cleanly: (c) is strictly
+more code for a record that the staleness math will mostly discard anyway. I
+lean (b) and would not argue hard against (c).
+
+**Why I should not decide this.** Q1 changes what "presence" promises across the
+whole fleet — whether an agent that was unreachable has a queued record of having
+tried, or nothing at all. That is a semantic about the discovery verb, and it
+interacts with the offline-queue contract (T-2051) and cv_key presence
+(T-1841/T-2107). Q2 is a supervisor-policy question about a supervisor whose
+behaviour I have not observed.
+
+**If you say GO on Q1:** the third AC then needs a follow-up build task with the
+(b)-or-(c) choice named in its ACs. If you keep the status quo instead, the
+honest close is confirming the T-2564 warn as the whole answer — which is a
+defensible outcome and should be recorded as one, not left open.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

@@ -181,6 +181,50 @@ cost_estimate_proposed:
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** CLOSE — the decision this task asks you to make was already
+made and recorded on 2026-06-25, and D14 has been passing since.
+
+**Rationale:** Both halves of this task's stated scope are satisfied in the tree.
+T-2144's NO-GO is not pending: it is written into T-2144's `## Decision` section
+in `fw inception decide` form, the task is finalized and archived, and the D14
+auditor no longer names it. The Human `[REVIEWER]` box asks you to run a command
+whose effect is already present. What is left is a tick, not a decision — with one
+caveat below that is worth reading before you tick it.
+
+**Evidence:** `.tasks/completed/T-2144-substrate-primitive-review--identify-nex.md`
+— `status: work-completed`, `date_finished: 2026-06-25T06:31:59Z`, and a populated
+`## Decision` reading `**Decision**: NO-GO` with the substrate-at-clean-ship-state
+rationale carried over verbatim from its Recommendation. `.context/audits/2026-08-20.yaml:894`
+records `D14: Empty inception Recommendation — none (PASS no_empty_recommendations)`,
+which is the "re-run audit, confirm D14 no longer fires" Agent AC, met.
+
+**The caveat — the false positive was not fixed, it was outrun.** This task's
+`description` proposes two RCAs and says to do both: fix the auditor false positive
+AND close T-2144. Only the second happened. The D14 check at
+`.agentic-framework/agents/audit/audit.sh:5958` still requires
+`^\s*[-*]?\s*\*\*Recommendation:\*\*\s*\S`; nothing in it changed (last touches
+were re-vendors and T-2721's worktree fixes, none to this predicate). T-2144 stopped
+firing because AC 2 reformatted *the task* to match the pattern — and then because
+T-2144 left `active/`, which is the only directory D14 scans. So the next inception
+that writes a prose-only Recommendation will fire D14 exactly as before. It is also
+vendored code (G-062), so a local fix would be erased by the next re-vendor.
+
+**What you are actually deciding.**
+
+| Option | Behaviour | Cost |
+|---|---|---|
+| CLOSE (recommended) | tick the `[REVIEWER]` box; T-2144's NO-GO stands as recorded | the strict D14 pattern stays; the class recurs on the next prose-only Recommendation, with nothing tracking it |
+| CLOSE + file the pattern upstream | same, plus the checker half goes to `framework:pickup` | one filing's effort; the honest close for a task whose description promised both halves |
+| KEEP-OPEN | hold this task until the auditor half is done | a task pinned open on vendored code we cannot fix here anyway |
+
+**Why I should not decide this alone.** Two things. Reversing or confirming your own
+prior authorization is a `[REVIEWER]` tick under the Authority Model. And whether a
+checker that only stopped firing because its one subject moved directories counts as
+"fixed" is a standards call about what this project will accept as closed — the same
+judgement that separates mitigation from prevention under G-019, and not mine to make.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

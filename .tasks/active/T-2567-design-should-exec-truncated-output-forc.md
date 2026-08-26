@@ -190,6 +190,62 @@ task is the WIRE-BEHAVIOUR question the prover work deferred.
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** GO — force `exit_code = -1` whenever `truncated == true` in
+`execute_capped`, and file the build task with the regression test.
+
+**Rationale:** `-1` is not a new meaning being introduced here; it is the value
+the wire ALREADY produces for this exact case whenever the kill wins the race.
+`executor.rs:24-25` says so directly — a caller receiving `exit_code:-1` cannot
+tell a cap-hit from a signal kill "both render -1", and in the ~64 KiB band a
+truncated result instead reads as `exit_code:0`. So today the same event reports
+either `-1` or `0` depending on scheduler timing. Forcing the sentinel removes a
+race; it does not add an ambiguity, because `truncated` (T-2537) is already on
+the wire to disambiguate `-1` for anyone who cares which kind it was.
+
+**Evidence:** Four `executor::execute` call sites exist —
+`termlink-cli/src/commands/execution.rs:76` (CLI `exec`),
+`termlink-mcp/src/tools.rs:12618` (`termlink_run`), `tools.rs:15720`
+(`batch_run`), `termlink-session/src/handler.rs:508` (`command.execute` RPC).
+All four forward `truncated` into their JSON envelope (T-2537 / T-2578), each
+pinned by a test. **Zero sites in the workspace branch on `truncated` as a
+decision** — grep finds it only being serialized. The single consumer that
+actually checks it is `scripts/session-selftest.sh:173-186`, the T-2563 prover.
+So the field is universally emitted and, in-tree, universally ignored.
+
+**The unprotected caller documentation cannot reach.** `termlink exec` **text
+mode** (`execution.rs:114-124`) prints stdout, prints stderr, and exits with the
+raw `exit_code`. It never mentions truncation — there is no field, because there
+is no JSON. A shell caller running `termlink exec 'produce_big_output && exit 0'`
+receives silently-truncated stdout and exit 0, and no amount of documenting "the
+`truncated` contract at every consumer surface" helps, because that surface has
+no such field. Under the forced sentinel it exits `-1` and the caller's `set -e`
+fires. This is the one argument I think is decisive between the two options.
+
+**What you are actually deciding.**
+
+| Option | Behaviour | Cost |
+|---|---|---|
+| Force `-1` on truncated (recommended) | exit-code-only consumers cannot mistake a partial capture for success; text mode gains a signal it currently cannot have | a caller wanting the child's real code loses it; wire-behaviour change |
+| Keep + document | no compat risk | leaves text mode structurally unfixable, and relies on every consumer reading a field that in-tree nobody reads |
+| Distinct sentinel (e.g. `-2`) | preserves "-1 means signal" | `-1` already means cap-hit half the time today, so this changes MORE behaviour than forcing `-1`, not less |
+
+**Why I should not decide this.** The blast radius is not measurable from this
+repo. In-tree there is no caller reading the real code alongside `truncated`,
+but `command.execute` is a published RPC on the charter's founding verb, and
+this fleet is documented as running hosts up to ~1000 commits stale (T-2377) —
+consumers I cannot enumerate. Whether that unmeasured population outweighs a
+demonstrated silent-data-loss path is a sovereignty call, not a code reading.
+
+**Not measured:** any out-of-repo consumer of `command.execute` / `exec --json`;
+whether any of them reads `exit_code` without `truncated`.
+
+**If you say GO:** the change is one line at `executor.rs:229`
+(`exit_code: if truncated { -1 } else { status.code().unwrap_or(-1) }`), plus a
+regression test asserting `truncated → exit_code == -1`, plus the third AC's
+build task. `scripts/session-selftest.sh` F3 already covers the prover side.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

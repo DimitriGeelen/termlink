@@ -180,6 +180,58 @@ growth symptom but does not prevent the root cause. **Blocked on the Human decis
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** GO on **receive-time** — make the Days sweep key off a hub-attested
+receive time, and build the Agent ACs as written.
+
+**Rationale:** The charter promises durable messages, and content-time retention lets a
+client-supplied `ts` delete a durable message before any consumer reads it — the
+guarantee defeated by the caller. The counter-consideration the Human AC raises (a topic
+that intentionally posts historical events and wants them pruned by event date) has now
+been measured rather than assumed, and no such topic exists on any reachable hub. So the
+only argument for keeping content-time is compatibility with tests that encode it, and
+tests encoding the defective semantics are not a reason to keep them.
+
+**Evidence:** Every code claim in the Context re-verified in this tree today.
+`crates/termlink-bus/src/lib.rs:192` passes `env.ts_unix_ms` into `record_append`;
+`meta.rs:344` is the Days DELETE (`WHERE topic = ?1 AND ts_unix_ms < ?2`);
+`lib.rs:791-793` computes the cutoff; `channel.rs:715-718` takes `ts` from `params` with
+`SystemTime::now()` only as `unwrap_or_else` fallback. **Fleet survey of live `Days`
+topics:** local hub `.107` — 19 topics, **zero** on Days. `ring20-dashboard` `.121` — 118
+topics, **zero** on Days. `ring20-management` `.122` — 169 topics, **two** on Days:
+`agent-presence` (`Days(2)`, 8778 records) and `ring20:heartbeat` (`Days(7)`, 187
+records). Both are heartbeat topics whose content ts ≈ receive ts, so the switch is a
+practical no-op for them — confirming the task's own hypothesis. `laptop-141` `.141` was
+**unreachable and is not measured**. **Cost signal:** `record_append` has exactly one
+caller, and the task already verified `records.ts_unix_ms` has exactly one reader (the
+sweep DELETE), so the behavioural change is a one-line substitution at `lib.rs:192` plus
+test updates — no schema change and no new column required.
+
+**What you are actually deciding.** Not whether the defect is real — it is verified in
+code, twice, by two different passes. You are deciding what `Days(N)` *means*, and the
+three options from the Human AC carry different costs:
+
+| Option | Behaviour | Cost |
+|---|---|---|
+| **receive-time** (recommended) | sweep keys off hub receive time; `ts` stays the display/content value in the envelope | changes a documented semantic; three existing tests (`bus/lib.rs:1306`, `1321`, `1356`) encode the old one and must be rewritten; a future "prune by event date" use case would need a new retention mode |
+| content-time, reject future `ts` | keeps current semantics; only kills the immortal-record / unbounded-growth vector | leaves the durability violation (a backfilled old `ts` still deletes an unread just-received message) fully intact — fixes the cheaper half of the defect |
+| keep-as-is | nothing changes | accepts both vectors; the T-2252 topic-growth canary surfaces the growth symptom but nothing surfaces the message loss, which is silent by construction |
+
+**Two things this recommendation does not cover.** Existing rows already carry client `ts`
+— whether they need backfilling, or whether it is acceptable to let the old rows age out
+under the old rule, is **not measured or addressed** anywhere in this task. And the
+`.141` hub could not be reached, so the "no topic relies on content-time Days pruning"
+finding is fleet-wide *minus one host*.
+
+**Why I should not decide this alone.** This redefines what a retention guarantee means
+to every current and future client of the bus, and the change is invisible to callers —
+nothing errors, records simply live or die by a different clock. A semantic that other
+projects build against is an owner's call. There is also a live blast-radius question I
+cannot settle: `.122`'s `agent-presence` holds 8778 records under `Days(2)`, and whether
+that count is expected under either semantics is worth a glance before the sweep's
+discriminator changes underneath it.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

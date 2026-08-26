@@ -193,6 +193,61 @@ test $(grep -lF "the coordination substrate that lets a fleet of AI agents" READ
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** CLOSE — read the canonical sentence and either bless it or
+edit it in place; the mechanics are complete and the sentence is already
+load-bearing.
+
+**Rationale:** Everything an agent can do here is done and verified. What remains
+is the one thing an agent structurally must not do: decide what TermLink *is*.
+That is a sovereignty question — the charter block says so itself. The reason to
+resolve it rather than let it sit is that the sentence stopped being a draft some
+time ago: a growing set of guards, reviews and cut decisions now enforce against
+it, so every day it stays unblessed is another day of work resting on a premise
+nobody ratified.
+
+**Evidence:** All 3 Agent ACs ticked. Both `## Verification` commands pass today:
+the canonical sentence is present in all three of `README.md`,
+`docs/ARCHITECTURE.md`, `docs/CHARTER.md`, and the stale "Cross-terminal session
+communication system" framing is gone from both docs. `bash
+scripts/check-charter-sentence-drift.sh` (T-2484) exits 0 — "in-sync — all 3
+surfaces carry the identical canonical sentence". Downstream artefacts that cite
+`docs/CHARTER.md` today: `scripts/check-charter-sentence-drift.sh`,
+`scripts/session-selftest.sh`, three operations docs, and six review reports
+(T-2540, T-2548, T-2549, T-2678, T-2702, T-2838). The charter-drift canary
+(T-2483) and the tool-surface acknowledgement ledger both gate on it.
+
+**What you are actually deciding.** One sentence, in `docs/CHARTER.md` §Canonical
+purpose:
+
+> TermLink is a hub-mediated, durable append-log message bus with terminal
+> endpoints — the coordination substrate that lets a fleet of AI agents (and
+> humans) discover each other, exchange durable messages, claim work, and control
+> terminal sessions across one or many machines.
+
+The four verbs in it are not decorative — they are the axis the guard layer scores
+against (the charter-verb prover/canary coverage matrix, the P4 surface reduction,
+and the ~28 tools currently acknowledged as off-charter pending T-2548 all key off
+those four). Your options:
+
+| Option | Cost |
+|---|---|
+| Bless as written | The four verbs become the settled test for what gets built and cut |
+| Edit the sentence, then re-sync the two copies | Cheap mechanically (the drift canary tells you if you miss one), but any verb you add or drop re-scopes T-2548 and the charter-drift allowlist |
+| Leave unblessed | What has happened for the last 27 days: guards enforce it anyway, without ratification |
+
+**Why I should not decide it alone.** An agent proposing the definition of the
+project it works on, and then blessing that definition, is the loop the Authority
+Model exists to break. I can tell you the sentence is internally consistent, that
+it is synthesised from the pre-existing README and ARCHITECTURE framings rather
+than invented, and that the docs agree — I cannot tell you it is the purpose you
+want to own.
+
+**If you disagree:** edit the sentence in `docs/CHARTER.md` (authoritative), then
+bring `README.md` and `docs/ARCHITECTURE.md` into agreement and re-run
+`bash scripts/check-charter-sentence-drift.sh` to confirm all three match.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

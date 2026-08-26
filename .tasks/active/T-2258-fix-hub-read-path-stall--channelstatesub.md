@@ -236,6 +236,55 @@ cargo build -p termlink
 - **Plan impact:** The regression test is a forward GUARD (concurrent walks complete; catches a future regression to blocking-the-pool), not a pre-fix reproduction. A faithful socket-level repro was assessed (server.rs has the harness) but deemed expensive + likely timing-flaky (`block_in_place` spawns helper workers; server tests default to `current_thread` where it panics) — not worth the budget vs. the operator's live re-test.
 - **Triggered:** Human/operator AC for live `.107` confirmation (already in the task). No new sub-tasks.
 
+## Recommendation
+
+**Recommendation:** CLOSE — the fix is deployed, the field repro no longer
+reproduces, and the Human AC's Expected clause is already evidenced live.
+
+**Rationale:** This is not a judgement call left open; it is a tick that was never
+made. The Human AC asks one thing — "the read returns within the bound every time,
+including immediately after a post" — and that exact clause was measured on the
+live `.107` hub on 2026-07-05 across all three shapes of the field repro, including
+the write-then-read shape that originally hung. The agent cannot tick a `### Human`
+box (G-068), so the task has sat in `active/` for the seven weeks since, blocking
+nothing and proving nothing.
+
+**Evidence:** All 5 Agent ACs ticked. Fix commit `db7c10a56` ("spawn_blocking for
+large-topic walks") is in HEAD; `spawn_blocking` is present in the read path at
+`crates/termlink-hub/src/channel.rs:1269`; the regression guard
+`channel_subscribe_no_hang_under_concurrent_walks_t2258` exists at `channel.rs:4363`.
+The 2026-07-05 live re-test recorded: large-topic cold read (agent-chat-arc, 5510
+rows) 476/523/447ms; the exact field shape (1600-row scratch topic, post → immediate
+re-read, 5 trials) 146–161ms; the RCA's starvation trigger (8 concurrent TCP walks +
+3 concurrent writers, bounded 20s) 218–355ms with all 8 returning rc=0. Re-confirmed
+read-only today (2026-08-27) against `192.168.10.107:9100`: `channel state
+agent-chat-arc` returned ~1MB in 115ms on 3/3 trials, rc=0, no hang.
+
+**What you are actually deciding.** Only whether the live evidence satisfies you.
+Two things are worth knowing before you tick:
+
+- **Today's re-confirmation is the read-only half.** Re-running the write-then-read
+  half now would mean posting to a live shared topic on a shared host, which this
+  session declined to do unasked. The full shape was measured on 2026-07-05 and is
+  recorded in `## Updates`; it was not re-measured today.
+- **The version string does not corroborate.** The 2026-07-05 note cites the
+  deployed lineage as `0.11.324`; `fleet doctor` reports `.107` at `0.11.1196`
+  today. Per CLAUDE.md §T-2359, patch numbers are `git describe` tag-epoch
+  artifacts and are **not** comparable across epochs, so neither number proves nor
+  disproves that the running binary carries `db7c10a56`. The behaviour does — a
+  bounded 115ms large-topic read is the property the AC actually asks about, and
+  the pre-fix symptom was a 12s kill on that same class of read.
+
+**Why I should not decide it alone.** The AC is written as an operator confirmation
+against a live shared host, and the framework reserves that tick for the human by
+design. My evidence says the symptom is gone; whether you consider a seven-week-old
+full repro plus a same-day partial re-confirmation sufficient is your call, not mine.
+
+**If you disagree:** re-run the write-then-read half yourself —
+`timeout -s KILL 12 termlink channel state agent-chat-arc --hub 192.168.10.107:9100`,
+post a note to that topic, then immediately re-read. If it hangs, the fix is not on
+the running binary and the task reopens with new evidence rather than closing.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

@@ -182,6 +182,57 @@ cost_estimate_proposed:
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** KEEP-OPEN — but re-aim it. Its stated outcome did not happen
+and the number moved the wrong way; closing it now would put "review-queue backlog
+addressed" into the record while the queue is 2.7× larger than when it was filed.
+
+**Rationale:** This task's only Human AC promises "queue depth drops by 10+ in one
+session". Measured today, depth is up, not down. Two of its five Agent ACs are
+ticked on answers that say the work was *not* done — AC #2 reads "**Deferred to
+focused follow-up**" and AC #4 reads "**NOT done — would be 56 new tasks**" — so
+the ticks record a decision not to act, not a completed action. That is defensible
+reasoning and an indefensible checkbox state, and it is why this task can look
+finished while its subject grew unchecked for 76 days. It is also self-referential:
+this task is itself one of the entries in the queue it was filed to drain.
+
+**Evidence:** Measured 2026-08-27 from `fw task verify` and the task files:
+**104 tasks** are awaiting human verification (the header line of `fw task verify`),
+of which **78 are older than 30 days** — the bucket the original D2 FAIL counted at
+**38** — and **59 are older than 90 days**. The oldest are `T-1137` (130d),
+`T-1296` (123d), and `T-1415`/`T-1417`/`T-1419` (119d each). T-1417 and T-1419 are
+the same two this task named as "oldest, 43d" at filing on 2026-06-12; they are
+still open, now 119 days old. Independently, 95 human-owned active task files carry
+at least one unchecked `### Human` box, totalling 117 unchecked ACs. The four
+[RUBBER-STAMP] tasks this task identified as the lowest-friction batch (T-1696,
+T-1722, T-1296, T-1723) are all still in the queue. Whether their smoke evidence is
+now stale was **not measured** here.
+
+**What you are actually deciding.** Not "should someone click more". The finding
+this task has effectively produced is that a 104-deep one-at-a-time queue is not
+going to be drained by intent, and that the framework has no affordance for closing
+a shipped *arc* in one judgement — the ~22 substrate-listener tasks (T-1485…T-1502)
+are one body of work sitting as 22 separate clicks. Your realistic options:
+
+| Option | Cost |
+|---|---|
+| Run the click-through session as written | Real operator hours against 104 tasks; drains the tail, not the mechanism — it refills |
+| Build an arc-level or batch REVIEW+close affordance in Watchtower | Engineering work, and it risks making the sovereignty tick cheap enough to be reflexive, which is the gate's whole value |
+| Re-scope this task to the mechanism question and let the tail age | Honest, but the tail is where the two 119-day tasks live |
+| Close it as "RCA delivered, remediation is a different problem" | Cleanest record, worst signal: the D2 FAIL keeps firing with nothing owning it |
+
+**Why I should not decide it alone.** Every option above is a judgement about how
+much the human-verification gate is worth relative to the operator time it costs —
+and one of them (batch-tick) would loosen a sovereignty boundary. An agent
+recommending that the human's approval step be made faster to click is exactly the
+proposal that should not be self-approved. I have measured the queue; what it is
+worth is yours.
+
+**If you disagree and want it closed as-is:** the honest close is to re-word the
+Human AC first, because "queue depth drops by 10+" is now false, and ticking it
+would put a measurement into the record that the numbers above contradict.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

@@ -201,6 +201,67 @@ Refer to T-1447 (PL-124 origin) and T-1069 (PL-022) for prior diagnoses. T-2014 
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** DEFER — park this tracker against the next re-vendor of
+`.agentic-framework/`, and decide separately whether the prose-checklist mitigation is
+strong enough to rely on.
+
+**Rationale:** The upstream fix is the only thing that closes the remaining Agent AC, and
+no part of it has landed. What TermLink controls is done: diagnosed, exposure measured,
+filed upstream with an ordering constraint the original artifact could not have known.
+What it does *not* control is when — or whether — the template merge becomes
+block-aware. Holding this at `horizon: now` presents it as work that can advance, and it
+cannot; closing it discards the post-re-vendor re-check with nothing standing in its
+place.
+
+**Evidence:** Re-checked in this tree today. `.agentic-framework/lib/upgrade.sh` still
+does whole-section replacement — the boundary is the bare sed address `/^## Core
+Principle$/` at `:1268`, `:1272` and `:1315`, with the lost-line warning at `:1346` and no
+action taken after it. Zero occurrences of any `fw-upgrade:governance` sentinel marker
+(prevention option 1) and zero occurrences of `accept-clobber` (option 3), so neither
+proposed fix is present. **The exposure has grown since it was measured:** CLAUDE.md is
+now 3107 lines with `## Core Principle` at line 2285, so **823 lines sit in the half
+`fw upgrade` replaces** — the 2026-08-20 filing said 844 of 2493, meaning the figure moves
+with every edit and is not a stable number to quote. Filed at `framework:pickup` offset
+29; a pre-re-vendor checklist is at the top of `.vendor-divergence.yaml`.
+
+**What you are actually deciding.** Two things.
+
+*First, dispose of the Human AC.* "[REVIEW] Framework-agent prompt is operator-ready" was
+overtaken on 2026-08-20 — the artifact sat unread for 76 days and was superseded by the
+direct filing at offset 29. Tick it or retire it; nothing depends on the answer.
+
+*Second, the task's disposition.* Three realistic options:
+
+| Option | Behaviour | Cost |
+|---|---|---|
+| DEFER (recommended) | stays open, stops presenting as now-actionable, re-checked at the next re-vendor | needs `revisit_at` / `revisit_evidence_needed` set, or the deferral has no structural reminder (T-1451 / G-053) |
+| CLOSE | tracker retired; the defect lives on at offset 29 and in the `.vendor-divergence.yaml` checklist | accepts the checklist as the whole mitigation — see the asymmetry below |
+| KEEP-OPEN as-is | unchanged | re-surfaces as actionable and the next pickup re-derives "still blocked" |
+
+**The asymmetry worth your attention, and the reason this is not simply T-2016 again.**
+Its sibling has an *executable* local guard — `scripts/fw-upgrade-safe.sh` warns before
+the run. This task's mitigation is a **prose checklist a human must read at the right
+moment**. This repo has documented that exact shape failing three times: the framework
+prompt here, unread for 76 days; T-1166's bake checkpoint, 71 days; the "framework bug to
+file" note in commit `444a7e9b3`, never filed. So the honest reading is that T-2015 is
+*less* protected than T-2016, not equally protected — which is an argument for DEFER over
+CLOSE, and possibly an argument for a stronger local guard.
+
+**Not measured, and it matters.** Whether upstream is consuming `framework:pickup` at all
+— no receipt or reply for offset 29 was checked here. Also unmeasured: whether the
+ordering constraint filed with it (the offset-28 replay-allowlist fix must land *before*
+any `--accept-clobber` flag, or the acknowledgement is silently discarded) has been
+acknowledged upstream.
+
+**Why I should not decide this alone.** This is vendored code (G-062) — a local patch to
+`lib/upgrade.sh` is erased by the next re-vendor, so the durable route really is upstream,
+and how long to wait on another project's roadmap is your call. The second question, how
+much local engineering to spend defending 823 lines of governance text against a
+maintenance command, is a cost/benefit judgement about this repo's attention, not a
+correctness question I can settle from the code.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

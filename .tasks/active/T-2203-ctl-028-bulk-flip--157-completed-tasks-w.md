@@ -212,6 +212,53 @@ bash scripts/check-task-finalization-freshness.sh --strict
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** CLOSE — the authorization this task waits on was given and acted
+on over two months ago, the sweep is verifiable in the tree, and nothing about it is
+still reversible or pending.
+
+**Rationale:** The Human `[REVIEW]` asks you to choose Path A or Path B and authorize
+the sweep. Path B was chosen and executed on 2026-06-13, the day after this task was
+filed, in one atomic commit whose own message records your authorization
+(`Owner:human — agent did the remediation; human verifies + closes T-2203`). The
+invariant it was meant to restore holds today, measured directly rather than through
+the audit's string output. There is no decision left in this file — only a tick that
+was missed when the work landed.
+
+**Evidence:** commit `444a7e9b3` (2026-06-13T20:49:02+0200), exactly 157 files, every
+one at `4 ++--` in `git show --stat` — two frontmatter lines per file, `status` and
+`date_finished`, with `date_finished` git-mined from each task's own
+move-into-completed commit rather than stamped with the sweep date. Re-measured today
+by direct scan: **2355 files in `.tasks/completed/`, 0 with `status != work-completed`**.
+`.context/audits/2026-08-20.yaml` reports `[PASS] CTL-028`. The `## Verification` block
+now asserts this invariant directly instead of gating on nothing, and
+`scripts/check-task-finalization-freshness.sh --strict` is wired alongside it.
+
+**What you are actually deciding.** Whether "the human authorized it, in a commit
+message, and it ran" is enough to tick a box that asks for authorization — or whether
+the ceremony needs re-performing:
+
+| Option | Behaviour | Cost |
+|---|---|---|
+| CLOSE (recommended) | tick the box; the executed Path B stands as the recorded choice | accepts a commit-message record as the authorization trail, which is weaker than a tick at the time |
+| KEEP-OPEN | hold for a fresh explicit authorization | re-authorizing work that is already done and verified; the tree cannot be made more correct than it is |
+
+**What CLOSE must not be read as settling.** CTL-028's `active/`-side mirror,
+**CTL-029, is live: 32 findings in the 2026-08-20 audit** — tasks with all Agent ACs
+ticked but `status: started-work`. T-2806 established a mechanism that manufactures
+exactly that state (`fw task update --status work-completed` failing after passing
+every gate, on an unguarded source of an untracked file). The mechanism is fixed; the
+accumulated instances are not, and they are explicitly out of scope here. Each needs
+individual evidence — a sweep over tasks whose ACs nobody verified is how CTL-028 came
+to exist in the first place.
+
+**Why I should not decide this alone.** This is narrower than the others: the facts are
+settled and I have measured them. What I cannot do is confirm on your behalf that a
+commit message counts as the authorization the box asks for. That is a judgement about
+your own prior intent, and inferring it is precisely the move that would make this class
+of record untrustworthy.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

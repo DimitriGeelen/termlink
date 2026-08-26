@@ -243,6 +243,53 @@ either.
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** CLOSE — the finding was real, the root cause is fixed
+elsewhere, and the disposition this task's ACs ask for no longer has a subject.
+
+**Rationale:** This task was filed to dispose of 11 noisy topics. Reading the
+code showed the topics were never the problem: `is_potentially_stuck` fired on
+`expired_count > 0`, and expired rows are reaped only when the SAME
+`(topic, offset)` is re-claimed, so the verdict latched permanently. Both
+proposed remedies — clean the 11, or allowlist the 11 — would have removed the
+symptom and left a guard that can never return to green, on every topic, not
+just these. The predicate is fixed in T-2709. What remained here was
+verification, and the verification now reads clean.
+
+**Evidence:** Measured on this host 2026-08-27 against `termlink 0.11.1612`:
+`channel claims-summary --all --only-stuck --json` returns
+`{"stuck_count":0,"topic_count":19,"shown":0,"expired_arm_inert":false}`, and
+`scripts/check-stuck-claims-freshness.sh` exits 0 with "healthy (19 topics, 0
+stuck)". `expired_arm_inert:false` is the load-bearing part: the hub serves
+`newest_expired_at_ms`, so the recency arm is genuinely live — this is a real
+green, not the degraded back-compat green T-2709 recorded as a caveat.
+
+**What you are actually deciding.** Whether "the canary is green here" is
+enough to close, given that the 11 topics themselves were never observed going
+quiet. They were not. **None of the 11 exist on any hub reachable from this
+session**: `192.168.10.107:9100` carries 19 topics, `192.168.10.122:9100`
+carries 169, and both return zero matches for `substrate-drain-demo*`,
+`drain-fix-verify*`, `drain-probe*` or `work-queue`. The 770-topic inventory
+the original `substrate_status` reading came from is not reachable from here.
+So I can show you the predicate is fixed and firing correctly; I cannot show
+you the specific 11 falling silent, and I will not claim it.
+
+| Option | What it buys | Cost |
+|---|---|---|
+| CLOSE now (recommended) | records the reframing while it is fresh; the ACs it leaves unticked are superseded, not skipped | if the 770-topic hub is still latched, nobody re-checks it under this ID |
+| KEEP-OPEN until re-measured on the origin hub | a direct before/after on the actual 11 | needs a session on that host; the 62-day-old expiries fall outside the 15-minute window by arithmetic either way |
+
+**Why I should not decide this.** Four of the seven Agent ACs ask for a
+disposition of named topics I cannot see, and one asks for an exclusion list
+that would now be actively harmful to write. Closing a task by declaring its
+ACs superseded is a judgement about whether the reframing is trustworthy — the
+exact call that should not be made by the agent that produced the reframing.
+
+**If you disagree:** the cheapest resolution is one command on the host holding
+the 770-topic hub — `termlink channel claims-summary --all --only-stuck --json`
+— and confirming `expired_arm_inert:false` there too.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.

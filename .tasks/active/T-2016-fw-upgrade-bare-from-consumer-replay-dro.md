@@ -243,6 +243,53 @@ This whitelists exactly two flags. Anything else the operator passed is silently
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** DEFER — park this tracker against the next re-vendor of
+`.agentic-framework/`, rather than closing it or leaving it hot as actionable work.
+
+**Rationale:** Every part of this task that TermLink controls is done: the defect is
+diagnosed, its scope corrected from one dropped flag to three, filed upstream, and
+guarded locally by a wrapper. The single remaining Agent AC — "after upstream fix lands
+in vendored `lib/upgrade.sh`, re-run and confirm the flag survives" — is gated on an
+actor this project does not control and cannot schedule. Leaving it `horizon: now` has
+already caused it to be picked up twice as top actionable work, each time producing the
+same finding that nothing has changed; that is attention the task cannot repay. Closing
+it outright would discard the re-verification obligation, which is precisely this task's
+own documented failure mode.
+
+**Evidence:** Re-checked in this tree today. `.agentic-framework/lib/upgrade.sh:1068-1070`
+still reads `_replay_args=("upgrade" "$target_dir")` with conditional appends for
+`--force` and `--dedupe-user-hooks` only — byte-identical in shape to the 2026-06-06
+diagnosis, so no upstream fix has landed. `scripts/fw-upgrade-safe.sh` exists (7564 bytes,
+executable) and warns on the three dropped flags per the 2026-08-26 note. Filing is at
+`framework:pickup` offset 28; offset 46 was withdrawn and retracted at 47.
+
+**What you are actually deciding.** Two things, and they are separable.
+
+*First, dispose of the Human AC.* "[REVIEW] Framework-agent prompt is operator-ready" was
+overtaken on 2026-08-20: the artifact was superseded by the offset-28 filing, which
+carries the wider and more accurate scope. The AC's own note says tick it or retire it,
+either is reasonable. Nothing downstream depends on the answer.
+
+*Second, the task's disposition.* Three realistic options:
+
+| Option | Behaviour | Cost |
+|---|---|---|
+| DEFER (recommended) | stays open, stops presenting as now-actionable, re-checked at the next re-vendor | needs `revisit_at` / `revisit_evidence_needed` set, or the deferral has no reminder |
+| CLOSE | tracker retired; defect lives on at offset 28 + the local wrapper | the "confirm the flag survives" check has no home — it is **not** currently registered in `.vendor-divergence.yaml`, so closing drops it silently |
+| KEEP-OPEN as-is | unchanged | it re-surfaces as top HV/LC work and the next pickup re-derives the same "still blocked, correctly" |
+
+**One thing that is not measured.** Whether upstream intends to act on offset 28 at all.
+The filing was made 2026-08-18; no receipt or reply has been checked as part of this
+recommendation. If upstream is not consuming that rail, DEFER is deferring against an
+event that may never arrive, and CLOSE becomes the more honest answer.
+
+**Why I should not decide this alone.** The choice between DEFER and CLOSE is a judgement
+about how long this project is willing to hold an obligation on another project's
+roadmap — and, if CLOSE, whether the re-check is worth re-homing. That is a
+prioritisation call about your attention, not a correctness question the code can settle.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
