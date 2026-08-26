@@ -108,7 +108,16 @@ divergences:
     commit: 78a7a6de1
     date: 2026-07-02
     file: .agentic-framework/agents/task-create/update-task.sh
-    status: filed-upstream
+    status: landed-upstream
+    landed_verified: >
+      2026-08-26, mechanical audit of the whole register. Upstream carries the
+      fix by a BETTER mechanism than the one we filed: we threaded FRAMEWORK_ROOT
+      through the environment into a `python3 -` heredoc; upstream passes it as
+      argv[3] and keeps the env var as fallback
+      (`sys.argv[3] if len(sys.argv) > 3 else os.environ.get("FRAMEWORK_ROOT","")`).
+      argv survives an env-stripping wrapper, ours did not. Verified by reading
+      the invocation, not by counting FRAMEWORK_ROOT occurrences — that count
+      went 36 -> 38 and would have been reassuring either way.
     kind: fix
     generality: GENERIC
     symptom: >
@@ -170,7 +179,14 @@ divergences:
     commit: a46e8e726
     date: 2026-07-31
     file: .agentic-framework/agents/context/budget-gate.sh
-    status: filed-upstream
+    status: landed-upstream
+    landed_verified: >
+      2026-08-26, mechanical audit of the whole register. Absorbed by upstream's
+      own T-2702, which reached the same deadlock independently and documents it
+      at budget-gate.sh:155-158. The allowlist regex now permits
+      `fw\s+(handover|context\s+focus)`, so the wrap-up path we unblocked by
+      hotfix is open by design rather than by our patch. Verified by reading the
+      regex, not by counting 'focus' mentions — that count went 1 -> 5.
     kind: fix
     generality: GENERIC
     symptom: >
