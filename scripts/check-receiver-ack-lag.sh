@@ -73,22 +73,47 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# THE classifier. One definition, called by the live path AND by --self-test.
+#
+# It used to be two: --self-test defined its own copy and the live loop had the same
+# three branches inlined. The self-test therefore proved that THE COPY worked. Reorder
+# the branches in the live loop so the lag test runs before the up_to test — which
+# collapses NEVER-ACKED into BEHIND, precisely the false-green this canary exists to
+# prevent — and the old self-test still printed PASS.
+#
+# Found because 832-Workflow-designer asked every guard-shipper on chat-arc (540)
+# whether their negative tests were faithful to the code they claim to guard. Mine was
+# not. A test and its subject have to be the same object; otherwise the test is a
+# statement about a thing that does not ship.
+classify_ack_row() {  # $1=lag  $2=up_to  $3=threshold  ->  OK | BEHIND | NEVER-ACKED
+  # Order is load-bearing: a sender that has NEVER acked must not be rescued by a
+  # small lag, so the up_to test comes first and nothing may reorder it.
+  if [ "$2" = "null" ]; then echo "NEVER-ACKED"
+  elif [ "$1" -gt "$3" ] 2>/dev/null; then echo "BEHIND"
+  else echo "OK"; fi
+}
+
 if [ "${SELFTEST:-0}" = "1" ]; then
   # The classifier must separate three states that all "look like silence":
   #   caught up | behind | never acked
   # A canary that cannot tell "never acked" from "caught up" is the false-green
   # shape this whole arc is about, so it is planted explicitly.
-  classify() {  # $1=lag $2=up_to $3=threshold
-    if [ "$2" = "null" ]; then echo "NEVER-ACKED"
-    elif [ "$1" -gt "$3" ] 2>/dev/null; then echo "BEHIND"
-    else echo "OK"; fi
-  }
+  #
+  # These call classify_ack_row — the SAME function the live loop calls. Mutating the
+  # live behaviour now turns these red, which is the only reason they are evidence.
+  classify() { classify_ack_row "$@"; }
   fail=0
   [ "$(classify 0 3 25)" = "OK" ]           || { echo "self-test: FAIL caught-up misread"; fail=1; }
   [ "$(classify 99 3 25)" = "BEHIND" ]      || { echo "self-test: FAIL behind misread"; fail=1; }
   [ "$(classify 4 null 25)" = "NEVER-ACKED" ] || { echo "self-test: FAIL never-acked misread as OK"; fail=1; }
   # never-acked must NOT be rescued by a small lag — that is the exact collapse
   [ "$(classify 0 null 25)" = "NEVER-ACKED" ] || { echo "self-test: FAIL never-acked with lag 0 read as OK"; fail=1; }
+  # ...and must NOT be MASKED by a large one. This is the discriminating input: it is the
+  # only combination where "up_to first" and "lag first" disagree, so it is the only leg
+  # that pins the ORDER of the branches rather than just their presence. Added after a
+  # faithful mutation (lag tested before up_to) passed all four earlier legs — a suite can
+  # cover every state and still not distinguish two candidate implementations.
+  [ "$(classify 99 null 25)" = "NEVER-ACKED" ] || { echo "self-test: FAIL never-acked with lag 99 read as BEHIND — branch order inverted"; fail=1; }
   [ "$fail" = "0" ] && { echo "self-test: PASS — caught-up, behind and never-acked are three distinct verdicts"; exit 0; }
   exit 2
 fi
@@ -118,15 +143,16 @@ for topic in $TOPICS; do
   while IFS=$'\t' read -r sid lag upto; do
     [ -n "$sid" ] || continue
     short="${sid:0:16}"
-    if [ "$upto" = "null" ]; then
-      printf '    NEVER-ACKED  %s  lag=%s\n' "$short" "$lag"
-      rc=1
-    elif [ "$lag" -gt "$THRESHOLD" ] 2>/dev/null; then
-      printf '    BEHIND       %s  lag=%s (up_to=%s)\n' "$short" "$lag" "$upto"
-      rc=1
-    else
-      printf '    ok           %s  lag=%s\n' "$short" "$lag"
-    fi
+    case "$(classify_ack_row "$lag" "$upto" "$THRESHOLD")" in
+      NEVER-ACKED)
+        printf '    NEVER-ACKED  %s  lag=%s\n' "$short" "$lag"
+        rc=1 ;;
+      BEHIND)
+        printf '    BEHIND       %s  lag=%s (up_to=%s)\n' "$short" "$lag" "$upto"
+        rc=1 ;;
+      *)
+        printf '    ok           %s  lag=%s\n' "$short" "$lag" ;;
+    esac
   done < <(printf '%s' "$out" | jq -r '.[] | [.sender_id, (.lag|tostring), (.up_to|tostring)] | @tsv')
   echo ""
 done
