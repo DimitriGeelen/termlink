@@ -1,0 +1,22 @@
+# .drain-sink-allowlist (T-2531) — confirmed-safe drain sinks that check-drain-sink-caps.sh
+# should NOT fire on. One drift-stable signature per line: <relpath>::<enclosing-fn>::<sink>.
+# A fn RENAME re-fires the site (intended — re-review on meaningful change, per T-2527).
+#
+# ── The 6 .output() sites (all crates/termlink-mcp/src/tools.rs) ──
+# Every one runs the SELF binary (`Command::new(&std::env::current_exe())`) on a fixed,
+# trusted subcommand with `kill_on_drop(true)` + `stdin(Stdio::null())` + a
+# `tokio::time::timeout` bound. The captured output is the subcommand's own JSON status
+# emission — bounded by what that subcommand prints, NOT by peer-supplied bytes. This is
+# the trusted-arg-subprocess pattern, INTERNAL by the T-2529 threat model (peer-driven
+# accumulation), not the OOM class. If any of these is ever changed to run `sh -c
+# <peer_string>` or to accept an untrusted arg, the fn body changes and it should be
+# re-reviewed (and likely capped like executor::execute_capped).
+crates/termlink-mcp/src/tools.rs::fetch_anchor_validation_map::output
+crates/termlink-mcp/src/tools.rs::termlink_fleet_bootstrap_check::output
+crates/termlink-mcp/src/tools.rs::termlink_substrate_status::output
+crates/termlink-mcp/src/tools.rs::termlink_fleet_secrets_audit::output
+crates/termlink-mcp/src/tools.rs::termlink_fleet_reauth::output
+# run_t1836_subprocess runs `bash <script>` where <script> resolves under the trusted
+# TERMLINK_SCRIPTS_DIR (T-1836), kill_on_drop + stdin(null) + timeout; output bounded by
+# the script's own emission. Trusted-arg, not peer-driven.
+crates/termlink-mcp/src/tools.rs::run_t1836_subprocess::output

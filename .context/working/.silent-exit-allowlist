@@ -1,0 +1,16 @@
+# .silent-exit-allowlist (T-2666) — confirmed-loud non-zero process::exit sites.
+#
+# scripts/check-silent-exit.sh flags a `std::process::exit(<non-zero int literal>)` whose
+# immediately-preceding statement is a lone `}` closing a `json_error_exit`-bearing block,
+# with no output macro between the brace and the exit (the T-2663 json-gated / bare-text-exit
+# class). A site here is acknowledged as actually-loud (it emits user-facing output through a
+# path the line-window cannot see).
+#
+# Format: one drift-stable signature per line —
+#   <relpath>::<enclosing-fn>::silent-exit
+# fn-name-based, so it survives line moves; a fn RENAME re-fires the site (intended re-review).
+# `#` starts a comment; blank lines are ignored.
+#
+# The current tree scans CLEAN after the T-2667 sibling migration (session.rs cmd_list,
+# remote.rs cmd_remote_list_inner both now emit an actionable stderr line before the bare
+# exit, mirroring the T-2663 remediation at metadata.rs), so this allowlist is empty.

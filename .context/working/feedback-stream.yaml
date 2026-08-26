@@ -9066,3 +9066,39 @@ scan_id: R-95b7d4e2
 task_id: T-2715
 payload:
   task_file: .tasks/active/T-2715-ctl-020-cron-audit-check-fires-unconditi.md
+---
+kind: scan_emitted
+timestamp: '2026-08-24T20:28:54Z'
+scan_id: R-a4d36409
+task_id: T-2453
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-24T20:28:54Z'
+scan_id: R-a4d36409
+task_id: T-2453
+payload:
+  task_file: .tasks/active/T-2453-flush-check-pop-result-after-successful-.md
+---
+kind: scan_emitted
+timestamp: '2026-08-24T20:50:22Z'
+scan_id: R-e6b49c32
+task_id: T-2569
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-24T20:50:22Z'
+scan_id: R-e6b49c32
+task_id: T-2569
+payload:
+  task_file: .tasks/active/T-2569-guard-hub-router-federation-regression-t.md

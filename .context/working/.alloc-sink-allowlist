@@ -1,0 +1,34 @@
+# .alloc-sink-allowlist (T-2527) — confirmed-safe allocation-sink sites.
+#
+# check-alloc-sink-clamps.sh flags every with_capacity/Semaphore::new/vec![_;n]/.repeat
+# whose size arg is a bare ident or p.<field> and is not inline-clamped or
+# binding-clamped. This file acknowledges the sites a human/agent has CONFIRMED are
+# bounded-by-construction (upstream guard, internal-derived count, constructor param),
+# so the check trends toward empty. One drift-stable signature per line:
+#     <relpath>::<sink>(<normalized-arg>)     ( `as usize`/`as u64` casts stripped )
+# Lines starting with # and blank lines are ignored. Adding a site here is a CLAIM
+# that it is safe — cite the reason in the trailing comment so the next reviewer can
+# re-verify. When in doubt, clamp the code instead of allowlisting.
+#
+# --- MCP dispatch handler (crates/termlink-mcp/src/tools.rs) ---
+# `count` = p.count, guarded by validate_dispatch_count(p.count) early-return
+# (T-2526, MAX_DISPATCH_COUNT=256) BEFORE reaching these two sinks. Bounded.
+crates/termlink-mcp/src/tools.rs::with_capacity(count)
+crates/termlink-mcp/src/tools.rs::vec!(count)
+# `total_tools` is the internally-derived registered-tool count (~215, from the
+# registry walk), never caller-supplied. Bounded by the binary's own tool set.
+crates/termlink-mcp/src/tools.rs::with_capacity(total_tools)
+#
+# --- data-plane frame codec (crates/termlink-session/src/codec.rs) ---
+# `payload_len` = header.payload_length as usize, where FrameHeader::decode()
+# (crates/termlink-protocol/src/data.rs:102) rejects payload_length > MAX_PAYLOAD_SIZE
+# (16 MiB) one line above via `FrameHeader::decode(&self.header_buf)?`. The bound is
+# at the decode boundary, not a `let`-clamp, so the binding-grep can't see it — but
+# it is enforced. Confirmed bounded (T-2527 review).
+crates/termlink-session/src/codec.rs::vec!(payload_len)
+#
+# --- event ring buffer constructor (crates/termlink-session/src/events.rs) ---
+# `capacity` is the `EventBus::with_capacity(capacity: usize)` constructor param;
+# all callers pass the compile-time DEFAULT_CAPACITY constant. Library-API param,
+# bounding is the (internal, constant) caller's responsibility. Not caller-supplied.
+crates/termlink-session/src/events.rs::with_capacity(capacity)

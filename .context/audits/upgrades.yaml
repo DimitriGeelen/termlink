@@ -308,3 +308,11 @@ upgrades:
     from_version: "1.6.260"
     to_version: "unknown"
     framework_root: "/tmp/aef-upgrade"
+  - timestamp: 2026-08-25T12:13:51Z
+    from_version: "1.6.145"
+    to_version: "1.6.29"
+    framework_root: "/tmp/fw-upstream-UO0dUm/fw"
+  - timestamp: 2026-08-25T19:52:23Z
+    from_version: "1.6.145"
+    to_version: "1.6.29"
+    framework_root: "/tmp/fw-upstream-DVPhxt/fw"

@@ -4342,3 +4342,9 @@ learnings:
   task: T-2837
   date: 2026-08-23
   context: Added via context agent
+- id: PL-361
+  learning: "A verification wrapper that reports only 'NON-ZERO' cannot distinguish a real failure from exit 124 (killed by timeout) or 125-127 (could not execute). Today a 'cargo build -> NON-ZERO, do NOT substitute' verdict was purely my own 'timeout 400/500' firing against an 8m04s release build blocked on cargo's artifact lock — contention I created by fanning builds across four termlink sessions. The clean detached run exits 0. Three compounding instrument errors in one attempt: (1) a timeout shorter than the operation it guards manufactures the exact false signal you are trying to detect; (2) the wrapper collapsed 124 into 'failed', so 'the build broke' and 'I killed it while it waited' were the same observable; (3) 'pgrep -c cargo' matched /root/.cargo/bin/termlink SESSION processes, so the holder count counted agents rather than builds. Rule: never collapse an exit code you did not inspect. Report 124 as TIMEOUT, 126/127 as NOT-EXECUTABLE, and match process identity on the exe basename, never a path substring."
+  source: unknown
+  task: T-1427
+  date: 2026-08-26
+  context: Added via context agent

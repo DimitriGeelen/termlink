@@ -1,0 +1,23 @@
+# Busy-spin static-check allowlist (T-2672).
+# One drift-stable signature per line: <relpath>::<enclosing-fn>::busy-spin
+# A `#` starts a comment. fn-name-keyed: survives line moves; a fn RENAME re-fires
+# the site (intended re-review). Acknowledges long-poll loops that are SAFE because
+# their error path provably EXITS the loop (no re-dispatch → no busy-spin), which the
+# grep cannot see from the loop body alone. Each entry cites why.
+
+# cmd_wait: the event.subscribe Err(_) arm does `anyhow::bail!` (returns Err, exits the
+# loop) on RPC error — a dead/half-open hub bails immediately, no zero-delay re-dispatch.
+# Additionally deadline-bounded at the loop top.
+crates/termlink-cli/src/commands/events.rs::cmd_wait::busy-spin
+
+# termlink_request (MCP): the event.subscribe error arm is `Err(e) => return json_err(...)`
+# — returns from the fn, exiting the loop. Also deadline-bounded (remaining.is_zero()).
+crates/termlink-mcp/src/tools.rs::termlink_request::busy-spin
+
+# termlink_wait (MCP): error arm `Err(e) => return json_err("connection lost: {e}")` —
+# returns from the fn, exiting the loop. Also deadline-bounded.
+crates/termlink-mcp/src/tools.rs::termlink_wait::busy-spin
+
+# termlink_agent_ask (MCP): error arm `Err(e) => return json_err("connection lost: {e}")`
+# — returns from the fn, exiting the loop. Also deadline-bounded.
+crates/termlink-mcp/src/tools.rs::termlink_agent_ask::busy-spin
