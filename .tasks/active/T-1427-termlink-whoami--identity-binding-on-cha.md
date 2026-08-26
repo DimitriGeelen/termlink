@@ -96,7 +96,7 @@ documentation, not impersonation).
 ## Verification
 
 cargo test -p termlink-hub --lib handle_channel_post_with_ 2>&1 | tail -5 | grep -q "test result: ok"
-cargo build --workspace --release 2>&1 | tail -3 | grep -qv "error"
+cargo build --workspace --release
 grep -q "CHANNEL_IDENTITY_MISMATCH" crates/termlink-protocol/src/control.rs
 
 ## Decisions
