@@ -1,0 +1,32 @@
+id: workflow/aef-task-lifecycle/tl_verify
+name: tl_verify
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-task-lifecycle/v3.bpmn
+tags:
+- workflow-step
+- aef-task-lifecycle
+- designer
+purpose: 'Workflow step (aef:uid tl_verify, node agt_10_completion, serviceTask) — completion gates: Agent ACs (P-010) + ##
+  Verification commands (P-011)'
+workflow: aef-task-lifecycle
+aef_uid: tl_verify
+bpmn_node_id: agt_10_completion
+depends_on:
+- target: scripts/check-verification-pipefail.sh
+  type: tested_by
+- target: scripts/check-unpaired-capture.sh
+  type: tested_by
+- target: scripts/check-vacuous-verification.sh
+  type: tested_by
+created_by: T-2839
+last_verified: '2026-08-27'
+pseudocode: 'The gate runs each ## Verification line under `set -eo pipefail` as
+
+  `if ( eval "$cmd" )`. Three of our guards police the QUALITY of those lines
+
+  rather than the gate itself: pipefail/SIGPIPE shapes, capture-without-failure-
+
+  assertion, and patterns that cannot go red. A green gate over a vacuous line
+
+  is indistinguishable from a green gate over a real one.'

@@ -4,17 +4,10 @@ type: script
 subsystem: unknown
 location: scripts/check-vacuous-verification.sh
 tags: []
-
-purpose: "TODO: describe what this component does"
-
-depends_on:
-  # Format: - target: <relative-path>
-  #          type: calls|reads|writes|triggers|renders
-  []
-
+purpose: 'TODO: describe what this component does'
+depends_on: []
 depended_by:
-  # Same format as depends_on — filled by enrich.py or manually
-  []
-
+- target: workflow/aef-task-lifecycle/tl_verify
+  type: tests
 last_verified: 2026-08-26
 created_by: unknown

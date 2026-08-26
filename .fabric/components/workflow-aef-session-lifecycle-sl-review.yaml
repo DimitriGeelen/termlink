@@ -1,0 +1,28 @@
+id: workflow/aef-session-lifecycle/sl_review
+name: sl_review
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-session-lifecycle/v1.bpmn
+tags:
+- workflow-step
+- aef-session-lifecycle
+- designer
+purpose: Workflow step (aef:uid sl_review, node hum_2_operator, userTask) — operator processes review queue — fw task review
+  URLs from the handover
+workflow: aef-session-lifecycle
+aef_uid: sl_review
+bpmn_node_id: hum_2_operator
+depends_on:
+- target: scripts/check-approval-surfaces.sh
+  type: tested_by
+- target: scripts/lib/approval_surfaces.py
+  type: tested_by
+created_by: T-2839
+last_verified: '2026-08-27'
+pseudocode: 'The queue predicate is count_unchecked_human_acs (web/shared.py) — canonical for
+
+  both /approvals and `fw review-queue`. It cannot express two states it needs to:
+
+  an inception awaiting a go/no-go decision, and a human-owned task whose work is
+
+  finished. Both are operator-gated and invisible to it.'

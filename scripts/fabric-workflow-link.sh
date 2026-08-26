@@ -1,39 +1,43 @@
 #!/usr/bin/env bash
 # guard-layer: source
-# fabric-workflow-link.sh — join workflow-designer nodes to component-fabric cards.
+# fabric-workflow-link.sh — validate workflow steps registered as fabric components.
 #
-# Two ID spaces describing one system, with no reference between them (measured
-# 2026-08-26: 393 cards, 8 workflows, zero links either way). This resolves the join
-# declared in .fabric/workflow-links.yaml and REFUSES to let it rot.
+# REWRITTEN 2026-08-27. The first version read a sidecar (.fabric/workflow-links.yaml)
+# that related two ID spaces. After the operator's correction — "a process step and a
+# code snippet IS a component ID, in the component fabric" — the steps became first-class
+# cards and the sidecar became a second copy of the same relation.
 #
-# WHAT IT ANSWERS, per workflow node:
-#   implements   the code this step IS
-#   tested_by    the test that proves it
-#   probed_by    the API/testbench tool that exercises it live
-#   pseudocode   what it means, when no file says so
+# PL-362: a deduplication that adds the shared definition without DELETING the copies
+# leaves the codebase strictly worse than before. So the sidecar's 5 remaining links were
+# promoted into cards and the sidecar is gone. This reads cards only. There is now ONE
+# representation of the relation.
 #
-# THREE FAILURE MODES, KEPT DISTINCT. Collapsing them would make the check useless
-# in exactly the case it exists for — a link can rot in three different directions
-# and the remedy differs each time:
+# WHAT IT CHECKS, and the third one is the one that silently breaks:
 #
-#   uid not found in the workflow   a node was renamed or deleted; the link now
-#                                   points at nothing. The join is silently EMPTY,
-#                                   which reads identically to "no link declared".
-#   card not found in the fabric    the component was moved or its card removed;
-#                                   the step claims code that is not registered.
-#   workflow not found              the designer project was renamed.
+#   1. aef_uid resolves      the card's uid must exist in the .bpmn at its location.
+#                            A renamed node leaves a card pointing at nothing, and the
+#                            join reads exactly like "no link declared".
+#   2. targets have cards    a depends_on target with no card is a claim about a
+#                            component the fabric does not know.
+#   3. RECIPROCAL EDGE       `fw fabric deps` reads the TARGET's depended_by list — it
+#                            does NOT scan the corpus for inbound depends_on. A step
+#                            declaring `depends_on: <code>` is INVISIBLE from the code
+#                            side until the code card declares the inverse. Forward-only
+#                            edges look complete in the file and answer nothing at the
+#                            terminal. Measured: that is exactly what the first draft
+#                            shipped with for ten minutes.
 #
-# AND IT REPORTS UNLINKED NODES. A resolver that printed only its hits would assert
-# coverage it does not have — the same PASS-on-no-candidates shape the framework
-# already refuses elsewhere ("A PASS here would assert coverage the check does not
-# have", T-3105). Coverage is printed as a fraction, always.
+# ADOPTION IS REPORTED, NOT ASSUMED. A workflow is ADOPTED when every node carries a card
+# (aef-dispatch-loop, 6/6 — including four with no implementing component, so its gaps are
+# visible). Others are PARTIAL: only steps with a real relation are registered. Printing
+# which is which keeps the rule visible instead of implicit, and stops a partial workflow
+# reading as a complete one.
 #
-# Exit: 0 every declared link resolves · 1 at least one is broken · 2 cannot run
+# Exit: 0 every registered step resolves · 1 something is broken · 2 cannot run
 set -uo pipefail
 
 cd "$(git rev-parse --show-toplevel 2>/dev/null || echo /opt/termlink)" || exit 1
 
-LINKS="${FABRIC_WORKFLOW_LINKS:-.fabric/workflow-links.yaml}"
 CARDS="${FABRIC_COMPONENTS_DIR:-.fabric/components}"
 PROJECTS="${DESIGNER_PROJECTS_DIR:-.agentic-framework/.context/designer/projects}"
 
@@ -41,141 +45,137 @@ if [ "${1:-}" = "--self-test" ]; then
   t=$(mktemp -d) || exit 2
   trap 'rm -rf "$t"' EXIT INT TERM HUP
   mkdir -p "$t/cards" "$t/proj/demo"
-  printf 'id: src/real.rs\nname: real\nlocation: src/real.rs\npurpose: p\n' > "$t/cards/real.yaml"
   cat > "$t/proj/demo/v1.bpmn" <<'BPMN'
 <bpmn:definitions xmlns:bpmn="b" xmlns:aef="a">
-  <bpmn:serviceTask id="n1" name="present node">
-    <bpmn:extensionElements><aef:uid value="present"/></bpmn:extensionElements>
-  </bpmn:serviceTask>
-  <bpmn:serviceTask id="n2" name="unlinked node">
-    <bpmn:extensionElements><aef:uid value="lonely"/></bpmn:extensionElements>
-  </bpmn:serviceTask>
+  <bpmn:serviceTask id="n1" name="present"><bpmn:extensionElements><aef:uid value="present"/></bpmn:extensionElements></bpmn:serviceTask>
+  <bpmn:serviceTask id="n2" name="bare"><bpmn:extensionElements><aef:uid value="bare"/></bpmn:extensionElements></bpmn:serviceTask>
 </bpmn:definitions>
 BPMN
-  run() { FABRIC_WORKFLOW_LINKS="$1" FABRIC_COMPONENTS_DIR="$t/cards" \
-          DESIGNER_PROJECTS_DIR="$t/proj" bash "$0" >/dev/null 2>&1; echo $?; }
-
-  printf 'schema_version: 1\nlinks:\n  - workflow: demo\n    uid: present\n    implements: [src/real.rs]\n' > "$t/ok.yaml"
-  printf 'schema_version: 1\nlinks:\n  - workflow: demo\n    uid: GONE\n    implements: [src/real.rs]\n' > "$t/baduid.yaml"
-  printf 'schema_version: 1\nlinks:\n  - workflow: demo\n    uid: present\n    implements: [src/ghost.rs]\n' > "$t/badcard.yaml"
-  printf 'schema_version: 1\nlinks:\n  - workflow: NOPE\n    uid: present\n    implements: [src/real.rs]\n' > "$t/badwf.yaml"
+  mkcode() { printf 'id: src/real.rs\nname: real\nlocation: src/real.rs\npurpose: p\n%s' "$1" > "$t/cards/real.yaml"; }
+  mkstep() { printf 'id: workflow/demo/%s\nname: %s\ntype: workflow-step\nlocation: demo/v1.bpmn\nworkflow: demo\naef_uid: %s\ndepends_on:\n- target: src/real.rs\n  type: implements\n' "$1" "$1" "$1" > "$t/cards/step.yaml"; }
+  run() { FABRIC_COMPONENTS_DIR="$t/cards" DESIGNER_PROJECTS_DIR="$t/proj" bash "$0" >/dev/null 2>&1; echo $?; }
 
   fail=0
-  # All four must be DISTINCT verdicts. "detects something" is satisfied by a
-  # checker that fails on everything, so the healthy case is asserted too.
-  [ "$(run "$t/ok.yaml")"      = "0" ] || { echo "self-test: FAIL valid link did not pass"; fail=1; }
-  [ "$(run "$t/baduid.yaml")"  = "1" ] || { echo "self-test: FAIL uid missing from workflow not caught"; fail=1; }
-  [ "$(run "$t/badcard.yaml")" = "1" ] || { echo "self-test: FAIL component with no fabric card not caught"; fail=1; }
-  [ "$(run "$t/badwf.yaml")"   = "1" ] || { echo "self-test: FAIL unknown workflow not caught"; fail=1; }
-  FABRIC_WORKFLOW_LINKS="$t/missing.yaml" FABRIC_COMPONENTS_DIR="$t/cards" \
-    DESIGNER_PROJECTS_DIR="$t/proj" bash "$0" >/dev/null 2>&1
-  [ $? -eq 2 ] || { echo "self-test: FAIL absent links file must be NO VERDICT (2), not clean"; fail=1; }
+  # healthy: uid present, target carded, reciprocal edge present
+  mkcode 'depended_by:
+- target: workflow/demo/present
+  type: implemented_by
+'; mkstep present
+  [ "$(run)" = "0" ] || { echo "self-test: FAIL healthy step did not pass"; fail=1; }
+
+  # THE DISCRIMINATING CASE: everything valid EXCEPT the reciprocal edge. Both a
+  # correct and a forward-only join look identical from the step card alone — only
+  # the target's depended_by separates them, which is precisely why this leg exists.
+  mkcode ''; mkstep present
+  [ "$(run)" = "1" ] || { echo "self-test: FAIL missing reciprocal edge not caught"; fail=1; }
+
+  # uid renamed out of the workflow
+  mkcode 'depended_by:
+- target: workflow/demo/GONE
+  type: implemented_by
+'; mkstep GONE
+  [ "$(run)" = "1" ] || { echo "self-test: FAIL uid absent from workflow not caught"; fail=1; }
+
+  # target has no card
+  printf 'id: workflow/demo/present\nname: present\ntype: workflow-step\nlocation: demo/v1.bpmn\nworkflow: demo\naef_uid: present\ndepends_on:\n- target: src/ghost.rs\n  type: implements\n' > "$t/cards/step.yaml"
+  rm -f "$t/cards/real.yaml"
+  [ "$(run)" = "1" ] || { echo "self-test: FAIL target without a card not caught"; fail=1; }
+
+  FABRIC_COMPONENTS_DIR="$t/nope" DESIGNER_PROJECTS_DIR="$t/proj" bash "$0" >/dev/null 2>&1
+  [ $? -eq 2 ] || { echo "self-test: FAIL missing cards dir must be NO VERDICT (2)"; fail=1; }
+
   [ "$fail" = "0" ] || exit 2
-  echo "self-test: PASS — valid 0, dead uid 1, dead card 1, dead workflow 1, absent file 2"
+  echo "self-test: PASS — healthy 0, no-reciprocal 1, dead uid 1, uncarded target 1, missing dir 2"
   exit 0
 fi
 
 command -v python3 >/dev/null 2>&1 || { echo "fabric-workflow-link: no python3 — no verdict"; exit 2; }
-[ -r "$LINKS" ] || { echo "fabric-workflow-link: $LINKS unreadable — NO VERDICT (not 'clean')"; exit 2; }
-[ -d "$CARDS" ] || { echo "fabric-workflow-link: $CARDS missing — NO VERDICT"; exit 2; }
+[ -d "$CARDS" ] || { echo "fabric-workflow-link: $CARDS missing — NO VERDICT (not 'clean')"; exit 2; }
 [ -d "$PROJECTS" ] || { echo "fabric-workflow-link: $PROJECTS missing — NO VERDICT"; exit 2; }
 
-python3 - "$LINKS" "$CARDS" "$PROJECTS" "${1:-}" <<'PY'
+python3 - "$CARDS" "$PROJECTS" <<'PY'
 import glob, os, re, sys, yaml
 
-links_p, cards_d, proj_d, mode = sys.argv[1:5]
+cards_d, proj_d = sys.argv[1], sys.argv[2]
 
-try:
-    doc = yaml.safe_load(open(links_p, encoding="utf-8")) or {}
-except Exception as e:
-    print(f"fabric-workflow-link: {links_p} does not parse ({type(e).__name__}) — NO VERDICT")
-    sys.exit(2)
-
-# Card id -> card. The id IS the repo-relative path.
-cards = {}
+cards, steps = {}, []
 for p in glob.glob(os.path.join(cards_d, "*.yaml")):
     try:
         d = yaml.safe_load(open(p, encoding="utf-8"))
     except Exception:
         continue
-    if d and d.get("id"):
-        cards[d["id"]] = d
+    if not d or not d.get("id"):
+        continue
+    cards[d["id"]] = d
+    if d.get("type") == "workflow-step":
+        steps.append(d)
 
-# workflow -> {uid: node_name}, taken from the HIGHEST version file present.
+# uid -> name, per workflow, from the highest version file.
 flows = {}
 for wf in sorted(os.listdir(proj_d)):
-    files = sorted(glob.glob(os.path.join(proj_d, wf, "*.bpmn")))
-    if not files:
+    fs = sorted(glob.glob(os.path.join(proj_d, wf, "*.bpmn")))
+    if not fs:
         continue
-    s = open(files[-1], encoding="utf-8").read()
-    uids = {}
+    s = open(fs[-1], encoding="utf-8").read()
+    u = {}
     for m in re.finditer(
             r'<bpmn:(serviceTask|userTask|scriptTask|task|intermediateCatchEvent)\s+id="([^"]+)"'
             r'\s+name="([^"]*)"(.*?)</bpmn:\1>', s, re.S):
-        _k, _nid, name, body = m.groups()
-        u = re.search(r'aef:uid value="([^"]+)"', body)
-        if u:
-            uids[u.group(1)] = name
-    flows[wf] = uids
+        _k, _n, name, body = m.groups()
+        g = re.search(r'aef:uid value="([^"]+)"', body)
+        if g:
+            u[g.group(1)] = name
+    flows[wf] = u
 
-rc = 0
-broken = []
-by_wf = {}
-for ln in doc.get("links") or []:
-    by_wf.setdefault(ln.get("workflow"), []).append(ln)
+INVERSE = {"implements": "implemented_by", "tested_by": "tests", "probed_by": "probes"}
+broken, rc = [], 0
 
-print(f"fabric-workflow-link: {len(cards)} fabric card(s), {len(flows)} designer workflow(s)")
-print("  JOIN KEY: aef:uid (stable) -> fabric card id (repo-relative path).")
-print("  Reports UNLINKED nodes too — a resolver showing only its hits would assert")
-print("  coverage it does not have.")
+print(f"fabric-workflow-link: {len(steps)} workflow-step card(s) of {len(cards)} components")
+print("  A process step IS a component. One ID space — no sidecar.")
+print("  Checks uid resolution, target cards, and the RECIPROCAL edge (`fw fabric deps`")
+print("  reads the target's depended_by; a forward-only edge answers nothing).")
 print()
 
-for wf, uids in flows.items():
-    declared = {l["uid"]: l for l in by_wf.get(wf, [])}
-    linked = [u for u in uids if u in declared]
-    print(f"  {wf}  —  {len(linked)}/{len(uids)} node(s) linked")
-    for u, name in uids.items():
-        ln = declared.get(u)
-        if not ln:
-            print(f"    unlinked  {u:<18} {name[:52]}")
-            continue
-        parts = []
-        for kind in ("implements", "tested_by", "probed_by"):
-            for tgt in ln.get(kind) or []:
-                if tgt in cards:
-                    parts.append(f"{kind}={tgt}")
-                else:
-                    parts.append(f"{kind}={tgt}  <-- NO FABRIC CARD")
-                    broken.append(f"{wf}/{u}: component '{tgt}' has no card in {cards_d}")
-                    rc = 1
-        print(f"    LINKED    {u:<18} {name[:52]}")
-        for p in parts:
-            print(f"                 {p}")
-        if ln.get("pseudocode"):
-            first = ln["pseudocode"].strip().splitlines()[0]
-            print(f"                 pseudocode: {first[:60]}")
-    print()
+by_wf = {}
+for s in steps:
+    by_wf.setdefault(s.get("workflow"), []).append(s)
 
-# Declared links whose workflow or uid no longer exists — the SILENT rot case.
-for wf, lns in by_wf.items():
-    if wf not in flows:
-        for l in lns:
-            broken.append(f"workflow '{wf}' not found under {proj_d} (link for uid '{l.get('uid')}')")
-            rc = 1
-        continue
-    for l in lns:
-        if l.get("uid") not in flows[wf]:
-            broken.append(f"{wf}: uid '{l.get('uid')}' declared but not present in the workflow")
-            rc = 1
+for wf in sorted(by_wf):
+    total = len(flows.get(wf, {}))
+    got = len(by_wf[wf])
+    tag = "ADOPTED" if total and got >= total else "partial"
+    print(f"  {wf}  —  {got}/{total} node(s) registered  [{tag}]")
+    for s in sorted(by_wf[wf], key=lambda x: x["id"]):
+        uid = s.get("aef_uid")
+        if wf not in flows:
+            broken.append(f"{s['id']}: workflow '{wf}' not found under {proj_d}"); rc = 1
+        elif uid not in flows[wf]:
+            broken.append(f"{s['id']}: aef_uid '{uid}' not present in the workflow"); rc = 1
+        deps = s.get("depends_on") or []
+        if not deps:
+            print(f"    {uid:<18} (no implementing component)")
+            continue
+        print(f"    {uid:<18}")
+        for d in deps:
+            tgt, typ = d.get("target"), d.get("type")
+            t = cards.get(tgt)
+            if not t:
+                print(f"        {typ}={tgt}   <-- NO FABRIC CARD")
+                broken.append(f"{s['id']}: target '{tgt}' has no card"); rc = 1
+                continue
+            inv = INVERSE.get(typ, typ)
+            back = any(e.get("target") == s["id"] for e in (t.get("depended_by") or []))
+            mark = "" if back else "   <-- NO RECIPROCAL EDGE (invisible to `fw fabric deps`)"
+            print(f"        {typ}={tgt}{mark}")
+            if not back:
+                broken.append(f"{tgt}: missing depended_by {inv} -> {s['id']}"); rc = 1
+    print()
 
 if broken:
-    print("  BROKEN LINKS:")
+    print("  BROKEN:")
     for b in broken:
         print(f"    {b}")
-    print()
-    print("  A link pointing at nothing reads exactly like no link at all — that is")
-    print("  why these fail rather than being skipped.")
 else:
-    print("  every declared link resolves.")
+    print("  every registered step resolves, and every edge is reciprocal.")
 sys.exit(rc)
 PY

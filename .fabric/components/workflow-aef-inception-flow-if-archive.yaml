@@ -1,0 +1,28 @@
+id: workflow/aef-inception-flow/if_archive
+name: if_archive
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-inception-flow/v1.bpmn
+tags:
+- workflow-step
+- aef-inception-flow
+- designer
+purpose: 'Workflow step (aef:uid if_archive, node agt_5_archive, serviceTask) — archive: completed/ + episodic; on DEFER set
+  revisit_at + revisit_evidence_needed (T-1451)'
+workflow: aef-inception-flow
+aef_uid: if_archive
+bpmn_node_id: agt_5_archive
+depends_on:
+- target: scripts/lib/approval_surfaces.py
+  type: tested_by
+created_by: T-2839
+last_verified: '2026-08-27'
+pseudocode: 'G-053/T-1451: revisit_at makes a DEFER a PAUSE rather than a silent drop.
+
+  defer_state() reads FRONTMATTER ONLY and treats a DEFER as pending when its
+
+  revisit is due, absent, or unparseable — never when it is legitimately parked.
+
+  Reading the whole document instead cost T-2090 its documented no-calendar-trigger
+
+  decision.'

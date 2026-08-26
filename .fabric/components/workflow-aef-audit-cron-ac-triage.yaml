@@ -1,0 +1,26 @@
+id: workflow/aef-audit-cron/ac_triage
+name: ac_triage
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-audit-cron/v1.bpmn
+tags:
+- workflow-step
+- aef-audit-cron
+- designer
+purpose: Workflow step (aef:uid ac_triage, node hum_1_operator, userTask) — operator triages findings — Watchtower /audits,
+  /approvals, emitted-task queue
+workflow: aef-audit-cron
+aef_uid: ac_triage
+bpmn_node_id: hum_1_operator
+depends_on:
+- target: scripts/check-approval-surfaces.sh
+  type: tested_by
+created_by: T-2839
+last_verified: '2026-08-27'
+pseudocode: 'This step assumes the operator can SEE the findings. /approvals currently
+
+  double-escapes Human AC markup (375 escaped <code> vs 2 real, measured
+
+  2026-08-26; filed framework:pickup 55) and misses two whole categories of
+
+  pending action. The triage step is only as good as the surface it reads.'

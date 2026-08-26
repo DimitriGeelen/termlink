@@ -1,0 +1,28 @@
+id: workflow/aef-task-lifecycle/tl_human_review
+name: tl_human_review
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-task-lifecycle/v3.bpmn
+tags:
+- workflow-step
+- aef-task-lifecycle
+- designer
+purpose: 'Workflow step (aef:uid tl_human_review, node hum_1_partial, userTask) — partial-complete: review Human ACs (Watchtower
+  /review), tick, complete'
+workflow: aef-task-lifecycle
+aef_uid: tl_human_review
+bpmn_node_id: hum_1_partial
+depends_on:
+- target: scripts/check-approval-surfaces.sh
+  type: tested_by
+created_by: T-2839
+last_verified: '2026-08-27'
+pseudocode: 'R-033: an agent can never close a human-owned task, and count_unchecked_human_acs
+
+  returns 0 for a finished one — so it is gated on the operator and appears in no
+
+  queue. check-approval-surfaces enumerates all three surfaces (build /review,
+
+  inception /inception, owner-completion) and fires only when a pending action
+
+  would open to a card nobody can act on.'
