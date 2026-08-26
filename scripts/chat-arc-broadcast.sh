@@ -133,10 +133,15 @@ if [ "$DRY_RUN" = "1" ]; then
     printf '  msg-type        : chat\n'
     printf '  metadata        : agent_id=%s _from=%s\n' "$FROM" "$FROM"
     printf '  per-hub timeout : %ss\n' "$PER_HUB_TIMEOUT"
-    printf '\n  hubs that would receive it (after parse, dedup and probe):\n'
+    printf '\n  hubs that would receive it (parsed, then alias-deduped by TLS fingerprint):\n'
     printf '%s\n' "$addrs" | while IFS= read -r a; do
         [ -n "$a" ] && printf '    %s\n' "$a"
     done
+    printf '\n  note: the fingerprint probe DEDUPES ALIASES; it does not filter for\n'
+    printf '        reachability. An address that cannot be probed is KEPT, not\n'
+    printf '        dropped (hubs-toml-walk.sh fails open), so an unreachable hub\n'
+    printf '        still appears here and the per-hub loop reports its real error.\n'
+    printf '        Silently omitting it would make "broadcast to the fleet" untrue.\n'
     printf '\n  payload (%s bytes):\n' "$(printf '%s' "$PAYLOAD" | wc -c | tr -d ' ')"
     printf '%s\n' "$PAYLOAD" | sed 's/^/    | /'
     exit 0

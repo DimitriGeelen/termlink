@@ -165,6 +165,12 @@ done
   printf '    multicast only : %-24s %s\n' "$p" "${st:+(fleet status: $st)}"
 done
 echo ""
+echo "  Before treating any of the above as a bug: broadcast KEEPS an address it"
+echo "  cannot probe (hubs-toml-walk.sh fails open by design, so an unreachable"
+echo "  hub is reported by the per-hub loop rather than silently omitted). A hub"
+echo "  listed here as broadcast-only with fleet status DOWN is that behaviour,"
+echo "  not a defect."
+echo ""
 echo "  Not reconciled here: whether the fleet means every CONFIGURED hub or"
 echo "  every currently-UP one is a topology decision, not a scripting one."
 exit 1
