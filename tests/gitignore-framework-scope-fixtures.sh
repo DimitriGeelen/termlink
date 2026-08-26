@@ -112,7 +112,20 @@ echo
 echo "  -- not vendored here: must stay ignored --"
 expect_ignored ".agentic-framework/.context/project/learnings.yaml"
 expect_ignored ".agentic-framework/tests/e2e/gates-test.sh"
-expect_ignored ".agentic-framework/tools/ollama-tool-loop.py"
+
+# T-2839: this line used to read `expect_ignored`. It encoded the pre-T-2819
+# premise that .agentic-framework/tools/ is upstream-repo scaffolding a consumer
+# never executes. That premise is false and the corpus investigation proved it:
+# bin/fw execs tools/corpus_{lint,explain,spec}.py by absolute path, and
+# agents/termlink/termlink.sh:853 resolves THIS file explicitly preferring the
+# vendored copy —
+#     for cand in "$FRAMEWORK_ROOT/tools/ollama-tool-loop.py" ...
+# so a clean clone that ignored it would ship a dangling exec target, which is
+# exactly the defect T-2837 AC#1 was about.
+#
+# Verified as code, not prose: three of the four references to this file are
+# comments; line 853 is the executable one.
+expect_trackable ".agentic-framework/tools/ollama-tool-loop.py"
 expect_ignored ".agentic-framework/.git/config"
 
 echo
