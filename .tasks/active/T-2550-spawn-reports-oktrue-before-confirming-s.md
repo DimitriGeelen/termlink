@@ -94,10 +94,10 @@ default while making the envelope truthful.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Default (non-`--wait`) spawn JSON envelope no longer reports bare `ok:true` without a registration-status distinction (either `registered` field or an honest note)
-- [ ] `--wait` path behavior unchanged (still polls `find_session`, still fails loud on timeout)
-- [ ] A unit/integration test asserts the default envelope discloses unconfirmed-registration status
-- [ ] `cargo test -p termlink` green
+- [x] Default (non-`--wait`) spawn JSON envelope no longer reports bare `ok:true` without a registration-status distinction (either `registered` field or an honest note)
+- [x] `--wait` path behavior unchanged (still polls `find_session`, still fails loud on timeout)
+- [x] A unit/integration test asserts the default envelope discloses unconfirmed-registration status
+- [x] `cargo test -p termlink` green
 - [ ] The chosen approach matches the human's decision on the Human AC below
 
 ### Human
