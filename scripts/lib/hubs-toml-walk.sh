@@ -71,13 +71,22 @@ _TERMLINK_HUBS_TOML_WALK_LOADED=1
 hub_addrs_from_toml() {
     local hubs_file="$1"
     [ -f "$hubs_file" ] || return 1
+    # Leading whitespace is stripped before matching: TOML permits indented
+    # keys, and anchoring ^address silently skipped them. Found 2026-08-26 by
+    # differential-testing this function against the independent bash-regex
+    # parser in agent-chat-arc-recent.sh, which trims first and therefore
+    # accepted a tab-indented address this one dropped. A hub omitted here is
+    # omitted from every broadcast path, which is precisely what the operator
+    # ruling ("every configured hub") forbids.
     awk '
-        /^\[hubs\.[^]]+\]/ { in_hub=1; next }
-        /^\[/             { in_hub=0; next }
-        in_hub && /^address[[:space:]]*=/ {
-            gsub(/.*=[[:space:]]*"/, "")
-            gsub(/".*$/, "")
-            print
+        { line = $0
+          sub(/^[[:space:]]+/, "", line) }
+        line ~ /^\[hubs\.[^]]+\]/ { in_hub=1; next }
+        line ~ /^\[/                { in_hub=0; next }
+        in_hub && line ~ /^address[[:space:]]*=/ {
+            gsub(/.*=[[:space:]]*"/, "", line)
+            gsub(/".*$/, "", line)
+            print line
         }
     ' "$hubs_file" | sort -u
 }
