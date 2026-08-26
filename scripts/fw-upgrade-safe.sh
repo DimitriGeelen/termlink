@@ -73,6 +73,35 @@ has_canary() {
   return 1
 }
 
+# --- 0. flags the handoff will silently discard (T-2016) ---------------------
+#
+# `fw upgrade`'s bare-from-consumer auto-clone path rebuilds its argv by hand
+# (lib/upgrade.sh:1068-1070) and replays only --force and --dedupe-user-hooks.
+# Everything else the operator typed is dropped without a word. That path is
+# only taken when the upgrade hands off to a cloned upstream, so this warns
+# rather than refuses — but it warns BEFORE the run, which is the difference
+# between noticing and finding out afterwards.
+#
+# Measured against the vendored tree, not assumed. --dry-run is deliberately
+# NOT listed: it short-circuits before the replay is built and is safe.
+# --from-upstream is excluded on purpose and documented in-source.
+DROPPED_BY_HANDOFF=(--force-downgrade --strict --no-self-vendor)
+_dropped=""
+for _a in "$@"; do
+  for _d in "${DROPPED_BY_HANDOFF[@]}"; do
+    [ "$_a" = "$_d" ] && _dropped="$_dropped $_a"
+  done
+done
+if [ -n "$_dropped" ]; then
+  say "fw-upgrade-safe: WARNING — flag(s) dropped if this run hands off to a"
+  say "  cloned upstream (T-2016, lib/upgrade.sh:1068):$_dropped"
+  say "  The handoff replays only --force and --dedupe-user-hooks. --strict"
+  say "  becoming continue-on-error is the one that bites quietly."
+  say "  Workaround: invoke upstream bin/fw directly with FRAMEWORK_ROOT and"
+  say "  PROJECT_ROOT set, bypassing the bare-from-consumer path."
+  hr
+fi
+
 # --- 1. refuse on a dirty tree ------------------------------------------------
 dirty=$(git status --porcelain -- "${SURFACES[@]}" | grep -v '\.bak$' || true)
 if [ -n "$dirty" ]; then
