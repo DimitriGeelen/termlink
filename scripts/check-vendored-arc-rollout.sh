@@ -22,7 +22,12 @@
 set -u
 
 ALERT_MODE=0
+PRINT_ONLY=0
 [ "${1:-}" = "--alert-on-stale" ] && ALERT_MODE=1
+# --print-alert renders the payload and exits without posting. The alert text is
+# operator-facing instructions; being unable to read it without firing a real
+# alert to the whole fleet is how it kept a dead log path for so long.
+[ "${1:-}" = "--print-alert" ] && { ALERT_MODE=1; PRINT_ONLY=1; }
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TL="$PROJECT_ROOT/target/release/termlink"
@@ -129,7 +134,11 @@ echo "=== End rollout state ==="
 # itself, so the same channel that's silent IS the one that gets the
 # heads-up (deliberate: any operator already watching chat-arc sees it).
 if [ "$ALERT_MODE" = "1" ] && [ -n "$STALE_HUBS" ]; then
-  payload="ALERT: vendored chat-arc rollout — $(echo "$STALE_HUBS" | wc -w) hub(s) STALE: $STALE_HUBS at $(date -Is). PL-146-class regression suspected — investigate /var/log/vendored-arc-heartbeat.log on each STALE host. Detector: $(hostname):$(realpath "$0")."
+  payload="ALERT: vendored chat-arc rollout — $(echo "$STALE_HUBS" | wc -w) hub(s) STALE: $STALE_HUBS at $(date -Is). MEASURED: newest non-anonymous sender on that hub's OWN agent-chat-arc topic is older than 90m. Topics are per-hub (no federation, T-2259), so a host that heartbeats to a DIFFERENT topic reads STALE here while being perfectly healthy — ring20-management posts hourly to ring20:heartbeat, and did so while this alert was firing. Confirm before treating as a regression. TO INVESTIGATE: the heartbeat log path is PER-HOST and is NOT /var/log/vendored-arc-heartbeat.log everywhere (that is this detector's own host; ring20-management uses /var/log/heartbeat.log). Find it from the cron instead of guessing: termlink remote exec <hub> <session> 'crontab -l | grep -i heartbeat' then tail whatever path it redirects to. Detector: $(hostname):$(realpath "$0")."
+  if [ "$PRINT_ONLY" = "1" ]; then
+    printf '%s\n' "$payload"
+    exit 0
+  fi
   "$TL" channel post agent-chat-arc \
     --msg-type chat \
     --payload "$payload" \
