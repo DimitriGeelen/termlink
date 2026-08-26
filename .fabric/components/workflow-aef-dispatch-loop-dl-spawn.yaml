@@ -1,0 +1,30 @@
+id: workflow/aef-dispatch-loop/dl_spawn
+name: dl_spawn
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-dispatch-loop/v3.bpmn
+tags:
+- workflow-step
+- aef-dispatch-loop
+- designer
+purpose: Workflow step (aef:uid dl_spawn, node agt_3_spawn, serviceTask) — spawn isolated worker — fw termlink dispatch (task-tagged,
+  kill watchdog T-577)
+workflow: aef-dispatch-loop
+aef_uid: dl_spawn
+bpmn_node_id: agt_3_spawn
+created_by: T-2839
+last_verified: '2026-08-27'
+depends_on:
+- target: crates/termlink-cli/src/commands/execution.rs
+  type: implements
+- target: agents/mesh/dispatch.sh
+  type: implements
+pseudocode: 'Spawn a worker session and report whether it registered.
+
+  T-2550: the default (non---wait) path emits registered:"unconfirmed" plus a
+
+  note; --wait polls find_session and emits registered:"confirmed", ready:true.
+
+  ready:false is deliberately NOT emitted on the unchecked path — that path does
+
+  not know the session is unready, only that nobody looked.'

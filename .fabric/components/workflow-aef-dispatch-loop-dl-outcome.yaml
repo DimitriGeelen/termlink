@@ -1,0 +1,16 @@
+id: workflow/aef-dispatch-loop/dl_outcome
+name: dl_outcome
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-dispatch-loop/v3.bpmn
+tags:
+- workflow-step
+- aef-dispatch-loop
+- designer
+purpose: Workflow step (aef:uid dl_outcome, node agt_6_fw, serviceTask) — fw outcome evaluate + backprop — outcome rows joined
+  to dispatch rows (dispatch-outcomes.jsonl)
+workflow: aef-dispatch-loop
+aef_uid: dl_outcome
+bpmn_node_id: agt_6_fw
+created_by: T-2839
+last_verified: '2026-08-27'

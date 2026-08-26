@@ -1,0 +1,23 @@
+id: workflow/aef-dispatch-loop/dl_retry
+name: dl_retry
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-dispatch-loop/v3.bpmn
+tags:
+- workflow-step
+- aef-dispatch-loop
+- designer
+purpose: Workflow step (aef:uid dl_retry, node agt_7_re, serviceTask) — re-dispatch retry envelope — linked via retry_of_dispatch_id
+workflow: aef-dispatch-loop
+aef_uid: dl_retry
+bpmn_node_id: agt_7_re
+created_by: T-2839
+last_verified: '2026-08-27'
+depends_on:
+- target: agents/mesh/dispatch.sh
+  type: implements
+pseudocode: 'Re-dispatch carries retry_of_dispatch_id so the retry and its original join in
+
+  the outcome table. Without the link a retry reads as an independent dispatch
+
+  and the failure rate is understated.'

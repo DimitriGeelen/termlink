@@ -1,0 +1,15 @@
+id: workflow/aef-dispatch-loop/dl_msg_result
+name: dl_msg_result
+type: workflow-step
+subsystem: workflow-designer
+location: .agentic-framework/.context/designer/projects/aef-dispatch-loop/v3.bpmn
+tags:
+- workflow-step
+- aef-dispatch-loop
+- designer
+purpose: Workflow step (aef:uid dl_msg_result, node agt_4_worker, intermediateCatchEvent) — worker result on bus
+workflow: aef-dispatch-loop
+aef_uid: dl_msg_result
+bpmn_node_id: agt_4_worker
+created_by: T-2839
+last_verified: '2026-08-27'
