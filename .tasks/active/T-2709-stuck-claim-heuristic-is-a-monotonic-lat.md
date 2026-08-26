@@ -354,6 +354,64 @@ over-reporting its scope) and T-2699 (refusals that could never be emitted).
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+**Recommendation:** GO — keep the recency window as shipped: flag a claim that
+expired recently, stay quiet about one that expired long ago.
+
+**Rationale:** The substrate's own documented recovery is "if the holder is dead
+the lease auto-expires". Reporting a *successfully* expired lease as a current
+fault contradicts the design the canary is monitoring. The old predicate
+(`expired_count > 0`) was a monotonic latch: expired rows are reaped lazily and
+only when the SAME `(topic, offset)` is re-claimed, so on a topic nobody
+re-claims the row persists for the life of the hub's SQLite and the verdict never
+clears. A canary that fires daily on permanent debris is precisely how an
+operator learns to stop reading it — the failure this task exists to end.
+
+**Evidence:** 11 live topics on this host had latched true under the old
+predicate. Every one of them had `active_count: 0` — nothing held, nothing that
+*could* be stuck — and one carried 81 expired rows. All 10 Agent ACs are ticked
+and `cargo test --workspace` is green. The recency marker
+(`newest_expired_at_ms`) is plumbed end-to-end (bus → hub → session → CLI → MCP)
+and a hub predating it reports absent, which reads as "no recent expiry", never
+as stuck.
+
+**What you are actually deciding.** Not whether the fix works — all 10 Agent ACs
+are ticked and `cargo test --workspace` is green. You are deciding a *semantic*:
+should a lapsed lease ever count as "stuck"? Three options were live:
+
+| Option | Behaviour | Cost |
+|---|---|---|
+| Recency window (shipped) | expired-within-window fires; ancient expiry goes quiet | a genuinely abandoned topic goes silent once it ages out |
+| Drop the expired arm entirely | only `oldest_active_age_ms > 60_000` fires | a crashed worker's lease is never surfaced at all |
+| Keep `expired_count > 0` (the old predicate) | any expiry fires, forever | what this task exists to fix |
+
+**Evidence for the shipped choice.** The substrate's own documented recovery is
+"if the holder is dead the lease auto-expires". Reporting a *successfully* expired
+lease as a current fault contradicts the design the canary is monitoring. The old
+predicate had latched 11 topics true — every one with `active_count: 0`, i.e.
+nothing held and nothing that *could* be stuck, one carrying 81 expired rows.
+A canary firing daily on permanent debris is how an operator learns to stop
+reading it.
+
+**The caveat that is not cosmetic.** The measured `stuck_count: 0` on this host
+comes from the **back-compat path**, not from the recency window — the local hub
+predates `newest_expired_at_ms` and omits it, so the abandoned-claim arm cannot
+fire here at all. AC #10 made that visible rather than letting `0` read as proven
+(`expired_arm_inert` on the CLI, `DEGRADED:` on the canary). So this decision is
+being made on the *argument*, not on a live measurement of the new arm. A hub
+upgrade is what would turn it into one.
+
+**Why I should not decide this.** The two rejected options are defensible. Which
+signal you want out of the claim rail is a judgement about how you intend to use
+it — whether an abandoned work item should eventually stop asking for attention,
+or should nag until someone clears it. That is an operator's preference about
+noise, not a correctness question I can settle from the code.
+
+**If you disagree:** name the semantic you want and the predicate changes to match
+— it is a single function, `is_potentially_stuck` in
+`crates/termlink-cli/src/commands/channel.rs`.
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
