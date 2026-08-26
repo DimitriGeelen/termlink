@@ -78,7 +78,17 @@ last_vendor_event:
 
 divergences:
   - task: T-2687
-    also_task_ids: [T-2813]
+    also_task_ids: [T-2813, T-2839]
+    restored: >
+      DELETED by the 2026-08-26 re-vendor (9b47462c5) and restored the same day
+      under T-2839, commit be0fcfa68 — which is why that task id appears here.
+      This is not a second divergence: it is the SAME fix, re-applied after a
+      vendor event removed it, exactly the transaction this register exists to
+      make possible. The checker matches on the task id parsed from the commit
+      subject, so without T-2839 listed the restoration reads as an
+      unregistered local change — a recovery indistinguishable from a rogue
+      patch, which is the wrong direction for a register whose job is telling
+      those two apart.
     id_note: >
       ONE fix, TWO task ids — the T-2800 concurrent-allocation class. The work was
       tracked as T-2813 (this register's founding entry, and the narrative in the

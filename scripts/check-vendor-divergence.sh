@@ -100,6 +100,15 @@ known = set()
 for d in (reg.get("divergences") or []):
     if d.get("task"):
         known.add(d["task"])
+    # A divergence can legitimately carry several task ids: the fix filed under
+    # one, restored after a vendor event under another. `not_divergence` already
+    # accepted a LIST; this side accepted only the single `task:` field, so a
+    # restoration read as an unregistered local change — a recovery
+    # indistinguishable from a rogue patch, which is the one distinction this
+    # checker exists to make. The T-2687 entry documents the same asymmetry
+    # costing an operator once already (id_note, 2026-08-20).
+    for t in (d.get("also_task_ids") or []):
+        known.add(t)
 for grp in (reg.get("not_divergence") or []):
     for t in (grp.get("tasks") or []):
         known.add(t)

@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
-# guard-layer: source --no-heartbeat
+# guard-layer: source
+# (no --no-heartbeat: these checks have no heartbeat companion to skip. The
+#  marker IS the invocation the runner uses, so declaring a flag we do not
+#  accept made check-receiver-ack-lag ERROR under the layer — a contract
+#  asserting more than the mechanism, in the machine-readable direction.)
 # check-vacuous-verification.sh — verification legs that cannot fail.
 #
 # ORIGIN: 832-Workflow-designer, agent-chat-arc offset 471. They found an AC

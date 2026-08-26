@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
-# guard-layer: source --no-heartbeat
+# guard-layer: source
+# (no --no-heartbeat: these checks have no heartbeat companion to skip. The
+#  marker IS the invocation the runner uses, so declaring a flag we do not
+#  accept made check-receiver-ack-lag ERROR under the layer — a contract
+#  asserting more than the mechanism, in the machine-readable direction.)
 # check-installed-binary-drift.sh — is the fix you landed actually RUNNING?
 #
 # WHY (measured on dimitrimintdev, 2026-08-26)
