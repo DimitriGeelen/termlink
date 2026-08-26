@@ -15,6 +15,7 @@
 # Usage:
 #   chat-arc-multicast.sh "<message>"
 #   chat-arc-multicast.sh --thread T-XXXX "<message>"
+#   chat-arc-multicast.sh --dry-run "<message>"      # render, post nothing
 #
 # Identity: posts use this host's identity (workstation-107-termlink in
 # normal use). Each post carries from_project=010-termlink for
@@ -23,13 +24,21 @@
 set -u
 
 THREAD="T-1438"
-if [ "${1:-}" = "--thread" ] && [ -n "${2:-}" ]; then
-  THREAD="$2"
-  shift 2
-fi
+DRY_RUN=0
+
+# --thread and --dry-run in either order. Kept as positional checks rather than
+# a parse loop so the no-flag path stays byte-identical to before.
+while :; do
+  case "${1:-}" in
+    --thread) [ -n "${2:-}" ] || { echo "--thread needs a value" >&2; exit 2; }
+              THREAD="$2"; shift 2 ;;
+    --dry-run) DRY_RUN=1; shift ;;
+    *) break ;;
+  esac
+done
 
 if [ -z "${1:-}" ]; then
-  echo "Usage: $0 [--thread T-XXXX] \"<message>\"" >&2
+  echo "Usage: $0 [--thread T-XXXX] [--dry-run] \"<message>\"" >&2
   exit 2
 fi
 
@@ -56,6 +65,25 @@ mapfile -t HUBS < <(termlink fleet status 2>&1 \
 if [ ${#HUBS[@]} -eq 0 ]; then
   log "no UP hubs — nothing to multicast"
   exit 1
+fi
+
+if [ "$DRY_RUN" = "1" ]; then
+  printf '\nchat-arc-multicast --dry-run: nothing will be posted\n\n'
+  printf '  thread          : %s\n' "$THREAD"
+  printf '  from_project    : %s' "$FROM_PROJECT"
+  if [ -f .context/working/focus.yaml ]; then
+    printf '   (self-derived from .context/working/focus.yaml)\n'
+  else
+    printf '   (default — no focus.yaml found)\n'
+  fi
+  printf '  metadata        : _from=workstation-107-multicast _thread=%s from_project=%s\n' \
+    "$THREAD" "$FROM_PROJECT"
+  printf '\n  hubs that would receive it (fleet status = UP, excluding local-test):\n'
+  for h in "${HUBS[@]}"; do printf '    %s\n' "$h"; done
+  printf '\n  payload (%s bytes):\n' "$(printf '%s' "$PAYLOAD" | wc -c | tr -d ' ')"
+  printf '%s\n' "$PAYLOAD" | sed 's/^/    | /'
+  printf '\n'
+  exit 0
 fi
 
 POSTED=0
