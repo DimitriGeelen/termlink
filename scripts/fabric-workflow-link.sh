@@ -95,6 +95,13 @@ command -v python3 >/dev/null 2>&1 || { echo "fabric-workflow-link: no python3 â
 
 python3 - "$CARDS" "$PROJECTS" <<'PY'
 import glob, os, re, sys, yaml
+def _vkey(p):
+    """Sort .bpmn by NUMERIC version. Lexically v9 > v12, which silently pins every
+    card to a stale workflow: nodes added since are absent, and the stale location
+    still exists so drift reports no orphan."""
+    m = re.search(r"v(\d+)\.bpmn$", p)
+    return (int(m.group(1)) if m else -1, p)
+
 
 cards_d, proj_d = sys.argv[1], sys.argv[2]
 
@@ -113,7 +120,7 @@ for p in glob.glob(os.path.join(cards_d, "*.yaml")):
 # uid -> name, per workflow, from the highest version file.
 flows = {}
 for wf in sorted(os.listdir(proj_d)):
-    fs = sorted(glob.glob(os.path.join(proj_d, wf, "*.bpmn")))
+    fs = sorted(glob.glob(os.path.join(proj_d, wf, "*.bpmn")), key=_vkey)
     if not fs:
         continue
     s = open(fs[-1], encoding="utf-8").read()
@@ -126,6 +133,7 @@ for wf in sorted(os.listdir(proj_d)):
         if g:
             u[g.group(1)] = name
     flows[wf] = u
+
 
 INVERSE = {"implements": "implemented_by", "tested_by": "tests", "probed_by": "probes"}
 broken, rc = [], 0

@@ -36,7 +36,11 @@
 # Exit: 0 ok · 1 refused (bad uid / uncarded target) · 2 cannot run
 set -uo pipefail
 
-cd "$(git rev-parse --show-toplevel 2>/dev/null || echo /opt/termlink)" || exit 1
+# FW_PROJECT_ROOT lets one shipped tool serve every project. Without it the relpath
+# for a card's `location:` is computed against THIS repo, so adopting another
+# project's workflow would write a location that resolves nowhere — a card that
+# looks registered and is invisible to `fw fabric drift`.
+cd "${FW_PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || echo /opt/termlink)}" || exit 1
 
 CARDS="${FABRIC_COMPONENTS_DIR:-.fabric/components}"
 PROJECTS="${DESIGNER_PROJECTS_DIR:-.agentic-framework/.context/designer/projects}"
@@ -68,8 +72,20 @@ BPMN
   # and the healthy link writes BOTH directions
   [ "$(R demo --link two=src/real.rs:implements)" = "0" ] || { echo "self-test: FAIL valid link refused"; fail=1; }
   grep -q 'workflow/demo/two' "$t/cards/real.yaml" || { echo "self-test: FAIL reciprocal edge not written to the target"; fail=1; }
+  # DISCRIMINATING LEG for the version sort. Every fixture above has ONE .bpmn, so none
+  # of them can tell a lexical sort from a numeric one. With v2 and v10 present, lexical
+  # picks v2 (wrong) and numeric picks v10. Caught in the field, not in review: adopting
+  # a real map registered 8 of 14 nodes and pinned every card location to v9 while the
+  # workflow was at v12 — silent, and drift saw no orphan because v9 still exists.
+  mkdir -p "$t/proj/vers"
+  printf '%s\n' '<bpmn:definitions xmlns:bpmn="b" xmlns:aef="a"><bpmn:serviceTask id="a" name="old"><bpmn:extensionElements><aef:uid value="from_v2"/></bpmn:extensionElements></bpmn:serviceTask></bpmn:definitions>' > "$t/proj/vers/v2.bpmn"
+  printf '%s\n' '<bpmn:definitions xmlns:bpmn="b" xmlns:aef="a"><bpmn:serviceTask id="a" name="new"><bpmn:extensionElements><aef:uid value="from_v10"/></bpmn:extensionElements></bpmn:serviceTask></bpmn:definitions>' > "$t/proj/vers/v10.bpmn"
+  R vers >/dev/null
+  [ -f "$t/cards/workflow-vers-from-v10.yaml" ] || { echo "self-test: FAIL v10 not chosen over v2 — lexical version sort"; fail=1; }
+  if [ -f "$t/cards/workflow-vers-from-v2.yaml" ]; then echo "self-test: FAIL registered from the OLDER version"; fail=1; fi
+
   [ "$fail" = "0" ] || exit 2
-  echo "self-test: PASS — adopt 0, re-run preserves edges, bad uid 1, uncarded target 1, link writes both directions"
+  echo "self-test: PASS — adopt 0, re-run preserves edges, bad uid 1, uncarded target 1, link writes both directions, v10 beats v2"
   exit 0
 fi
 
@@ -81,6 +97,13 @@ import glob, os, re, sys, yaml
 
 cards_d, proj_d = sys.argv[1], sys.argv[2]
 args = sys.argv[3:]
+def _vkey(p):
+    """Sort .bpmn by NUMERIC version. Lexically v9 > v12, which silently pins every
+    card to a stale workflow: nodes added since are absent, and the stale location
+    still exists so drift reports no orphan."""
+    m = re.search(r"v(\d+)\.bpmn$", p)
+    return (int(m.group(1)) if m else -1, p)
+
 INVERSE = {"implements": "implemented_by", "tested_by": "tests", "probed_by": "probes"}
 
 def load():
@@ -95,7 +118,7 @@ def load():
     return by_id
 
 def nodes_of(wf):
-    fs = sorted(glob.glob(os.path.join(proj_d, wf, "*.bpmn")))
+    fs = sorted(glob.glob(os.path.join(proj_d, wf, "*.bpmn")), key=_vkey)
     if not fs:
         return None, []
     s = open(fs[-1], encoding="utf-8").read()
