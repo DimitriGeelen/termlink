@@ -12,6 +12,7 @@ pub mod liveness;
 pub mod registration;
 pub mod manager;
 pub mod ack_retry;
+pub mod assignment;
 pub mod bus_client;
 pub mod claim_client;
 pub mod client;

@@ -451,9 +451,48 @@ receipt.
    against the pre-fix frontier too — on a two-envelope topic the never-acked sentinel and
    the phantom lag happen to differ. It is an invariant guard, not regression coverage, and
    is labelled as such in the source rather than counted toward the fix.
-3. **Land `assignment.v0` + `result_manifest.v0` as typed helpers.** The schemas are drafted
-   and round-tripped (S3); this is codifying a payload convention plus emit/parse helpers, not
-   protocol work.
+3. ~~**Land `assignment.v0` + `result_manifest.v0` as typed helpers.**~~
+   **LANDED 2026-08-26 — commit `%COMMIT%`.** `crates/termlink-session/src/assignment.rs`.
+
+   S3's finding held: no protocol change was needed, so the module sits in `termlink-session`
+   next to `ack_retry` rather than in `termlink-protocol`. `msg_type` stays free-form,
+   `--reply-to` still supplies `metadata.in_reply_to`, and the schema lives in the payload
+   versioned by its own `schema` field.
+
+   **Three decisions worth recording, because each encodes a rule this arc paid for:**
+
+   - **`schema` is REQUIRED on parse, and a mismatch is its own error.** `ParseError`
+     distinguishes `SchemaMismatch` from `Malformed`: "a well-formed envelope of a different
+     kind" and "not parseable" are different facts, and a consumer routing by `msg_type` needs
+     to tell them apart rather than treating every non-match as corruption. An untagged payload
+     is rejected too — accepting it would mean inferring a contract from its absence.
+   - **An unrecognised status is preserved, never coerced.** `ResultStatus::Other(String)`
+     carries a newer producer's value through verbatim, and `is_ok()` is false for it. This is
+     the same rule as not emitting `ready:false` for a registration nobody checked (T-2550) and
+     not calling appended bytes `delivered` (item 4): a default that looks valid is the
+     dangerous kind.
+   - **`ArtifactRef` is deliberately NOT `artifact::ArtifactManifest`.** That type describes a
+     byte TRANSFER; this one describes a byte REFERENCE to content that never crosses the bus.
+     Charter non-goal #2 forbids manifests that archive artifacts, and one shared type would
+     make violating it an easy accident.
+
+   Unknown fields are ignored rather than denied, so a v1 producer does not break every v0
+   reader — deliberate, and asserted by a test rather than left to serde's default.
+
+   9 unit tests; full suite 472 passed / 0 failed (termlink-session), 1138 / 0 (termlink). Mutation-tested, no survivors:
+
+   ```
+   killed  M1 check_schema accepts ANY schema tag
+   killed  M2 is_ok() true for Partial/Other (unknown reads as success)
+   killed  M3 unknown status coerced to Ok instead of preserved
+   killed  M4 absent schema field accepted
+   killed  M5 absent media_type serialises as null
+   ```
+
+   **Not claimed:** no CLI verb emits or consumes these yet. This is the typed contract the
+   decomposition asked for, not a wired-up orchestration path — item 1 (per-agent identity)
+   still gates attribution, and `issued_by` remains decoration until an agent is a distinct
+   principal. Two agents on this host now have their own keys; the rest of the fleet does not.
 4. ~~**Make `post` honest.** Return `delivered-unconfirmed` and add a bounded
    `await-consumption` that resolves against `channel receipts`.~~
    **LANDED 2026-08-25 — commit `cf782f3ed`.**
