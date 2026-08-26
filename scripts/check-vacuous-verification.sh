@@ -9,6 +9,33 @@
 # line lacks these tokens" — true of essentially every multi-line file. Green in
 # both worlds, so it never had a chance to fail.
 #
+# ── CORRECTION 2026-08-26 (same day) ────────────────────────────────────────
+# The claim below that the T-1427 leg "could not fail" is WRONG under this
+# project's gate, and the correction is worth more than the original finding.
+#
+# The gate runs each line as `if ( eval "$cmd" ); then` under `set -euo pipefail`
+# (agents/task-create/update-task.sh:1215, documented at :1100). pipefail
+# propagates a failing left-hand command through a pipe, so:
+#
+#     a | b     pipefail RESCUES   — status is non-zero if a failed
+#     a ; b     pipefail CANNOT    — separate commands; status is b's alone
+#
+# Every leg this script was written for is the PIPE form, and every one of them
+# fails correctly under the real runner. The poisoned control that "proved"
+# otherwise was run in a bare shell the gate never uses — an instrument
+# measuring the wrong environment.
+#
+# THE SCRIPT IS KEPT because `grep -qv` is still a wrong-semantics smell worth
+# flagging, and because a leg may be run outside the gate. But it reports a
+# SMELL, not a proven vacuity, and this header says so rather than letting the
+# original overclaim stand.
+#
+# The real defect class here is a SEMICOLON or a CAPTURE discarding the
+# preceding status — 832's `out=$(cmd); echo "$out" | grep -q PAT`. Confirmed
+# under our gate: a command exiting 1 while printing the matched string PASSES.
+# Two scanners disagree on how many we have (40/23 vs 34/21), so that population
+# is UNRESOLVED and no number is published here.
+# ────────────────────────────────────────────────────────────────────────────
 # MEASURED HERE, live tree, 2026-08-26: 10 executable legs matched, 9 in
 # completed tasks and ONE LIVE, in T-1427:
 #
