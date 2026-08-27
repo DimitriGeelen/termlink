@@ -61,6 +61,10 @@ set -eu
 
 WORKING_DIR=".context/working"
 WORKING_DIR_EXPLICIT=0
+# T-2840: git-tracked crontab source, used ONLY to tell a real cron canary from a
+# source-level static check that merely left a heartbeat behind. Overridable so
+# fixtures can point it at a temp tree; an absent dir fails open.
+CRON_SRC_DIR="${CANARY_STATUS_CRON_DIR:-.context/cron}"
 MAX_AGE_HOURS=48
 JSON=0
 QUIET=0
@@ -224,6 +228,31 @@ file_size() {
 # Compute per-canary classification + metadata. Emits one TSV row per canary
 # (avoids quoting hell when passing to the renderer): name TAB status TAB
 # log_size TAB log_mtime TAB heartbeat_mtime TAB latest_entry.
+# T-2840: is this canary actually CRON-SCHEDULED?
+#
+# discover_canaries() deliberately synthesizes a .log path from any .heartbeat so
+# a cron canary that has never written a log still surfaces (T-2178). That is
+# right, but it cannot tell such a canary apart from a SOURCE-LEVEL STATIC CHECK
+# that is not cron-scheduled at all and only has a heartbeat because somebody ran
+# it by hand. The four guard-layer checks (alloc-sink, busy-spin, drain-sink,
+# silent-exit) are exactly that: CLAUDE.md calls each one "NOT a runtime cron
+# canary", they have no crontab, no /etc/cron.d entry and no log — yet each read
+# STALE forever, so /canaries reported "6 need attention" when 2 were real. A
+# dashboard that is two-thirds noise is one nobody reads.
+#
+# The link is the LOG FILENAME: every genuine canary crontab names the log it
+# appends to (measured: 1 crontab each; the four static checks: 0).
+#
+# This CANNOT mask the T-2561 shipped-but-dark class. That is a crontab which
+# EXISTS in git and is not installed to /etc/cron.d — it still matches here and
+# still classifies normally, and check-cron-install-drift.sh owns it. Only a
+# canary git declares no schedule for at all is downgraded.
+is_cron_scheduled() {
+    local name="$1"
+    [ -d "$CRON_SRC_DIR" ] || return 0   # fail-open: can't tell -> keep old behaviour
+    grep -q -- "\.${name}\.log" "$CRON_SRC_DIR"/*.crontab 2>/dev/null
+}
+
 classify() {
     local log_path="$1"
     local stem name heartbeat_path
@@ -248,7 +277,12 @@ classify() {
     else
         local heartbeat_age=$((NOW - heartbeat_mtime))
         if [ "$heartbeat_age" -gt "$MAX_AGE_SECS" ]; then
-            status="STALE"
+            if [ "$log_size" = "0" ] && ! is_cron_scheduled "$name"; then
+                # Not a cron canary at all (see is_cron_scheduled above).
+                status="NOT_SCHEDULED"
+            else
+                status="STALE"
+            fi
         elif [ "$log_size" = "0" ]; then
             status="HEALTHY"
         elif [ "$log_mtime" -ge "$heartbeat_mtime" ]; then
@@ -316,6 +350,7 @@ TOTAL=0
 HEALTHY=0
 FIRING=0
 STALE=0
+NOT_SCHED=0
 NO_HB=0
 
 while IFS= read -r log_path; do
@@ -329,6 +364,7 @@ while IFS= read -r log_path; do
         FIRING) FIRING=$((FIRING + 1)) ;;
         STALE) STALE=$((STALE + 1)) ;;
         NO_HEARTBEAT) NO_HB=$((NO_HB + 1)) ;;
+        NOT_SCHEDULED) NOT_SCHED=$((NOT_SCHED + 1)) ;;
     esac
 done <<EOF
 $(discover_canaries)
@@ -338,8 +374,8 @@ PROBLEMS=$((FIRING + STALE))
 
 # JSON rendering.
 if [ "$JSON" = "1" ]; then
-    printf '{"ok":true,"summary":{"total":%d,"healthy":%d,"firing":%d,"stale":%d,"no_heartbeat":%d,"max_age_hours":%d},"canary_dir":"%s","resolution":"%s","canaries":[' \
-        "$TOTAL" "$HEALTHY" "$FIRING" "$STALE" "$NO_HB" "$MAX_AGE_HOURS" \
+    printf '{"ok":true,"summary":{"total":%d,"healthy":%d,"firing":%d,"stale":%d,"no_heartbeat":%d,"not_scheduled":%d,"max_age_hours":%d},"canary_dir":"%s","resolution":"%s","canaries":[' \
+        "$TOTAL" "$HEALTHY" "$FIRING" "$STALE" "$NO_HB" "$NOT_SCHED" "$MAX_AGE_HOURS" \
         "$(printf '%s' "$WORKING_DIR" | sed 's/\\/\\\\/g; s/"/\\"/g')" "$RESOLUTION"
     first=1
     while IFS=$'\t' read -r name status log_size log_mtime hb_mtime latest_entry; do
@@ -405,7 +441,7 @@ EOF
 fi
 
 # Full human render.
-echo "canary-status: $TOTAL canary(ies) — $HEALTHY healthy, $FIRING firing, $STALE stale (threshold ${MAX_AGE_HOURS}h)"
+echo "canary-status: $TOTAL canary(ies) — $HEALTHY healthy, $FIRING firing, $STALE stale, $NOT_SCHED not-scheduled (threshold ${MAX_AGE_HOURS}h)"
 echo "  read: $WORKING_DIR [$RESOLUTION]"
 echo ""
 printf '  %-12s %-32s %s\n' "STATUS" "NAME" "LAST FIRED / LATEST ENTRY"

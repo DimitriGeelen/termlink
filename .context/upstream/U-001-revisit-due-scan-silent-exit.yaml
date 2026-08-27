@@ -4,7 +4,14 @@ title: "revisit-due-scan.sh exits 0 when it cannot find the tasks dir"
 created: 2026-08-14T20:45:00Z
 source_project: 010-termlink
 source_task: T-2711
-status: pending
+status: filed
+# T-2840 (2026-08-27): VERIFIED filed. The body of this record was posted to the
+# shared `framework:pickup` topic at offset 24 — same file, same PROJECT_ROOT
+# walk-up defect, same missing-tasks-dir exit 0. Confirmed by decoding the
+# payload, not by inference. The field said `pending` for 13 days after the post
+# went out, which is why T-2711's operator rubber-stamp ("decide whether U-001 is
+# filed") could not be answered by reading this file.
+filed_at: framework:pickup offset 24
 severity: medium
 component: agents/context/revisit-due-scan.sh
 context: |
