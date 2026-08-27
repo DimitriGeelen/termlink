@@ -1116,17 +1116,15 @@ decisions:
   date: 2026-08-27
   task: T-2824
   rationale: "Auto-captured from task file on completion"
-
-  - id: PD-001
-    decision: "Rewrite the Agent ACs to the verification this task's own Context says is all that remains, and replace the moot Human AC, rather than performing the cleanup the original ACs asked for."
-    scope: project
-    date: 2026-08-27
-    task: T-2706
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-002
-    decision: "Re-file the proposal on `framework:pickup` (durable, consumed) and close T-1643 on that, rather than keep it open waiting for a framework-agent ACK."
-    scope: project
-    date: 2026-08-27
-    task: T-1643
-    rationale: "Auto-captured from task file on completion"
+- id: PD-153
+  decision: "Rewrite the Agent ACs to the verification this task's own Context says is all that remains, and replace the moot Human AC, rather than performing the cleanup the original ACs asked for."
+  scope: project
+  date: 2026-08-27
+  task: T-2706
+  rationale: "Auto-captured from task file on completion"
+- id: PD-154
+  decision: "Re-file the proposal on `framework:pickup` (durable, consumed) and close T-1643 on that, rather than keep it open waiting for a framework-agent ACK."
+  scope: project
+  date: 2026-08-27
+  task: T-1643
+  rationale: "Auto-captured from task file on completion"
