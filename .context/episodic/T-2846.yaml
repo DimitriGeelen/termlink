@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2846: decisions.yaml re-corrupted by vendored add-decision — push blocked again after T-2840 repair
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-27T21:37:01Z
+# ============================================================================
+
+task_id: T-2846
+task_name: "decisions.yaml re-corrupted by vendored add-decision — push blocked again after T-2840 repair"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-27T21:33:14Z
+completed: 2026-08-27T21:36:54Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-27T23:36:53+02:00
+last_commit: 2026-08-27T23:36:53+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  repair decisions.yaml re-corruption; file the vendored writer defect upstream
+
+# Key outcomes
+outcomes:
+  - '`.context/project/decisions.yaml` parses as valid YAML (`yaml.safe_load` returns'
+  - '`git push origin main` is no longer refused by that gate. Verified by running the'
+  - 'The corruption MECHANISM is identified and named in the RCA, distinguishing'
+  - 'The recurrence is established AS recurrence rather than a fresh one-off: the file was'
+  - 'No decision content is lost in the repair. Entry count before and after is compared'
+  - 'The defect is filed upstream on `framework:pickup` (G-062 — `add-decision` is'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/handovers/S-2026-0827-2332.discard-manifest.yaml'
+  - '.context/project/decisions.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - '.tasks/active/T-2723-handover-commit-under-t-1452-collides-wi.md'
+  - '.tasks/active/T-2846-decisionsyaml-re-corrupted-by-vendored-a.md'
+  - '.termlink-task'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-27T23:36:53'
+    action: 'T-2846: repair decisions.yaml re-corruption; file the vendored writer defect upstream'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 11
+  lines_added: 339
+  lines_removed: 52
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2846-decisionsyaml-re-corrupted-by-vendored-a.md
+generated_by: context-agent-hybrid

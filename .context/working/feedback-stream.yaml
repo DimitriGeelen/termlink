@@ -9550,3 +9550,21 @@ scan_id: R-385df328
 task_id: T-2840
 payload:
   task_file: .tasks/active/T-2840-landing-session--close-finished-work-col.md
+---
+kind: scan_emitted
+timestamp: '2026-08-27T21:36:55Z'
+scan_id: R-6b522ce9
+task_id: T-2846
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-27T21:36:55Z'
+scan_id: R-6b522ce9
+task_id: T-2846
+payload:
+  task_file: .tasks/active/T-2846-decisionsyaml-re-corrupted-by-vendored-a.md
