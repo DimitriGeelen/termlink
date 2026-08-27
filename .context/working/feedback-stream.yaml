@@ -9514,3 +9514,21 @@ scan_id: R-53bc7cfe
 task_id: T-2706
 payload:
   task_file: .tasks/active/T-2706-stuck-claims-canary-fires-daily-on-11-te.md
+---
+kind: scan_emitted
+timestamp: '2026-08-27T21:30:26Z'
+scan_id: R-8d6de356
+task_id: T-1643
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-27T21:30:26Z'
+scan_id: R-8d6de356
+task_id: T-1643
+payload:
+  task_file: .tasks/active/T-1643-propose-fw-vendor-manifest-hardening-to-.md

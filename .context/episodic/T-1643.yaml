@@ -1,0 +1,129 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1643: Propose fw vendor manifest hardening to framework-agent (T-1642 RCA Tier-B follow-up)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-27T21:30:32Z
+# ============================================================================
+
+task_id: T-1643
+task_name: "Propose fw vendor manifest hardening to framework-agent (T-1642 RCA Tier-B follow-up)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-05-16T06:53:33Z
+completed: 2026-08-27T21:30:24Z
+duration_days: 103
+updates_count: 2
+first_commit: 2026-05-16T08:56:21+02:00
+last_commit: 2026-05-17T00:39:09+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  post fw-vendor-manifest-hardening proposal to agent-chat-arc. fix verification regex to match actual post evidence (agent-chat-arc, not dm:*). T-1644 closure — surface agent-chat-arc fallback in pre-T-1436-peer error. T-1646 closure — agent contact --file path shipped. T-1429 task-file sync + /agent-handoff fallback section. closure artifacts for T-1645 — episodic + PL-158 hub-aggregator emit visibility learning. closure artifacts for T-1647 — MCP hub mode shipped (PL-158 complete, both halves). closure artifacts for T-1648 — fleet doctor heal-hint ergonomic. closure artifacts for T-1649 — fleet doctor HMAC diagnosis ergonomic. closure artifacts for T-1650 — profile list heal-readiness footer. closure artifacts for T-1651 — profile add heal-readiness tip. PL-159 — mirror config-driven mechanisms across all operator surfaces
+
+# Key outcomes
+outcomes:
+  - 'Termlink-side T-1642 RCA "Why structurally allowed" + "Prevention" sections explicitly name the manifest gap (already done in T-1642 closure commit `4e058208`)'
+  - 'Proposal posted to `agent-chat-arc` with `_thread=T-1643` + `mention=framework-agent` metadata, referencing T-1642 RCA + PL-123 + the bug-class framing — posted via `termlink channel post agent-chat-arc` (dm:* blocked because framework-agent session predates T-1436 identity_fingerprint field)'
+  - 'Post offset captured: `agent-chat-arc offset=1471, ts=1778914531491` (2026-05-16T06:55:31Z)'
+  - 'Proposal re-filed on a DURABLE, CONSUMED rail — `framework:pickup` offset=67,'
+  - 'The original delivery failure is recorded rather than retried in place: the'
+  - 'ACK is now tracked by the framework-pickup canary rather than by blocking this'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'T-1644 closure — surface agent-chat-arc fallback in pre-T-1436-peer error'
+    source: git-mined
+  - description: 'fix verification regex to match actual post evidence (agent-chat-arc, not dm:*)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-08-27 — Closed on the action we control, not on a third party''s silence'
+    chose: 'Re-file the proposal on `framework:pickup` (durable, consumed) and close T-1643 on that, rather than keep it open waiting for a framework-agent ACK.'
+    rationale: 'The original AC made closure conditional on a reply from another project. That reply never came in 103 days, and the message it would have replied to has since been retention-pruned off `agent-chat-arc` — so the AC had become unsatisfiable by any action available to us, and the task would have stayed open forever describing work that was already done. CLAUDE.md names this exact failure: "If you find yourself writing a report to a file so a human can relay it, post it to `framework:pickup` instead; the rail has been there the whole time." The same applies to a broadcast topic nobody consumes.'
+    alternatives_rejected: ['Leaving it open (indefinite, and the evidence decays further). Re-posting to `agent-chat-arc` (same bounded topic, same outcome). `--force` (would have closed it with the delivery still broken).']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/commands/agent-handoff.md'
+  - '.context/episodic/T-1645.yaml'
+  - '.context/episodic/T-1646.yaml'
+  - '.context/episodic/T-1647.yaml'
+  - '.context/episodic/T-1648.yaml'
+  - '.context/episodic/T-1649.yaml'
+  - '.context/episodic/T-1650.yaml'
+  - '.context/episodic/T-1651.yaml'
+  - '.context/project/decisions.yaml'
+  - '.context/project/learnings.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.tasks/active/T-1429-termlink-agent-contact-name--high-level-.md'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-1643-propose-fw-vendor-manifest-hardening-to-.md'
+  - '.tasks/completed/T-1636-v2-peer-consult-slice-1-termlink-half--.md'
+  - '.tasks/completed/T-1644-termlink-agent-contact-surface-agent-cha.md'
+  - '.tasks/completed/T-1645-pickup-t-1820-rerun-inboxqueued-emit-on-.md'
+  - '.tasks/completed/T-1646-termlink-agent-contact-add---file-path-f.md'
+  - '.tasks/completed/T-1647-mcp-termlinkeventsubscribe-hub-level-sup.md'
+  - '.tasks/completed/T-1648-fleet-doctor--suggest---bootstrap-from-a.md'
+  - '.tasks/completed/T-1649-fleet-doctor-cmdfleetdoctor-hmac-mismatc.md'
+  - '.tasks/completed/T-1650-remote-profile-list--surface-bootstrapfr.md'
+  - '.tasks/completed/T-1651-remote-profile-add--tip-when---bootstrap.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-05-16T08:56:21'
+    action: 'T-1643: post fw-vendor-manifest-hardening proposal to agent-chat-arc'
+  - time: '2026-05-16T08:56:38'
+    action: 'T-1643: fix verification regex to match actual post evidence (agent-chat-arc, not dm:*)'
+  - time: '2026-05-16T09:24:05'
+    action: 'T-1643: T-1644 closure — surface agent-chat-arc fallback in pre-T-1436-peer error'
+  - time: '2026-05-16T09:57:48'
+    action: 'T-1643: T-1646 closure — agent contact --file path shipped'
+  - time: '2026-05-16T10:04:09'
+    action: 'T-1643: T-1429 task-file sync + /agent-handoff fallback section'
+  - time: '2026-05-16T10:48:40'
+    action: 'T-1643: closure artifacts for T-1645 — episodic + PL-158 hub-aggregator emit visibility learning'
+  - time: '2026-05-16T10:59:13'
+    action: 'T-1643: closure artifacts for T-1647 — MCP hub mode shipped (PL-158 complete, both halves)'
+  - time: '2026-05-16T23:38:31'
+    action: 'T-1643: closure artifacts for T-1648 — fleet doctor heal-hint ergonomic'
+  - time: '2026-05-16T23:57:05'
+    action: 'T-1643: closure artifacts for T-1649 — fleet doctor HMAC diagnosis ergonomic'
+  - time: '2026-05-17T00:20:05'
+    action: 'T-1643: closure artifacts for T-1650 — profile list heal-readiness footer'
+  - time: '2026-05-17T00:38:20'
+    action: 'T-1643: closure artifacts for T-1651 — profile add heal-readiness tip'
+  - time: '2026-05-17T00:39:09'
+    action: 'T-1643: PL-159 — mirror config-driven mechanisms across all operator surfaces'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 12 commit(s), 149196 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 149196
+  commits: 12
+  files_changed: 17
+  lines_added: 6724
+  lines_removed: 8170
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1643-propose-fw-vendor-manifest-hardening-to-.md
+generated_by: context-agent-hybrid
