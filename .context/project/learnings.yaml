@@ -3299,3 +3299,15 @@ learnings:
   task: T-2714
   date: 2026-08-18
   context: Added via context agent
+- id: PL-367
+  learning: "When diagnosing a tool's exit code, never read $? after a pipe — 'cmd | head; echo $?' reports head's status, not cmd's. Capture first (out=$(cmd 2>&1); rc=$?). This session read 'fw reviewer' as exit 0 (silent false-success, a fileable framework defect) when it was in fact exit 3 (correct fail-closed). PL-080/T-2775 document this for P-011 Verification blocks; it applies with equal force to ad-hoc diagnosis, where the payoff for being wrong is a false bug report to a peer project."
+  source: P-001
+  task: T-2714
+  date: 2026-08-27
+  context: Added via context agent
+- id: PL-368
+  learning: "In a linked worktree that is N commits behind main, 'the defect reproduces here' is NOT evidence the defect exists at the authority. This worktree is 262 behind / 126 ahead of main; a missing reviewer catalogue investigated this session looked like a live framework defect but was fixed on main 8 days earlier by T-2806. Before filing any finding from a worktree, run 'git merge-base --is-ancestor <fix-commit> HEAD' or check 'git log main -- <path>' — the branch gap is a systemic false-positive generator for every diagnosis made here. Sibling of PL-366 (verify the defect, not the symptom): this is verify the defect AT THE AUTHORITY, not in your stale copy."
+  source: P-001
+  task: T-2714
+  date: 2026-08-27
+  context: Added via context agent

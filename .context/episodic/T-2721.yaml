@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2721: Apply worktree-safe hook-path resolution locally in vendored audit.sh (transient until re-vendor)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-27T22:25:31Z
+# ============================================================================
+
+task_id: T-2721
+task_name: "Apply worktree-safe hook-path resolution locally in vendored audit.sh (transient until re-vendor)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-15T05:38:10Z
+completed: 2026-08-27T22:24:22Z
+duration_days: 12
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Four audit checks (commit-msg, C-002, CTL-011, CTL-020) report false findings in a linked worktree because they concatenate PROJECT_ROOT/.git/hooks or require a gitignored cron dir; apply the git rev-parse --git-path fix locally so the audit is truthful now, while U-003/U-004 remain the durable upstream path
+
+# Key outcomes
+outcomes:
+  - 'All three hook checks resolve via `git rev-parse --git-path hooks/<name>` with a fallback to the literal path, so they work in a normal checkout and a worktree'
+  - 'The resolver handles git returning a **relative** path (normal checkout) as well as an absolute one (worktree)'
+  - 'CTL-020 skips on a linked worktree via the existing `fw_is_linked_worktree` helper, using `info` (not `warn`), matching the two cron checks in the same file'
+  - 'Warning text now prints the **resolved** path rather than a hardcoded `.git/hooks/...` string, so a future reader sees what was actually checked'
+  - '`bash -n` passes on the edited script'
+  - 'A full `fw audit` run confirms the four findings are gone and no new finding appeared in their place *(measured 2026-08-28 — see §Evolution "Full-audit measurement")*'
+  - 'T-2714 and T-2715 remain open with their upstream ACs unticked — this task does not close them, because a local edit is not the prevention'
+  - 'The transience is recorded where the next re-vendor will be felt, so the regression is expected rather than rediscovered *(T-2705 §Updates — the re-vendor task itself; a note inside `audit.sh` cannot survive the event it warns about)*'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 18286 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 18286
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2721-apply-worktree-safe-hook-path-resolution.md
+generated_by: context-agent-hybrid

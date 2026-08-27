@@ -1,25 +1,12 @@
-# Audit Results - 2026-08-28-0000
-timestamp: 2026-08-27T22:00:24Z
-sections: "oe-research"
+# Audit Results - 2026-08-28-0025
+timestamp: 2026-08-27T22:25:25Z
+sections: "oe-hourly"
 summary:
-  pass: 4
-  warn: 3
+  pass: 2
+  warn: 0
   fail: 0
 findings:
-  - level: WARN
-    check: "C-001: Inception T-2725 has no research artifact in docs/reports/"
-    mitigation: "Create docs/reports/T-2725-*.md — the thinking trail IS the artifact"
-  - level: WARN
-    check: "C-001: Inception T-2769 has no research artifact in docs/reports/"
-    mitigation: "Create docs/reports/T-2769-*.md — the thinking trail IS the artifact"
-  - level: WARN
-    check: "C-001: Inception T-2771 has no research artifact in docs/reports/"
-    mitigation: "Create docs/reports/T-2771-*.md — the thinking trail IS the artifact"
   - level: PASS
-    check: "C-002: commit-msg hook has research artifact check"
-  - level: PASS
-    check: "C-002: No research warnings logged (clean or first run)"
-  - level: PASS
-    check: "C-003: Research checkpoint logic present in checkpoint.sh"
-  - level: PASS
-    check: "C-006: All active inceptions have a real Recommendation block"
+    check: "CTL-008: Task reference traceability 100% (0/20 without T-XXX)"
+  - level: INFO
+    check: "CTL-020 skipped — linked worktree (cron audits are host-level, produced from the main checkout)"
