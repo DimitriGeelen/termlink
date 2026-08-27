@@ -1,0 +1,118 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2824: cargo test --workspace has been red for 8 days — MCP termlink_topics lost parity with the CLI at T-2624
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-27T12:52:27Z
+# ============================================================================
+
+task_id: T-2824
+task_name: "cargo test --workspace has been red for 8 days — MCP termlink_topics lost parity with the CLI at T-2624"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-20T19:30:47Z
+completed: 2026-08-27T12:52:13Z
+duration_days: 7
+updates_count: 0
+first_commit: 2026-08-20T23:48:21+02:00
+last_commit: 2026-08-24T22:40:37+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  MCP termlink_topics stops swallowing probe failures — 4 counters added, remaining delta is a reachability asymmetry. merge plan (37 conflicts resolved + verified) and the axis-C decision brief. log the Tier 0 bypass for the merge-plan push. commit the merge-resolution scripts so the plan does not point at an ephemeral job dir. log the final Tier 0 bypass. confirm 832's gate defect and find a second in the same lines; add scripts/check-verification-legs.py (filed at offset 31). log the bypass. record 2026-08-24 partial re-verification — parity_topics now green; full-suite verdict inconclusive (harness may observe host sessions)
+
+# Key outcomes
+outcomes:
+  - '`termlink_topics` emits `sessions_probed`, `sessions_skipped`, `sessions_unreachable`,'
+  - 'Each probe outcome is classified explicitly — the chained `if let` is replaced by the'
+  - 'Existing fields (`ok`, `sessions`, `total_topics`, `total_sessions`) are unchanged'
+  - '`parity` is **28 passed / 0 failed** under an isolated session registry. The 1 failure'
+  - 'Unblocked by the same measurement — the remaining delta was never in the product.'
+  - 'The remaining divergences are recorded, not silently left — both the empty-registrations'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '2026-08-20 — Duplicate the classification rather than share the helper'
+    chose: 'Write the probe classification inline in `termlink-mcp`.'
+    rationale: '`TopicsProbe` and `aggregate_topics_probes` live in `termlink-cli`, and this repo''s convention for tiny pure helpers is duplication over a cross-crate dependency (T-2069, in CLAUDE.md). Making `termlink-mcp` depend on `termlink-cli` to reach a three-arm match would be a much larger change than the defect warrants. - **Cost, stated plainly:** two copies of the classification can now drift. The parity test is what stops that — it compares the two outputs directly, which is exactly the round-trip assertion 832-Workflow-designer argued for over comparing implementations.'
+  - decision: '2026-08-20 — Leave the empty-registrations divergence, and say so'
+    chose: 'Not fixed here.'
+    rationale: 'Removing `total_sessions` from the MCP empty path to match would be a breaking change to a field consumers may read, and adding it to the CLI is out of this task''s scope. The parity test does not exercise the case (it registers a session first), so this is a latent divergence rather than a live failure. Recording it beats fixing it silently in a direction nobody asked for.'
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/bypass-log.yaml'
+  - '.context/decision-brief-pipefail-checker.md'
+  - '.context/merge-plan-t2687.md'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'crates/termlink-mcp/src/tools.rs'
+  - 'scripts/check-verification-legs.py'
+  - 'scripts/merge-t2687/classify-conflicts.sh'
+  - 'scripts/merge-t2687/id-collisions-registers.py'
+  - 'scripts/merge-t2687/README.md'
+  - 'scripts/merge-t2687/resolve.sh'
+  - 'scripts/merge-t2687/trial-merge.sh'
+  - 'scripts/merge-t2687/union-claudemd.py'
+  - 'scripts/merge-t2687/union-registers.py'
+  - 'scripts/merge-t2687/verify-trial.sh'
+  - '.tasks/active/T-2015-fw-upgrade-claudemd-clobber--propagate-t.md'
+  - '.tasks/active/T-2824-cargo-test---workspace-has-been-red-for-.md'
+  - '.tasks/active/T-2825-p-011-gate-can-examine-less-than-a-task-.md'
+  - '.termlink-task'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-20T23:48:21'
+    action: 'T-2824: MCP termlink_topics stops swallowing probe failures — 4 counters added, remaining delta is a reachability asymmetry'
+  - time: '2026-08-20T23:59:31'
+    action: 'T-2824: merge plan (37 conflicts resolved + verified) and the axis-C decision brief'
+  - time: '2026-08-21T00:00:11'
+    action: 'T-2824: log the Tier 0 bypass for the merge-plan push'
+  - time: '2026-08-21T00:01:30'
+    action: 'T-2824: commit the merge-resolution scripts so the plan does not point at an ephemeral job dir'
+  - time: '2026-08-21T00:02:03'
+    action: 'T-2824: log the final Tier 0 bypass'
+  - time: '2026-08-21T00:12:33'
+    action: 'T-2824: confirm 832''s gate defect and find a second in the same lines; add scripts/check-verification-legs.py (filed at offset 31)'
+  - time: '2026-08-21T00:12:58'
+    action: 'T-2824: log the bypass'
+  - time: '2026-08-24T22:40:37'
+    action: 'T-2824: record 2026-08-24 partial re-verification — parity_topics now green; full-suite verdict inconclusive (harness may observe host sessions)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 9 commit(s), 9681 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [mcp, parity, directive-2]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 9681
+  commits: 9
+  files_changed: 21
+  lines_added: 1256
+  lines_removed: 640
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2824-cargo-test---workspace-has-been-red-for-.md
+generated_by: context-agent-hybrid

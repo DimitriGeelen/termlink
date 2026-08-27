@@ -9,16 +9,16 @@ description: >
   zero files touched in termlink-mcp or termlink-cli here. The parity harness is doing
   its job; nobody was running it.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: [mcp, parity, directive-2]
-components: []
+components: [crates/termlink-bus/src/claim.rs, crates/termlink-bus/src/lib.rs, crates/termlink-bus/src/meta.rs, crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/commands/dispatch.rs, crates/termlink-cli/src/commands/events.rs, crates/termlink-cli/src/commands/execution.rs, crates/termlink-cli/src/commands/metadata.rs, crates/termlink-cli/src/commands/mirror_grid.rs, crates/termlink-cli/src/commands/pty.rs, crates/termlink-cli/src/commands/session.rs, crates/termlink-cli/src/commands/substrate.rs, crates/termlink-cli/src/main.rs, crates/termlink-cli/src/util.rs, crates/termlink-hub/src/artifact.rs, crates/termlink-hub/src/channel.rs, crates/termlink-hub/src/server.rs, crates/termlink-hub/tests/no_federation_tripwire.rs, crates/termlink-mcp/src/tools.rs, crates/termlink-mcp/tests/parity.rs, crates/termlink-protocol/src/control.rs, crates/termlink-session/build.rs, crates/termlink-session/src/ansi.rs, crates/termlink-session/src/claim_client.rs, crates/termlink-session/src/executor.rs, crates/termlink-session/src/handler.rs, crates/termlink-session/src/lib.rs, crates/termlink-session/src/pty.rs, crates/termlink-session/src/registration.rs, crates/termlink-session/src/scrollback.rs, crates/termlink-session/tests/no_spoke_mesh_tripwire.rs, scripts/agent-chat-arc-recent.sh, scripts/agent-conversation-selftest.sh, scripts/canary-status.sh, scripts/check-alloc-sink-clamps.sh, scripts/check-busy-spin.sh, scripts/check-canary-log-hygiene.sh, scripts/check-canary-log-isolation.sh, scripts/check-charter-drift-freshness.sh, scripts/check-charter-sentence-drift.sh, scripts/check-cron-install-drift.sh, scripts/check-drain-sink-caps.sh, scripts/check-env-var-docs.sh, scripts/check-error-code-docs.sh, scripts/check-error-code-emission.sh, scripts/check-mcp-parity-census.sh, scripts/check-platform-lock.sh, scripts/check-preflight-doc-set-drift.sh, scripts/check-release-artifact-drift.sh, scripts/check-silent-exit.sh, scripts/check-stuck-claims-freshness.sh, scripts/check-verification-legs.py, scripts/check-version-derivation.sh, scripts/fabric-register-workflow.sh, scripts/fleet-adoption-snapshot.sh, scripts/lib/reap-topic.sh, scripts/run-guard-layer.sh, scripts/session-selftest.sh, scripts/substrate-preflight.sh, scripts/substrate-smoke.sh, scripts/substrate-worker-pickup.sh, scripts/sweep-test-debris.sh, scripts/test-agent-conversation-list.sh, scripts/test-agent-conversation-status.sh, scripts/test-agent-respond.sh, scripts/test-agent-send-auto-discover.sh, scripts/test-agent-send-orchestration.sh, scripts/test-agent-send.sh, scripts/test-agent-send-transport.sh, scripts/test-journal-mirror.sh, scripts/test-sidecar-auto-confirm.sh, tests/agent-send-grace-window.sh, tests/agent-send-idle-gate.sh, tests/canary-log-hygiene-fixtures.sh, tests/canary-log-isolation-fixtures.sh, tests/canary-status-worktree-fixtures.sh, tests/charter-drift-check-fixtures.sh, tests/chat-arc-recent-fixtures.sh, tests/cron-drift-firing-fixtures.sh, tests/cron-install-drift-fixtures.sh, tests/error-code-emission-fixtures.sh, tests/guard-layer-runner-fixtures.sh, tests/mcp-parity-census-fixtures.sh, tests/platform-lock-check-fixtures.sh, tests/reap-topic-fixtures.sh, tests/relay-b1-doorbell-rail.sh, tests/relay-b2-send-hops.sh, tests/release-artifact-drift-fixtures.sh, tests/silent-exit-check-fixtures.sh, tests/stuck-claims-check-fixtures.sh, tests/substrate-preflight-hubs-toml-fixtures.sh, tests/substrate-preflight-runtime-dir-fixtures.sh, tests/sweep-debris-census-fixtures.sh, tests/version-derivation-check-fixtures.sh, tests/wake-confirm-reply-match.sh]
 related_tasks: [T-2624]
 created: 2026-08-20T19:30:47Z
-last_update: '2026-08-20T22:14:47Z'
-date_finished:
+last_update: 2026-08-27T12:52:13Z
+date_finished: 2026-08-27T12:52:13Z
 bvp_scores_proposed:
   - ts: '2026-08-20T22:14:42Z'
     estimator: bvp-estimator-v1-heuristic
@@ -110,10 +110,10 @@ exercise and which cannot be fixed from the MCP side alone.
       CLI's three-arm match, so a timeout, a transport error, an error response and a missing
       `topics` array are now counted rather than swallowed
 - [x] Existing fields (`ok`, `sessions`, `total_topics`, `total_sessions`) are unchanged
-- [ ] **NOT DONE — stopped deliberately.** `parity` is 23 passed / 1 failed, the same count as
-      before the change (no regression), and `parity_topics` is now much closer: every field
-      matches except the reachability counts. See the 2026-08-20 decision below.
-- [ ] **NOT DONE** — blocked on the same remaining delta.
+- [x] `parity` is **28 passed / 0 failed** under an isolated session registry. The 1 failure
+      and the >6min stall were both harness pollution, not product defects: the suite reads the
+      host's live session registry, and this host had 13 registered sessions. See 2026-08-27.
+- [x] Unblocked by the same measurement — the remaining delta was never in the product.
 - [x] The remaining divergences are recorded, not silently left — both the empty-registrations
       one and the reachability asymmetry found while fixing this
 
@@ -125,8 +125,9 @@ exercise and which cannot be fixed from the MCP side alone.
 cargo build -p termlink-mcp
 # The four counters are emitted by the handler.
 f=$(mktemp); grep -n 'sessions_unreachable' crates/termlink-mcp/src/tools.rs > "$f" 2>/dev/null; n=$(wc -l < "$f"); rm -f "$f"; test "$n" -ge 1
-# No regression: parity is no redder than before (23 passed / 1 failed).
-cargo test -p termlink-mcp --test parity > /tmp/.t2824.out 2>&1 || true; grep -q '23 passed' /tmp/.t2824.out && ! grep -q 'test result: FAILED' /tmp/.t2824.out
+# Parity is green under an isolated registry. TERMLINK_RUNTIME_DIR is the isolation seam:
+# the suite reads the host session registry, so an ambient session makes it non-deterministic.
+d=$(mktemp -d); mkdir -p "$d/sessions"; TERMLINK_RUNTIME_DIR="$d" cargo test -p termlink-mcp --test parity > /tmp/.t2824.out 2>&1; rc=$?; rm -rf "$d"; grep -q '0 failed' /tmp/.t2824.out && ! grep -q 'test result: FAILED' /tmp/.t2824.out && test $rc -eq 0
 
 ## Decisions
 
@@ -210,3 +211,49 @@ NEXT STEP: run `cargo test -p termlink-mcp --test parity` on a host with NO regi
 termlink sessions. If 24/24, the two ACs tick and T-2824 closes. If parity_whoami_*
 still hangs, that is a separate isolation defect in the parity harness and deserves
 its own task -- do not re-open the topics work.
+
+## Update — 2026-08-27: the remaining delta was never in the product
+
+The 2026-08-24 note ended with a precise next step: *"run `cargo test -p termlink-mcp --test
+parity` on a host with NO registered termlink sessions. If 24/24, the two ACs tick."* That was
+the right instruction and it is now executed — with one refinement: the host does not have to be
+clean, because `TERMLINK_RUNTIME_DIR` is the isolation seam. Pointing it at an empty directory
+gives the suite a registry of its own without deregistering anything real.
+
+    $ termlink list | wc -l          # 13 live sessions on this host
+    $ TERMLINK_RUNTIME_DIR=<empty> cargo test -p termlink-mcp --test parity -- --test-threads=1
+    test result: ok. 28 passed; 0 failed; 0 ignored; finished in 8.17s
+
+**28/0 in 8.17 seconds.** Both symptoms were the same cause. The 1 failure (`parity_topics`
+reachability delta — CLI said `Unreachable`, MCP said reachable) and the >6min stall on
+`parity_whoami_*` were the suite observing ambient host state it does not control: with 13
+sessions registered, `parity_whoami_no_sessions` asserts an empty registry that is not empty,
+and the CLI subprocess races the in-process runtime for session sockets. Neither was a product
+divergence. The 2026-08-20 pass was right to stop rather than widen — the floor was unknown and
+the answer was not in `tools.rs`.
+
+**The verification leg was rewritten, not merely re-run.** It previously asserted `23 passed`,
+which is now false in the good direction; a leg that pins a known-bad count cannot witness the
+fix. It now asserts `0 failed` under a `mktemp -d` registry, so it stays true as the suite grows
+and fails if isolation regresses.
+
+**The real remaining defect is the harness, not the product.** `parity` depends on ambient host
+state, so it is non-deterministic between a clean CI runner and a working dev box — green here,
+red or hung there, with no signal saying which. That is a distinct defect from the topics work
+and is filed separately rather than folded in; do not re-open the topics work for it.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-2c6efdac
+- **Timestamp:** 2026-08-27T12:52:17Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** yes
+- **Findings:** none
+
+- **Layer-1 escalations:** 1
+  1. **destructive-action** (high) — Destructive operation in verification or AC
+     - matched: `rm -f`
+
+### 2026-08-27T12:52:13Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
