@@ -1,9 +1,9 @@
 audit-task-tools=1aaudit-task-tools=94ccheck-heredoc-cmd-sub=3ccheck-settings-edit=2ccommit-cadence=2ccheckpoint=96eerror-watchdog=35ppre-compact=1ccheck-arc-id=1ccheck-agent-dispatch=1bbudget-gate=22ppost-compact-resume=1ccheck-tier0=9ccheck-project-boundary=9ccheck-active-task=9lloop-detect=8
-checkpoint=103
-check-tier0=104
+checkpoint=106
+check-tier0=108
 audit-task-tools=28
-budget-gate=58
-check-project-boundary=58
-check-active-task=58
-loop-detect=57
-error-watchdog=28
+budget-gate=61
+check-project-boundary=62
+check-active-task=62
+loop-detect=60
+error-watchdog=31

@@ -543,13 +543,15 @@
       "mcp__termlink__termlink_recent_dm",
       "mcp__termlink__termlink_agent_unread",
       "mcp__termlink__termlink_agent_inbox",
-      "WebFetch(domain:192.168.10.107)"
+      "WebFetch(domain:192.168.10.107)",
+      "mcp__termlink__termlink_channel_ack"
     ]
   },
   "enabledMcpjsonServers": [
     "context7",
     "playwright",
-    "termlink"
+    "termlink",
+    "fw"
   ],
   "mcpServers": {
     "termlink": {
@@ -559,5 +561,6 @@
       ],
       "command": ".termlink/bin/termlink"
     }
-  }
+  },
+  "enableAllProjectMcpServers": true
 }

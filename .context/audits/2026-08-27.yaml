@@ -1,9 +1,9 @@
-# Audit Results - 2026-08-27-1116
-timestamp: 2026-08-27T09:16:18Z
+# Audit Results - 2026-08-27-1206
+timestamp: 2026-08-27T10:06:25Z
 sections: "structure"
 summary:
-  pass: 36
-  warn: 10
+  pass: 35
+  warn: 11
   fail: 0
 findings:
   - level: PASS
@@ -48,8 +48,9 @@ findings:
   - level: WARN
     check: "Fabric: 290/453 cards have no edges"
     mitigation: "Run: fw fabric enrich"
-  - level: PASS
-    check: "Fabric drift: all watched files registered — examined 414 watched file(s)"
+  - level: WARN
+    check: "Fabric drift: 1 source file(s) have no fabric card"
+    mitigation: "Run: fw fabric scan"
   - level: WARN
     check: "Fabric: 9 card(s) point at files no watch pattern covers"
     mitigation: "Widen .fabric/watch-patterns.yaml, or remove the cards if they are not components"
