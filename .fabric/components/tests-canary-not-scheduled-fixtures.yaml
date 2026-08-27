@@ -1,0 +1,28 @@
+id: tests/canary-not-scheduled-fixtures.sh
+name: canary-not-scheduled-fixtures
+type: script
+subsystem: guard-layer
+location: tests/canary-not-scheduled-fixtures.sh
+tags: [test, fixtures, canary, guard-layer, T-2840]
+
+purpose: >
+  Pins the NOT_SCHEDULED class in canary-status.sh: a canary whose log is empty
+  AND whose crontab was never installed is reported as NOT_SCHEDULED rather than
+  STALE, so a genuinely dead cron stays visible instead of hiding among canaries
+  that were simply never scheduled. The load-bearing assertions are the ones that
+  must NOT be masked — a crontab declared in git but absent from /etc/cron.d is
+  still STALE (T-2561's shipped-but-dark class), and an absent cron directory
+  fails OPEN to STALE rather than silently downgrading. Also asserts the summary
+  buckets sum to the total, which caught 4 of 25 canaries being dropped from the
+  JSON envelope when the class was added.
+
+depends_on:
+  - target: scripts/canary-status.sh
+    type: calls
+
+depended_by:
+  - target: scripts/run-guard-layer.sh
+    type: triggers
+
+last_verified: 2026-08-27
+created_by: T-2840

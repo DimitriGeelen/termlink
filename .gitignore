@@ -151,7 +151,7 @@ agents/fabric
 
 # Editor/script backups. 15 were loose in the tree: 13 byte-identical to their live
 # file, one recoverable from a7625c1ff, one under .context/working/. Untracked
-# residue is harmless right up until someone runs `git add -A`.
+# residue is harmless right up to the moment someone runs `git add -A`.
 *.bak
 
 # Downloaded packages. voxtype_0.7.5-1_amd64.deb (327MB) sits in the repo root
