@@ -1104,17 +1104,15 @@ decisions:
   date: 2026-08-23
   task: T-2822
   rationale: Auto-captured from task file on completion
-
-  - id: PD-001
-    decision: "Write the probe classification inline in `termlink-mcp`."
-    scope: project
-    date: 2026-08-27
-    task: T-2824
-    rationale: "Auto-captured from task file on completion"
-
-  - id: PD-002
-    decision: "Not fixed here."
-    scope: project
-    date: 2026-08-27
-    task: T-2824
-    rationale: "Auto-captured from task file on completion"
+- id: PD-151
+  decision: "Write the probe classification inline in `termlink-mcp`."
+  scope: project
+  date: 2026-08-27
+  task: T-2824
+  rationale: "Auto-captured from task file on completion"
+- id: PD-152
+  decision: "Not fixed here."
+  scope: project
+  date: 2026-08-27
+  task: T-2824
+  rationale: "Auto-captured from task file on completion"
