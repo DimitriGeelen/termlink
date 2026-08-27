@@ -14318,6 +14318,22 @@ impl TermLinkTools {
             manager::list_sessions(false).unwrap_or_default()
         };
 
+        // T-2791 (migrated to MCP by T-2687): a runtime dir we were not permitted
+        // to read yields zero sessions, and without this the tool would report that
+        // empty inventory as COMPLETE — a plausible wrong answer, which is worse
+        // than an error (Directive #2). Only consulted on the fleet-wide path; an
+        // explicit `target` names one session and its lookup failure is already loud.
+        let dir_scan = if p.target.is_some() {
+            termlink_session::discovery::SessionsDirScan::default()
+        } else {
+            termlink_session::discovery::scan_sessions_dirs()
+        };
+        let unreadable_dirs: Vec<String> = dir_scan
+            .unreadable
+            .iter()
+            .map(|p| p.display().to_string())
+            .collect();
+
         if registrations.is_empty() {
             // T-2687: emit the full field set (zeroed) so the empty path is
             // structurally identical to the populated one and to the CLI. T-2624
@@ -14325,6 +14341,9 @@ impl TermLinkTools {
             // left BOTH surfaces silently shape-shifting when no session exists.
             return serde_json::json!({
                 "ok": true,
+                // T-2791: `ok` stays true (nothing malfunctioned) but the claim of
+                // completeness is withdrawn explicitly.
+                "inventory_complete": unreadable_dirs.is_empty(),
                 "sessions": [],
                 "total_topics": 0,
                 "total_sessions": 0,
@@ -14332,6 +14351,10 @@ impl TermLinkTools {
                 "sessions_bad_result": 0,
                 "sessions_skipped": 0,
                 "sessions_probed": 0,
+                // Distinct from `sessions_skipped`, which counts sessions that were
+                // FOUND and then failed to probe. These were never discovered at all.
+                "dirs_unreadable": unreadable_dirs.len(),
+                "unreadable_dirs": unreadable_dirs,
             }).to_string();
         }
 
@@ -14376,8 +14399,13 @@ impl TermLinkTools {
             .map(|(name, topics)| serde_json::json!({"session": name, "topics": topics}))
             .collect();
 
+        let skipped = unreachable + bad_result;
         let result = serde_json::json!({
             "ok": true,
+            // T-2791: single field a consumer can branch on. False when EITHER a
+            // discovered session failed to probe OR a candidate runtime dir was
+            // unreadable — the two ways this answer can be partial.
+            "inventory_complete": skipped == 0 && unreadable_dirs.is_empty(),
             "sessions": sessions,
             "total_topics": total,
             "total_sessions": total_sessions,
@@ -14387,8 +14415,13 @@ impl TermLinkTools {
             // complete (Directive #2 — no silent failures).
             "sessions_unreachable": unreachable,
             "sessions_bad_result": bad_result,
-            "sessions_skipped": unreachable + bad_result,
+            "sessions_skipped": skipped,
             "sessions_probed": total_probed,
+            // T-2791: NOT the same thing as `sessions_skipped`. Those were
+            // discovered and then failed to answer; these were never discovered,
+            // because the directory holding them could not be read.
+            "dirs_unreadable": unreadable_dirs.len(),
+            "unreadable_dirs": unreadable_dirs,
         });
         serde_json::to_string_pretty(&result).unwrap_or_else(json_err)
     }
