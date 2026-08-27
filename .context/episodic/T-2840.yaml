@@ -1,0 +1,279 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2840: Landing session — close finished work, collapse duplication, surface operator actions
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-27T21:32:06Z
+# ============================================================================
+
+task_id: T-2840
+task_name: "Landing session — close finished work, collapse duplication, surface operator actions"
+workflow_type: refactor
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-26T22:29:47Z
+completed: 2026-08-27T21:31:57Z
+duration_days: 1
+updates_count: 1
+first_commit: 2026-08-27T00:39:31+02:00
+last_commit: 2026-08-27T23:30:58+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  an approval card can pass its own checker and still show the operator nothing. thirteen approval cards that rendered nothing now carry a decision. UNUSABLE approval cards 20 -> 0; every operator action now opens to a decision. repair T-1426 Verification block — 7 probes asserted true but could not pass. pair T-1426's capture-form probes with a negative assertion. land 10 finished tasks that were deadlocked between two closers. clear both firing guards — 34 verification legs repaired, and the guard that mis-filed a completed task as active. /canaries was two-thirds noise — four static checks reported STALE forever. land the seven HV/LC tasks the guard layer was sitting on. surface T-2709 and T-2711 to the approvals queue via partial-complete. session residue — audit refresh, metrics, task state. unstick finalize residue + restore arc-007 membership. land T-2824 — parity is 28/0, the delta was harness pollution. file T-2841 — parity harness reads ambient runtime dir. close two audit warnings — fabric drift and the gitignore defer advisory. capture arc-002 close evidence at the wire (operator decision, not taken). session residue — audit, metrics, working state. repair decisions.yaml — vendored add-decision resets IDs and mis-indents. post-handover session residue. land the stuck-claims canary task; repair two defective verification lines. land the vendor-manifest proposal task — re-filed on the consumed rail after 103 days unread
+
+# Key outcomes
+outcomes:
+  - 'Inbound messages checked BEFORE any work was picked. framework-pickup canary:'
+  - 'At least one ALREADY-finished-but-structurally-unable-to-close task landed AND'
+  - 'Net LOC: zero lines changed outside `.tasks/` and `.context/`'
+  - 'Every operator action surfaced carries a link that was FETCHED and checked,'
+  - 'Peers informed over termlink at session start and at session end via'
+  - 'The five closing numbers are reported in the session summary and handover:'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/settings.local.json'
+  - '.context/audits/2026-08-26.yaml'
+  - '.context/audits/2026-08-27.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/audits/go-scope-unpropagated/LATEST.md'
+  - '.context/audits/unclosed-satisfied/LATEST.md'
+  - '.context/episodic/T-1291.yaml'
+  - '.context/episodic/T-1294.yaml'
+  - '.context/episodic/T-1423.yaml'
+  - '.context/episodic/T-1427.yaml'
+  - '.context/episodic/T-1431.yaml'
+  - '.context/episodic/T-1452.yaml'
+  - '.context/episodic/T-1643.yaml'
+  - '.context/episodic/T-2259.yaml'
+  - '.context/episodic/T-2276.yaml'
+  - '.context/episodic/T-2325.yaml'
+  - '.context/episodic/T-2684.yaml'
+  - '.context/episodic/T-2685.yaml'
+  - '.context/episodic/T-2686.yaml'
+  - '.context/episodic/T-2688.yaml'
+  - '.context/episodic/T-2693.yaml'
+  - '.context/episodic/T-2699.yaml'
+  - '.context/episodic/T-2758.yaml'
+  - '.context/episodic/T-2824.yaml'
+  - '.context/episodic/T-2838.yaml'
+  - '.context/handovers/S-2026-0827-0104.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0827-0110.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0827-0914.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0827-1115.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0827-1349.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0827-1350.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0827-1425.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0827-1506.discard-manifest.yaml'
+  - '.context/handovers/S-2026-0827-1815.discard-manifest.yaml'
+  - '.context/pickup/processed/P-043-bug-report-T-2018.disposition.yaml'
+  - '.context/pickup/processed/P-043-bug-report-T-2018.yaml'
+  - '.context/project/decisions.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/upstream/U-001-revisit-due-scan-silent-exit.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.gate-bypass-log.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.pre-compact.last-run'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'docs/reports/arc-002-close-evidence.md'
+  - '.fabric/components/tests-canary-not-scheduled-fixtures.yaml'
+  - '.gitignore'
+  - 'scripts/canary-status.sh'
+  - 'scripts/check-unpaired-capture.sh'
+  - '.tasks/active/T-1137-install-logrotate-on-proxmox-host-180--p.md'
+  - '.tasks/active/T-1296-migrate-ring20-dashboard-hub-runtimedir-.md'
+  - '.tasks/active/T-1415-t-1166-post-cut-cleanup-delete-retired-p.md'
+  - '.tasks/active/T-1420-agent-chat-arc-deploy-091591-to-laptop-1.md'
+  - '.tasks/active/T-1426-deprecation-print-on-legacy-primitives-i.md'
+  - '.tasks/active/T-1428-foundation-soak-audit--t-1426--t-1427-sh.md'
+  - '.tasks/active/T-1429-termlink-agent-contact-name--high-level-.md'
+  - '.tasks/active/T-1430-channel-describe--agent-chat-arc--dm-top.md'
+  - '.tasks/active/T-1432-fw-fleet-doctor---legacy-usage--telemetr.md'
+  - '.tasks/active/T-1451-revisitat-frontmatter-field--template-up.md'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-1453-fw-task-revisit-due-cli-verb-t-1449-phas.md'
+  - '.tasks/active/T-1457-register-identity-on-141-agent-1-session.md'
+  - '.tasks/active/T-1483-agent-who---target-name--local-resolved-.md'
+  - '.tasks/active/T-1485-agent-contact---ack-required--synchronou.md'
+  - '.tasks/active/T-1486-agent-presence---watch--live-operator-da.md'
+  - '.tasks/active/T-1487-agent-ping-target--operator-facing-prese.md'
+  - '.tasks/active/T-1489-agent-presence---top-n--limit-to-n-busie.md'
+  - '.tasks/active/T-1494-agent-on-thread---watch--live-thread-fol.md'
+  - '.tasks/active/T-1496-agent-overview---watch--live-fleet-dashb.md'
+  - '.tasks/active/T-1498-agent-recent---watch--live-single-peer-s.md'
+  - '.tasks/active/T-1499-agent-recent--on-thread---msg-type--sign.md'
+  - '.tasks/active/T-1500-agent-timeline--fleet-wide-chronological.md'
+  - '.tasks/active/T-1501-agent-recent--on-thread--timeline---grep.md'
+  - '.tasks/active/T-1502-extractrecentposts-content-extraction-re.md'
+  - '.tasks/active/T-1506-agent-recent--timeline--on-thread-expose.md'
+  - '.tasks/active/T-1632-bump-defaultprotocolversion-to-3-t-1166-.md'
+  - '.tasks/active/T-1633-termlinkruntimedir-default-regression--r.md'
+  - '.tasks/active/T-1643-propose-fw-vendor-manifest-hardening-to-.md'
+  - '.tasks/active/T-1665-t-1664-follow-up-propagate-episodic-gene.md'
+  - '.tasks/active/T-1699-framework-upgrade-16160--test-suite-disp.md'
+  - '.tasks/active/T-1727-ship-default-secret-scan-patterns--chmod.md'
+  - '.tasks/active/T-1799-purge-leaked-github-pat-from-local-git-o.md'
+  - '.tasks/active/T-1907-auto-commit-scope-related-edits-in-doinc.md'
+  - '.tasks/active/T-1908-check-active-task-gate-2-grace-period-to.md'
+  - '.tasks/active/T-2015-fw-upgrade-claudemd-clobber--propagate-t.md'
+  - '.tasks/active/T-2016-fw-upgrade-bare-from-consumer-replay-dro.md'
+  - '.tasks/active/T-2017-t-2013-follow-up-141-channelinfo-wedges-.md'
+  - '.tasks/active/T-212-create-homebrew-tap-for-termlink-distrib.md'
+  - '.tasks/active/T-2194-audit-d2-fail--human-review-queue-38-par.md'
+  - '.tasks/active/T-2197-audit-d13--4-inception-limbo-tasks-await.md'
+  - '.tasks/active/T-2198-audit-d14--t-2144-has-empty-inception-re.md'
+  - '.tasks/active/T-2203-ctl-028-bulk-flip--157-completed-tasks-w.md'
+  - '.tasks/active/T-2258-fix-hub-read-path-stall--channelstatesub.md'
+  - '.tasks/active/T-2379-delegate-121-ring20-dashboard-termlink-u.md'
+  - '.tasks/active/T-2383-diagnose-workflow-designer-onedev-to-git.md'
+  - '.tasks/active/T-2385-agent-contact-reachability-preflight--fa.md'
+  - '.tasks/active/T-2389-relaunch-107-agents-via-t-2388-tl-claude.md'
+  - '.tasks/active/T-2398-model-b-live-validation-two-armed-scratc.md'
+  - '.tasks/active/T-2402-woken-but-silent-make-a-rung-yet-unanswe.md'
+  - '.tasks/active/T-2470-reconcile-termlink-purpose-into-one-cano.md'
+  - '.tasks/active/T-2522-retention-days-mode-prunes-on-client-sup.md'
+  - '.tasks/active/T-2532-per-host-live-session-cap--no-maxsession.md'
+  - '.tasks/active/T-2550-spawn-reports-oktrue-before-confirming-s.md'
+  - '.tasks/active/T-2566-design-ephemeral-presence-queue-vs-drop-.md'
+  - '.tasks/active/T-2567-design-should-exec-truncated-output-forc.md'
+  - '.tasks/active/T-2570-defer-orchestration-policy-creep-guard-f.md'
+  - '.tasks/active/T-2576-design-signal-leasedclaim-holder-when-ow.md'
+  - '.tasks/active/T-2577-design-retention-sweep-evicts-unread-rec.md'
+  - '.tasks/active/T-2620-reliability-defect-hunt-2-report.md'
+  - '.tasks/active/T-2644-pty-interactive-attach-silently-drops-ke.md'
+  - '.tasks/active/T-2684-single-entry-point-for-the-source-level-.md'
+  - '.tasks/active/T-2685-canary-crontabs-merge-tooling-errors-int.md'
+  - '.tasks/active/T-2693-nothing-detects-a-new-platform-locked-pr.md'
+  - '.tasks/active/T-2706-stuck-claims-canary-fires-daily-on-11-te.md'
+  - '.tasks/active/T-2708-fleet-hub-laptop-141-unreachable.md'
+  - '.tasks/active/T-2709-stuck-claim-heuristic-is-a-monotonic-lat.md'
+  - '.tasks/active/T-2710-canary-test-seams-ship-unexercised--8-of.md'
+  - '.tasks/active/T-2711-revisit-due-scansh-exits-0-when-it-canno.md'
+  - '.tasks/active/T-2717-inception-decisions-can-contradict-their.md'
+  - '.tasks/active/T-2719-agent-inbox-unread-count-mixes-retention.md'
+  - '.tasks/active/T-2723-handover-commit-under-t-1452-collides-wi.md'
+  - '.tasks/active/T-2758-recent-chat-goes-blind-on-retention-trim.md'
+  - '.tasks/active/T-2815-audit-cron-drift-slug-uses-worktree-base.md'
+  - '.tasks/active/T-2819-narrow-the-stale-agentic-framework-gitig.md'
+  - '.tasks/active/T-2824-cargo-test---workspace-has-been-red-for-.md'
+  - '.tasks/active/T-2836-repair-29-unreadable-episodic-files-so-t.md'
+  - '.tasks/active/T-2837-cross-checkout-operator-actions-blocking.md'
+  - '.tasks/active/T-2840-landing-session--close-finished-work-col.md'
+  - '.tasks/active/T-2841-parity-harness-reads-ambient-termlinkrun.md'
+  - '.tasks/completed/T-1291-declarative-heal-manifest--bootstrapfrom.md'
+  - '.tasks/completed/T-1294-migrate-ring20-management-hub-runtimedir.md'
+  - '.tasks/completed/T-1423-fleet-deploy-binarysh-add---probe-pre-sw.md'
+  - '.tasks/completed/T-1427-termlink-whoami--identity-binding-on-cha.md'
+  - '.tasks/completed/T-1431-agent-handoff-claude-code-skill--wraps-t.md'
+  - '.tasks/completed/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/completed/T-1643-propose-fw-vendor-manifest-hardening-to-.md'
+  - '.tasks/completed/T-2224-substrate-backpressure-demo--hub-loud-re.md'
+  - '.tasks/completed/T-2259-propagate-no-federation-by-design-correc.md'
+  - '.tasks/completed/T-2276-auto-reconnect-mcp-via-pty-inject-after-.md'
+  - '.tasks/completed/T-2325-arc-004-s3-live-e2e--dm-rail-push-wake-b.md'
+  - '.tasks/completed/T-2684-single-entry-point-for-the-source-level-.md'
+  - '.tasks/completed/T-2685-canary-crontabs-merge-tooling-errors-int.md'
+  - '.tasks/completed/T-2686-release-pipeline-publishes-binaries-with.md'
+  - '.tasks/completed/T-2688-check-silent-exit-misses-a-bare-exit-whe.md'
+  - '.tasks/completed/T-2693-nothing-detects-a-new-platform-locked-pr.md'
+  - '.tasks/completed/T-2699-nothing-detects-an-error-code-that-is-de.md'
+  - '.tasks/completed/T-2758-recent-chat-goes-blind-on-retention-trim.md'
+  - '.tasks/completed/T-2824-cargo-test---workspace-has-been-red-for-.md'
+  - '.tasks/completed/T-2831-repair-t-2830-verification-block-landed-.md'
+  - '.tasks/completed/T-2832-register-vendored-framework-divergences-.md'
+  - '.tasks/completed/T-2838-delivery-to-turn-contract--build-it-or-k.md'
+  - '.termlink-task'
+  - 'tests/canary-not-scheduled-fixtures.sh'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-27T00:39:31'
+    action: 'T-2840: an approval card can pass its own checker and still show the operator nothing'
+  - time: '2026-08-27T01:01:30'
+    action: 'T-2840: thirteen approval cards that rendered nothing now carry a decision'
+  - time: '2026-08-27T01:09:45'
+    action: 'T-2840: UNUSABLE approval cards 20 -> 0; every operator action now opens to a decision'
+  - time: '2026-08-27T09:54:14'
+    action: 'T-2840: repair T-1426 Verification block — 7 probes asserted true but could not pass'
+  - time: '2026-08-27T10:02:11'
+    action: 'T-2840: pair T-1426''s capture-form probes with a negative assertion'
+  - time: '2026-08-27T10:59:04'
+    action: 'T-2840: land 10 finished tasks that were deadlocked between two closers'
+  - time: '2026-08-27T11:37:44'
+    action: 'T-2840: clear both firing guards — 34 verification legs repaired, and the guard that mis-filed a completed task as active'
+  - time: '2026-08-27T11:46:09'
+    action: 'T-2840: /canaries was two-thirds noise — four static checks reported STALE forever'
+  - time: '2026-08-27T12:02:02'
+    action: 'T-2840: land the seven HV/LC tasks the guard layer was sitting on'
+  - time: '2026-08-27T12:06:21'
+    action: 'T-2840: surface T-2709 and T-2711 to the approvals queue via partial-complete'
+  - time: '2026-08-27T13:49:37'
+    action: 'T-2840: session residue — audit refresh, metrics, task state'
+  - time: '2026-08-27T14:38:11'
+    action: 'T-2840: unstick finalize residue + restore arc-007 membership'
+  - time: '2026-08-27T14:52:52'
+    action: 'T-2840: land T-2824 — parity is 28/0, the delta was harness pollution'
+  - time: '2026-08-27T14:54:41'
+    action: 'T-2840: file T-2841 — parity harness reads ambient runtime dir'
+  - time: '2026-08-27T14:57:04'
+    action: 'T-2840: close two audit warnings — fabric drift and the gitignore defer advisory'
+  - time: '2026-08-27T14:58:47'
+    action: 'T-2840: capture arc-002 close evidence at the wire (operator decision, not taken)'
+  - time: '2026-08-27T15:03:04'
+    action: 'T-2840: session residue — audit, metrics, working state'
+  - time: '2026-08-27T15:05:14'
+    action: 'T-2840: repair decisions.yaml — vendored add-decision resets IDs and mis-indents'
+  - time: '2026-08-27T20:45:47'
+    action: 'T-2840: post-handover session residue'
+  - time: '2026-08-27T23:24:54'
+    action: 'T-2840: land the stuck-claims canary task; repair two defective verification lines'
+  - time: '2026-08-27T23:30:58'
+    action: 'T-2840: land the vendor-manifest proposal task — re-filed on the consumed rail after 103 days unread'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 21 commit(s), 1382 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 1382
+  commits: 21
+  files_changed: 161
+  lines_added: 12968
+  lines_removed: 811
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2840-landing-session--close-finished-work-col.md
+generated_by: context-agent-hybrid

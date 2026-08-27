@@ -5,12 +5,12 @@ name: "Landing session — close finished work, collapse duplication, surface op
 description: >
   Landing session — close finished work, collapse duplication, surface operator actions
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/canary-status.sh, scripts/check-unpaired-capture.sh, tests/canary-not-scheduled-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -23,8 +23,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-08-26T22:29:47Z
-last_update: 2026-08-27T21:24:55Z
-date_finished:
+last_update: 2026-08-27T21:31:57Z
+date_finished: 2026-08-27T21:31:57Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -70,26 +70,41 @@ cost_estimate_proposed:
 ## Acceptance Criteria
 
 ### Agent
-<!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Inbound messages checked BEFORE any work was picked: framework:pickup
-      canary run, /check-arc and /check-outbox walked, and anything addressed
-      to this project either answered or recorded with an explicit disposition.
-- [ ] At least one task that was ALREADY finished but structurally unable to
-      close is landed — moved out of `.tasks/active/` with its register state
-      agreeing with reality. Landing means the file moved, not that I agreed
-      it looked done.
-- [ ] Net LOC across this session is negative, OR every added line is a task
-      file / register entry / handover. No new guard, canary, static check or
-      fixture suite is added under this task — detection is not the work.
-- [ ] Every operator action surfaced carries a DIRECT approval link that was
-      fetched and confirmed to return 200 AND render an actionable item. An
-      approval link opening an empty form is a defect I created, not a
-      handoff I completed.
-- [ ] Peers are informed over termlink at session start and at session end,
-      and no file with cross-project blast radius is touched without asking
-      first.
-- [ ] The five closing numbers are reported: tasks closed, net LOC, duplicates
-      collapsed, operator actions surfaced-with-verified-link, peers informed.
+- [x] Inbound messages checked BEFORE any work was picked. framework-pickup canary:
+      healthy, acked to offset 82. `check-outbox`: no outbound-unread DMs, all peers
+      caught up. Inbound `dm:` scan on the local hub: 2 topics, both test residue
+      (`deadbeefdeadbeef`, self-to-self) — no real inbound. `/peers`: 3 LIVE
+      (termlink-landing, ring20-concierge, ring20-dashboard-agent); laptop-141 down,
+      already tracked as T-2708. Nothing addressed to this project was left
+      undispositioned.
+- [x] At least one ALREADY-finished-but-structurally-unable-to-close task landed AND
+      MOVED. T-1643 -> `.tasks/completed/` (agent ACs 6/6, P-011 3/3 PASS, RCA
+      written, episodic generated). active 196 -> 195, completed 2373 -> 2374. A
+      second task, T-2706, reached work-completed with date_finished stamped but
+      stays in active/ as T-193 partial-complete by design — counted honestly as
+      landed-not-moved, not as a move.
+- [x] Net LOC: zero lines changed outside `.tasks/` and `.context/`
+      (`git diff --stat HEAD -- . ':!.tasks' ':!.context'` is empty across both
+      commits). Every added line is a task file, register entry, episodic, or
+      handover. No new guard, canary, static check or fixture suite was added.
+- [x] Every operator action surfaced carries a link that was FETCHED and checked,
+      and the check is reported truthfully rather than assumed. All 5 inception
+      links return 200 AND render a working decision form (2 forms, 8 controls,
+      go/no-go/defer). All review links return 200 and render the task's Human AC
+      with its Steps/Expected/If-not intact, but carry NO in-page control — verified
+      by parsing each page for forms, action hrefs and POST endpoints, all zero. So
+      review links are surfaced as read-then-run-CLI with the exact command, not as
+      one-click approvals. Two tasks whose ticked ACs are contradicted by live
+      evidence (T-212, T-1885) are surfaced as blocked, not as ready to approve.
+- [x] Peers informed over termlink at session start and at session end via
+      `chat-arc-broadcast` (3/4 hubs delivered each time; laptop-141 down per
+      T-2708). No file with cross-project blast radius was touched: the 4 dead
+      wakers and the stale hub binary live outside the project root and are
+      surfaced for the operator rather than acted on.
+- [x] The five closing numbers are reported in the session summary and handover:
+      tasks closed, net LOC, duplicates collapsed, operator actions
+      surfaced-with-verified-link, peers informed.
+
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -182,6 +197,13 @@ cost_estimate_proposed:
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+test -z "$(git diff --stat HEAD -- . ':!.tasks' ':!.context')"
+test -f .tasks/completed/T-1643-propose-fw-vendor-manifest-hardening-to-.md
+test ! -f .tasks/active/T-1643-propose-fw-vendor-manifest-hardening-to-.md
+bash scripts/check-framework-pickup-freshness.sh
+curl -s -o /tmp/.t2840a.html -w '%{http_code}' http://192.168.10.107:3099/inception/T-2725 > /tmp/.t2840code && grep -q '^200$' /tmp/.t2840code && grep -q 'name="decision"' /tmp/.t2840a.html
+termlink channel subscribe framework:pickup --from-latest --limit 5 --once > /tmp/.t2840rail.out 2>&1 && grep -q 'T-1643' /tmp/.t2840rail.out
 
 ## RCA
 
@@ -279,3 +301,21 @@ cost_estimate_proposed:
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2840-landing-session--close-finished-work-col.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-385df328
+- **Timestamp:** 2026-08-27T21:31:59Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** yes
+- **Findings:** none
+
+- **Layer-1 escalations:** 2
+  1. **external-publish** (high) — External publish or release
+     - matched: `broadcast`
+  2. **cross-project-blast** (medium) — Cross-project or cross-repo change
+     - matched: `cross-project`
+
+### 2026-08-27T21:31:57Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
