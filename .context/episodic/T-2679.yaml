@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2679: Bound SessionContext.kv — uncapped HashMap in the PTY-owning session daemon at Interact scope
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-27T22:30:51Z
+# ============================================================================
+
+task_id: T-2679
+task_name: "Bound SessionContext.kv — uncapped HashMap in the PTY-owning session daemon at Interact scope"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-13T23:11:35Z
+completed: 2026-08-27T22:30:37Z
+duration_days: 14
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Bound SessionContext.kv — uncapped HashMap in the PTY-owning session daemon at Interact scope
+
+# Key outcomes
+outcomes:
+  - '`error_code::KV_STORE_FULL` (-32023) added to `termlink-protocol` with doc comment matching the established style, and a constant-value assertion test'
+  - '`SessionContext` carries env-tunable bounds (`TERMLINK_KV_MAX_KEYS` default 1000, `TERMLINK_KV_MAX_VALUE_BYTES` default 65536) with a `with_bounds`-style deterministic constructor for tests (parallel tests must not race on env, per T-2675 idiom)'
+  - '`handle_kv_set` refuses a NEW key when the store is at `max_keys`, returning `KV_STORE_FULL` with `data: {reason:"max_keys", limit, current}` — and does NOT insert'
+  - '`handle_kv_set` refuses an oversized value, returning `KV_STORE_FULL` with `data: {reason:"max_value_bytes", limit, current}` — and does NOT insert'
+  - 'Overwriting an EXISTING key at the key cap still succeeds (cap gates growth, not updates)'
+  - 'Refusal emits no `kv.change` event (a refused write must not look like a write)'
+  - 'Unit tests cover: key-cap refusal, value-cap refusal, overwrite-at-cap success, and that a refused set leaves the map unchanged'
+  - '`cargo test -p termlink-session -p termlink-protocol` passes with no pre-existing test regressions'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 20119 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 20119
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2679-bound-sessioncontextkv--uncapped-hashmap.md
+generated_by: context-agent-hybrid

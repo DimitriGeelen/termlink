@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2680: charter-drift canary reports a full-surface clean bill it cannot measure (category-blind, 28 live analytics tools invisible)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-27T22:31:02Z
+# ============================================================================
+
+task_id: T-2680
+task_name: "charter-drift canary reports a full-surface clean bill it cannot measure (category-blind, 28 live analytics tools invisible)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-13T23:19:37Z
+completed: 2026-08-27T22:30:56Z
+duration_days: 14
+updates_count: 2
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  charter-drift canary reports a full-surface clean bill it cannot measure (category-blind, 28 live analytics tools invisible)
+
+# Key outcomes
+outcomes:
+  - 'Canary gains a **category** detector alongside the name-pattern detector: a live tool whose catalog category matches the off-charter analytics set (`agent_rankings`, `agent_stats`, `agent_thread_health`, `channel_engagement`, plus the already-empty `*_poll` / `*engagement_metrics`) is off-charter regardless of its name'
+  - '`termlink_agent_top_repliers` presented as live is now detected — the exact case that passed clean before'
+  - 'An **acknowledgement allowlist** at a **git-tracked** path suppresses known-pending sites, one `<tool_name>  # <reason>` per line, `#`-comment and blank lines skipped'
+  - 'The currently-live analytics tools are acknowledged with a reason citing T-2548, so the canary does not alarm-fatigue daily on an open human decision'
+  - 'An acknowledged tool does NOT fire; removing it from the allowlist DOES fire (allowlist load-bearing in both directions)'
+  - 'Healthy output no longer claims full-surface traceability — it names what was scanned, by which detectors, and how many sites are acknowledged-pending'
+  - 'JSON envelope extended additively (`ok`/`firing`/`checked`/`live_off_charter` keep their meaning); adds `acknowledged_count`, `off_charter_total`, `detectors`'
+  - 'Fixture suite `tests/charter-drift-check-fixtures.sh` covers: name-detector fires, category-detector fires, acknowledged suppressed, un-acknowledging re-fires, healthy path, unparseable catalog → exit 2'
+  - 'Fixture suite passes and the live tree returns exit 0 with a truthful acknowledged count'
+  - 'CLAUDE.md''s charter-drift entry corrected — it currently states the "0 off-charter" result this task proves was never a full-surface measurement'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 20111 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 20111
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2680-charter-drift-canary-reports-a-full-surf.md
+generated_by: context-agent-hybrid
