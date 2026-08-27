@@ -75,14 +75,20 @@ cost_estimate_proposed:
 ## Verification
 
 cargo build --release -p termlink 2>&1 | tail -3
-cargo test --release -p termlink deprecation 2>&1 | grep -q "test result: ok. 2 passed"
-TERMLINK_NO_DEPRECATION_WARN=1 target/release/termlink remote push 192.168.10.999:9100 bogus --message x 2>&1 | grep -c DEPRECATED | grep -q '^0$'
-target/release/termlink remote push 192.168.10.999:9100 bogus --message x 2>&1 | grep -q DEPRECATED
-target/release/termlink event broadcast topic-x 2>&1 | grep -q DEPRECATED
-target/release/termlink inbox status 2>&1 | grep -q DEPRECATED
-target/release/termlink inbox list bogus 2>&1 | grep -q DEPRECATED
-target/release/termlink inbox clear bogus 2>&1 | grep -q DEPRECATED
-target/release/termlink file send bogus /tmp/nonexistent 2>&1 | grep -q DEPRECATED
+out=$(cargo test --release -p termlink deprecation 2>&1); echo "$out" | grep -q "test result: ok. 2 passed"
+# The CLI probes below deliberately target a bogus host / nonexistent path: the OPERATION
+# is expected to fail. What is being asserted is that the DEPRECATED warning printed on
+# the way out. So the command's own non-zero exit is tolerated and only the grep gates.
+# Written as a bare pipeline these fail under the gate's `set -o pipefail` (the binary
+# exits 101 and pipefail propagates it) even though every assertion below is TRUE —
+# measured 2026-08-27: all six warnings print, suppression yields 0.
+out=$(TERMLINK_NO_DEPRECATION_WARN=1 target/release/termlink remote push 192.168.10.999:9100 bogus --message x 2>&1 || true); test "$(echo "$out" | grep -c DEPRECATED)" = "0"
+out=$(target/release/termlink remote push 192.168.10.999:9100 bogus --message x 2>&1 || true); echo "$out" | grep -q DEPRECATED
+out=$(target/release/termlink event broadcast topic-x 2>&1 || true); echo "$out" | grep -q DEPRECATED
+out=$(target/release/termlink inbox status 2>&1 || true); echo "$out" | grep -q DEPRECATED
+out=$(target/release/termlink inbox list bogus 2>&1 || true); echo "$out" | grep -q DEPRECATED
+out=$(target/release/termlink inbox clear bogus 2>&1 || true); echo "$out" | grep -q DEPRECATED
+out=$(target/release/termlink file send bogus /tmp/nonexistent 2>&1 || true); echo "$out" | grep -q DEPRECATED
 
 ## Recommendation
 
