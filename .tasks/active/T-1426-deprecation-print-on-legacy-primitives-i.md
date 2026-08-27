@@ -83,12 +83,12 @@ out=$(cargo test --release -p termlink deprecation 2>&1); echo "$out" | grep -q 
 # exits 101 and pipefail propagates it) even though every assertion below is TRUE —
 # measured 2026-08-27: all six warnings print, suppression yields 0.
 out=$(TERMLINK_NO_DEPRECATION_WARN=1 target/release/termlink remote push 192.168.10.999:9100 bogus --message x 2>&1 || true); test "$(echo "$out" | grep -c DEPRECATED)" = "0"
-out=$(target/release/termlink remote push 192.168.10.999:9100 bogus --message x 2>&1 || true); echo "$out" | grep -q DEPRECATED
-out=$(target/release/termlink event broadcast topic-x 2>&1 || true); echo "$out" | grep -q DEPRECATED
-out=$(target/release/termlink inbox status 2>&1 || true); echo "$out" | grep -q DEPRECATED
-out=$(target/release/termlink inbox list bogus 2>&1 || true); echo "$out" | grep -q DEPRECATED
-out=$(target/release/termlink inbox clear bogus 2>&1 || true); echo "$out" | grep -q DEPRECATED
-out=$(target/release/termlink file send bogus /tmp/nonexistent 2>&1 || true); echo "$out" | grep -q DEPRECATED
+out=$(target/release/termlink remote push 192.168.10.999:9100 bogus --message x 2>&1 || true); echo "$out" | grep -q DEPRECATED && ! echo "$out" | grep -qi panicked
+out=$(target/release/termlink event broadcast topic-x 2>&1 || true); echo "$out" | grep -q DEPRECATED && ! echo "$out" | grep -qi panicked
+out=$(target/release/termlink inbox status 2>&1 || true); echo "$out" | grep -q DEPRECATED && ! echo "$out" | grep -qi panicked
+out=$(target/release/termlink inbox list bogus 2>&1 || true); echo "$out" | grep -q DEPRECATED && ! echo "$out" | grep -qi panicked
+out=$(target/release/termlink inbox clear bogus 2>&1 || true); echo "$out" | grep -q DEPRECATED && ! echo "$out" | grep -qi panicked
+out=$(target/release/termlink file send bogus /tmp/nonexistent 2>&1 || true); echo "$out" | grep -q DEPRECATED && ! echo "$out" | grep -qi panicked
 
 ## Recommendation
 
