@@ -1,13 +1,13 @@
 ---
-id: T-2840
-name: "Landing session — close finished work, collapse duplication, surface operator actions"
+id: T-2841
+name: "parity harness reads ambient TERMLINK_RUNTIME_DIR — suite is non-deterministic between a clean CI runner and a dev box"
 description: >
-  Landing session — close finished work, collapse duplication, surface operator actions
+  T-2824 measured this: cargo test -p termlink-mcp --test parity is 28 passed / 0 failed in 8s when TERMLINK_RUNTIME_DIR points at an empty dir, but on this host (13 live registered sessions) parity_topics FAILS on a reachability delta and parity_whoami_* STALLS past 6 minutes. Same tree, same binary, different ambient state. All 19 session-touching tests DO set TERMLINK_RUNTIME_DIR per-test to a TestDir, so per-test isolation is not the hole; the 4 that do not are pure-logic tests that never touch a session. The remaining suspect is that set_var is process-global and something -- most likely the in-process TermLinkTools/mcp_client -- resolves the runtime dir once, before or independently of the first test's set_var, and so captures the ambient value. Failure direction is the dangerous one: green on a dev box that happens to be clean, red-or-hung on a runner that is not, with no signal saying which state produced the result.
 
-status: started-work
-workflow_type: refactor
+status: captured
+workflow_type: build
 owner: agent
-horizon: now
+horizon: next
 tags: []
 components: []
 related_tasks: []
@@ -21,8 +21,8 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-08-26T22:29:47Z
-last_update: 2026-08-27T12:52:53Z
+created: 2026-08-27T12:53:38Z
+last_update: 2026-08-27T12:53:38Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -36,7 +36,7 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2840: Landing session — close finished work, collapse duplication, surface operator actions
+# T-2841: parity harness reads ambient TERMLINK_RUNTIME_DIR — suite is non-deterministic between a clean CI runner and a dev box
 
 ## Context
 
@@ -46,25 +46,8 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] Inbound messages checked BEFORE any work was picked: framework:pickup
-      canary run, /check-arc and /check-outbox walked, and anything addressed
-      to this project either answered or recorded with an explicit disposition.
-- [ ] At least one task that was ALREADY finished but structurally unable to
-      close is landed — moved out of `.tasks/active/` with its register state
-      agreeing with reality. Landing means the file moved, not that I agreed
-      it looked done.
-- [ ] Net LOC across this session is negative, OR every added line is a task
-      file / register entry / handover. No new guard, canary, static check or
-      fixture suite is added under this task — detection is not the work.
-- [ ] Every operator action surfaced carries a DIRECT approval link that was
-      fetched and confirmed to return 200 AND render an actionable item. An
-      approval link opening an empty form is a defect I created, not a
-      handoff I completed.
-- [ ] Peers are informed over termlink at session start and at session end,
-      and no file with cross-project blast radius is touched without asking
-      first.
-- [ ] The five closing numbers are reported: tasks closed, net LOC, duplicates
-      collapsed, operator actions surfaced-with-verified-link, peers informed.
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -250,7 +233,7 @@ date_finished: null
 
 ## Updates
 
-### 2026-08-26T22:29:47Z — task-created [task-create-agent]
+### 2026-08-27T12:53:38Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2840-landing-session--close-finished-work-col.md
+- **Output:** /opt/termlink/.tasks/active/T-2841-parity-harness-reads-ambient-termlinkrun.md
 - **Context:** Initial task creation
