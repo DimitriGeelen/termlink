@@ -4,21 +4,21 @@ name: "auto-reconnect MCP via PTY-inject after binary upgrade"
 description: >
   Inception: auto-reconnect MCP via PTY-inject after binary upgrade
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-06-24T11:39:09Z
-last_update: '2026-08-20T15:21:21Z'
+last_update: 2026-08-27T08:56:26Z
 revisit_at: 2026-09-25
   # T-2839 2026-08-26: DEFER had no usable return path, so this task could never
   # resurface (G-053/T-1451 — revisit_at makes DEFER a pause, not a silent drop).
   # Date is a DEFAULT (+30d), not an assessment: all six repaired tasks share it
   # deliberately so it reads as agent-set. The DEFER verdict is unchanged.
-date_finished:
+date_finished: 2026-08-27T08:56:26Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -267,3 +267,34 @@ Evidence:
 ### 2026-07-04T09:13:14Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: later → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-c3b368ec
+- **Timestamp:** 2026-08-27T08:56:27Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-1
+     - evidence: `IW-1 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  2. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-2
+     - evidence: `IW-2 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+## Recommendation Verdict (v1.0)
+
+- **Scan ID:** RC-61ab7bf3
+- **Timestamp:** 2026-08-27T08:56:27Z
+- **Overall:** CONFIRMED
+- **Claims:** 2
+
+| Claim | Type | Status |
+|-------|------|--------|
+| `.context/working/.restart-requested` | file | ✓ pass |
+| `T-179` | task | ✓ pass |
+
+### 2026-08-27T08:56:26Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

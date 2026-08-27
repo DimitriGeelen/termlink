@@ -9,16 +9,16 @@ description: >
   — eliminates the loop where every CT reboot wipes hub.secret and triggers TOFU+auth-mismatch
   storm across the fleet.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [auth, infrastructure, ring20-management, G-011, runtime_dir]
-components: []
+components: [crates/termlink-hub/src/server.rs, scripts/hub-binary-swap.sh, scripts/substrate-preflight.sh, scripts/tl-dispatch.sh]
 related_tasks: [T-1290, T-935, T-931, T-1291, T-1137, T-1051]
 created: 2026-04-26T12:04:17Z
-last_update: '2026-08-20T15:21:20Z'
-date_finished:
+last_update: 2026-08-27T08:44:55Z
+date_finished: 2026-08-27T08:44:55Z
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:35Z'
     estimator: bvp-estimator-v1-heuristic
@@ -202,3 +202,19 @@ Notes:
 - **Implication:** Migration has held across (a) the Apr 27 triple-reboot day, (b) all reboots in the 17 days since AC 3 was first verified, and (c) yesterday's bare-`nohup` Option C hub binary respawn during the T-1166 cut. The watchdog-script env-set at `ring20-watchdog.sh` reliably sources `TERMLINK_RUNTIME_DIR=/var/lib/termlink` on every restart path observed.
 - **Recommendation:** T-1294 is ready to close (`fw task update T-1294 --status work-completed`). All 4 ACs ticked with original evidence from Apr 26-28 + corroborating live state today.
 - **Out-of-scope follow-up (not blocking closure):** Replacing the watchdog-script env-set with a proper systemd unit on .122 (T-931 unit at `.context/systemd/termlink-hub.service` is structurally superior — env in Environment= survives any swap procedure including bare nohup). That's a NEW task if/when desired; T-1294's scope was "migrate off /tmp", not "adopt systemd". The startup warning landed in T-1633 today provides defensive coverage in the interim.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-6c9ba677
+- **Timestamp:** 2026-08-27T08:44:57Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** yes
+- **Findings:** none
+
+- **Layer-1 escalations:** 1
+  1. **destructive-action** (high) — Destructive operation in verification or AC
+     - matched: `wipe`
+
+### 2026-08-27T08:44:55Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

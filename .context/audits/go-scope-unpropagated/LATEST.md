@@ -15,8 +15,8 @@ A completed task qualifies when ALL of:
 
 ## Population examined
 
-- completed inceptions: 185
-- with a GO recorded:   156
+- completed inceptions: 187
+- with a GO recorded:   157
 - findings:             76
 
 These are candidates for triage, not confirmed abandoned decisions:

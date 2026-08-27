@@ -9102,3 +9102,379 @@ scan_id: R-e6b49c32
 task_id: T-2569
 payload:
   task_file: .tasks/active/T-2569-guard-hub-router-federation-regression-t.md
+---
+kind: scan_emitted
+timestamp: '2026-08-26T17:49:41Z'
+scan_id: R-1a26525e
+task_id: T-2839
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-26T17:49:41Z'
+scan_id: R-1a26525e
+task_id: T-2839
+payload:
+  task_file: .tasks/active/T-2839-fleet-broadcast-observability-dry-run-pr.md
+---
+kind: scan_emitted
+timestamp: '2026-08-27T08:44:49Z'
+scan_id: R-559c143a
+task_id: T-1291
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-27T08:44:49Z'
+scan_id: R-559c143a
+task_id: T-1291
+payload:
+  task_file: .tasks/active/T-1291-declarative-heal-manifest--bootstrapfrom.md
+---
+kind: scan_emitted
+timestamp: '2026-08-27T08:44:57Z'
+scan_id: R-6c9ba677
+task_id: T-1294
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-27T08:44:57Z'
+scan_id: R-6c9ba677
+task_id: T-1294
+payload:
+  task_file: .tasks/active/T-1294-migrate-ring20-management-hub-runtimedir.md
+---
+kind: scan_emitted
+timestamp: '2026-08-27T08:45:04Z'
+scan_id: R-f2e3a69c
+task_id: T-1423
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-27T08:45:04Z'
+scan_id: R-f2e3a69c
+task_id: T-1423
+payload:
+  task_file: .tasks/active/T-1423-fleet-deploy-binarysh-add---probe-pre-sw.md
+---
+kind: scan_emitted
+timestamp: '2026-08-27T08:55:28Z'
+scan_id: R-ccf80062
+task_id: T-1427
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-27T08:55:28Z'
+scan_id: R-ccf80062
+task_id: T-1427
+payload:
+  task_file: .tasks/active/T-1427-termlink-whoami--identity-binding-on-cha.md
+---
+kind: scan_emitted
+timestamp: '2026-08-27T08:55:38Z'
+scan_id: R-6e95c672
+task_id: T-1431
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-27T08:55:38Z'
+scan_id: R-6e95c672
+task_id: T-1431
+payload:
+  task_file: .tasks/active/T-1431-agent-handoff-claude-code-skill--wraps-t.md
+---
+kind: scan_emitted
+timestamp: '2026-08-27T08:55:50Z'
+scan_id: R-a19ed2a2
+task_id: T-1452
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-27T08:55:50Z'
+scan_id: R-a19ed2a2
+task_id: T-1452
+payload:
+  task_file: .tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md
+---
+kind: scan_emitted
+timestamp: '2026-08-27T08:56:20Z'
+scan_id: R-8d336b6e
+task_id: T-2259
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-27T08:56:20Z'
+scan_id: R-8d336b6e
+task_id: T-2259
+payload:
+  task_file: .tasks/active/T-2259-propagate-no-federation-by-design-correc.md
+---
+kind: scan_emitted
+timestamp: '2026-08-27T08:56:27Z'
+scan_id: R-c3b368ec
+task_id: T-2276
+payload:
+  overall: CONCERN
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-27T08:56:27Z'
+scan_id: R-c3b368ec
+task_id: T-2276
+payload:
+  task_file: .tasks/active/T-2276-auto-reconnect-mcp-via-pty-inject-after-.md
+---
+kind: recommendation_claims_verdict
+timestamp: '2026-08-27T08:56:27Z'
+scan_id: RC-61ab7bf3
+task_id: T-2276
+payload:
+  overall: CONFIRMED
+  claim_count: 2
+---
+kind: scan_emitted
+timestamp: '2026-08-27T08:56:33Z'
+scan_id: R-d263e5e1
+task_id: T-2325
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-27T08:56:33Z'
+scan_id: R-d263e5e1
+task_id: T-2325
+payload:
+  task_file: .tasks/active/T-2325-arc-004-s3-live-e2e--dm-rail-push-wake-b.md
+---
+kind: scan_emitted
+timestamp: '2026-08-27T08:56:42Z'
+scan_id: R-b20467b3
+task_id: T-2838
+payload:
+  overall: CONCERN
+  finding_count: 3
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-27T08:56:42Z'
+scan_id: R-b20467b3
+task_id: T-2838
+payload:
+  task_file: .tasks/active/T-2838-delivery-to-turn-contract--build-it-or-k.md
+---
+kind: recommendation_claims_verdict
+timestamp: '2026-08-27T08:56:42Z'
+scan_id: RC-1cbbf4ec
+task_id: T-2838
+payload:
+  overall: UNVERIFIED
+  claim_count: 0
+---
+kind: scan_emitted
+timestamp: '2026-08-27T09:44:11Z'
+scan_id: R-492b90e1
+task_id: T-2684
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-27T09:44:11Z'
+scan_id: R-492b90e1
+task_id: T-2684
+payload:
+  task_file: .tasks/active/T-2684-single-entry-point-for-the-source-level-.md
+---
+kind: scan_emitted
+timestamp: '2026-08-27T09:46:58Z'
+scan_id: R-e64d29b8
+task_id: T-2685
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-27T09:46:58Z'
+scan_id: R-e64d29b8
+task_id: T-2685
+payload:
+  task_file: .tasks/active/T-2685-canary-crontabs-merge-tooling-errors-int.md
+---
+kind: scan_emitted
+timestamp: '2026-08-27T09:50:08Z'
+scan_id: R-0705a0c2
+task_id: T-2693
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-27T09:50:08Z'
+scan_id: R-0705a0c2
+task_id: T-2693
+payload:
+  task_file: .tasks/active/T-2693-nothing-detects-a-new-platform-locked-pr.md
+---
+kind: scan_emitted
+timestamp: '2026-08-27T09:53:00Z'
+scan_id: R-6b27bc18
+task_id: T-2688
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-27T09:53:00Z'
+scan_id: R-6b27bc18
+task_id: T-2688
+payload:
+  task_file: .tasks/active/T-2688-check-silent-exit-misses-a-bare-exit-whe.md
+---
+kind: scan_emitted
+timestamp: '2026-08-27T09:55:43Z'
+scan_id: R-79add182
+task_id: T-2686
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-27T09:55:43Z'
+scan_id: R-79add182
+task_id: T-2686
+payload:
+  task_file: .tasks/active/T-2686-release-pipeline-publishes-binaries-with.md
+---
+kind: scan_emitted
+timestamp: '2026-08-27T09:58:36Z'
+scan_id: R-6a122a7b
+task_id: T-2758
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-27T09:58:36Z'
+scan_id: R-6a122a7b
+task_id: T-2758
+payload:
+  task_file: .tasks/active/T-2758-recent-chat-goes-blind-on-retention-trim.md
+---
+kind: scan_emitted
+timestamp: '2026-08-27T10:01:30Z'
+scan_id: R-3c9053b5
+task_id: T-2699
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-27T10:01:30Z'
+scan_id: R-3c9053b5
+task_id: T-2699
+payload:
+  task_file: .tasks/active/T-2699-nothing-detects-an-error-code-that-is-de.md
+---
+kind: scan_emitted
+timestamp: '2026-08-27T10:05:35Z'
+scan_id: R-a32d5255
+task_id: T-2709
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-27T10:05:35Z'
+scan_id: R-a32d5255
+task_id: T-2709
+payload:
+  task_file: .tasks/active/T-2709-stuck-claim-heuristic-is-a-monotonic-lat.md
+---
+kind: scan_emitted
+timestamp: '2026-08-27T10:05:50Z'
+scan_id: R-3aeb7b0c
+task_id: T-2711
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-27T10:05:50Z'
+scan_id: R-3aeb7b0c
+task_id: T-2711
+payload:
+  task_file: .tasks/active/T-2711-revisit-due-scansh-exits-0-when-it-canno.md

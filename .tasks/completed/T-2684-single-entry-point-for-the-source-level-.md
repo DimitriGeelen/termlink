@@ -6,20 +6,20 @@ description: >
   tests (T-2683 F1/G1). Ship scripts/run-guard-layer.sh as the one command that runs
   them all.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/check-alloc-sink-clamps.sh, scripts/check-busy-spin.sh, scripts/check-charter-sentence-drift.sh, scripts/check-drain-sink-caps.sh, scripts/check-env-var-docs.sh, scripts/check-error-code-docs.sh, scripts/check-preflight-doc-set-drift.sh, scripts/check-silent-exit.sh, scripts/run-guard-layer.sh, tests/guard-layer-runner-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T05:56:11Z
-last_update: '2026-08-23T19:13:47Z'
-date_finished:
+last_update: 2026-08-27T09:39:01Z
+date_finished: 2026-08-27T09:39:01Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -218,3 +218,15 @@ out=$(bash scripts/run-guard-layer.sh --json); echo "$out" | jq -e '.summary.tot
 
 ### 2026-08-14T05:56:50Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-492b90e1
+- **Timestamp:** 2026-08-27T09:44:11Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-27T09:39:01Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

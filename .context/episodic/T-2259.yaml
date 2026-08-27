@@ -1,0 +1,94 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2259: Propagate no-federation-by-design correction into shared fleet operating model (ring20 systemic R1)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-27T08:56:25Z
+# ============================================================================
+
+task_id: T-2259
+task_name: "Propagate no-federation-by-design correction into shared fleet operating model (ring20 systemic R1)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-06-23T19:40:04Z
+completed: 2026-08-27T08:56:19Z
+duration_days: 65
+updates_count: 2
+first_commit: 2026-06-23T22:16:44+02:00
+last_commit: 2026-06-23T22:59:10+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  relay no-federation-by-design correction to AEF + ack ring20 (R1). dedup 3 pickup self-echoes (T-2260/2261/2263) + file observer-fix upstream (P-050). close T-2264 — self-echo of P-050 (observer-fix report round-tripped via cron). Living proof of the bug P-050 reports; 5th and final echo deduped this session.
+
+# Key outcomes
+outcomes:
+  - 'Confirmed termlink''s local docs correctly state no-inter-hub-federation-by-design: `docs/operations/channel-topic-semantics.md` (TL;DR + empirical grep-zero-matches proof) + CLAUDE.md §"Channel Topic Semantics — Per-Hub State (G-060 / T-1791 / T-1792)". `FRAMEWORK.md` (the shared model) is vendored/untracked here and has NO federation mention — confirming the exact propagation gap.'
+  - 'Correction relayed upstream to AEF via `fw pickup send` → `P-048-feature-proposal` (priority high), bridged to `framework:pickup` (dedup.log 2026-06-23T20:15Z). Names the invalid "fix passive replication / align hub versions" premise explicitly and supplies canonical text for FRAMEWORK.md. R2/R3 scoped OUT.'
+  - 'Acknowledgement posted to ring20 on `framework:pickup` (offset 53, msg-type `ack`) referencing their offset-48 finding; loop closed, R2/R3 flagged as separate, and cross-links the offset-51 finding → T-2258.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'close T-2264 — self-echo of P-050 (observer-fix report round-tripped via cron). Living proof of the bug P-050 reports; 5th and final echo deduped this session.'
+    source: git-mined
+  - description: 'dedup 3 pickup self-echoes (T-2260/2261/2263) + file observer-fix upstream (P-050)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/pickup/.bridge-posted/4e52fb114e5c5085269322628ceaa50037586b223787402cfc20140c7fd53c0d'
+  - '.context/pickup/dedup.log'
+  - '.context/pickup/processed/P-050-bug-report.yaml'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2257-pickup-worktree-aware-fw-resolution-part.md'
+  - '.tasks/active/T-2259-propagate-no-federation-by-design-correc.md'
+  - '.tasks/active/T-2260-pickup-land-no-inter-hub-federation-by-d.md'
+  - '.tasks/active/T-2261-pickup-land-no-inter-hub-federation-by-d.md'
+  - '.tasks/active/T-2264-pickup-pickup-observer-self-echo-g-046-s.md'
+  - '.tasks/completed/T-2262-watchtower-review-and-approvals-500-in-v.md'
+  - '.tasks/completed/T-2263-pickup-rca-watchtower-review--approvals-.md'
+  - '.tasks/completed/T-2264-pickup-pickup-observer-self-echo-g-046-s.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-06-23T22:16:44'
+    action: 'T-2259: relay no-federation-by-design correction to AEF + ack ring20 (R1)'
+  - time: '2026-06-23T22:58:20'
+    action: 'T-2259: dedup 3 pickup self-echoes (T-2260/2261/2263) + file observer-fix upstream (P-050)'
+  - time: '2026-06-23T22:59:10'
+    action: 'T-2259: close T-2264 — self-echo of P-050 (observer-fix report round-tripped via cron). Living proof of the bug P-050 reports; 5th and final echo deduped this session.'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 92956 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 92956
+  commits: 3
+  files_changed: 11
+  lines_added: 727
+  lines_removed: 17
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2259-propagate-no-federation-by-design-correc.md
+generated_by: context-agent-hybrid

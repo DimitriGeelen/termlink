@@ -9,16 +9,16 @@ description: >
   is option A in T-1425 Q4 — if Q4 lands on B/C, this task tightens or loosens accordingly.
   Backward compat: posts without metadata.from continue working unchanged.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/agent.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/channel.rs, crates/termlink-protocol/src/control.rs, crates/termlink-session/src/registration.rs, scripts/agent-listeners.sh, scripts/check-unpaired-capture.sh, scripts/check-vacuous-verification.sh, scripts/substrate-worker-pickup.sh, scripts/t1438-checkin.sh, scripts/tl-dispatch.sh, tests/agent-listeners-identity-fp.sh, tests/test_tl_dispatch_meta.sh]
 related_tasks: []
 created: 2026-04-30T21:18:04Z
-last_update: '2026-08-20T15:21:21Z'
-date_finished:
+last_update: 2026-08-27T08:45:10Z
+date_finished: 2026-08-27T08:45:10Z
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:35Z'
     estimator: bvp-estimator-v1-heuristic
@@ -119,3 +119,25 @@ grep -q "CHANNEL_IDENTITY_MISMATCH" crates/termlink-protocol/src/control.rs
 
 ### 2026-05-01T19:26:16Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-ccf80062
+- **Timestamp:** 2026-08-27T08:55:28Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#2 (Agent)** — `handle_channel_post_with` in `crates/termlink-hub/src/channel.rs` derives `expected_fp = fingerprint_of(&verifying_key)` after parsing the pubkey, and rejects with `CHANNEL_IDENTITY_MISMATCH` if `sen
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=crates/termlink-hub/src/channel.rs in: `handle_channel_post_with` in `crates/termlink-hub/src/channel.rs` derives `expected_fp = fingerprint_of(&verifying_key)` after parsing the pubkey, an`
+
+**Verification-level findings:**
+
+  1. **l387-sigpipe-risk** (partial, heuristic) @ Verification:line 1
+     - evidence: `cargo test -p termlink-hub --lib handle_channel_post_with_ 2>&1 | tail -5 | grep -q "test result: ok"`
+
+### 2026-08-27T08:45:10Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

@@ -1,0 +1,105 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2838: Delivery-to-turn contract — build it or keep nudging (G-083)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-27T08:56:48Z
+# ============================================================================
+
+task_id: T-2838
+task_name: "Delivery-to-turn contract — build it or keep nudging (G-083)"
+workflow_type: inception
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-24T22:35:59Z
+completed: 2026-08-27T08:56:41Z
+duration_days: 3
+updates_count: 2
+first_commit: 2026-08-25T00:39:18+02:00
+last_commit: 2026-08-26T17:38:05+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  open inception — delivery-to-turn contract (G-083). inception decision GO (via Watchtower). S4 primitive audit — A-6 confirmed, IW-4 disposed (no wire bump); found receipts are not per-agent attributable. S2 native consumer spike — A-1/A-3 confirmed by construction, IW-1 disposed; found ack-status lag is self-referential while unread is correct. S3 envelope schema round-trip — A-4 confirmed, IW-2 disposed (assignment.v0 + result_manifest.v0, no new wire type). S1 reproduction + Recommendation — all 4 spikes done, 5/5 open questions disposed, bounded 5-item build decomposition. mark decomposition item 2 landed (6f42f2b0d) with the honest test count — 2 discriminating, 1 invariant guard. point item 4 at its real SHA (amend rewrote the one the report cited). kill the M4 mutant my item-4 test did not catch; 2nd agent gets its identity. point item 3 at its SHA. fabric card for assignment.rs. fabric card for check-receiver-ack-lag
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/assumptions.yaml'
+  - '.context/systemd/termlink-framework-agent.service'
+  - 'crates/termlink-cli/src/commands/channel.rs'
+  - 'docs/reports/T-2838-delivery-to-turn-contract.md'
+  - '.fabric/components/crates-termlink-session-src-assignment.yaml'
+  - '.fabric/components/scripts-check-receiver-ack-lag.yaml'
+  - '.tasks/active/T-2838-delivery-to-turn-contract--build-it-or-k.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-25T00:39:18'
+    action: 'T-2838: open inception — delivery-to-turn contract (G-083)'
+  - time: '2026-08-25T11:18:12'
+    action: 'T-2838: inception decision GO (via Watchtower)'
+  - time: '2026-08-25T11:24:31'
+    action: 'T-2838: S4 primitive audit — A-6 confirmed, IW-4 disposed (no wire bump); found receipts are not per-agent attributable'
+  - time: '2026-08-25T11:28:57'
+    action: 'T-2838: S2 native consumer spike — A-1/A-3 confirmed by construction, IW-1 disposed; found ack-status lag is self-referential while unread is correct'
+  - time: '2026-08-25T11:32:20'
+    action: 'T-2838: S3 envelope schema round-trip — A-4 confirmed, IW-2 disposed (assignment.v0 + result_manifest.v0, no new wire type)'
+  - time: '2026-08-25T11:35:09'
+    action: 'T-2838: S1 reproduction + Recommendation — all 4 spikes done, 5/5 open questions disposed, bounded 5-item build decomposition'
+  - time: '2026-08-25T12:43:48'
+    action: 'T-2838: mark decomposition item 2 landed (6f42f2b0d) with the honest test count — 2 discriminating, 1 invariant guard'
+  - time: '2026-08-25T22:10:09'
+    action: 'T-2838: point item 4 at its real SHA (amend rewrote the one the report cited)'
+  - time: '2026-08-26T00:10:58'
+    action: 'T-2838: kill the M4 mutant my item-4 test did not catch; 2nd agent gets its identity'
+  - time: '2026-08-26T13:20:01'
+    action: 'T-2838: point item 3 at its SHA'
+  - time: '2026-08-26T13:20:34'
+    action: 'T-2838: fabric card for assignment.rs'
+  - time: '2026-08-26T17:38:05'
+    action: 'T-2838: fabric card for check-receiver-ack-lag'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 13 commit(s), 3500 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [comms, substrate, g-083, delivery]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3500
+  commits: 13
+  files_changed: 8
+  lines_added: 1003
+  lines_removed: 40
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2838-delivery-to-turn-contract--build-it-or-k.md
+generated_by: context-agent-hybrid

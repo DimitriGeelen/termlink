@@ -6,20 +6,20 @@ description: >
   (Directive #4) is discipline-only in the product crates — a static check would make
   it load-bearing, and the T-2684 runner now executes such checks (T-2690 G3).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/check-verification-pipefail.sh, tests/verification-pipefail-check-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T07:27:15Z
-last_update: '2026-08-23T19:13:47Z'
-date_finished:
+last_update: 2026-08-27T09:47:05Z
+date_finished: 2026-08-27T09:47:05Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -215,3 +215,15 @@ bash scripts/run-guard-layer.sh --list > /tmp/.t2693-list.out 2>&1 && grep -q "c
 
 ### 2026-08-14T07:33:12Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-0705a0c2
+- **Timestamp:** 2026-08-27T09:50:08Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-27T09:47:05Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

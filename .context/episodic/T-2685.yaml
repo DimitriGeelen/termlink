@@ -1,0 +1,108 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2685: Canary crontabs merge tooling errors into findings logs
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-27T09:47:05Z
+# ============================================================================
+
+task_id: T-2685
+task_name: "Canary crontabs merge tooling errors into findings logs"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-14T05:56:25Z
+completed: 2026-08-27T09:44:18Z
+duration_days: 13
+updates_count: 2
+first_commit: 2026-08-14T08:11:23+02:00
+last_commit: 2026-08-14T08:11:23+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  canary crontabs merged tooling errors into findings logs — split the streams, guard the idiom
+
+# Key outcomes
+outcomes:
+  - 'Every canary cron job line routes stderr to a sibling `<log>.stderr` instead of merging it into the findings log with `2>&1` — the tooling stream is preserved, never discarded, and never mistaken for a finding'
+  - 'All 24 git-tracked crontabs are migrated; zero remaining `>> <findings>.log 2>&1` job lines'
+  - 'The sibling `.stderr` path does not match `/canaries`'' `.*-canary.log` discovery glob, so it cannot be read as a findings log'
+  - 'The polluted `.release-mirror-canary.log` is truncated, but only after independently confirming the mirror is actually synced (never blind-truncate a findings log)'
+  - '`scripts/check-canary-log-hygiene.sh` fires on any crontab job line that merges stderr into a findings log — G-019 half: the next canary written with the old idiom is caught, not silently reintroduced'
+  - 'The hygiene check is a member of the T-2684 guard layer (`# guard-layer: source` marker) so it runs with everything else'
+  - 'Hygiene check exit codes: 0 = clean, 1 = a merging job line, 2 = tooling; `--json` for scripting; test seam `CANARY_HYGIENE_SRC_DIR` for hermetic fixtures'
+  - 'The check only flags *findings* logs — an operator appending stderr to a scratch/debug log is not the defect and must not fire'
+  - 'Fixture suite `tests/canary-log-hygiene-fixtures.sh` covers: merging line fires, split line passes, a `2>/dev/null` discard fires (loses diagnostics), non-canary redirect ignored, absent dir is a tooling error'
+  - 'Load-bearing: reintroducing `2>&1` into any crontab makes the check fire; restoring returns it to clean'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'canary crontabs merged tooling errors into findings logs — split the streams, guard the idiom'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/cron/charter-drift-canary.crontab'
+  - '.context/cron/charter-sentence-drift-canary.crontab'
+  - '.context/cron/dead-letter-canary.crontab'
+  - '.context/cron/fleet-adoption-snapshot.crontab'
+  - '.context/cron/fleet-binary-canary.crontab'
+  - '.context/cron/fleet-capability-canary.crontab'
+  - '.context/cron/fleet-doorbell-mail-canary.crontab'
+  - '.context/cron/forever-archival-canary.crontab'
+  - '.context/cron/framework-pickup-canary.crontab'
+  - '.context/cron/frozen-husk-canary.crontab'
+  - '.context/cron/preflight-doc-set-drift-canary.crontab'
+  - '.context/cron/release-mirror-canary.crontab'
+  - '.context/cron/session-control-canary.crontab'
+  - '.context/cron/stale-waker-code-canary.crontab'
+  - '.context/cron/stuck-claims-canary.crontab'
+  - '.context/cron/substrate-preflight-canary.crontab'
+  - '.context/cron/task-finalization-canary.crontab'
+  - '.context/cron/topic-growth-canary.crontab'
+  - '.context/cron/unconfirmed-delivery-canary.crontab'
+  - '.context/cron/waker-liveness-canary.crontab'
+  - '.context/cron/woken-silent-triage.crontab'
+  - 'docs/operations/substrate-cron-recipes.md'
+  - 'scripts/check-canary-log-hygiene.sh'
+  - '.tasks/active/T-2685-canary-crontabs-merge-tooling-errors-int.md'
+  - 'tests/canary-log-hygiene-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-14T08:11:23'
+    action: 'T-2685: canary crontabs merged tooling errors into findings logs — split the streams, guard the idiom'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 18947 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 18947
+  commits: 1
+  files_changed: 25
+  lines_added: 571
+  lines_removed: 30
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2685-canary-crontabs-merge-tooling-errors-int.md
+generated_by: context-agent-hybrid

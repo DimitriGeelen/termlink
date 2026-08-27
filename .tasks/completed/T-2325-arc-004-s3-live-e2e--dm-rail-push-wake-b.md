@@ -9,20 +9,20 @@ description: >
   (deleted)). Restart is operator-gated (disrupts live sessions). Deferred until an
   operator restarts the hub.
 
-status: started-work
+status: work-completed
 workflow_type: test
 owner: human
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/demo-dm-rail-pushwake.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-03T07:26:49Z
-last_update: '2026-08-20T15:21:21Z'
-date_finished:
+last_update: 2026-08-27T08:56:33Z
+date_finished: 2026-08-27T08:56:33Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -258,9 +258,12 @@ Design: `docs/reports/T-2322-arc-004-dm-rail-push-wake-inception.md`.
 
 ## Reviewer Verdict (v1.5)
 
-- **Scan ID:** R-0717ff89
-- **Timestamp:** 2026-07-03T09:30:45Z
+- **Scan ID:** R-d263e5e1
+- **Timestamp:** 2026-08-27T08:56:33Z
 - **Catalogue:** v1.3-seed
 - **Overall:** PASS
 - **Needs Human:** no
 - **Findings:** none
+
+### 2026-08-27T08:56:33Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

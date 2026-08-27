@@ -1,0 +1,89 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2693: Nothing detects a new platform-locked primitive entering the product crates
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-27T09:50:14Z
+# ============================================================================
+
+task_id: T-2693
+task_name: "Nothing detects a new platform-locked primitive entering the product crates"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-14T07:27:15Z
+completed: 2026-08-27T09:47:05Z
+duration_days: 13
+updates_count: 2
+first_commit: 2026-08-20T02:37:21+02:00
+last_commit: 2026-08-20T03:06:25+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  repo-wide L-387 verification-pipefail auditor (150 live hits in active tasks). document the verification-pipefail auditor in CLAUDE.md (PL-168 — undiscoverable checks are dormant)
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-platform-lock.sh` flags every Linux-only primitive in the product crates: `/proc/` and `/sys/` path literals, and `Command::new("<linux-only-tool>")` for a defensible tool list (`ss`, `systemctl`, `journalctl`, `ufw`, `setsid`, `nproc`)'
+  - 'Cross-platform tools (`git`, `sh`, `bash`, `ssh`, `tmux`, `pgrep`) and deliberately macOS-only ones (`osascript`) are NOT flagged — the check is about undeclared lock-in, not about using a subprocess'
+  - 'Confirmed-safe sites are acknowledged in `.context/checks/platform-lock-allowlist` (git-tracked per T-2681) with a cited reason that states **how the non-Linux path behaves** — degrades gracefully, has a fallback, or is unreachable off-Linux'
+  - 'Carries the `# guard-layer: source` marker so the T-2684 runner executes it with everything else'
+  - 'Exit codes 0 clean / 1 unacknowledged site / 2 tooling; `--json`; `--root` (repeatable) + `--allowlist` for fixtures; `--quiet` / `--no-heartbeat`'
+  - 'Comment lines are not flagged (a doc comment mentioning `/proc` is not a dependency on it)'
+  - 'Fixture suite `tests/platform-lock-check-fixtures.sh` proves: a `/proc` literal fires, an allowlisted site is suppressed, a comment mention does not fire, a cross-platform command does not fire, a Linux-only command fires, absent root is a tooling error'
+  - 'The current tree scans clean with every real site acknowledged and its degradation documented'
+  - 'Load-bearing: removing an allowlist entry re-fires that site'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.fabric/components/scripts-check-verification-pipefail.yaml'
+  - '.fabric/components/tests-verification-pipefail-check-fixtures.yaml'
+  - 'scripts/check-verification-pipefail.sh'
+  - '.tasks/active/T-2693-repo-wide-l-387-verification-pipefail-au.md'
+  - 'tests/verification-pipefail-check-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-20T02:37:21'
+    action: 'T-2693: repo-wide L-387 verification-pipefail auditor (150 live hits in active tasks)'
+  - time: '2026-08-20T03:06:25'
+    action: 'T-2693: document the verification-pipefail auditor in CLAUDE.md (PL-168 — undiscoverable checks are dormant)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 18859 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 18859
+  commits: 2
+  files_changed: 6
+  lines_added: 552
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2693-nothing-detects-a-new-platform-locked-pr.md
+generated_by: context-agent-hybrid

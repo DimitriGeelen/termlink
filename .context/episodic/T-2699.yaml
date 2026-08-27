@@ -1,0 +1,102 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2699: Nothing detects an error code that is defined and documented but never emitted
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-27T10:01:36Z
+# ============================================================================
+
+task_id: T-2699
+task_name: "Nothing detects an error code that is defined and documented but never emitted"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-14T08:25:09Z
+completed: 2026-08-27T09:58:43Z
+duration_days: 13
+updates_count: 2
+first_commit: 2026-08-14T10:33:49+02:00
+last_commit: 2026-08-14T10:50:34+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  three published refusals could never occur, and -32004 meant two things — detect the class, fix the collision. document the emission check + record review #6 outcomes — 3480 tests green, guard layer 25/25
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-error-code-emission.sh` flags every `error_code::` constant with no emission site in the product crates — the class `check-error-code-docs.sh` cannot see, because it only verifies doc↔definition pairing'
+  - 'Detection covers BOTH the symbolic form (`error_code::NAME`) and the bare numeric literal, so a code emitted as `-32004` is not miscounted as dead'
+  - 'The defining file is excluded from the emission scan — a constant must not count as its own use'
+  - 'A code whose only "use" is a **builder that itself has no callers** is still reported: `check_protocol_version` is defined, unit-tested, and invoked by nothing, which is exactly the case that must not read clean'
+  - 'Genuinely-reserved codes are acknowledged in `.context/checks/error-code-emission-allowlist` (git-tracked per T-2681) with a cited reason stating WHY it is not emitted and what would change that'
+  - 'Carries the `# guard-layer: source` marker so the T-2684 runner executes it'
+  - 'Exit codes 0 clean / 1 unacknowledged dead code / 2 tooling; `--json`; `--root` + `--allowlist` for fixtures; `--quiet` / `--no-heartbeat`'
+  - 'Fixture suite `tests/error-code-emission-fixtures.sh` covers: emitted code passes, dead code fires, allowlisted dead code suppressed, numeric-literal emission counts as emitted, defining-file-only use does NOT count, absent root is a tooling error'
+  - 'The three real dead codes are acknowledged with honest reasons rather than hidden — the allowlist is the ledger of an open question, not a silencer'
+  - '`control.rs` annotates each of the three at its definition so the contract stops overstating enforcement; no constant renamed, no value changed'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'three published refusals could never occur, and -32004 meant two things — detect the class, fix the collision'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/checks/error-code-emission-allowlist'
+  - '.context/project/learnings.yaml'
+  - 'crates/termlink-hub/src/artifact.rs'
+  - 'crates/termlink-protocol/src/control.rs'
+  - 'docs/reports/T-2694-positive-claims-review.md'
+  - 'docs/reports/T-2698-refusal-taxonomy-review.md'
+  - 'scripts/check-error-code-emission.sh'
+  - '.tasks/active/T-2691-whoami-identity-auto-resolution-silently.md'
+  - '.tasks/active/T-2694-termlink-purpose-review-5--are-the-chart.md'
+  - '.tasks/active/T-2695-session-selftest-proves-exec-only-the-ch.md'
+  - '.tasks/active/T-2697-cli-inject-reports-success-for-a-no-op-o.md'
+  - '.tasks/active/T-2698-termlink-purpose-review-6--is-the-refusa.md'
+  - '.tasks/active/T-2699-nothing-detects-an-error-code-that-is-de.md'
+  - '.tasks/active/T-2700-wire-protocol-version-negotiation-into-t.md'
+  - '.tasks/active/T-2701-no-load-stress-or-soak-test-exists--beha.md'
+  - 'tests/error-code-emission-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-14T10:33:49'
+    action: 'T-2699: three published refusals could never occur, and -32004 meant two things — detect the class, fix the collision'
+  - time: '2026-08-14T10:50:34'
+    action: 'T-2699: document the emission check + record review #6 outcomes — 3480 tests green, guard layer 25/25'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 18813 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 18813
+  commits: 2
+  files_changed: 17
+  lines_added: 1358
+  lines_removed: 13
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2699-nothing-detects-an-error-code-that-is-de.md
+generated_by: context-agent-hybrid

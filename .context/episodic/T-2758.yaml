@@ -1,0 +1,91 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2758: recent-chat goes blind on retention-trimmed topics — count used as offset in seek-to-tail
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-27T09:58:42Z
+# ============================================================================
+
+task_id: T-2758
+task_name: "recent-chat goes blind on retention-trimmed topics — count used as offset in seek-to-tail"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-16T09:29:42Z
+completed: 2026-08-27T09:55:50Z
+duration_days: 11
+updates_count: 2
+first_commit: 2026-08-16T11:43:06+02:00
+last_commit: 2026-08-16T11:51:35+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  seek from tail offset, not count — /recent-chat went blind on retention-trimmed topics. record two learnings; file T-2759 found during this investigation. pin all four tail-signal branches; add verification block. pin the load-bearing check to a SHA, not HEAD~N
+
+# Key outcomes
+outcomes:
+  - 'The seek-to-tail cursor is derived from an OFFSET, not from `count`:'
+  - 'The derivation is a pure, unit-tested helper — not inline arithmetic —'
+  - 'Regression fixture reproduces the measured defect: a topic whose `count`'
+  - '`recent-dm.sh` is checked for the same `count`-as-offset arithmetic and'
+  - 'The fix cannot silently UNDER-report: when no offset signal is available'
+  - 'Live proof on the hub that produced the numbers: `/recent-chat` surfaces'
+  - '`bash tests/chat-arc-recent-fixtures.sh` passes (existing suite, extended'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/learnings.yaml'
+  - 'scripts/agent-chat-arc-recent.sh'
+  - 'scripts/fleet-adoption-snapshot.sh'
+  - '.tasks/active/T-2758-recent-chat-goes-blind-on-retention-trim.md'
+  - '.tasks/active/T-2759-channel-subscribe---from-latest-returns-.md'
+  - 'tests/chat-arc-recent-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-16T11:43:06'
+    action: 'T-2758: seek from tail offset, not count — /recent-chat went blind on retention-trimmed topics'
+  - time: '2026-08-16T11:46:42'
+    action: 'T-2758: record two learnings; file T-2759 found during this investigation'
+  - time: '2026-08-16T11:50:51'
+    action: 'T-2758: pin all four tail-signal branches; add verification block'
+  - time: '2026-08-16T11:51:35'
+    action: 'T-2758: pin the load-bearing check to a SHA, not HEAD~N'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 15866 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 15866
+  commits: 4
+  files_changed: 6
+  lines_added: 822
+  lines_removed: 24
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2758-recent-chat-goes-blind-on-retention-trim.md
+generated_by: context-agent-hybrid

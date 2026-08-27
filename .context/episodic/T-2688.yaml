@@ -1,0 +1,95 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2688: check-silent-exit misses a bare exit when a comment sits between the closing brace and the exit
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-27T09:53:06Z
+# ============================================================================
+
+task_id: T-2688
+task_name: "check-silent-exit misses a bare exit when a comment sits between the closing brace and the exit"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-14T06:17:29Z
+completed: 2026-08-27T09:50:14Z
+duration_days: 13
+updates_count: 2
+first_commit: 2026-08-14T08:23:08+02:00
+last_commit: 2026-08-20T01:44:29+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  check-silent-exit was blind to a bare exit hidden behind a comment. ON_DEMAND classification — stop /canaries reporting a healthy tree as red
+
+# Key outcomes
+outcomes:
+  - 'Comment-only lines are skipped when locating the exit''s preceding statement, so a comment between the closed block and the bare exit no longer hides the site'
+  - 'Comment-only lines are stripped before the `json_error_exit` window grep — a comment *mentioning* the symbol is not a call to it and must not satisfy the gate'
+  - 'Comment-only lines are stripped before the output-macro `between` grep — a comment quoting `eprintln!` must not clear a genuinely silent site'
+  - 'The real tree still scans clean; if the improved precision surfaces a genuine new site, it is fixed rather than allowlisted'
+  - 'Fixture coverage for the new class: a bare exit hidden behind a comment fires; a loud site with a comment above the print still passes'
+  - 'Load-bearing: the T-2663 revert-with-comment-retained (which silently passed before) now fires'
+  - 'Documented limitation: `/* */` block comments are out of scope (the tree uses `//` throughout)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/commands/canaries.md'
+  - '.context/cron/ondemand-checks.conf'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - '.fabric/components/tests-canary-status-ondemand-fixtures.yaml'
+  - 'scripts/canary-status.sh'
+  - 'scripts/check-silent-exit.sh'
+  - '.tasks/active/T-2688-canary-status-classifies-on-demand-stati.md'
+  - '.tasks/active/T-2688-check-silent-exit-misses-a-bare-exit-whe.md'
+  - '.termlink-task'
+  - 'tests/canary-status-ondemand-fixtures.sh'
+  - 'tests/silent-exit-check-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-14T08:23:08'
+    action: 'T-2688: check-silent-exit was blind to a bare exit hidden behind a comment'
+  - time: '2026-08-20T01:44:29'
+    action: 'T-2688: ON_DEMAND classification — stop /canaries reporting a healthy tree as red'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 18932 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 18932
+  commits: 2
+  files_changed: 14
+  lines_added: 869
+  lines_removed: 37
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2688-check-silent-exit-misses-a-bare-exit-whe.md
+generated_by: context-agent-hybrid

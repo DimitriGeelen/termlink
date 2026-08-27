@@ -1,0 +1,97 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1291: Declarative heal manifest — bootstrap_from per profile in hubs.toml
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-27T08:44:55Z
+# ============================================================================
+
+task_id: T-1291
+task_name: "Declarative heal manifest — bootstrap_from per profile in hubs.toml"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-04-26T11:36:32Z
+completed: 2026-08-27T08:44:14Z
+duration_days: 123
+updates_count: 4
+first_commit: 2026-04-26T13:55:56+02:00
+last_commit: 2026-06-01T01:13:53+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-1291 + G-047: Clean template noise + register parser-comment-blindness gap. declarative heal manifest — bootstrap_from per profile + --bootstrap-from auto. profile add --bootstrap-from <source> — close the ergonomic gap. document declarative heal in CLAUDE.md. clippy — collapse nested if-let in profile add scheme validation. termlink-hub clippy — collapse 2 nested if-let blocks in channel.rs (cosmetic). closure-ready — declarative bootstrap_from feature shipped and load-bearing for entire auto-heal arc (T-1679/80/81/83/84/85/88)
+
+# Key outcomes
+outcomes:
+  - '`hubs.toml` schema accepts optional `bootstrap_from = "<source>"` per `[hubs.<name>]` section, with the same source-format vocabulary as T-1055 (`file:`, `ssh:`); unknown schemes rejected with a clear error'
+  - '`termlink fleet reauth <profile> --bootstrap-from auto` reads the declared `bootstrap_from`, errors clearly if missing, otherwise delegates to the existing T-1055 fetch path'
+  - 'Profiles without `bootstrap_from` keep working unchanged (back-compat)'
+  - 'At least 2 unit tests: (1) `auto` resolves to declared channel, (2) `auto` with no declaration emits actionable error'
+  - 'Existing T-1055 test suite still passes'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/project/concerns.yaml'
+  - 'crates/termlink-cli/src/cli.rs'
+  - 'crates/termlink-cli/src/commands/infrastructure.rs'
+  - 'crates/termlink-cli/src/commands/remote.rs'
+  - 'crates/termlink-cli/src/config.rs'
+  - 'crates/termlink-hub/src/channel.rs'
+  - '.tasks/active/T-1291-declarative-heal-manifest--bootstrapfrom.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-04-26T13:55:56'
+    action: 'T-1291 + G-047: Clean template noise + register parser-comment-blindness gap'
+  - time: '2026-04-26T17:29:45'
+    action: 'T-1291: declarative heal manifest — bootstrap_from per profile + --bootstrap-from auto'
+  - time: '2026-04-26T17:32:07'
+    action: 'T-1291: profile add --bootstrap-from <source> — close the ergonomic gap'
+  - time: '2026-04-26T17:32:52'
+    action: 'T-1291: document declarative heal in CLAUDE.md'
+  - time: '2026-04-26T17:33:50'
+    action: 'T-1291: clippy — collapse nested if-let in profile add scheme validation'
+  - time: '2026-04-26T19:24:20'
+    action: 'T-1291: termlink-hub clippy — collapse 2 nested if-let blocks in channel.rs (cosmetic)'
+  - time: '2026-06-01T01:13:53'
+    action: 'T-1291: closure-ready — declarative bootstrap_from feature shipped and load-bearing for entire auto-heal arc (T-1679/80/81/83/84/85/88)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 8 commit(s), 176947 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [auth, fleet, hub, G-011]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 176947
+  commits: 8
+  files_changed: 9
+  lines_added: 455
+  lines_removed: 52
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1291-declarative-heal-manifest--bootstrapfrom.md
+generated_by: context-agent-hybrid

@@ -1,0 +1,129 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1427: termlink whoami + identity binding on channel post
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-27T08:55:33Z
+# ============================================================================
+
+task_id: T-1427
+task_name: "termlink whoami + identity binding on channel post"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-04-30T21:18:04Z
+completed: 2026-08-27T08:45:10Z
+duration_days: 119
+updates_count: 2
+first_commit: 2026-04-30T23:19:43+02:00
+last_commit: 2026-08-26T16:03:43+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  T-1426/T-1427 captured + T-1425 synthesis runbook embedded. hub-side strict-reject — sender_id MUST match fingerprint_of(sender_pubkey_hex). tick RUBBER-STAMP — chat-arc description updated to reflect strict-reject enforced. fabric card for check-vacuous-verification. PL-361 — never collapse an exit code you did not inspect. check-unpaired-capture.sh — the lint I proposed upstream, built here. fabric card for check-unpaired-capture
+
+# Key outcomes
+outcomes:
+  - 'New error code `CHANNEL_IDENTITY_MISMATCH = -32014` added in `crates/termlink-protocol/src/control.rs` adjacent to `CHANNEL_TOPIC_UNKNOWN`, with doc comment crediting T-1427'
+  - '`handle_channel_post_with` in `crates/termlink-hub/src/channel.rs` derives `expected_fp = fingerprint_of(&verifying_key)` after parsing the pubkey, and rejects with `CHANNEL_IDENTITY_MISMATCH` if `sender_id != expected_fp`. Error message includes both the claimed sender_id and the expected fp prefix (first 8 chars) so operators can debug.'
+  - 'Unit test: `handle_channel_post_with_rejects_mismatched_sender_id` — posts with sender_id="imposter" but a real key, expects -32014 + readable error message + T-1427 trace'
+  - 'Unit test: `handle_channel_post_with_accepts_matching_sender_id` — posts with sender_id = fingerprint_of(pubkey), expects success (offset returned)'
+  - 'Both new tests pass: `cargo test -p termlink-hub --lib handle_channel_post_with_` — 2 passed, 0 failed; full suite 296 passed'
+  - 'Workspace builds clean: `cargo build --workspace --release` finished in 5m35s with no errors'
+  - 'Live smoke on isolated test hub (port 9199, runtime_dir /tmp/t1427-smoke-rt): legitimate post (sender_id defaulting to identity fp d1993c2c…) → offset=0; forged post (--sender-id imposter) → rejected with `code=-32014 message=sender_id="imposter" does not match identity fingerprint d1993c2c… derived from sender_pubkey_hex (T-1427)`. Side hub torn down + hubs.toml restored.'
+  - '[RUBBER-STAMP] T-1427 strict-reject lands in agent-chat-arc topic description (T-1430 update) — updated 2026-05-01T19:39Z, offset=40. New description reads "Strict identity-reject enforced (T-1427): sender_id must match fingerprint_of(sender_pubkey_hex)." `grep "lands in T-1427"` returns 0.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-08-24.yaml'
+  - '.context/audits/2026-08-25.yaml'
+  - '.context/audits/2026-08-26.yaml'
+  - '.context/audits/cron/2026-05-01-2130.yaml'
+  - '.context/audits/cron/LATEST-CRON.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/audits/go-scope-unpropagated/LATEST.md'
+  - '.context/audits/unclosed-satisfied/LATEST.md'
+  - '.context/audits/upgrades.yaml'
+  - '.context/project/learnings.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.alloc-sink-allowlist'
+  - '.context/working/.budget-gate-counter'
+  - '.context/working/.budget-status'
+  - '.context/working/.busy-spin-allowlist'
+  - '.context/working/.drain-sink-allowlist'
+  - '.context/working/feedback-stream.yaml'
+  - '.context/working/focus.yaml'
+  - '.context/working/.gate-bypass-log.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.loop-detect.json'
+  - '.context/working/.prev-token-reading'
+  - '.context/working/session.yaml'
+  - '.context/working/.silent-exit-allowlist'
+  - '.context/working/.tool-counter'
+  - '.context/working/watchtower.port'
+  - '.context/working/watchtower.url'
+  - 'crates/termlink-hub/src/channel.rs'
+  - 'crates/termlink-protocol/src/control.rs'
+  - '.fabric/components/scripts-check-unpaired-capture.yaml'
+  - '.fabric/components/scripts-check-vacuous-verification.yaml'
+  - 'scripts/check-unpaired-capture.sh'
+  - '.tasks/active/T-1425-agent-to-agent-contact-pattern-post-t-11.md'
+  - '.tasks/active/T-1426-deprecation-print-on-legacy-primitives-i.md'
+  - '.tasks/active/T-1427-termlink-whoami--identity-binding-on-cha.md'
+  - '.tasks/active/T-1438-field-rollout-tracking.md'
+  - '.termlink-task'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-04-30T23:19:43'
+    action: 'T-1426/T-1427 captured + T-1425 synthesis runbook embedded'
+  - time: '2026-05-01T21:39:16'
+    action: 'T-1427: hub-side strict-reject — sender_id MUST match fingerprint_of(sender_pubkey_hex)'
+  - time: '2026-05-01T21:41:44'
+    action: 'T-1427: tick RUBBER-STAMP — chat-arc description updated to reflect strict-reject enforced'
+  - time: '2026-08-26T14:26:28'
+    action: 'T-1427: fabric card for check-vacuous-verification'
+  - time: '2026-08-26T15:10:15'
+    action: 'T-1427: PL-361 — never collapse an exit code you did not inspect'
+  - time: '2026-08-26T16:01:31'
+    action: 'T-1427: check-unpaired-capture.sh — the lint I proposed upstream, built here'
+  - time: '2026-08-26T16:03:43'
+    action: 'T-1427: fabric card for check-unpaired-capture'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 8 commit(s), 170607 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 170607
+  commits: 8
+  files_changed: 45
+  lines_added: 3349
+  lines_removed: 263
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1427-termlink-whoami--identity-binding-on-cha.md
+generated_by: context-agent-hybrid

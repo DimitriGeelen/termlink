@@ -8,16 +8,16 @@ description: >
   today operator must remember the SSH command per profile; tomorrow it is one declared
   field. Captured 2026-04-26 after .122 rotation cascade exposed the chicken-and-egg.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: [auth, fleet, hub, G-011]
-components: []
+components: [crates/termlink-cli/src/cli.rs, crates/termlink-cli/src/commands/infrastructure.rs, crates/termlink-cli/src/commands/remote.rs, crates/termlink-cli/src/config.rs, crates/termlink-cli/src/main.rs, crates/termlink-hub/src/channel.rs, scripts/check-approval-surfaces.sh, scripts/lib/approval_surfaces.py]
 related_tasks: [T-1054, T-1055, T-1284, T-1290, T-1051]
 created: 2026-04-26T11:36:32Z
-last_update: '2026-08-20T15:21:20Z'
-date_finished:
+last_update: 2026-08-27T08:44:14Z
+date_finished: 2026-08-27T08:44:14Z
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:35Z'
     estimator: bvp-estimator-v1-heuristic
@@ -120,3 +120,15 @@ The whole auto-heal arc would not function without this declarative layer. Confi
 ### 2026-04-26T15:25:19Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-559c143a
+- **Timestamp:** 2026-08-27T08:44:49Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-27T08:44:14Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

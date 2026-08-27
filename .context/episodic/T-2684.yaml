@@ -1,0 +1,96 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2684: Single entry point for the source-level guard layer
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-27T09:44:17Z
+# ============================================================================
+
+task_id: T-2684
+task_name: "Single entry point for the source-level guard layer"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-14T05:56:11Z
+completed: 2026-08-27T09:39:01Z
+duration_days: 13
+updates_count: 2
+first_commit: 2026-08-14T08:07:04+02:00
+last_commit: 2026-08-14T08:27:24+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  run-guard-layer.sh — the source-level guard layer had no entry point and nothing executed it. document the guard-layer runner and the canary split-stream idiom in CLAUDE.md
+
+# Key outcomes
+outcomes:
+  - '`scripts/run-guard-layer.sh` exists and is the single command that runs the source-level guard layer'
+  - 'Discovers its members rather than hard-coding them: every `scripts/check-*.sh` known to be a source-level static check, and every `tests/*fixtures*.sh`, so a newly-added guard is picked up without editing the runner'
+  - 'Per-member verdict line (PASS / FAIL / SKIP with reason) plus a roll-up footer naming the counts'
+  - 'Distinguishes exit 1 (a guard fired — real finding) from exit 2 (guard could not run — tooling), mirroring the canary contract the layer already uses; a tooling error never reads as a clean bill'
+  - 'Exit codes: 0 = every member passed, 1 = a member fired, 2 = a member hit a tooling error / the runner could not enumerate members'
+  - '`--json` envelope for scripting: `{ok, members[], summary}` with per-member `{name, kind, rc, verdict}`'
+  - '`--tests` opt-in runs `cargo test --workspace` as an additional member (default OFF so the fast path stays seconds, not minutes)'
+  - '`--list` prints the discovered members without running them, so the layer''s membership is inspectable'
+  - 'Fixture suite `tests/guard-layer-runner-fixtures.sh` proves the runner on synthetic members: all-pass is 0, a firing member is 1, a tooling-error member is 2, fire beats tooling in the roll-up, `--list` enumerates, `--json` is well-formed'
+  - 'Test seams let the fixtures run hermetically without touching the real checks (`GUARD_LAYER_SCRIPTS_DIR`, `GUARD_LAYER_TESTS_DIR`)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'scripts/check-alloc-sink-clamps.sh'
+  - 'scripts/check-busy-spin.sh'
+  - 'scripts/check-charter-sentence-drift.sh'
+  - 'scripts/check-drain-sink-caps.sh'
+  - 'scripts/check-env-var-docs.sh'
+  - 'scripts/check-error-code-docs.sh'
+  - 'scripts/check-preflight-doc-set-drift.sh'
+  - 'scripts/check-silent-exit.sh'
+  - 'scripts/run-guard-layer.sh'
+  - '.tasks/active/T-2684-single-entry-point-for-the-source-level-.md'
+  - 'tests/guard-layer-runner-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-14T08:07:04'
+    action: 'T-2684: run-guard-layer.sh — the source-level guard layer had no entry point and nothing executed it'
+  - time: '2026-08-14T08:27:24'
+    action: 'T-2684: document the guard-layer runner and the canary split-stream idiom in CLAUDE.md'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 18942 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 18942
+  commits: 2
+  files_changed: 12
+  lines_added: 723
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2684-single-entry-point-for-the-source-level-.md
+generated_by: context-agent-hybrid

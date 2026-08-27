@@ -9,16 +9,16 @@ description: >
   zero downtime. Optional follow-on: --rollback-script flag that pre-stages a rollback
   shell on the remote so recovery doesn't depend on termlink remote-exec being available.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: human
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/fleet-deploy-binary.sh]
 related_tasks: []
 created: 2026-04-30T20:05:11Z
-last_update: '2026-08-20T15:21:20Z'
-date_finished:
+last_update: 2026-08-27T08:45:03Z
+date_finished: 2026-08-27T08:45:03Z
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:35Z'
     estimator: bvp-estimator-v1-heuristic
@@ -99,3 +99,15 @@ The PL-100 mitigation contract is honored: probe runs after assembly, before kil
 
 ### 2026-04-30T20:05:18Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-f2e3a69c
+- **Timestamp:** 2026-08-27T08:45:04Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-27T08:45:03Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

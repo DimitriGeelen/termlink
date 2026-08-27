@@ -1,0 +1,122 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1294: Migrate ring20-management hub runtime_dir from /tmp/termlink-0 to /var/lib/termlink (T-1290 GO)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-27T08:45:02Z
+# ============================================================================
+
+task_id: T-1294
+task_name: "Migrate ring20-management hub runtime_dir from /tmp/termlink-0 to /var/lib/termlink (T-1290 GO)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-04-26T12:04:17Z
+completed: 2026-08-27T08:44:55Z
+duration_days: 123
+updates_count: 9
+first_commit: 2026-04-26T14:05:15+02:00
+last_commit: 2026-05-31T23:19:03+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Build task for T-1290 GO — migrate ring20-management runtime_dir. AC 1 verification done — hypothesis confirmed (systemd-tmpfiles, not tmpfs); revised AC 2 plan. AC 2 migration applied — hub now on /var/lib/termlink/, secret preserved. AC 4 done — fleet doctor green after heal. Capture PL-085 — systemd-tmpfiles D /tmp blindspot for PL-021. Capture PL-086 — fabric drift recurrence pattern (audit-trend). Update PL-021 — cross-reference PL-085 + widened cause coverage. Capture PL-087 — cross-project task convergence pattern. T-012: tick Human ACs on T-1294 (1/2/4) and T-243 based on captured evidence. T-1294 + T-1137: tick T-1294 AC 3 (persistence verified) + T-1137 AC 2/AC 3 re-check evidence. live re-verification — runtime_dir=/var/lib/termlink confirmed at HEAD on .122; ready to close. closure-ready — all 4 ACs ticked, fresh re-smoke confirms steady state
+
+# Key outcomes
+outcomes:
+  - '[REVIEW] Spike 1 verification — confirm runtime_dir cause on CT 200'
+  - '[RUBBER-STAMP] Apply migration: edit watchdog launcher + persistent runtime_dir'
+  - '[RUBBER-STAMP] Verify persistence across CT reboot (ground truth, NOT just hub restart)'
+  - '[RUBBER-STAMP] Re-pin from one client and confirm fleet doctor green'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/cron/LATEST-CRON.yaml'
+  - '.context/handovers/LATEST.md'
+  - '.context/project/learnings.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-gate-counter'
+  - '.context/working/.budget-status'
+  - '.context/working/.compact-log'
+  - '.context/working/.fleet-failure-state.json'
+  - '.context/working/focus.yaml'
+  - '.context/working/.last-episodic-gen.log'
+  - '.context/working/.prev-token-reading'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-start-ts'
+  - '.context/working/.session-turn-offset'
+  - '.context/working/.stop-counter'
+  - '.context/working/stop-guard.log'
+  - '.context/working/.stop-next-nudge-at'
+  - '.context/working/subagent-returns.jsonl'
+  - '.context/working/.tool-counter'
+  - '.tasks/active/T-1137-install-logrotate-on-proxmox-host-180--p.md'
+  - '.tasks/active/T-1294-migrate-ring20-management-hub-runtimedir.md'
+  - '.tasks/active/T-243-script-error-yielding--checkpoint-based-.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-04-26T14:05:15'
+    action: 'T-1294: Build task for T-1290 GO — migrate ring20-management runtime_dir'
+  - time: '2026-04-26T16:02:03'
+    action: 'T-1294: AC 1 verification done — hypothesis confirmed (systemd-tmpfiles, not tmpfs); revised AC 2 plan'
+  - time: '2026-04-26T16:20:57'
+    action: 'T-1294: AC 2 migration applied — hub now on /var/lib/termlink/, secret preserved'
+  - time: '2026-04-26T16:26:05'
+    action: 'T-1294: AC 4 done — fleet doctor green after heal'
+  - time: '2026-04-26T16:42:11'
+    action: 'T-1294: Capture PL-085 — systemd-tmpfiles D /tmp blindspot for PL-021'
+  - time: '2026-04-26T16:50:01'
+    action: 'T-1294: Capture PL-086 — fabric drift recurrence pattern (audit-trend)'
+  - time: '2026-04-26T16:55:57'
+    action: 'T-1294: Update PL-021 — cross-reference PL-085 + widened cause coverage'
+  - time: '2026-04-26T16:56:58'
+    action: 'T-1294: Capture PL-087 — cross-project task convergence pattern'
+  - time: '2026-04-26T19:26:44'
+    action: 'T-012: tick Human ACs on T-1294 (1/2/4) and T-243 based on captured evidence'
+  - time: '2026-04-28T10:37:39'
+    action: 'T-1294 + T-1137: tick T-1294 AC 3 (persistence verified) + T-1137 AC 2/AC 3 re-check evidence'
+  - time: '2026-05-13T08:06:52'
+    action: 'T-1294: live re-verification — runtime_dir=/var/lib/termlink confirmed at HEAD on .122; ready to close'
+  - time: '2026-05-31T23:19:03'
+    action: 'T-1294: closure-ready — all 4 ACs ticked, fresh re-smoke confirms steady state'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 12 commit(s), 176920 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: [auth, infrastructure, ring20-management, G-011, runtime_dir]
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 176920
+  commits: 12
+  files_changed: 24
+  lines_added: 325
+  lines_removed: 73
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1294-migrate-ring20-management-hub-runtimedir.md
+generated_by: context-agent-hybrid

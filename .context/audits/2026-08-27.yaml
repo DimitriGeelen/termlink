@@ -1,9 +1,9 @@
-# Audit Results - 2026-08-26-2357
-timestamp: 2026-08-26T21:57:35Z
+# Audit Results - 2026-08-27-1116
+timestamp: 2026-08-27T09:16:18Z
 sections: "structure"
 summary:
-  pass: 35
-  warn: 11
+  pass: 36
+  warn: 10
   fail: 0
 findings:
   - level: PASS
@@ -41,18 +41,17 @@ findings:
     check: "No stale-slice-references (L-417) — NOT EVALUATED: candidate set empty (0 file(s) under web/templates web/blueprints lib)"
     mitigation: "The scan walked no files — the L-417 rail asserted nothing this run"
   - level: WARN
-    check: "Found 76 GO-scope-not-propagated inception(s) of 156 GO-recorded completed inception(s) examined — GO recorded, related_tasks empty, nobody back-references, no unlocks_inception_decision"
+    check: "Found 76 GO-scope-not-propagated inception(s) of 157 GO-recorded completed inception(s) examined — GO recorded, related_tasks empty, nobody back-references, no unlocks_inception_decision"
     mitigation: "Triage: per inception either backfill related_tasks: / unlocks_inception_decision:, or file the slices its GO approved. Full list: cat /opt/termlink/.context/audits/go-scope-unpropagated/LATEST.md (origin: T-2078, T-2091, T-3099; sibling to L-417/T-1975)"
   - level: PASS
-    check: "Fabric: 397 registered card(s)"
+    check: "Fabric: 423 registered card(s)"
   - level: WARN
-    check: "Fabric: 234/385 cards have no edges"
+    check: "Fabric: 290/453 cards have no edges"
     mitigation: "Run: fw fabric enrich"
+  - level: PASS
+    check: "Fabric drift: all watched files registered — examined 414 watched file(s)"
   - level: WARN
-    check: "Fabric drift: 24 source file(s) have no fabric card"
-    mitigation: "Run: fw fabric scan"
-  - level: WARN
-    check: "Fabric: 1 card(s) point at files no watch pattern covers"
+    check: "Fabric: 9 card(s) point at files no watch pattern covers"
     mitigation: "Widen .fabric/watch-patterns.yaml, or remove the cards if they are not components"
   - level: PASS
     check: "Cron registry in sync with /etc/cron.d/agentic-audit-termlink"

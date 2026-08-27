@@ -5,20 +5,20 @@ description: >
   Direct invocation of revisit-due-scan.sh mis-resolves PROJECT_ROOT in vendored mode
   and reports success
 
-status: started-work
+status: work-completed
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
-components: []
+components: [scripts/canary-status.sh, scripts/check-unpaired-capture.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-14T18:42:09Z
-last_update: '2026-08-23T19:13:47Z'
-date_finished:
+last_update: 2026-08-27T10:05:46Z
+date_finished: 2026-08-27T10:05:46Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -312,3 +312,15 @@ durable guard is widening the existing T-2648 `PROJECT_ROOT` audit check to cove
 ### 2026-08-15T06:31:29Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
 - **Change:** horizon: next → now (auto-sync)
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-3aeb7b0c
+- **Timestamp:** 2026-08-27T10:05:50Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-27T10:05:46Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

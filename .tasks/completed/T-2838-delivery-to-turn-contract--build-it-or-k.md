@@ -4,16 +4,16 @@ name: "Delivery-to-turn contract — build it or keep nudging (G-083)"
 description: >
   Inception: Delivery-to-turn contract — build it or keep nudging (G-083)
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: [comms, substrate, g-083, delivery]
-components: []
+components: [crates/termlink-cli/src/commands/channel.rs, crates/termlink-cli/src/commands/execution.rs, crates/termlink-session/src/assignment.rs, crates/termlink-session/src/lib.rs, scripts/check-installed-binary-drift.sh, scripts/check-receiver-ack-lag.sh]
 related_tasks: [T-2468, T-2482, T-2485, T-2388, T-2394, T-2395, T-2413, T-2414, T-2416, T-2479, T-1800, T-1249, T-2700]
 created: 2026-08-24T22:35:59Z
-last_update: 2026-08-24T22:39:19Z
-date_finished: null
+last_update: 2026-08-27T08:56:41Z
+date_finished: 2026-08-27T08:56:41Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -233,3 +233,32 @@ Rationale:
 GO. G-083 (severity high, status watching) has been diagnosed since 2026-07-10 with the root cause named — PTY keystroke injection lands unsubmitted in a busy/manual session and is discarded on --continue, while listener-heartbeat.sh proves a background script alive rather than the session listening, so LIVE != listening by construction. The concern records the fix as "not yet built — pending operator". Everything built since is DETECTION (woken-but-silent canary, wake-confirm.sh, woken-silent-triage.sh, comms-selftest.sh, diagnose-unconsumed.sh, plus G-085 to un-stick the canary), never a delivery contract. Operator reports the symptom persists ("interactive communication is still flaky at best"). Detection is saturated; the mechanism is the remaining gap, and it blocks the stated product goal of interactive agent<->agent and operator<->agent exchange.
 
 Evidence:
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-b20467b3
+- **Timestamp:** 2026-08-27T08:56:42Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 3
+
+**Verification-level findings:**
+
+  1. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-1
+     - evidence: `IW-1 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  2. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-3
+     - evidence: `IW-3 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+  3. **disposition-incomplete** (partial, heuristic) @ ## Open Questions: IW-5
+     - evidence: `IW-5 disposition='answered' but rationale has no evidence citation (T-NNNN, file:line, docs/reports/, G-/L-/D-id, dialogue-log, or commit hash)`
+
+## Recommendation Verdict (v1.0)
+
+- **Scan ID:** RC-1cbbf4ec
+- **Timestamp:** 2026-08-27T08:56:42Z
+- **Overall:** UNVERIFIED
+- **Claims:** 0
+- No verifiable claims found in ## Recommendation
+
+### 2026-08-27T08:56:41Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

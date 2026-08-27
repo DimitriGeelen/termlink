@@ -1,0 +1,92 @@
+# ============================================================================
+# EPISODIC MEMORY - T-1431: /agent-handoff claude-code skill — wraps T-1429 verb (T-1425 pick #5)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-27T08:55:43Z
+# ============================================================================
+
+task_id: T-1431
+task_name: "/agent-handoff claude-code skill — wraps T-1429 verb (T-1425 pick #5)"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-05-01T07:02:51Z
+completed: 2026-08-27T08:55:37Z
+duration_days: 118
+updates_count: 6
+first_commit: 2026-05-01T13:57:33+02:00
+last_commit: 2026-05-31T23:19:49+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  ship /agent-handoff Claude Code skill — wraps termlink agent contact. 2026-05-30 re-smoke evidence — operator rubber-stamp ready. tick RUBBER-STAMP Human AC (Tier-2 logged, fresh 1-day-old delivered-offset evidence). closure-ready — zero unticked ACs, skill live in CLAUDE.md
+
+# Key outcomes
+outcomes:
+  - 'T-1429 (`agent contact` verb) has shipped — Phase-1 in commit a5fb0ad4 (2026-05-01); skill wraps the shipped verb (Phase-2 flags `--ack-required`/`--require-online`/`--file`/`--thread` deferred per T-1429 in-task decision; skill embeds task-id as `[T-XXX]` body prefix instead of `--thread`)'
+  - 'T-1427 (whoami) — `termlink whoami` already exists with `--name`/`--session`/`--json` (T-1299/T-1297). Strict hub-side validation is the deferred half of T-1427 and is NOT required by the skill; skill calls `whoami` for log visibility only, not for enforcement'
+  - 'Skill file exists at `.claude/commands/agent-handoff.md` — matches existing convention (capture.md, resume.md, self-test.md all live in `.claude/commands/`, not `.claude/skills/`). Argument hint documented in body header (Claude Code commands don''t use frontmatter for arg-hints)'
+  - 'Skill body executes the canonical sequence: (1) verify task exists in `.tasks/active/`; (2) `termlink whoami --json` capture self sender_id; (3) `termlink agent contact <target> --message "[<task-id>] <msg>" --json`; (4) parse `delivered.offset`; (5) append handoff Update entry; (6) print 4-line summary'
+  - 'Skill fails fast — every step has an explicit "stop and exit non-zero" branch. No silent fallbacks, no degraded paths, no alternative topic substitution'
+  - 'CLAUDE.md gained exactly ONE line under Quick Reference: `**Cross-host handoff** | **/agent-handoff <target> <task-id> "<msg>"** | Skill wrapping termlink agent contact ...`. No prose elsewhere'
+  - 'Skill is invocable via `/agent-handoff` slash command and listed in the available-skills surface (verified via system-reminder skill list: `agent-handoff: /agent-handoff - Cross-Host Agent Contact (T-1429 wrapper)`)'
+  - 'Skill Rules section explicitly disallows: `remote push`, `inbox.push`, `event.broadcast --target`, `agent.reply` topic, improvising sender labels via `--metadata-from`, fan-out in single invocation, retrying on failure without surfacing'
+  - 'Smoke test executed live 2026-05-01T11:55Z: registered `handoff-smoke-peer` (id tl-hkr54f2e, identity_fingerprint d1993c2c3ec44c94 visible in sidecar). Ran `termlink agent contact handoff-smoke-peer --message "[T-1431] smoke test from agent-handoff skill — verifying end-to-end flow" --json`. Returned `{"delivered":{"offset":4,"ts":1777636506829}}`. Topic `dm:d1993c2c3ec44c94:d1993c2c3ec44c94` created. End-to-end verified — see Updates entry below'
+  - '[RUBBER-STAMP] Verify the skill works end-to-end from a real session'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/commands/agent-handoff.md'
+  - 'CLAUDE.md'
+  - '.context/working/.gate-bypass-log.yaml'
+  - '.tasks/active/T-1431-agent-handoff-claude-code-skill--wraps-t.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-05-01T13:57:33'
+    action: 'T-1431: ship /agent-handoff Claude Code skill — wraps termlink agent contact'
+  - time: '2026-05-30T16:17:30'
+    action: 'T-1431: 2026-05-30 re-smoke evidence — operator rubber-stamp ready'
+  - time: '2026-05-31T17:29:13'
+    action: 'T-1431: tick RUBBER-STAMP Human AC (Tier-2 logged, fresh 1-day-old delivered-offset evidence)'
+  - time: '2026-05-31T23:19:49'
+    action: 'T-1431: closure-ready — zero unticked ACs, skill live in CLAUDE.md'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 170032 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 170032
+  commits: 4
+  files_changed: 4
+  lines_added: 214
+  lines_removed: 22
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-1431-agent-handoff-claude-code-skill--wraps-t.md
+generated_by: context-agent-hybrid

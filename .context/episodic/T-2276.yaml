@@ -1,0 +1,96 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2276: auto-reconnect MCP via PTY-inject after binary upgrade
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-27T08:56:32Z
+# ============================================================================
+
+task_id: T-2276
+task_name: "auto-reconnect MCP via PTY-inject after binary upgrade"
+workflow_type: inception
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-06-24T11:39:09Z
+completed: 2026-08-27T08:56:26Z
+duration_days: 64
+updates_count: 4
+first_commit: 2026-06-24T13:44:29+02:00
+last_commit: 2026-07-04T11:14:07+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  inception NO-GO — PTY-inject /mcp reconnect not viable; pivot to claude-fw auto-restart. decision-ready — rec aligned to evidence (DEFER->NO-GO on PTY-inject reconnect; /mcp non-scriptable, inject unreachable, pivot = T-179 restart-requested hook)
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Review exploration findings and approve go/no-go decision'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/audits/2026-06-24.yaml'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-gate-counter'
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/.prev-token-reading'
+  - '.context/working/.session-metrics.yaml'
+  - '.context/working/.session-turn-offset'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'docs/reports/T-2276-mcp-autoreconnect-pty-inject.md'
+  - '.tasks/active/T-1452-revisit-due-scansh-cron--handover-banner.md'
+  - '.tasks/active/T-2273-agent-sendsh---to-uses-fleet-presence--i.md'
+  - '.tasks/active/T-2276-auto-reconnect-mcp-via-pty-inject-after-.md'
+  - '.termlink-task'
+  - 'VERSION'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-06-24T13:44:29'
+    action: 'T-2276: inception NO-GO — PTY-inject /mcp reconnect not viable; pivot to claude-fw auto-restart'
+  - time: '2026-07-04T11:14:07'
+    action: 'T-2276: decision-ready — rec aligned to evidence (DEFER->NO-GO on PTY-inject reconnect; /mcp non-scriptable, inject unreachable, pivot = T-179 restart-requested hook)'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 91997 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 91997
+  commits: 2
+  files_changed: 18
+  lines_added: 416
+  lines_removed: 122
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2276-auto-reconnect-mcp-via-pty-inject-after-.md
+generated_by: context-agent-hybrid

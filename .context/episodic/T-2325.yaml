@@ -1,0 +1,98 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2325: arc-004 S3 live E2E — dm-rail push-wake (blocked on hub restart)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-27T08:56:39Z
+# ============================================================================
+
+task_id: T-2325
+task_name: "arc-004 S3 live E2E — dm-rail push-wake (blocked on hub restart)"
+workflow_type: test
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-07-03T07:26:49Z
+completed: 2026-08-27T08:56:33Z
+duration_days: 55
+updates_count: 2
+first_commit: 2026-07-03T09:27:33+02:00
+last_commit: 2026-07-03T10:25:38+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  capture arc-004 S3 live-E2E task — blocked on operator hub restart (running hub predates S1 dm.queued emit). S3 live E2E PASSED — non-live dm post rings PTY via dm.queued (all 4 agent ACs met, evidence recorded). fabric enrich — +28 edges (14 fwd/14 rev) across cli/session/hub/protocol/bus. capture PL-237 — push-wake requires bound pty_session (dormant on headless sessions); poll floor is the fallback
+
+# Key outcomes
+outcomes:
+  - 'Running hub confirmed on a binary >= S1: `grep -a -c dm.queued'
+  - 'With a live `/be-reachable` session (PTY doorbell bound, dm rail active —'
+  - 'The inbox rail still works unchanged in the same session (no regression):'
+  - 'Double-wake safety observed: a DM that ALSO deposits to `inbox:<id>` rings'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/project/learnings.yaml'
+  - '.fabric/components/crates-termlink-bus-src-claim.yaml'
+  - '.fabric/components/crates-termlink-bus-src-lib.yaml'
+  - '.fabric/components/crates-termlink-cli-src-commands-agent_find_idle.yaml'
+  - '.fabric/components/crates-termlink-cli-src-commands-help.yaml'
+  - '.fabric/components/crates-termlink-cli-src-commands-mod.yaml'
+  - '.fabric/components/crates-termlink-cli-src-commands-substrate.yaml'
+  - '.fabric/components/crates-termlink-hub-src-cv_index.yaml'
+  - '.fabric/components/crates-termlink-hub-src-dedupe.yaml'
+  - '.fabric/components/crates-termlink-hub-src-governor.yaml'
+  - '.fabric/components/crates-termlink-hub-src-lib.yaml'
+  - '.fabric/components/crates-termlink-protocol-src-lib.yaml'
+  - '.fabric/components/crates-termlink-session-src-ack_retry.yaml'
+  - '.fabric/components/crates-termlink-session-src-claim_client.yaml'
+  - '.fabric/components/crates-termlink-session-src-lib.yaml'
+  - '.tasks/active/T-2325-arc-004-s3-live-e2e--dm-rail-push-wake-b.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-07-03T09:27:33'
+    action: 'T-2325: capture arc-004 S3 live-E2E task — blocked on operator hub restart (running hub predates S1 dm.queued emit)'
+  - time: '2026-07-03T09:50:18'
+    action: 'T-2325: S3 live E2E PASSED — non-live dm post rings PTY via dm.queued (all 4 agent ACs met, evidence recorded)'
+  - time: '2026-07-03T09:55:08'
+    action: 'T-2325: fabric enrich — +28 edges (14 fwd/14 rev) across cli/session/hub/protocol/bus'
+  - time: '2026-07-03T10:25:38'
+    action: 'T-2325: capture PL-237 — push-wake requires bound pty_session (dormant on headless sessions); poll floor is the fallback'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 4 commit(s), 79289 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 79289
+  commits: 4
+  files_changed: 16
+  lines_added: 336
+  lines_removed: 108
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2325-arc-004-s3-live-e2e--dm-rail-push-wake-b.md
+generated_by: context-agent-hybrid
