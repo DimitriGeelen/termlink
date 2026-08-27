@@ -9478,3 +9478,21 @@ scan_id: R-3aeb7b0c
 task_id: T-2711
 payload:
   task_file: .tasks/active/T-2711-revisit-due-scansh-exits-0-when-it-canno.md
+---
+kind: scan_emitted
+timestamp: '2026-08-27T12:52:17Z'
+scan_id: R-2c6efdac
+task_id: T-2824
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-27T12:52:17Z'
+scan_id: R-2c6efdac
+task_id: T-2824
+payload:
+  task_file: .tasks/active/T-2824-cargo-test---workspace-has-been-red-for-.md
