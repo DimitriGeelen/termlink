@@ -1116,3 +1116,10 @@ decisions:
   date: 2026-08-27
   task: T-2824
   rationale: "Auto-captured from task file on completion"
+
+  - id: PD-001
+    decision: "Rewrite the Agent ACs to the verification this task's own Context says is all that remains, and replace the moot Human AC, rather than performing the cleanup the original ACs asked for."
+    scope: project
+    date: 2026-08-27
+    task: T-2706
+    rationale: "Auto-captured from task file on completion"

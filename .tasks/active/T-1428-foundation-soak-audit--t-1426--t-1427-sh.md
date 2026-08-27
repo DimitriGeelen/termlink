@@ -17,7 +17,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-04-30T21:21:07Z
-last_update: '2026-08-20T15:21:21Z'
+last_update: '2026-08-27T21:13:20Z'
 date_finished:
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:35Z'
@@ -42,6 +42,15 @@ cost_estimate_proposed:
       effort: 8
     rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
       (no-signal)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-08-27T21:13:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=8 (lines=327,acs=7)
     rubric_sha: e4a00f38e801
 ---
 
@@ -77,7 +86,7 @@ Foundation-soak audit fires on 2026-05-14, 14 days after T-1425 RFC post (2026-0
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # Run these on audit day (2026-05-14) — they are the mechanical floor for AC1, AC3, AC5.
-termlink fleet status 2>&1 | grep -qE 'UP[[:space:]]+(workstation-107|local-test|laptop-141|ring20-management|ring20-dashboard)'
+termlink fleet status > /tmp/.t1428-fleet.out 2>&1 && sed 's/\x1b\[[0-9;]*m//g' /tmp/.t1428-fleet.out > /tmp/.t1428-plain.out && grep -qE '^[[:space:]]*UP[[:space:]]+(workstation-107|local-test|laptop-141|ring20-management|ring20-dashboard)' /tmp/.t1428-plain.out
 termlink channel info agent-chat-arc 2>&1 | grep -qE 'Posts:[[:space:]]+[0-9]+'
 
 ## Decisions
@@ -105,6 +114,11 @@ termlink channel info agent-chat-arc 2>&1 | grep -qE 'Posts:[[:space:]]+[0-9]+'
   - `.141 binary upgrade follow-up` — separate task, not gated to the cut (.141 still on 0.9.1591 vs fleet's 0.9.1657+; will surface as a CUT-READY-WITH-HOST-LAG signal during T-1166 execution)
   - Watchtower /legacy-usage panel should be observed for 24h post-cut to catch any latent caller
 - **Authority:** operator authorized via "1 then 2" sequenced approval 2026-05-15 (T-1638 force-downgrade + T-1428 verdict)
+
+### 2026-08-27 — Verification line was defective, not the work
+- **Chose:** Rewrite the fleet-status verification line (ANSI-strip + file-redirect form) rather than `--force` past the gate.
+- **Why:** `termlink fleet status` emits ANSI colour codes, so the rendered text is `\x1b[32mUP\x1b[0m    local-test`. The original regex `UP[[:space:]]+<hub>` can never match — `UP` is followed by an escape sequence, not whitespace. The fleet is genuinely 4-up (verified by reading the raw output), so the assertion was true and the line was wrong. Also moved to the `cmd > file && grep -q file` form per L-387, since the original `| grep -q` shape can exit 141 on success under `set -eo pipefail`.
+- **Rejected:** `--force` — that bypasses the gate rather than fixing a line that would have kept failing for every future reader.
 
 ## Updates
 

@@ -16,7 +16,7 @@ workflow_type: build
 horizon: now
 owner: human
 created: 2026-08-20
-last_update: 2026-08-22T10:16:52Z
+last_update: '2026-08-27T21:13:21Z'
 tags: [governance, gitignore, vendoring, clean-clone, bvp]
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:38Z'
@@ -40,6 +40,15 @@ cost_estimate_proposed:
       effort: 8
     rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
       (no-signal)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-08-27T21:13:21Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=8 (lines=165,acs=10)
     rubric_sha: e4a00f38e801
 ---
 

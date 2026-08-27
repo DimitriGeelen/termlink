@@ -13,7 +13,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-05-16T06:53:33Z
-last_update: '2026-08-20T15:21:21Z'
+last_update: '2026-08-27T21:13:20Z'
 date_finished:
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:36Z'
@@ -37,6 +37,15 @@ cost_estimate_proposed:
       effort: 6
     rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=6 
       (no-signal)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-08-27T21:13:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 6
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=6 (lines=104,acs=4)
     rubric_sha: e4a00f38e801
 ---
 

@@ -16,7 +16,7 @@ tags: [framework, governance, T-1449, phase-1, channel-1-mirror]
 components: []
 related_tasks: [T-1449, T-1428]
 created: 2026-05-02T22:21:29Z
-last_update: '2026-08-20T15:21:21Z'
+last_update: '2026-08-27T21:13:20Z'
 date_finished:
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:35Z'
@@ -41,6 +41,15 @@ cost_estimate_proposed:
       effort: 7
     rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=7 
       (no-signal)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-08-27T21:13:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 7
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=7 (lines=70,acs=6)
     rubric_sha: e4a00f38e801
 ---
 
@@ -83,7 +92,7 @@ test -x .agentic-framework/agents/task-create/tests/revisit-at-preservation-test
 .agentic-framework/agents/task-create/tests/revisit-at-preservation-test.sh
 # Channel-1 mirror verification (G-002 fast-exit) — assert commit landed on upstream master
 # (clone at /tmp/aef-channel1 may not persist; ls-remote is the canonical check)
-git ls-remote https://onedev.docker.ring20.geelenandcompany.com/agentic-engineering-framework master 2>/dev/null | grep -q aaf7f69b
+d=$(mktemp -d) && git init -q "$d/p" && git -C "$d/p" fetch -q --depth=1 https://onedev.docker.ring20.geelenandcompany.com/agentic-engineering-framework master && git -C "$d/p" show FETCH_HEAD:.tasks/templates/default.md > "$d/up.md" 2>/dev/null && grep -q "revisit_at" "$d/up.md" && rm -rf "$d"
 
 ## Decisions
 
@@ -95,6 +104,11 @@ git ls-remote https://onedev.docker.ring20.geelenandcompany.com/agentic-engineer
      - **Why:** [rationale]
      - **Rejected:** [alternatives and why not]
 -->
+
+### 2026-08-27 — Verification asserted tip identity, not the property it cared about
+- **Chose:** Rewrite the upstream-mirror verification to assert the patch CONTENT is present on upstream master, rather than that master's tip SHA equals `aaf7f69b`.
+- **Why:** `git ls-remote <url> master` returns only the current tip. Upstream master has since advanced to `35aaaaed`, so the line failed even though the claim holds. Verified by full-depth fetch (8678 commits): `aaf7f69b` EXISTS and IS an ancestor of the tip, and upstream's `.tasks/templates/default.md` carries the `revisit_at` hint. The AC's substance ("patch pushed upstream") was true; the line tested a property that decays the moment any third party pushes.
+- **Rejected:** Pinning a newer SHA — it would decay identically on the next upstream push. Rejected `--force` — the claim was verifiable, so bypassing would have discarded real evidence.
 
 ## Updates
 

@@ -21,7 +21,7 @@ tags: [auth, infrastructure, ring20-dashboard, G-011, runtime_dir,
 components: []
 related_tasks: [T-1294, T-1290, T-1291, T-935]
 created: 2026-04-26T14:27:17Z
-last_update: '2026-08-20T15:21:20Z'
+last_update: '2026-08-27T21:13:20Z'
 date_finished:
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:35Z'
@@ -36,6 +36,19 @@ bvp_scores_proposed:
     rationale: D1=2 (body:concern-ref); D2=0 (no-signal); D3=0 (no-signal); D4=0
       (no-signal); F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-08-27T21:12:51Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 2
+      D3: 0
+      D4: 0
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=2 
+      (body:telemetry-or-audit-entry); D3=0 (no-signal); D4=0 (no-signal); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-08-20T15:21:20Z'
     estimator: bvp-estimator-v1-heuristic
@@ -45,6 +58,15 @@ cost_estimate_proposed:
       effort: 7
     rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=7 
       (no-signal)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-08-27T21:13:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=8 (lines=216,acs=4)
     rubric_sha: e4a00f38e801
 ---
 

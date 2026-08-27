@@ -18,7 +18,7 @@ tags: [T-1166, runtime-dir, regression, G-009]
 components: []
 related_tasks: [T-1166, T-1310, T-1290, T-1294]
 created: 2026-05-12T21:55:22Z
-last_update: '2026-08-20T15:21:21Z'
+last_update: '2026-08-27T21:13:20Z'
 date_finished:
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:36Z'
@@ -34,6 +34,20 @@ bvp_scores_proposed:
       D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
       (no-signal)
     rubric_sha: e4a00f38e801
+  - ts: '2026-08-27T21:12:52Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 2
+      D3: 0
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=2 
+      (body:telemetry-or-audit-entry); D3=0 (no-signal); D4=3 
+      (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-08-20T15:21:21Z'
     estimator: bvp-estimator-v1-heuristic
@@ -43,6 +57,15 @@ cost_estimate_proposed:
       effort: 8
     rationale: blast_radius=0 (no-signal); tier=2 (no-signal); effort=8 
       (no-signal)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-08-27T21:13:20Z'
+    estimator: bvp-estimator-v1-heuristic
+    cost_estimate:
+      blast_radius:
+      tier: 2
+      effort: 8
+    rationale: blast_radius=? (no-components-UNMEASURED-not-zero); tier=2 
+      (workflow:build); effort=8 (lines=231,acs=8)
     rubric_sha: e4a00f38e801
 ---
 

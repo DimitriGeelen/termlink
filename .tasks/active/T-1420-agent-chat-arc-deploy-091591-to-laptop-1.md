@@ -25,7 +25,7 @@ tags: [agent-chat-arc, T-1384, T-1385, channel, multi-agent, fleet-rollout,
 components: [target/release/termlink]
 related_tasks: [T-1384, T-1385, T-1386, T-1387, T-1418]
 created: 2026-04-30T09:09:16Z
-last_update: '2026-08-20T15:21:20Z'
+last_update: '2026-08-27T21:12:51Z'
 date_finished:
 bvp_scores_proposed:
   - ts: '2026-08-20T15:20:35Z'
@@ -40,6 +40,19 @@ bvp_scores_proposed:
     rationale: D1=1 (body:fix-without-learning); D2=0 (no-signal); D3=0 
       (no-signal); D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); 
       F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
+  - ts: '2026-08-27T21:12:51Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 0
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=0 (no-signal); 
+      D4=2 (body:env-class-handled); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
     rubric_sha: e4a00f38e801
 cost_estimate_proposed:
   - ts: '2026-08-20T15:21:20Z'
