@@ -1,0 +1,29 @@
+# T-2840, 2026-08-27 — disposition record for the P-043 (T-2018) envelope.
+#
+# This envelope was STRANDED in .context/pickup/auto-deferred/ for 80 days with no
+# breadcrumb, so `fw pickup promote-deferred` could never promote it (T-2801 class).
+# It is moved here because its CONTENTS WERE ACTED ON, not because it was tidied away.
+#
+# Note the filename: .context/pickup/processed/P-043-bug-report.yaml already exists
+# and is a DIFFERENT envelope (source task T-2155, 2026-06-11, 4023 bytes). Two
+# distinct envelopes share the id P-043. Do not merge them.
+disposition: acted-on
+acted_on_at: "2026-08-27"
+by_task: T-2840
+upstream_filings:
+  - topic: framework:pickup
+    offset: 57
+    what: "BUG 1 (disposition-gate vocabulary mismatch) filed from this envelope"
+  - topic: framework:pickup
+    offset: 58
+    what: "CORRECTION — retracted the claimed live reproduction on T-2828"
+  - topic: framework:pickup
+    offset: 59
+    what: "FOLLOW-UP — measured gate:874 and template inception.md:46 instruct the SAME
+            three words, so the vocabulary mismatch does not reproduce; recommended
+            upstream close as NOT-REPRODUCIBLE. 13 legacy out-of-vocab uses remain a
+            local data-cleanup item."
+bug_2_status: "independently re-discovered and re-fixed locally as T-2304"
+still_open_upstream: "the breadcrumb hole in vendored lib/pickup.sh (G-062) — this
+  envelope is the worked example of its cost: a report whose central claim was wrong
+  and which nobody could correct for 80 days because nothing surfaced it."

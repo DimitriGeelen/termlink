@@ -75,7 +75,7 @@ cost_estimate_proposed:
 ## Verification
 
 cargo build --release -p termlink 2>&1 | tail -3
-out=$(cargo test --release -p termlink deprecation 2>&1); echo "$out" | grep -q "test result: ok. 2 passed"
+out=$(cargo test --release -p termlink deprecation 2>&1); echo "$out" | grep -q "test result: ok. 2 passed" && ! echo "$out" | grep -q "test result: FAILED"
 # The CLI probes below deliberately target a bogus host / nonexistent path: the OPERATION
 # is expected to fail. What is being asserted is that the DEPRECATED warning printed on
 # the way out. So the command's own non-zero exit is tolerated and only the grep gates.

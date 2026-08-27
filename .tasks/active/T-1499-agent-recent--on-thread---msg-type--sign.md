@@ -65,7 +65,7 @@ cargo build --release -p termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finishe
 cargo test --release -p termlink --lib commands::channel::tests::recent_posts 2>&1 | tail -3 | grep -qE "test result: ok"
 target/release/termlink agent recent --help 2>&1 | grep -q -- "--msg-type"
 target/release/termlink agent on-thread --help 2>&1 | grep -q -- "--msg-type"
-out=$(target/release/termlink agent recent --target-fp d1993c2c3ec44c94 --window-secs 86400 --msg-type note --n 5 2>&1); echo "$out" | grep -qE "msg_type=note|no posts found"
+target/release/termlink agent recent --target-fp d1993c2c3ec44c94 --window-secs 86400 --msg-type note --n 5 > /tmp/.t1499.out 2>&1 && grep -qE "msg_type=note|no posts found" /tmp/.t1499.out
 
 ## RCA
 

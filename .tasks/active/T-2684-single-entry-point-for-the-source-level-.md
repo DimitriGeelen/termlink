@@ -144,8 +144,8 @@ cost_estimate_proposed:
 
 bash tests/guard-layer-runner-fixtures.sh
 bash scripts/run-guard-layer.sh --quiet
-out=$(bash scripts/run-guard-layer.sh --list); echo "$out" | grep -q "check-alloc-sink-clamps.sh"
-out=$(bash scripts/run-guard-layer.sh --list); echo "$out" | grep -q "silent-exit-check-fixtures.sh"
+bash scripts/run-guard-layer.sh --list > /tmp/.t2684-list.out 2>&1 && grep -q "check-alloc-sink-clamps.sh" /tmp/.t2684-list.out
+bash scripts/run-guard-layer.sh --list > /tmp/.t2684-list.out 2>&1 && grep -q "silent-exit-check-fixtures.sh" /tmp/.t2684-list.out
 out=$(bash scripts/run-guard-layer.sh --json); echo "$out" | jq -e '.summary.total >= 19'
 
 ## RCA

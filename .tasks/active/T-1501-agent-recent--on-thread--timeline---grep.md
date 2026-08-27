@@ -57,7 +57,7 @@ cargo test --release --bin termlink commands::channel::tests::recent_posts 2>&1 
 target/release/termlink agent recent --help 2>&1 | grep -q -- "--grep"
 target/release/termlink agent on-thread --help 2>&1 | grep -q -- "--grep"
 target/release/termlink agent timeline --help 2>&1 | grep -q -- "--grep"
-out=$(target/release/termlink agent timeline --window-secs 86400 --n 50 --grep T-1438 --json 2>&1); echo "$out" | grep -qE '"filter_grep":"T-1438"'
+target/release/termlink agent timeline --window-secs 86400 --n 50 --grep T-1438 --json > /tmp/.t1501.out 2>&1 && grep -qE '"filter_grep":"T-1438"' /tmp/.t1501.out
 
 ## RCA
 

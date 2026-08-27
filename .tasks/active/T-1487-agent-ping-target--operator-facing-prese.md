@@ -60,8 +60,8 @@ local `manager::find_session` (T-1483) primitives — pure UX win.
 
 cargo build --release -p termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
 target/release/termlink agent ping --help 2>&1 | grep -q -- "--target-fp"
-out=$(target/release/termlink agent ping --target-fp d1993c2c3ec44c94 --window-secs 86400 2>&1); echo "$out" | grep -qE "online|offline"
-out=$(target/release/termlink agent ping --target-fp deadbeefdeadbeef --window-secs 60 2>&1 || true); echo "$out" | grep -qE "offline"
+target/release/termlink agent ping --target-fp d1993c2c3ec44c94 --window-secs 86400 > /tmp/.t1487.out 2>&1 && grep -qE "online|offline" /tmp/.t1487.out
+out=$(target/release/termlink agent ping --target-fp deadbeefdeadbeef --window-secs 60 2>&1 || true); echo "$out" | grep -qE "offline" && ! echo "$out" | grep -qi panicked
 out=$(target/release/termlink agent ping --target-fp d1993c2c3ec44c94 --window-secs 86400 --json 2>&1); echo "$out" | python3 -c "import sys, json; d = json.load(sys.stdin); assert d['online'] is True, d; assert isinstance(d['peer_fp'], str)"
 
 ## RCA

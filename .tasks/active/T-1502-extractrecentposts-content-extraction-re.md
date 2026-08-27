@@ -76,8 +76,8 @@ RCA: 4 verbs (T-1492 recent, T-1493 on-thread, T-1495 overview, T-1500 timeline)
 
 cargo build --release -p termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
 cargo test --release --bin termlink commands::channel::tests::recent_posts 2>&1 | tail -3 | grep -qE "test result: ok"
-out=$(target/release/termlink agent timeline --window-secs 86400 --n 5 --json 2>&1); echo "$out" | python3 -c "import json,sys; d=json.load(sys.stdin); contents=[p['content'] for p in d['posts'] if p.get('content')]; assert len(contents) > 0, f'no posts have content (got {len(d[\"posts\"])} total)'; print('OK')" 2>&1 | grep -q OK
-out=$(target/release/termlink agent timeline --window-secs 86400 --n 50 --grep T-1500 --json 2>&1); echo "$out" | python3 -c "import json,sys; d=json.load(sys.stdin); assert len(d['posts']) > 0, 'expected at least 1 post matching T-1500'; print('OK')" 2>&1 | grep -q OK
+target/release/termlink agent timeline --window-secs 86400 --n 5 --json > /tmp/.t1502a.out 2>&1 && python3 -c "import json; d=json.load(open('/tmp/.t1502a.out')); assert len([p for p in d['posts'] if p.get('content')]) > 0, 'no posts have content'"
+target/release/termlink agent timeline --window-secs 86400 --n 50 --grep T-1500 --json > /tmp/.t1502b.out 2>&1 && python3 -c "import json; d=json.load(open('/tmp/.t1502b.out')); assert len(d['posts']) > 0, 'expected at least 1 post matching T-1500'"
 
 ## RCA
 

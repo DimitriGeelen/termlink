@@ -67,8 +67,8 @@ activity-summary code path. Mutually exclusive with `--target-fp`.
 
 cargo build --release -p termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
 target/release/termlink agent who --help 2>&1 | grep -q -- "--target "
-out=$(target/release/termlink agent who --target some-x --target-fp dead 2>&1 || true); echo "$out" | grep -qE "mutually exclusive|specify either"
-out=$(target/release/termlink agent who 2>&1 || true); echo "$out" | grep -qE "must specify either|required"
+out=$(target/release/termlink agent who --target some-x --target-fp dead 2>&1 || true); echo "$out" | grep -qE "mutually exclusive|specify either" && ! echo "$out" | grep -qi panicked
+out=$(target/release/termlink agent who 2>&1 || true); echo "$out" | grep -qE "must specify either|required" && ! echo "$out" | grep -qi panicked
 
 ## RCA
 

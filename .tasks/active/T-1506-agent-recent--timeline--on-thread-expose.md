@@ -63,7 +63,7 @@ T-1505 shipped `agent quote <offset>` but the operator-fluent path requires `age
 
 cargo build --release -p termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
 cargo test --release --bin termlink commands::channel::tests::recent_posts 2>&1 | tail -3 | grep -qE "test result: ok"
-out=$(target/release/termlink agent timeline --window-secs 3600 --n 3 --json 2>&1); echo "$out" | python3 -c "import json,sys; d=json.load(sys.stdin); assert all('offset' in p for p in d.get('posts',[])); print('OK')" | grep -q OK
+target/release/termlink agent timeline --window-secs 3600 --n 3 --json > /tmp/.t1506.out 2>&1 && python3 -c "import json; d=json.load(open('/tmp/.t1506.out')); assert all('offset' in p for p in d.get('posts',[]))"
 target/release/termlink agent timeline --window-secs 3600 --n 3 2>&1 | grep -q '@'
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.

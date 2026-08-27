@@ -143,7 +143,7 @@ cost_estimate_proposed:
 bash tests/platform-lock-check-fixtures.sh
 bash scripts/check-platform-lock.sh --quiet
 bash scripts/run-guard-layer.sh --quiet
-out=$(bash scripts/run-guard-layer.sh --list); echo "$out" | grep -q "check-platform-lock.sh"
+bash scripts/run-guard-layer.sh --list > /tmp/.t2693-list.out 2>&1 && grep -q "check-platform-lock.sh" /tmp/.t2693-list.out
 
 ## RCA
 

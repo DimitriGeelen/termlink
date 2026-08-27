@@ -58,7 +58,7 @@ cargo build --release -p termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finishe
 target/release/termlink agent recent --help 2>&1 | grep -q -- "--watch"
 target/release/termlink agent recent --help 2>&1 | grep -q -- "--watch-interval"
 target/release/termlink agent recent --target-fp d1993c2c3ec44c94 --watch --json 2>&1 | grep -qiE "incompatible|--watch.*--json|--json.*--watch"
-out=$(timeout 7 target/release/termlink agent recent --target-fp d1993c2c3ec44c94 --watch --watch-interval 2 --window-secs 86400 --n 2 2>&1 || true); echo "$out" | grep -q "agent recent .* --watch"
+out=$(timeout 7 target/release/termlink agent recent --target-fp d1993c2c3ec44c94 --watch --watch-interval 2 --window-secs 86400 --n 2 2>&1 || true); echo "$out" | grep -q "agent recent .* --watch" && ! echo "$out" | grep -qi panicked
 
 ## RCA
 

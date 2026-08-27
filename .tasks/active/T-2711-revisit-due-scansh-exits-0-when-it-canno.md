@@ -180,9 +180,9 @@ erased at the next re-vendor (see T-2721).
 
 # The repro still holds (direct invocation cannot find the tasks dir). This is a
 # read of the vendored script's behaviour, not of a local fix.
-out=$(bash .agentic-framework/agents/context/revisit-due-scan.sh 2>&1); echo "$out" | grep -q "tasks dir not found"
+out=$(PROJECT_ROOT=/nonexistent-t2711 bash .agentic-framework/agents/context/revisit-due-scan.sh 2>&1); echo "$out" | grep -q "tasks dir not found at /nonexistent-t2711/.tasks/active" && ! echo "$out" | grep -q "T-2250"
 # ...and the fw-routed path is unaffected, which is the claim the filing rests on.
-out=$(.agentic-framework/bin/fw task revisit-due 2>&1); echo "$out" | grep -q "T-2250"
+out=$(.agentic-framework/bin/fw task revisit-due 2>&1); echo "$out" | grep -q "T-2250" && ! echo "$out" | grep -qi "tasks dir not found"
 # This task must not have edited the vendored framework (a local fix is erased on re-vendor).
 test -z "$(git status --porcelain .agentic-framework)"
 

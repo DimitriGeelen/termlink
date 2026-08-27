@@ -155,7 +155,7 @@ cost_estimate_proposed:
 bash tests/canary-log-hygiene-fixtures.sh
 bash scripts/check-canary-log-hygiene.sh --quiet
 bash scripts/run-guard-layer.sh --quiet
-out=$(bash scripts/run-guard-layer.sh --list); echo "$out" | grep -q "check-canary-log-hygiene.sh"
+bash scripts/run-guard-layer.sh --list > /tmp/.t2685-list.out 2>&1 && grep -q "check-canary-log-hygiene.sh" /tmp/.t2685-list.out
 
 ## RCA
 

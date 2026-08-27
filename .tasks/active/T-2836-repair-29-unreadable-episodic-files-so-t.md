@@ -146,7 +146,7 @@ Verification blocks.
 bash scripts/check-episodic-parse.sh --quiet
 bash tests/episodic-parse-check-fixtures.sh
 test -z "$(git status --porcelain .agentic-framework/)"
-out=$(bash scripts/check-episodic-parse.sh --json); echo "$out" | grep -q '"unreadable_count": 0'
+out=$(bash scripts/check-episodic-parse.sh --json); echo "$out" | grep -q '"unreadable_count": 0' && ! echo "$out" | grep -q '"ok": false'
 
 ## Recommendation
 

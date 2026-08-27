@@ -128,13 +128,13 @@ cost_estimate_proposed:
 # The four tail-signal branches plus the measured production defect. Asserted
 # by NAME, so adding a fixture later does not break verification while a
 # deleted or renamed one still does.
-out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "ALL PASS"
-out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "recent posts surface"
-out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "is offset-derived"
-out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "drain continued past a full batch"
-out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "latest_offset wins over count and receipts"
-out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "untrimmed topic keeps the count path"
-out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "no offset signal on a trimmed topic"
+out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "ALL PASS" && ! echo "$out" | grep -q "FAILURES"
+out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "recent posts surface" && ! echo "$out" | grep -q "FAILURES"
+out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "is offset-derived" && ! echo "$out" | grep -q "FAILURES"
+out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "drain continued past a full batch" && ! echo "$out" | grep -q "FAILURES"
+out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "latest_offset wins over count and receipts" && ! echo "$out" | grep -q "FAILURES"
+out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "untrimmed topic keeps the count path" && ! echo "$out" | grep -q "FAILURES"
+out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "no offset signal on a trimmed topic" && ! echo "$out" | grep -q "FAILURES"
 
 # The fixtures must be LOAD-BEARING: against the pre-fix script they must FAIL.
 # A regression fixture that passes both ways proves nothing. `! grep` rather
@@ -144,7 +144,7 @@ out=$(bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "no of
 # fixtures against a post-fix script, which is the failure mode this check is
 # supposed to rule out.
 git show 12b1d3a69:scripts/agent-chat-arc-recent.sh > /tmp/.t2758-prefix.sh
-out=$(CHAT_ARC_SCRIPT=/tmp/.t2758-prefix.sh bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "FAILURES"
+out=$(CHAT_ARC_SCRIPT=/tmp/.t2758-prefix.sh bash tests/chat-arc-recent-fixtures.sh 2>&1); echo "$out" | grep -q "FAILURES" && ! echo "$out" | grep -q "ALL PASS"
 
 # The cursor must be derived through the helper, not inline arithmetic — the
 # T-2699 shape (a helper that exists but nothing calls).

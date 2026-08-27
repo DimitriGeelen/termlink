@@ -52,7 +52,7 @@ cargo build --release -p termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finishe
 target/release/termlink agent presence --help 2>&1 | grep -q -- "--top"
 out=$(target/release/termlink agent presence --top 1 --window-secs 86400 --json 2>&1); echo "$out" | python3 -c "import sys, json; d = json.load(sys.stdin); assert d.get('top') == 1, d; assert isinstance(d.get('total_peers'), int)"
 out=$(target/release/termlink agent presence --window-secs 86400 --json 2>&1); echo "$out" | python3 -c "import sys, json; d = json.load(sys.stdin); assert 'top' not in d, 'unset top must not appear'"
-out=$(target/release/termlink agent presence --top 1 --window-secs 86400 2>&1); echo "$out" | grep -qE "PEER_FP"
+target/release/termlink agent presence --top 1 --window-secs 86400 > /tmp/.t1489.out 2>&1 && grep -qE "PEER_FP" /tmp/.t1489.out
 
 ## RCA
 

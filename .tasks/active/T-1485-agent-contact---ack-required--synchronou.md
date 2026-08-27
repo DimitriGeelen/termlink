@@ -63,7 +63,7 @@ cargo build --release -p termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finishe
 cargo test --release -p termlink --bin termlink detect_ack 2>&1 | grep -qE "test result: ok\. [5-9]+ passed|test result: ok\. 1[0-9] passed"
 target/release/termlink agent contact --help 2>&1 | grep -q "ack-required"
 target/release/termlink agent contact --help 2>&1 | grep -q "ack-timeout-secs"
-out=$(timeout 15 target/release/termlink agent contact --target-fp deadbeefdeadbeef --message ack-smoke --ack-required --ack-timeout-secs 5 2>&1 || true); echo "$out" | grep -qiE "ack|timeout"
+out=$(timeout 15 target/release/termlink agent contact --target-fp deadbeefdeadbeef --message ack-smoke --ack-required --ack-timeout-secs 5 2>&1 || true); echo "$out" | grep -qiE "ack|timeout" && ! echo "$out" | grep -qi panicked
 
 ## RCA
 

@@ -126,7 +126,7 @@ cargo build -p termlink-mcp
 # The four counters are emitted by the handler.
 f=$(mktemp); grep -n 'sessions_unreachable' crates/termlink-mcp/src/tools.rs > "$f" 2>/dev/null; n=$(wc -l < "$f"); rm -f "$f"; test "$n" -ge 1
 # No regression: parity is no redder than before (23 passed / 1 failed).
-f=$(mktemp); cargo test -p termlink-mcp --test parity > "$f" 2>&1 || true; grep -q '23 passed' "$f"; rc=$?; rm -f "$f"; test $rc -eq 0
+cargo test -p termlink-mcp --test parity > /tmp/.t2824.out 2>&1 || true; grep -q '23 passed' /tmp/.t2824.out && ! grep -q 'test result: FAILED' /tmp/.t2824.out
 
 ## Decisions
 

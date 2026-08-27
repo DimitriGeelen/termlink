@@ -54,7 +54,7 @@ cargo test --release --bin termlink commands::channel::tests::recent_posts 2>&1 
 target/release/termlink agent timeline --help 2>&1 | grep -q -- "--window-secs"
 target/release/termlink agent timeline --help 2>&1 | grep -q -- "--watch"
 target/release/termlink agent timeline --help 2>&1 | grep -q -- "--msg-type"
-out=$(target/release/termlink agent timeline --window-secs 86400 --n 5 --json 2>&1); echo "$out" | grep -qE '"posts":\['
+target/release/termlink agent timeline --window-secs 86400 --n 5 --json > /tmp/.t1500.out 2>&1 && grep -qE '"posts":\[' /tmp/.t1500.out
 
 ## RCA
 

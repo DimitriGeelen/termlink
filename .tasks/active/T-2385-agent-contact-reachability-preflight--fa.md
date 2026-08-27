@@ -145,7 +145,7 @@ MCP `termlink_agent_contact` parity — later slices, out of Slice 1 scope.
 # T-2385 Slice 1: classify_reachability unit tests live in the bin unit-test
 # binary (`-p termlink` alone runs only the integration binaries). Capture-then-
 # grep per L-387 (single pipe, no SIGPIPE).
-out=$(cargo test --release -p termlink --bin termlink classify_reachability 2>&1); echo "$out" | grep -qE "test result: ok"
+out=$(cargo test --release -p termlink --bin termlink classify_reachability 2>&1); echo "$out" | grep -qE "test result: ok" && ! echo "$out" | grep -q "test result: FAILED"
 
 ## RCA
 

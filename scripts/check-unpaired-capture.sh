@@ -109,8 +109,12 @@ if [ "${1:-}" = "--self-test" ]; then
 fi
 
 all=$(legs . | unpaired)
-act=$(printf '%s' "$all" | grep '/.tasks/active/' || true)
-past=$(printf '%s' "$all" | grep '/.tasks/completed/' || true)
+# T-2840: partition on the PATH FIELD ONLY. `legs` emits "FILE\tNR\tline", so a
+# whole-record grep also matched the COMMAND TEXT: a completed task whose command
+# mentions /opt/termlink/.tasks/active/ was counted ACTIVE and fired the guard,
+# contradicting this check's own advisory that completed blocks never re-run.
+act=$(printf '%s' "$all" | awk -F'\t' '$1 ~ /\/\.tasks\/active\//' || true)
+past=$(printf '%s' "$all" | awk -F'\t' '$1 ~ /\/\.tasks\/completed\//' || true)
 n=$(printf '%s' "$act" | grep -c . || true)
 n_past=$(printf '%s' "$past" | grep -c . || true)
 
