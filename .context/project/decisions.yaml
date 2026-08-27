@@ -976,3 +976,17 @@ decisions:
     date: 2026-08-17
     task: T-2779
     rationale: "Auto-captured from task file on completion"
+
+  - id: PD-119
+    decision: "Replace the original eight ACs with six describing the real outcome"
+    scope: project
+    date: 2026-08-27
+    task: T-2714
+    rationale: "Auto-captured from task file on completion"
+
+  - id: PD-120
+    decision: "Record this as a process finding rather than only a task note."
+    scope: project
+    date: 2026-08-27
+    task: T-2714
+    rationale: "Auto-captured from task file on completion"

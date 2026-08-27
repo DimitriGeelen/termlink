@@ -3293,3 +3293,9 @@ learnings:
   task: T-2793
   date: 2026-08-18
   context: Added via context agent
+- id: PL-366
+  learning: "Re-verifying a bug's SYMPTOM is not re-verifying the DEFECT: when a task body ages, the environment often still matches (so every symptom check passes) while the code has been fixed underneath. Before filing any upstream report from a task older than a day, grep for the remedy you are about to propose — if it already exists, the finding is stale. Cost of skipping it: a wrong bug report to a topic peer projects read, which spends the credibility of every other filing in the queue."
+  source: P-001
+  task: T-2714
+  date: 2026-08-18
+  context: Added via context agent

@@ -1,0 +1,25 @@
+# Audit Results - 2026-08-18-2149
+timestamp: 2026-08-18T19:49:55Z
+sections: "oe-research"
+summary:
+  pass: 4
+  warn: 3
+  fail: 0
+findings:
+  - level: WARN
+    check: "C-001: Inception T-2725 has no research artifact in docs/reports/"
+    mitigation: "Create docs/reports/T-2725-*.md — the thinking trail IS the artifact"
+  - level: WARN
+    check: "C-001: Inception T-2769 has no research artifact in docs/reports/"
+    mitigation: "Create docs/reports/T-2769-*.md — the thinking trail IS the artifact"
+  - level: WARN
+    check: "C-001: Inception T-2771 has no research artifact in docs/reports/"
+    mitigation: "Create docs/reports/T-2771-*.md — the thinking trail IS the artifact"
+  - level: PASS
+    check: "C-002: commit-msg hook has research artifact check"
+  - level: PASS
+    check: "C-002: No research warnings logged (clean or first run)"
+  - level: PASS
+    check: "C-003: Research checkpoint logic present in checkpoint.sh"
+  - level: PASS
+    check: "C-006: All active inceptions have a real Recommendation block"
