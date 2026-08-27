@@ -1,9 +1,9 @@
-# Audit Results - 2026-08-27-1425
-timestamp: 2026-08-27T12:25:59Z
+# Audit Results - 2026-08-27-1816
+timestamp: 2026-08-27T16:16:11Z
 sections: "structure"
 summary:
-  pass: 35
-  warn: 11
+  pass: 36
+  warn: 9
   fail: 0
 findings:
   - level: PASS
@@ -44,13 +44,12 @@ findings:
     check: "Found 76 GO-scope-not-propagated inception(s) of 157 GO-recorded completed inception(s) examined — GO recorded, related_tasks empty, nobody back-references, no unlocks_inception_decision"
     mitigation: "Triage: per inception either backfill related_tasks: / unlocks_inception_decision:, or file the slices its GO approved. Full list: cat /opt/termlink/.context/audits/go-scope-unpropagated/LATEST.md (origin: T-2078, T-2091, T-3099; sibling to L-417/T-1975)"
   - level: PASS
-    check: "Fabric: 423 registered card(s)"
+    check: "Fabric: 424 registered card(s)"
   - level: WARN
-    check: "Fabric: 290/453 cards have no edges"
+    check: "Fabric: 290/454 cards have no edges"
     mitigation: "Run: fw fabric enrich"
-  - level: WARN
-    check: "Fabric drift: 1 source file(s) have no fabric card"
-    mitigation: "Run: fw fabric scan"
+  - level: PASS
+    check: "Fabric drift: all watched files registered — examined 415 watched file(s)"
   - level: WARN
     check: "Fabric: 9 card(s) point at files no watch pattern covers"
     mitigation: "Widen .fabric/watch-patterns.yaml, or remove the cards if they are not components"
@@ -106,6 +105,3 @@ findings:
     check: "Branch hygiene skipped — no master lineage to judge against (origin/master and master both absent)"
   - level: PASS
     check: "Hook threshold: no hooks failing over threshold"
-  - level: WARN
-    check: ".gitignore: 1 comment block(s) defer work without naming a register entry"
-    mitigation: "File it (fw work-on / concerns.yaml) and name the id in the comment, or drop the promise. Origin T-2990: 'root-cause task pending' beside two rules, no task ever filed, 56MB over three months. Silence with FW_GITIGNORE_REGISTER_ADVISORY=0."
