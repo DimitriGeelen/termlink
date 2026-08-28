@@ -1,12 +1,53 @@
-# Audit Results - 2026-08-28-0025
-timestamp: 2026-08-27T22:25:25Z
-sections: "oe-hourly"
+# Audit Results - 2026-08-28-1610
+timestamp: 2026-08-28T14:10:12Z
+sections: "structure"
 summary:
-  pass: 2
-  warn: 0
+  pass: 18
+  warn: 3
   fail: 0
 findings:
   - level: PASS
-    check: "CTL-008: Task reference traceability 100% (0/20 without T-XXX)"
+    check: "Tasks directory exists"
+  - level: PASS
+    check: "Tasks/active directory exists"
+  - level: PASS
+    check: "Tasks/completed directory exists"
+  - level: PASS
+    check: "Tasks/templates directory exists"
+  - level: PASS
+    check: "Task template exists"
+  - level: PASS
+    check: "No duplicate task IDs across active/ and completed/"
+  - level: PASS
+    check: "All 15 project YAML files parse correctly"
+  - level: PASS
+    check: "All 6 arc anchor_task references resolve to existing tasks"
+  - level: PASS
+    check: "All 2 in-progress arc(s) had task commits within 30 days"
+  - level: PASS
+    check: "No inline arc:<slug> tag-only scans outside canonical lib (T-1881)"
+  - level: PASS
+    check: "No PROJECT_ROOT resolution of framework-owned assets in web/ + lib/ Python (T-2648, OBS-097)"
+  - level: PASS
+    check: "No stale-slice-references (L-417)"
+  - level: PASS
+    check: "No GO-scope-not-propagated inception(s) (sibling to L-417)"
+  - level: PASS
+    check: "Fabric: 390 registered card(s)"
+  - level: WARN
+    check: "Fabric: 225/378 cards have no edges"
+    mitigation: "Run: fw fabric enrich"
+  - level: WARN
+    check: "Fabric drift: 1 source file(s) have no fabric card"
+    mitigation: "Run: fw fabric scan"
+  - level: WARN
+    check: "Fabric: 1 card(s) point at files no watch pattern covers"
+    mitigation: "Widen .fabric/watch-patterns.yaml, or remove the cards if they are not components"
   - level: INFO
-    check: "CTL-020 skipped — linked worktree (cron audits are host-level, produced from the main checkout)"
+    check: "Cron drift checks skipped — linked worktree (cron is host-level, managed from the main checkout)"
+  - level: INFO
+    check: "Cron-misload lint skipped — linked worktree (cron install is host-level, managed from the main checkout)"
+  - level: PASS
+    check: "Hook threshold: no hooks failing over threshold"
+  - level: PASS
+    check: "Secret scan: tracked tree clean"
