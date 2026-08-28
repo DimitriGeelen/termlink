@@ -315,6 +315,46 @@ pub async fn rpc_call_addr_with_timeout(
         .await
 }
 
+/// T-2669: the default client-side bound for a one-shot RPC that has no reason
+/// to be slow.
+///
+/// This is deliberately generous. The bound exists to convert an INDEFINITE
+/// hang into an error, not to enforce a latency budget — a handler that takes
+/// 20s on a loaded hub is slow, but a handler that never returns is a defect
+/// the caller cannot even observe. Picking a tight value here would trade a
+/// rare silent hang for a common spurious failure, which is the worse bargain.
+///
+/// It is NOT a blanket answer for every call site. An RPC that drives a session
+/// command (`exec`, `interact`, `agent.ask`) can legitimately exceed this and
+/// should pass its own longer Duration; an intentional long-poll
+/// (`event.subscribe`, `event.poll`, `kv.watch`) must not take a naive client
+/// bound at all — its bound belongs server-side, passed as a `timeout_ms` RPC
+/// param, and a client timeout shorter than that would tear down a healthy wait.
+pub const DEFAULT_RPC_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// T-2669: `rpc_call` bounded on BOTH connect AND read — the socket-path
+/// counterpart to [`rpc_call_addr_with_timeout`].
+///
+/// T-2641 added the bounded variant for `TransportAddr` callers, but the dense
+/// cluster of MCP handlers holds a `reg.socket_path()` (`&Path`), not a
+/// `TransportAddr`. Without this they could not migrate off the unbounded
+/// `rpc_call` without each open-coding the `TransportAddr::unix` conversion, so
+/// the hang class stayed live at those sites purely for want of a convenience.
+/// This mirrors the existing `rpc_call` -> `rpc_call_addr` delegation exactly,
+/// so the two families stay symmetric.
+///
+/// Bounds are inherited from `rpc_call_addr_with_timeout`: connect and read are
+/// each bounded by `timeout`, so worst-case wall time is up to 2x`timeout` and
+/// neither phase can hang indefinitely — the load-bearing property.
+pub async fn rpc_call_with_timeout(
+    socket_path: &Path,
+    method: &str,
+    params: serde_json::Value,
+    timeout: std::time::Duration,
+) -> Result<RpcResponse, ClientError> {
+    rpc_call_addr_with_timeout(&TransportAddr::unix(socket_path), method, params, timeout).await
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum ClientError {
     #[error("I/O error: {0}")]
@@ -590,6 +630,102 @@ mod tests {
             msg.contains("timeout"),
             "expected timeout in error message, got: {msg}"
         );
+
+        handle.abort();
+        let _ = std::fs::remove_file(&socket_path);
+    }
+
+    /// T-2669: `rpc_call_with_timeout` — the socket-path convenience — errors
+    /// bounded against a server that ACCEPTS the connection and reads the
+    /// request but never writes a response line. This is the property the whole
+    /// T-2669 sweep rests on: the plain `rpc_call` at this same socket would
+    /// block forever with nothing surfaced to the caller (Directive #2).
+    ///
+    /// The assertion is on BOUNDEDNESS, not on the error text — the bound may
+    /// trip in either the connect or the read phase depending on scheduling,
+    /// and pinning the message would make this test assert an implementation
+    /// detail rather than the guarantee.
+    #[tokio::test(flavor = "current_thread")]
+    async fn rpc_call_with_timeout_errors_on_silent_server() {
+        let socket_path = test_socket_path();
+        let _ = std::fs::remove_file(&socket_path);
+
+        let listener = tokio::net::UnixListener::bind(&socket_path).unwrap();
+        let handle = tokio::spawn(async move {
+            // Accept, drain the request, then go silent forever — the half-open
+            // hub / wedged-record-walk field case T-2641 named.
+            if let Ok((stream, _)) = listener.accept().await {
+                let mut reader = tokio::io::BufReader::new(stream);
+                let mut line = String::new();
+                use tokio::io::AsyncBufReadExt;
+                let _ = reader.read_line(&mut line).await;
+                tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
+            }
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        let start = std::time::Instant::now();
+        let r = rpc_call_with_timeout(
+            &socket_path,
+            "termlink.ping",
+            serde_json::json!({}),
+            std::time::Duration::from_millis(500),
+        )
+        .await;
+        let elapsed = start.elapsed();
+
+        assert!(
+            r.is_err(),
+            "expected a bounded error from a silent server, not a hang"
+        );
+        // Generous ceiling: connect and read are each bounded by `timeout`, so
+        // the worst case is ~2x500ms plus scheduling slack.
+        assert!(
+            elapsed < std::time::Duration::from_secs(3),
+            "expected bounded error, got {elapsed:?} — the call is not hang-proof"
+        );
+
+        handle.abort();
+        let _ = std::fs::remove_file(&socket_path);
+    }
+
+    /// T-2669: `rpc_call_with_timeout` passes a normal fast response through
+    /// unchanged — the bound must not change behaviour on the healthy path,
+    /// otherwise migrating a site off `rpc_call` would be a semantic change
+    /// rather than a hang fix.
+    #[tokio::test]
+    async fn rpc_call_with_timeout_passes_through_success() {
+        let socket_path = test_socket_path();
+        let _ = std::fs::remove_file(&socket_path);
+
+        let listener = tokio::net::UnixListener::bind(&socket_path).unwrap();
+        let handle = tokio::spawn(async move {
+            if let Ok((stream, _)) = listener.accept().await {
+                let (rd, mut wr) = tokio::io::split(stream);
+                let mut reader = tokio::io::BufReader::new(rd);
+                let mut line = String::new();
+                use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
+                let _ = reader.read_line(&mut line).await;
+                let _ = wr
+                    .write_all(b"{\"jsonrpc\":\"2.0\",\"id\":\"cli-1\",\"result\":{\"pong\":true}}\n")
+                    .await;
+                let _ = wr.flush().await;
+                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            }
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        let r = rpc_call_with_timeout(
+            &socket_path,
+            "termlink.ping",
+            serde_json::json!({}),
+            std::time::Duration::from_secs(5),
+        )
+        .await;
+
+        assert!(r.is_ok(), "expected success passthrough, got {r:?}");
 
         handle.abort();
         let _ = std::fs::remove_file(&socket_path);
