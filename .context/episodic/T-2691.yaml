@@ -1,0 +1,77 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2691: whoami identity auto-resolution silently degrades on non-Linux
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-27T23:52:54Z
+# ============================================================================
+
+task_id: T-2691
+task_name: "whoami identity auto-resolution silently degrades on non-Linux"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-14T07:26:51Z
+completed: 2026-08-27T23:51:28Z
+duration_days: 13
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  read_ppid_from_proc reads /proc/<pid>/stat with .ok()? on both the CLI (metadata.rs) and MCP (tools.rs whoami_helpers) surfaces. On macOS the ancestor chain collapses to [self] and whoami always reports ambiguous with every candidate, never signalling that auto-resolution is structurally impossible there (T-2690 F2/G2).
+
+# Key outcomes
+outcomes:
+  - '`whoami` distinguishes "auto-resolution is unavailable on this platform" from "you genuinely have several sessions" — the two currently render identically'
+  - 'The platform limitation is surfaced on BOTH surfaces: CLI (`metadata.rs`) and MCP (`tools.rs::whoami_helpers`), which carry the same duplicated logic'
+  - 'Human output names the actual remedy (`TERMLINK_SESSION_ID=<id>`), not the one the ambiguous path implies (pick a candidate) — the implied action does not work on a platform where the walk can never succeed'
+  - 'JSON output carries a machine-readable signal so an MCP consumer can branch on it, not just prose'
+  - 'Detection is a RUNTIME probe of `/proc` availability, not `#[cfg(target_os)]` — a cfg makes the fallback unreachable on Linux and therefore unprovable from this host'
+  - 'Unit tests prove both branches from Linux: probe-available yields the normal path, probe-unavailable yields the platform-limited path'
+  - 'The existing ambiguous-with-multiple-sessions path is unchanged when `/proc` IS available — this must not turn a working Linux flow into a warning'
+  - '`cargo test --workspace` green'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 19704 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 19704
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2691-whoami-identity-auto-resolution-silently.md
+generated_by: context-agent-hybrid

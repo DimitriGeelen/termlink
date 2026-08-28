@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2758: recent-chat goes blind on retention-trimmed topics — count used as offset in seek-to-tail
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-28T00:03:28Z
+# ============================================================================
+
+task_id: T-2758
+task_name: "recent-chat goes blind on retention-trimmed topics — count used as offset in seek-to-tail"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-16T09:29:42Z
+completed: 2026-08-28T00:00:36Z
+duration_days: 12
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  agent-chat-arc-recent.sh derives its seek-to-tail cursor as chat_count - SCAN_LIMIT, treating channel info's count as an offset. On a retention-trimmed topic count is capped at the retention limit while live offsets keep rising, so the scan lands thousands of offsets below the retained range and the time filter discards every envelope — /recent-chat and /pulse report 0 posts on a topic that is actively in use. Third recurrence of PL-293.
+
+# Key outcomes
+outcomes:
+  - 'The seek-to-tail cursor is derived from an OFFSET, not from `count`:'
+  - 'The derivation is a pure, unit-tested helper — not inline arithmetic —'
+  - 'Regression fixture reproduces the measured defect: a topic whose `count`'
+  - '`recent-dm.sh` is checked for the same `count`-as-offset arithmetic and'
+  - 'The fix cannot silently UNDER-report: when no offset signal is available'
+  - 'Live proof on the hub that produced the numbers: `/recent-chat` surfaces'
+  - '`bash tests/chat-arc-recent-fixtures.sh` passes (existing suite, extended'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 16710 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 16710
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2758-recent-chat-goes-blind-on-retention-trim.md
+generated_by: context-agent-hybrid

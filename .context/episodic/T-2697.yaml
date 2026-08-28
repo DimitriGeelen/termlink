@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2697: CLI inject reports success for a no-op on non-PTY sessions (T-2580 never migrated)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-27T23:57:20Z
+# ============================================================================
+
+task_id: T-2697
+task_name: "CLI inject reports success for a no-op on non-PTY sessions (T-2580 never migrated)"
+workflow_type: build
+enrichment_status: complete  # AC checked + decisions recorded
+
+# Timeline
+created: 2026-08-14T08:06:09Z
+completed: 2026-08-27T23:56:29Z
+duration_days: 13
+updates_count: 3
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  The session handler returns status:'resolved' + a note when there is no PTY, and status:'injected' when there is. T-2580 made the MCP surface status-aware with a LOAD-BEARING test. cmd_inject in pty.rs reads only bytes_len, discards status and note, and prints 'Injected N bytes' / {ok:true} for a no-op — exactly what T-2580's comment says it MUST NOT do (T-2694 F3).
+
+# Key outcomes
+outcomes:
+  - '`termlink inject` on a session with **no PTY** no longer reports success — it must not print "Injected N bytes" nor `{"ok":true}` when the handler said `status:"resolved"` and nothing reached a terminal'
+  - 'The failure carries the handler''s own `note` ("No PTY session. Use `register --shell`…") so the operator gets the actionable remedy, not just a refusal'
+  - 'A genuine inject (`status:"injected"`) is unchanged — this must not turn a working PTY inject into a warning'
+  - 'Exit code is non-zero on the no-op path, so a script chaining `inject && next-step` stops instead of proceeding on a lie'
+  - 'The refusal is LOUD in text mode too, not only in `--json` (the T-2666 silent-exit class: a bare non-zero exit is indistinguishable from a crash)'
+  - 'The status-mapping is a pure helper with unit tests, mirroring `mcp_inject_outcome` — so the check is provable rather than only observable'
+  - 'Test covers all three shapes: `status:"injected"` → success, `status:"resolved"` → honest failure carrying the note, missing `status` → treated as NOT injected (fail closed)'
+  - 'CLI and MCP now agree on this semantic; the divergence T-2580 left behind is closed'
+  - '`cargo test --workspace` green'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  - decision: '[date] — [topic]'
+    chose: '[what was decided]'
+    rationale: '[rationale]'
+    alternatives_rejected: ['[alternatives and why not]']
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 19670 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  wall_clock_minutes: 19670
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/completed/T-2697-cli-inject-reports-success-for-a-no-op-o.md
+generated_by: context-agent-hybrid
