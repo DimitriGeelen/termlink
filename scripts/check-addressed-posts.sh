@@ -216,9 +216,32 @@ for topic in "${TOPICS[@]}"; do
     # is declared in every output path below (ACK_FRONTIER=0). A check that quietly lost
     # half its predicate and still printed a confident verdict would be the same class of
     # defect this one exists to catch.
+    #
+    # T-2848 — RESOLVING AN ID IS NOT FINDING A ROW. The paragraph above keys the
+    # declaration on "did we resolve an identity", which is the wrong predicate and
+    # produced exactly the defect it warns about. `resolve_self` yields an AGENT ID
+    # (`termlink-107-landing`, from TERMLINK_AGENT_ID / be-reachable.state), while
+    # `channel ack-status` keys rows by SENDER FINGERPRINT (`d1993c2c3ec44c94`).
+    # Different namespaces. The lookup found no row, the frontier collapsed to 0, and
+    # BOTH `identity_resolved` and `ack_frontier_available` reported true.
+    #
+    # Measured 2026-08-28: the topic's ack row read `up_to: 699, lag: 0` -- a correct,
+    # current receipt -- while this check reported 107 unacked posts and would have kept
+    # reporting them forever. No amount of acking could clear it: a monotonic latch, the
+    # same shape T-2709 removed from the stuck-claims canary. A guard that fires
+    # regardless of state trains its operator to stop reading it.
+    #
+    # So the two states are now distinct, and an id that matches no row is LOUD.
+    ACK_ROW_FOUND=0
+    ACK_KNOWN_SENDERS=""
     if [ -n "$SELF_ID" ]; then
         up_to="$(echo "$ack" | jq -r --arg me "$SELF_ID" '
             (map(select(.sender_id == $me)) | first | .up_to) // 0' 2>/dev/null)"
+        if echo "$ack" | jq -e --arg me "$SELF_ID" 'map(select(.sender_id == $me)) | length > 0' >/dev/null 2>&1; then
+            ACK_ROW_FOUND=1
+        else
+            ACK_KNOWN_SENDERS="$(echo "$ack" | jq -r '[.[].sender_id] | join(", ")' 2>/dev/null)"
+        fi
     else
         up_to=0
     fi
@@ -307,6 +330,13 @@ fi
 IDENTITY_WARNING=""
 if [ -z "$SELF_ID" ]; then
     IDENTITY_WARNING="identity unresolved — no ack frontier and no self-post exclusion, so EVERY addressed post is reported whether or not you have already read it (over-reporting, never under-reporting). Pin it with --self-id, TERMLINK_AGENT_ID, or /be-reachable start."
+elif [ "${ACK_ROW_FOUND:-0}" -eq 0 ]; then
+    # T-2848: resolved, but into the wrong namespace. This is the silent-latch case —
+    # `resolve_self` yields an agent id while ack rows are keyed by sender fingerprint,
+    # so the frontier collapses to 0 and every addressed post reports unacked FOREVER,
+    # no matter how faithfully the topic is acked. Naming the sender_ids that DO have
+    # rows makes the fix a copy-paste rather than an investigation.
+    IDENTITY_WARNING="identity resolved to '$SELF_ID' but NO ack row on this topic has that sender_id, so the ack frontier collapsed to 0 and every addressed post below is reported as unacked regardless of what you have already read. Ack rows exist for: ${ACK_KNOWN_SENDERS:-<none>}. If one of those is you, re-run with --self-id <that value>."
 fi
 
 if [ "$HEARTBEAT" -eq 1 ]; then
@@ -329,6 +359,8 @@ if [ "$FORMAT" = json ]; then
         --arg warning "$CONFIG_WARNING" \
         --arg idwarning "$IDENTITY_WARNING" \
         --arg sendernote "$SENDER_NOTE" \
+        --arg ackrow "${ACK_ROW_FOUND:-0}" \
+        --arg acksenders "${ACK_KNOWN_SENDERS:-}" \
         --arg scope "$SCOPE_NOTE" \
         '{
             ok: (($firing | length) == 0),
@@ -338,7 +370,9 @@ if [ "$FORMAT" = json ]; then
             addressed_total: $addressed,
             self_id: $self,
             identity_resolved: ($self != ""),
-            ack_frontier_available: ($self != ""),
+            ack_frontier_available: ($ackrow == "1"),
+            ack_row_found: ($ackrow == "1"),
+            ack_known_senders: (if $acksenders == "" then null else $acksenders end),
             aliases: $aliases,
             aliases_configured: $configured,
             config_warning: (if $warning == "" then null else $warning end),

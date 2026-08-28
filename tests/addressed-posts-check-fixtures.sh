@@ -188,6 +188,25 @@ assert_contains "$out" '"config_warning"' "K2 warns even though the run is clean
 assert_not_contains "$(head -12 "$CHECK")" "# guard-layer: source" "L1 networked check is not a guard-layer member"
 assert_contains "$(head -12 "$CHECK")" "runtime cron canary" "L2 declares its tier explicitly"
 
+# ── M. T-2848: identity resolved into the WRONG NAMESPACE is loud, not silent ──
+# resolve_self() yields an AGENT ID; ack-status keys rows by SENDER FINGERPRINT.
+# When they disagree the lookup finds no row and the frontier collapses to 0, so
+# every addressed post reports unacked FOREVER however faithfully you ack — a
+# monotonic latch (the T-2709 shape). Before this fix both `identity_resolved`
+# and `ack_frontier_available` reported true while the frontier was silently
+# dead. These pin the two states apart.
+ACK_M="$TMP/ack-m.json"; echo '[{"sender_id":"fingerprint-abc","up_to":114,"latest":114,"lag":0}]' > "$ACK_M"
+out="$(ACK_JSON="$ACK_M" SELF=agent-friendly-name run "$TMP/c.json" "$TMP/aliases-a" --json)"
+assert_contains "$out" '"ack_row_found":false' "M1 no matching ack row is reported as such"
+assert_contains "$out" '"ack_frontier_available":false' "M2 frontier is NOT claimed available (was true pre-T-2848)"
+assert_contains "$out" '"identity_resolved":true'    "M3 identity DID resolve — the two states are distinct"
+assert_contains "$out" 'fingerprint-abc' "M4 names the sender_ids that do have rows, so the fix is copy-paste"
+
+# The control: when the id DOES match a row, the frontier is available and works.
+out="$(ACK_JSON="$ACK_M" SELF=fingerprint-abc run "$TMP/c.json" "$TMP/aliases-a" --json)"
+assert_contains "$out" '"ack_row_found":true' "M5 matching sender_id finds its row"
+assert_contains "$out" '"ok":true' "M6 and the acked post is then correctly silenced"
+
 printf '\naddressed-posts-check-fixtures: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ] || exit 1
 exit 0
