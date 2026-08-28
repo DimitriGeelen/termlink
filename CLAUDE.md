@@ -1240,6 +1240,74 @@ idioms for real so the detection rule rests on measurement, and a PL-219 control
 real tree scans clean). **Load-bearing:** deleting one allowlist line re-fires exactly that
 task; restoring it returns the tree to clean.
 
+### Unbounded-rpc-call static check (T-2669, G-019 prevention for the T-2641 hang class)
+
+The thirteenth source-level static check. `client::rpc_call` / `rpc_call_addr` connect
+**unbounded** and then call the **unbounded** `Client::call`, so — in the words of the
+T-2641 doc-comment already sitting in `client.rs` — *"if the hub accepts the connection
+but never writes a response line, the caller blocks forever."*
+
+**Why it exists.** T-2641 added the bounded `rpc_call_addr_with_timeout` to fix that
+class, and T-2659 / T-2650 / T-2651 each migrated **one** site. The caller sweep was
+never done, so the convention stayed discipline-only. There was also a structural reason
+it could not be done: the dense cluster of MCP handlers holds a `reg.socket_path()`
+(`&Path`), not a `TransportAddr`, and no socket-path bounded convenience existed — so
+those sites stayed on the hanging form purely for want of a helper. T-2669 added
+`rpc_call_with_timeout(&Path, …)` plus `DEFAULT_RPC_TIMEOUT` (30s, deliberately generous:
+the bound converts an *indefinite hang* into an error, it is not a latency budget).
+
+**The filed surface was a 4.5x undercount.** T-2669's body states 36 functions. Measured
+before any migration: **188 call sites scanned, 161 unbounded**. The analytics tool family
+in `tools.rs` grew substantially after the task was filed and every one of those handlers
+took the unbounded form.
+
+**What it flags:** each `fn` whose body calls `rpc_call(` or `rpc_call_addr(` with no
+`tokio::time::timeout` token anywhere in that function. The regex is anchored so after
+`rpc_call` the next character must be `(` or the suffix exactly `_addr(` — the bounded
+variants are excluded **by construction, not by an exception list**, which is the property
+that lets a migrated site clear. An explicit `tokio::time::timeout` wrap clears a site
+too: a handler that bounds its own call is correct and should not be forced onto the
+helper. Comments are stripped before the test, on **both** sides of the predicate — a
+commented-out `rpc_call` must not fire, and a commented-out `timeout` must not CLEAR a
+live one, which is the direction that actually bites.
+
+**The ledger holds two classes, and they mean opposite things.**
+`.context/checks/unbounded-rpc-call-allowlist` (git-tracked per T-2681) carries 156
+entries: **CLASS 1** (16) are INTENTIONAL long-polls — `event.subscribe` / `event.poll` /
+`event.collect` / `kv.watch`, whose bound travels as a `timeout_ms` RPC param and is
+enforced server-side, so a naive client timeout would tear down a healthy wait. These are
+classified by the RPC method the fn dispatches, not guessed from its name, and are also
+annotated in-code at each site. **CLASS 2** (140) are NOT YET MIGRATED — still the T-2641
+hang class, live today. They are ledgered so the check can be a **ratchet from day one** (a
+NEW unbounded call site is in neither set and fires immediately) without alarming daily on
+a backlog nobody has scheduled — the T-2483/T-2747 tradition. It is a ledger of an open
+question, not an exemption.
+
+**The open question is a human decision.** T-2669's own Decisions section rejected an
+autonomous batch migration: a client timeout returns an **error** where callers and tests
+previously saw a block, and the right value is per-verb (`exec` / `interact` / `agent.ask`
+drive a session command and may legitimately outrun any blanket constant). Five fast-read
+sites whose timeout needs no judgment are migrated (`termlink_ping`, `termlink_status`,
+`termlink_hub_governor_status`, `termlink_channel_list`, `termlink_channel_cv_keys`).
+
+**Scope, stated on every output path including the clean one (T-2680):** a clean result
+means no *unacknowledged* unbounded call site. It is **not** a proof that every RPC in the
+tree is bounded — a timeout token anywhere in a large function clears every call in it,
+and a bound enforced one frame up the stack is invisible here. The clean-path message
+also states explicitly that an acknowledgement is **not** a claim of boundedness; the
+first draft read "156 acknowledged as intentional long-poll" when only 16 were, which is
+the T-2680 over-claim reproduced inside a guard written to prevent regressions.
+
+Exit 0 clean / 1 unacknowledged / 2 tooling. `--json`, `--quiet`, `--no-heartbeat`,
+`--root` (repeatable), `--allowlist`. Ad-hoc:
+`bash scripts/check-unbounded-rpc-call.sh`. Fixtures:
+`bash tests/unbounded-rpc-call-fixtures.sh` (16 assertions, including B1/B2 pinning the
+by-construction exclusion, D2 pinning the empty-acknowledged-set JSON — a real bug in the
+first draft, where `pipefail` made a trailing `|| echo '[]'` fire *after* jq had already
+printed its own — and E2 failing if the over-claiming wording ever returns).
+**Load-bearing:** reverting `termlink_ping` to the raw `rpc_call` form re-fires the check
+on it by name; restoring returns the tree to clean.
+
 ### Error-swallowing-predicate check (T-2792, the inverse of the silent-exit class)
 
 The twelfth source-level static check, and the first pointed at a **success** path.
