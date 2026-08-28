@@ -593,6 +593,10 @@ fn watch_tick_all_errored(ok_count: usize, err_count: usize) -> bool {
     err_count > 0 && ok_count == 0
 }
 
+// T-2669: intentional long-poll — event.subscribe blocks until events arrive or the
+// server-side timeout fires, and the bound travels as a `timeout_ms` RPC param. A naive
+// client bound would tear down a healthy wait, so the unbounded rpc_call below is
+// CORRECT here. CLASS 1 in .context/checks/unbounded-rpc-call-allowlist.
 pub(crate) async fn cmd_watch(
     targets: Vec<String>,
     opts: WatchOpts<'_>,
@@ -827,6 +831,7 @@ pub(crate) async fn cmd_watch(
 /// `inbox.queued` from `channel.post inbox:<id>` (T-1636/T-1637 emit-site).
 /// The aggregator is a tokio broadcast channel: real-time only, no `since`
 /// cursor. `opts.since` is ignored under hub mode (warned at JSON-mode).
+// T-2669: intentional long-poll — see cmd_watch above. CLASS 1 in the ledger.
 pub(crate) async fn cmd_watch_hub(opts: WatchOpts<'_>) -> Result<()> {
     let WatchOpts { interval_ms, topic_filter, json, timeout_secs, max_count, payload_only, since } = opts;
 
@@ -958,6 +963,8 @@ pub(crate) async fn cmd_watch_hub(opts: WatchOpts<'_>) -> Result<()> {
     Ok(())
 }
 
+// T-2669: intentional long-poll — this command owns its OWN `timeout_secs` deadline
+// loop, so the bound is enforced one level above the RPC. CLASS 1 in the ledger.
 pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, interval_ms: u64, json: bool, since: Option<u64>) -> Result<()> {
     let reg = match manager::find_session(target) {
         Ok(r) => r,
@@ -1337,6 +1344,8 @@ pub(crate) struct CollectOpts<'a> {
     pub since: Option<u64>,
 }
 
+// T-2669: intentional long-poll — event.collect blocks server-side until the batch fills
+// or its timeout fires. CLASS 1 in the ledger.
 pub(crate) async fn cmd_collect(
     targets: Vec<String>,
     opts: CollectOpts<'_>,

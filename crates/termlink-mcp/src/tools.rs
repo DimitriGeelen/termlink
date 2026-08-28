@@ -12489,6 +12489,11 @@ impl TermLinkTools {
         name = "termlink_event_poll",
         description = "Poll events from a session's event bus, optionally filtered by topic and sequence number"
     )]
+    // T-2669: intentional long-poll — the unbounded `rpc_call` below is CORRECT here.
+    // event.poll blocks until events arrive or the SERVER-side timeout fires, and the
+    // bound travels in the RPC params. A naive client timeout shorter than the server's
+    // would tear down a healthy wait, so the bound belongs server-side, not here.
+    // Acknowledged in .context/checks/unbounded-rpc-call-allowlist (CLASS 1).
     async fn termlink_event_poll(&self, Parameters(p): Parameters<EventPollParams>) -> String {
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
@@ -12527,6 +12532,8 @@ impl TermLinkTools {
         name = "termlink_event_subscribe",
         description = "Subscribe to events using push-based delivery. Blocks until events arrive or timeout. Lower latency than polling. Two modes: (1) per-session: pass `target` (session ID or display name) — surfaces events on that session's event bus, supports `since` cursor; (2) hub-level: omit `target` (or pass null) — surfaces hub-aggregator events including `inbox.queued` from `channel.post inbox:<id>`. Hub mode ignores `since`/`max_events` (aggregator is a real-time broadcast)."
     )]
+    // T-2669: intentional long-poll — see termlink_event_poll above. The bound is the
+    // `timeout_ms` RPC param, enforced server-side. CLASS 1 in the ledger.
     async fn termlink_event_subscribe(&self, Parameters(p): Parameters<EventSubscribeParams>) -> String {
         // Build common params (timeout, topic). Hub mode skips since/max_events
         // because the aggregator is a tokio broadcast channel — no cursor.
@@ -12888,6 +12895,9 @@ impl TermLinkTools {
         name = "termlink_kv_watch",
         description = "Watch for key-value changes on a session. Blocks until a kv.set or kv.delete occurs, or timeout_ms elapses. Reuses event.subscribe with topic=kv.change. Optional 'since' replays historical changes before streaming live ones."
     )]
+    // T-2669: intentional long-poll — kv.watch blocks until the key changes or the
+    // server-side timeout fires. A client bound here would truncate a healthy watch.
+    // CLASS 1 in .context/checks/unbounded-rpc-call-allowlist.
     async fn termlink_kv_watch(&self, Parameters(p): Parameters<KvWatchParams>) -> String {
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
@@ -13772,6 +13782,10 @@ impl TermLinkTools {
         name = "termlink_wait",
         description = "Wait for a specific event topic to appear on a session's event bus. Blocks until the event arrives or timeout."
     )]
+    // T-2669: intentional long-poll — this handler runs its OWN deadline loop
+    // (`timeout_secs` / `subscribe_timeout`), so the per-call bound is already enforced
+    // one level up from the RPC. Adding a client timeout to the inner `rpc_call` would
+    // duplicate, not add, a bound. CLASS 1 in the ledger.
     async fn termlink_wait(&self, Parameters(p): Parameters<WaitParams>) -> String {
         let reg = match manager::find_session(&p.target) {
             Ok(r) => r,
