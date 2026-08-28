@@ -1,0 +1,204 @@
+# unbounded-rpc-call allowlist (T-2669) — consumed by scripts/check-unbounded-rpc-call.sh
+#
+# One call site per line: `<relpath>::<enclosing-fn>::unbounded-rpc-call  # <reason>`.
+#
+# A listed site is still COUNTED AND REPORTED — it never vanishes from the scan total —
+# it simply does not fire. There are TWO classes below and they mean opposite things.
+#
+# ── CLASS 1: INTENTIONAL long-poll (a permanent, justified acknowledgement) ──
+# The RPC's contract is to block until data arrives or the SERVER-side timeout fires,
+# with the bound passed as a `timeout_ms` RPC param. A naive client bound shorter than
+# the server's would tear down a healthy wait — the bound genuinely belongs server-side.
+# These are classified by the RPC METHOD the fn dispatches, not by its name.
+#
+# ── CLASS 2: NOT YET MIGRATED (a ledger of an open question) ──
+# These are the T-2641 hang class, still live. They are acknowledged so this check can
+# be a RATCHET from day one — a NEW unbounded call site is in neither set and fires
+# immediately — WITHOUT alarming daily on a 156-site backlog the human has not yet
+# scheduled. This is NOT a claim that they are safe. Each one can still hang forever.
+#
+# WHY THEY ARE NOT ALREADY FIXED. T-2669's own Decisions section rejected an autonomous
+# batch migration: a client timeout returns an ERROR where callers and tests previously
+# saw a block, so the per-verb timeout value is a design judgment (a `ping` wants ~10s;
+# `exec` / `interact` / `agent.ask` drive a session command and may legitimately run far
+# longer). That judgment is the human decision this ledger is waiting on. Removing a line
+# re-fires that site.
+#
+# MEASUREMENT NOTE. T-2669's body states 36 functions. Measured on 2026-08-28 with this
+# check, BEFORE any migration: 188 call sites scanned, 161 unbounded. The filed figure was
+# a material undercount — the analytics tool family in tools.rs grew substantially after
+# the task was filed on 2026-08-12, and every one of those handlers took the unbounded
+# form. The remediation is ~4.5x its filed estimate, which is why the per-verb timeout
+# decision T-2669 routed to a human matters more now, not less.
+#
+# After this session migrated the 5 fast-read sites whose timeout value needs no
+# judgment (termlink_ping, termlink_status, termlink_hub_governor_status,
+# termlink_channel_list, termlink_channel_cv_keys — all short reads where a 30s bound is
+# unambiguously right), the tree measures 183 scanned / 156 unbounded. Those 156 are the
+# lines below: 16 CLASS 1, 140 CLASS 2.
+#
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CLASS 1 — INTENTIONAL long-poll. Bound belongs server-side.
+# ─────────────────────────────────────────────────────────────────────────────
+crates/termlink-cli/src/commands/agent.rs::cmd_agent_ask::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
+crates/termlink-cli/src/commands/agent.rs::cmd_agent_listen::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
+crates/termlink-cli/src/commands/agent.rs::cmd_agent_negotiate::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
+crates/termlink-cli/src/commands/events.rs::cmd_collect::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
+crates/termlink-cli/src/commands/events.rs::cmd_wait::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
+crates/termlink-cli/src/commands/events.rs::cmd_watch::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
+crates/termlink-cli/src/commands/events.rs::cmd_watch_hub::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
+crates/termlink-cli/src/commands/execution.rs::cmd_request::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
+crates/termlink-mcp/src/tools.rs::termlink_agent_ask::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
+crates/termlink-mcp/src/tools.rs::termlink_agent_listen::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
+crates/termlink-mcp/src/tools.rs::termlink_dispatch::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
+crates/termlink-mcp/src/tools.rs::termlink_event_poll::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
+crates/termlink-mcp/src/tools.rs::termlink_event_subscribe::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
+crates/termlink-mcp/src/tools.rs::termlink_kv_watch::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
+crates/termlink-mcp/src/tools.rs::termlink_request::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
+crates/termlink-mcp/src/tools.rs::termlink_wait::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CLASS 2 — NOT YET MIGRATED. Still the T-2641 hang class. Pending the per-verb
+# timeout decision T-2669 routed to a human.
+# ─────────────────────────────────────────────────────────────────────────────
+crates/termlink-cli/src/commands/agent_find_idle.rs::cmd_agent_find_idle::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-cli/src/commands/channel.rs::fetch_topic_names::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-cli/src/commands/mirror_grid_composer.rs::cmd_mirror_tag::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-cli/src/commands/pty.rs::attach_loop::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-cli/src/commands/pty.rs::cmd_attach::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-cli/src/commands/pty.rs::cmd_interact::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-cli/src/commands/pty.rs::cmd_mirror::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-cli/src/commands/pty.rs::cmd_stream::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-cli/src/target.rs::call_session::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/server.rs::build_debug_session_prompt::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/server.rs::read_session_detail::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::broadcast_via_emit_to_fanout::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::curator_top::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::fetch_topic_msgs_mcp::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::rpc::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_ack::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_ack_history::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_ack_status::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_active_in_thread::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_active_now::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_ancestors::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_busiest_threads::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_describe::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_digest::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_dms::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_edit::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_edits_of::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_emoji_stats::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_emoji_users::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_envelope::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_find_idle::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_first_post_by::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_first_responders::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_followups::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_followups_to::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_history::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_idle_threads::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_inbox::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_info::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_on_thread::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_orphan_replies::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_peers::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_pin::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_pin_history::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_pinned::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_pinned_by::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_pinned_history::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_poll_end::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_poll_start::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_poll_vote::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_post::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_presence_now::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_quiet_threads::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_quote::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_react::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_reaction_rate::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_reaction_summary::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_reactions::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_reactions_by::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_recent::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_recent_decisions::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_recent_threads::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_recent_window::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_redact::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_redactions::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_reply::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_response_latency::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_response_received::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_search::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_search_by::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_search_thread::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_self_replies::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_star::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_starred::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_starred_by::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_starred_history::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_state::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_thread_authors::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_thread_depth::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_thread_health::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_thread_path::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_thread_summary::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_threads_by::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_top_reacted::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_top_replied::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_top_repliers::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_top_thread_starters::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_topic_metadata_history::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_topic_stats::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_topic_summary::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_typing::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_unanswered::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_unread::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_user_summary::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_agent_who_is::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_ack::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_claim::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_claim_force_release::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_claim_transfer::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_claims::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_claims_summary::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_claims_summary_all::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_create::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_describe::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_edit::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_forward::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_info::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_mentions::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_pin::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_poll_end::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_poll_start::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_poll_vote::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_post::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_react::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_receipts::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_redact::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_release::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_renew::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_reply::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_set_retention::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_star::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_subscribe::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_sweep::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_channel_typing_emit::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_doctor::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_emit::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_emit_to::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_exec::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_inject::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_interact::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_kv_del::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_kv_get::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_kv_list::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_kv_set::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_output::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_resize::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_signal::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::termlink_tag::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::try_broadcast_via_channel_post::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision
+crates/termlink-mcp/src/tools.rs::walk_topic_full_mcp::unbounded-rpc-call  # NOT YET MIGRATED — can hang forever; pending T-2669 per-verb timeout decision

@@ -12087,7 +12087,7 @@ impl TermLinkTools {
             Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
         };
 
-        match client::rpc_call(reg.socket_path(), "termlink.ping", serde_json::json!({})).await {
+        match client::rpc_call_with_timeout(reg.socket_path(), "termlink.ping", serde_json::json!({}), client::DEFAULT_RPC_TIMEOUT).await {
             Ok(resp) => match client::unwrap_result(resp) {
                 // T-1911: align envelope with CLI `termlink ping <name> --json`
                 // (commands/session.rs:677-685). Wrap result with {ok:true,
@@ -12284,7 +12284,7 @@ impl TermLinkTools {
             Err(e) => return json_err(format!("session '{}' not found: {e}", p.target)),
         };
 
-        match client::rpc_call(reg.socket_path(), "query.status", serde_json::json!({})).await {
+        match client::rpc_call_with_timeout(reg.socket_path(), "query.status", serde_json::json!({}), client::DEFAULT_RPC_TIMEOUT).await {
             Ok(resp) => match client::unwrap_result(resp) {
                 Ok(result) => {
                     // T-1921: wrap in {ok:true, ...result} envelope to match CLI
@@ -14581,7 +14581,7 @@ impl TermLinkTools {
             })
             .to_string();
         }
-        match client::rpc_call(&hub_socket, "hub.governor_status", serde_json::json!({})).await {
+        match client::rpc_call_with_timeout(&hub_socket, "hub.governor_status", serde_json::json!({}), client::DEFAULT_RPC_TIMEOUT).await {
             Ok(resp) => match client::unwrap_result(resp) {
                 Ok(result) => {
                     let mut out = result.clone();
@@ -29147,10 +29147,11 @@ impl TermLinkTools {
             return hub_down_err();
         }
         let params = serde_json::json!({"topic": p.topic});
-        match termlink_session::client::rpc_call(
+        match termlink_session::client::rpc_call_with_timeout(
             &hub_socket,
             termlink_protocol::control::method::CHANNEL_CV_KEYS,
             params,
+            client::DEFAULT_RPC_TIMEOUT,
         )
         .await
         {
@@ -29380,10 +29381,11 @@ impl TermLinkTools {
             Some(pref) => serde_json::json!({"prefix": pref}),
             None => serde_json::json!({}),
         };
-        match termlink_session::client::rpc_call(
+        match termlink_session::client::rpc_call_with_timeout(
             &hub_socket,
             termlink_protocol::control::method::CHANNEL_LIST,
             params,
+            client::DEFAULT_RPC_TIMEOUT,
         )
         .await
         {
