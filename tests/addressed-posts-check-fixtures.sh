@@ -31,6 +31,24 @@ assert_not_contains() {
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
+# T-2847 — HERMETICITY: sever the host's identity before any case runs.
+#
+# `resolve_self()` in the check walks ADDRESSED_TEST_SELF_ID -> TERMLINK_AGENT_ID ->
+# $HOME/.termlink/be-reachable.state. The last rung reads REAL host state, so on any
+# machine where an agent has run `/be-reachable start` the check resolves a live
+# identity — and the three cases that deliberately exercise the UNRESOLVED-identity
+# path (H1/H2/I1) fail. That is backwards: the suite passed on a bare CI runner and
+# went red on exactly the hosts it is meant to protect, so its verdict tracked whether
+# someone had registered an agent rather than whether the code was correct.
+#
+# Overriding HOME (and clearing the env rung) severs all three rungs at the point
+# identity is resolved rather than per-case, so a fixture added later inherits the
+# hermeticity instead of having to remember it. Cases that WANT an identity pass
+# `--self-id` explicitly — `run()` below already does.
+export HOME="$TMP"
+unset TERMLINK_AGENT_ID
+unset ADDRESSED_TEST_SELF_ID
+
 EMPTY_ALIASES="$TMP/empty-aliases"; : > "$EMPTY_ALIASES"
 NO_ACK="$TMP/no-ack.json";          echo '[]' > "$NO_ACK"
 NO_MENTIONS="$TMP/no-mentions.json"; echo '[]' > "$NO_MENTIONS"
