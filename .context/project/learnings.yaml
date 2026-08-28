@@ -3311,3 +3311,9 @@ learnings:
   task: T-2714
   date: 2026-08-27
   context: Added via context agent
+- id: PL-369
+  learning: "Closing the shipped-but-unclosed backlog is a VERIFICATION SWEEP, not bookkeeping. 18 tasks sat AC-complete in active/; closing them re-ran each P-011 block and one came back genuinely red — T-2687's parity suite (parity_topics, 27 pass / 1 fail). The fix had migrated T-2624's four sessions_* fields to the MCP tool but not T-2791's later inventory_complete/dirs_unreadable/unreadable_dirs, so the exact defect the task existed to close was still live through a newer door, on a test wired into the release gate. A task left open is a verification block that stopped running: the ACs were ticked when the code was written, and nothing re-ran them afterwards. Sweep the closeable list regularly (scripts/list-closeable.sh) — the gate does the checking."
+  source: P-001
+  task: T-2687
+  date: 2026-08-28
+  context: Added via context agent
