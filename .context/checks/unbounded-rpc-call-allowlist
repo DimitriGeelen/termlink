@@ -31,11 +31,27 @@
 # form. The remediation is ~4.5x its filed estimate, which is why the per-verb timeout
 # decision T-2669 routed to a human matters more now, not less.
 #
-# After this session migrated the 5 fast-read sites whose timeout value needs no
-# judgment (termlink_ping, termlink_status, termlink_hub_governor_status,
-# termlink_channel_list, termlink_channel_cv_keys — all short reads where a 30s bound is
-# unambiguously right), the tree measures 183 scanned / 156 unbounded. Those 156 are the
+# The 5 fast-read sites whose timeout value needs no judgment (termlink_ping,
+# termlink_status, termlink_hub_governor_status, termlink_channel_list,
+# termlink_channel_cv_keys — all short reads where a 30s bound is unambiguously right)
+# are migrated, and the tree measures 183 scanned / 156 unbounded. Those 156 are the
 # lines below: 16 CLASS 1, 140 CLASS 2.
+#
+# RECORD CORRECTION (T-2669, 2026-08-30). The paragraph above previously read "After
+# this session migrated the 5 fast-read sites ..." and was NOT true when written. The
+# migration was done on the charter-review worktree; commit 6b587e826 carried this
+# ledger and scripts/check-unbounded-rpc-call.sh across to main but touched no .rs file
+# at all, so the 5 sites stayed on the raw unbounded form and the check FIRED on exactly
+# them. The ledger asserted a code state that did not exist — and its 183/156 figures
+# were a forecast of the migrated tree, not a measurement of this one.
+#
+# That is the failure this ledger is otherwise built to prevent, occurring one layer up:
+# a ratchet's baseline is only meaningful if it describes the tree it ships with, and a
+# baseline written ahead of the code cannot be told apart from one written behind it.
+# The numbers were right, which is what made it hard to see — the check fired, the
+# header explained the fire away, and the two disagreed silently. T-2669 landed the
+# actual migration (client::rpc_call_with_timeout, the missing &Path-based bounded
+# helper that AC#1 named, plus the 5 call sites); 183/156 is now measured, not forecast.
 #
 
 # ─────────────────────────────────────────────────────────────────────────────

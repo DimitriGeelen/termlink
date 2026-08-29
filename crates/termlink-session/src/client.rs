@@ -315,6 +315,27 @@ pub async fn rpc_call_addr_with_timeout(
         .await
 }
 
+/// T-2669: socket-path sibling of [`rpc_call_addr_with_timeout`].
+///
+/// `rpc_call` delegates to `rpc_call_addr`; this delegates to
+/// `rpc_call_addr_with_timeout` the same way, so a caller holding a
+/// `reg.socket_path()` can adopt the bounded primitive without hand-rolling a
+/// `tokio::time::timeout` wrap at every site. Its absence is why the T-2641
+/// caller sweep stalled: the many `&Path`-based MCP handlers had no bounded
+/// form to migrate ONTO.
+///
+/// Same bound semantics as the addr variant — connect and read are each bounded
+/// by `timeout`, so worst-case wall time is up to 2×`timeout` and neither phase
+/// can hang indefinitely.
+pub async fn rpc_call_with_timeout(
+    socket_path: &Path,
+    method: &str,
+    params: serde_json::Value,
+    timeout: std::time::Duration,
+) -> Result<RpcResponse, ClientError> {
+    rpc_call_addr_with_timeout(&TransportAddr::unix(socket_path), method, params, timeout).await
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum ClientError {
     #[error("I/O error: {0}")]
@@ -675,6 +696,66 @@ mod tests {
         assert!(
             r.is_ok(),
             "outer guard tripped — the RPC hung past 5s (read bound not applied?)"
+        );
+        let inner = r.unwrap();
+        assert!(inner.is_err(), "expected timeout error from silent server");
+        assert!(
+            elapsed < std::time::Duration::from_secs(3),
+            "expected bounded error, got {elapsed:?}"
+        );
+        let msg = match inner {
+            Err(e) => e.to_string(),
+            Ok(_) => unreachable!("checked is_err above"),
+        };
+        assert!(
+            msg.contains("timeout"),
+            "expected timeout in error message, got: {msg}"
+        );
+
+        handle.abort();
+        let _ = std::fs::remove_file(&socket_path);
+    }
+
+    /// T-2669: the socket-path sibling `rpc_call_with_timeout` carries the same
+    /// bound. This is the load-bearing test for the new helper — the whole
+    /// reason it exists is that `&Path`-holding MCP handlers had no bounded form
+    /// to migrate onto, so if the delegation dropped the bound the sweep would
+    /// be cosmetic. Reverting the body to plain `rpc_call` makes the black-hole
+    /// listener hang and trips the outer guard.
+    #[tokio::test(flavor = "current_thread")]
+    async fn rpc_call_with_timeout_bounds_a_silent_server() {
+        let socket_path = test_socket_path();
+        let _ = std::fs::remove_file(&socket_path);
+
+        let listener = tokio::net::UnixListener::bind(&socket_path).unwrap();
+        let handle = tokio::spawn(async move {
+            // Accept, drain the request line, then go silent forever.
+            if let Ok((stream, _)) = listener.accept().await {
+                let mut reader = tokio::io::BufReader::new(stream);
+                let mut line = String::new();
+                use tokio::io::AsyncBufReadExt;
+                let _ = reader.read_line(&mut line).await;
+                tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
+            }
+        });
+
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+
+        let start = std::time::Instant::now();
+        let r = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            rpc_call_with_timeout(
+                &socket_path,
+                "termlink.ping",
+                serde_json::json!({}),
+                std::time::Duration::from_millis(500),
+            ),
+        )
+        .await;
+        let elapsed = start.elapsed();
+        assert!(
+            r.is_ok(),
+            "outer guard tripped — the RPC hung past 5s (bound lost in delegation?)"
         );
         let inner = r.unwrap();
         assert!(inner.is_err(), "expected timeout error from silent server");

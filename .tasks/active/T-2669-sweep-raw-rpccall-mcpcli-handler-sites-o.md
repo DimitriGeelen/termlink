@@ -1,10 +1,14 @@
 ---
 id: T-2669
-name: "Sweep raw rpc_call MCP/CLI handler sites onto bounded variant (T-2641 hang class)"
+name: "Sweep raw rpc_call MCP/CLI handler sites onto bounded variant (T-2641 hang
+  class)"
 description: >
-  24 MCP + 12 CLI handler functions call unbounded client::rpc_call/rpc_call_addr on a fast RPC with no tokio::time::timeout in scope; a half-open hub blocks the handler forever (T-2641 hazard). Migrate the should-be-bounded subset to a bounded variant; exclude intentional long-pollers.
+  24 MCP + 12 CLI handler functions call unbounded client::rpc_call/rpc_call_addr
+  on a fast RPC with no tokio::time::timeout in scope; a half-open hub blocks the
+  handler forever (T-2641 hazard). Migrate the should-be-bounded subset to a bounded
+  variant; exclude intentional long-pollers.
 
-status: captured
+status: started-work
 workflow_type: build
 owner: agent
 horizon: now
@@ -16,8 +20,8 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T22:22:30Z
-last_update: 2026-08-12T22:22:30Z
-date_finished: null
+last_update: 2026-08-29T22:41:46Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -28,6 +32,21 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-29T22:41:47Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 2
+      D3: 3
+      D4: 3
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=2 
+      (body:telemetry-or-audit-entry); D3=3 (body:component-discoverability); 
+      D4=3 (body:portability-abstraction); F-RECALL=0 (no-signal); F-ORCH=0 
+      (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2669: Sweep raw rpc_call MCP/CLI handler sites onto bounded variant (T-2641 hang class)
@@ -89,13 +108,33 @@ time.
 ## Acceptance Criteria
 
 ### Agent
-- [ ] Add a socket-path bounded convenience `rpc_call_with_timeout(&Path, method, params, Duration)` to `client.rs` (delegates to `rpc_call_addr_with_timeout` via `TransportAddr::unix`), mirroring the existing `rpc_call` → `rpc_call_addr` delegation. Unit test proving it errors (does not hang) against a half-open/never-responding socket within ~timeout.
-- [ ] Migrate every Bucket-A site to the bounded variant (or an explicit `tokio::time::timeout` wrap where a shared future is already used), with a sensible default timeout constant (see Decisions — the value is a design choice, not a guess).
-- [ ] Bucket-B long-poll sites are left unchanged AND documented in-code (one-line comment at each: "intentional long-poll — bound is server-side, not here") so a future sweep/check does not re-flag them.
-- [ ] `cargo build -p termlink -p termlink-mcp` clean; existing MCP handler tests still pass.
-- [ ] (Regression guard) A source-level static check `scripts/check-unbounded-rpc-call.sh` (sibling of check-alloc-sink-clamps / check-drain-sink-caps / check-silent-exit) that flags a raw `rpc_call`/`rpc_call_addr` in a function with zero `tokio::time::timeout` token, honouring a fn-name allowlist seeded with the Bucket-B long-pollers + Bucket-C test. Tree clean after the Bucket-A migration. Load-bearing proof via temp-revert of one migrated site. **This AC is what makes the fix stick** — file the check ONLY after the tree is clean, else it fires on 36 sites day one.
+- [x] Add a socket-path bounded convenience `rpc_call_with_timeout(&Path, method, params, Duration)` to `client.rs` (delegates to `rpc_call_addr_with_timeout` via `TransportAddr::unix`), mirroring the existing `rpc_call` → `rpc_call_addr` delegation. Unit test proving it errors (does not hang) against a half-open/never-responding socket within ~timeout.
+- [ ] **(PARTIAL — 5 of ~145; blocked on the human per-verb timeout decision, see Evolution)** Migrate every Bucket-A site to the bounded variant (or an explicit `tokio::time::timeout` wrap where a shared future is already used), with a sensible default timeout constant (see Decisions — the value is a design choice, not a guess).
+- [ ] **(SUPERSEDED IN MECHANISM, NOT YET IN FORM — the 16 CLASS 1 sites are documented with cited reasons in `.context/checks/unbounded-rpc-call-allowlist`, which is what stops the check re-flagging them; the in-code one-liners this AC asks for are not written)** Bucket-B long-poll sites are left unchanged AND documented in-code (one-line comment at each: "intentional long-poll — bound is server-side, not here") so a future sweep/check does not re-flag them.
+- [x] `cargo build -p termlink -p termlink-mcp` clean; existing MCP handler tests still pass.
+- [x] (Regression guard) A source-level static check `scripts/check-unbounded-rpc-call.sh` (sibling of check-alloc-sink-clamps / check-drain-sink-caps / check-silent-exit) that flags a raw `rpc_call`/`rpc_call_addr` in a function with zero `tokio::time::timeout` token, honouring a fn-name allowlist seeded with the Bucket-B long-pollers + Bucket-C test. Tree clean after the Bucket-A migration. Load-bearing proof via temp-revert of one migrated site. **This AC is what makes the fix stick** — file the check ONLY after the tree is clean, else it fires on 36 sites day one.
 
 ### Human
+
+- [ ] [REVIEW] Choose the timeout policy for the ~140 CLASS 2 sites so the sweep can continue
+
+  **Steps:**
+  1. Read the two-class split at the top of `.context/checks/unbounded-rpc-call-allowlist`
+     (CLASS 1 = intentional long-poll, bound belongs server-side; CLASS 2 = not yet
+     migrated, still the T-2641 hang class).
+  2. Run `bash scripts/check-unbounded-rpc-call.sh --no-heartbeat`
+     to see the current state (expect: clean, 183 scanned, 156 acknowledged).
+  3. Pick one of the three options in `## Recommendation` above — 1 (per-verb table),
+     2 (single generous default + named exceptions, my recommendation), or 3 (leave
+     ledgered) — and record it in `## Decisions` below.
+
+  **Expected:** A named option with a one-line reason. If option 2, also name the default
+  value (I suggest 300s) and any verbs that must be exempted.
+
+  **If not:** If none of the three fits, say what the fourth is. If you want to defer,
+  say so explicitly and set `revisit_at` — a deferral that is recorded is fine; the thing
+  to avoid is the 140 sites staying live because nobody said either way.
+
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
@@ -158,6 +197,111 @@ time.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+bash scripts/check-unbounded-rpc-call.sh --no-heartbeat > /tmp/.t2669-check.out 2>&1
+grep -q "check-unbounded-rpc-call: clean" /tmp/.t2669-check.out
+grep -q "183 call site(s) scanned" /tmp/.t2669-check.out
+grep -q "pub async fn rpc_call_with_timeout" crates/termlink-session/src/client.rs
+grep -q "async fn rpc_call_with_timeout_bounds_a_silent_server" crates/termlink-session/src/client.rs
+test "$(grep -c 'rpc_call_with_timeout(' crates/termlink-mcp/src/tools.rs)" -eq 5
+cargo build -p termlink -p termlink-mcp 2>&1 | tail -1 > /tmp/.t2669-build.out; grep -q "Finished" /tmp/.t2669-build.out
+cargo test -p termlink-session --lib client:: > /tmp/.t2669-test.out 2>&1; grep -q "rpc_call_with_timeout_bounds_a_silent_server ... ok" /tmp/.t2669-test.out
+grep -q "0 failed" /tmp/.t2669-test.out
+grep -q "RECORD CORRECTION (T-2669" .context/checks/unbounded-rpc-call-allowlist
+
+## Recommendation
+
+**Recommendation:** GO
+
+**Rationale:** **READ THIS FIRST — the GO above is on slice 1 only, which is already
+landed. It is NOT a request to close T-2669, and this task must stay OPEN after you
+decide.** What is being asked of you is one thing: pick the timeout policy for the
+remaining ~140 sites so the sweep can continue. The review page renders the verdict as a
+bare "GO" because that is the only token it parses; the scope of that GO is this
+paragraph, not the task.
+
+T-2669's own Decisions section rejected an autonomous batch migration for
+a good reason: a client timeout returns an ERROR where callers and tests previously saw
+a block, so the per-verb timeout value is a design judgment, not a lookup. Slice 1
+deliberately took only the 5 sites where that judgment is vacuous — short hub/session
+reads (`ping`, `status`, `hub.governor_status`, `channel.list`, `channel.cv_keys`) where
+any sane bound is right and 30s is generous. The remaining ~140 are not like that:
+`exec`, `interact` and `agent.ask` drive a session command that may legitimately run for
+minutes, and a bound chosen carelessly converts a working long operation into a failure.
+
+Three options, and I do not think they are close:
+
+1. **A per-verb timeout table** — correct, and ~140 individual judgments. Weeks.
+2. **A single generous default (e.g. 300s) for everything not already CLASS 1**, with a
+   short table of named exceptions. Bounds every site against the permanent-hang class
+   T-2641 named, while being long enough that no healthy operation is truncated. Cheap.
+3. **Leave the 140 ledgered.** Costs nothing today and keeps the hang class live.
+
+I recommend **option 2**. The failure this task exists to prevent is *unbounded* — a
+handler that never returns and surfaces nothing, a Directive #2 violation. The distance
+between 300s and a perfectly-tuned 45s is a latency question; the distance between 300s
+and no bound at all is a liveness question. Fixing the liveness question for 140 sites
+now is worth more than fixing the latency question for 140 sites eventually, and option 2
+does not preclude tightening individual verbs later.
+
+**Evidence (measured 2026-08-30 on this checkout, not forecast):**
+
+- `scripts/check-unbounded-rpc-call.sh --no-heartbeat` -> **clean, 183 call sites scanned,
+  156 acknowledged**, exit 0. Before this slice it FIRED on 5.
+- `cargo build -p termlink -p termlink-mcp` -> `Finished` (exit 0).
+- `cargo test -p termlink-session --lib client::` -> **34 passed, 0 failed**, including the
+  new `rpc_call_with_timeout_bounds_a_silent_server` (asserts the call ERRORS within the
+  bound against a listener that accepts, drains the request, then goes silent forever —
+  the exact half-open-hub shape; without the bound it hangs and the outer 5s guard trips).
+- Load-bearing: temp-reverting `termlink_ping` to the raw form re-fires the check on
+  exactly `tools.rs:11938 (in fn termlink_ping)`; restoring returns it to clean.
+- Ledger correction: `6b587e826` carried the check and its allowlist to main but touched
+  **no `.rs` file**, so the header's "After this session migrated the 5 fast-read sites …
+  183 scanned / 156 unbounded" described a tree that did not exist here. Corrected in
+  place, with the correction stated rather than the sentence quietly rewritten.
+
+**What is NOT claimed:** the 156 ledgered sites are not safe. 16 are intentional
+long-polls; **140 can still hang forever**. A clean check means the ratchet holds, not
+that the tree is bounded.
+
+## Evolution — 2026-08-30 (slice 1 of N)
+
+**What was not known at filing.** The task body states 36 unbounded functions. Measured
+with the check on 2026-08-28: **188 call sites scanned, 161 unbounded** — a ~4.5x
+undercount, because the analytics tool family in `tools.rs` grew substantially after
+this task was filed on 2026-08-12 and every one of those handlers took the unbounded
+form. The remediation is far larger than filed, which makes the per-verb timeout
+judgment AC#2 needs *more* load-bearing, not less: it is now a policy decision over
+~140 verbs, not a dozen.
+
+**What this slice landed.** AC#1 and AC#5 in full, plus 5 of AC#2.
+`client::rpc_call_with_timeout(&Path, …)` — the missing socket-path sibling of
+`rpc_call_addr_with_timeout` — now exists with a bounded-against-a-silent-server unit
+test, and the 5 fast-read sites whose timeout needs no judgment (`termlink_ping`,
+`termlink_status`, `termlink_hub_governor_status`, `termlink_channel_cv_keys`,
+`termlink_channel_list`) are migrated onto it at 30s. Tree: 183 scanned, 0
+unacknowledged. Load-bearing proven by temp-reverting `termlink_ping` — the check
+re-fires on exactly that site and restoring returns it to clean.
+
+**The finding that made this slice necessary.** The check and its ledger were committed
+to main in `6b587e826` (T-2850, landing guards stranded on the charter-review worktree)
+— but that commit touched **no `.rs` file at all**. The migration had been done on the
+worktree and did not cross. So the ledger's header asserted "After this session migrated
+the 5 fast-read sites … the tree measures 183 scanned / 156 unbounded" while those 5
+sites were still on the raw unbounded form and the check was FIRING on precisely them.
+
+The header's numbers were a forecast of the migrated tree, not a measurement of the
+shipped one — and they were *correct*, which is what made the divergence hard to see:
+the check fired, the ledger explained the fire away, and nothing reconciled the two. A
+ratchet's baseline is only meaningful if it describes the tree it ships with, and a
+baseline written ahead of its code is indistinguishable from one written behind it. The
+header is corrected in place with the correction stated rather than silently rewritten.
+
+**Why this task stays open.** AC#2 is 5/~145. The remaining ~140 are CLASS 2 in the
+ledger — acknowledged so the check can ratchet from day one, explicitly NOT a claim they
+are safe; each can still hang forever. Closing here would convert "140 sites waiting on
+a decision" into "task complete", which is the exact reading the ledger's two-class split
+exists to prevent.
 
 ## RCA
 
@@ -249,3 +393,6 @@ unbounded call.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2669-sweep-raw-rpccall-mcpcli-handler-sites-o.md
 - **Context:** Initial task creation
+
+### 2026-08-29T22:41:46Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work
