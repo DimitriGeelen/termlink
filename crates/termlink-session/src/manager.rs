@@ -229,13 +229,24 @@ pub fn list_sessions_in(
     sessions_dir: &Path,
     include_stale: bool,
 ) -> Result<Vec<Registration>, SessionError> {
-    if !sessions_dir.exists() {
-        return Ok(vec![]);
-    }
+    // Absent and unreadable are DIFFERENT answers. `Path::exists()` returns
+    // false for both -- it maps any metadata error, EACCES included, to false --
+    // so gating on it converted "I could not read this directory" into "there
+    // are no sessions here" and returned that as a success (Directive #2: a
+    // plausible wrong answer, not an error). Match on the ErrorKind instead,
+    // the same way discovery::classify_candidate does (T-2791).
+    //
+    // Reading first also avoids the TOCTOU window a separate probe would open
+    // between the check and the read.
+    let dir_entries = match std::fs::read_dir(sessions_dir) {
+        Ok(entries) => entries,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(vec![]),
+        Err(e) => return Err(e.into()),
+    };
 
     let mut sessions = Vec::new();
 
-    for entry in std::fs::read_dir(sessions_dir)? {
+    for entry in dir_entries {
         let entry = entry?;
         let path = entry.path();
 
@@ -780,5 +791,76 @@ mod tests {
         session_b.deregister().unwrap();
         let _ = std::fs::remove_dir_all(&dir_a);
         let _ = std::fs::remove_dir_all(&dir_b);
+    }
+
+    /// An ABSENT sessions dir is a legitimately empty answer.
+    #[test]
+    fn list_sessions_in_absent_dir_is_empty_not_an_error() {
+        let tmp = tempfile::tempdir().unwrap();
+        let missing = tmp.path().join("no-such-sessions-dir");
+        let out = list_sessions_in(&missing, true).expect("absent dir must be Ok");
+        assert!(out.is_empty(), "absent dir should yield no sessions");
+    }
+
+    /// A sessions path under a NON-DIRECTORY must be an ERROR, not empty.
+    ///
+    /// This is the root-runnable sibling of the EACCES test below, and it exists
+    /// because that one SKIPS under root -- on a root CI runner it would prove
+    /// nothing. Same defect class: `read_dir` fails with something OTHER than
+    /// NotFound (here ENOTDIR), while `Path::exists()` flattens it to false, so
+    /// the pre-fix `!exists() -> Ok(vec![])` gate reported a hard error as an
+    /// empty success. Load-bearing: restoring that gate makes this test fail.
+    #[test]
+    fn list_sessions_in_under_a_non_directory_is_an_error_not_empty() {
+        let tmp = tempfile::tempdir().unwrap();
+        let not_a_dir = tmp.path().join("regular-file");
+        std::fs::write(&not_a_dir, b"i am not a directory").unwrap();
+
+        let sessions = not_a_dir.join("sessions");
+        assert!(!sessions.exists(), "exists() flattens ENOTDIR to false");
+
+        assert!(
+            list_sessions_in(&sessions, true).is_err(),
+            "a sessions path under a non-directory must surface as Err, not as an empty success"
+        );
+    }
+
+    /// An UNREADABLE sessions dir must be an ERROR, never an empty success.
+    ///
+    /// This is the leg that regresses silently. `Path::exists()` maps EACCES to
+    /// false, so the pre-fix code returned `Ok(vec![])` here -- indistinguishable
+    /// from "no sessions exist" to every caller. A test covering only the absent
+    /// case above would pass against the defect, which is why both legs exist.
+    #[test]
+    #[cfg(unix)]
+    fn list_sessions_in_unreadable_dir_is_an_error_not_empty() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let tmp = tempfile::tempdir().unwrap();
+        let sessions = tmp.path().join("sessions");
+        std::fs::create_dir(&sessions).unwrap();
+        std::fs::write(sessions.join("a.json"), "{}").unwrap();
+
+        std::fs::set_permissions(&sessions, std::fs::Permissions::from_mode(0o000)).unwrap();
+
+        // Root bypasses mode bits, so the condition cannot be constructed there.
+        // SKIP rather than assert: a test that quietly passes under root would be
+        // the same false green this fix is about.
+        let constructible = std::fs::read_dir(&sessions).is_err();
+        if !constructible {
+            let _ = std::fs::set_permissions(&sessions, std::fs::Permissions::from_mode(0o755));
+            eprintln!("SKIP: cannot make a dir unreadable here (running as root?)");
+            return;
+        }
+
+        let result = list_sessions_in(&sessions, true);
+
+        // Restore before asserting so a failure cannot leak an unremovable tempdir.
+        let _ = std::fs::set_permissions(&sessions, std::fs::Permissions::from_mode(0o755));
+
+        assert!(
+            result.is_err(),
+            "an unreadable sessions dir must surface as Err, not as an empty success"
+        );
     }
 }

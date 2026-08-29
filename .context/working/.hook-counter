@@ -1,9 +1,18 @@
-error-watchdog=5
+error-watchdog=9
 
-audit-task-tools=2
-checkpoint=2
-check-tier0=2
-budget-gate=2
-check-project-boundary=2
-check-active-task=2
-loop-detect=1
+checkpoint=21
+check-tier0=20
+budget-gate=21
+check-project-boundary=20
+check-active-task=21
+loop-detect=20
+audit-task-tools=9
+check-active-completed-dup=1
+check-arc-id=1
+check-onboarding-gate=1
+check-inception-schema=1
+check-human-ac-tick=1
+check-heredoc-cmd-sub=1
+check-inception-decisions=1
+commit-cadence=1
+check-settings-edit=1
