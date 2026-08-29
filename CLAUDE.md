@@ -929,10 +929,29 @@ scoping, exit codes and fail-closed contract — not the heuristic, which belong
 Safe rewrites, and the ones to use in every new `## Verification` block:
 
 ```
-out=$(cmd 2>&1); echo "$out" | grep -q "PATTERN"     # echo upstream is SIGPIPE-immune
-cmd > /tmp/.out 2>&1; grep -q "PATTERN" /tmp/.out    # no pipe at all
-test -z "$(git status --porcelain <path>)"           # for emptiness checks
+cmd > /tmp/.out 2>&1 && grep -q "PATTERN" /tmp/.out  # THE DEFAULT — no pipe at all
+grep -q "PATTERN" <<< "$out"                          # herestring — no pipe either
+test -z "$(git status --porcelain <path>)"            # for emptiness checks
 ```
+
+**`echo "$out" | grep -q PAT` is the EXCEPTION, not the default, and it is only
+conditionally safe (T-2743).** It is a pipe like any other: `echo` writes the whole
+capture, so once `$out` exceeds the 65536-byte pipe capacity and `grep -q` matches
+early, grep exits, echo takes SIGPIPE, and the line returns **141 — the exact L-387
+failure the rewrite exists to avoid.** Measured both ways: on a 146,366-byte
+Watchtower page (T-2743, 3/3 runs, deterministic) and again at the boundary
+(T-2852 — clean at 32 KiB, 141 at 64 KiB, nondeterministic in the band between).
+Rendered routes run 50–200 KB, so anything that curls a page is over the line.
+The file-redirect form also preserves the PRODUCING command's exit code, which the
+capture form discards — a 404 yields an empty capture that grep merely fails to
+match. Prefer the redirect; reach for the capture only when you know the size.
+
+This claim lives in four places and T-2743 corrected only one of them. The
+authoritative copy is `.tasks/templates/default.md` § Pipefail/SIGPIPE, which states
+the bound in full. The framework's own detector
+(`lib/reviewer/static_scan.py::detect_l387_sigpipe_risk`) still exempts an `echo`
+upstream **unconditionally**, so it cannot flag the shape it recommends — a
+self-sealing blind spot, filed upstream per G-062 rather than patched here.
 
 The check flagged **its own author** one commit after shipping — a `... | wc -l | grep -qx 0`
 line in T-2819's Verification block took active findings 150 → 151. That is the intended

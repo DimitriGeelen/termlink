@@ -42,13 +42,29 @@ set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 JSON=0; QUIET=0; NO_HEARTBEAT=0
+ALLOWLIST=""
 TEMPLATE_DIRS=()
+
+# Tracked-first allowlist resolution (T-2681): the git-tracked copy under
+# .context/checks/ wins, so the guard's reported health does not depend on
+# unversioned local state. An explicit --allowlist always wins over both.
+_default_allowlist() {
+    if [ -f "$REPO_ROOT/.context/checks/task-template-idioms-allowlist" ]; then
+        printf '%s' "$REPO_ROOT/.context/checks/task-template-idioms-allowlist"
+    else
+        printf '%s' "$REPO_ROOT/.context/working/.task-template-idioms-allowlist"
+    fi
+}
 
 while [ $# -gt 0 ]; do
     case "$1" in
         --json) JSON=1 ;;
         --quiet) QUIET=1 ;;
         --no-heartbeat) NO_HEARTBEAT=1 ;;
+        --allowlist)
+            shift
+            [ $# -gt 0 ] || { echo "check-task-template-idioms: --allowlist needs a value" >&2; exit 2; }
+            ALLOWLIST="$1" ;;
         --templates-dir)
             shift
             [ $# -gt 0 ] || { echo "check-task-template-idioms: --templates-dir needs a value" >&2; exit 2; }
@@ -59,6 +75,8 @@ while [ $# -gt 0 ]; do
     shift
 done
 
+[ -n "$ALLOWLIST" ] || ALLOWLIST="$(_default_allowlist)"
+
 if [ "${#TEMPLATE_DIRS[@]}" -eq 0 ]; then
     TEMPLATE_DIRS=("$REPO_ROOT/.tasks/templates")
 fi
@@ -67,12 +85,49 @@ for d in "${TEMPLATE_DIRS[@]}"; do
     [ -d "$d" ] || { echo "check-task-template-idioms: not a directory: $d" >&2; exit 2; }
 done
 
-OUT="$(python3 - "$JSON" "${TEMPLATE_DIRS[@]}" <<'PY'
+OUT="$(python3 - "$JSON" "$ALLOWLIST" "${TEMPLATE_DIRS[@]}" <<'PY'
 import json, re, sys
 from pathlib import Path
 
 json_mode = sys.argv[1] == "1"
-dirs = [Path(p) for p in sys.argv[2:]]
+allowlist_path = Path(sys.argv[2]) if sys.argv[2] else None
+dirs = [Path(p) for p in sys.argv[3:]]
+
+
+def signature(path, text):
+    """Drift-stable identity: repo-relative path + the normalized line text.
+
+    Deliberately NOT the line number — template guidance gets lines inserted
+    above it constantly, and a line-keyed allowlist would silently stop
+    matching (acknowledged sites would re-fire, unacknowledged ones would not
+    be caught by the entry meant for them). Keying on the text means EDITING
+    the idiom re-fires it, which is the intended re-review on meaningful change.
+    """
+    t = text.strip().lstrip("#").strip()
+    t = re.sub(r"\s+", " ", t)
+    try:
+        rel = Path(path).resolve().relative_to(Path.cwd()).as_posix()
+    except ValueError:
+        rel = Path(path).name
+    return f"{rel}::{t}"
+
+
+def load_allowlist(p):
+    """Return {signature: reason}. A missing file is empty, never an error --
+    an allowlist is an optional ledger, and its absence must not be fatal."""
+    entries = {}
+    if not p or not p.is_file():
+        return entries
+    for raw in p.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        sig, _, reason = line.partition("#")
+        entries[sig.strip()] = reason.strip()
+    return entries
+
+
+ACK = load_allowlist(allowlist_path)
 
 # A pipe into a consumer that exits early (or parses and can fail independently).
 PIPE_TO_CONSUMER = re.compile(
@@ -119,7 +174,7 @@ def strip_substitutions(s: str) -> str:
     return "".join(out)
 
 
-firing, checked = [], 0
+firing, acknowledged, checked = [], [], 0
 for d in sorted(dirs):
     for path in sorted(d.glob("*.md")):
         checked += 1
@@ -132,11 +187,20 @@ for d in sorted(dirs):
                 continue  # labelled counter-example, not a recommendation
             if not PIPE_TO_CONSUMER.search(strip_substitutions(line)):
                 continue
-            firing.append({
+            entry = {
                 "file": str(path),
                 "line": lineno,
                 "text": line[:160],
-            })
+                "signature": signature(path, line),
+            }
+            # Acknowledged sites are still COUNTED and REPORTED -- they just do
+            # not fire. A quiet guard must never be ambiguous between "nothing
+            # matched" and "the allowlist ate something" (T-2483).
+            if entry["signature"] in ACK:
+                entry["reason"] = ACK[entry["signature"]]
+                acknowledged.append(entry)
+            else:
+                firing.append(entry)
 
 scope = ("detects pipeline-decided command shapes PRESCRIBED in task-template "
          "guidance; a counter-example labelled UNSAFE/DO NOT/WRONG/NEVER is "
@@ -146,6 +210,8 @@ if json_mode:
     print(json.dumps({
         "ok": not firing,
         "firing": firing,
+        "acknowledged": acknowledged,
+        "acknowledged_count": len(acknowledged),
         "checked": checked,
         "scope": scope,
     }, sort_keys=True))
@@ -164,8 +230,16 @@ else:
         print('  out=$(cmd 2>&1 || true); grep -q "PATTERN" <<< "$out"')
         print("Or, if the line is deliberately showing a BAD example, label it on the")
         print("same line with UNSAFE / DO NOT / WRONG / NEVER.")
+        print("Or, if the idiom is prescribed WITH its bound stated adjacently, add its")
+        print("signature to the allowlist with a reason citing that bound.")
     else:
-        print(f"check-task-template-idioms: clean ({checked} template(s) scanned)")
+        print(f"check-task-template-idioms: clean ({checked} template(s) scanned, "
+              f"{len(acknowledged)} acknowledged)")
+    if acknowledged and not json_mode:
+        print()
+        print(f"Acknowledged ({len(acknowledged)}) -- counted, reported, not firing:")
+        for a in acknowledged:
+            print(f"  {a['file']}:{a['line']}: {a['reason'] or '(no reason given)'}")
     print(f"Scope: {scope}.")
 
 sys.exit(1 if firing else 0)

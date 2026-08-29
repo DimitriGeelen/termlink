@@ -1,11 +1,14 @@
 ---
-id: T-XXX
-name:
+id: T-2852
+name: "The prescribed L-387 fix still fails L-387 above 64KiB"
 description: >
+  The repo-wide safe rewrite for L-387 (out=$(cmd); echo "$out" | grep -q PAT) returns
+  141 when the captured output exceeds the pipe capacity and the match is early. The
+  vendored detector exempts that exact shape, so it cannot catch its own recommendation.
 
-status: captured
-workflow_type:
-owner:
+status: started-work
+workflow_type: build
+owner: claude-code
 horizon: now
 tags: []
 components: []
@@ -20,9 +23,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created:
-last_update:
-date_finished: null
+created: 2026-08-29T10:24:58Z
+last_update: 2026-08-29T10:26:15Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -33,9 +36,23 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-29T10:26:15Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
-# T-XXX: [Task Name]
+# T-2852: The prescribed L-387 fix still fails L-387 above 64KiB
 
 ## Context
 
@@ -45,8 +62,12 @@ date_finished: null
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [ ] The failure is reproduced and its boundary measured, not asserted: `echo "$out" | grep -q PAT` under `set -o pipefail` returns 141 when `$out` exceeds the pipe capacity AND the match is early enough for grep to exit before echo finishes writing. A fixture pins both the failing case and the passing herestring so the claim can be falsified by anyone
+- [ ] `.tasks/templates/default.md` no longer PRESCRIBES the failing shape. The template is the highest-leverage surface here because every future task copies its Verification block from it, so a wrong idiom there reproduces itself indefinitely
+- [ ] The CLAUDE.md T-2818 section no longer calls the echo-pipe form "SIGPIPE-immune". The claim is replaced with one that states the actual bound, because a qualified-but-true rule is safer than a simple-but-false one
+- [ ] The vendored detector's unconditional echo/printf exemption is filed upstream, NOT patched locally (G-062). The filing states the DIRECTION of the failure — the detector cannot flag the shape it recommends, so the blind spot is self-sealing
+- [ ] Every verification command written for this task uses the herestring form, so the task is its own smallest proof
+- [ ] Where the fix is a judgement call rather than a defect, it is left alone and said so — this task changes prescribed guidance, not every historical occurrence in 2500 completed task files
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -76,9 +97,7 @@ date_finished: null
          **Expected:** Verdict: PASS; no findings on `block-message-completeness`
          **If not:** Inspect hook block-message string and add missing mechanism
        Conversion: this AC should be moved to ### Agent and
-       `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
-       added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
-       Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
+       `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` added to ## Verification.
 -->
 
 ## Verification
@@ -100,7 +119,7 @@ date_finished: null
 # Correct at any output size, and `&&` keeps the PRODUCING command's exit code in
 # the verdict. Reach for this first; the alternative below is the special case.
 #
-# NEVER `cmd | grep -q PAT` (L-387) — why: P-011 runs each line under `set -eo
+# Why not `cmd | grep -q PAT` (L-387): P-011 runs each line under `set -eo
 # pipefail`. When grep matches it exits and closes stdin while cmd is still
 # writing, cmd takes SIGPIPE, the pipeline exits 141 — verification "fails" with
 # the pattern present. Captured 4× (T-1716, T-1838, T-1862, T-1863).
@@ -234,5 +253,10 @@ date_finished: null
 
 ## Updates
 
-<!-- Auto-populated by git mining at task completion.
-     Manual entries optional during execution. -->
+### 2026-08-29T10:24:58Z — task-created [task-create-agent]
+- **Action:** Created task via task-create agent
+- **Output:** /opt/termlink/.tasks/active/T-2852-the-prescribed-l-387-fix-still-fails-l-3.md
+- **Context:** Initial task creation
+
+### 2026-08-29T10:26:15Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

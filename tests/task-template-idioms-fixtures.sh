@@ -116,5 +116,67 @@ bash "$CHECK" --no-heartbeat >/dev/null 2>&1
 assert_rc "the real .tasks/templates tree is clean" 0 $?
 
 echo
+echo "=== G. allowlist: acknowledged sites are quiet, counted, and load-bearing (T-2852) ==="
+
+AL="$SCRATCH/al"
+run_al()      { bash "$CHECK" --templates-dir "$TDIR" --allowlist "$AL" --no-heartbeat >/dev/null 2>&1; echo $?; }
+run_al_json() { bash "$CHECK" --templates-dir "$TDIR" --allowlist "$AL" --no-heartbeat --json 2>/dev/null; }
+run_al_text() { bash "$CHECK" --templates-dir "$TDIR" --allowlist "$AL" --no-heartbeat 2>&1; }
+
+RISKY='#     out=$(cmd 2>&1); echo "$out" | grep -q "PATTERN"'
+SIG='default.md::out=$(cmd 2>&1); echo "$out" | grep -q "PATTERN"'
+
+# Baseline: with an EMPTY allowlist the line fires. Without this leg the next
+# assertion proves nothing -- a check that was already green cannot demonstrate
+# that the allowlist is what silenced it.
+mktpl "default.md" "$RISKY"
+: > "$AL"
+assert_rc "empty allowlist: the risky line still fires" 1 "$(run_al)"
+
+printf '%s  # cited reason\n' "$SIG" > "$AL"
+assert_rc "an allowlisted signature does not fire" 0 "$(run_al)"
+
+# Counted and reported, never silently dropped (T-2483): a quiet guard must not
+# be ambiguous between "nothing matched" and "the allowlist ate something".
+assert_contains "acknowledged sites are still reported in text output" \
+    "$(run_al_text)" "Acknowledged (1)"
+assert_contains "the acknowledgement prints its cited reason" \
+    "$(run_al_text)" "cited reason"
+assert_contains "clean summary states how many were acknowledged" \
+    "$(run_al_text)" "1 acknowledged"
+assert_contains "JSON carries acknowledged_count" \
+    "$(run_al_json)" '"acknowledged_count": 1'
+
+# Load-bearing in the other direction: deleting the entry must re-fire the site.
+: > "$AL"
+assert_rc "removing the entry re-fires that site" 1 "$(run_al)"
+
+# A comment-only / commented-out entry must not silence anything.
+printf '# %s  # this line is a comment, not an entry\n' "$SIG" > "$AL"
+assert_rc "a commented-out entry does not silence the site" 1 "$(run_al)"
+
+# Keyed on text, not line number: padding above the site must not unmatch it.
+mktpl "default.md" "# pad
+# pad
+# pad
+$RISKY"
+printf '%s  # cited reason\n' "$SIG" > "$AL"
+assert_rc "the entry still matches after lines are inserted above it" 0 "$(run_al)"
+
+# A NEW risky idiom is in neither set, so it fires even while another is acknowledged.
+mktpl "default.md" "$RISKY
+#     bin/fw doctor 2>&1 | grep -q OK"
+assert_rc "a new unacknowledged idiom fires despite an acknowledged sibling" 1 "$(run_al)"
+
+# An absent allowlist is an empty ledger, not a tooling error -- the guard must
+# still work in a tree that has never needed one.
+mktpl "default.md" '# nothing risky here'
+assert_rc "a missing allowlist file is not an error" 0 \
+    "$(bash "$CHECK" --templates-dir "$TDIR" --allowlist "$SCRATCH/no-such-allowlist" --no-heartbeat >/dev/null 2>&1; echo $?)"
+
+bash "$CHECK" --templates-dir "$TDIR" --allowlist >/dev/null 2>&1
+assert_rc "--allowlist with no value is a tooling error" 2 $?
+
+echo
 echo "task-template-idioms-fixtures: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

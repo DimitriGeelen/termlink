@@ -1,0 +1,17 @@
+# task-template-idioms allowlist (T-2852)
+#
+# One `<relpath>::<normalized line text>  # <reason>` per line. Entries are still
+# COUNTED and REPORTED by the guard; they simply do not fire. Keyed on line TEXT,
+# not line number, so template edits above them do not silently unmatch.
+#
+# An entry here is for an idiom the template prescribes WITH its bound stated
+# adjacently -- never for one that is simply inconvenient to fix. The bound in
+# every case below is the 65536-byte pipe capacity documented in that same
+# section (measured: T-2743 on a 146,366-byte page; T-2852 at the boundary).
+# If the template ever drops the bound, delete the matching entry -- the idiom
+# is then unqualified advice again and must fire.
+
+.tasks/templates/default.md::out=$(cmd 2>&1); echo "$out" | grep -q "PATTERN"  # THE EXCEPTION form, introduced by that literal heading and immediately followed by "Valid ONLY while $out fits the 65536-byte pipe buffer". Prescribed as a bounded special case, not as the default -- the default two blocks above is the file-redirect form.
+.tasks/templates/default.md::cosmetic. `echo "$out" | grep -q PAT`, nothing between.  # Prose inside that same bounded-exception block, constraining the shape further (T-2090: no intermediate tail/awk/sed stage). Restricts an already-bounded idiom; it does not introduce a new unbounded one.
+.tasks/templates/default.md::out=$(python3 -m pytest <file> -q 2>&1); echo "$out" | grep -q passed && ! echo "$out" | grep -q failed  # T-2738 test-runner guard, offered as the ALTERNATIVE to the file-redirect form printed on the line directly above it. Retained because the double-grep negative check is the point of the line; inherits the same stated bound.
+.tasks/templates/default.md::out=$(bats <file> 2>&1); echo "$out" | grep -q '^ok 1 ' && ! echo "$out" | grep -q '^not ok'  # Same T-2738 guard for bats; same file-redirect alternative directly above; same stated bound.
