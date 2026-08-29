@@ -50,13 +50,13 @@ until a human decides whether periodic architectural review is worth formalising
 ## Acceptance Criteria
 
 ### Human
-- [ ] Decide whether non-goal #4 warrants any structural guard at all, given it is
+- [ ] [REVIEW] Decide whether non-goal #4 warrants any structural guard at all, given it is
       semantic (no cheap syntactic signature) — vs accepting periodic human
       architectural review as the guard.
-- [ ] If a guard is wanted, scope what it would check (e.g. a review checklist item,
+- [ ] [REVIEW] If a guard is wanted, scope what it would check (e.g. a review checklist item,
       an ADR gate on new substrate-crate public APIs, or a curated denylist of
       policy-shaped constructs) — NOT a naive grep.
-- [ ] Record the decision; if "no automated guard", close with that rationale so the
+- [ ] [RUBBER-STAMP] Record the decision; if "no automated guard", close with that rationale so the
       gap is knowingly-accepted, not silently open.
 
 ### Human

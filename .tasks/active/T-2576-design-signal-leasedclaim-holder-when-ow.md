@@ -51,15 +51,15 @@ worker recovers) is a design decision, not a mechanical fix.
 ## Acceptance Criteria
 
 ### Human
-- [ ] Decide the contract shape: an at-risk signal on `LeasedClaim` (e.g.
+- [ ] [REVIEW] Decide the contract shape: an at-risk signal on `LeasedClaim` (e.g.
       `ownership_in_doubt()` derived from `now >= claimed_until`, or a state the
       renew loop sets on repeated transient failure past the deadline) that a
       worker consults before acting — advisory vs mandatory, and how the worker is
       expected to recover (re-claim, abort unit, checkpoint).
-- [ ] Decide whether the renew loop should also proactively surface this to the
+- [ ] [REVIEW] Decide whether the renew loop should also proactively surface this to the
       operator/orchestrator (beyond T-2575's warn!) — e.g. a metric or presence
       annotation — or whether the holder-side check is sufficient.
-- [ ] If "change the contract", file a build task with concrete ACs + a
+- [ ] [RUBBER-STAMP] If "change the contract", file a build task with concrete ACs + a
       load-bearing test (a worker that sees ownership-in-doubt stops acting); if
       "warn! is sufficient", record that T-2575 closes the practical risk and this
       is knowingly deferred.

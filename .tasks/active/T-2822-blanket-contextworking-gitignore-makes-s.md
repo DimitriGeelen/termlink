@@ -161,7 +161,7 @@ committing; an allowlist is a record of governance decisions and deserves that l
 - [x] Fixture is host-independent — scratch repo, no real `.context/working`
 
 ### Human
-- [ ] Commit the four static-check allowlists so the checks are clean off this machine.
+- [ ] [RUBBER-STAMP] Commit the four static-check allowlists so the checks are clean off this machine.
       **Steps:**
       1. `cd /opt/termlink && git status --short .context/working/ | head -30`
       2. Read the list — confirm nothing machine-local or secret-bearing appears. Expect the

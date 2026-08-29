@@ -150,7 +150,7 @@ reviews the list before committing rather than trusting a blind sweep from here.
 - [x] No tracked file's status changes in this checkout (`git status` stays clean)
 
 ### Human
-- [ ] Run the one-time catch-up in the main checkout and review before committing.
+- [ ] [REVIEW] Run the one-time catch-up in the main checkout and review before committing.
       **Steps:** 1. `cd /opt/termlink && git status --short .agentic-framework/ | head -50`
       2. Read that list — confirm nothing machine-local, host-specific or secret-bearing
       appears (host paths, tokens, per-machine config, `*.local.*`).

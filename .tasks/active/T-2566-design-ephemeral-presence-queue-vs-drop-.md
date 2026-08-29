@@ -57,11 +57,11 @@ These interact with the offline-queue design (T-2051) and presence semantics
 ## Acceptance Criteria
 
 ### Human
-- [ ] Decision recorded on Q1 (queue / drop / coalesce presence on hub-unreachable),
+- [ ] [REVIEW] Decision recorded on Q1 (queue / drop / coalesce presence on hub-unreachable),
       with rationale tied to the offline-queue capacity + presence-TTL trade-off.
-- [ ] Decision recorded on Q2 (loop exit-after-N-queued: yes/no, N value, opt-in?),
+- [ ] [REVIEW] Decision recorded on Q2 (loop exit-after-N-queued: yes/no, N value, opt-in?),
       with rationale tied to supervisor restart behaviour vs flap risk.
-- [ ] If either decision is "change behaviour", a follow-up build task is filed with
+- [ ] [RUBBER-STAMP] If either decision is "change behaviour", a follow-up build task is filed with
       concrete ACs; if "keep status quo", the T-2564 warn is confirmed as sufficient.
 
 ### Human

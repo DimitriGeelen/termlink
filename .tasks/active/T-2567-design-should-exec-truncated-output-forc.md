@@ -97,14 +97,14 @@ task is the WIRE-BEHAVIOUR question the prover work deferred.
 ## Acceptance Criteria
 
 ### Human
-- [ ] Decide: should `execute_capped` force `exit_code = -1` (or a distinct sentinel)
+- [ ] [REVIEW] Decide: should `execute_capped` force `exit_code = -1` (or a distinct sentinel)
       whenever `truncated == true`, so exit-code-only consumers cannot mistake a
       truncated capture for success? Trade-off: it changes wire behaviour for any
       caller that currently reads the real code alongside `truncated`.
-- [ ] Consumer-contract audit: enumerate every `exec` / `termlink_run` / `batch_run`
+- [ ] [REVIEW] Consumer-contract audit: enumerate every `exec` / `termlink_run` / `batch_run`
       caller and confirm each checks `truncated` alongside `exit_code` (or would be
       protected by the forced -1). List the unprotected callers.
-- [ ] If "force -1" is chosen, file a build task with the code change + a regression
+- [ ] [RUBBER-STAMP] If "force -1" is chosen, file a build task with the code change + a regression
       test; if "keep + document", ensure the truncated-field contract is documented
       at every consumer surface.
 

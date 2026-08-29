@@ -61,14 +61,14 @@ different cost/telemetry/compat profile — a human/design call.
 ## Acceptance Criteria
 
 ### Human
-- [ ] Decide the remedy among (a) sweep-side guard below min live cursor, (b)
+- [ ] [REVIEW] Decide the remedy among (a) sweep-side guard below min live cursor, (b)
       inline gap indicator in the subscribe response, (c) keep opt-in gap verbs +
       document — with rationale tied to the bounded-retention (non-goal #2) vs
       no-silent-failures (Reliability) trade-off.
-- [ ] Confirm the boundary vs T-2562 (forever-archival guard) and the existing
+- [ ] [REVIEW] Confirm the boundary vs T-2562 (forever-archival guard) and the existing
       `gap_before`/`oldest_offset` primitives so the chosen remedy does not
       duplicate or contradict them.
-- [ ] If "change behaviour", file a build task with concrete ACs + a load-bearing
+- [ ] [RUBBER-STAMP] If "change behaviour", file a build task with concrete ACs + a load-bearing
       test (a lagging subscriber whose span was swept is told, not silently
       skipped); if "document only", record that the opt-in gap verbs are the
       sanctioned detection path and where that contract is stated.

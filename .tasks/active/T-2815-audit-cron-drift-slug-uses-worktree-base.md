@@ -138,7 +138,7 @@ the next framework sync.
 - [x] Recorded the blocked-push consequence in the session handover
 
 ### Human
-- [ ] Decide whether to remove the stray `/etc/cron.d/agentic-audit-agent-a1edeca4dc54e9ac7`
+- [ ] [REVIEW] Decide whether to remove the stray `/etc/cron.d/agentic-audit-agent-a1edeca4dc54e9ac7`
       (40+ jobs pointing at another project's ephemeral worktree; the audit job has been
       failing every 30 min). It belongs to 002-Claude-Partner-Network, so removing it is a
       cross-project action this session must not take unilaterally.
