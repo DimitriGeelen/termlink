@@ -1,12 +1,12 @@
-error-watchdog=22
+error-watchdog=38
 
-checkpoint=34
-check-tier0=36
-budget-gate=37
-check-project-boundary=36
-check-active-task=34
-loop-detect=33
-audit-task-tools=22
+checkpoint=52
+check-tier0=55
+budget-gate=56
+check-project-boundary=55
+check-active-task=53
+loop-detect=51
+audit-task-tools=38
 check-active-completed-dup=1
 check-arc-id=1
 check-onboarding-gate=1
