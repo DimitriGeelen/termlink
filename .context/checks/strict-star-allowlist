@@ -1,0 +1,43 @@
+# strict-star-allowlist (T-2703) — acknowledged dial sites in termlink-cli + termlink-mcp
+#
+# Guards: "Strict star; spokes never connect to one another."
+#         (docs/architecture/parallel-execution-substrate.md § 3 and § 10)
+#
+# SCOPE. This ledger covers ONLY the CLI and MCP surfaces. termlink-session is
+# guarded by crates/termlink-session/tests/no_spoke_mesh_tripwire.rs, which pins
+# per-module connect counts and is stronger for that crate; duplicating it here
+# would mean two ledgers for one crate. termlink-hub's outbound edge is
+# hub-to-hub federation, guarded by T-2569's no_federation_tripwire.rs.
+#
+# One entry per line:  <relpath>::<enclosing-fn>  # <what the target is>
+#
+# The reason must NAME THE TARGET — a hub address, a local session socket on
+# this host, or the process's own listener — and say why it is not a peer
+# spoke. "Safe" is not a reason: this ledger IS the topology documentation,
+# kept next to the signature so it stays in sync with the code (T-2693 rule).
+#
+# Removing a line re-fires that site. A NEW dial site is in neither this ledger
+# nor the test-context set, so it fires on the next run.
+#
+# Signatures are fn-name-based so they survive line moves; a fn RENAME re-fires
+# the site, which is the intended re-review on meaningful change (same
+# trade-off as T-2527 / T-2531 / T-2666 / T-2672).
+
+# --- local session sockets on this host --------------------------------------
+# T-2702 explicitly cleared this class: the CLI reaching a LOCAL session socket
+# is an operator tool talking to a session on the same host, not the
+# agent-to-agent mesh § 3 forbids. Banning it would be a false positive that
+# makes the guard unusable.
+crates/termlink-cli/src/commands/pty.rs::attach_loop            # the local session's data-plane socket, for PTY attach.
+crates/termlink-cli/src/commands/mirror_grid_composer.rs::feed  # the local session's data-plane socket, for the mirror grid.
+
+# --- the local hub socket ----------------------------------------------------
+crates/termlink-cli/src/commands/dispatch.rs::<toplevel>        # liveness probe of the LOCAL hub socket ($runtime_dir/hub.sock), to decide whether a hub is already running. The star's centre.
+
+# --- diagnostic reachability probes ------------------------------------------
+# `net-test` is a layered operator diagnostic (L1 TCP / L2 TLS / L3 RPC) run
+# against an address the operator names. At L1 it establishes no session and
+# exchanges no session protocol — it measures whether the address answers, then
+# drops the connection. A reachability probe is not a channel.
+crates/termlink-cli/src/commands/remote.rs::classify_fleet_error # net-test L1 TCP reachability probe. NOTE: fn attribution is the nearest preceding fn declaration; the dial sits in the net-test command body.
+crates/termlink-mcp/src/tools.rs::termlink_net_test              # net-test L1 TCP reachability probe (MCP surface of the same diagnostic).

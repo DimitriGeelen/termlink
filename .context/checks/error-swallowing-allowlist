@@ -1,0 +1,38 @@
+# error-swallowing-allowlist (T-2792)
+#
+# Acknowledged `if !<expr>.exists()/is_dir()/is_file() { return <empty success>; }` sites.
+# One drift-stable signature per line:
+#
+#     <relpath>::<enclosing-fn>::empty-success-gate   # <reason>
+#
+# THE RULE IS STRICTER THAN THE SIBLING CHECKS (borrowed from platform-lock, T-2693).
+# `Path::exists()` returns false on a permission error, so every site here CAN be reached
+# by a failed read. The reason must therefore state WHAT THE CODE DOES when the predicate
+# is false for a reason other than absence. "Known safe" / "it's fine" is not a reason —
+# a grep cannot tell a correct empty answer from a lie, so the acknowledgement IS the
+# analysis and lives here to stay in sync with the signature.
+#
+# An entry is for a site that behaves CORRECTLY under EACCES. It is not a parking space
+# for one that does not: T-2791's own `discovery.rs` filter was FIXED, not acknowledged,
+# and `manager.rs::list_sessions` was fixed by T-2792 when this check found the T-2791
+# chain still live one layer down.
+#
+# Removing a line re-fires that site. A fn RENAME also re-fires it — intended re-review.
+
+crates/termlink-session/src/registration.rs::load_identity_fingerprint_best_effort::empty-success-gate  # Under EACCES the fingerprint stays None and the Registration is created without an identity attribution. That is the DOCUMENTED contract of this fn (see its doc comment: "keeps `Registration::new` infallible ... the field just stays None") and the reason it is named _best_effort: pre-T-1436 callers and tests run with no identity at all and must keep working. The unreadable case is therefore indistinguishable from the not-configured case BY DESIGN, and both are handled identically downstream. Note for a future reader: this means an unreadable identity key yields an unattributed registration rather than an error — acceptable only because an absent key must already do so.
+
+crates/termlink-session/src/manager.rs::find_by_display_name::empty-success-gate  # Private fn (not `pub`), and both call sites pass a dir the caller has already proven readable: manager.rs:69 passes the `sessions_dir` it is about to write into (an unreadable one fails loudly at the write), and the name-conflict check runs inside `register_in` after the dir has been created. Under EACCES the `read_dir` two lines below returns Err and propagates via `?` — the `!exists()` gate is a fast path, not the error handler. Reachable only by TOCTOU between the two syscalls.
+
+crates/termlink-session/src/manager.rs::clean_stale_sessions::empty-success-gate  # Returns the list of sessions CLEANED. Under EACCES it cleans nothing and reports nothing cleaned, which is true: it could not have cleaned anything it could not read. No caller infers "the directory is empty" from an empty clean-list — the value is a report of work done, not an inventory. Distinct from list_sessions_in, whose empty return IS read as an inventory.
+
+crates/termlink-cli/src/commands/remote.rs::fleet_state_path::empty-success-gate  # Resolves the optional `.context/working/` state path and returns None to mean "not inside a framework project" — the overwhelmingly common case (the CLI runs from anywhere). Under EACCES the caller takes the same branch as a non-project cwd: the fleet-failure-state feature is skipped entirely. It degrades a local convenience feature off, never reports a fleet fact derived from the missing file.
+
+crates/termlink-cli/src/commands/remote.rs::fleet_concerns_path::empty-success-gate  # Same shape and same caller contract as fleet_state_path above: None means "no concerns.yaml to annotate against", the feature is skipped, and no fleet verdict is computed from its absence. Under EACCES the operator loses the concerns annotation, not correctness of the fleet report.
+
+crates/termlink-hub/src/inbox.rs::list_pending::empty-success-gate  # Under EACCES this reports "no pending messages" for a target whose dir it cannot read. The empty answer is NOT provably correct here — it is the same shape as T-2791. Acknowledged rather than fixed because this is the T-1166 legacy inbox primitive, already deprecated and slated for retirement, and the hub owns its own runtime_dir so the EACCES case requires an operator to have chmod'd the hub's own state out from under it. If T-1166 retirement is abandoned, this entry must become a fix.
+
+crates/termlink-hub/src/inbox.rs::list_all_targets::empty-success-gate  # Same fn family, same reasoning, same T-1166 retirement condition as list_pending above.
+
+crates/termlink-mcp/src/tools.rs::cursor_list_for_fingerprint_mcp::empty-success-gate  # Cursor store read. Under EACCES it reports no stored cursors, and the caller treats "no cursor" as "start from the beginning" — the same conservative default as a genuinely fresh install. The failure mode is re-reading messages already seen, which is safe and self-correcting on the next write; it never reports absence of MESSAGES, only absence of a read position.
+
+crates/termlink-cli/src/commands/channel.rs::load::empty-success-gate  # Cursor store load, same class and same conservative default as cursor_list_for_fingerprint_mcp above: an empty map means every topic starts from offset 0. Under EACCES the operator re-reads a topic from the start rather than being told it is empty. The file is under the caller's own `~/.termlink`, so EACCES implies the user broke their own permissions.
