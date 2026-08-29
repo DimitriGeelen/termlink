@@ -1,10 +1,10 @@
-# Audit Results - 2026-08-29-1036
-timestamp: 2026-08-29T08:36:35Z
+# Audit Results - 2026-08-29-1204
+timestamp: 2026-08-29T10:04:35Z
 sections: "structure"
 summary:
   pass: 37
   warn: 9
-  fail: 0
+  fail: 1
 findings:
   - level: PASS
     check: "Tasks directory exists"
@@ -17,7 +17,7 @@ findings:
   - level: PASS
     check: "Task template exists"
   - level: PASS
-    check: "No duplicate task IDs — examined 14260 task file(s) across 6 corpus view(s) (21 ID(s) byte-identical in every view, 2531 same-task at differing revisions)"
+    check: "No duplicate task IDs — examined 14262 task file(s) across 6 corpus view(s) (21 ID(s) byte-identical in every view, 2531 same-task at differing revisions)"
   - level: PASS
     check: "All project YAML files parse correctly — examined 15 project YAML file(s)"
   - level: PASS
@@ -46,12 +46,12 @@ findings:
     check: "Found 76 GO-scope-not-propagated inception(s) of 157 GO-recorded completed inception(s) examined — GO recorded, related_tasks empty, nobody back-references, no unlocks_inception_decision"
     mitigation: "Triage: per inception either backfill related_tasks: / unlocks_inception_decision:, or file the slices its GO approved. Full list: cat /opt/termlink/.context/audits/go-scope-unpropagated/LATEST.md (origin: T-2078, T-2091, T-3099; sibling to L-417/T-1975)"
   - level: PASS
-    check: "Fabric: 424 registered card(s)"
+    check: "Fabric: 438 registered card(s)"
   - level: WARN
-    check: "Fabric: 290/454 cards have no edges"
+    check: "Fabric: 304/468 cards have no edges"
     mitigation: "Run: fw fabric enrich"
   - level: PASS
-    check: "Fabric drift: all watched files registered — examined 415 watched file(s)"
+    check: "Fabric drift: all watched files registered — examined 429 watched file(s)"
   - level: WARN
     check: "Fabric: 9 card(s) point at files no watch pattern covers"
     mitigation: "Widen .fabric/watch-patterns.yaml, or remove the cards if they are not components"
@@ -79,6 +79,9 @@ findings:
     check: "cron(frozen-husk-canary): USER-field syntax installed at /etc/cron.d/termlink-frozen-husk-canary"
   - level: PASS
     check: "cron(heartbeat): USER-field syntax installed at /etc/cron.d/termlink-heartbeat"
+  - level: FAIL
+    check: "cron(hook-counter-integrity-canary): USER-field syntax but no install in /etc/cron.d"
+    mitigation: "Install: sudo cp /opt/termlink/.context/cron/hook-counter-integrity-canary.crontab /etc/cron.d/termlink-hook-counter-integrity-canary && sudo systemctl reload cron"
   - level: PASS
     check: "cron(preflight-doc-set-drift-canary): USER-field syntax installed at /etc/cron.d/termlink-preflight-doc-set-drift-canary"
   - level: PASS
