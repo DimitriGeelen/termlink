@@ -1,0 +1,97 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2852: The prescribed L-387 fix still fails L-387 above 64KiB
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-29T10:51:35Z
+# ============================================================================
+
+task_id: T-2852
+task_name: "The prescribed L-387 fix still fails L-387 above 64KiB"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-29T10:24:58Z
+completed: 2026-08-29T10:51:24Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-08-29T12:36:01+02:00
+last_commit: 2026-08-29T12:48:33+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  reconcile the four copies of the L-387 safe-rewrite claim. pin the L-387 boundary measurement as a falsifiable fixture
+
+# Key outcomes
+outcomes:
+  - 'The failure is reproduced and its boundary measured, not asserted: `echo "$out" | grep -q PAT` under `set -o pipefail` returns 141 when `$out` exceeds the pipe capacity AND the match is early enough for grep to exit before echo finishes writing. A fixture pins both the failing case and the passing herestring so the claim can be falsified by anyone'
+  - '`.tasks/templates/default.md` no longer PRESCRIBES the failing shape. The template is the highest-leverage surface here because every future task copies its Verification block from it, so a wrong idiom there reproduces itself indefinitely'
+  - 'The CLAUDE.md T-2818 section no longer calls the echo-pipe form "SIGPIPE-immune". The claim is replaced with one that states the actual bound, because a qualified-but-true rule is safer than a simple-but-false one'
+  - 'The vendored detector''s unconditional echo/printf exemption is filed upstream, NOT patched locally (G-062). The filing states the DIRECTION of the failure — the detector cannot flag the shape it recommends, so the blind spot is self-sealing'
+  - 'Every verification command written for this task uses the herestring form, so the task is its own smallest proof'
+  - 'Where the fix is a judgement call rather than a defect, it is left alone and said so — this task changes prescribed guidance, not every historical occurrence in 2500 completed task files'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'pin the L-387 boundary measurement as a falsifiable fixture'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.context/audits/discoveries/LATEST.yaml'
+  - '.context/checks/task-template-idioms-allowlist'
+  - '.context/project/metrics-history.yaml'
+  - '.context/working/.budget-status'
+  - '.context/working/focus.yaml'
+  - '.context/working/.hook-counter'
+  - '.context/working/session.yaml'
+  - '.context/working/.tool-counter'
+  - 'scripts/check-task-template-idioms.sh'
+  - '.tasks/active/T-2723-handover-commit-under-t-1452-collides-wi.md'
+  - '.tasks/active/T-2852-the-prescribed-l-387-fix-still-fails-l-3.md'
+  - '.tasks/templates/default.md'
+  - '.termlink-task'
+  - 'tests/l387-boundary-fixtures.sh'
+  - 'tests/task-template-idioms-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-29T12:36:01'
+    action: 'T-2852: reconcile the four copies of the L-387 safe-rewrite claim'
+  - time: '2026-08-29T12:48:33'
+    action: 'T-2852: pin the L-387 boundary measurement as a falsifiable fixture'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 26 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 26
+  commits: 2
+  files_changed: 16
+  lines_added: 581
+  lines_removed: 84
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2852-the-prescribed-l-387-fix-still-fails-l-3.md
+generated_by: context-agent-hybrid

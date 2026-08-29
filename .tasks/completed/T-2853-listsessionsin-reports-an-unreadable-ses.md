@@ -1,17 +1,17 @@
 ---
-id: T-2852
-name: "The prescribed L-387 fix still fails L-387 above 64KiB"
+id: T-2853
+name: "list_sessions_in reports an unreadable sessions dir as empty"
 description: >
-  The repo-wide safe rewrite for L-387 (out=$(cmd); echo "$out" | grep -q PAT) returns
-  141 when the captured output exceeds the pipe capacity and the match is early. The
-  vendored detector exempts that exact shape, so it cannot catch its own recommendation.
+  Path::exists() returns false on EACCES, so list_sessions_in converts 'I could not
+  read this directory' into 'there are no sessions here' and returns it as success
+  (Directive #2). Distinguish absent from unreadable via io::ErrorKind, per T-2791.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: claude-code
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [crates/termlink-session/src/manager.rs]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -23,9 +23,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-08-29T10:24:58Z
-last_update: 2026-08-29T10:26:15Z
-date_finished:
+created: 2026-08-29T10:42:43Z
+last_update: 2026-08-29T10:51:51Z
+date_finished: 2026-08-29T10:51:51Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -37,7 +37,7 @@ date_finished:
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-08-29T10:26:15Z'
+  - ts: '2026-08-29T10:44:08Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
@@ -52,7 +52,7 @@ bvp_scores_proposed:
     rubric_sha: e4a00f38e801
 ---
 
-# T-2852: The prescribed L-387 fix still fails L-387 above 64KiB
+# T-2853: list_sessions_in reports an unreadable sessions dir as empty
 
 ## Context
 
@@ -62,12 +62,12 @@ bvp_scores_proposed:
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] The failure is reproduced and its boundary measured, not asserted: `echo "$out" | grep -q PAT` under `set -o pipefail` returns 141 when `$out` exceeds the pipe capacity AND the match is early enough for grep to exit before echo finishes writing. A fixture pins both the failing case and the passing herestring so the claim can be falsified by anyone
-- [ ] `.tasks/templates/default.md` no longer PRESCRIBES the failing shape. The template is the highest-leverage surface here because every future task copies its Verification block from it, so a wrong idiom there reproduces itself indefinitely
-- [ ] The CLAUDE.md T-2818 section no longer calls the echo-pipe form "SIGPIPE-immune". The claim is replaced with one that states the actual bound, because a qualified-but-true rule is safer than a simple-but-false one
-- [ ] The vendored detector's unconditional echo/printf exemption is filed upstream, NOT patched locally (G-062). The filing states the DIRECTION of the failure — the detector cannot flag the shape it recommends, so the blind spot is self-sealing
-- [ ] Every verification command written for this task uses the herestring form, so the task is its own smallest proof
-- [ ] Where the fix is a judgement call rather than a defect, it is left alone and said so — this task changes prescribed guidance, not every historical occurrence in 2500 completed task files
+- [x] `list_sessions_in` distinguishes ABSENT from UNREADABLE: a missing sessions dir still returns `Ok(vec![])`, but a dir that exists and cannot be read returns `Err`, so the caller learns the answer is unknown rather than being handed an empty list that looks authoritative
+- [x] The distinction is made on `io::ErrorKind`, not on a second `exists()`/`metadata()` probe. A probe re-introduces the same blindness one call earlier and adds a TOCTOU window between the check and the read
+- [x] A regression test drives the EACCES path with a real unreadable directory and asserts `Err`, and a sibling test asserts the absent path still yields the empty vec. The unreadable case is the one that regresses silently, so a test that only covers the absent case would pass against the defect
+- [x] The test skips rather than fails when it cannot construct the condition (running as root defeats mode 0o000), because a test that silently passes under root is exactly the false green this task is about
+- [x] `check-error-swallowing-predicate.sh` goes from 1 firing to 0 with nothing added to its allowlist — the site is fixed, not acknowledged
+- [x] `cargo test -p termlink-session` passes
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -97,10 +97,58 @@ bvp_scores_proposed:
          **Expected:** Verdict: PASS; no findings on `block-message-completeness`
          **If not:** Inspect hook block-message string and add missing mechanism
        Conversion: this AC should be moved to ### Agent and
-       `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` added to ## Verification.
+       `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
+       added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
+       Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
 -->
 
+## RCA
+
+**Symptom:** `list_sessions_in` returned `Ok(vec![])` — "there are no sessions
+here" — for a sessions directory that exists but cannot be read. Callers,
+including `termlink list-sessions` and discovery, took the empty list as
+authoritative and reported zero sessions on what was actually a permissions
+fault.
+
+**Root cause:** `Path::exists()` maps EVERY metadata error to `false`, EACCES
+included. The gate `if !sessions_dir.exists() { return Ok(vec![]); }` therefore
+could not distinguish "absent" from "unreadable" and collapsed both into the
+same successful empty answer. Directive #2: a plausible wrong answer, not an
+error.
+
+**Why structurally allowed:** Three signals all read green.
+
+1. No detector existed for the shape until `check-error-swallowing-predicate.sh`
+   landed this week (T-2850) — and that guard was itself sitting unrunnable on a
+   worktree branch, so the site was invisible for as long as it existed.
+2. The obvious unit test is the ABSENT case, and it passes against the defect.
+   A test suite covering only that leg is fully green while the bug is live.
+3. The EACCES test that WOULD catch it cannot run as root, and skips. On a root
+   CI runner it reports `ok` — verified here by mutation: with the old gate
+   restored, the EACCES leg still passed because it skipped. A skip that reads
+   as a pass is the same false green one level up.
+
+**Prevention:**
+- Match on `io::ErrorKind` (the T-2791 `classify_candidate` pattern): NotFound
+  stays an empty success, everything else is an error. Reading directly rather
+  than probing also removes the TOCTOU window a separate `exists()` would open.
+- TWO test legs, deliberately. The EACCES leg for the real condition, and a
+  root-runnable ENOTDIR leg (a sessions path under a regular file) that
+  constructs the same class — `read_dir` fails with something other than
+  NotFound while `exists()` flattens it to false — and runs everywhere.
+- Mutation-verified: restoring the old gate fails the ENOTDIR leg specifically.
+  Without that second leg the fix would have had no test that actually runs here.
+- The guard went 1 → 0 firing with `.context/checks/error-swallowing-allowlist`
+  UNCHANGED. The site is fixed, not acknowledged — an allowlist entry is for a
+  site confirmed safe, never for a real defect one would rather not see.
+
 ## Verification
+
+cargo test -p termlink-session --lib > /tmp/.t2853a 2>&1 && grep -q "0 failed" /tmp/.t2853a
+bash scripts/check-error-swallowing-predicate.sh --no-heartbeat > /tmp/.t2853b 2>&1 && grep -q "0 unacknowledged" /tmp/.t2853b
+bash tests/error-swallowing-check-fixtures.sh > /tmp/.t2853c 2>&1 && grep -q "26 passed, 0 failed" /tmp/.t2853c
+# the allowlist must be untouched: fixed, not acknowledged
+test -z "$(git diff HEAD --name-only .context/checks/error-swallowing-allowlist)"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -119,7 +167,7 @@ bvp_scores_proposed:
 # Correct at any output size, and `&&` keeps the PRODUCING command's exit code in
 # the verdict. Reach for this first; the alternative below is the special case.
 #
-# Why not `cmd | grep -q PAT` (L-387): P-011 runs each line under `set -eo
+# NEVER `cmd | grep -q PAT` (L-387) — why: P-011 runs each line under `set -eo
 # pipefail`. When grep matches it exits and closes stdin while cmd is still
 # writing, cmd takes SIGPIPE, the pipeline exits 141 — verification "fails" with
 # the pattern present. Captured 4× (T-1716, T-1838, T-1862, T-1863).
@@ -253,10 +301,22 @@ bvp_scores_proposed:
 
 ## Updates
 
-### 2026-08-29T10:24:58Z — task-created [task-create-agent]
+### 2026-08-29T10:42:43Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2852-the-prescribed-l-387-fix-still-fails-l-3.md
+- **Output:** /opt/termlink/.tasks/active/T-2853-listsessionsin-reports-an-unreadable-ses.md
 - **Context:** Initial task creation
 
-### 2026-08-29T10:26:15Z — status-update [task-update-agent]
+### 2026-08-29T10:44:07Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-4cded689
+- **Timestamp:** 2026-08-29T10:52:47Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-29T10:51:51Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

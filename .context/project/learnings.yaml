@@ -4360,3 +4360,9 @@ learnings:
   task: T-2839
   date: 2026-08-26
   context: Added via context agent
+- id: PL-364
+  learning: "A detector that exempts a shape can never falsify advice recommending that shape. static_scan.py unconditionally exempts an echo/printf upstream from its L-387 check while recommending exactly that shape as the fix, so every scan confirms the recommendation by construction. When a detector and the recommendation it enforces share an author, check whether the detector CAN disagree with it."
+  source: P-001
+  task: T-2852
+  date: 2026-08-29
+  context: Added via context agent

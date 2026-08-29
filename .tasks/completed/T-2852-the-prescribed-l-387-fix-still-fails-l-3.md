@@ -1,17 +1,17 @@
 ---
-id: T-2853
-name: "list_sessions_in reports an unreadable sessions dir as empty"
+id: T-2852
+name: "The prescribed L-387 fix still fails L-387 above 64KiB"
 description: >
-  Path::exists() returns false on EACCES, so list_sessions_in converts 'I could not
-  read this directory' into 'there are no sessions here' and returns it as success
-  (Directive #2). Distinguish absent from unreadable via io::ErrorKind, per T-2791.
+  The repo-wide safe rewrite for L-387 (out=$(cmd); echo "$out" | grep -q PAT) returns
+  141 when the captured output exceeds the pipe capacity and the match is early. The
+  vendored detector exempts that exact shape, so it cannot catch its own recommendation.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: claude-code
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/check-task-template-idioms.sh, tests/l387-boundary-fixtures.sh, tests/task-template-idioms-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -23,9 +23,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-08-29T10:42:43Z
-last_update: 2026-08-29T10:44:07Z
-date_finished:
+created: 2026-08-29T10:24:58Z
+last_update: 2026-08-29T10:51:24Z
+date_finished: 2026-08-29T10:51:24Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -37,7 +37,7 @@ date_finished:
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 bvp_scores_proposed:
-  - ts: '2026-08-29T10:44:08Z'
+  - ts: '2026-08-29T10:26:15Z'
     estimator: bvp-estimator-v1-heuristic
     scores:
       D1: 4
@@ -52,22 +52,34 @@ bvp_scores_proposed:
     rubric_sha: e4a00f38e801
 ---
 
-# T-2853: list_sessions_in reports an unreadable sessions dir as empty
+# T-2852: The prescribed L-387 fix still fails L-387 above 64KiB
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+T-2743 already measured that the prescribed L-387 rewrite is itself an L-387
+failure above the pipe capacity, and corrected `.tasks/templates/default.md`.
+This task is not that discovery — it is the reconciliation. The same claim
+exists in four copies with no transclusion (the T-2484 class), and only the
+template was fixed.
+
+**Left alone deliberately.** The idiom appears in ~661 historical task files
+under `.tasks/`. Those are not rewritten: they are a record of what was
+believed at the time, most are already completed, and mass-editing them would
+churn the corpus without changing any future outcome. This task changes
+PRESCRIBED guidance — the template and CLAUDE.md — which is what new tasks copy
+from. Two of the four copies are vendored (G-062) and were filed upstream at
+`framework:pickup` offset 70 rather than patched.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `list_sessions_in` distinguishes ABSENT from UNREADABLE: a missing sessions dir still returns `Ok(vec![])`, but a dir that exists and cannot be read returns `Err`, so the caller learns the answer is unknown rather than being handed an empty list that looks authoritative
-- [ ] The distinction is made on `io::ErrorKind`, not on a second `exists()`/`metadata()` probe. A probe re-introduces the same blindness one call earlier and adds a TOCTOU window between the check and the read
-- [ ] A regression test drives the EACCES path with a real unreadable directory and asserts `Err`, and a sibling test asserts the absent path still yields the empty vec. The unreadable case is the one that regresses silently, so a test that only covers the absent case would pass against the defect
-- [ ] The test skips rather than fails when it cannot construct the condition (running as root defeats mode 0o000), because a test that silently passes under root is exactly the false green this task is about
-- [ ] `check-error-swallowing-predicate.sh` goes from 1 firing to 0 with nothing added to its allowlist — the site is fixed, not acknowledged
-- [ ] `cargo test -p termlink-session` passes
+- [x] The failure is reproduced and its boundary measured, not asserted: `echo "$out" | grep -q PAT` under `set -o pipefail` returns 141 when `$out` exceeds the pipe capacity AND the match is early enough for grep to exit before echo finishes writing. A fixture pins both the failing case and the passing herestring so the claim can be falsified by anyone
+- [x] `.tasks/templates/default.md` no longer PRESCRIBES the failing shape. The template is the highest-leverage surface here because every future task copies its Verification block from it, so a wrong idiom there reproduces itself indefinitely
+- [x] The CLAUDE.md T-2818 section no longer calls the echo-pipe form "SIGPIPE-immune". The claim is replaced with one that states the actual bound, because a qualified-but-true rule is safer than a simple-but-false one
+- [x] The vendored detector's unconditional echo/printf exemption is filed upstream, NOT patched locally (G-062). The filing states the DIRECTION of the failure — the detector cannot flag the shape it recommends, so the blind spot is self-sealing
+- [x] Every verification command written for this task uses the herestring form, so the task is its own smallest proof
+- [x] Where the fix is a judgement call rather than a defect, it is left alone and said so — this task changes prescribed guidance, not every historical occurrence in 2500 completed task files
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -97,12 +109,74 @@ bvp_scores_proposed:
          **Expected:** Verdict: PASS; no findings on `block-message-completeness`
          **If not:** Inspect hook block-message string and add missing mechanism
        Conversion: this AC should be moved to ### Agent and
-       `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
-       added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
-       Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
+       `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` added to ## Verification.
 -->
 
+## RCA
+
+**Symptom:** The rewrite the framework prescribes to AVOID L-387 is itself an
+L-387 failure. `out=$(cmd 2>&1); echo "$out" | grep -q PAT` under `set -o
+pipefail` returns 141 once the capture exceeds the pipe capacity and the match
+is early. Measured: clean at 32 KiB, 141 at 128 KiB, nondeterministic at 65536
+exactly. Independently measured by T-2743 on a real 146,366-byte page.
+
+**Root cause:** The claim "echo upstream is SIGPIPE-immune" misidentifies what
+bounds the write. The buffer is the PIPE's (65536 bytes on Linux), not echo's.
+`echo` writes the whole capture regardless of size, so it blocks on a full pipe
+exactly like any other producer, takes SIGPIPE when `grep -q` exits on the first
+match, and pipefail propagates 141. The form is safe only when the capture fits
+the pipe, or when the match is late enough that grep consumes the whole stream —
+which is why it passes in the common case and looked correct for months.
+
+**Why structurally allowed:** Two compounding gaps.
+
+1. The claim exists as FOUR copies with no transclusion — the task template,
+   CLAUDE.md, `policy/anti-patterns.yaml`, and `static_scan.py` — and nothing
+   verified they agreed. T-2743 corrected exactly one. This is the T-2484 class
+   (the charter sentence as three copies) applied to verification guidance, and
+   CLAUDE.md was the worst copy to leave stale because it is auto-loaded into
+   every session: every agent read "SIGPIPE-immune" at start while the template
+   said the opposite.
+
+2. The detector is self-sealing. `detect_l387_sigpipe_risk` exempts an
+   `echo`/`printf` upstream UNCONDITIONALLY, so it can never flag the shape it
+   recommends. Any corpus scan it runs reports that shape as clean by
+   construction, which reads as evidence the recommendation is sound. A detector
+   that structurally cannot falsify its own advice will keep confirming it —
+   the same shape as T-2680, where a guard's green was read as broader than what
+   it had checked.
+
+The failure DIRECTION is what makes it urgent rather than untidy: the gate
+BLOCKS a task whose verification actually passed. Per T-2818, a gate that blocks
+incorrectly teaches its operator that failures are noise and that `--force` is
+the normal way past them — and a verification gate people routinely force is a
+verification gate that no longer verifies. It also fails rarely and
+nondeterministically, hardest when a command emits abnormally large output, i.e.
+exactly when something has already gone wrong.
+
+**Prevention:**
+- `tests/l387-boundary-fixtures.sh` (9 assertions) pins the measurement itself,
+  so the claim is falsifiable by anyone on any host rather than resting on
+  whoever measured it last.
+- `check-task-template-idioms.sh` guards the template against re-acquiring the
+  shape, and now carries the tracked allowlist its five siblings have, so a
+  bounded prescription can be acknowledged with a cited reason instead of being
+  deleted or ignored. Fixtures 21 → 33, including a leg proving that removing an
+  entry re-fires the site.
+- CLAUDE.md now states the bound, leads with the file-redirect default, and
+  NAMES the two vendored copies that still disagree — so the next reader is told
+  the disagreement exists rather than discovering it.
+- Both vendored copies filed upstream at `framework:pickup` offset 70 (G-062).
+
 ## Verification
+
+# Every line below uses the herestring form on purpose — this task is its own
+# smallest proof that the corrected idiom works.
+out=$(bash tests/task-template-idioms-fixtures.sh 2>&1 || true); grep -q "33 passed, 0 failed" <<< "$out"
+out=$(bash tests/l387-boundary-fixtures.sh 2>&1 || true); grep -q "9 passed, 0 failed" <<< "$out"
+out=$(bash scripts/check-task-template-idioms.sh --no-heartbeat 2>&1 || true); grep -q "4 acknowledged" <<< "$out"
+out=$(grep -c "SIGPIPE-immune" CLAUDE.md || true); grep -qx "0" <<< "$out"
+out=$(git ls-files .context/checks/task-template-idioms-allowlist || true); grep -q "task-template-idioms-allowlist" <<< "$out"
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -121,7 +195,7 @@ bvp_scores_proposed:
 # Correct at any output size, and `&&` keeps the PRODUCING command's exit code in
 # the verdict. Reach for this first; the alternative below is the special case.
 #
-# NEVER `cmd | grep -q PAT` (L-387) — why: P-011 runs each line under `set -eo
+# Why not `cmd | grep -q PAT` (L-387): P-011 runs each line under `set -eo
 # pipefail`. When grep matches it exits and closes stdin while cmd is still
 # writing, cmd takes SIGPIPE, the pipeline exits 141 — verification "fails" with
 # the pattern present. Captured 4× (T-1716, T-1838, T-1862, T-1863).
@@ -255,10 +329,22 @@ bvp_scores_proposed:
 
 ## Updates
 
-### 2026-08-29T10:42:43Z — task-created [task-create-agent]
+### 2026-08-29T10:24:58Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2853-listsessionsin-reports-an-unreadable-ses.md
+- **Output:** /opt/termlink/.tasks/active/T-2852-the-prescribed-l-387-fix-still-fails-l-3.md
 - **Context:** Initial task creation
 
-### 2026-08-29T10:44:07Z — status-update [task-update-agent]
+### 2026-08-29T10:26:15Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-308fa8e0
+- **Timestamp:** 2026-08-29T10:51:29Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-29T10:51:24Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

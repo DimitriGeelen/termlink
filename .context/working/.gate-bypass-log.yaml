@@ -2756,3 +2756,12 @@
   caller: 'check-active-task focus-drift'
   target: 'T-2723'
   command: 'git add -A && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2723: session handover S-2026-0829-1208 + post-compact residue" 2>&1 | tail -6'
+- timestamp: '2026-08-29T10:53:32Z'
+  task: 'T-2850'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2852'
+  command: 'git add -A && FW_SWITCH_FOCUS=1 git commit -q -m "T-2852: close T-2852 + T-2853 — RCA, verification, PL-364
+
+Both carry a real ## RCA (G-019 gate refused them without one) naming why the
+framework w'

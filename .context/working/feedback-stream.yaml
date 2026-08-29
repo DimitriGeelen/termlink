@@ -9568,3 +9568,39 @@ scan_id: R-6b522ce9
 task_id: T-2846
 payload:
   task_file: .tasks/active/T-2846-decisionsyaml-re-corrupted-by-vendored-a.md
+---
+kind: scan_emitted
+timestamp: '2026-08-29T10:51:29Z'
+scan_id: R-308fa8e0
+task_id: T-2852
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-29T10:51:29Z'
+scan_id: R-308fa8e0
+task_id: T-2852
+payload:
+  task_file: .tasks/active/T-2852-the-prescribed-l-387-fix-still-fails-l-3.md
+---
+kind: scan_emitted
+timestamp: '2026-08-29T10:52:47Z'
+scan_id: R-4cded689
+task_id: T-2853
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-29T10:52:47Z'
+scan_id: R-4cded689
+task_id: T-2853
+payload:
+  task_file: .tasks/active/T-2853-listsessionsin-reports-an-unreadable-ses.md
