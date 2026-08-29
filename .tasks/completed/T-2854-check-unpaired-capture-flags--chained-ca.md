@@ -4,12 +4,12 @@ name: "check-unpaired-capture flags &&-chained captures whose status is not disc
 description: >
   check-unpaired-capture flags &&-chained captures whose status is not discarded
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/check-unpaired-capture.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-08-29T11:53:29Z
-last_update: 2026-08-29T11:53:29Z
-date_finished: null
+last_update: 2026-08-29T12:03:23Z
+date_finished: 2026-08-29T12:03:23Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -42,15 +42,24 @@ date_finished: null
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
+`check-unpaired-capture.sh` was one of four guards keeping the layer red, and had been
+firing on `main` across sessions. It was the only one of the four needing neither a human
+decision (unlike `check-unbounded-rpc-call`, gated on T-2669's per-verb timeout policy)
+nor host access (unlike `cron-drift-firing-fixtures`, gated on a sudo crontab install), so
+it was the honest next thing to land.
+
+Triaging it found the guard wrong rather than the corpus. Scope is the predicate and its
+self-test only; the T-1451 leg it flagged is untouched, because it was never a defect.
+
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] The predicate skips a capture that is `&&`-chained to its assertion, and still flags one separated by `;` — the header's own stated mechanism (`a ; b` is judged on b alone)
-- [ ] `--self-test` still passes: it plants a `;`-form defect AND spares the paired remedy, so the tightening did not blind the check
-- [ ] The active corpus reports 0 unpaired captures, achieved by FIXING the predicate — no allowlist entry, because the T-1451 leg was never a defect
-- [ ] The false positive is reproducible from git: the pre-fix script flags T-1451, the post-fix one does not (load-bearing, not merely green)
-- [ ] `scripts/run-guard-layer.sh` drops from 4 firing to 3, with `check-unpaired-capture` PASS and no member newly ERRORing
+- [x] The predicate skips a capture that is `&&`-chained to its assertion, and still flags one separated by `;` — the header's own stated mechanism (`a ; b` is judged on b alone)
+- [x] `--self-test` still passes: it plants a `;`-form defect AND spares the paired remedy, so the tightening did not blind the check
+- [x] The active corpus reports 0 unpaired captures, achieved by FIXING the predicate — no allowlist entry, because the T-1451 leg was never a defect
+- [x] The false positive is reproducible from git: the pre-fix script flags T-1451, the post-fix one does not (load-bearing, not merely green)
+- [x] `scripts/run-guard-layer.sh` drops from 4 firing to 3, with `check-unpaired-capture` PASS and no member newly ERRORing
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -280,3 +289,25 @@ is for a site confirmed safe, never for a guard confirmed wrong.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2854-check-unpaired-capture-flags--chained-ca.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-64a96b0f
+- **Timestamp:** 2026-08-29T12:03:43Z
+- **Catalogue:** v1.3-seed
+- **Overall:** FAIL
+- **Needs Human:** no
+- **Findings:** 2
+
+**Per-AC findings:**
+
+- **AC#5 (Agent)** — `scripts/run-guard-layer.sh` drops from 4 firing to 3, with `check-unpaired-capture` PASS and no member newly ERRORing
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=scripts/run-guard-layer.sh in: `scripts/run-guard-layer.sh` drops from 4 firing to 3, with `check-unpaired-capture` PASS and no member newly ERRORing`
+
+**Verification-level findings:**
+
+  1. **swallowed-errors** (severe, deterministic) @ Verification:line 66
+     - evidence: `bash /tmp/.t2854-pre.sh > /tmp/.t2854-pre.out 2>&1 || true`
+
+### 2026-08-29T12:03:23Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

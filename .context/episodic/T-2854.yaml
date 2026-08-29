@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2854: check-unpaired-capture flags &&-chained captures whose status is not discarded
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-29T12:03:48Z
+# ============================================================================
+
+task_id: T-2854
+task_name: "check-unpaired-capture flags &&-chained captures whose status is not discarded"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-29T11:53:29Z
+completed: 2026-08-29T12:03:23Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-29T14:02:57+02:00
+last_commit: 2026-08-29T14:02:57+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  check-unpaired-capture must not flag &&-chained captures
+
+# Key outcomes
+outcomes:
+  - 'The predicate skips a capture that is `&&`-chained to its assertion, and still flags one separated by `;` — the header''s own stated mechanism (`a ; b` is judged on b alone)'
+  - '`--self-test` still passes: it plants a `;`-form defect AND spares the paired remedy, so the tightening did not blind the check'
+  - 'The active corpus reports 0 unpaired captures, achieved by FIXING the predicate — no allowlist entry, because the T-1451 leg was never a defect'
+  - 'The false positive is reproducible from git: the pre-fix script flags T-1451, the post-fix one does not (load-bearing, not merely green)'
+  - '`scripts/run-guard-layer.sh` drops from 4 firing to 3, with `check-unpaired-capture` PASS and no member newly ERRORing'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'scripts/check-unpaired-capture.sh'
+  - '.tasks/active/T-2854-check-unpaired-capture-flags--chained-ca.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-29T14:02:57'
+    action: 'T-2854: check-unpaired-capture must not flag &&-chained captures'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 9 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 9
+  commits: 1
+  files_changed: 2
+  lines_added: 305
+  lines_removed: 1
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2854-check-unpaired-capture-flags--chained-ca.md
+generated_by: context-agent-hybrid
