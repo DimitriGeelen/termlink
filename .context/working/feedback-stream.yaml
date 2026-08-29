@@ -9640,3 +9640,39 @@ scan_id: R-56fe7305
 task_id: T-2855
 payload:
   task_file: .tasks/active/T-2855-template-planted-required-field-makes-th.md
+---
+kind: scan_emitted
+timestamp: '2026-08-29T15:23:03Z'
+scan_id: R-1aa2740a
+task_id: T-2849
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-29T15:23:03Z'
+scan_id: R-1aa2740a
+task_id: T-2849
+payload:
+  task_file: .tasks/active/T-2849-land-the-finished-and-waiting-queue-at-t.md
+---
+kind: scan_emitted
+timestamp: '2026-08-29T23:01:16Z'
+scan_id: R-6ed8ccc4
+task_id: T-2856
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-29T23:01:16Z'
+scan_id: R-6ed8ccc4
+task_id: T-2856
+payload:
+  task_file: .tasks/active/T-2856-route-the-18-unmarked-open-human-acs-so-.md
