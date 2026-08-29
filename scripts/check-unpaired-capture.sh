@@ -75,6 +75,20 @@ unpaired() {
       if (line !~ /grep[[:space:]]+-[a-zA-Z]*q/) next   # no -q assertion
       if (line ~ /![[:space:]]*(echo|grep|printf)/) next # paired with a negative
       if (line ~ /grep[[:space:]]+-[a-zA-Z]*v/)  next   # negative via -v
+      # NOTE: this awk program is single-quoted — no apostrophes below.
+      # The status is DISCARDED only when a ";" separates the capture from the
+      # assertion. That is the mechanism the header names: `a ; b` is judged on
+      # b alone, while `a && b` short-circuits, so a mid-chain failure still
+      # fails the leg. Measured (T-2854): the T-1451 leg
+      #     d=$(mktemp -d) && git init ... && grep -q ... && rm -rf "$d"
+      # returns 128 when the fetch fails — nothing is discarded, and its grep
+      # reads a FILE, never the captured variable. Without this arm every
+      # &&-chain that merely opens with a capture is flagged, and a check that
+      # false-positives permanently is a check nobody reads.
+      cap = index(line, "=$(")
+      g   = match(line, /grep[[:space:]]+-[a-zA-Z]*q/)
+      if (cap == 0 || g <= cap) next
+      if (index(substr(line, cap, g - cap), ";") == 0) next
       print $0
     }
   '
@@ -95,12 +109,20 @@ if [ "${1:-}" = "--self-test" ]; then
   # planted plain pipe: rescued by pipefail, must NOT be flagged
   printf '## Verification\n\ncargo build --release | grep -q Finished\n' \
     > "$t/.tasks/active/piped.md"
+  # planted &&-CHAIN: opens with a capture but never discards its status —
+  # every step short-circuits, so a mid-chain failure still fails the leg.
+  # Must NOT be flagged. This is the leg the check shipped WITHOUT (T-2854):
+  # its absence let a sound T-1451 line sit firing on main, and a guard that
+  # cries wolf on correct code is how an operator learns to stop reading it.
+  # shellcheck disable=SC2016  # literal fixture text, not an expansion
+  printf '## Verification\n\nd=$(mktemp -d) && git init -q "$d/p" && grep -q "marker" "$d/up.md" && rm -rf "$d"\n' \
+    > "$t/.tasks/active/andchain.md"
 
   hits=$(legs "$t" | unpaired)
   rm -rf "$t"
   n=$(printf '%s' "$hits" | grep -c . || true)
   if [ "$n" = "1" ] && printf '%s' "$hits" | grep -q unpaired; then
-    echo "self-test: PASS — flagged the unpaired capture, spared the paired form and the plain pipe"
+    echo "self-test: PASS — flagged the unpaired capture; spared the paired form, the plain pipe and the &&-chain"
     exit 0
   fi
   echo "self-test: FAIL — expected exactly 1 hit (unpaired.md), got $n"
