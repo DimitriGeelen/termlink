@@ -1,102 +1,100 @@
-# T-2849 — the finished-and-waiting queue, re-measured at the authority
+# T-2849 — Finished-and-waiting triage, measured at the authority
 
-**Date:** 2026-08-29 · **Task:** T-2849 · **Tree:** `/opt/termlink` (authority, branch `main`)
-**Supersedes:** `docs/reports/T-2848-finished-and-waiting-triage.md`, which was measured in a
-linked worktree and is wrong in its headline number and in every marker count.
+**Measured:** 2026-08-29 · **Tree:** `/opt/termlink` @ main · **Supersedes:** the
+T-2848 report written on `worktree-charter-review-2026-0814` (never landed here).
 
-## What this is
+## Why this report exists at all
 
-Tasks in `.tasks/active/` whose **every Agent AC is ticked and none open**, that still carry at
-least one open `### Human` AC. Finished work waiting on a human.
+T-2848 measured this population from a worktree branch ~262 commits behind main and
+reported **75**. That report was never merged, so at the authority it does not exist —
+its headline number survives only as a quotation in task bodies. PL-368 names the
+hazard: a tree N commits behind main is a systemic false-positive generator, and the
+remedy is to re-measure at the authority rather than carry the replica's number
+forward. This report is that re-measurement.
 
-**Nothing here ticks a Human AC.** Only the human may (CLAUDE.md, Human Task Completion Rule).
-Where evidence shows an AC is already satisfied, that evidence is cited so the human can tick it
-in one read instead of re-deriving it.
+## The count, and why every prior number was wrong
 
-## Two corrections to the T-2848 report
+| measurement | where | total | note |
+|---|---|---|---|
+| T-2848 | worktree (262 behind) | 75 | stale corpus replica |
+| T-2849 first pass | authority | 79 | earlier in the queue's life |
+| carried forward in session notes | — | 82 | never re-derived |
+| **this report** | **authority, 2026-08-29** | **105 / 65** | see definitions |
 
-**1. The count was wrong, and the reason is PL-368.** T-2848 measured 75 from a worktree whose
-`.tasks/` replica was ~262 commits behind. The corpus is a registry with global invariants; a
-stale replica of it is not a sample, it is a different register. Measured here: **82**.
+Two populations, deliberately kept apart because they answer different questions:
 
-**2. My own first re-measurement at the authority was also wrong, in a way worth recording.**
-It reported 3 unmarked Human ACs correctly but inflated the marker counts, because it parsed
-checkbox lines **inside HTML comments**. The task template ships an example block containing
-`- [ ] [REVIEWER] Block message names both bypass mechanisms`, and that string is present in
-**661 task files**. Any AC census that does not strip `<!-- -->` first counts the template's
-own example as an open criterion in every task that still carries the template comment.
+- **105** tasks in `.tasks/active/` carry at least one *open* `### Human` acceptance
+  criterion (128 open Human ACs in total). This is the full human-gated surface.
+- **65** of those are **finished-and-waiting** in the strict sense: `status:
+  work-completed`, agent work done, sitting in `active/` solely because a human box is
+  unticked. All 65 are `owner: human`. The other 40 split 30 `started-work` + 10
+  `captured` — those are not waiting on a human, they are simply unfinished.
 
-This is the same shape as the defects this repo's guard layer exists to catch: a measurement
-reporting in language broader than what it actually measured. The corrected parser strips
-comments before counting, and recognises a **fourth** marker — `[REVIEWER]` — which appears
-in the template but on **zero** live ACs.
+Quoting **105** where **65** is meant overstates the human's backlog by 62%. Quoting
+**65** where **105** is meant hides 40 tasks that also carry an unanswerable Human AC.
+Neither number is "the" answer; the definition has to travel with it.
 
-## The shape of it
+Measurement excludes HTML-commented template examples — verified explicitly: 0 of the
+128 counted ACs match the template's own `Dashboard renders correctly` /
+`Block message names both bypass mechanisms` boilerplate.
 
-| | count |
+### Marker distribution (AC-level, n=128)
+
+| marker | count |
 |---|---|
-| **finished-and-waiting (total)** | **82** |
-| — already `status: work-completed` (pure partial-complete) | 64 |
-| — still `status: started-work` | 18 |
-| **open Human ACs across them** | **91** |
-| — `[REVIEW]` (genuine human judgement) | 74 |
-| — `[RUBBER-STAMP]` (mechanical) | 14 |
-| — **no marker at all** | **3** |
+| `[REVIEW]` | 91 |
+| `[RUBBER-STAMP]` | 18 |
+| `[REVIEWER]` | 1 |
+| **no marker at all** | **18** |
 
-By task: 66 `[REVIEW]`-only · 11 `[RUBBER-STAMP]`-only · 2 mixed · 3 unmarked-only.
+The 18 unmarked ACs are the finding that matters most, and the worktree run never
+surfaced them. An open Human AC carrying no marker cannot be routed by the convention,
+so it is invisible to any triage that sorts by marker — including this one. They cluster
+in 8 tasks: **T-2566, T-2567, T-2570, T-2576, T-2577** (each a three-part
+decide / audit / file-follow-up shape), plus **T-2815, T-2819, T-2822**.
 
-## The 3 unmarked — and why they matter more than their count
+## Rubber-stamp dispositions — evidence, per item
 
-An open Human AC carrying neither marker cannot be routed by the convention, so it is invisible
-to any triage that sorts by marker — including the T-2848 report, which reported zero of them.
-All three are *"do this in the main checkout"* actions that were unperformable from a worktree.
-**Two are now satisfied**, because the work landed by another route while the AC text stayed put.
+The Human Task Completion Rule permits *suggesting* a close only with cited evidence.
+Ten tasks in the strict finished set carry rubber-stamp-only Human ACs. Each was probed
+against live state today. **No box was ticked and no task was closed** — that is the
+human's act, and the gate exists precisely for this moment.
 
-| task | AC | measured today | verdict |
-|---|---|---|---|
-| **T-2819** | Run the vendored-framework catch-up in the main checkout | `check-framework-tracking-drift.sh` **exit 0**; `lib` 173/173, `policy` 19/19, `bin` 9/9, `agents` 159/159 tracked | **satisfied** (done by T-2807) |
-| **T-2822** | Commit the four static-check allowlists | all four tracked under `.context/checks/`; all four checks **exit 0** | **satisfied — but do NOT follow its Steps** (below) |
-| **T-2815** | Decide on the stray cross-project cron | still firing: **6 × `bin/fw: No such file` in 3h**, exactly the half-hourly rate; line 51 targets a `002-Claude-Partner-Network` worktree | **live — cross-project, needs the peer** |
+### Evidence says SATISFIED — ready for the human to stamp (5)
 
-**T-2822 needs a note, because its outcome is satisfied by a different route than its steps
-describe.** The AC says to `git add .context/working/.<name>-allowlist`. T-2681 instead migrated
-the allowlists to the git-tracked `.context/checks/`, and the checks resolve **tracked-first**
-(`check-alloc-sink-clamps.sh:71-75`), falling back to the legacy path only for an un-migrated
-checkout. Following step 4 today would commit a second, duplicate copy at the ignored legacy
-path. Proven load-bearing rather than assumed: run with an empty allowlist → **exit 1**; run
-with the tracked one → **exit 0**.
+| task | AC | evidence gathered 2026-08-29 |
+|---|---|---|
+| **T-1691** | GitHub Release published with macOS + Linux binaries | Release `v0.11.0` published `2026-05-18T20:32:46Z`, `draft: false`, **6 assets**: `termlink-darwin-aarch64` (20.4 MB), `termlink-darwin-x86_64` (24.7 MB), `termlink-linux-aarch64`, `termlink-linux-x86_64`, `termlink-linux-x86_64-static`, `checksums.txt`. Both platforms present. |
+| **T-1696** | Cron entry installed in `/etc/cron.d` on .107 | `/etc/cron.d/termlink-release-mirror-canary` present; job line `13 7 * * * root … check-mirror-freshness.sh --quiet`; audit reports PASS; canary log **0 bytes** (empty = healthy). |
+| **T-1723** | Cron entry installed on .107 so the meta-canary actually fires | Installed **inside** the release-mirror crontab, second job line: `33 8 * * * root bash scripts/check-canary-aliveness.sh --quiet`. This is the T-2682 UNINSTALLED_JOBS class checked directly — the job line is present, not merely the file. |
+| **T-2706** | Confirm closes as superseded-by-T-2709, no topic cleanup | `T-2709` exists at `.tasks/active/T-2709-stuck-claim-heuristic-is-a-monotonic-lat.md`, `status: work-completed`. The supersession is real and the successor landed. |
+| **T-2711** | Decide whether U-001 is filed to `framework:pickup` | **It is filed.** All 72 messages on the topic were fetched and base64-decoded; offset **38** reads `T-2711 (010-termlink): revisit-due-scan.sh silent no-op — PROJECT_ROOT mis-resolves in vendored mode, exits 0`. The decision is already executed; the AC records it. |
 
-## Evidence-supported closes — 5, not 2
+### Evidence says NOT SATISFIED — do not stamp (4)
 
-| task | Human AC | evidence measured today | verdict |
-|---|---|---|---|
-| **T-1696** | Cron entry installed in `/etc/cron.d` | `termlink-release-mirror-canary` present; findings log **empty** (healthy) | **satisfied** |
-| **T-1723** | Cron installed so the meta-canary actually fires | **12** `check-canary-aliveness` job lines across **9** crontabs | **satisfied** |
-| **T-2706** | Stuck-claims canary fires daily on 11 residue topics | canary now **exit 0**, `20 topics, 0 stuck` — the T-2709 predicate fix cleared it | **satisfied** |
-| **T-2819** | (above) | exit 0, 360/360 tracked | **satisfied** |
-| **T-2822** | (above) | 4/4 tracked, 4/4 checks exit 0 | **satisfied** |
+| task | AC | what live state actually shows |
+|---|---|---|
+| **T-2013** | Operator deploys fixed binary to .122, then .121 and .141; confirm 5/5 sequential | Only .122 is current (`0.11.1411`). **.121 serves `0.11.588`** and **.141 does not report a version at all**. Two of the three named hubs are undeployed; the 5/5 confirmation cannot have happened. |
+| **T-2297** | Live end-to-end after installing the rebuilt hub binary | Local hub serves **`0.11.1196`** against a repo `VERSION` of **`0.11.1715`** — roughly 519 commits stale. The rebuilt binary is not installed even here. |
+| **T-2408** | Close arc `mcp-slimming` with the demo evidence | `arc-005` is `status: in-progress`, `demo_evidence: null`, `closed_at: null`, `decision: null`. Nothing has been closed. |
+| **T-2723** | Decide whether U-008 is filed to `framework:pickup` | **Not filed.** Same exhaustive decode of all 72 messages: three hits for the revisit-due-scan family (offsets 24, 35, 38), **zero** for the handover-commit / focus-gate collision. |
 
-## One operator action still gates four tasks
+### Evidence unobtainable from here (1)
 
-**T-1420 · T-2013 · T-2297 · part of T-1691.** `.141` is unreachable again this session
-(`No route to host`), and the fleet remains version-skewed. Confirmed live, not carried
-forward from the earlier report.
+| task | AC | why |
+|---|---|---|
+| **T-1722** | Upstream landed on `/opt/999-AEF` `origin/master` | Reading that path is refused by the T-559 project-boundary gate, which is correct behaviour, not an obstacle to work around. Verifying it needs a session rooted in that project (`fw termlink dispatch --project /opt/999-AEF`) or the human's own check. Recorded as unverified rather than assumed either way. |
 
-## The large families (30 tasks, 2 sittings)
+## What this changes
 
-`T-1482..T-1506` (21) and `T-1529..T-1537` (9) are one shipped feature family each, and their
-Human ACs are the same sentence repeated — *"verify the verb reads naturally"*. Pure output
-taste on the `agent presence / recent / timeline / on-thread / forward / edit / redact /
-threads / pin-history / edits-of / relations` surface. **All 11 probed verbs are alive** (T-2848
-checked this against P4's 52-tool deletion, and it is the one finding from that report that
-needed no correction — it was measured against live binaries, not against the corpus).
-
-`[REVIEW]` is right here: "reads naturally" is not grep-able, so the T-1811/T-1878 conversion
-to `[REVIEWER]` does not apply.
-
-## The honest caveat
-
-This triage reads AC **text and status**. It does not re-run each task's original verification,
-so a task whose Agent ACs were ticked in error is invisible to it. The value is routing — 82
-opaque items reduced to a decision list with 5 closes evidenced and one blocker named — not a
-claim that all 82 are correctly finished.
+1. **Five tasks are stamp-ready with citations** — T-1691, T-1696, T-1723, T-2706,
+   T-2711. Each row above is the evidence the Human Task Completion Rule requires.
+2. **Four must not be stamped** — T-2013, T-2297, T-2408, T-2723 are genuinely
+   incomplete. Closing them would record a deployment and an arc closure that did not
+   happen. T-2013 and T-2297 are both blocked on the same underlying fact: the fleet is
+   running stale binaries.
+3. **Eighteen unmarked Human ACs are unroutable** and need a marker before any
+   marker-sorted triage can see them.
+4. **The "N finished tasks" figure should stop being quoted without its definition.**
+   Four different numbers (75 / 79 / 82 / 105) have circulated for what is really two
+   populations measured at two different times in two different trees.

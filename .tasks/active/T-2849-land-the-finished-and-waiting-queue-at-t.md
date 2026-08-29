@@ -89,13 +89,13 @@ own boxes, which is the whole point of the gate.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] The finished-and-waiting population is re-measured HERE, at the authority, not
+- [x] The finished-and-waiting population is re-measured HERE, at the authority, not
       inherited from the worktree measurement (PL-368: a tree N commits behind main is a
       false-positive generator; re-verify at the authority)
-- [ ] The delta between the worktree's count and the authority's count is stated, with the
+- [x] The delta between the worktree's count and the authority's count is stated, with the
       reason, rather than silently adopting whichever number is larger
-- [ ] Evidence-backed disposition per rubber-stamp item is recorded in the triage report
-- [ ] No `### Human` AC is ticked by the agent, and no task is closed on the agent's own
+- [x] Evidence-backed disposition per rubber-stamp item is recorded in the triage report
+- [x] No `### Human` AC is ticked by the agent, and no task is closed on the agent's own
       judgement — the gate exists to catch exactly this moment
 
 ### Human
@@ -189,6 +189,26 @@ own boxes, which is the whole point of the gate.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+
+
+
+# AC1 — the population is re-measured HERE, at the authority, not quoted from the worktree.
+# NOTE: the Human-section regex matches an explicit newline, never a `$` anchor — inside a
+# double-quoted shell string `$(` is COMMAND SUBSTITUTION and bash executes the regex body.
+test -f docs/reports/T-2849-finished-and-waiting-triage.md
+python3 -c "import re,glob,sys; docs=[re.sub(r'<!--.*?-->','',open(p,encoding='utf-8',errors='replace').read(),flags=re.S) for p in glob.glob('.tasks/active/*.md')]; secs=[re.search(r'^###[ \t]+Human[ \t]*\r?\n(.*?)(?=^##[ \t]|\Z)',d,re.S|re.M) for d in docs]; n=sum(1 for x in secs if x and re.search(r'^\s*-\s*\[ \]',x.group(1),re.M)); print('open-human-AC tasks at authority:',n); sys.exit(0 if n>0 else 1)"
+# AC2 — the delta AND its reason are stated, rather than silently adopting one number.
+grep -q "262 commits behind" docs/reports/T-2849-finished-and-waiting-triage.md
+grep -q "PL-368" docs/reports/T-2849-finished-and-waiting-triage.md
+grep -q "105" docs/reports/T-2849-finished-and-waiting-triage.md
+grep -q "65" docs/reports/T-2849-finished-and-waiting-triage.md
+# AC3 — each of the 10 rubber-stamp tasks carries a cited disposition, split satisfied/not.
+for t in T-1691 T-1696 T-1722 T-1723 T-2013 T-2297 T-2408 T-2706 T-2711 T-2723; do grep -q "$t" docs/reports/T-2849-finished-and-waiting-triage.md || exit 1; done
+grep -q "NOT SATISFIED" docs/reports/T-2849-finished-and-waiting-triage.md
+grep -q "Evidence unobtainable from here" docs/reports/T-2849-finished-and-waiting-triage.md
+# AC4 — LOAD-BEARING: this task ticked no Human AC. All 10 rubber-stamp ACs stay OPEN.
+python3 -c "import re,glob,sys; ids='T-1691 T-1696 T-1722 T-1723 T-2013 T-2297 T-2408 T-2706 T-2711 T-2723'.split(); found=[(t,glob.glob('.tasks/active/%s-*.md'%t)) for t in ids]; docs=[(t,re.sub(r'<!--.*?-->','',open(g[0],encoding='utf-8',errors='replace').read(),flags=re.S)) for t,g in found if g]; secs=[(t,re.search(r'^###[ \t]+Human[ \t]*\r?\n(.*?)(?=^##[ \t]|\Z)',d,re.S|re.M)) for t,d in docs]; bad=[t for t,x in secs if x and re.search(r'^\s*-\s*\[x\]',x.group(1),re.M)]; print('rubber-stamp Human ACs ticked by agent:',bad); sys.exit(1 if bad else 0)"
 
 ## RCA
 
