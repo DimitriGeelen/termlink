@@ -1,0 +1,31 @@
+# T-2850/T-2851 — Hook-counter integrity canary (false-silence class)
+# Source of truth: /opt/termlink/.context/cron/hook-counter-integrity-canary.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-hook-counter-integrity-canary (USER field syntax — do NOT load into a user crontab)
+#
+# .context/working/.hook-counter is written by _fw_telemetry_increment in the
+# VENDORED lib/hook-telemetry.sh, which does a read-modify-write with no lock and
+# no atomic rename: read whole file, edit in memory, truncate-rewrite. Concurrent
+# hooks tear it, producing malformed lines and duplicate keys. Measured live on
+# 2026-08-29: a malformed `08`, a torn `oop-detect` (a loop-detect that lost its
+# leading character), and a duplicate key on which the two readers disagreed
+# 13 vs 102.
+#
+# WHY THIS IS NOT COSMETIC, and why it earns a daily reader. The summing reader
+# feeds the T-1626 decay-alarm DENOMINATOR, so each duplicate key roughly HALVES
+# the apparent failure ratio. The alarm goes quietest exactly when hooks fire
+# hardest — which is when concurrency, and therefore corruption, is most likely.
+# The failure direction is false silence that deepens with load, not a false alarm.
+#
+# The defect is upstream's (filed at framework:pickup offset 69, G-062 — a local
+# fix to lib/ is deleted by the next `fw upgrade`). This canary is the detection
+# we can own and that survives a re-vendor.
+#
+# Operator action on firing: re-read the counter, then repair by max() over
+# duplicate keys — a duplicate is a stale snapshot of a MONOTONIC counter, so
+# summing would double-count real fires. Ad-hoc: bash scripts/check-hook-counter-integrity.sh
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 07:49 UTC — offset from the :39 dead-letter, :27 stuck-claims,
+# :33 session-control, :17 unconfirmed-delivery, :13 mirror canaries.
+49 7 * * * root cd /opt/termlink && bash scripts/check-hook-counter-integrity.sh --quiet >> .context/working/.hook-counter-integrity-canary.log 2>> .context/working/.hook-counter-integrity-canary.log.stderr
