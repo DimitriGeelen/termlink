@@ -1,5 +1,5 @@
-# Audit Results - 2026-08-27-2344
-timestamp: 2026-08-27T21:44:16Z
+# Audit Results - 2026-08-29-1036
+timestamp: 2026-08-29T08:36:35Z
 sections: "structure"
 summary:
   pass: 37
@@ -17,7 +17,7 @@ findings:
   - level: PASS
     check: "Task template exists"
   - level: PASS
-    check: "No duplicate task IDs — examined 14257 task file(s) across 6 corpus view(s) (21 ID(s) byte-identical in every view, 2531 same-task at differing revisions)"
+    check: "No duplicate task IDs — examined 14260 task file(s) across 6 corpus view(s) (21 ID(s) byte-identical in every view, 2531 same-task at differing revisions)"
   - level: PASS
     check: "All project YAML files parse correctly — examined 15 project YAML file(s)"
   - level: PASS
