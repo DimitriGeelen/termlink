@@ -1,0 +1,17 @@
+# planted-default-gate-allowlist (T-2855)
+#
+# Fields both PLANTED by a template and REQUIRED by a gate, whose planted value
+# dominates the corpus. Entries here are still COUNTED and REPORTED on every run —
+# they do not fire. This is a LEDGER OF AN OPEN QUESTION, not a permanent exemption
+# (same convention as .context/checks/charter-drift-allowlist, T-2483/T-2548).
+#
+# Removing a line re-fires that field. A NEW planted+required+dominant field fires
+# immediately, because it is not listed.
+#
+# BOTH entries below are the SAME defect, filed upstream (G-062): the fix is in
+# vendored `.tasks/templates/inception.md` + `check-inception-schema.py` +
+# `estimator.py`, and a local edit is one `fw upgrade` from deletion. On the upstream
+# fix these lines are deleted, not re-justified.
+
+voi_score           # T-2855: 62/63 (98.4%) hold the template's 0.5. That value IS the composite for all nine BVP drivers, and int(round(0.5*5))==2 equals what the `voi is None` grandfathered branch returns — so 202/203 inceptions score 2 and every active one ranks identically. NOT a correct default; awaiting the upstream fix + a `_proposed:` lane an agent may legitimately write into. Filed at framework:pickup.
+target_blast_radius # T-2855: same template, same gate, same 62/63 ratio. Sibling of the above and fixed by the same upstream change; ledgered together so neither goes quiet on its own.
