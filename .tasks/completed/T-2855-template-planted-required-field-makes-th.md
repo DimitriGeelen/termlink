@@ -4,12 +4,12 @@ name: "Template-planted required field makes the inception gate incapable of fai
 description: >
   Template-planted required field makes the inception gate incapable of failing
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/check-planted-default-gate.sh, tests/planted-default-gate-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-08-29T14:14:16Z
-last_update: 2026-08-29T14:14:16Z
-date_finished: null
+last_update: 2026-08-29T14:23:47Z
+date_finished: 2026-08-29T14:23:47Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -161,3 +161,22 @@ git ls-files --error-unmatch .context/checks/planted-default-gate-allowlist > /d
 bash scripts/run-guard-layer.sh --list > /tmp/.t2855-list.out 2>&1
 grep -q 'check-planted-default-gate.sh' /tmp/.t2855-list.out
 grep -q 'planted-default-gate-fixtures.sh' /tmp/.t2855-list.out
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-56fe7305
+- **Timestamp:** 2026-08-29T14:23:52Z
+- **Catalogue:** v1.3-seed
+- **Overall:** FAIL
+- **Needs Human:** no
+- **Findings:** 2
+
+**Verification-level findings:**
+
+  1. **swallowed-errors** (severe, deterministic) @ Verification:line 16
+     - evidence: `PLANTED_ALLOWLIST=/dev/null bash scripts/check-planted-default-gate.sh > /tmp/.t2855-fire.out 2>&1 || true`
+  2. **empty-output-success** (partial, heuristic) @ Verification:line 29
+     - evidence: `git ls-files --error-unmatch .context/checks/planted-default-gate-allowlist > /dev/null 2>&1`
+
+### 2026-08-29T14:23:47Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

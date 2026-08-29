@@ -9622,3 +9622,21 @@ scan_id: R-64a96b0f
 task_id: T-2854
 payload:
   task_file: .tasks/active/T-2854-check-unpaired-capture-flags--chained-ca.md
+---
+kind: scan_emitted
+timestamp: '2026-08-29T14:23:52Z'
+scan_id: R-56fe7305
+task_id: T-2855
+payload:
+  overall: FAIL
+  finding_count: 2
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-29T14:23:52Z'
+scan_id: R-56fe7305
+task_id: T-2855
+payload:
+  task_file: .tasks/active/T-2855-template-planted-required-field-makes-th.md
