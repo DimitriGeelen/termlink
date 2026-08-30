@@ -8,10 +8,10 @@ description: >
   already in the human review queue. Translate faithfully to the file-redirect idiom;
   do NOT silently strengthen | to && across untested blocks.
 
-status: started-work
+status: work-completed
 workflow_type: refactor
 owner: agent
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -26,8 +26,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-08-29T23:05:11Z
-last_update: 2026-08-30T09:52:19Z
-date_finished:
+last_update: 2026-08-30T10:09:48Z
+date_finished: 2026-08-30T10:09:48Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -204,6 +204,43 @@ test -z "$(git status --porcelain .tasks/completed/)"
 
 ## RCA
 
+**Symptom:** 134 `## Verification` lines across 45 active tasks exited **141 exactly when
+their assertion was true**. `grep -q` exits on first match and closes the pipe, the
+producer takes SIGPIPE, and `pipefail` propagates 141 — so P-011 blocked completion of
+tasks whose verification had *passed*. 46 of the affected tasks sit on the approvals page:
+44% of the 105-task review queue was gated behind a check that could not succeed.
+
+**Root cause:** the `cmd | grep -q PAT` shape is structurally incompatible with the
+`set -eo pipefail` the gate runs each line under. Not a typo in 134 places — one idiom,
+copied.
+
+**Why structurally allowed:** four layers, each individually survivable.
+1. The framework's detector (`lib/reviewer/static_scan.py::detect_l387_sigpipe_risk`) runs
+   as a **non-blocking advisory at `started-work`, one task at a time**. Nobody asked the
+   repo-wide question until T-2818 built the wrapper; the answer was 134.
+2. **The failure direction reads as safe.** The gate blocks rather than waving work
+   through, so each instance looked like conservatism. In aggregate it is the opposite: a
+   gate that blocks incorrectly 134 times teaches the operator that P-011 failures are
+   noise and `--force` is the way past them — and a verification gate people routinely
+   force is not a verification gate.
+3. The detector **exempts an `echo` upstream unconditionally**, so it cannot flag the
+   capture form it recommends as the fallback. Self-sealing; already filed upstream (G-062).
+4. **The remediation guidance itself was wrong and nothing checked it.** The judgment
+   recorded at filing prescribed a `;` join, which measurement here shows *drops the
+   producer's exit code* and would have silently weakened all 134 gates. A documented
+   remediation had never been executed under the gate's own shell options — the T-2743
+   lesson ("rehearsing a line by hand does not rehearse the gate") applied to prose rather
+   than to a command.
+
+**Prevention:** `scripts/check-verification-pipefail.sh` (T-2818) is the repo-wide
+detector, and `.tasks/active/` is now **clean** — so the next instance fires on the first
+run rather than accumulating to 134. Against layer 4 specifically, this task's AC4 is the
+counter and the reusable pattern: **every** rewritten line was parsed under
+`bash -c 'set -eo pipefail; …'` and 51 were executed, rather than a sample being eyeballed
+— which is how the reversed judgment was caught at all. The corrected truth table is
+recorded in `## Context` above and was broadcast to the fleet, because a wrong remediation
+propagates further than the defect it purports to fix.
+
 <!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
      fix/bug/rca/broken/crash/error/regression/fail/hotfix).
      Non-bug-class tasks may leave this section empty or remove it.
@@ -301,3 +338,15 @@ test -z "$(git status --porcelain .tasks/completed/)"
 
 ### 2026-08-30T09:52:19Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-d3c96861
+- **Timestamp:** 2026-08-30T10:09:50Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+### 2026-08-30T10:09:48Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed

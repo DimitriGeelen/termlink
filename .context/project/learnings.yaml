@@ -4366,3 +4366,9 @@ learnings:
   task: T-2852
   date: 2026-08-29
   context: Added via context agent
+- id: PL-365
+  learning: "L-387 rewrites must join with '&&', never ';'. pipefail ALREADY puts the producer exit code in the pipeline verdict, so 'cmd > F 2>&1 && grep -q P F' reproduces 'cmd | grep -q P' exactly, while a ';' join silently DROPS it and weakens the gate. Measured with producer exiting 3 and pattern matching: pipe=3, and-and=3, semicolon=0. A prior session recorded the opposite judgment in a commit message and it stood unchallenged for a day. Verify a documented remediation by EXECUTING it under bash -c with set -eo pipefail, because rehearsing prose is not rehearsing the gate (T-2743)."
+  source: P-001
+  task: T-2857
+  date: 2026-08-30
+  context: Added via context agent

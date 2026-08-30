@@ -1,0 +1,126 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2857: Fix the 134 L-387 SIGPIPE verification lines across 45 active tasks
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-30T10:09:57Z
+# ============================================================================
+
+task_id: T-2857
+task_name: "Fix the 134 L-387 SIGPIPE verification lines across 45 active tasks"
+workflow_type: refactor
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-29T23:05:11Z
+completed: 2026-08-30T10:09:48Z
+duration_days: 1
+updates_count: 2
+first_commit: 2026-08-30T12:09:10+02:00
+last_commit: 2026-08-30T12:09:10+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix 134 L-387 SIGPIPE verification lines across 45 active tasks
+
+# Key outcomes
+outcomes:
+  - '`scripts/check-verification-pipefail.sh --active-only` exits 0 — zero L-387 findings remain in `.tasks/active/`'
+  - 'The rewrite is **semantics-preserving**: every converted line joins producer and grep with `&&`, which measurement shows reproduces the pipefail pipeline''s truth table exactly (a `;` join would drop the producer''s exit code and weaken the gate). Verified by a scan showing 0 converted lines using a bare `;` join'
+  - 'Each converted line writes to a **per-line unique** temp path, so two converted lines in the same Verification block cannot clobber each other''s capture'
+  - 'Converted lines rehearse green **under the gate''s own conditions** — a sample is run via `bash -c ''set -eo pipefail; <line>''`, not by hand in an interactive shell (T-2743)'
+  - 'Only files under `.tasks/active/` are modified; `.tasks/completed/` is untouched (`git status --porcelain .tasks/completed/` empty)'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix 134 L-387 SIGPIPE verification lines across 45 active tasks'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.tasks/active/T-1296-migrate-ring20-dashboard-hub-runtimedir-.md'
+  - '.tasks/active/T-1420-agent-chat-arc-deploy-091591-to-laptop-1.md'
+  - '.tasks/active/T-1428-foundation-soak-audit--t-1426--t-1427-sh.md'
+  - '.tasks/active/T-1429-termlink-agent-contact-name--high-level-.md'
+  - '.tasks/active/T-1430-channel-describe--agent-chat-arc--dm-top.md'
+  - '.tasks/active/T-1432-fw-fleet-doctor---legacy-usage--telemetr.md'
+  - '.tasks/active/T-1453-fw-task-revisit-due-cli-verb-t-1449-phas.md'
+  - '.tasks/active/T-1482-agent-presence--fleet-wide-peer-activity.md'
+  - '.tasks/active/T-1483-agent-who---target-name--local-resolved-.md'
+  - '.tasks/active/T-1484-agent-presence---filter-project-name--pr.md'
+  - '.tasks/active/T-1485-agent-contact---ack-required--synchronou.md'
+  - '.tasks/active/T-1486-agent-presence---watch--live-operator-da.md'
+  - '.tasks/active/T-1487-agent-ping-target--operator-facing-prese.md'
+  - '.tasks/active/T-1488-agent-who---thread-t-xxx--thread-scoped-.md'
+  - '.tasks/active/T-1489-agent-presence---top-n--limit-to-n-busie.md'
+  - '.tasks/active/T-1490-agent-presence---thread-t-xxx--fleet-wid.md'
+  - '.tasks/active/T-1491-agent-presence---by-project--fleet-activ.md'
+  - '.tasks/active/T-1492-agent-recent-peer--show-last-n-posts-fro.md'
+  - '.tasks/active/T-1493-agent-on-thread-t-xxx--chronological-log.md'
+  - '.tasks/active/T-1494-agent-on-thread---watch--live-thread-fol.md'
+  - '.tasks/active/T-1495-agent-overview--single-shot-fleet-digest.md'
+  - '.tasks/active/T-1496-agent-overview---watch--live-fleet-dashb.md'
+  - '.tasks/active/T-1498-agent-recent---watch--live-single-peer-s.md'
+  - '.tasks/active/T-1499-agent-recent--on-thread---msg-type--sign.md'
+  - '.tasks/active/T-1500-agent-timeline--fleet-wide-chronological.md'
+  - '.tasks/active/T-1501-agent-recent--on-thread--timeline---grep.md'
+  - '.tasks/active/T-1502-extractrecentposts-content-extraction-re.md'
+  - '.tasks/active/T-1506-agent-recent--timeline--on-thread-expose.md'
+  - '.tasks/active/T-1529-agent-forward-offset---to-topic--re-publ.md'
+  - '.tasks/active/T-1530-agent-edit-offset-text--edit-a-chat-arc-.md'
+  - '.tasks/active/T-1531-agent-redact-offset--retract-a-chat-arc-.md'
+  - '.tasks/active/T-1532-agent-describe-text--set-chat-arc-topic-.md'
+  - '.tasks/active/T-1533-agent-threads--list-all-thread-roots-on-.md'
+  - '.tasks/active/T-1534-agent-redactions--list-all-retracted-pos.md'
+  - '.tasks/active/T-1535-agent-pin-history--pinunpin-event-log-on.md'
+  - '.tasks/active/T-1536-agent-edits-of-offset--edit-history-of-a.md'
+  - '.tasks/active/T-1537-agent-relations-offset--all-relations-of.md'
+  - '.tasks/active/T-1557-agent-typers---watch--live-typing-presen.md'
+  - '.tasks/active/T-1558-agent-inbox---watch--live-cross-topic-un.md'
+  - '.tasks/active/T-1559-agent-dmsunread---watch--complete-the-pe.md'
+  - '.tasks/active/T-1570-termlinkagentpoll-family--mcp-tools-for-.md'
+  - '.tasks/active/T-1673-tag-v0100-release--land-rotation-protoco.md'
+  - '.tasks/active/T-1691-cut-v0110-release-tag--bundle-t-1676t-16.md'
+  - '.tasks/active/T-1795-fix-agent-on-thread-returns-empty--fetch.md'
+  - '.tasks/active/T-1885-fw-independent-review-v01--local-only-or.md'
+  - '.tasks/active/T-2669-sweep-raw-rpccall-mcpcli-handler-sites-o.md'
+  - '.tasks/active/T-2723-handover-commit-under-t-1452-collides-wi.md'
+  - '.tasks/active/T-2857-fix-the-134-l-387-sigpipe-verification-l.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-30T12:09:10'
+    action: 'T-2857: fix 134 L-387 SIGPIPE verification lines across 45 active tasks'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 664 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 664
+  commits: 1
+  files_changed: 48
+  lines_added: 206
+  lines_removed: 144
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2857-fix-the-134-l-387-sigpipe-verification-l.md
+generated_by: context-agent-hybrid
