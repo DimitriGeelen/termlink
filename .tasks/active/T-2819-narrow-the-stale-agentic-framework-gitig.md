@@ -151,7 +151,8 @@ reviews the list before committing rather than trusting a blind sweep from here.
 
 ### Human
 - [ ] [REVIEW] Run the one-time catch-up in the main checkout and review before committing.
-      **Steps:** 1. `cd /opt/termlink && git status --short .agentic-framework/ | head -50`
+      **Steps:**
+      1. `cd /opt/termlink && git status --short .agentic-framework/ | head -50`
       2. Read that list — confirm nothing machine-local, host-specific or secret-bearing
       appears (host paths, tokens, per-machine config, `*.local.*`).
       3. `cd /opt/termlink && git add .agentic-framework/lib .agentic-framework/policy .agentic-framework/bin .agentic-framework/agents`

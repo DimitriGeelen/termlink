@@ -67,7 +67,8 @@ reason to prefer hub-receive-time.
 ### Human
 - [ ] [REVIEW] **DECIDE: does `Days(N)` retention mean "keep N days by hub-receive-time" or "by client content-time"?** This is the gating decision; the Agent ACs above assume receive-time (the durability-consistent default).
       **Context:** Current behavior is content-time (prunes on client `params.ts`). Two defects follow: (a) a backfilled/skewed old `ts` deletes an unread just-received message (durability violation); (b) a future `ts` is never `< cutoff` → immortal record → unbounded topic growth (T-1991 class). The charter's durability guarantee argues for receive-time (see Context). Counter-consideration: a topic where clients intentionally post historical events and want them pruned by *event* date would want content-time — is any such topic real in this fleet? (agent-presence eviction is unaffected either way: heartbeat ts ≈ receive ts.)
-      **Steps:** 1. Read the Context + RCA. 2. Confirm no production topic relies on content-time Days pruning. 3. Choose: **receive-time** (recommended — build the Agent ACs as written), **content-time-but-reject-future-ts** (narrower: keeps content semantics, only kills the immortal-record/growth vector), or **keep-as-is** (accept both risks). 4. Record the choice in the Decision section.
+      **Steps:**
+      1. Read the Context + RCA. 2. Confirm no production topic relies on content-time Days pruning. 3. Choose: **receive-time** (recommended — build the Agent ACs as written), **content-time-but-reject-future-ts** (narrower: keeps content semantics, only kills the immortal-record/growth vector), or **keep-as-is** (accept both risks). 4. Record the choice in the Decision section.
       **Expected:** One of the three options recorded, unblocking the build.
       **If not:** Leave as-is; the daily topic-growth canary (T-2252) will still surface the unbounded-growth symptom if a future-ts poison record lands on a watched topic.
 

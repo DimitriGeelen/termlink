@@ -117,7 +117,8 @@ the parts reachable from .107 and files a precise, actionable request for the re
   on .122 (two ready sessions) so I *could* do the .122 upgrade + agent launch myself — but it is
   substantial outward-facing maintenance on ring20's production host, and an expensive sweep
   already caused a ~20s hub blip. I declined to unilaterally re-flash their host.
-  **Steps:** Choose one:
+  **Steps:**
+  Choose one:
   1. Authorize me to perform the .122 upgrade + agent launch via the foothold (I'll do it
      carefully, in small steps, heartbeat-fix before sweep, with rollback awareness).
   2. Have ring20 perform it themselves (the request is already on their hub at

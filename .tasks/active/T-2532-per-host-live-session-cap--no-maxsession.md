@@ -81,7 +81,8 @@ fork-bomb safety, not adversarial-peer defense** — lower severity than a remot
 
 ### Human
 - [ ] [REVIEW] Resolve the four OPEN policy decisions in `## Decisions` (cap-at-all / per-host-vs-per-caller / default value / enforcement structure) before the Agent ACs are actioned
-      **Steps:** Read the Context + Decisions sections; decide each of the four questions.
+      **Steps:**
+      Read the Context + Decisions sections; decide each of the four questions.
       **Expected:** Each OPEN decision replaced with a chosen value + rationale.
       **If not:** Leave `horizon: later`; this is not urgent (local-only, low severity).
 

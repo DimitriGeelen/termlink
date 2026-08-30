@@ -1759,6 +1759,49 @@ not a synthetic mutant — it fires on both; against the repaired tree it is cle
 **not patched here** — a local fix is erased by the next re-vendor. It is filed upstream; this
 check is the local detection that survives one.
 
+### Human-AC Steps heading check (T-2859, the approval page dropping the operator's command)
+
+The rendered review page is the approval surface — it is what a human reads before stamping
+an action. Its Human-AC block has three fields, and the renderer parses only two of them
+symmetrically. `.agentic-framework/web/blueprints/tasks.py` (~line 419) captures the
+remainder of the `**Expected:**` and `**If not:**` marker lines into the field's content;
+the `**Steps:**` branch sets `current_content = []` and `continue`s, discarding it.
+
+Two silent losses follow. **Class 1** — a heading like `**Steps (copy-paste):**` fails the
+exact `startswith('**Steps:**')` test, so `current_field` never becomes `steps` and the
+whole block is dropped. **Class 2** — a canonical heading with content on the same line
+loses that content, and where the entire list was on that line the page renders **no Steps
+section at all**.
+
+**The failure presents as a complete page.** Nothing errors, the route returns 200, and
+Expected and If-not still render — so there is no visual cue that a field is missing.
+Measured across `.tasks/active/`: **8 of 129** headings affected (2 class 1, 6 class 2). The
+worst, T-2522, is a human *decision* task whose three options were absent from the page
+asking for the decision. Another, T-1696, had already been reported to the operator as a
+verified, stamp-ready approval — its page carried a Rationale, Evidence, Expected and
+If-not, and no command. This lands at the sovereignty boundary: the human approves an action
+whose command the page never showed them, which is Directive #2 failing where it costs most.
+
+`scripts/check-human-ac-steps-heading.sh` fires on both classes. **Scope — read a green
+narrowly (T-2680):** it checks the heading FORM. It does not verify that a task *has* steps,
+that the steps are correct, or that anything else on the page renders. Comment regions are
+blanked before scanning, so the template's own examples never fire. Acknowledgements go in
+`.context/checks/steps-heading-allowlist` (git-tracked per T-2681) as `<file>::<line>` with a
+cited reason; entries are counted and reported but do not fire. Currently absent on purpose —
+all 8 instances were **repaired, not acknowledged**.
+
+Exit 0 clean / 1 firing / 2 tooling — **fail-closed**: a missing tasks dir, absent `python3`,
+an unreadable allowlist, or a corpus with zero task files all exit 2, never a vacuous clean.
+`--json`, `--quiet`, `--tasks-dir`, `--allowlist`. Ad-hoc:
+`bash scripts/check-human-ac-steps-heading.sh`. Fixtures:
+`bash tests/human-ac-steps-heading-fixtures.sh` (15 assertions, weighted to the firing cases
+and the false-positive guards). **Load-bearing:** it found both classes on its first run,
+including the six nobody had looked for.
+
+**The renderer is vendored (G-062)** and was **not** patched here — filed upstream at
+`framework:pickup` offset 74 with the three-line symmetric fix. This check is the local
+detection that survives a re-vendor.
+
 ### Running the guard layer — `scripts/run-guard-layer.sh` (T-2684)
 
 **One command runs every source-level guard.** Before T-2684 there was none, and

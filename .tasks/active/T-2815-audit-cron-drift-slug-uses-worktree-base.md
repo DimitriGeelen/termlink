@@ -142,7 +142,8 @@ the next framework sync.
       (40+ jobs pointing at another project's ephemeral worktree; the audit job has been
       failing every 30 min). It belongs to 002-Claude-Partner-Network, so removing it is a
       cross-project action this session must not take unilaterally.
-      **Steps:** 1. (Already answered — see the 2026-08-22 evidence below. The worktree
+      **Steps:**
+      1. (Already answered — see the 2026-08-22 evidence below. The worktree
       EXISTS and most jobs in the file WORK, so do not `rm` the file.) 2. Decide with
       002-Claude-Partner-Network whether to repair line 51 — repoint
       `/root/.agentic-framework/bin/fw` at a real `fw` — or delete that single line.

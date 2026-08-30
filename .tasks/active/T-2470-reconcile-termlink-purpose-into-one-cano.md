@@ -90,7 +90,8 @@ Reversible doc work; the canonical SENTENCE is human-blessed (sovereignty).
 
 ### Human
 - [ ] [REVIEW] Bless the canonical purpose sentence
-      **Steps:** 1. Read the `## Charter` block (path surfaced on completion).
+      **Steps:**
+      1. Read the `## Charter` block (path surfaced on completion).
       2. Confirm the one-sentence purpose is the one TermLink should own.
       **Expected:** The sentence captures what TermLink IS (and the non-goals capture
       what it deliberately is NOT) to your satisfaction.

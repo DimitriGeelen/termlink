@@ -54,7 +54,7 @@ specific failure mode where main mirrors but tags don't.
   **ALREADY DONE:** `/etc/cron.d/termlink-release-mirror-canary` was installed
   2026-05-20 and is byte-identical to the git source; the canary log is
   actively accumulating drift entries. This box is ready to tick.
-  **Steps (to verify, copy-paste):**
+  **Steps:**
   1. Confirm the file is installed: `diff /etc/cron.d/termlink-release-mirror-canary /opt/termlink/.context/cron/release-mirror-canary.crontab && echo IDENTICAL`
   2. Confirm the canary is firing: `tail -3 /opt/termlink/.context/working/.release-mirror-canary.log`
   3. (If ever missing) re-install: `sudo cp /opt/termlink/.context/cron/release-mirror-canary.crontab /etc/cron.d/termlink-release-mirror-canary`

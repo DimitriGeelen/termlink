@@ -1,12 +1,12 @@
 ---
-id: T-2858
-name: "Install-path drift: /root/.local/bin/termlink is stale behind the other two install paths"
+id: T-2859
+name: "Human AC Steps block silently vanishes from the approval page when the heading is not exactly Steps"
 description: >
-  check-installed-binary-drift has been the guard layer's only firing member for two sessions. /root/.local/bin/termlink is 0.11.1612 (2026-08-26) while /root/.cargo/bin and /usr/local/bin both carry 0.11.1716. The fix is one cp, but the path is outside /opt/termlink so the T-559 project boundary correctly refuses it from an agent session. Filing so the operator action has an approval record instead of being re-stated verbally each session.
+  The Watchtower review renderer matches the Human AC Steps heading with an exact startswith('**Steps:**'). A parenthesized variant such as '**Steps (copy-paste):**' drops the entire Steps block — including the operator's copy-pasteable command — while Expected and If-not still render, so the page looks complete. Normalize the 2 deviating active tasks and file the silent-drop defect upstream (renderer is vendored, G-062).
 
-status: captured
+status: started-work
 workflow_type: build
-owner: human
+owner: agent
 horizon: now
 tags: []
 components: []
@@ -21,8 +21,8 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-08-30T10:13:13Z
-last_update: 2026-08-30T10:16:48Z
+created: 2026-08-30T10:27:52Z
+last_update: 2026-08-30T10:27:52Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -36,52 +36,44 @@ date_finished: null
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2858: Install-path drift: /root/.local/bin/termlink is stale behind the other two install paths
+# T-2859: Human AC Steps block silently vanishes from the approval page when the heading is not exactly Steps
 
 ## Context
 
-`check-installed-binary-drift.sh` has been the guard layer's **only** firing member for
-two consecutive sessions (85 passed / 0 errored / 1 FAIL). Measured now:
+The rendered review page is the approval surface: it is what a human reads before
+stamping an action. Its Human-AC block has three fields — Steps, Expected, If not —
+and the renderer parses only two of them symmetrically.
 
-```
-/root/.cargo/bin/termlink     0.11.1716   2026-08-29
-/root/.local/bin/termlink     0.11.1612   2026-08-26   <-- stale
-/usr/local/bin/termlink       0.11.1716   2026-08-29
-DRIFT(1): 2 distinct versions across installed paths
-```
+`.agentic-framework/web/blueprints/tasks.py` (~line 419) captures the remainder of the
+`**Expected:**` and `**If not:**` marker lines into the field's content. The
+`**Steps:**` branch discards it (`current_content = []; continue`). Combined with an
+exact `startswith('**Steps:**')` test, that yields two silent losses:
 
-Why this is not cosmetic: **different consumers on this host execute different code.**
-Whichever tool resolves `termlink` via `~/.local/bin` runs a build from three days and
-~104 commits earlier, so a fix that is landed, tested and green in git is simply not
-running for that caller — and nothing about the failure says "you are on an old binary".
-That is the G-069 shipped≠live class the fleet-binary canary exists to catch, reproduced
-locally on one host.
+- **class 1** — a heading like `**Steps (copy-paste):**` never matches, so the entire
+  Steps block is dropped;
+- **class 2** — a canonical heading with content on the same line loses that content,
+  and where the whole list was on that line the page renders **no Steps section at all**.
 
-**Why an agent cannot do it:** the target is `/root/.local/bin`, outside `/opt/termlink`,
-so the T-559 project boundary refuses the write — correctly. It was declined, not
-attempted. This task exists so the action has an approval record rather than being
-re-stated verbally each session.
+Measured across `.tasks/active/`: **8 of 129** Steps headings affected — 2 class 1,
+6 class 2. The page returns 200 and still shows Expected and If-not, so nothing looks
+wrong. The worst instance, T-2522, is a human *decision* task whose three options were
+absent from the page asking for the decision. One affected task (T-1696) had already
+been reported to the operator as a verified, stamp-ready approval.
+
+The renderer is vendored, so the fix belongs upstream (G-062); what is landed here is
+the local normalisation of all 8 files plus the guard that survives a re-vendor.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] The drift is measured and recorded with per-path version and mtime (see Context)
-- [x] The blocked action is attributed to the specific gate that refused it (T-559 project boundary), not left as an unexplained omission
+- [x] Every Human AC `Steps` heading across `.tasks/active/` uses the exact canonical form `**Steps:**` (the only form the renderer matches)
+- [x] The Steps block, including its copy-pasteable command, renders on the review page for both previously-affected tasks (T-1696, T-2858)
+- [x] The renderer's silent-drop behaviour is filed upstream — it is vendored (`.agentic-framework/web/blueprints/tasks.py:419`), so it is NOT patched locally (G-062)
+- [x] RCA names why a deviating heading costs the whole block silently rather than degrading visibly
+- [x] A guard detects the next deviating heading, so this cannot silently recur
 
 ### Human
-- [ ] [RUBBER-STAMP] Bring `/root/.local/bin/termlink` up to the version the other two paths carry
-  **Steps:**
-  1. `cd /opt/termlink && cp /root/.cargo/bin/termlink /root/.local/bin/termlink && bash scripts/check-installed-binary-drift.sh`
-  **Expected:** the table shows all three paths at the same version, and the last line reads
-  `check-installed-binary-drift: clean` instead of `DRIFT(1)`. The `build artifact … PENDING
-  DEPLOY` line may remain — that is informational and expected after a rebuild, not drift.
-  **If not:** if the copy is refused, `/root/.local/bin` may not exist or may not be writable
-  by this user — `ls -ld /root/.local/bin`. If the versions still differ afterwards, the shell
-  is resolving a fourth `termlink` the checker does not probe; run `type -a termlink` and add
-  that path to the checker's probe list (the check states plainly that it asserts nothing
-  about paths it does not know about).
-
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
@@ -115,6 +107,14 @@ re-stated verbally each session.
 -->
 
 ## Verification
+
+bash scripts/check-human-ac-steps-heading.sh > /tmp/.t2859-guard.out 2>&1 && grep -q "clean" /tmp/.t2859-guard.out
+bash tests/human-ac-steps-heading-fixtures.sh > /tmp/.t2859-fix.out 2>&1 && grep -q "0 failed" /tmp/.t2859-fix.out
+! grep -rn '^[[:space:]]*[*][*]Steps (' .tasks/active/
+! grep -rEn '^[[:space:]]*[*][*]Steps:[*][*][[:space:]]+[^[:space:]]' .tasks/active/
+grep -q '^# guard-layer: source' scripts/check-human-ac-steps-heading.sh
+curl -sf "$(cat .context/working/watchtower.url)/review/T-2858" -o /tmp/.t2859-p1.out && grep -q 'check-installed-binary-drift.sh' /tmp/.t2859-p1.out
+curl -sf "$(cat .context/working/watchtower.url)/review/T-2522" -o /tmp/.t2859-p2.out && grep -q 'Confirm no production topic relies on content-time' /tmp/.t2859-p2.out
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -177,19 +177,41 @@ re-stated verbally each session.
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** Human-AC `Steps` blocks — including the operator's copy-pasteable command —
+were missing from rendered approval pages, while `Expected:` and `If not:` rendered
+normally, so the page looked complete. Worst instance: T-2522, a human *decision* task
+whose three choices were entirely absent from the page the operator was asked to decide on.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** `.agentic-framework/web/blueprints/tasks.py` (~line 419) parses the three
+Human-AC fields asymmetrically. `**Expected:**` and `**If not:**` each capture the
+remainder of their marker line (`rest = stripped[len(marker):]`) into `current_content`.
+The `**Steps:**` branch sets `current_content = []` and `continue`s, discarding it. Two
+distinct losses follow: a heading that is not *exactly* `**Steps:**` never matches
+`startswith`, so the whole block is dropped (class 1); a canonical heading with content on
+the same line has that content discarded (class 2), rendering no Steps section at all when
+the entire list was on that line.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** the drop is silent and *partial*. Nothing errors, the page
+returns 200, and the two sibling fields still render — so the failure presents as a
+complete page rather than a broken one. No guard compared the task file's Steps content
+against what the page actually rendered, and the review pipeline's own gates check that a
+Human AC *has* Steps/Expected/If-not in the **source**, never that they survive rendering.
+The consequence lands precisely at the sovereignty boundary: the human approves an action
+whose command the page never showed them — Directive #2 (no silent failures) failing where
+it is most expensive.
+
+**Contributing judgment error:** a prior session's check flagged T-1696's heading and the
+finding was dismissed as a false alarm on the reasoning that the parenthesized form "reads
+fine". It was a true positive; the page had been carrying no Steps for that task, and the
+link was reported to the operator as verified and stamp-ready. Dismissing a guard's finding
+on how the *source* reads, without looking at what the *consumer* produced, is the same
+mistake in miniature.
+
+**Prevention:** `scripts/check-human-ac-steps-heading.sh` (guard-layer member) fires on both
+classes and is pinned by `tests/human-ac-steps-heading-fixtures.sh` (15 assertions, weighted
+to the firing cases and fail-closed paths). The renderer itself is vendored, so it is **not**
+patched here (G-062) — filed upstream at `framework:pickup` offset 74 with the three-line
+symmetric fix. The guard is the half that survives a re-vendor.
 
 ## Evolution
 
@@ -216,20 +238,6 @@ re-stated verbally each session.
 -->
 
 ## Recommendation
-
-**Recommendation:** GO
-
-**Rationale:** One `cp`, fully reversible, and it clears the guard layer's only firing
-member — taking the layer to 86 passed / 0 firing / 0 errored. The cost of leaving it is
-not the red line itself; it is that a permanently-firing guard trains the reader to skim
-past a FAIL, the same fatigue mechanism T-2818 documented from the other direction. A
-guard nobody reads has stopped working.
-
-**Evidence:**
-- Firing in the guard layer for two consecutive sessions; every other member green
-- `/root/.local/bin` = 0.11.1612 (2026-08-26) vs 0.11.1716 (2026-08-29) on the other two paths
-- Refused from the agent session by the T-559 project boundary — declined, not skipped
-- Reversible: the prior binary is restorable from `~/.cargo/bin` or a rebuild
 
 <!-- T-2945: same shape as inception.md's block — the gate that reads it
      (audit_inception_recommendation, lib/task-audit.sh:117) is shared, so the
@@ -281,7 +289,7 @@ guard nobody reads has stopped working.
 
 ## Updates
 
-### 2026-08-30T10:13:13Z — task-created [task-create-agent]
+### 2026-08-30T10:27:52Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2858-install-path-drift-rootlocalbintermlink-.md
+- **Output:** /opt/termlink/.tasks/active/T-2859-human-ac-steps-block-silently-vanishes-f.md
 - **Context:** Initial task creation
