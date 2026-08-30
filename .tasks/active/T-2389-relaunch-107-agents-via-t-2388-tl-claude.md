@@ -7,7 +7,7 @@ description: >
 
 status: started-work
 workflow_type: build
-owner: agent
+owner: human
 horizon: now
 tags: []
 components: []
@@ -19,7 +19,7 @@ arc_id: comms-loudness
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-07-09T23:44:26Z
-last_update: '2026-08-27T21:13:20Z'
+last_update: 2026-08-30T18:12:25Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -87,8 +87,14 @@ captured before its process is stopped, so no conversation context is lost.
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
 - [x] Survey recorded in Updates: every running `claude` process on .107 classified (relaunch-candidate / self / interactive / desktop / bg-pty-host / other) with pid, cwd, and resume identity; own session tree explicitly excluded.
 - [x] Each relaunch candidate stopped and relaunched via the T-2388 launcher from its original cwd (`--continue`; sonnenstall needed explicit `--resume <id>` — see Updates), resuming its prior conversation.
-- [x] Post-relaunch: `agent-listeners.sh --json` shows all four relaunched agents LIVE with non-null `pty_session` (four distinct per-agent fps), and `check-waker-liveness-freshness.sh --expect-armed` exits 0 — RAIL DARK cleared.
-- [ ] Boot re-arm installed for each relaunched agent (`tl-claude.sh install-boot`) so a reboot does not silently return the host to rail-dark (C5). Launcher cwd bug now FIXED (commit below — verified: `@reboot … cd $PWD && bash <abs>/tl-claude.sh …`). REMAINING scope realization (see Updates 05:45Z): the 4 production agents are bare `claude --continue` PTY sessions with separately-attached heartbeats, NOT tl-claude-managed sessions — so `install-boot` (which boots `tl-claude.sh start`) requires first re-homing each agent under tl-claude management (a relaunch), which interrupts live project work. That is an operator-timing decision, not an autonomous action.
+- [x] Post-relaunch: `agent-listeners.sh --json` shows all four relaunched agents LIVE with non-null `pty_session` (four distinct per-agent fps), and `check-waker-liveness-freshness.sh --expect-armed` exits 0 — RAIL DARK cleared. **Was true when performed 2026-08-27; HAS SINCE REGRESSED — do not read this tick as a statement about today.** Measured 2026-08-30: all four of those agents are gone (heartbeat pid *and* waker pid dead, no matching PTY sessions), leaving four orphan `be-reachable-*.state` files from 2026-07-09/11, which were cleared this session. The canary again reports `[rail-dark]`. Re-arming is the Human AC below — it needs a relaunch, which this tick's original method also required. The tick stays because the work genuinely happened; the annotation stays because a stale tick asserting a false present state is exactly the silent-wrong-answer this project treats as a defect.
+- [x] **Boot re-arm mechanism is correct and cwd-safe** (the agent-verifiable half of the original AC4). `scripts/tl-claude.sh install-boot` constructs its cron line at `tl-claude.sh:344` as `@reboot <user> sleep 45 && cd <shell-quoted absolute $PWD> && bash <absolute SCRIPT_DIR>/tl-claude.sh …` — both the working directory and the script path are absolute and `printf '%q'`-quoted, so the original cwd bug cannot recur. Verified by static read; command in `## Verification`.
+
+<!-- T-2860 note: the original AC4 bundled the line above (agent-verifiable, and done)
+     with an operator-timing decision (below). Bundled that way it could never be
+     ticked, which is why this task — and arc-007 behind it — sat at 3/4 indefinitely.
+     The decision half is now a Human AC where it belongs, and is therefore actionable. -->
+
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -121,7 +127,26 @@ captured before its process is stopped, so no conversation context is lost.
        `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` added to ## Verification.
 -->
 
+- [ ] [REVIEW] Decide when to re-home .107 agents under the T-2388 launcher so the doorbell rail is armed and survives reboot. This is a timing call, not a technical one: arming requires **relaunching** each agent, which interrupts whatever it is currently doing. PL-237 — a running headless `claude` cannot be retrofitted with a waker; it must be armed *at launch*. That is why no agent can do this step for you.
+  **Steps:**
+  1. `cd /opt/termlink && bash scripts/check-waker-liveness-freshness.sh --expect-armed` — confirm the current state before changing anything.
+  2. Decide, per agent, whether now is an acceptable moment to interrupt it. There is no partial option: an agent is either relaunched (armed) or left as-is (unwakeable).
+  3. For each agent you choose to arm: `cd /opt/termlink && bash scripts/tl-claude.sh start --reachable --agent-id <agent-id> -- --resume` (use `--continue` instead of `--resume` if you do not have a specific conversation id).
+  4. Only after an agent is running *under* tl-claude, make it reboot-durable: `cd /opt/termlink && bash scripts/tl-claude.sh install-boot --name <name> --agent-id <agent-id>`.
+  5. Re-run step 1 to confirm the change took effect.
+  **Expected:** After arming at least one agent, step 1 reports `0 dead waker(s)` and **no** `[rail-dark]` line, and exits 0. Each armed agent appears in `bash scripts/agent-listeners-fleet.sh` as LIVE with a non-null `pty_session`. After step 4, `ls /etc/cron.d/termlink-agent-*` lists one file per armed agent.
+  **If not:** If step 1 still says `[rail-dark]` after a relaunch, the agent came up without a PTY — check that it was started under tmux and that `--reachable` was passed. If `install-boot` reports no cwd, re-run it from `/opt/termlink` (the cron line records `$PWD` at install time, `tl-claude.sh:344`). If an agent shows `[LIVE-no-waker]`, it is still the pre-relaunch process — the old one did not exit.
+
+  **Current state as of 2026-08-30 (measured, T-2860 session):** 4 orphan waker state files from 2026-07-09/11 were cleared this session — their heartbeat *and* waker pids were all dead and no matching PTY sessions existed, so re-arming them would have advertised a rail that was not there. Dead wakers went 4 → 0. The **only** remaining finding is `termlink-107-landing` (the session that did this work), which is `[LIVE-no-waker]` and cannot arm itself. So the rail is one relaunch away from lit, and that relaunch is this decision.
+
 ## Verification
+
+# The boot re-arm cron line is cwd-safe and absolute (the half of AC4 an agent can verify)
+grep -qF "@reboot" scripts/tl-claude.sh
+grep -qF "SCRIPT_DIR}/tl-claude.sh" scripts/tl-claude.sh
+grep -qF 'cd $(printf '"'"'%q'"'"' "$PWD")' scripts/tl-claude.sh
+# No orphan waker state files remain (4 cleared 2026-08-30); stays true after the operator arms agents
+bash scripts/check-waker-liveness-freshness.sh --expect-armed > /tmp/.t2389-waker.out 2>&1 || true; grep -q "0 dead waker(s)" /tmp/.t2389-waker.out
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
@@ -217,6 +242,44 @@ captured before its process is stopped, so no conversation context is lost.
   (defeats the entire push-wake arc — woken agents can't respond).
 - **Exception:** the personal claude in /home/dimitri-mint-dev stays
   interactive/manual (no framework governance around it).
+
+## Recommendation
+
+**Recommendation:** GO — arm the .107 rail by relaunching agents through the T-2388
+launcher, at a moment you choose.
+
+**Rationale:**
+
+The technical work is finished and verified; what is left is purely a timing call that
+only you can make, because arming requires interrupting a running agent (PL-237: a
+headless `claude` cannot be retrofitted with a waker — it must be armed *at launch*).
+
+Evidence that the mechanism is ready:
+
+- The boot re-arm cron line is cwd-safe and absolute — `tl-claude.sh:344` builds
+  `@reboot … cd <printf %q $PWD> && bash <absolute SCRIPT_DIR>/tl-claude.sh …`. The
+  original cwd bug cannot recur. Asserted by three greps in `## Verification`.
+- The approach is already proven on this host: it was performed successfully on
+  2026-08-27 and cleared RAIL DARK at the time (AC3).
+
+Evidence that it is currently needed:
+
+- Measured 2026-08-30: `check-waker-liveness-freshness.sh --expect-armed` exits **1**
+  with `[rail-dark] ZERO LIVE listeners carry pty_session on this hub` — the G-069
+  "0 wakers" state. Every DM to this host waits on the ~15s poll floor at best.
+- The four agents armed on 2026-08-27 are gone — heartbeat pid *and* waker pid dead,
+  no matching PTY sessions. They left four orphan `be-reachable-*.state` files dated
+  2026-07-09/11, cleared this session (dead wakers 4 → 0).
+
+**Scope of this recommendation, stated honestly:** it is GO on *doing* the arming, not
+a claim that it will stay armed. It regressed once already, within three days, and
+nothing here explains why those four agents died — that cause is not diagnosed and is
+deliberately not chased under this task. If you want durability rather than another
+three-day window, step 4 (`install-boot`) is the part that survives a reboot, and the
+underlying "why did they die" question deserves its own task.
+
+**Cost of not acting:** the host stays unwakeable. It is not silent — the canary fires
+daily — but it is a rail that peers believe exists.
 
 ## Decision
 
@@ -484,3 +547,6 @@ Net: .122 got a durable retention fix; .121 is blocked on a binary upgrade. Both
 diagnoses handed to ring20. Whole-fleet doorbell now: .107 fully live; .122
 retention-bounded (existing-bloat prune pending faster hub); .121 needs binary
 upgrade; .141 down (no route).
+
+### 2026-08-30T18:12:25Z — status-update [task-update-agent]
+- **Change:** owner: agent → human
