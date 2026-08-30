@@ -2765,3 +2765,19 @@
 
 Both carry a real ## RCA (G-019 gate refused them without one) naming why the
 framework w'
+- timestamp: '2026-08-30T10:10:43Z'
+  task: 'T-2669'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2857'
+  command: 'FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2857: RCA + PL-365 — the remediation guidance was the fourth failure layer
+
+Completes T-2857 (6/6 verification, 5/5 agent ACs). The RCA n'
+- timestamp: '2026-08-30T10:15:38Z'
+  task: 'T-2669'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2858'
+  command: 'git add -A .tasks/ .context/ && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2858: file the install-path drift as a tracked approval
+
+check-installed-binary-drift has been the guard la'

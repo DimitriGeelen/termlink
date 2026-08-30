@@ -9676,3 +9676,21 @@ scan_id: R-6ed8ccc4
 task_id: T-2856
 payload:
   task_file: .tasks/active/T-2856-route-the-18-unmarked-open-human-acs-so-.md
+---
+kind: scan_emitted
+timestamp: '2026-08-30T10:09:50Z'
+scan_id: R-d3c96861
+task_id: T-2857
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-30T10:09:50Z'
+scan_id: R-d3c96861
+task_id: T-2857
+payload:
+  task_file: .tasks/active/T-2857-fix-the-134-l-387-sigpipe-verification-l.md
