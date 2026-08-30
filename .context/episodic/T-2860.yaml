@@ -1,0 +1,76 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2860: Close arc-005 mcp-slimming — produce demo evidence and route closure to approval
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-30T18:06:47Z
+# ============================================================================
+
+task_id: T-2860
+task_name: "Close arc-005 mcp-slimming — produce demo evidence and route closure to approval"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-30T18:00:55Z
+completed: 2026-08-30T18:06:38Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Close arc-005 mcp-slimming — produce demo evidence and route closure to approval
+
+# Key outcomes
+outcomes:
+  - '**Both constituent tasks confirmed complete.** `fw arc show arc-005` lists T-2406 and T-2407, and both carry `status: work-completed` — the arc is blocked on closure paperwork, not on unfinished work.'
+  - '**Byte-level trim measured against the arc-start baseline.** `scripts/test-mcp-desc-budget.sh --report-only` exits 0 and reports current tools / total bytes / max single, compared in the evidence doc against the arc''s recorded 273 tools / 156,525 bytes / 11,751 max.'
+  - '**Anti-regrowth guard proven load-bearing, not merely present.** The evidence doc records that the guard FAILS when the ceiling is set below the measured max (demonstrated by running it with a lowered ceiling), so a passing run is evidence rather than a vacuous check.'
+  - '**Shipped-vs-live checked for the fleet half of the headline mechanic (PL-245).** The evidence doc records, per reachable hub, whether it serves a binary new enough to carry the trimmed catalog — and states plainly which hubs do NOT, rather than asserting fleet-wide delivery from a local measurement.'
+  - '**Unproven half of the headline mechanic named, not glossed.** The evidence doc states explicitly that the "fewer malformed-argument retries" clause is NOT measured, and says what evidence would settle it — so the human approves against a truthful account of what was and was not demonstrated.'
+  - '**Closure routed to the human, not self-stamped.** `fw arc review arc-005` is run and the resulting Watchtower approval URL is surfaced to the operator; no `fw arc close` is executed by the agent.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 5 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 5
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2860-close-arc-005-mcp-slimming--produce-demo.md
+generated_by: context-agent-hybrid
