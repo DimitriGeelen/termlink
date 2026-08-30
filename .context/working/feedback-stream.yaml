@@ -9694,3 +9694,21 @@ scan_id: R-d3c96861
 task_id: T-2857
 payload:
   task_file: .tasks/active/T-2857-fix-the-134-l-387-sigpipe-verification-l.md
+---
+kind: scan_emitted
+timestamp: '2026-08-30T10:42:19Z'
+scan_id: R-786836ec
+task_id: T-2859
+payload:
+  overall: CONCERN
+  finding_count: 1
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-30T10:42:19Z'
+scan_id: R-786836ec
+task_id: T-2859
+payload:
+  task_file: .tasks/active/T-2859-human-ac-steps-block-silently-vanishes-f.md

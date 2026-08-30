@@ -2781,3 +2781,16 @@ Completes T-2857 (6/6 verification, 5/5 agent ACs). The RCA n'
   command: 'git add -A .tasks/ .context/ && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2858: file the install-path drift as a tracked approval
 
 check-installed-binary-drift has been the guard la'
+- timestamp: '2026-08-30T10:16:46Z'
+  task: 'T-2669'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2858'
+  command: 'git add -A .tasks/ && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2858: drop duplicated Context heading left by the template" 2>&1 | tail -3; timeout 30 curl -s -o /root/.claude/jobs/'
+- timestamp: '2026-08-30T10:43:53Z'
+  task: 'T-2669'
+  flag: 'FW_SWITCH_FOCUS=1'
+  caller: 'check-active-task focus-drift'
+  target: 'T-2859'
+  command: 'cd /opt/termlink
+FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2859: complete — episodic, PL-366, fabric cards for the Steps-heading guard" 2>&1 | tail -10'
