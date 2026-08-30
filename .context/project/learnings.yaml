@@ -4372,3 +4372,9 @@ learnings:
   task: T-2857
   date: 2026-08-30
   context: Added via context agent
+- id: PL-366
+  learning: "Verify a guard's finding against what the CONSUMER renders, not against how the SOURCE reads. A prior session dismissed a flagged Human-AC Steps heading as a false alarm because the parenthesized form 'reads fine' in the task file; it was a true positive — the renderer's exact startswith() match meant that task's approval page had been carrying no Steps at all, and the link was reported to the operator as verified and stamp-ready. Sibling fields rendering normally is not evidence the third one did. When a check flags a formatting variant, fetch the artifact the variant feeds and diff what survived."
+  source: P-001
+  task: T-2859
+  date: 2026-08-30
+  context: Added via context agent

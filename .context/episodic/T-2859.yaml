@@ -1,0 +1,90 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2859: Human AC Steps block silently vanishes from the approval page when the heading is not exactly Steps
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-30T10:42:26Z
+# ============================================================================
+
+task_id: T-2859
+task_name: "Human AC Steps block silently vanishes from the approval page when the heading is not exactly Steps"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-30T10:27:52Z
+completed: 2026-08-30T10:42:16Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-08-30T12:41:15+02:00
+last_commit: 2026-08-30T12:41:15+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  fix 8 Human-AC Steps blocks silently dropped from the approval page
+
+# Key outcomes
+outcomes:
+  - 'Every Human AC `Steps` heading across `.tasks/active/` uses the exact canonical form `**Steps:**` (the only form the renderer matches)'
+  - 'The Steps block, including its copy-pasteable command, renders on the review page for both previously-affected tasks (T-1696, T-2858)'
+  - 'The renderer''s silent-drop behaviour is filed upstream — it is vendored (`.agentic-framework/web/blueprints/tasks.py:419`), so it is NOT patched locally (G-062)'
+  - 'RCA names why a deviating heading costs the whole block silently rather than degrading visibly'
+  - 'A guard detects the next deviating heading, so this cannot silently recur'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fix 8 Human-AC Steps blocks silently dropped from the approval page'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - 'scripts/check-human-ac-steps-heading.sh'
+  - '.tasks/active/T-1696-release-pipeline-drift-canary--alert-whe.md'
+  - '.tasks/active/T-2409-fleet-doorbell-completion--cross-hub-rea.md'
+  - '.tasks/active/T-2470-reconcile-termlink-purpose-into-one-cano.md'
+  - '.tasks/active/T-2522-retention-days-mode-prunes-on-client-sup.md'
+  - '.tasks/active/T-2532-per-host-live-session-cap--no-maxsession.md'
+  - '.tasks/active/T-2815-audit-cron-drift-slug-uses-worktree-base.md'
+  - '.tasks/active/T-2819-narrow-the-stale-agentic-framework-gitig.md'
+  - '.tasks/active/T-2858-install-path-drift-rootlocalbintermlink-.md'
+  - '.tasks/active/T-2859-human-ac-steps-block-silently-vanishes-f.md'
+  - 'tests/human-ac-steps-heading-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-30T12:41:15'
+    action: 'T-2859: fix 8 Human-AC Steps blocks silently dropped from the approval page'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 14 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 14
+  commits: 1
+  files_changed: 12
+  lines_added: 544
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2859-human-ac-steps-block-silently-vanishes-f.md
+generated_by: context-agent-hybrid

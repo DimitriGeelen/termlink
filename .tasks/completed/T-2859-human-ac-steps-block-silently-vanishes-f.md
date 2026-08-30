@@ -4,12 +4,12 @@ name: "Human AC Steps block silently vanishes from the approval page when the he
 description: >
   The Watchtower review renderer matches the Human AC Steps heading with an exact startswith('**Steps:**'). A parenthesized variant such as '**Steps (copy-paste):**' drops the entire Steps block — including the operator's copy-pasteable command — while Expected and If-not still render, so the page looks complete. Normalize the 2 deviating active tasks and file the silent-drop defect upstream (renderer is vendored, G-062).
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: agent
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/check-human-ac-steps-heading.sh, tests/human-ac-steps-heading-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -22,8 +22,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-08-30T10:27:52Z
-last_update: 2026-08-30T10:27:52Z
-date_finished: null
+last_update: 2026-08-30T10:42:16Z
+date_finished: 2026-08-30T10:42:16Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -293,3 +293,20 @@ symmetric fix. The guard is the half that survives a re-vendor.
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2859-human-ac-steps-block-silently-vanishes-f.md
 - **Context:** Initial task creation
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-786836ec
+- **Timestamp:** 2026-08-30T10:42:19Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#3 (Agent)** — The renderer's silent-drop behaviour is filed upstream — it is vendored (`.agentic-framework/web/blueprints/tasks.py:419`), so it is NOT patched locally (G-062)
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=agentic-framework/web/blueprints/tasks.py in: The renderer's silent-drop behaviour is filed upstream — it is vendored (`.agentic-framework/web/blueprints/tasks.py:419`), so it is NOT patched local`
+
+### 2026-08-30T10:42:16Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
