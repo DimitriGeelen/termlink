@@ -54,9 +54,9 @@ to `agent presence` so the fleet-wide post-walk filters by
 
 ## Verification
 
-cargo build --release -p termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
-cargo test --release -p termlink --bin termlink fleet_presence 2>&1 | grep -qE "test result: ok\. (1[2-9]|[2-9][0-9])"
-target/release/termlink agent presence --help 2>&1 | grep -q -- "--thread"
+( cargo build --release -p termlink 2>&1 | tail -5 ) > /tmp/.v-t-1490-1.out && grep -q -E "Compiling|Finished" /tmp/.v-t-1490-1.out
+( cargo test --release -p termlink --bin termlink fleet_presence 2>&1 ) > /tmp/.v-t-1490-2.out && grep -qE "test result: ok\. (1[2-9]|[2-9][0-9])" /tmp/.v-t-1490-2.out
+( target/release/termlink agent presence --help 2>&1 ) > /tmp/.v-t-1490-3.out && grep -q -- "--thread" /tmp/.v-t-1490-3.out
 out=$(target/release/termlink agent presence --thread T-1487 --window-secs 86400 --json 2>&1); echo "$out" | python3 -c "import sys, json; d = json.load(sys.stdin); assert d.get('filter_thread') == 'T-1487', d; assert isinstance(d.get('peers'), list)"
 out=$(target/release/termlink agent presence --window-secs 86400 --json 2>&1); echo "$out" | python3 -c "import sys, json; d = json.load(sys.stdin); assert 'filter_thread' not in d, 'unset filter must not appear in JSON'"
 

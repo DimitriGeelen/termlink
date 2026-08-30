@@ -52,9 +52,9 @@ watch (one-shot semantics).
 
 ## Verification
 
-cargo build --release -p termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
-target/release/termlink agent presence --help 2>&1 | grep -qE -- "--watch( |$)"
-target/release/termlink agent presence --help 2>&1 | grep -q -- "--watch-interval"
+( cargo build --release -p termlink 2>&1 | tail -5 ) > /tmp/.v-t-1486-1.out && grep -q -E "Compiling|Finished" /tmp/.v-t-1486-1.out
+( target/release/termlink agent presence --help 2>&1 ) > /tmp/.v-t-1486-2.out && grep -qE -- "--watch( |$)" /tmp/.v-t-1486-2.out
+( target/release/termlink agent presence --help 2>&1 ) > /tmp/.v-t-1486-3.out && grep -q -- "--watch-interval" /tmp/.v-t-1486-3.out
 out=$(target/release/termlink agent presence --watch --json 2>&1 || true); echo "$out" | grep -qiE "watch.*json|json.*watch|incompat|cannot.*combine" && ! echo "$out" | grep -qi panicked
 out=$(timeout 5 target/release/termlink agent presence --watch --watch-interval 2 --window-secs 86400 2>&1 || true); echo "$out" | grep -cE "PEER_FP" | awk '{ exit !($1 >= 2) }'
 

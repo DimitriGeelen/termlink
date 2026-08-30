@@ -42,7 +42,7 @@ Found during the T-1166 review-evidence sweep: `agent on-thread <thread>` return
 ## Verification
 
 cargo build -p termlink 2>&1 | tail -3
-cargo test -p termlink --bins fetch_topic_tail_cursor 2>&1 | grep -q "test result: ok. 3 passed"
+( cargo test -p termlink --bins fetch_topic_tail_cursor 2>&1 ) > /tmp/.v-t-1795-1.out && grep -q "test result: ok. 3 passed" /tmp/.v-t-1795-1.out
 
 ## RCA
 

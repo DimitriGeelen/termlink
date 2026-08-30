@@ -61,10 +61,10 @@ T-1505 shipped `agent quote <offset>` but the operator-fluent path requires `age
 
 ## Verification
 
-cargo build --release -p termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
-cargo test --release --bin termlink commands::channel::tests::recent_posts 2>&1 | tail -3 | grep -qE "test result: ok"
+( cargo build --release -p termlink 2>&1 | tail -5 ) > /tmp/.v-t-1506-1.out && grep -q -E "Compiling|Finished" /tmp/.v-t-1506-1.out
+( cargo test --release --bin termlink commands::channel::tests::recent_posts 2>&1 | tail -3 ) > /tmp/.v-t-1506-2.out && grep -qE "test result: ok" /tmp/.v-t-1506-2.out
 target/release/termlink agent timeline --window-secs 3600 --n 3 --json > /tmp/.t1506.out 2>&1 && python3 -c "import json; d=json.load(open('/tmp/.t1506.out')); assert all('offset' in p for p in d.get('posts',[]))"
-target/release/termlink agent timeline --window-secs 3600 --n 3 2>&1 | grep -q '@'
+( target/release/termlink agent timeline --window-secs 3600 --n 3 2>&1 ) > /tmp/.v-t-1506-3.out && grep -q '@' /tmp/.v-t-1506-3.out
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.

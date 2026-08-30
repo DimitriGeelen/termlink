@@ -76,9 +76,9 @@ one extraction primitive (`extract_recent_posts`). RecentPost gains a
 
 ## Verification
 
-cargo build --release -p termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
-cargo test --release -p termlink --bin termlink recent_posts 2>&1 | grep -qE "test result: ok\. (1[1-9]|[2-9][0-9])"
-target/release/termlink agent on-thread --help 2>&1 | grep -q -- "--n"
+( cargo build --release -p termlink 2>&1 | tail -5 ) > /tmp/.v-t-1493-1.out && grep -q -E "Compiling|Finished" /tmp/.v-t-1493-1.out
+( cargo test --release -p termlink --bin termlink recent_posts 2>&1 ) > /tmp/.v-t-1493-2.out && grep -qE "test result: ok\. (1[1-9]|[2-9][0-9])" /tmp/.v-t-1493-2.out
+( target/release/termlink agent on-thread --help 2>&1 ) > /tmp/.v-t-1493-3.out && grep -q -- "--n" /tmp/.v-t-1493-3.out
 out=$(target/release/termlink agent on-thread T-1438 --window-secs 86400 --n 3 --json 2>&1); echo "$out" | python3 -c "import sys, json; d = json.load(sys.stdin); assert d.get('thread') == 'T-1438', d; assert isinstance(d.get('posts'), list); assert d.get('n') == 3"
 out=$(target/release/termlink agent recent --target-fp d1993c2c3ec44c94 --window-secs 3600 --n 2 --json 2>&1); echo "$out" | python3 -c "import sys, json; d = json.load(sys.stdin); assert isinstance(d.get('posts'), list)" # regression: existing recent verb still works
 

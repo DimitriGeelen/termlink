@@ -20,7 +20,7 @@ related_tasks: []
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
 created: 2026-08-12T22:22:30Z
-last_update: 2026-08-29T23:06:32Z
+last_update: 2026-08-29T23:08:57Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -204,7 +204,7 @@ grep -q "183 call site(s) scanned" /tmp/.t2669-check.out
 grep -q "pub async fn rpc_call_with_timeout" crates/termlink-session/src/client.rs
 grep -q "async fn rpc_call_with_timeout_bounds_a_silent_server" crates/termlink-session/src/client.rs
 test "$(grep -c 'rpc_call_with_timeout(' crates/termlink-mcp/src/tools.rs)" -eq 5
-cargo build -p termlink -p termlink-mcp 2>&1 | tail -1 > /tmp/.t2669-build.out; grep -q "Finished" /tmp/.t2669-build.out
+cargo build -p termlink -p termlink-mcp 2>&1 | tail -1 > /tmp/.t2669-build.out && grep -q "Finished" /tmp/.t2669-build.out
 cargo test -p termlink-session --lib client:: > /tmp/.t2669-test.out 2>&1; grep -q "rpc_call_with_timeout_bounds_a_silent_server ... ok" /tmp/.t2669-test.out
 grep -q "0 failed" /tmp/.t2669-test.out
 grep -q "RECORD CORRECTION (T-2669" .context/checks/unbounded-rpc-call-allowlist

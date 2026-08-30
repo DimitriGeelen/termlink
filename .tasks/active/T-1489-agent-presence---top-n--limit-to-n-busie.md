@@ -48,8 +48,8 @@ echoes the field so callers can confirm what was applied.
 
 ## Verification
 
-cargo build --release -p termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
-target/release/termlink agent presence --help 2>&1 | grep -q -- "--top"
+( cargo build --release -p termlink 2>&1 | tail -5 ) > /tmp/.v-t-1489-1.out && grep -q -E "Compiling|Finished" /tmp/.v-t-1489-1.out
+( target/release/termlink agent presence --help 2>&1 ) > /tmp/.v-t-1489-2.out && grep -q -- "--top" /tmp/.v-t-1489-2.out
 out=$(target/release/termlink agent presence --top 1 --window-secs 86400 --json 2>&1); echo "$out" | python3 -c "import sys, json; d = json.load(sys.stdin); assert d.get('top') == 1, d; assert isinstance(d.get('total_peers'), int)"
 out=$(target/release/termlink agent presence --window-secs 86400 --json 2>&1); echo "$out" | python3 -c "import sys, json; d = json.load(sys.stdin); assert 'top' not in d, 'unset top must not appear'"
 target/release/termlink agent presence --top 1 --window-secs 86400 > /tmp/.t1489.out 2>&1 && grep -qE "PEER_FP" /tmp/.t1489.out

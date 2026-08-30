@@ -74,8 +74,8 @@ RCA: 4 verbs (T-1492 recent, T-1493 on-thread, T-1495 overview, T-1500 timeline)
 
 ## Verification
 
-cargo build --release -p termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
-cargo test --release --bin termlink commands::channel::tests::recent_posts 2>&1 | tail -3 | grep -qE "test result: ok"
+( cargo build --release -p termlink 2>&1 | tail -5 ) > /tmp/.v-t-1502-1.out && grep -q -E "Compiling|Finished" /tmp/.v-t-1502-1.out
+( cargo test --release --bin termlink commands::channel::tests::recent_posts 2>&1 | tail -3 ) > /tmp/.v-t-1502-2.out && grep -qE "test result: ok" /tmp/.v-t-1502-2.out
 target/release/termlink agent timeline --window-secs 86400 --n 5 --json > /tmp/.t1502a.out 2>&1 && python3 -c "import json; d=json.load(open('/tmp/.t1502a.out')); assert len([p for p in d['posts'] if p.get('content')]) > 0, 'no posts have content'"
 target/release/termlink agent timeline --window-secs 86400 --n 50 --grep T-1500 --json > /tmp/.t1502b.out 2>&1 && python3 -c "import json; d=json.load(open('/tmp/.t1502b.out')); assert len(d['posts']) > 0, 'expected at least 1 post matching T-1500'"
 

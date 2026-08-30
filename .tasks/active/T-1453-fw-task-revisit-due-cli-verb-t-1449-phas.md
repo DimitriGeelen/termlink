@@ -86,7 +86,7 @@ Channel-1 mirror to upstream `/opt/999-AEF` is in scope (per task tag `channel-1
 ## Verification
 
 .agentic-framework/bin/fw task revisit-due
-.agentic-framework/bin/fw task revisit-due | grep -qiE '(fires|no revisits due)'
+( .agentic-framework/bin/fw task revisit-due ) > /tmp/.v-t-1453-1.out && grep -qiE '(fires|no revisits due)' /tmp/.v-t-1453-1.out
 test -x .agentic-framework/agents/context/revisit-due-scan.sh
 bash .agentic-framework/agents/context/tests/fw-task-revisit-due-test.sh
 

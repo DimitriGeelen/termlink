@@ -91,12 +91,12 @@ cost_estimate_proposed:
 ## Verification
 
 cargo build --release -p termlink 2>&1 | tail -3
-cargo test --release -p termlink-hub --lib rpc_audit::tests::summarize 2>&1 | grep -q "test result: ok. 3 passed"
-target/release/termlink fleet doctor --help 2>&1 | grep -q "legacy-usage"
-target/release/termlink fleet doctor --help 2>&1 | grep -q "legacy-window-days"
+( cargo test --release -p termlink-hub --lib rpc_audit::tests::summarize 2>&1 ) > /tmp/.v-t-1432-1.out && grep -q "test result: ok. 3 passed" /tmp/.v-t-1432-1.out
+( target/release/termlink fleet doctor --help 2>&1 ) > /tmp/.v-t-1432-2.out && grep -q "legacy-usage" /tmp/.v-t-1432-2.out
+( target/release/termlink fleet doctor --help 2>&1 ) > /tmp/.v-t-1432-3.out && grep -q "legacy-window-days" /tmp/.v-t-1432-3.out
 target/release/termlink fleet doctor --legacy-usage --json 2>&1 | python3 -c "import sys, json; d = json.load(sys.stdin); assert 'legacy_summary' in d; assert d['legacy_summary']['verdict'] in ('CUT-READY', 'WAIT', 'UNCERTAIN')"
-target/release/termlink fleet doctor --legacy-usage 2>&1 | grep -q "T-1166 cut-readiness"
-target/release/termlink fleet doctor --legacy-usage --json 2>&1 | head -1 | grep -q "^{"
+( target/release/termlink fleet doctor --legacy-usage 2>&1 ) > /tmp/.v-t-1432-4.out && grep -q "T-1166 cut-readiness" /tmp/.v-t-1432-4.out
+( target/release/termlink fleet doctor --legacy-usage --json 2>&1 | head -1 ) > /tmp/.v-t-1432-5.out && grep -q "^{" /tmp/.v-t-1432-5.out
 
 ## Recommendation
 

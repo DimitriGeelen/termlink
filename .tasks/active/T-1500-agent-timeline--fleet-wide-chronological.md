@@ -49,11 +49,11 @@ T-1492 (agent recent <peer>) shows posts from one peer; T-1493 (agent on-thread 
 
 ## Verification
 
-cargo build --release -p termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
-cargo test --release --bin termlink commands::channel::tests::recent_posts 2>&1 | tail -3 | grep -qE "test result: ok"
-target/release/termlink agent timeline --help 2>&1 | grep -q -- "--window-secs"
-target/release/termlink agent timeline --help 2>&1 | grep -q -- "--watch"
-target/release/termlink agent timeline --help 2>&1 | grep -q -- "--msg-type"
+( cargo build --release -p termlink 2>&1 | tail -5 ) > /tmp/.v-t-1500-1.out && grep -q -E "Compiling|Finished" /tmp/.v-t-1500-1.out
+( cargo test --release --bin termlink commands::channel::tests::recent_posts 2>&1 | tail -3 ) > /tmp/.v-t-1500-2.out && grep -qE "test result: ok" /tmp/.v-t-1500-2.out
+( target/release/termlink agent timeline --help 2>&1 ) > /tmp/.v-t-1500-3.out && grep -q -- "--window-secs" /tmp/.v-t-1500-3.out
+( target/release/termlink agent timeline --help 2>&1 ) > /tmp/.v-t-1500-4.out && grep -q -- "--watch" /tmp/.v-t-1500-4.out
+( target/release/termlink agent timeline --help 2>&1 ) > /tmp/.v-t-1500-5.out && grep -q -- "--msg-type" /tmp/.v-t-1500-5.out
 target/release/termlink agent timeline --window-secs 86400 --n 5 --json > /tmp/.t1500.out 2>&1 && grep -qE '"posts":\[' /tmp/.t1500.out
 
 ## RCA

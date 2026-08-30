@@ -61,13 +61,13 @@ Both follow the established `--watch` dispatch pattern: ANSI clear + header + de
 
 ## Verification
 
-cargo build --release --bin termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
-target/release/termlink agent dms --help 2>&1 | grep -q -- "--watch"
-target/release/termlink agent unread --help 2>&1 | grep -q -- "--watch"
-(target/release/termlink agent dms --watch --json 2>&1 || true) | grep -qiE "incompatible"
-(target/release/termlink agent unread --watch --json 2>&1 || true) | grep -qiE "incompatible"
-(target/release/termlink agent dms 2>&1 || true) | head -5 | grep -qiE "dm:|No DM topics|topic"
-(target/release/termlink agent unread 2>&1 || true) | grep -qiE "unread|posts since|0 unread"
+( cargo build --release --bin termlink 2>&1 | tail -5 ) > /tmp/.v-t-1559-1.out && grep -q -E "Compiling|Finished" /tmp/.v-t-1559-1.out
+( target/release/termlink agent dms --help 2>&1 ) > /tmp/.v-t-1559-2.out && grep -q -- "--watch" /tmp/.v-t-1559-2.out
+( target/release/termlink agent unread --help 2>&1 ) > /tmp/.v-t-1559-3.out && grep -q -- "--watch" /tmp/.v-t-1559-3.out
+(target/release/termlink agent dms --watch --json 2>&1 || true) > /tmp/.v-t-1559-4.out && grep -qiE "incompatible" /tmp/.v-t-1559-4.out
+(target/release/termlink agent unread --watch --json 2>&1 || true) > /tmp/.v-t-1559-5.out && grep -qiE "incompatible" /tmp/.v-t-1559-5.out
+( (target/release/termlink agent dms 2>&1 || true) | head -5 ) > /tmp/.v-t-1559-6.out && grep -qiE "dm:|No DM topics|topic" /tmp/.v-t-1559-6.out
+(target/release/termlink agent unread 2>&1 || true) > /tmp/.v-t-1559-7.out && grep -qiE "unread|posts since|0 unread" /tmp/.v-t-1559-7.out
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.

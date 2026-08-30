@@ -127,7 +127,7 @@ Mirror of T-1294 for the OTHER ring20 hub at .121 (proxmox4 ct 101 ring20-dashbo
 ## Verification
 
 # Agent-runnable: confirm fleet still green after operator finishes (post-AC 3)
-termlink fleet doctor 2>&1 | grep -q 'ring20-dashboard.*PASS'
+( termlink fleet doctor 2>&1 ) > /tmp/.v-t-1296-1.out && grep -q 'ring20-dashboard.*PASS' /tmp/.v-t-1296-1.out
 
 ## Recommendation
 

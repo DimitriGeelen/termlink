@@ -56,11 +56,11 @@ date_finished: 2026-05-05T12:12:56Z
 
 ## Verification
 
-cargo build --release --bin termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
-target/release/termlink agent inbox --help 2>&1 | grep -q -- "--watch"
-target/release/termlink agent inbox --help 2>&1 | grep -q -- "--watch-interval"
-(target/release/termlink agent inbox --watch --json 2>&1 || true) | grep -qiE "incompatible|--watch.*--json"
-target/release/termlink agent inbox 2>&1 | head -5 | grep -qiE "topic|unread|cursor|No"
+( cargo build --release --bin termlink 2>&1 | tail -5 ) > /tmp/.v-t-1558-1.out && grep -q -E "Compiling|Finished" /tmp/.v-t-1558-1.out
+( target/release/termlink agent inbox --help 2>&1 ) > /tmp/.v-t-1558-2.out && grep -q -- "--watch" /tmp/.v-t-1558-2.out
+( target/release/termlink agent inbox --help 2>&1 ) > /tmp/.v-t-1558-3.out && grep -q -- "--watch-interval" /tmp/.v-t-1558-3.out
+(target/release/termlink agent inbox --watch --json 2>&1 || true) > /tmp/.v-t-1558-4.out && grep -qiE "incompatible|--watch.*--json" /tmp/.v-t-1558-4.out
+( target/release/termlink agent inbox 2>&1 | head -5 ) > /tmp/.v-t-1558-5.out && grep -qiE "topic|unread|cursor|No" /tmp/.v-t-1558-5.out
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.

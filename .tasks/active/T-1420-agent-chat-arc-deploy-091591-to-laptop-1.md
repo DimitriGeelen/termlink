@@ -225,9 +225,9 @@ termlink remote exec laptop-141 "$SID" \
 # been rebuilt many times since the original 484fef88 staging snapshot
 # and the deploy is verifiable end-to-end against the field host.
 test -f target/release/termlink
-./target/release/termlink remote exec laptop-141 "$(./target/release/termlink remote list laptop-141 2>/dev/null | tail -n +3 | awk 'NF>0 {print $1}' | head -1)" 'PATH=/home/dimitri/bin:/usr/local/bin:/usr/bin:/bin termlink --version' 2>&1 | grep -qE "termlink 0\.9\.(15[0-9]{2}|1[6-9][0-9]{2}|[2-9][0-9]{3})"
-./target/release/termlink remote exec laptop-141 "$(./target/release/termlink remote list laptop-141 2>/dev/null | tail -n +3 | awk 'NF>0 {print $1}' | head -1)" 'PATH=/home/dimitri/bin:/usr/local/bin:/usr/bin:/bin termlink channel --help' 2>&1 | grep -cE '^  [a-z]' | grep -q "^53$"
-./target/release/termlink channel members --hub laptop-141 agent-chat-arc 2>/dev/null | grep -q "6604a2af482f0cf7"
+( ./target/release/termlink remote exec laptop-141 "$(./target/release/termlink remote list laptop-141 2>/dev/null | tail -n +3 | awk 'NF>0 {print $1}' | head -1)" 'PATH=/home/dimitri/bin:/usr/local/bin:/usr/bin:/bin termlink --version' 2>&1 ) > /tmp/.v-t-1420-1.out && grep -qE "termlink 0\.9\.(15[0-9]{2}|1[6-9][0-9]{2}|[2-9][0-9]{3})" /tmp/.v-t-1420-1.out
+( ./target/release/termlink remote exec laptop-141 "$(./target/release/termlink remote list laptop-141 2>/dev/null | tail -n +3 | awk 'NF>0 {print $1}' | head -1)" 'PATH=/home/dimitri/bin:/usr/local/bin:/usr/bin:/bin termlink channel --help' 2>&1 | grep -cE '^  [a-z]' ) > /tmp/.v-t-1420-2.out && grep -q "^53$" /tmp/.v-t-1420-2.out
+( ./target/release/termlink channel members --hub laptop-141 agent-chat-arc 2>/dev/null ) > /tmp/.v-t-1420-3.out && grep -q "6604a2af482f0cf7" /tmp/.v-t-1420-3.out
 
 ## Recommendation
 

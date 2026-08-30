@@ -74,11 +74,11 @@ verb — reuses existing pure helpers (`summarize_fleet_presence`,
 
 ## Verification
 
-cargo build --release -p termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
-target/release/termlink agent overview --help 2>&1 | grep -q -- "--top"
-target/release/termlink agent overview --help 2>&1 | grep -q -- "--window-secs"
+( cargo build --release -p termlink 2>&1 | tail -5 ) > /tmp/.v-t-1495-1.out && grep -q -E "Compiling|Finished" /tmp/.v-t-1495-1.out
+( target/release/termlink agent overview --help 2>&1 ) > /tmp/.v-t-1495-2.out && grep -q -- "--top" /tmp/.v-t-1495-2.out
+( target/release/termlink agent overview --help 2>&1 ) > /tmp/.v-t-1495-3.out && grep -q -- "--window-secs" /tmp/.v-t-1495-3.out
 out=$(target/release/termlink agent overview --window-secs 86400 --top 3 --json 2>&1); echo "$out" | python3 -c "import sys, json; d = json.load(sys.stdin); assert isinstance(d.get('peers'), list); assert isinstance(d.get('projects'), list); assert isinstance(d.get('recent_posts'), list); assert d.get('top') == 3; assert d.get('window_secs') == 86400"
-target/release/termlink agent overview --window-secs 86400 2>&1 | grep -qE "(Top Peers|## Top|peers active|projects active|posts? shown)"
+( target/release/termlink agent overview --window-secs 86400 2>&1 ) > /tmp/.v-t-1495-4.out && grep -qE "(Top Peers|## Top|peers active|projects active|posts? shown)" /tmp/.v-t-1495-4.out
 
 ## RCA
 

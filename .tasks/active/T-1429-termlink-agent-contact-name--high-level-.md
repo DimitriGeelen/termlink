@@ -137,11 +137,11 @@ cost_estimate_proposed:
 
 # Phase-1 verification gates (Phase-2 gates intentionally absent)
 cargo build --release -p termlink 2>&1 | tail -5
-cargo test --release -p termlink --bin termlink commands::agent::contact_tests 2>&1 | grep -q "1 passed"
-target/release/termlink agent contact --help 2>&1 | grep -q "T-1425\|RFC"
-target/release/termlink agent contact --help 2>&1 | grep -q "Phase-1"
-target/release/termlink agent contact --help 2>&1 | grep -q "T-1427"
-target/release/termlink agent contact framework-agent --message "x" 2>&1 | grep -q "T-1436"
+( cargo test --release -p termlink --bin termlink commands::agent::contact_tests 2>&1 ) > /tmp/.v-t-1429-1.out && grep -q "1 passed" /tmp/.v-t-1429-1.out
+( target/release/termlink agent contact --help 2>&1 ) > /tmp/.v-t-1429-2.out && grep -q "T-1425\|RFC" /tmp/.v-t-1429-2.out
+( target/release/termlink agent contact --help 2>&1 ) > /tmp/.v-t-1429-3.out && grep -q "Phase-1" /tmp/.v-t-1429-3.out
+( target/release/termlink agent contact --help 2>&1 ) > /tmp/.v-t-1429-4.out && grep -q "T-1427" /tmp/.v-t-1429-4.out
+( target/release/termlink agent contact framework-agent --message "x" 2>&1 ) > /tmp/.v-t-1429-5.out && grep -q "T-1436" /tmp/.v-t-1429-5.out
 
 ## Recommendation
 

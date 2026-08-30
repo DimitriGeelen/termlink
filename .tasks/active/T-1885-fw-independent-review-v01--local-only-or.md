@@ -111,9 +111,9 @@ with the MVP scope narrowed to local-only validators. This is the v0.1 build.
 test -x scripts/independent-review.py || test -x .agentic-framework/agents/independent-review/independent-review.sh
 bash -c "(scripts/independent-review.py --help 2>&1 || .agentic-framework/agents/independent-review/independent-review.sh --help 2>&1) | head -5"
 # Dry-run produces non-empty output
-python3 scripts/independent-review.py --dry-run 2>&1 | grep -qE 'PASS|FAIL|INCONCLUSIVE'
+( python3 scripts/independent-review.py --dry-run 2>&1 ) > /tmp/.v-t-1885-1.out && grep -qE 'PASS|FAIL|INCONCLUSIVE' /tmp/.v-t-1885-1.out
 # Classifier preserved (re-run S1, confidence ≥80%)
-python3 scripts/T-1884-S1-classify.py 2>&1 | grep -qE 'PASS$|Overall confidence: (8[0-9]|9[0-9]|100)'
+( python3 scripts/T-1884-S1-classify.py 2>&1 ) > /tmp/.v-t-1885-2.out && grep -qE 'PASS$|Overall confidence: (8[0-9]|9[0-9]|100)' /tmp/.v-t-1885-2.out
 
 ## RCA
 

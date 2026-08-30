@@ -67,9 +67,9 @@ hub changes; reuses T-1481's `summarize_peer_activity` extension.
 
 ## Verification
 
-cargo build --release -p termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
-cargo test --release -p termlink --bin termlink fleet_presence 2>&1 | grep -qE "test result: ok\. [5-9]+ passed|test result: ok\. 1[0-9] passed"
-target/release/termlink agent presence --help 2>&1 | grep -q "window-secs"
+( cargo build --release -p termlink 2>&1 | tail -5 ) > /tmp/.v-t-1482-1.out && grep -q -E "Compiling|Finished" /tmp/.v-t-1482-1.out
+( cargo test --release -p termlink --bin termlink fleet_presence 2>&1 ) > /tmp/.v-t-1482-2.out && grep -qE "test result: ok\. [5-9]+ passed|test result: ok\. 1[0-9] passed" /tmp/.v-t-1482-2.out
+( target/release/termlink agent presence --help 2>&1 ) > /tmp/.v-t-1482-3.out && grep -q "window-secs" /tmp/.v-t-1482-3.out
 out=$(target/release/termlink agent presence --window-secs 86400 --json 2>&1); echo "$out" | python3 -c "import sys, json; d = json.load(sys.stdin); assert 'window_secs' in d; assert isinstance(d['peers'], list); assert len(d['peers']) >= 1, d"
 
 ## RCA

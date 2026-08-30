@@ -87,7 +87,7 @@ Foundation-soak audit fires on 2026-05-14, 14 days after T-1425 RFC post (2026-0
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # Run these on audit day (2026-05-14) — they are the mechanical floor for AC1, AC3, AC5.
 termlink fleet status > /tmp/.t1428-fleet.out 2>&1 && sed 's/\x1b\[[0-9;]*m//g' /tmp/.t1428-fleet.out > /tmp/.t1428-plain.out && grep -qE '^[[:space:]]*UP[[:space:]]+(workstation-107|local-test|laptop-141|ring20-management|ring20-dashboard)' /tmp/.t1428-plain.out
-termlink channel info agent-chat-arc 2>&1 | grep -qE 'Posts:[[:space:]]+[0-9]+'
+( termlink channel info agent-chat-arc 2>&1 ) > /tmp/.v-t-1428-1.out && grep -qE 'Posts:[[:space:]]+[0-9]+' /tmp/.v-t-1428-1.out
 
 ## Decisions
 

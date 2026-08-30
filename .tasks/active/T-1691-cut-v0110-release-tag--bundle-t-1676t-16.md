@@ -58,9 +58,9 @@ date_finished: 2026-05-18T08:48:35Z
 
 ## Verification
 
-target/release/termlink --version 2>&1 | grep -qE 'termlink 0\.11\.'
-git tag -l v0.11.0 | grep -q v0.11.0
-git ls-remote --tags origin v0.11.0 2>&1 | grep -q v0.11.0
+( target/release/termlink --version 2>&1 ) > /tmp/.v-t-1691-1.out && grep -qE 'termlink 0\.11\.' /tmp/.v-t-1691-1.out
+( git tag -l v0.11.0 ) > /tmp/.v-t-1691-2.out && grep -q v0.11.0 /tmp/.v-t-1691-2.out
+( git ls-remote --tags origin v0.11.0 2>&1 ) > /tmp/.v-t-1691-3.out && grep -q v0.11.0 /tmp/.v-t-1691-3.out
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.

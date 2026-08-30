@@ -55,9 +55,9 @@ callers updated.
 
 ## Verification
 
-cargo build --release -p termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
-cargo test --release -p termlink --bin termlink peer_activity 2>&1 | grep -qE "test result: ok\. (1[0-9]|[2-9][0-9])"
-target/release/termlink agent who --help 2>&1 | grep -q -- "--thread"
+( cargo build --release -p termlink 2>&1 | tail -5 ) > /tmp/.v-t-1488-1.out && grep -q -E "Compiling|Finished" /tmp/.v-t-1488-1.out
+( cargo test --release -p termlink --bin termlink peer_activity 2>&1 ) > /tmp/.v-t-1488-2.out && grep -qE "test result: ok\. (1[0-9]|[2-9][0-9])" /tmp/.v-t-1488-2.out
+( target/release/termlink agent who --help 2>&1 ) > /tmp/.v-t-1488-3.out && grep -q -- "--thread" /tmp/.v-t-1488-3.out
 out=$(target/release/termlink agent who --target-fp d1993c2c3ec44c94 --thread T-1487 --window-secs 86400 --json 2>&1); echo "$out" | python3 -c "import sys, json; d = json.load(sys.stdin); assert d.get('filter_thread') == 'T-1487', d; assert isinstance(d.get('posts_in_window'), int)"
 out=$(target/release/termlink agent who --target-fp d1993c2c3ec44c94 --window-secs 86400 --json 2>&1); echo "$out" | python3 -c "import sys, json; d = json.load(sys.stdin); assert 'filter_thread' not in d, 'unset filter must not appear in JSON'"
 

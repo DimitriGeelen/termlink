@@ -41,8 +41,8 @@ date_finished: 2026-05-05T09:13:59Z
 
 ## Verification
 
-cargo build --release --bin termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
-target/release/termlink agent edit --help 2>&1 | grep -q -- 'OFFSET'
+( cargo build --release --bin termlink 2>&1 | tail -5 ) > /tmp/.v-t-1530-1.out && grep -q -E "Compiling|Finished" /tmp/.v-t-1530-1.out
+( target/release/termlink agent edit --help 2>&1 ) > /tmp/.v-t-1530-2.out && grep -q -- 'OFFSET' /tmp/.v-t-1530-2.out
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.

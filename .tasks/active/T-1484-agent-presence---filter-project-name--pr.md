@@ -53,9 +53,9 @@ posts). Pure helper extension; no hub changes.
 
 ## Verification
 
-cargo build --release -p termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
-cargo test --release -p termlink --bin termlink fleet_presence 2>&1 | grep -qE "test result: ok\. (1[1-9]|[2-9][0-9])"
-target/release/termlink agent presence --help 2>&1 | grep -q "filter-project"
+( cargo build --release -p termlink 2>&1 | tail -5 ) > /tmp/.v-t-1484-1.out && grep -q -E "Compiling|Finished" /tmp/.v-t-1484-1.out
+( cargo test --release -p termlink --bin termlink fleet_presence 2>&1 ) > /tmp/.v-t-1484-2.out && grep -qE "test result: ok\. (1[1-9]|[2-9][0-9])" /tmp/.v-t-1484-2.out
+( target/release/termlink agent presence --help 2>&1 ) > /tmp/.v-t-1484-3.out && grep -q "filter-project" /tmp/.v-t-1484-3.out
 out=$(target/release/termlink agent presence --filter-project 010-termlink --window-secs 86400 --json 2>&1); echo "$out" | python3 -c "import sys, json; d = json.load(sys.stdin); assert d.get('filter_project') == '010-termlink', d; assert isinstance(d['peers'], list); assert len(d['peers']) >= 1, d"
 out=$(target/release/termlink agent presence --filter-project nonexistent-xyz-no-such --window-secs 86400 --json 2>&1); echo "$out" | python3 -c "import sys, json; d = json.load(sys.stdin); assert d.get('filter_project') == 'nonexistent-xyz-no-such', d; assert d['peers'] == [], d"
 

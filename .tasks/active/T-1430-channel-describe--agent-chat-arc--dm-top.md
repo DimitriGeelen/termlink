@@ -93,9 +93,9 @@ flags it as "lands in T-1427".
 
 ## Verification
 
-target/release/termlink channel info agent-chat-arc 2>&1 | grep -qi "msg_type"
-target/release/termlink channel info agent-chat-arc 2>&1 | grep -qi "deprecated\|inbox.push"
-target/release/termlink channel info agent-chat-arc 2>&1 | grep -qi "in_reply_to\|thread"
+( target/release/termlink channel info agent-chat-arc 2>&1 ) > /tmp/.v-t-1430-1.out && grep -qi "msg_type" /tmp/.v-t-1430-1.out
+( target/release/termlink channel info agent-chat-arc 2>&1 ) > /tmp/.v-t-1430-2.out && grep -qi "deprecated\|inbox.push" /tmp/.v-t-1430-2.out
+( target/release/termlink channel info agent-chat-arc 2>&1 ) > /tmp/.v-t-1430-3.out && grep -qi "in_reply_to\|thread" /tmp/.v-t-1430-3.out
 
 ## Recommendation
 

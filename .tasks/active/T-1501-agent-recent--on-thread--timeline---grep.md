@@ -52,11 +52,11 @@ The arc reading verbs (T-1492 recent, T-1493 on-thread, T-1500 timeline) all wal
 
 ## Verification
 
-cargo build --release -p termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
-cargo test --release --bin termlink commands::channel::tests::recent_posts 2>&1 | tail -3 | grep -qE "test result: ok"
-target/release/termlink agent recent --help 2>&1 | grep -q -- "--grep"
-target/release/termlink agent on-thread --help 2>&1 | grep -q -- "--grep"
-target/release/termlink agent timeline --help 2>&1 | grep -q -- "--grep"
+( cargo build --release -p termlink 2>&1 | tail -5 ) > /tmp/.v-t-1501-1.out && grep -q -E "Compiling|Finished" /tmp/.v-t-1501-1.out
+( cargo test --release --bin termlink commands::channel::tests::recent_posts 2>&1 | tail -3 ) > /tmp/.v-t-1501-2.out && grep -qE "test result: ok" /tmp/.v-t-1501-2.out
+( target/release/termlink agent recent --help 2>&1 ) > /tmp/.v-t-1501-3.out && grep -q -- "--grep" /tmp/.v-t-1501-3.out
+( target/release/termlink agent on-thread --help 2>&1 ) > /tmp/.v-t-1501-4.out && grep -q -- "--grep" /tmp/.v-t-1501-4.out
+( target/release/termlink agent timeline --help 2>&1 ) > /tmp/.v-t-1501-5.out && grep -q -- "--grep" /tmp/.v-t-1501-5.out
 target/release/termlink agent timeline --window-secs 86400 --n 50 --grep T-1438 --json > /tmp/.t1501.out 2>&1 && grep -qE '"filter_grep":"T-1438"' /tmp/.t1501.out
 
 ## RCA

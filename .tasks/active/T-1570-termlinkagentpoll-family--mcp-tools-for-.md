@@ -64,8 +64,8 @@ Bundled as one task (per T-1559 precedent) because the three verbs are useless w
 
 ## Verification
 
-cargo build --release 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
-target/release/termlink version --json 2>&1 | grep -qE '"mcp_tools":\s*(8[8-9]|9[0-9])'
+( cargo build --release 2>&1 | tail -5 ) > /tmp/.v-t-1570-1.out && grep -q -E "Compiling|Finished" /tmp/.v-t-1570-1.out
+( target/release/termlink version --json 2>&1 ) > /tmp/.v-t-1570-2.out && grep -qE '"mcp_tools":\s*(8[8-9]|9[0-9])' /tmp/.v-t-1570-2.out
 grep -q '"termlink_agent_poll_start"' crates/termlink-mcp/src/tools.rs
 grep -q '"termlink_agent_poll_vote"' crates/termlink-mcp/src/tools.rs
 grep -q '"termlink_agent_poll_end"' crates/termlink-mcp/src/tools.rs

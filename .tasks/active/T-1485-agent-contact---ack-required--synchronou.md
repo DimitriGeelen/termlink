@@ -59,10 +59,10 @@ engagement). Pairs with T-1480 (Q3, fail-fast pre-flight).
 
 ## Verification
 
-cargo build --release -p termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
-cargo test --release -p termlink --bin termlink detect_ack 2>&1 | grep -qE "test result: ok\. [5-9]+ passed|test result: ok\. 1[0-9] passed"
-target/release/termlink agent contact --help 2>&1 | grep -q "ack-required"
-target/release/termlink agent contact --help 2>&1 | grep -q "ack-timeout-secs"
+( cargo build --release -p termlink 2>&1 | tail -5 ) > /tmp/.v-t-1485-1.out && grep -q -E "Compiling|Finished" /tmp/.v-t-1485-1.out
+( cargo test --release -p termlink --bin termlink detect_ack 2>&1 ) > /tmp/.v-t-1485-2.out && grep -qE "test result: ok\. [5-9]+ passed|test result: ok\. 1[0-9] passed" /tmp/.v-t-1485-2.out
+( target/release/termlink agent contact --help 2>&1 ) > /tmp/.v-t-1485-3.out && grep -q "ack-required" /tmp/.v-t-1485-3.out
+( target/release/termlink agent contact --help 2>&1 ) > /tmp/.v-t-1485-4.out && grep -q "ack-timeout-secs" /tmp/.v-t-1485-4.out
 out=$(timeout 15 target/release/termlink agent contact --target-fp deadbeefdeadbeef --message ack-smoke --ack-required --ack-timeout-secs 5 2>&1 || true); echo "$out" | grep -qiE "ack|timeout" && ! echo "$out" | grep -qi panicked
 
 ## RCA

@@ -61,10 +61,10 @@ flag plumbing in cli/main/agent.
 
 ## Verification
 
-cargo build --release -p termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
-cargo test --release -p termlink --lib commands::channel::tests::recent_posts 2>&1 | tail -3 | grep -qE "test result: ok"
-target/release/termlink agent recent --help 2>&1 | grep -q -- "--msg-type"
-target/release/termlink agent on-thread --help 2>&1 | grep -q -- "--msg-type"
+( cargo build --release -p termlink 2>&1 | tail -5 ) > /tmp/.v-t-1499-1.out && grep -q -E "Compiling|Finished" /tmp/.v-t-1499-1.out
+( cargo test --release -p termlink --lib commands::channel::tests::recent_posts 2>&1 | tail -3 ) > /tmp/.v-t-1499-2.out && grep -qE "test result: ok" /tmp/.v-t-1499-2.out
+( target/release/termlink agent recent --help 2>&1 ) > /tmp/.v-t-1499-3.out && grep -q -- "--msg-type" /tmp/.v-t-1499-3.out
+( target/release/termlink agent on-thread --help 2>&1 ) > /tmp/.v-t-1499-4.out && grep -q -- "--msg-type" /tmp/.v-t-1499-4.out
 target/release/termlink agent recent --target-fp d1993c2c3ec44c94 --window-secs 86400 --msg-type note --n 5 > /tmp/.t1499.out 2>&1 && grep -qE "msg_type=note|no posts found" /tmp/.t1499.out
 
 ## RCA

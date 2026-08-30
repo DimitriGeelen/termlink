@@ -57,9 +57,9 @@ protocol. Composes with `--filter-project`, `--thread`, `--top N`,
 
 ## Verification
 
-cargo build --release -p termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
-cargo test --release -p termlink --bin termlink fleet_by_project 2>&1 | grep -qE "test result: ok\. ([5-9]|[1-9][0-9])"
-target/release/termlink agent presence --help 2>&1 | grep -q -- "--by-project"
+( cargo build --release -p termlink 2>&1 | tail -5 ) > /tmp/.v-t-1491-1.out && grep -q -E "Compiling|Finished" /tmp/.v-t-1491-1.out
+( cargo test --release -p termlink --bin termlink fleet_by_project 2>&1 ) > /tmp/.v-t-1491-2.out && grep -qE "test result: ok\. ([5-9]|[1-9][0-9])" /tmp/.v-t-1491-2.out
+( target/release/termlink agent presence --help 2>&1 ) > /tmp/.v-t-1491-3.out && grep -q -- "--by-project" /tmp/.v-t-1491-3.out
 out=$(target/release/termlink agent presence --by-project --window-secs 86400 --json 2>&1); echo "$out" | python3 -c "import sys, json; d = json.load(sys.stdin); assert d.get('view') == 'by-project', d; assert isinstance(d.get('projects'), list); assert 'peers' not in d"
 out=$(target/release/termlink agent presence --window-secs 86400 --json 2>&1); echo "$out" | python3 -c "import sys, json; d = json.load(sys.stdin); assert 'view' not in d, 'unset --by-project must not emit view'; assert isinstance(d.get('peers'), list)"
 

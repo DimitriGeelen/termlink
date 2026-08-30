@@ -56,11 +56,11 @@ date_finished: 2026-05-05T12:06:14Z
 
 ## Verification
 
-cargo build --release --bin termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
-target/release/termlink agent typers --help 2>&1 | grep -q -- "--watch"
-target/release/termlink agent typers --help 2>&1 | grep -q -- "--watch-interval"
-(target/release/termlink agent typers --watch --json 2>&1 || true) | grep -qiE "incompatible|--watch.*--json"
-target/release/termlink agent typers 2>&1 | grep -qiE "typing|No active typers"
+( cargo build --release --bin termlink 2>&1 | tail -5 ) > /tmp/.v-t-1557-1.out && grep -q -E "Compiling|Finished" /tmp/.v-t-1557-1.out
+( target/release/termlink agent typers --help 2>&1 ) > /tmp/.v-t-1557-2.out && grep -q -- "--watch" /tmp/.v-t-1557-2.out
+( target/release/termlink agent typers --help 2>&1 ) > /tmp/.v-t-1557-3.out && grep -q -- "--watch-interval" /tmp/.v-t-1557-3.out
+(target/release/termlink agent typers --watch --json 2>&1 || true) > /tmp/.v-t-1557-4.out && grep -qiE "incompatible|--watch.*--json" /tmp/.v-t-1557-4.out
+( target/release/termlink agent typers 2>&1 ) > /tmp/.v-t-1557-5.out && grep -qiE "typing|No active typers" /tmp/.v-t-1557-5.out
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
 # The completion gate runs each command — if any exits non-zero, completion is blocked.

@@ -68,10 +68,10 @@ operator coordinating a multi-agent ring.
 
 ## Verification
 
-cargo build --release -p termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
-target/release/termlink agent overview --help 2>&1 | grep -q -- "--watch"
-target/release/termlink agent overview --help 2>&1 | grep -q -- "--watch-interval"
-target/release/termlink agent overview --watch --json 2>&1 | grep -qiE "incompatible|--watch.*--json|--json.*--watch"
+( cargo build --release -p termlink 2>&1 | tail -5 ) > /tmp/.v-t-1496-1.out && grep -q -E "Compiling|Finished" /tmp/.v-t-1496-1.out
+( target/release/termlink agent overview --help 2>&1 ) > /tmp/.v-t-1496-2.out && grep -q -- "--watch" /tmp/.v-t-1496-2.out
+( target/release/termlink agent overview --help 2>&1 ) > /tmp/.v-t-1496-3.out && grep -q -- "--watch-interval" /tmp/.v-t-1496-3.out
+( target/release/termlink agent overview --watch --json 2>&1 ) > /tmp/.v-t-1496-4.out && grep -qiE "incompatible|--watch.*--json|--json.*--watch" /tmp/.v-t-1496-4.out
 out=$(timeout 7 target/release/termlink agent overview --watch --watch-interval 2 --window-secs 86400 --top 2 2>&1 || true); echo "$out" | grep -q "agent overview --watch" && ! echo "$out" | grep -qi panicked
 
 ## RCA

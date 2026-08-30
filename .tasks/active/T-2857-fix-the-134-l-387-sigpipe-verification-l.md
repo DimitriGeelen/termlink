@@ -2,9 +2,13 @@
 id: T-2857
 name: "Fix the 134 L-387 SIGPIPE verification lines across 45 active tasks"
 description: >
-  134 verification lines in 45 active tasks use the cmd 2>&1 | grep -q PAT shape, which exits 141 under P-011 pipefail when the pattern MATCHES. Every one falsely blocks completion of a task whose verification actually passes. Most sit in tasks already in the human review queue. Translate faithfully to the file-redirect idiom; do NOT silently strengthen | to && across untested blocks.
+  134 verification lines in 45 active tasks use the cmd 2>&1 | grep -q PAT shape,
+  which exits 141 under P-011 pipefail when the pattern MATCHES. Every one falsely
+  blocks completion of a task whose verification actually passes. Most sit in tasks
+  already in the human review queue. Translate faithfully to the file-redirect idiom;
+  do NOT silently strengthen | to && across untested blocks.
 
-status: captured
+status: started-work
 workflow_type: refactor
 owner: agent
 horizon: now
@@ -22,8 +26,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-08-29T23:05:11Z
-last_update: 2026-08-29T23:05:11Z
-date_finished: null
+last_update: 2026-08-30T09:52:19Z
+date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -34,20 +38,62 @@ date_finished: null
 #                                 # from bvp_scores: on any driver (M3 v2-delta). Shape: list of timestamped entries.
 # cost_estimate:                  # F8 composite: 0.6×blast_radius + 0.3×tier + 0.1×effort.
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
+bvp_scores_proposed:
+  - ts: '2026-08-30T09:52:19Z'
+    estimator: bvp-estimator-v1-heuristic
+    scores:
+      D1: 4
+      D2: 0
+      D3: 3
+      D4: 2
+      F-RECALL: 0
+      F-ORCH: 0
+    rationale: D1=4 (body:structural-gate); D2=0 (no-signal); D3=3 
+      (body:component-discoverability); D4=2 (body:env-class-handled); 
+      F-RECALL=0 (no-signal); F-ORCH=0 (no-signal)
+    rubric_sha: e4a00f38e801
 ---
 
 # T-2857: Fix the 134 L-387 SIGPIPE verification lines across 45 active tasks
 
 ## Context
 
-<!-- One sentence for small tasks. Link to design docs for substantial ones. -->
+134 `## Verification` lines across 45 active tasks use `cmd 2>&1 | grep -q PAT`, which
+exits **141 under P-011's `set -eo pipefail` when the pattern MATCHES** (L-387: grep -q
+exits on first match, closes the pipe, the producer takes SIGPIPE, pipefail propagates
+141). Every one of them blocks completion of a task whose verification actually passes.
+Most sit in tasks already queued for human review, so the operator meets a gate that
+fails on success.
+
+The rewrite must be **faithful, not improving** — and the join operator that achieves
+that is `&&`, which reverses the judgment recorded when this task was filed (that entry
+said "semicolon, not `&&`, because `&&` would strengthen 134 gates"). Measured under the
+gate's own `set -eo pipefail`, with the producer failing and the pattern matching:
+
+| form | exit |
+|---|---|
+| `(echo hit; exit 3) \| grep -q hit` | **3 — fail** |
+| `(echo hit; exit 3) > F 2>&1 && grep -q hit F` | **3 — fail** |
+| `(echo hit; exit 3) > F 2>&1; grep -q hit F` | **0 — pass** |
+
+`pipefail` already puts the producer's exit code in the verdict, so `&&` reproduces the
+pipe's truth table exactly and `;` is the form that would silently **weaken** all 134
+gates. The filing judgment had the direction backwards. `&&` it is — which is also the
+idiom CLAUDE.md blesses as the default.
+
+The one shape where `;` is equally correct is `(cmd || true) | grep …`: the author has
+explicitly neutralised the producer's status, so the subshell always exits 0 and the two
+joins are equivalent. Those keep `&&` too, for uniformity.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] [First criterion]
-- [ ] [Second criterion]
+- [x] `scripts/check-verification-pipefail.sh --active-only` exits 0 — zero L-387 findings remain in `.tasks/active/`
+- [x] The rewrite is **semantics-preserving**: every converted line joins producer and grep with `&&`, which measurement shows reproduces the pipefail pipeline's truth table exactly (a `;` join would drop the producer's exit code and weaken the gate). Verified by a scan showing 0 converted lines using a bare `;` join
+- [x] Each converted line writes to a **per-line unique** temp path, so two converted lines in the same Verification block cannot clobber each other's capture
+- [x] Converted lines rehearse green **under the gate's own conditions** — a sample is run via `bash -c 'set -eo pipefail; <line>'`, not by hand in an interactive shell (T-2743)
+- [x] Only files under `.tasks/active/` are modified; `.tasks/completed/` is untouched (`git status --porcelain .tasks/completed/` empty)
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -142,6 +188,19 @@ date_finished: null
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+#
+# AC1 — the checker itself reports zero L-387 findings in active tasks.
+bash scripts/check-verification-pipefail.sh --active-only > /tmp/.t2857-check.out 2>&1 && grep -q "clean" /tmp/.t2857-check.out
+# AC1 — and the count converted equals the count the checker originally found (134).
+grep -h 'tmp/\.v-t-' .tasks/active/*.md --exclude='T-2857*' > /tmp/.t2857-lines.txt && test "$(wc -l < /tmp/.t2857-lines.txt)" -eq 134
+# AC2 — every converted line joins with &&; a bare-';' join would drop the producer's exit code.
+! grep -q '\.out; grep' .tasks/active/*.md --exclude='T-2857*'
+# AC3 — 134 lines use 134 DISTINCT temp paths, so no two converted lines clobber each other.
+test "$(grep -ho '/tmp/\.v-t-[0-9a-z-]*\.out' .tasks/active/*.md --exclude='T-2857*' | sort -u | wc -l)" -eq 134
+# AC4 — every converted line parses under the gate's own `set -eo pipefail`, not an interactive shell (T-2743).
+while IFS= read -r l; do printf 'set -eo pipefail\n%s\n' "$l" > /tmp/.t2857-one.sh; bash -n /tmp/.t2857-one.sh || exit 1; done < /tmp/.t2857-lines.txt
+# AC5 — completed tasks were not touched.
+test -z "$(git status --porcelain .tasks/completed/)"
 
 ## RCA
 
@@ -239,3 +298,6 @@ date_finished: null
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2857-fix-the-134-l-387-sigpipe-verification-l.md
 - **Context:** Initial task creation
+
+### 2026-08-30T09:52:19Z — status-update [task-update-agent]
+- **Change:** status: captured → started-work

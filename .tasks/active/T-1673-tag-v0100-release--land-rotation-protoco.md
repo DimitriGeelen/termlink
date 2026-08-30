@@ -69,8 +69,8 @@ date_finished: 2026-05-17T20:42:10Z
 
 ## Verification
 
-bash -c "git tag --list v0.10.0 | grep -q '^v0.10.0$'"
-bash -c "git ls-remote --tags origin v0.10.0 | grep -q 'refs/tags/v0.10.0$'"
+( git tag --list v0.10.0 ) > /tmp/.v-t-1673-1.out && grep -q '^v0.10.0$' /tmp/.v-t-1673-1.out
+( git ls-remote --tags origin v0.10.0 ) > /tmp/.v-t-1673-2.out && grep -q 'refs/tags/v0.10.0$' /tmp/.v-t-1673-2.out
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.

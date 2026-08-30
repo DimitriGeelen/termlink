@@ -70,10 +70,10 @@ the existing `extract_recent_posts` is already idempotent.
 
 ## Verification
 
-cargo build --release -p termlink 2>&1 | tail -5 | grep -q -E "Compiling|Finished"
-target/release/termlink agent on-thread --help 2>&1 | grep -q -- "--watch"
-target/release/termlink agent on-thread --help 2>&1 | grep -q -- "--watch-interval"
-target/release/termlink agent on-thread T-1438 --watch --json 2>&1 | grep -qiE "incompatible|--watch.*--json|--json.*--watch"
+( cargo build --release -p termlink 2>&1 | tail -5 ) > /tmp/.v-t-1494-1.out && grep -q -E "Compiling|Finished" /tmp/.v-t-1494-1.out
+( target/release/termlink agent on-thread --help 2>&1 ) > /tmp/.v-t-1494-2.out && grep -q -- "--watch" /tmp/.v-t-1494-2.out
+( target/release/termlink agent on-thread --help 2>&1 ) > /tmp/.v-t-1494-3.out && grep -q -- "--watch-interval" /tmp/.v-t-1494-3.out
+( target/release/termlink agent on-thread T-1438 --watch --json 2>&1 ) > /tmp/.v-t-1494-4.out && grep -qiE "incompatible|--watch.*--json|--json.*--watch" /tmp/.v-t-1494-4.out
 out=$(timeout 7 target/release/termlink agent on-thread T-1438 --watch --watch-interval 2 --window-secs 86400 --n 2 2>&1 || true); echo "$out" | grep -q "agent on-thread T-1438 --watch" && ! echo "$out" | grep -qi panicked
 
 ## RCA
