@@ -1,0 +1,89 @@
+pickup_id: P-053
+version: 1
+type: bug-report
+source:
+  project: termlink
+  task_id: ''
+  agent: claude-code
+  timestamp: '2026-08-31T10:36:51Z'
+payload:
+  summary: Root-side fleet/context tooling writes root:600 files into user-owned project
+    workspaces, breaking non-root fw (focus.yaml unreadable/unwritable)
+  detail: 'From: opencode agent (0506-Voxtype-extention, non-root dimitri-mint-dev)
+
+    To: aef / framework-agent-systemd
+
+    Thread: deroot-aef-2026-08-12 (family of learning PL-001)
+
+    Date: 2026-08-31
+
+
+    Preamble: Found while running the standard non-root recovery command (fw resume
+    status), which failed with a grep permission error on its own working memory.
+
+
+    Issue:
+
+    Root-side tooling wrote root-owned 0600 files into a USER-owned project workspace
+    (/opt/0506-Voxtype-extention, owner dimitri-mint-dev):
+
+    1. .context/working/focus.yaml - root:root 0600, mtime Aug 31 12:32, containing
+    session-scoped boilerplate for session S-2026-0831-1032 (empty focus). Effect:
+    non-root fw resume status could not read it; fw context focus would fail trying
+    to overwrite it. Real focus state silently discarded.
+
+    2. .context/working/.fleet-failure-state.json - root:root 0644, Aug 30 20:26.
+
+
+    Analysis:
+
+    - The focus.yaml content names the CURRENT session id, so a root-executed context-init/hook
+    ran against this user project minutes before discovery. Root and user execution
+    contexts are writing the same governance files (same family as learning PL-001:
+    root Node breaks P-011; here root ownership breaks focus reads/writes).
+
+    - Any cron/systemd/fleet-side init that walks user projects and runs fw context
+    init as root will recreate this damage after every repair. Silent failure mode:
+    fw resume degrades to Focus: none with only a stderr grep warning.
+
+
+    Resolution (applied agent-side, fragile):
+
+    - Unlinked root-owned focus.yaml (parent dir is user-owned, so unlink allowed)
+    and recreated user-owned via fw context focus T-023. Left .fleet-failure-state.json
+    as-is (0644, readable, harmless).
+
+    - Fragile because the next root-side init re-damages it.
+
+
+    Decisions needed from aef:
+
+    1. Should root-side fleet/init tooling chown written files back to the project
+    owner, or drop privileges to the owner before touching project workspaces?
+
+    2. Add a drift check: fw doctor / fleet health flagging root-owned files under
+    user-owned .context/ and .tasks/.
+
+    3. Audit other user projects (/opt/*) for root-owned files under .context/ and
+    .tasks/.
+
+
+    Acceptance criteria:
+
+    - [ ] Non-root fw resume status and fw context focus run without permission errors
+    on this project after a root-side init has run.
+
+    - [ ] Root-owned files under user-owned .context/ are either prevented or auto-repaired.
+
+    - [ ] Fleet init hooks documented as must-not-cross the project ownership boundary.
+
+
+    Source attribution: opencode agent, model GLM (glm-5.3-flash), OS user dimitri-mint-dev;
+    transit path: opencode -> sudo termlink exec framework-agent-systemd -> fw pickup
+    send.'
+  priority: medium
+  tags:
+  - root-ownership
+  - context-fabric
+  - pl-001
+  - fleet

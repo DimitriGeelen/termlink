@@ -1,23 +1,29 @@
 ---
-id: T-2723
-name: "Handover commit under T-1452 collides with the focus gate, generating most safety bypasses"
+id: T-2865
+name: "Pickup: Root-side fleet/context tooling writes root:600 files into user-owned project (from termlink)"
 description: >
-  Handover commit under T-1452 collides with the focus gate, generating most safety bypasses
+  Auto-created from pickup envelope. Source: termlink. Type: bug-report.
 
-status: work-completed
+status: captured
 workflow_type: build
-owner: human
-horizon: now
-tags: []
+owner: agent
+horizon: next
+tags: [pickup, bug-report]
 components: []
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
 #                                 # (check-arc-id) blocks save under agent control if it doesn't resolve.
 #                                 # Empty/missing → unassigned (allowed). See CLAUDE.md §Task System.
-created: 2026-08-15T06:19:38Z
-last_update: 2026-08-31T11:35:41Z
-date_finished: 2026-08-15T06:23:54Z
+# demo_target: true               # T-2286: optional — marks task as reserved for an orchestrated demo
+#                                 # worker (e.g. arc-010 HM-A dispatches via mcp__fw__work_on). When set,
+#                                 # `fw work-on T-XXX` refuses unless --i-am-demo-orchestrator (CLI) or
+#                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
+#                                 # session from consuming the captured→started-work transition the demo
+#                                 # worker expects to drive. Origin OBS-057.
+created: 2026-08-31T10:37:02Z
+last_update: 2026-08-31T10:37:02Z
+date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -30,7 +36,7 @@ date_finished: 2026-08-15T06:23:54Z
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2723: Handover commit under T-1452 collides with the focus gate, generating most safety bypasses
+# T-2865: Pickup: Root-side fleet/context tooling writes root:600 files into user-owned project (from termlink)
 
 ## Context
 
@@ -40,21 +46,10 @@ date_finished: 2026-08-15T06:23:54Z
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] The bypass log is analysed by task, not just counted: **13 of the 24** focus-drift bypasses in the 7-day window are task `T-1452`, the session-handover task — the single largest generator by a wide margin (next is 4)
-- [x] The mechanism is stated precisely: at session end, focus is necessarily on the *working* task, while the mandatory handover commit references `T-1452`, so the focus-drift gate fires on a step the framework itself prescribes
-- [x] It is demonstrated that the bypass is avoidable — `fw context focus T-1452` → commit → refocus works and was used twice in this session instead of `FW_SWITCH_FOCUS=1` — so the finding is about imposed friction, not an impossible gate
-- [x] The distinction is drawn from the earlier wrong reading: no framework script *sets* `FW_SWITCH_FOCUS`, which was verified and remains true; the framework generates these bypasses by prescribing a flow its gate blocks, not by typing the bypass itself
-- [x] Filed as an upstream record under `.context/upstream/` — the collision is in vendored handover/gate tooling, not in this repo
+- [ ] [First criterion]
+- [ ] [Second criterion]
 
 ### Human
-
-- [ ] [RUBBER-STAMP] Decide whether U-008 is filed to the shared `framework:pickup` topic
-  **Steps:**
-  1. Read `.context/upstream/U-008-handover-commit-collides-with-focus-gate.yaml`
-  2. If you want it filed, post it to `framework:pickup`; if not, leave this unchecked and the record stays local
-  **Expected:** Either a post on `framework:pickup` referencing U-008, or a deliberate decision not to file
-  **If not:** The record stays in `.context/upstream/` and loses nothing — filing is what makes it visible to peer projects, which is why it is your call and not the agent's
-
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
      Remove this section if all criteria are agent-verifiable.
      Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
@@ -82,32 +77,10 @@ date_finished: 2026-08-15T06:23:54Z
          **Expected:** Verdict: PASS; no findings on `block-message-completeness`
          **If not:** Inspect hook block-message string and add missing mechanism
        Conversion: this AC should be moved to ### Agent and
-       `bin/fw reviewer T-XXX 2>&1 | grep -q "Overall:.*PASS"` added to ## Verification.
+       `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
+       added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
+       Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
 -->
-
-## Recommendation
-
-**Recommendation:** GO — file U-008 to `framework:pickup`.
-
-**Rationale:** The finding is not specific to this project. Any consumer of the
-framework that follows the Session End Protocol hits the same collision at every
-session end, and the same 50%-plus share of its safety-bypass log will be its own
-handover step. That makes the count untrustworthy everywhere, not just here — and
-the audit's mitigation ("investigate the callers") sends the reader to inspect 24
-entries of which 13 are the framework's own prescribed flow. The fix proposed in
-direction 1 is small and lives entirely in `fw handover --commit`, which already
-knows both the task it commits under and the focus it would displace.
-
-The reason to file rather than keep it local is that this repo cannot fix it: the
-handover agent and the focus gate are both vendored, so a local patch is erased at
-the next re-vendor (as T-2721 documents for the audit-hook patch).
-
-**Evidence:**
-- `.context/working/.gate-bypass-log.yaml` — 26 entries in the 7-day window; grouped by task: T-1452 ×13, T-1166 ×4, T-2567 ×3, T-1291 ×3, T-2672 ×1, plus 2 inception filings on a different flag
-- 24 of 26 are `flag: FW_SWITCH_FOCUS=1`, `caller: check-active-task focus-drift`
-- Verified NOT machine-generated: no framework script sets the variable; `bin/fw:6639` only names it in an error string — an earlier reading of this same data got that wrong, and the correction is recorded in U-008
-- Demonstrated avoidable: this session hit the gate twice and cleared it both times with `fw context focus <task>` instead of the bypass, so the sanctioned path works and the issue is imposed friction, not an impossible gate
-- `PL-265` already records the adjacent collision (the gate blocking `fw handover` on a just-completed focus task), which is evidence the session-end path is systematically under-tested against its own gates
 
 ## Verification
 
@@ -120,20 +93,48 @@ the next re-vendor (as T-2721 documents for the audit-hook patch).
 # pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
 # past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
 #
-# Pipefail/SIGPIPE hint (L-387): P-011 runs each command under `set -eo pipefail`.
-# `cmd | grep -q PATTERN` exits 141 (SIGPIPE) when grep matches and closes stdin
-# while the upstream is still writing — verification then "fails" even though
-# the pattern was present. Safe pattern: capture first, grep the capture:
-#     out=$(cmd 2>&1); echo "$out" | grep -q "PATTERN"
-# Or:
-#     cmd > /tmp/.out 2>&1 && grep -q "PATTERN" /tmp/.out
-# Origin: L-387, captured 4× (T-1716, T-1838, T-1862, T-1863) before this hint.
+# ── Pipefail/SIGPIPE: grepping a command's output (L-387, T-2090, T-2743, T-2738) ──
 #
-# Single pipe only — no intermediate tail/awk/sed stages between capture and grep
-# (T-2090): `echo "$out" | tail -3 | grep -q PAT` re-introduces the SIGPIPE risk
-# the capture step closed off — the middle stage is what `grep -q` slams its
-# stdin on. `echo "$out"` is small and immediate; grep scans the whole captured
-# string anyway, so the tail-3 was cosmetic. Drop it: `echo "$out" | grep -q PAT`.
+# THE DEFAULT — redirect to a file, then grep the file:
+#     cmd > /tmp/.out 2>&1 && grep -q "PATTERN" /tmp/.out
+#     curl -sf "$(bin/fw watchtower url)/page" -o /tmp/.out && grep -q "PAT" /tmp/.out
+# Correct at any output size, and `&&` keeps the PRODUCING command's exit code in
+# the verdict. Reach for this first; the alternative below is the special case.
+#
+# NEVER `cmd | grep -q PAT` (L-387) — why: P-011 runs each line under `set -eo
+# pipefail`. When grep matches it exits and closes stdin while cmd is still
+# writing, cmd takes SIGPIPE, the pipeline exits 141 — verification "fails" with
+# the pattern present. Captured 4× (T-1716, T-1838, T-1862, T-1863).
+#
+# THE EXCEPTION — capture first, grep the capture:
+#     out=$(cmd 2>&1); echo "$out" | grep -q "PATTERN"
+# Valid ONLY while "$out" fits the 65536-byte pipe buffer, and it is on you to
+# know that it does. Above that the form inverts and becomes the very failure
+# L-387 describes: echo blocks on the full pipe, grep -q exits, echo takes
+# SIGPIPE, rc=141 (T-2743 — measured on a 146,366-byte Watchtower page, 3/3 runs,
+# deterministic not racy; rendered routes run 50-200KB, so anything that curls a
+# page is over the line). It also discards cmd's exit code, so a 404 yields an
+# empty capture that grep merely fails to match rather than a failed line.
+# If you do use it: single pipe only, no intermediate tail/awk/sed stage between
+# capture and grep (T-2090) — the middle stage is what `grep -q` slams its stdin
+# on, and grep scans the whole captured string anyway, so the `tail -3` was
+# cosmetic. `echo "$out" | grep -q PAT`, nothing between.
+#
+# TEST RUNNERS need a guard either way (T-2738). `set -e` is suppressed inside the
+# `if` condition the gate runs each line in, so in `cmd1; cmd2` only cmd2 is the
+# verdict — and the pass marker you grep for survives a partial failure: a suite
+# printing "3 failed, 9 passed" satisfies `grep -q "9 passed"`, and generalising
+# to `grep -qE "[0-9]+ passed"` matches the same output. Keep the exit code:
+#     python3 -m pytest <file> -q > /tmp/.out 2>&1 && grep -q passed /tmp/.out
+# or add the guard the exit code used to supply:
+#     out=$(python3 -m pytest <file> -q 2>&1); echo "$out" | grep -q passed && ! echo "$out" | grep -q failed
+#     out=$(bats <file> 2>&1); echo "$out" | grep -q '^ok 1 ' && ! echo "$out" | grep -q '^not ok'
+# The close gate refuses the unguarded form. Bypass: FW_ALLOW_UNJUDGED_TEST_RUN=1.
+#
+# REHEARSING A LINE BY HAND DOES NOT REHEARSE THE GATE (T-2743). Your interactive
+# shell has no `set -eo pipefail`. A line has returned 0 by hand and 141 under
+# P-011, from the same directory, the same second. To rehearse for real:
+#     bash -c 'set -eo pipefail; <your verification line>'
 #
 # Enforcement-baseline hint (L-398, T-1886): if you edited `.claude/settings.json`
 # (added/removed/reorganised hooks), add `bin/fw enforcement baseline` to your
@@ -182,6 +183,35 @@ the next re-vendor (as T-2721 documents for the audit-hook patch).
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
 
+## Recommendation
+
+<!-- T-2945: same shape as inception.md's block — the gate that reads it
+     (audit_inception_recommendation, lib/task-audit.sh:117) is shared, so the
+     shape is copied rather than reinvented.
+
+     REQUIRED once this task reaches partial-complete: Agent ACs done, at least
+     one `### Human` AC still unticked. `lib/review.sh:205-211` (T-2421) BLOCKS
+     `fw task review` emission for build/refactor/test/decommission tasks in that
+     state with no substantive block here — the operator would otherwise open
+     /review/<id> to a blank Recommendation card and be asked to approve a form.
+
+     Not required while every Human AC is ticked or the task has none: the gate
+     only fires on the partial-complete transition. It is here from the start so
+     you write it while you still have the evidence, not when the gate refuses.
+
+     Format (the parser wants the `**Recommendation:**` line at the start of a
+     line; a leading `-` or `*` bullet is also accepted):
+     **Recommendation:** GO / NO-GO / DEFER
+     **Rationale:** Why (cite evidence — what shipped, what was proven, what remains)
+     **Evidence:**
+     - Finding 1
+     - Finding 2
+
+     DEFER is for evidence gaps, not confidence gaps (CLAUDE.md §Presenting Work
+     for Human Review). If the artefact is complete and you still don't want to
+     commit, that is a calibration failure — recommend GO or NO-GO.
+-->
+
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -205,10 +235,7 @@ the next re-vendor (as T-2721 documents for the audit-hook patch).
 
 ## Updates
 
-### 2026-08-15T06:19:38Z — task-created [task-create-agent]
+### 2026-08-31T10:37:02Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.claude/worktrees/charter-review-2026-0814/.tasks/active/T-2723-handover-commit-under-t-1452-collides-wi.md
+- **Output:** /opt/termlink/.tasks/active/T-2865-pickup-root-side-fleetcontext-tooling-wr.md
 - **Context:** Initial task creation
-
-### 2026-08-15T06:23:54Z — status-update [task-update-agent]
-- **Change:** status: started-work → work-completed

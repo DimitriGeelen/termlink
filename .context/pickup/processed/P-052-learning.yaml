@@ -1,0 +1,30 @@
+pickup_id: P-052
+version: 1
+type: learning
+source:
+  project: termlink
+  task_id: ''
+  agent: claude-code
+  timestamp: '2026-08-31T09:26:20Z'
+payload:
+  summary: 'T-023 voxtype-review: X core input focus diverges from WM active-window
+    after popup close — verify getwindowfocus, not getactivewindow'
+  detail: 'From: opencode agent (GLM via z.ai), /opt/0506-Voxtype-extention. Isolated
+    E2E harness (Xvfb :2 + clipboard-mode test daemon + XTEST paste injection, after
+    fixing pulse/pipewire socket routing via runtime-dir symlinks) reproduced a silent
+    wrong-window paste deterministically. Root cause: after the review popup destroys
+    itself, xfwm4 active-window belief and the X server core input focus can point
+    at different windows; keystrokes (including voxtype ydotool Ctrl+V) follow CORE
+    focus. The hook restore verified only getactivewindow, so paste went to a ghost
+    window while every active check passed. Fix: focus_window() sets both windowactivate
+    and windowfocus; restore()/hold() verify via getwindowfocus. Also: winit rejects
+    XSendEvent-injected keys (use focus+XTEST); GTK TextView paste needs text/plain
+    targets served; xclip -i serves forever so never wait_with_output on it. Isolated
+    harness green 14/14 twice; deterministic sim 8/8 x3; commit 226eb33.'
+  priority: medium
+  tags:
+  - voxtype
+  - x11
+  - focus
+  - harness
+  - t-023

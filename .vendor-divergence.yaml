@@ -77,6 +77,49 @@ last_vendor_event:
 #   7. Update `last_vendor_event` here.
 
 divergences:
+  - task: T-2866
+    commit: pending-same-commit
+    commit_note: >
+      Registered in the SAME commit that carries the fix, so the hash is not
+      knowable when this line is written. The checker's match key is the task id
+      parsed from the commit subject, which IS knowable — `T-2866:` — so the
+      entry resolves. Fill the hash on the next touch of this file if a precise
+      reference is wanted.
+    date: 2026-08-31
+    file: .agentic-framework/bin/fw
+    status: filed-upstream
+    kind: fix
+    generality: GENERIC
+    symptom: >
+      The T-2501 "installed claude-fw drift" check in `fw doctor` was never
+      migrated to the T-2854 router. It byte-compares `command -v claude-fw`
+      against `$FRAMEWORK_ROOT/bin/claude-fw`, but since T-2854 the on-PATH
+      artefact is the ROUTER (3707 b) and the repo artefact is the WRAPPER
+      (14971 b) — different files by design — so `cmp -s` can never match and the
+      check reports drift permanently on a correct install. It prints directly
+      beneath the T-2499 "unsupervised session — budget auto-restart will NOT
+      fire" WARN, so it reads as that WARN's cause; it is unrelated. Its
+      remediation (`rm -f <router> && cp <wrapper> <router-path>`) would delete
+      the router and reinstate the pinned on-PATH copy T-2854 existed to remove,
+      after which `fw upgrade` can no longer refresh on-PATH behaviour — and the
+      loop would still be unarmed, because drift was never why it was unarmed.
+    fix: >
+      Recognise the router shape before comparing. When the on-PATH file
+      identifies as `claude-fw-router`, assert instead that the wrapper it
+      resolves to still carries `export FW_CLAUDE_FW_SUPERVISED=1`; only a
+      NON-router on-PATH file reaches the byte-compare and the rm/cp
+      remediation, which remain correct for the genuine stale-copy case.
+    evidence: >
+      Two mutations. (A) A non-router stale copy placed first on PATH still
+      produces the drift WARN and its rm/cp Refresh line — genuine detection
+      preserved, run against the real `fw doctor`. (B) Router + a wrapper lacking
+      the export yields WARN, router + the real wrapper yields OK. Note B
+      exercises the predicate PAIR, not the wired branch: `_cfw_src` is computed
+      from FRAMEWORK_ROOT and could not be redirected without disturbing the rest
+      of doctor, so the branch wiring is proven only by (A) and by the live OK on
+      this host.
+    upstream_ref: "framework:pickup offset 75 (T-2861); handed directly to the live arc-012 sessions under T-2866"
+
   - task: T-2687
     also_task_ids: [T-2813, T-2839]
     restored: >

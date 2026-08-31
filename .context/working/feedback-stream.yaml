@@ -9748,3 +9748,21 @@ scan_id: R-ed1fbd10
 task_id: T-2861
 payload:
   task_file: .tasks/active/T-2861-continuous-loop-disarmed-termlink-sessio.md
+---
+kind: scan_emitted
+timestamp: '2026-08-31T11:34:57Z'
+scan_id: R-39bf7653
+task_id: T-2866
+payload:
+  overall: PASS
+  finding_count: 0
+  suppressed_count: 0
+  auto_ticked_count: 0
+  catalogue_version: v1.3-seed
+---
+kind: verdict_recorded
+timestamp: '2026-08-31T11:34:57Z'
+scan_id: R-39bf7653
+task_id: T-2866
+payload:
+  task_file: .tasks/active/T-2866-fix-fw-doctor-claude-fw-drift-check-to-u.md

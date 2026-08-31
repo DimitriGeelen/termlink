@@ -1,13 +1,13 @@
 ---
-id: T-2861
-name: "Continuous loop disarmed: termlink sessions launch unsupervised, and fw doctor's claude-fw remediation would break the T-2854 router"
+id: T-2866
+name: "Fix fw doctor claude-fw drift check to understand the T-2854 router; register the vendored divergence"
 description: >
-  Continuous loop disarmed: termlink sessions launch unsupervised, and fw doctor's claude-fw remediation would break the T-2854 router
+  Fix fw doctor claude-fw drift check to understand the T-2854 router; register the vendored divergence
 
 status: work-completed
 workflow_type: build
-owner: human
-horizon: now
+owner: agent
+horizon: null
 tags: []
 components: []
 related_tasks: []
@@ -21,9 +21,9 @@ related_tasks: []
 #                                 # FW_I_AM_DEMO_ORCHESTRATOR=1 (env) is passed. Prevents the parent
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
-created: 2026-08-30T18:36:31Z
-last_update: 2026-08-30T18:43:13Z
-date_finished: 2026-08-30T18:41:55Z
+created: 2026-08-31T11:22:04Z
+last_update: 2026-08-31T11:34:08Z
+date_finished: 2026-08-31T11:34:08Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -36,53 +36,52 @@ date_finished: 2026-08-30T18:41:55Z
 #                                 # Q2 fallback: T-shirt S/M/L/XL mapped to 2/4/6/8 when blast_radius is not yet computable.
 ---
 
-# T-2861: Continuous loop disarmed: termlink sessions launch unsupervised, and fw doctor's claude-fw remediation would break the T-2854 router
+# T-2866: Fix fw doctor claude-fw drift check to understand the T-2854 router; register the vendored divergence
 
 ## Context
 
 <!-- One sentence for small tasks. Link to design docs for substantial ones. -->
 
-The arc-012 continuous-run loop (budget-critical → auto-handover →
-`.restart-requested` → `claude-fw` restart → directive re-injection) has never
-fired in this repo. The machinery is complete and correct. The loop is disarmed
-for one reason, and misdiagnosed for a second.
+The fix half of T-2861, which diagnosed why the budget-critical continuous-run loop
+had never fired here. T-2861 filed the defect upstream and stopped there, on G-062
+grounds. This task takes the other option the project actually supports: patch the
+vendored copy AND register the divergence, so the fix is live now and survives — or is
+knowingly retired — at the next re-vendor.
 
-**1. Disarmed.** Termlink sessions are launched as plain `claude`, so
-`FW_CLAUDE_FW_SUPERVISED` is never exported and nothing consumes the signal the
-budget gate writes. The proof is an artefact, not an inference:
-`.context/working/.restart-requested` (`2026-08-30T10:16:55Z`, `tokens: 295345`,
-session `S-2026-0827-2142`) was still on disk ten hours later. `claude-fw`
-removes that file on **every** exit — fresh (restart) or stale (ignore) — so its
-survival proves no wrapper has exited in this repo since it was written. `ps`
-agrees: claude-fw wrappers are live for 999-AEF, 002-CPN and 050-email-archive,
-and none is rooted at /opt/termlink. `.compact-log` records the human
-consequence: `[auto]` handovers at 10:14:37 and 10:15:49, the signal at 10:16:55,
-then a `[manual]` /compact at 10:19:03 — the operator stepping in because the
-loop did not.
+The defect: `fw doctor`'s T-2501 claude-fw drift check (`bin/fw:2369-2385`) byte-compares
+`command -v claude-fw` against `$FRAMEWORK_ROOT/bin/claude-fw`. Since T-2854 those are
+the **router** (3707 b) and the **wrapper** (14971 b) — different files by design — so it
+reports drift permanently on a correct install, prints directly beneath the T-2499
+"Unsupervised session" WARN where it reads as that WARN's cause, and offers a remediation
+(`rm -f <router> && cp <wrapper> <router-path>`) that deletes the router and reinstates the
+pinned copy T-2854 existed to remove. Sibling-not-migrated.
 
-**2. Misdiagnosed.** `fw doctor`'s T-2501 drift check (`bin/fw:2369-2385`)
-compares `command -v claude-fw` against `$FRAMEWORK_ROOT/bin/claude-fw`. Since
-T-2854 the on-PATH artefact is the **router** (3707 b, `claude-fw-router`) and
-the repo artefact is the **wrapper** (14971 b). They are *supposed* to differ, so
-the check reports drift permanently on a correct install — and its printed
-remediation, `rm -f <router> && cp <wrapper> <router-path>`, would delete the
-router and reinstate exactly the fixed on-PATH copy T-2854 existed to remove. An
-operator following `fw doctor` to fix their loop breaks their launcher and still
-has no loop. Sibling-not-migrated: T-2854 shipped the router; T-2501's check was
-never updated to know about it.
-
-Both files are vendored (G-062), so neither is patched here — filed upstream.
+Why it was worth fixing rather than only filing: the guard misattributes a cause at
+exactly the moment an operator is debugging a dead loop, and its advice makes the system
+less recoverable while leaving the loop just as unarmed. A guard that costs attention and
+then damages the install is worse than no guard.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [x] Root cause established from artefact evidence, not inference: the unconsumed `.restart-requested` plus the absence of any claude-fw process rooted at /opt/termlink proves the sessions run unsupervised
-- [x] `fw doctor`'s claude-fw drift WARN confirmed to be a permanent false positive on a correct post-T-2854 install (router vs wrapper), with both file identities and byte sizes recorded
-- [x] The WARN's printed remediation confirmed harmful — shown to delete the T-2854 router and reinstate the pinned on-PATH copy that T-2854 existed to remove
-- [x] The stale inert `.restart-requested` from session S-2026-0827-2142 cleared, so it cannot later be misread as a live signal
-- [x] Both defects filed upstream to `framework:pickup` over termlink (vendored — G-062 forbids a local patch), with file:line citations
-- [x] The operator action that actually arms the loop routed to the approvals route, with the review page fetched and confirmed to render before the link is printed
+- [x] `bin/fw`'s claude-fw check recognises the T-2854 router shape and, for a router, asserts the RESOLVED wrapper carries `export FW_CLAUDE_FW_SUPERVISED=1` instead of byte-comparing router against wrapper
+- [x] The harmful `rm -f <router> && cp <wrapper> <router-path>` remediation is unreachable when the on-PATH file is the router (it stays for the genuine stale-copy case)
+- [x] A missing supervision export in the resolved wrapper still WARNs — the fix narrows a false positive without creating a false negative
+- [x] `fw doctor` on this host reports OK for the claude-fw check, with the "Unsupervised session" WARN still firing independently (proving the two checks were never the same signal)
+- [x] The local edit is registered in `.vendor-divergence.yaml` as `filed-upstream`, so the next re-vendor does not silently delete it
+- [x] `bash scripts/check-vendor-divergence.sh` passes with the new entry classified
+- [x] The fix reaches the framework carrying the diff, the rationale and the evidence *including its limits* — not just a pointer
+  <!-- AC amended mid-task, deliberately, rather than ticked as written. It originally
+       said "handed to the live arc-012 framework sessions". Five were live and on this
+       exact arc (tl-arc012-w1-loop-core .. w5-cli-surface); all five ended within ~13
+       minutes, between the listing and the send, and both sends failed as unreachable.
+       A short-lived worker cannot be a delivery target. Routed to `framework:pickup`
+       offset 79 instead, threaded onto the original bug-report at offset 75, with the
+       failed direct hand-off recorded in the payload's delivery_note so the recipient
+       knows it was attempted. The AC's intent is met; its literal wording was not
+       achievable, and ticking it as written would have been false. -->
+- [x] The delivery failure itself is recorded rather than silently retried away — a durable rail was used because the direct one proved unusable, and the payload says so
 
 ### Human
 <!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
@@ -116,35 +115,6 @@ Both files are vendored (G-062), so neither is patched here — filed upstream.
        added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
        Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
 -->
-
-- [ ] [REVIEW] The next termlink session is launched under `claude-fw`, so the continuous-run loop can actually fire
-
-  **Steps:**
-  1. Let this session finish and close it.
-  2. Start the next one from the project root with the wrapper, not bare `claude`:
-     `claude-fw -c`
-  3. Inside that session, confirm supervision is armed:
-     `cd /opt/termlink && .agentic-framework/bin/fw doctor 2>&1 | grep -i -e supervis -e drift`
-
-  **Expected:** the first line reads
-  `OK  Session supervised by claude-fw — budget auto-restart armed`.
-  A second line, `WARN  Installed claude-fw drifted from repo source`, is a KNOWN
-  FALSE POSITIVE on a correct install — filed upstream at `framework:pickup`
-  offset 75. **Do not run its `Refresh:` line**: it deletes the T-2854 router and
-  reinstates the pinned copy that router replaced, which makes future
-  `fw upgrade`s unable to refresh on-PATH behaviour, and does not arm the loop.
-
-  **If not:** if the line still says `Unsupervised session`, the router did not
-  resolve this project. Check that `.agentic-framework/bin/claude-fw` exists and
-  is executable, and that `command -v claude-fw` reports
-  `/root/.local/bin/claude-fw`. Nothing needs reinstalling — the router resolves
-  per-invocation from `$PWD`, so launching from a directory outside the project
-  is the usual cause.
-
-  **Scope note — this arms interactive sessions only.** A background-job session
-  (this one) is launched as plain `claude` by the job harness, with no wrapper in
-  the process tree, so the loop can never fire for it regardless of what is on
-  PATH. That is a separate gap, not something this AC fixes.
 
 ## Verification
 
@@ -207,21 +177,24 @@ Both files are vendored (G-062), so neither is patched here — filed upstream.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
 
-# --- T-2861 ---
-# The on-PATH artefact is the T-2854 router, not a copy of the wrapper.
-grep -q "claude-fw-router" /root/.local/bin/claude-fw
-# The wrapper (what the router execs) is what exports the supervision marker.
-grep -q "export FW_CLAUDE_FW_SUPERVISED=1" .agentic-framework/bin/claude-fw
-# The drift check still byte-compares the on-PATH file against the WRAPPER path —
-# this is the defect. If upstream fixes it, this line fails and the task is re-read.
-grep -q '_cfw_src="$FRAMEWORK_ROOT/bin/claude-fw"' .agentic-framework/bin/fw
-# The harmful remediation is still the one printed (same re-read trigger as above).
+# --- T-2866 ---
+# The patched file is still valid bash.
+bash -n .agentic-framework/bin/fw
+# The router branch exists and asserts the resolved wrapper's supervision export.
+grep -q "claude-fw-router" .agentic-framework/bin/fw
+grep -q "is the T-2854 router; resolved wrapper exports supervision" .agentic-framework/bin/fw
+# The byte-compare and its rm/cp remediation survive for the genuine stale-copy case.
+grep -q "Installed claude-fw matches repo source" .agentic-framework/bin/fw
 grep -q 'Refresh: rm -f' .agentic-framework/bin/fw
-# The stale S-2026-0827-2142 signal is gone. Written so a NEW signal from a later
-# session does not fail this line — only the specific stale one is asserted absent.
-! grep -q "S-2026-0827-2142" .context/working/.restart-requested 2>/dev/null
-# The upstream filing landed on the topic.
-timeout 60 termlink channel info framework:pickup --json > /tmp/.t2861-pickup.out 2>&1 && grep -q '"count"' /tmp/.t2861-pickup.out
+# Live: doctor now reports OK for the claude-fw check on this host. `|| true`
+# because doctor exits 2 on unrelated warnings; the grep is the verdict.
+timeout 200 .agentic-framework/bin/fw doctor > /tmp/.t2866-doctor.out 2>&1 || true; grep -q "is the T-2854 router" /tmp/.t2866-doctor.out
+# And the independent supervision WARN still fires — the two were never one signal.
+grep -q "Unsupervised session" /tmp/.t2866-doctor.out
+# The divergence is registered and the register still parses + passes its checker.
+grep -q "task: T-2866" .vendor-divergence.yaml
+python3 -c "import yaml,sys; d=yaml.safe_load(open('.vendor-divergence.yaml')); sys.exit(0 if any(e.get('task')=='T-2866' for e in d['divergences']) else 1)"
+bash scripts/check-vendor-divergence.sh > /tmp/.t2866-vd.out 2>&1 && grep -q "all registered" /tmp/.t2866-vd.out
 
 ## RCA
 
@@ -238,6 +211,55 @@ timeout 60 termlink channel info framework:pickup --json > /tmp/.t2861-pickup.ou
      The completion gate (T-1550, G-019) blocks --status work-completed when
      bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
 -->
+
+**Symptom:** `fw doctor` reported `WARN  Installed claude-fw drifted from repo source —
+supervision export may be stale` on a correctly-installed host, permanently, and printed
+it immediately beneath the T-2499 `Unsupervised session — budget auto-restart will NOT
+fire` WARN — where it read as that WARN's cause. Its remediation
+(`rm -f <router> && cp <wrapper> <router-path>`) would have deleted the T-2854 router.
+
+**Root cause:** T-2854 changed *what lands on PATH* — from a fixed copy of the wrapper to
+a router that resolves the current project and execs that project's own wrapper. The
+T-2501 drift check's predicate is `cmp -s "$(command -v claude-fw)"
+"$FRAMEWORK_ROOT/bin/claude-fw"`, which encodes the pre-T-2854 assumption that the
+on-PATH file IS the wrapper. That assumption became false and was never re-examined. Not
+"the code was wrong" — the code was right for the world it was written in, and the world
+moved underneath it.
+
+**Why structurally allowed:** three compounding gaps.
+
+1. **The check has no fixture, and cannot have one.** `_cfw_src` is computed from
+   `FRAMEWORK_ROOT` inside `fw doctor` with no injection seam, so neither branch is
+   reachable from a test. A guard nothing exercises cannot notice that the world it
+   describes has changed — the T-2683 "static checks nothing ran" class, one layer down.
+2. **Nothing links a change in what ships to the assertions about what ships.** T-2854
+   altered the on-PATH artefact; no dependency, card, or check pointed from it to the
+   predicates that assert on-PATH shape. The sibling-not-migrated pattern this repo
+   catches in source (T-2666, T-2672, T-2747) has no equivalent for *install-shape*
+   assumptions.
+3. **A WARN-only false positive costs nothing mechanically, so it accrued.** Nothing
+   fails, nothing blocks; the line simply appears on every run until it is background
+   noise. That is the same attention-erosion this project documented from the other
+   direction in T-2818 (150 wrong P-011 blocks teaching operators to `--force`) and
+   T-2833 (58 spurious findings teaching operators to stop reading). Here the erosion is
+   worse than neutral: the noise carried destructive advice.
+
+**Prevention:**
+
+- *Shipped, and load-bearing:* the predicate is now shape-aware — a router is validated by
+  asserting the wrapper it RESOLVES to still exports `FW_CLAUDE_FW_SUPERVISED`; only a
+  non-router on-PATH file reaches the byte-compare and the `rm`/`cp` remediation. Mutation
+  A (a non-router stale copy first on PATH) still WARNs against the real `fw doctor`, so
+  the false positive was narrowed without creating a false negative.
+- *Shipped:* registered in `.vendor-divergence.yaml` as `filed-upstream`, so the next
+  re-vendor cannot silently delete the fix — the T-2812 mechanism, used as intended.
+- *Filed, NOT built — stated plainly rather than counted as prevention:* the real
+  structural fix is gap 1, an injectable `_cfw_src` / redirectable `FRAMEWORK_ROOT` seam
+  so both branches become genuine fixtures. That seam is in vendored code, so it is filed
+  upstream at `framework:pickup` offset 79 as an explicit testability gap. Until someone
+  builds it, the branch that WARNs when supervision is genuinely broken — the half that
+  must fire when the loop is actually dead — remains proven only at predicate level. That
+  is the weakest point of this task and it is not closed.
 
 ## Evolution
 
@@ -292,38 +314,6 @@ timeout 60 termlink channel info framework:pickup --json > /tmp/.t2861-pickup.ou
      commit, that is a calibration failure — recommend GO or NO-GO.
 -->
 
-**Recommendation:** GO — launch termlink sessions under `claude-fw`.
-
-**Rationale:** The continuous-run loop is not broken; it is unarmed. Every link
-in the chain exists and is correct — the budget gate detects critical and writes
-the signal (it did, at 295,345 tokens), the T-2373 terminator ends the foreground
-claude, the wrapper restarts `claude -c`, and the T-2376 sentinel lets the
-SessionStart hook tell an auto-restart continuation from a cold start. Only link
-zero is missing: nothing exports `FW_CLAUDE_FW_SUPERVISED`, because the sessions
-are launched as bare `claude`. One launch command changes that. Nothing needs
-installing or repairing first, which is why this is GO rather than a build task.
-
-**Evidence:**
-- `.restart-requested` written `2026-08-30T10:16:55Z` at 295,345 tokens survived
-  ten hours on disk. `claude-fw` unlinks it on every exit, fresh or stale — so no
-  wrapper has exited in this repo since it was written.
-- `ps` shows claude-fw wrappers live for 999-AEF, 002-CPN and 050-email-archive;
-  none rooted at /opt/termlink.
-- `.compact-log`: `[auto]` handovers 10:14:37 and 10:15:49, signal 10:16:55, then
-  `[manual]` /compact 10:19:03. The operator did by hand what the loop exists to do.
-- `fw doctor` in this session reports both `Unsupervised session` and the drift
-  WARN, live.
-- The drift WARN is a false positive: on-PATH is `claude-fw-router` (3707 b),
-  repo is the wrapper (14971 b); `bin/fw:2373` byte-compares them, so it can never
-  match on a correct post-T-2854 install.
-
-**Scope caveat — this is GO on arming interactive sessions, and nothing more.**
-It does not arm background-job sessions: the job harness launches plain `claude`
-with no wrapper in the process tree, so the loop cannot fire for them whatever is
-on PATH. It also does not fix the drift WARN, which is vendored and filed upstream
-at `framework:pickup` offset 75 — the WARN will keep firing, and its `Refresh:`
-line must not be run.
-
 ## Decisions
 
 <!-- Record decisions ONLY when choosing between alternatives.
@@ -347,15 +337,15 @@ line must not be run.
 
 ## Updates
 
-### 2026-08-30T18:36:31Z — task-created [task-create-agent]
+### 2026-08-31T11:22:04Z — task-created [task-create-agent]
 - **Action:** Created task via task-create agent
-- **Output:** /opt/termlink/.tasks/active/T-2861-continuous-loop-disarmed-termlink-sessio.md
+- **Output:** /opt/termlink/.tasks/active/T-2866-fix-fw-doctor-claude-fw-drift-check-to-u.md
 - **Context:** Initial task creation
 
 ## Reviewer Verdict (v1.5)
 
-- **Scan ID:** R-ed1fbd10
-- **Timestamp:** 2026-08-30T18:41:56Z
+- **Scan ID:** R-39bf7653
+- **Timestamp:** 2026-08-31T11:34:57Z
 - **Catalogue:** v1.3-seed
 - **Overall:** PASS
 - **Needs Human:** yes
@@ -365,5 +355,5 @@ line must not be run.
   1. **destructive-action** (high) — Destructive operation in verification or AC
      - matched: `rm -f`
 
-### 2026-08-30T18:41:55Z — status-update [task-update-agent]
+### 2026-08-31T11:34:08Z — status-update [task-update-agent]
 - **Change:** status: started-work → work-completed

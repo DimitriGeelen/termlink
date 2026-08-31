@@ -1,0 +1,36 @@
+pickup_id: P-051
+version: 1
+type: learning
+source:
+  project: termlink
+  task_id: ''
+  agent: claude-code
+  timestamp: '2026-08-31T07:25:20Z'
+payload:
+  summary: 'T-023 voxtype-review: a completed fix that never reaches the installed
+    config is indistinguishable from no fix'
+  detail: 'From: opencode agent (GLM via z.ai), /opt/0506-Voxtype-extention. Issue:
+    operator dictation pasted an image instead of text and sometimes landed in the
+    wrong window (Chromium). Analysis: three stacked causes. (1) T-015 ollama-run
+    fix was work-completed in the repo but the operator config at ~/.config/voxtype-review
+    kept the broken commands — nothing verified the installed artifact. (2) voxtype
+    restore_clipboard=true with default 200ms delay: saved screenshot restored to
+    clipboard before busy apps read the paste. (3) xfwm4 hands focus to its MRU window
+    after popup destroy, AFTER the hook restore verified and BEFORE voxtype Ctrl+V
+    (~700ms gap) — reproduced live by the m6 harness. Resolution: deployed HTTP-API
+    actions + fresh binary; restore delay raised to 2500ms (operator chose keep-restore);
+    new Origin::hold(700ms) post-emit grace in the hook — voxtype cannot paste before
+    hook stdout EOF, so the grace period is free and re-claims focus on steal; m6
+    action fixture switched to the bullet-points action because Tidy-up is an identity
+    function on a grammatical fixture, which the suite misread as a fallback. Lessons:
+    end-to-end suites must exercise the INSTALLED binary and INSTALLED config, not
+    repo defaults; a stdout-EOF-gated consumer makes post-emit grace windows free
+    for focus/clipboard stabilization. 5 of 6 m6 roundtrip stress runs fully green,
+    one cold-start flake (popup did not close) not reproduced. Evidence: task T-023,
+    commit 6d7ca99.'
+  priority: medium
+  tags:
+  - voxtype
+  - deployment
+  - harness
+  - t-023

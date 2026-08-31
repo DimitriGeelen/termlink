@@ -1,0 +1,78 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2866: Fix fw doctor claude-fw drift check to understand the T-2854 router; register the vendored divergence
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-08-31T11:35:04Z
+# ============================================================================
+
+task_id: T-2866
+task_name: "Fix fw doctor claude-fw drift check to understand the T-2854 router; register the vendored divergence"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-31T11:22:04Z
+completed: 2026-08-31T11:34:08Z
+duration_days: 0
+updates_count: 1
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  Fix fw doctor claude-fw drift check to understand the T-2854 router; register the vendored divergence
+
+# Key outcomes
+outcomes:
+  - '`bin/fw`''s claude-fw check recognises the T-2854 router shape and, for a router, asserts the RESOLVED wrapper carries `export FW_CLAUDE_FW_SUPERVISED=1` instead of byte-comparing router against wrapper'
+  - 'The harmful `rm -f <router> && cp <wrapper> <router-path>` remediation is unreachable when the on-PATH file is the router (it stays for the genuine stale-copy case)'
+  - 'A missing supervision export in the resolved wrapper still WARNs — the fix narrows a false positive without creating a false negative'
+  - '`fw doctor` on this host reports OK for the claude-fw check, with the "Unsupervised session" WARN still firing independently (proving the two checks were never the same signal)'
+  - 'The local edit is registered in `.vendor-divergence.yaml` as `filed-upstream`, so the next re-vendor does not silently delete it'
+  - '`bash scripts/check-vendor-divergence.sh` passes with the new entry classified'
+  - 'The fix reaches the framework carrying the diff, the rationale and the evidence *including its limits* — not just a pointer'
+  - 'The delivery failure itself is recorded rather than silently retried away — a durable rail was used because the direct one proved unusable, and the payload says so'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  # No artifacts found in git
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  # No git timeline available
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 0 commit(s), 12 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 12
+  commits: 0
+  files_changed: 0
+  lines_added: 0
+  lines_removed: 0
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2866-fix-fw-doctor-claude-fw-drift-check-to-u.md
+generated_by: context-agent-hybrid

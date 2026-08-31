@@ -2370,7 +2370,29 @@ else:
     _cfw_path=$(command -v claude-fw 2>/dev/null || true)
     if [ -n "$_cfw_path" ] && [ -f "$_cfw_src" ]; then
         _cfw_real=$(readlink -f "$_cfw_path" 2>/dev/null || echo "$_cfw_path")
-        if cmp -s "$_cfw_real" "$_cfw_src"; then
+        # T-2866: since T-2854 the on-PATH artefact is the ROUTER, not a copy of the
+        # wrapper — it resolves the current project and execs THAT project's own
+        # claude-fw. Router and wrapper are different files BY DESIGN, so the
+        # byte-compare below can never match on a correct install: this check
+        # reported drift permanently, directly beneath the T-2499 "unsupervised
+        # session" WARN, so it read as that WARN's cause. It is not. Worse, its
+        # Refresh line would delete the router and reinstate the fixed on-PATH copy
+        # T-2854 existed to remove — after which `fw upgrade` can no longer refresh
+        # on-PATH behaviour, and the loop is still unarmed. For a router the
+        # meaningful assertion is that the wrapper it resolves to still carries the
+        # supervision export, so that is what we check.
+        if grep -q 'claude-fw-router' "$_cfw_real" 2>/dev/null; then
+            if grep -q 'export FW_CLAUDE_FW_SUPERVISED=1' "$_cfw_src" 2>/dev/null; then
+                echo -e "  ${GREEN}OK${NC}  Installed claude-fw is the T-2854 router; resolved wrapper exports supervision"
+            else
+                echo -e "  ${YELLOW}WARN${NC}  claude-fw router on PATH, but the resolved wrapper does not export FW_CLAUDE_FW_SUPERVISED"
+                echo -e "         router:  $_cfw_real"
+                echo -e "         wrapper: $_cfw_src"
+                echo -e "         The router will exec a wrapper that cannot arm the budget auto-restart loop."
+                echo -e "         Refresh the VENDORED wrapper, not the router: fw upgrade"
+                warnings=$((warnings + 1))
+            fi
+        elif cmp -s "$_cfw_real" "$_cfw_src"; then
             echo -e "  ${GREEN}OK${NC}  Installed claude-fw matches repo source"
         else
             echo -e "  ${YELLOW}WARN${NC}  Installed claude-fw drifted from repo source — supervision export may be stale"
