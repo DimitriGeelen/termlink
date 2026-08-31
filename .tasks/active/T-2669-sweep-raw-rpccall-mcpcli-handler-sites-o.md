@@ -109,8 +109,8 @@ time.
 
 ### Agent
 - [x] Add a socket-path bounded convenience `rpc_call_with_timeout(&Path, method, params, Duration)` to `client.rs` (delegates to `rpc_call_addr_with_timeout` via `TransportAddr::unix`), mirroring the existing `rpc_call` → `rpc_call_addr` delegation. Unit test proving it errors (does not hang) against a half-open/never-responding socket within ~timeout.
-- [ ] **(PARTIAL — 5 of ~145; blocked on the human per-verb timeout decision, see Evolution)** Migrate every Bucket-A site to the bounded variant (or an explicit `tokio::time::timeout` wrap where a shared future is already used), with a sensible default timeout constant (see Decisions — the value is a design choice, not a guess).
-- [ ] **(SUPERSEDED IN MECHANISM, NOT YET IN FORM — the 16 CLASS 1 sites are documented with cited reasons in `.context/checks/unbounded-rpc-call-allowlist`, which is what stops the check re-flagging them; the in-code one-liners this AC asks for are not written)** Bucket-B long-poll sites are left unchanged AND documented in-code (one-line comment at each: "intentional long-poll — bound is server-side, not here") so a future sweep/check does not re-flag them.
+- [ ] **(PARTIAL — 12 of ~145; blocked on the human per-verb timeout decision for the CLASS 2 verbs, see Evolution)** Migrate every Bucket-A site to the bounded variant (or an explicit `tokio::time::timeout` wrap where a shared future is already used), with a sensible default timeout constant (see Decisions — the value is a design choice, not a guess).
+- [x] **(DONE — slice 2. 20 call sites across the 15 genuine CLASS 1 functions now carry an in-code one-liner naming the server-side bound and saying `do NOT migrate`. Verified the added text does not contain the check's `tokio::time::timeout` token, so no site was spuriously cleared: counts held at 182/155.)** Bucket-B long-poll sites are left unchanged AND documented in-code (one-line comment at each: "intentional long-poll — bound is server-side, not here") so a future sweep/check does not re-flag them.
 - [x] `cargo build -p termlink -p termlink-mcp` clean; existing MCP handler tests still pass.
 - [x] (Regression guard) A source-level static check `scripts/check-unbounded-rpc-call.sh` (sibling of check-alloc-sink-clamps / check-drain-sink-caps / check-silent-exit) that flags a raw `rpc_call`/`rpc_call_addr` in a function with zero `tokio::time::timeout` token, honouring a fn-name allowlist seeded with the Bucket-B long-pollers + Bucket-C test. Tree clean after the Bucket-A migration. Load-bearing proof via temp-revert of one migrated site. **This AC is what makes the fix stick** — file the check ONLY after the tree is clean, else it fires on 36 sites day one.
 
@@ -123,7 +123,8 @@ time.
      (CLASS 1 = intentional long-poll, bound belongs server-side; CLASS 2 = not yet
      migrated, still the T-2641 hang class).
   2. Run `bash scripts/check-unbounded-rpc-call.sh --no-heartbeat`
-     to see the current state (expect: clean, 183 scanned, 156 acknowledged).
+     to see the current state (expect: clean, 182 scanned, 155 acknowledged —
+     was 183/156 before slice 2; see Evolution 2026-08-31).
   3. Pick one of the three options in `## Recommendation` above — 1 (per-verb table),
      2 (single generous default + named exceptions, my recommendation), or 3 (leave
      ledgered) — and record it in `## Decisions` below.
@@ -200,10 +201,10 @@ time.
 
 bash scripts/check-unbounded-rpc-call.sh --no-heartbeat > /tmp/.t2669-check.out 2>&1
 grep -q "check-unbounded-rpc-call: clean" /tmp/.t2669-check.out
-grep -q "183 call site(s) scanned" /tmp/.t2669-check.out
+grep -q "182 call site(s) scanned" /tmp/.t2669-check.out
 grep -q "pub async fn rpc_call_with_timeout" crates/termlink-session/src/client.rs
 grep -q "async fn rpc_call_with_timeout_bounds_a_silent_server" crates/termlink-session/src/client.rs
-test "$(grep -c 'rpc_call_with_timeout(' crates/termlink-mcp/src/tools.rs)" -eq 5
+test "$(grep -c 'rpc_call_with_timeout(' crates/termlink-mcp/src/tools.rs)" -eq 9
 cargo build -p termlink -p termlink-mcp 2>&1 | tail -1 > /tmp/.t2669-build.out && grep -q "Finished" /tmp/.t2669-build.out
 cargo test -p termlink-session --lib client:: > /tmp/.t2669-test.out 2>&1; grep -q "rpc_call_with_timeout_bounds_a_silent_server ... ok" /tmp/.t2669-test.out
 grep -q "0 failed" /tmp/.t2669-test.out
@@ -351,6 +352,63 @@ unbounded call.
      section exists but is empty/template-only. Use --skip-evolution to bypass
      (logged Tier-2). Non-arc tasks may leave this empty.
 -->
+
+## Evolution — 2026-08-31 (slice 2)
+
+**What changed: 7 fast RPCs were hiding inside the CLASS 1 long-poll exemption.**
+
+This slice set out to do AC#3 — write the in-code one-liners at the Bucket-B sites.
+Before copying the ledger's reason into 16 code comments, I checked it against the
+handlers. It was false for 7 of the 16.
+
+The check keys a site by ENCLOSING FUNCTION (`sig="${file}::${fname}::unbounded-rpc-call"`),
+so one CLASS 1 line exempts every `rpc_call` in that function. All 16 entries carried the
+same generated reason — "dispatches a blocking event/watch RPC whose bound is passed
+server-side as timeout_ms" — which is a statement about the METHOD NAME, not about what
+the handler does. Read against the handlers:
+
+- `handle_event_emit` (session `handler.rs`) reads **no** `timeout_ms`. It takes the bus
+  lock, appends, returns. A fast RPC — the T-2641 hang class exactly. It sits in
+  `cmd_agent_ask`, `cmd_agent_negotiate`, `cmd_request`, `termlink_agent_ask`,
+  `termlink_request`.
+- `handle_event_poll` never blocks either — lock, read, return. It sits in
+  `termlink_wait`, and it was the **only** call in `termlink_event_poll`: a function
+  filed as an intentional long-poll that never long-polls.
+
+So 7 genuinely-unbounded fast calls sat under a permanent "justified" exemption. That is
+strictly worse than CLASS 2 — CLASS 2 is an open ledger awaiting a decision, CLASS 1 says
+no action is needed — and it is the same failure this task already had once: a ledger
+asserting a code state nobody had checked. The reason text was uniform because it was
+generated per function from method names, and `event.emit` / `event.poll` happen to live
+in functions whose *other* call really is a long-poll.
+
+**What this slice landed.** All 7 bounded at 30s via `client::rpc_call_with_timeout` —
+the same vacuous-judgment criterion slice 1 used (a lock-and-return RPC has no per-verb
+timeout question). This did **not** need the human policy decision, which is about the
+CLASS 2 verbs where a bound can truncate real work. `termlink_event_poll` left the ledger
+entirely (no unbounded call remains); the other 6 keep their line for the `event.subscribe`
+long-poll, and their reason is now true rather than aspirational. AC#3 then landed in
+form: 20 call sites across the 15 genuine CLASS 1 functions carry an accurate, per-method
+in-code one-liner.
+
+**Measured.** Tree 183 scanned / 156 acknowledged -> **182 / 155**; check clean, exit 0.
+`cargo build -p termlink -p termlink-mcp` Finished. `cargo test -p termlink-session --lib
+client::` 34 passed / 0 failed. Load-bearing proof: temp-reverting `termlink_event_poll`
+to the raw form re-fires the check on exactly `tools.rs:12362 (in fn termlink_event_poll)`
+— proving both the migration and the ledger removal are load-bearing — and restoring
+returns it to clean. Verified separately that the 20 added comments do not contain the
+check's `tokio::time::timeout` token, so no site was spuriously cleared: counts held.
+
+**What is NOT claimed.** The remaining 140 CLASS 2 sites are untouched and can still hang
+forever. AC#2 is 12 of ~145. This slice fixed a misclassification; it did not answer the
+timeout-policy question, which is still the human's.
+
+**Follow-up found, not fixed:** `scripts/check-unbounded-rpc-call.sh` has no stale-entry
+detection. Had this slice not removed the `termlink_event_poll` line by hand, the ledger
+would have kept acknowledging a site that no longer exists, silently. That and the
+per-function keying are the same blind spot from two sides. Noted in the ledger header;
+neither blocks the sweep.
+
 
 ## Decisions
 

@@ -86,6 +86,10 @@ pub(crate) async fn cmd_agent_ask(
     // Snapshot cursor before emitting (quick subscribe to get next_seq)
     let cursor: Option<u64> = {
         let params = serde_json::json!({"timeout_ms": 1});
+        // T-2669: intentional long-poll — do NOT migrate to rpc_call_with_timeout.
+        // event.subscribe blocks server-side until events arrive or its timeout_ms
+        // elapses (clamped by effective_subscribe_timeout_ms, session handler.rs).
+        // A client bound shorter than the server's would truncate a healthy wait.
         match client::rpc_call(reg.socket_path(), "event.subscribe", params).await {
             Ok(resp) => {
                 if let Ok(result) = client::unwrap_result(resp) {
@@ -111,7 +115,17 @@ pub(crate) async fn cmd_agent_ask(
         "payload": payload,
     });
 
-    let emit_resp = match client::rpc_call(reg.socket_path(), "event.emit", emit_params).await {
+    // T-2669 slice 2: 30s bound. event.emit is a FAST session RPC (lock, append,
+    // return) that reads no timeout_ms — the enclosing long-poll exemption never
+    // covered it. See .context/checks/unbounded-rpc-call-allowlist.
+    let emit_resp = match client::rpc_call_with_timeout(
+        reg.socket_path(),
+        "event.emit",
+        emit_params,
+        std::time::Duration::from_secs(30),
+    )
+    .await
+    {
         Ok(r) => r,
         Err(e) => {
             if json {
@@ -173,6 +187,10 @@ pub(crate) async fn cmd_agent_ask(
             sub_params["since"] = serde_json::json!(c);
         }
 
+        // T-2669: intentional long-poll — do NOT migrate to rpc_call_with_timeout.
+        // event.subscribe blocks server-side until events arrive or its timeout_ms
+        // elapses (clamped by effective_subscribe_timeout_ms, session handler.rs).
+        // A client bound shorter than the server's would truncate a healthy wait.
         match client::rpc_call(reg.socket_path(), "event.subscribe", sub_params).await {
             Ok(resp) => {
                 if let Ok(result) = client::unwrap_result(resp) {
@@ -310,6 +328,10 @@ pub(crate) async fn cmd_agent_listen(
             params["since"] = serde_json::json!(c);
         }
 
+        // T-2669: intentional long-poll — do NOT migrate to rpc_call_with_timeout.
+        // event.subscribe blocks server-side until events arrive or its timeout_ms
+        // elapses (clamped by effective_subscribe_timeout_ms, session handler.rs).
+        // A client bound shorter than the server's would truncate a healthy wait.
         match client::rpc_call(reg.socket_path(), "event.subscribe", params).await {
             Ok(resp) => {
                 if let Ok(result) = client::unwrap_result(resp) {
@@ -431,6 +453,10 @@ pub(crate) async fn cmd_agent_negotiate(opts: NegotiateOpts<'_>) -> Result<()> {
     // Snapshot cursor (quick subscribe to get next_seq)
     let cursor: Option<u64> = {
         let params = serde_json::json!({"timeout_ms": 1});
+        // T-2669: intentional long-poll — do NOT migrate to rpc_call_with_timeout.
+        // event.subscribe blocks server-side until events arrive or its timeout_ms
+        // elapses (clamped by effective_subscribe_timeout_ms, session handler.rs).
+        // A client bound shorter than the server's would truncate a healthy wait.
         match client::rpc_call(reg.socket_path(), "event.subscribe", params).await {
             Ok(resp) => {
                 if let Ok(result) = client::unwrap_result(resp) {
@@ -478,9 +504,17 @@ pub(crate) async fn cmd_agent_negotiate(opts: NegotiateOpts<'_>) -> Result<()> {
             "payload": payload,
         });
 
-        client::rpc_call(reg.socket_path(), "event.emit", emit_params)
-            .await
-            .context("Failed to emit negotiate.attempt")?;
+        // T-2669 slice 2: 30s bound. event.emit is a FAST session RPC (lock, append,
+        // return) that reads no timeout_ms — the enclosing long-poll exemption never
+        // covered it. See .context/checks/unbounded-rpc-call-allowlist.
+        client::rpc_call_with_timeout(
+            reg.socket_path(),
+            "event.emit",
+            emit_params,
+            std::time::Duration::from_secs(30),
+        )
+        .await
+        .context("Failed to emit negotiate.attempt")?;
 
         if !json {
             eprintln!(
@@ -506,6 +540,10 @@ pub(crate) async fn cmd_agent_negotiate(opts: NegotiateOpts<'_>) -> Result<()> {
             }
 
             if let Ok(resp) =
+                // T-2669: intentional long-poll — do NOT migrate to rpc_call_with_timeout.
+                // event.subscribe blocks server-side until events arrive or its timeout_ms
+                // elapses (clamped by effective_subscribe_timeout_ms, session handler.rs).
+                // A client bound shorter than the server's would truncate a healthy wait.
                 client::rpc_call(reg.socket_path(), "event.subscribe", sub_params).await
                 && let Ok(result) = client::unwrap_result(resp) {
                     if let Some(events) = result["events"].as_array() {

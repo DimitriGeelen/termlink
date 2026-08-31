@@ -12373,7 +12373,17 @@ impl TermLinkTools {
             params["topic"] = serde_json::json!(topic);
         }
 
-        match client::rpc_call(reg.socket_path(), "event.poll", params).await {
+        // T-2669 slice 2: 30s bound. event.poll is a FAST session RPC (lock, read,
+        // return) that never blocks — the enclosing long-poll exemption never covered
+        // it. See .context/checks/unbounded-rpc-call-allowlist.
+        match client::rpc_call_with_timeout(
+            reg.socket_path(),
+            "event.poll",
+            params,
+            std::time::Duration::from_secs(30),
+        )
+        .await
+        {
             Ok(resp) => match client::unwrap_result(resp) {
                 Ok(result) => {
                     // T-1925: wrap in {ok:true, ...result} envelope matching CLI's
@@ -12435,6 +12445,10 @@ impl TermLinkTools {
             }
         };
 
+        // T-2669: intentional long-poll — do NOT migrate to rpc_call_with_timeout.
+        // event.subscribe blocks server-side until events arrive or its timeout_ms
+        // elapses (clamped by effective_subscribe_timeout_ms, session handler.rs).
+        // A client bound shorter than the server's would truncate a healthy wait.
         match client::rpc_call(&socket_path, "event.subscribe", params).await {
             Ok(resp) => match client::unwrap_result(resp) {
                 Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
@@ -12775,6 +12789,10 @@ impl TermLinkTools {
             params["max_events"] = serde_json::json!(max_events);
         }
 
+        // T-2669: intentional long-poll — do NOT migrate to rpc_call_with_timeout.
+        // event.subscribe blocks server-side until events arrive or its timeout_ms
+        // elapses (clamped by effective_subscribe_timeout_ms, session handler.rs).
+        // A client bound shorter than the server's would truncate a healthy wait.
         match client::rpc_call(reg.socket_path(), "event.subscribe", params).await {
             Ok(resp) => match client::unwrap_result(resp) {
                 Ok(result) => serde_json::to_string_pretty(&result).unwrap_or_else(json_err),
@@ -13503,6 +13521,10 @@ impl TermLinkTools {
         // Snapshot cursor before emitting (quick subscribe for next_seq)
         let cursor: Option<u64> = {
             let params = serde_json::json!({"timeout_ms": 1});
+            // T-2669: intentional long-poll — do NOT migrate to rpc_call_with_timeout.
+            // event.subscribe blocks server-side until events arrive or its timeout_ms
+            // elapses (clamped by effective_subscribe_timeout_ms, session handler.rs).
+            // A client bound shorter than the server's would truncate a healthy wait.
             match client::rpc_call(reg.socket_path(), "event.subscribe", params).await {
                 Ok(resp) => {
                     if let Ok(result) = client::unwrap_result(resp) {
@@ -13521,7 +13543,17 @@ impl TermLinkTools {
             "payload": payload,
         });
 
-        match client::rpc_call(reg.socket_path(), "event.emit", emit_params).await {
+        // T-2669 slice 2: 30s bound. event.emit is a FAST session RPC (lock, append,
+        // return) that reads no timeout_ms — the enclosing long-poll exemption never
+        // covered it. See .context/checks/unbounded-rpc-call-allowlist.
+        match client::rpc_call_with_timeout(
+            reg.socket_path(),
+            "event.emit",
+            emit_params,
+            std::time::Duration::from_secs(30),
+        )
+        .await
+        {
             Ok(resp) => {
                 if let Err(e) = client::unwrap_result(resp) {
                     return json_err(format!("failed to emit request: {e}"));
@@ -13553,6 +13585,10 @@ impl TermLinkTools {
                 params["since"] = serde_json::json!(c);
             }
 
+            // T-2669: intentional long-poll — do NOT migrate to rpc_call_with_timeout.
+            // event.subscribe blocks server-side until events arrive or its timeout_ms
+            // elapses (clamped by effective_subscribe_timeout_ms, session handler.rs).
+            // A client bound shorter than the server's would truncate a healthy wait.
             match client::rpc_call(reg.socket_path(), "event.subscribe", params).await {
                 Ok(resp) => {
                     if let Ok(result) = client::unwrap_result(resp)
@@ -13657,7 +13693,17 @@ impl TermLinkTools {
             p.since
         } else {
             let params = serde_json::json!({"topic": p.topic});
-            match client::rpc_call(reg.socket_path(), "event.poll", params).await {
+            // T-2669 slice 2: 30s bound. event.poll is a FAST session RPC (lock, read,
+            // return) that never blocks — the enclosing long-poll exemption never covered
+            // it. See .context/checks/unbounded-rpc-call-allowlist.
+            match client::rpc_call_with_timeout(
+                reg.socket_path(),
+                "event.poll",
+                params,
+                std::time::Duration::from_secs(30),
+            )
+            .await
+            {
                 Ok(resp) => {
                     if let Ok(result) = client::unwrap_result(resp) {
                         // Check if matching event already exists
@@ -13697,6 +13743,10 @@ impl TermLinkTools {
                 params["since"] = serde_json::json!(c);
             }
 
+            // T-2669: intentional long-poll — do NOT migrate to rpc_call_with_timeout.
+            // event.subscribe blocks server-side until events arrive or its timeout_ms
+            // elapses (clamped by effective_subscribe_timeout_ms, session handler.rs).
+            // A client bound shorter than the server's would truncate a healthy wait.
             match client::rpc_call(reg.socket_path(), "event.subscribe", params).await {
                 Ok(resp) => {
                     if let Ok(result) = client::unwrap_result(resp) {
@@ -13995,6 +14045,10 @@ impl TermLinkTools {
                 params["since"] = cursors.clone();
             }
 
+            // T-2669: intentional long-poll — do NOT migrate to rpc_call_with_timeout.
+            // event.collect blocks server-side when the caller passes timeout_ms (this one
+            // does); router.rs otherwise falls back to an instant event.poll snapshot.
+            // A client bound shorter than the server's would truncate a healthy wait.
             let resp = match client::rpc_call(&hub_socket, "event.collect", params).await {
                 Ok(r) => r,
                 Err(_) => {
@@ -15064,6 +15118,10 @@ impl TermLinkTools {
         // Snapshot cursor before emitting
         let cursor: Option<u64> = {
             let sub_params = serde_json::json!({"timeout_ms": 1});
+            // T-2669: intentional long-poll — do NOT migrate to rpc_call_with_timeout.
+            // event.subscribe blocks server-side until events arrive or its timeout_ms
+            // elapses (clamped by effective_subscribe_timeout_ms, session handler.rs).
+            // A client bound shorter than the server's would truncate a healthy wait.
             match client::rpc_call(reg.socket_path(), "event.subscribe", sub_params).await {
                 Ok(resp) => {
                     if let Ok(result) = client::unwrap_result(resp) {
@@ -15084,7 +15142,17 @@ impl TermLinkTools {
             "payload": payload,
         });
 
-        match client::rpc_call(reg.socket_path(), "event.emit", emit_params).await {
+        // T-2669 slice 2: 30s bound. event.emit is a FAST session RPC (lock, append,
+        // return) that reads no timeout_ms — the enclosing long-poll exemption never
+        // covered it. See .context/checks/unbounded-rpc-call-allowlist.
+        match client::rpc_call_with_timeout(
+            reg.socket_path(),
+            "event.emit",
+            emit_params,
+            std::time::Duration::from_secs(30),
+        )
+        .await
+        {
             Ok(resp) => {
                 if let Err(e) = client::unwrap_result(resp) {
                     return json_err(format!("failed to emit agent request: {e}"));
@@ -15116,6 +15184,10 @@ impl TermLinkTools {
                 sub_params["since"] = serde_json::json!(c);
             }
 
+            // T-2669: intentional long-poll — do NOT migrate to rpc_call_with_timeout.
+            // event.subscribe blocks server-side until events arrive or its timeout_ms
+            // elapses (clamped by effective_subscribe_timeout_ms, session handler.rs).
+            // A client bound shorter than the server's would truncate a healthy wait.
             match client::rpc_call(reg.socket_path(), "event.subscribe", sub_params).await {
                 Ok(resp) => {
                     if let Ok(result) = client::unwrap_result(resp)
@@ -19193,6 +19265,10 @@ impl TermLinkTools {
             params["since"] = serde_json::json!(since);
         }
 
+        // T-2669: intentional long-poll — do NOT migrate to rpc_call_with_timeout.
+        // event.subscribe blocks server-side until events arrive or its timeout_ms
+        // elapses (clamped by effective_subscribe_timeout_ms, session handler.rs).
+        // A client bound shorter than the server's would truncate a healthy wait.
         match client::rpc_call(reg.socket_path(), "event.subscribe", params).await {
             Ok(resp) => match client::unwrap_result(resp) {
                 Ok(result) => {

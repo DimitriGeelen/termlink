@@ -54,25 +54,60 @@
 # helper that AC#1 named, plus the 5 call sites); 183/156 is now measured, not forecast.
 #
 
+# SLICE 2 FINDING (T-2669, 2026-08-31). This check keys a site by ENCLOSING FUNCTION
+# (`sig="${file}::${fname}::unbounded-rpc-call"`), so ONE CLASS 1 line exempts EVERY
+# rpc_call in that function — including calls that are not long-polls at all.
+#
+# All 16 CLASS 1 entries carried the same generated reason: "dispatches a blocking
+# event/watch RPC whose bound is passed server-side as timeout_ms". Checked against the
+# handlers rather than the method names, that reason was false for 7 of them:
+#
+#   - event.emit  (session handler.rs handle_event_emit) reads NO timeout_ms. It takes
+#     the bus lock, appends, returns. A fast RPC — the T-2641 hang class exactly.
+#     Present in cmd_agent_ask, cmd_agent_negotiate, cmd_request, termlink_agent_ask,
+#     termlink_request.
+#   - event.poll  (handle_event_poll) never blocks either: lock, read, return. Present
+#     in termlink_wait, and it was the ONLY call in termlink_event_poll — a function
+#     filed as an intentional long-poll that never long-polls.
+#
+# So 7 genuinely-unbounded fast calls sat under a permanent "justified" exemption. That
+# is strictly worse than CLASS 2: CLASS 2 is an open ledger awaiting a decision, CLASS 1
+# says no action is needed. The reason text was uniform because it was generated per
+# function from the method names, and event.emit / event.poll live in functions whose
+# OTHER call really is a long-poll.
+#
+# All 7 are now bounded at 30s via client::rpc_call_with_timeout — the same vacuous-
+# judgment criterion slice 1 used (a lock-and-return RPC has no per-verb timeout
+# question). This did NOT need the human policy decision, which is about the CLASS 2
+# verbs where a bound can truncate real work. termlink_event_poll left the ledger
+# entirely (no unbounded call remains); the other 6 keep their line for the subscribe
+# long-poll, and their reason is now true rather than aspirational.
+#
+# Tree moved 183 scanned / 156 acknowledged -> 182 / 155.
+#
+# KNOWN GAP, not fixed here: this script has no stale-entry detection. Had slice 2 not
+# removed the termlink_event_poll line by hand, it would have kept acknowledging a site
+# that no longer exists, silently. The per-function keying above is the same blind spot
+# seen from the other side — both are worth a follow-up, neither blocks the sweep.
+
 # ─────────────────────────────────────────────────────────────────────────────
 # CLASS 1 — INTENTIONAL long-poll. Bound belongs server-side.
 # ─────────────────────────────────────────────────────────────────────────────
-crates/termlink-cli/src/commands/agent.rs::cmd_agent_ask::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
-crates/termlink-cli/src/commands/agent.rs::cmd_agent_listen::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
-crates/termlink-cli/src/commands/agent.rs::cmd_agent_negotiate::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
-crates/termlink-cli/src/commands/events.rs::cmd_collect::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
-crates/termlink-cli/src/commands/events.rs::cmd_wait::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
-crates/termlink-cli/src/commands/events.rs::cmd_watch::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
-crates/termlink-cli/src/commands/events.rs::cmd_watch_hub::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
-crates/termlink-cli/src/commands/execution.rs::cmd_request::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
-crates/termlink-mcp/src/tools.rs::termlink_agent_ask::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
-crates/termlink-mcp/src/tools.rs::termlink_agent_listen::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
-crates/termlink-mcp/src/tools.rs::termlink_dispatch::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
-crates/termlink-mcp/src/tools.rs::termlink_event_poll::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
-crates/termlink-mcp/src/tools.rs::termlink_event_subscribe::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
-crates/termlink-mcp/src/tools.rs::termlink_kv_watch::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
-crates/termlink-mcp/src/tools.rs::termlink_request::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
-crates/termlink-mcp/src/tools.rs::termlink_wait::unbounded-rpc-call  # intentional long-poll — dispatches a blocking event/watch RPC whose bound is passed server-side as timeout_ms; a client bound would truncate a healthy wait
+crates/termlink-cli/src/commands/agent.rs::cmd_agent_ask::unbounded-rpc-call  # the only unbounded call left is the event.subscribe long-poll (see above). Its event.emit sibling was FAST (no timeout_ms) and was bounded in T-2669 slice 2 — before that, this one line silently exempted it too.
+crates/termlink-cli/src/commands/agent.rs::cmd_agent_listen::unbounded-rpc-call  # event.subscribe blocks server-side until events or its timeout_ms (clamped by effective_subscribe_timeout_ms, session handler.rs); a client bound would truncate a healthy wait. VERIFIED T-2669 slice 2.
+crates/termlink-cli/src/commands/agent.rs::cmd_agent_negotiate::unbounded-rpc-call  # the only unbounded call left is the event.subscribe long-poll (see above). Its event.emit sibling was FAST (no timeout_ms) and was bounded in T-2669 slice 2 — before that, this one line silently exempted it too.
+crates/termlink-cli/src/commands/events.rs::cmd_collect::unbounded-rpc-call  # event.collect blocks server-side only when the caller passes timeout_ms — and this caller does (subscribe_timeout_ms); router.rs otherwise falls back to an instant event.poll snapshot. VERIFIED T-2669 slice 2.
+crates/termlink-cli/src/commands/events.rs::cmd_wait::unbounded-rpc-call  # event.subscribe blocks server-side until events or its timeout_ms (clamped by effective_subscribe_timeout_ms, session handler.rs); a client bound would truncate a healthy wait. VERIFIED T-2669 slice 2.
+crates/termlink-cli/src/commands/events.rs::cmd_watch::unbounded-rpc-call  # event.subscribe blocks server-side until events or its timeout_ms (clamped by effective_subscribe_timeout_ms, session handler.rs); a client bound would truncate a healthy wait. VERIFIED T-2669 slice 2.
+crates/termlink-cli/src/commands/events.rs::cmd_watch_hub::unbounded-rpc-call  # event.subscribe blocks server-side until events or its timeout_ms (clamped by effective_subscribe_timeout_ms, session handler.rs); a client bound would truncate a healthy wait. VERIFIED T-2669 slice 2.
+crates/termlink-cli/src/commands/execution.rs::cmd_request::unbounded-rpc-call  # the only unbounded call left is the event.subscribe long-poll (see above). Its event.emit sibling was FAST (no timeout_ms) and was bounded in T-2669 slice 2 — before that, this one line silently exempted it too.
+crates/termlink-mcp/src/tools.rs::termlink_agent_ask::unbounded-rpc-call  # the only unbounded call left is the event.subscribe long-poll (see above). Its event.emit sibling was FAST (no timeout_ms) and was bounded in T-2669 slice 2 — before that, this one line silently exempted it too.
+crates/termlink-mcp/src/tools.rs::termlink_agent_listen::unbounded-rpc-call  # event.subscribe blocks server-side until events or its timeout_ms (clamped by effective_subscribe_timeout_ms, session handler.rs); a client bound would truncate a healthy wait. VERIFIED T-2669 slice 2.
+crates/termlink-mcp/src/tools.rs::termlink_dispatch::unbounded-rpc-call  # event.collect blocks server-side only when the caller passes timeout_ms — and this caller does (subscribe_timeout_ms); router.rs otherwise falls back to an instant event.poll snapshot. VERIFIED T-2669 slice 2.
+crates/termlink-mcp/src/tools.rs::termlink_event_subscribe::unbounded-rpc-call  # event.subscribe blocks server-side until events or its timeout_ms (clamped by effective_subscribe_timeout_ms, session handler.rs); a client bound would truncate a healthy wait. VERIFIED T-2669 slice 2.
+crates/termlink-mcp/src/tools.rs::termlink_kv_watch::unbounded-rpc-call  # event.subscribe blocks server-side until events or its timeout_ms (clamped by effective_subscribe_timeout_ms, session handler.rs); a client bound would truncate a healthy wait. VERIFIED T-2669 slice 2.
+crates/termlink-mcp/src/tools.rs::termlink_request::unbounded-rpc-call  # the only unbounded call left is the event.subscribe long-poll (see above). Its event.emit sibling was FAST (no timeout_ms) and was bounded in T-2669 slice 2 — before that, this one line silently exempted it too.
+crates/termlink-mcp/src/tools.rs::termlink_wait::unbounded-rpc-call  # the only unbounded call left is the event.subscribe long-poll (see above). Its event.poll sibling was FAST (never blocks) and was bounded in T-2669 slice 2 — before that, this one line silently exempted it too.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CLASS 2 — NOT YET MIGRATED. Still the T-2641 hang class. Pending the per-verb

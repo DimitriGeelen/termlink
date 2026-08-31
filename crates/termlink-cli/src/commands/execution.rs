@@ -179,6 +179,10 @@ pub(crate) async fn cmd_request(
     let cursor: Option<u64> = {
         // Quick subscribe with 1ms timeout to get next_seq without waiting
         let params = serde_json::json!({"timeout_ms": 1});
+        // T-2669: intentional long-poll — do NOT migrate to rpc_call_with_timeout.
+        // event.subscribe blocks server-side until events arrive or its timeout_ms
+        // elapses (clamped by effective_subscribe_timeout_ms, session handler.rs).
+        // A client bound shorter than the server's would truncate a healthy wait.
         match client::rpc_call(reg.socket_path(), "event.subscribe", params).await {
             Ok(resp) => {
                 if let Ok(result) = client::unwrap_result(resp) {
@@ -194,7 +198,17 @@ pub(crate) async fn cmd_request(
         "payload": payload_json,
     });
 
-    let emit_resp = match client::rpc_call(reg.socket_path(), "event.emit", emit_params).await {
+    // T-2669 slice 2: 30s bound. event.emit is a FAST session RPC (lock, append,
+    // return) that reads no timeout_ms — the enclosing long-poll exemption never
+    // covered it. See .context/checks/unbounded-rpc-call-allowlist.
+    let emit_resp = match client::rpc_call_with_timeout(
+        reg.socket_path(),
+        "event.emit",
+        emit_params,
+        std::time::Duration::from_secs(30),
+    )
+    .await
+    {
         Ok(r) => r,
         Err(e) => {
             if json {
@@ -249,6 +263,10 @@ pub(crate) async fn cmd_request(
             params["since"] = serde_json::json!(c);
         }
 
+        // T-2669: intentional long-poll — do NOT migrate to rpc_call_with_timeout.
+        // event.subscribe blocks server-side until events arrive or its timeout_ms
+        // elapses (clamped by effective_subscribe_timeout_ms, session handler.rs).
+        // A client bound shorter than the server's would truncate a healthy wait.
         match client::rpc_call(reg.socket_path(), "event.subscribe", params).await {
             Ok(resp) => {
                 if let Ok(result) = client::unwrap_result(resp) {

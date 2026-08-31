@@ -724,6 +724,10 @@ pub(crate) async fn cmd_watch(
                             params["topic"] = serde_json::json!(t);
                         }
 
+                        // T-2669: intentional long-poll — do NOT migrate to rpc_call_with_timeout.
+                        // event.subscribe blocks server-side until events arrive or its timeout_ms
+                        // elapses (clamped by effective_subscribe_timeout_ms, session handler.rs).
+                        // A client bound shorter than the server's would truncate a healthy wait.
                         let resp = client::rpc_call(&addr, "event.subscribe", params).await;
                         (sid, resp)
                     });
@@ -889,6 +893,10 @@ pub(crate) async fn cmd_watch_hub(opts: WatchOpts<'_>) -> Result<()> {
                     params["topic"] = serde_json::json!(t);
                 }
                 // No `target` field → routes to handle_hub_subscribe (router.rs:128 + 610)
+                // T-2669: intentional long-poll — do NOT migrate to rpc_call_with_timeout.
+                // event.subscribe blocks server-side until events arrive or its timeout_ms
+                // elapses (clamped by effective_subscribe_timeout_ms, session handler.rs).
+                // A client bound shorter than the server's would truncate a healthy wait.
                 client::rpc_call(&hub_socket, "event.subscribe", params).await
             } => {
                 let resp = match subscribe_result {
@@ -1023,6 +1031,10 @@ pub(crate) async fn cmd_wait(target: &str, topic: &str, timeout_secs: u64, inter
                 if let Some(c) = cursor {
                     params["since"] = serde_json::json!(c);
                 }
+                // T-2669: intentional long-poll — do NOT migrate to rpc_call_with_timeout.
+                // event.subscribe blocks server-side until events arrive or its timeout_ms
+                // elapses (clamped by effective_subscribe_timeout_ms, session handler.rs).
+                // A client bound shorter than the server's would truncate a healthy wait.
                 client::rpc_call(reg.socket_path(), "event.subscribe", params).await
             } => {
                 match rpc_result {
@@ -1344,6 +1356,10 @@ pub(crate) async fn cmd_collect(
                     params["since_default"] = serde_json::json!(s);
                 }
 
+                // T-2669: intentional long-poll — do NOT migrate to rpc_call_with_timeout.
+                // event.collect blocks server-side when the caller passes timeout_ms (this one
+                // does); router.rs otherwise falls back to an instant event.poll snapshot.
+                // A client bound shorter than the server's would truncate a healthy wait.
                 client::rpc_call(&hub_socket, "event.collect", params).await
             } => {
                 let resp = match collect_result {
