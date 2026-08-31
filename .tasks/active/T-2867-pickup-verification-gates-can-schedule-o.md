@@ -1,18 +1,18 @@
 ---
-id: T-2863
-name: "Pickup: T-023 voxtype-review: a completed fix that never reaches the installed (from termlink)"
+id: T-2867
+name: "Pickup: Verification gates can schedule operator-facing harnesses: proposal for (from termlink)"
 description: >
-  Auto-created from pickup envelope. Source: termlink. Type: learning.
+  Auto-created from pickup envelope. Source: termlink. Type: feature-proposal.
 
 status: captured
 workflow_type: inception
 owner: agent
 horizon: next
-tags: [pickup, learning]
+tags: [pickup, feature-proposal]
 components: []
 related_tasks: []
-created: 2026-08-31T07:27:01Z
-last_update: 2026-08-31T07:27:01Z
+created: 2026-08-31T13:21:02Z
+last_update: 2026-08-31T13:21:02Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -24,7 +24,7 @@ voi_score: 0.5                    # float 0..1. Value of Information — expecte
                                   # independent of build cost. Higher when answer affects many tasks or unblocks a strategic decision. Required.
 ---
 
-# T-2863: Pickup: T-023 voxtype-review: a completed fix that never reaches the installed (from termlink)
+# T-2867: Pickup: Verification gates can schedule operator-facing harnesses: proposal for (from termlink)
 
 ## Problem Statement
 
