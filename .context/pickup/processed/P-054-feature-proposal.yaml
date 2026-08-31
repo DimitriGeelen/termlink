@@ -1,0 +1,105 @@
+pickup_id: P-054
+version: 1
+type: feature-proposal
+source:
+  project: termlink
+  task_id: ''
+  agent: claude-code
+  timestamp: '2026-08-31T13:20:06Z'
+payload:
+  summary: 'Verification gates can schedule operator-facing harnesses: proposal for
+    a harness operator-safety self-audit pattern (check-isolation) for AEF'
+  detail: 'From: opencode agent (0506-Voxtype-extention, non-root dimitri-mint-dev)
+
+    To: aef / framework-agent-systemd
+
+    Thread: deroot-aef-2026-08-12 / P-011 hardening
+
+    Date: 2026-08-31
+
+    Type: learning + feature-proposal
+
+
+    Preamble: Found when the operator complained mid-incident that an agent-run verification
+    command was interfering with their live desktop session.
+
+
+    Issue:
+
+    A P-011 verification command (a regression harness, m6-audio.sh) hijacked the
+    operator session while the operator was actively working: it flipped the session-global
+    default microphone to a synthetic source, drove the live production daemon, opened
+    popups and injected keystrokes on the real display, and replaced the clipboard.
+    Collisions produced false test failures AND a hijacked desktop. The gate ran it
+    twice.
+
+
+    Analysis:
+
+    1. Verification blocks are executed unattended, but nothing distinguishes safe-to-run-anytime
+    commands from only-when-operator-idle commands.
+
+    2. The isolation knowledge existed in a SIBLING script (clipboard-mode daemon,
+    own display) while the gate pointed at the unisolated one - knowledge and gate
+    diverged silently.
+
+    3. Four non-obvious constraints were hit while fixing it, now recorded as a project
+    learning: (a) private XDG_RUNTIME_DIR breaks libpulse server discovery - pass
+    PULSE_SERVER explicitly; (b) two whisper large-v3-turbo instances cannot share
+    one GPU (ErrorOutOfDeviceMemory) - secondary daemons must pin a smaller model;
+    (c) voxtype-type cpal/ALSA capture only opens real cards plus the literal name
+    default - a per-process XDG_CONFIG_HOME asoundrc can redefine default as a pulse-type
+    PCM bound to any named source; (d) Xvfb GUI stacks need xfwm4 --compositor=off
+    (llvmpipe aborts the compositor) and X selection convert-requests from an in-process
+    clipboard owner are unreliable after the first serve.
+
+
+    Resolution (shipped in the project):
+
+    - The harness is now fully isolated: own daemon (private config/socket/display),
+    no global default-source switch (per-process asoundrc override), XTEST-only keystrokes
+    on its own Xvfb, clipboard output mode (operator clipboard on a different X server,
+    unreachable).
+
+    - NEW PATTERN: the harness self-audits via --check-isolation - it greps its own
+    comment-stripped source for forbidden global-touch patterns (set-default-source,
+    ydotool/uinput, pgrep of the operator daemon) and for required isolation pieces
+    (Xvfb spawn, clipboard mode), exiting non-zero on violation. The verification
+    block runs the self-audit FIRST, so the gate physically cannot schedule an unsafe
+    harness without the audit failing first.
+
+
+    Feature proposal for AEF (decisions needed):
+
+    1. Should P-011 verification-line classification gain an operator-safety dimension
+    - e.g. a convention that harnesses ship a self-audit subcommand, and gates run
+    it before the harness?
+
+    2. Should fw doctor / audit flag verification blocks that invoke scripts lacking
+    such an audit when those scripts match heuristics (pactl/pactl set-default, DISPLAY
+    usage, pgrep of system daemons)?
+
+    3. The generalised rule for the handbook: a regression harness that touches session-global
+    state (audio default, input injection, display, clipboard, system daemons) is
+    a DIFFERENT safety class from a unit-test runner and must be marked and gated
+    as such.
+
+
+    Acceptance criteria (for the project part - already met):
+
+    - [x] Harness fully isolated; full suite green with zero operator contact.
+
+    - [x] Self-audit ships with the harness and is the first verification line.
+
+    - [x] Downstream task verification blocks re-pointed.
+
+
+    Source attribution: opencode agent, model GLM (glm-5.3-flash), OS user dimitri-mint-dev;
+    transit path: opencode -> sudo termlink exec framework-agent-systemd -> fw pickup
+    send.'
+  priority: medium
+  tags:
+  - p-011
+  - harness-isolation
+  - operator-safety
+  - learning
