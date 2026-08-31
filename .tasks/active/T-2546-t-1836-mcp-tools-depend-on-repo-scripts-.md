@@ -22,7 +22,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-08-08T18:30:55Z
-last_update: '2026-08-20T15:21:21Z'
+last_update: 2026-08-31T19:49:06Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -183,21 +183,20 @@ rewrite of the ~18 tools' internals.
 
 ### Agent
 <!-- @auto-tick-on-decide -->
-- [ ] Problem statement validated
+- [x] Problem statement validated
 <!-- @auto-tick-on-decide -->
-- [ ] Assumptions tested
+- [x] Assumptions tested
 <!-- @auto-tick-on-decide -->
-- [ ] Recommendation written with rationale
+- [x] Recommendation written with rationale
 
 ### Human
-<!-- @auto-tick-on-decide -->
-- [ ] [REVIEW] Review exploration findings and approve go/no-go decision
+- [ ] [REVIEW] Decide IW-1: are the ~18 T-1836 canary/heartbeat MCP tools in scope for consumer (non-repo) installs, or operator-host-only by design? This is a product-scope call an agent cannot make, and it decides whether any code change is warranted at all.
   **Steps:**
-  1. Run: `fw task review T-XXX` (opens Watchtower with recommendation, assumptions, research artifacts)
-  2. Review the Agent Recommendation section and go/no-go criteria evaluation
-  3. Record decision via the Watchtower form or the command shown alongside the QR code
-  **Expected:** Decision recorded, task completed
-  **If not:** Ask agent for clarification on specific findings
+  1. `cat docs/reports/T-2546-t1836-scripts-portability-gap.md` — the research artifact.
+  2. Read `## Recommendation` in this task. The agent recommends DEFER *pending this decision*, not DEFER as an outcome.
+  3. Choose one: **operator-host-only** — the tools are dev/operator tooling, the gap is a documentation fix, and this task closes; or **consumer-scoped** — the 18 tools are dead on every Homebrew/cargo install, and IW-2 (embed / stage at install / rewrite in-process) becomes a build task.
+  **Expected:** One of the two recorded as the decision. If operator-host-only, note where the operator-host-only intent should be documented so a future portability sweep does not re-raise it.
+  **If not:** If neither option is right — e.g. only some of the 18 are consumer-facing — say which, and the task splits along that line rather than being decided whole.
 
 ## Go/No-Go Criteria
 
@@ -228,6 +227,17 @@ rewrite of the ~18 tools' internals.
 # *.go, Cargo.toml, tsconfig.json, or pom.xml in the build task, plan to add the
 # matching build command (dotnet build / go build / cargo check / tsc --noEmit /
 # mvn compile) to that build task's ## Verification — P-011 only runs what you write.
+
+# A-1: the shell-out resolver and its dev-host default still exist as described.
+grep -q 'resolve_t1836_script' crates/termlink-mcp/src/tools.rs
+grep -q 'opt/termlink/scripts' crates/termlink-mcp/src/tools.rs
+grep -q 'TERMLINK_SCRIPTS_DIR' crates/termlink-mcp/src/tools.rs
+# A-2: no install path stages scripts/ — release.yml references it only to RUN the
+# guard layer at build time, and the formula installs the binary alone.
+! grep -qE '(cp|install|upload|stage).*scripts/' .github/workflows/release.yml
+! grep -qE 'scripts' homebrew/Formula/termlink.rb
+# C-001 research artifact backing the recommendation.
+test -f docs/reports/T-2546-t1836-scripts-portability-gap.md
 
 ## Recommendation
 
