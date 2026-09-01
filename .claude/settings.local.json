@@ -553,14 +553,5 @@
     "termlink",
     "fw"
   ],
-  "mcpServers": {
-    "termlink": {
-      "args": [
-        "mcp",
-        "serve"
-      ],
-      "command": ".termlink/bin/termlink"
-    }
-  },
   "enableAllProjectMcpServers": true
 }
