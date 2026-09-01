@@ -103,8 +103,22 @@ echo "== G: tier declaration — must NOT be a guard-layer member =="
 if grep -qE '^#[[:space:]]*guard-layer:' "$SCRIPT"; then
     bad "G1 no guard-layer marker" "marker present — see header rationale before enrolling"
 else ok "G1 no guard-layer marker"; fi
-if grep -q "TIER: on-demand diagnostic" "$SCRIPT"; then ok "G2 tier is declared in header"
+# G2 pinned the literal string "TIER: on-demand diagnostic" until T-2878. That
+# assertion was green while the header was WRONG: it declared "NOT a cron canary"
+# and refused scheduling, but T-2850 (bd4014284) had scheduled it daily an hour
+# after landing it and never amended the header. Pinning prose is how a stale
+# claim gets a passing test — so this now asserts the SUBSTANCE (a tier line
+# exists, and it names the schedule this script actually runs on).
+if grep -q "^# TIER:" "$SCRIPT"; then ok "G2 tier is declared in header"
 else bad "G2 tier is declared in header" "header must state its tier"; fi
+if grep -q "^# TIER:.*cron canary" "$SCRIPT"; then ok "G2b tier names the cron schedule it actually has"
+else bad "G2b tier names the cron schedule it actually has" \
+        "a crontab schedules this daily; the header must not imply otherwise"; fi
+# The specific false claim, pinned so it cannot come back.
+if grep -q "^# TIER:.*NOT a cron canary" "$SCRIPT"; then
+    bad "G2c header does not deny its own schedule" \
+        "header claims 'NOT a cron canary' while .context/cron/hook-counter-integrity-canary.crontab schedules it"
+else ok "G2c header does not deny its own schedule"; fi
 if grep -q "L-023" "$SCRIPT"; then ok "G3 cites the recurring learning"
 else bad "G3 cites the recurring learning" "L-023 citation missing"; fi
 
@@ -114,6 +128,43 @@ if [ -z "$QOUT" ]; then ok "H1 quiet is silent when clean"; else bad "H1 quiet i
 QOUT2="$(bash "$SCRIPT" --counter "$TMP/dup" --quiet 2>&1 || true)"
 if grep -qF "FIRING" <<< "$QOUT2"; then ok "H2 quiet still reports corruption"
 else bad "H2 quiet still reports corruption" "$QOUT2"; fi
+
+echo "== I: heartbeat (T-2878) =="
+# Until T-2878 this script wrote no heartbeat, which made it the only
+# cron-scheduled canary the T-1723 meta-canary could not watch, and left
+# canary-status.sh::classify with no arm that could ever return it to HEALTHY
+# once its log held a real finding.
+HB="$TMP/hb/.hook-counter-integrity-canary.heartbeat"
+
+rm -rf "$TMP/hb"
+HOOK_COUNTER_HEARTBEAT_FILE="$HB" bash "$SCRIPT" --counter "$TMP/clean" --quiet >/dev/null 2>&1 || true
+if [ -s "$HB" ]; then ok "I1 heartbeat written on a CLEAN run"
+else bad "I1 heartbeat written on a CLEAN run" "absent or empty: $HB"; fi
+
+rm -rf "$TMP/hb"
+HOOK_COUNTER_HEARTBEAT_FILE="$HB" bash "$SCRIPT" --counter "$TMP/dup" --quiet >/dev/null 2>&1 || true
+if [ -s "$HB" ]; then ok "I2 heartbeat written on a FIRING run"
+else bad "I2 heartbeat written on a FIRING run" "absent or empty: $HB"; fi
+
+# The heartbeat records that the canary RAN, not that it passed. A canary that
+# dies in its tooling path must stay distinguishable from one whose cron stopped
+# — that is the single distinction the meta-canary draws.
+rm -rf "$TMP/hb"
+HOOK_COUNTER_HEARTBEAT_FILE="$HB" bash "$SCRIPT" --counter "$TMP/does-not-exist" --quiet >/dev/null 2>&1 || true
+if [ -s "$HB" ]; then ok "I3 heartbeat written even when the run exits 2 (tooling)"
+else bad "I3 heartbeat written even when the run exits 2 (tooling)" "absent: $HB"; fi
+
+rm -rf "$TMP/hb"
+HOOK_COUNTER_HEARTBEAT_FILE="$HB" bash "$SCRIPT" --counter "$TMP/clean" --quiet --no-heartbeat >/dev/null 2>&1 || true
+if [ -e "$HB" ]; then bad "I4 --no-heartbeat suppresses the touch" "heartbeat written despite --no-heartbeat"
+else ok "I4 --no-heartbeat suppresses the touch"; fi
+
+# Parent dir is created on demand — cron runs this from a checkout where
+# .context/working may not yet exist.
+rm -rf "$TMP/hb"
+HOOK_COUNTER_HEARTBEAT_FILE="$TMP/hb/deep/nested/.hb" bash "$SCRIPT" --counter "$TMP/clean" --quiet >/dev/null 2>&1 || true
+if [ -s "$TMP/hb/deep/nested/.hb" ]; then ok "I5 heartbeat parent dir is created on demand"
+else bad "I5 heartbeat parent dir is created on demand" "not created"; fi
 
 echo
 printf 'hook-counter-integrity fixtures: %d passed, %d failed\n' "$PASS" "$FAIL"

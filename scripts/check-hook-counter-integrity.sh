@@ -2,16 +2,29 @@
 #
 # check-hook-counter-integrity.sh (T-2795)
 #
-# TIER: on-demand diagnostic. NOT a guard-layer source check, and NOT a cron canary.
+# TIER: cron canary (daily) AND on-demand diagnostic. NOT a guard-layer source check.
 #
-# It carries no `# guard-layer:` marker on purpose, and the reason is the finding itself.
-# The file it inspects — `.context/working/.hook-counter` — is corrupted continuously by
-# ordinary concurrent hook fires (see MECHANISM below). Nothing inside this repository can
-# stop that; the write path lives in the vendored framework. A guard-layer member would
-# therefore report FAIL on every run forever, which is precisely the failure mode this
-# repo has spent T-2709, T-2787 and T-2680 documenting: a guard that fires regardless of
-# system state teaches its operator to stop reading the roll-up. Enrolling this would
-# damage the layer it joined. Run it when you need the number; do not schedule it.
+# The "do not schedule it" paragraph that stood here until T-2878 was wrong, and the
+# correction is worth keeping because the reasoning failed in an instructive direction.
+# It argued the corruption is CONTINUOUS, so any scheduled reader would report FAIL on
+# every run forever and teach its operator to stop reading the roll-up (T-2709 / T-2787 /
+# T-2680). T-2850 scheduled it anyway an hour later — correctly, in commit bd4014284,
+# "a guard nothing runs is the state 577-CashWeb described" — and never came back to
+# amend this header, so the file went on telling every reader it was unscheduled while
+# /etc/cron.d ran it daily.
+#
+# Measurement settles it: the corruption is INTERMITTENT, not continuous. A duplicate key
+# survives only until the next hook fire happens to rewrite the file cleanly, so the
+# counter oscillates between corrupt and clean. The canary fired on 2026-08-31 with a
+# real reader disagreement (audit-task-tools: 25 by first-match, 67 by summing) and read
+# clean on 2026-09-02. A daily sample of an oscillating fault is exactly what a canary is
+# for, and the premise that it would be permanently red was never measured.
+#
+# It still carries no `# guard-layer:` marker, and THAT part stands: the guard-layer
+# roll-up is a hard gate where any FAIL blocks, so an intermittently-firing member would
+# block builds on a defect this repo cannot fix (the write path is vendored — G-062).
+# A daily canary log and a blocking gate are different instruments; this belongs in the
+# first and not the second.
 #
 # --- MECHANISM ---
 # `lib/hook-telemetry.sh::_fw_telemetry_increment` maintains a flat `key=count` file with
@@ -70,6 +83,8 @@ COUNTER=""
 FAILCOUNTER=""
 FORMAT=human
 QUIET=0
+HEARTBEAT=1
+HEARTBEAT_FILE="${HOOK_COUNTER_HEARTBEAT_FILE:-.context/working/.hook-counter-integrity-canary.heartbeat}"
 
 die() {
     if [ "$FORMAT" = json ]; then printf '{"ok":false,"error":"%s"}\n' "$1"
@@ -83,10 +98,28 @@ while [ $# -gt 0 ]; do
         --failure-counter) FAILCOUNTER="${2:-}"; shift 2 ;;
         --json)            FORMAT=json; shift ;;
         --quiet)           QUIET=1; shift ;;
+        --no-heartbeat)    HEARTBEAT=0; shift ;;
         -h|--help)         sed -n '3,70p' "$0"; exit 0 ;;
         *) echo "check-hook-counter-integrity: unknown arg: $1" >&2; exit 2 ;;
     esac
 done
+
+# Heartbeat FIRST, before any check or `die`, so it records that the canary RAN — the
+# T-1723 convention. Touching it only on a clean exit would make a canary that dies in
+# its tooling path indistinguishable from one whose cron stopped, which is the single
+# distinction the meta-canary exists to draw.
+#
+# Until T-2878 this script wrote no heartbeat at all. It was the only cron-scheduled
+# canary in the tree without one, and the cost was two-sided: the T-1723 meta-canary
+# stats a heartbeat file, so a canary that writes none cannot be watched even in
+# principle; and canary-status.sh::classify sends a heartbeat-less canary with a
+# non-empty log straight to FIRING, with no arm that can ever return it to HEALTHY. One
+# real finding on 2026-08-31 therefore latched it red permanently — the stuck-on
+# direction of the same one-bit channel T-2685 unstuck from the other side.
+if [ "$HEARTBEAT" -eq 1 ]; then
+    mkdir -p "$(dirname "$HEARTBEAT_FILE")" 2>/dev/null \
+        && date -u +%Y-%m-%dT%H:%M:%SZ > "$HEARTBEAT_FILE" 2>/dev/null || true
+fi
 
 [ -n "$COUNTER" ]     || COUNTER=".context/working/.hook-counter"
 [ -n "$FAILCOUNTER" ] || FAILCOUNTER=".context/working/.hook-failure-counter"

@@ -1,0 +1,62 @@
+# T-2878 — Canary-aliveness SWEEP (meta-canary coverage net)
+# Source of truth: /opt/termlink/.context/cron/canary-aliveness-sweep.crontab (git-tracked)
+# Installed to:    /etc/cron.d/termlink-canary-aliveness-sweep (USER field syntax — do NOT load into a user crontab)
+#
+# WHY THIS EXISTS. T-1723's meta-canary answers "has a canary stopped firing?", which is
+# the question G-058 needed and nobody asked for 16 days. But it is wired PER CANARY: each
+# watched canary needs its own cron job line carrying HEARTBEAT_FILE / CANARY_NAME /
+# CANARY_PROBE_CMD / CANARY_CRON_PATH. Measured 2026-09-02: of 20 canary crontabs, 8
+# declared such a job and 12 did not. Twelve canaries had nothing watching them — if their
+# cron stopped, the framework would not notice, which is the exact failure the meta-canary
+# was built to prevent, reproduced at scale in the layer that prevents it.
+#
+# WHY NOT JUST ADD TWELVE MORE JOB LINES. Because a per-canary wiring step is a step
+# someone forgets, and forgetting is silent — that is precisely how the gap opened. The
+# twelve were not a decision; they were an omission repeated twelve times. A sweep that
+# never names canaries individually cannot be forgotten for one of them.
+#
+# AND NOTHING DETECTED THE OMISSION. check-cron-install-drift.sh (T-2561/T-2682) compares
+# the HOST against GIT, so it fires on a job git declares that the host lacks. A meta job
+# git never declared at all is invisible to it. The gap was structurally undetectable.
+#
+# THE PER-CANARY JOBS STAY. They carry a CANARY_PROBE_CMD that folds the watched drift's
+# CURRENT status into the stale report ("heartbeat 72h old, and the drift is still
+# present"), which a generic sweep cannot do. This is a coverage net beneath them, not a
+# replacement for them.
+#
+# TWO FIRING CLASSES:
+#   [STALE]         heartbeat older than the threshold (default 48h = twice a daily cron)
+#   [NO-HEARTBEAT]  cron-scheduled but writes no heartbeat at all, so it cannot be watched
+#                   even in principle. This is not hypothetical: check-hook-counter-integrity.sh
+#                   was scheduled by T-2850 without one, and canary-status.sh::classify
+#                   sends a heartbeat-less canary with a non-empty log to FIRING with no
+#                   arm that can ever return it to HEALTHY — so one real finding on
+#                   2026-08-31 latched it red permanently. T-2878 gave it a heartbeat; this
+#                   class is what catches the next one.
+#
+# A canary git schedules no cron for is EXCLUDED, not reported dead — the source-level
+# static checks leave a heartbeat when run by hand but have no schedule, and reporting them
+# stale forever is the noise T-2826 removed from /canaries.
+#
+# Fails closed: an absent working dir, an absent cron source dir, or zero discovered
+# cron-scheduled canaries all exit 2, never 0. "0 dead out of 0" is vacuously true and must
+# not read as a clean bill of health (T-2747).
+#
+# Output goes to the SHARED .canary-aliveness.log that every per-canary meta job already
+# appends to. That file deliberately does not end in `-canary.log`-with-a-heartbeat, so the
+# sweep does not become a canary that would itself need a watcher — the recursion T-2561
+# names when it explains why cron-install-drift is a deploy-time check and not a cron job.
+#
+# Operator action on firing: read the named canary. [STALE] means its cron stopped — check
+# /etc/cron.d and `journalctl -u cron`. [NO-HEARTBEAT] means it was scheduled without the
+# T-1723 heartbeat touch — add one at the TOP of the script (before any check or `die`, so
+# it records that the canary RAN, not that it passed).
+#
+# Ad-hoc: bash scripts/check-canary-aliveness.sh --all
+# Fixtures: bash tests/canary-aliveness-sweep-fixtures.sh
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Daily at 09:53 UTC — after the last canary of the morning has run and written its
+# heartbeat, so the sweep reads the current cycle rather than yesterday's.
+53 9 * * * root cd /opt/termlink && bash scripts/check-canary-aliveness.sh --all --quiet >> .context/working/.canary-aliveness.log 2>> .context/working/.canary-aliveness.log.stderr
