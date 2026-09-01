@@ -22,7 +22,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-01T10:44:04Z
-last_update: 2026-09-01T10:55:05Z
+last_update: 2026-09-01T11:03:25Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -273,3 +273,49 @@ timeout 200 bash scripts/check-mcp-parity-census.sh > /tmp/.t2873c.txt 2>&1
 - **Action:** Created task via task-create agent
 - **Output:** /opt/termlink/.tasks/active/T-2873-termlinkremoteinject-sends-bare-string-k.md
 - **Context:** Initial task creation
+
+### 2026-09-01T11:40Z — binary rebuilt, installed, stale MCP server stopped [claude-code]
+- **Action:** Operator asked for the MCP server restart (the Human AC). Rebuilt
+  `cargo build --release -p termlink-mcp -p termlink` (BUILD_RC=0, ~14 min under
+  `-C lto -C codegen-units=1`), producing `termlink 0.11.1766`. Backed up the
+  installed `termlink 0.11.1716` alongside itself as `termlink.pre-t2873.bak`,
+  then installed via temp-file + `mv -f` rather than `install`: the destination
+  was being executed by 12 live processes and a truncating open returns ETXTBSY.
+  An atomic rename swaps the directory entry while running processes keep the
+  old inode.
+- **Config finding:** two MCP configs disagree about which binary serves this
+  tool. `.mcp.json` says `command: "termlink"` (PATH); `.claude/settings.local.json`
+  overrides it with `.termlink/bin/termlink`, which on this host is **0.9.13 from
+  2026-03-27**, five months stale. Resolved empirically rather than by reading
+  precedence rules: `/proc/<pid>/exe` of the live server showed
+  `/root/.cargo/bin/termlink`, so the PATH entry is what actually runs and is what
+  was upgraded. The stale local override is a live trap for anyone who trusts it —
+  filed as a follow-up rather than edited here, since changing MCP wiring is not
+  this task's scope.
+- **Live A/B proof (the load-bearing evidence):** same hub, same session, same
+  request, only the binary differs. Drove each binary as an MCP server over stdio
+  (initialize → notifications/initialized → tools/call) against a scratch session
+  `tl-5l34cgys` on `192.168.10.107:9100`:
+    - OLD 0.11.1716 → `-32602 Invalid keys format: invalid type: string "O",
+      expected adjacently tagged enum KeyEntry` — reproduces the peer's report
+      byte-for-byte, failing on the first character.
+    - NEW 0.11.1766 → `{"ok": true, "bytes": 15, "result": {"status": "injected"}}`.
+  Hub-reported "injected" is a claim, not proof of arrival, so PTY ground truth was
+  read separately: `termlink output tl-5l34cgys` shows `NEWBIN_OK_T2873` at the
+  shell prompt. `OLDBIN` never appears. Scratch session and its tmux window reaped.
+- **Server restart:** SIGTERM to pid 978915 (the `termlink mcp serve` child of this
+  session's `claude`, started 2026-08-30, i.e. pre-fix). It exited; its
+  `/proc/<pid>/exe` had already read `(deleted)`, which is the G-069 / preflight
+  Check 5 signature — the running image was the replaced inode. Claude Code did
+  **not** auto-respawn it: the 260 `mcp__termlink__*` tools went to disconnected.
+  Reconnect (`/mcp`, or a new session) is the operator step that spawns a fresh
+  server off the new binary; PATH now resolves to 0.11.1766, so the reconnect picks
+  up the fix with no further action.
+- **Not done, deliberately:** the Human AC box is left unchecked. The operator asked
+  me to perform the restart, not to certify it; step 3 of that AC verifies through
+  the *reconnected* server, which cannot exist until the reconnect happens. Ticking
+  it now would assert a check nobody ran.
+- **Fleet note:** 11 other `termlink mcp serve` processes belong to other sessions
+  and all now show `exe ... (deleted)` — they hold the pre-fix inode and keep
+  serving the broken `termlink_remote_inject` until each restarts. Expected, and
+  the reason the binary swap was made non-disruptive rather than forced.
