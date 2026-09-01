@@ -15051,6 +15051,55 @@ mod tests {
         assert_eq!(f, None);
     }
 
+    /// T-2872 regression: repeated acking on a topic the acking identity also
+    /// posts to must CONVERGE. `channel ack` appends its receipt as an ordinary
+    /// envelope, so the tail advances on every ack and `latest - up_to` is
+    /// pinned at 1 forever. That subtraction is NOT the unread definition —
+    /// `count_unread` skips `receipt` via `UNREAD_META_TYPES` (T-1332), so the
+    /// true count is 0 and stays 0.
+    ///
+    /// T-2872 was filed as a defect on the strength of the hand-computed
+    /// `latest - receipt_up_to` figure, which reproduces the gap of 1 exactly as
+    /// reported while the shipping verb answers 0. The existing meta-exclusion
+    /// test uses a STATIC slice and so never exercised the ack LOOP; nothing
+    /// asked for convergence, which is why the claim was plausible. This test
+    /// asks. It also pins the naive subtraction alongside the real count so the
+    /// discrepancy is legible at the point of failure rather than re-discovered.
+    #[test]
+    fn count_unread_converges_across_repeated_acks() {
+        let mut msgs = vec![
+            json!({"offset": 0, "msg_type": "chat"}),
+            json!({"offset": 1, "msg_type": "chat"}),
+            json!({"offset": 2, "msg_type": "chat"}),
+        ];
+
+        for round in 1..=3u64 {
+            // `ack` acknowledges through the current tail, then appends its own
+            // receipt one offset above it — the step that re-creates the gap.
+            let latest = msgs
+                .iter()
+                .filter_map(|m| m.get("offset").and_then(|v| v.as_u64()))
+                .max()
+                .expect("non-empty");
+            let up_to = latest;
+            msgs.push(json!({"offset": latest + 1, "msg_type": "receipt"}));
+
+            let new_latest = latest + 1;
+            let naive = new_latest - up_to;
+            assert_eq!(
+                naive, 1,
+                "round {round}: the reported `latest - up_to` gap must reproduce,                  otherwise this test is not exercising the shape T-2872 measured"
+            );
+
+            let (c, f) = count_unread(&msgs, Some(up_to));
+            assert_eq!(
+                c, 0,
+                "round {round}: unread must converge to 0 — a count that cannot                  reach zero is an always-on alert operators learn to ignore"
+            );
+            assert_eq!(f, None, "round {round}: no first-unread offset when caught up");
+        }
+    }
+
     #[test]
     fn filter_msgs_since_inclusive_bound() {
         let msgs = vec![

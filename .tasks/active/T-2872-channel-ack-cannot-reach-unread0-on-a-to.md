@@ -29,7 +29,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-08-31T19:46:32Z
-last_update: 2026-08-31T19:51:27Z
+last_update: 2026-08-31T19:52:39Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -60,6 +60,52 @@ bvp_scores_proposed:
 # T-2872: channel ack cannot reach unread=0 on a topic the acking identity also posts to
 
 ## Context
+
+> **CORRECTED 2026-09-01 — the headline defect does not reproduce against the
+> shipping verb.** The filing below is preserved verbatim because the record of a
+> wrong call is worth more than a quiet edit.
+
+`channel unread` was measured on the **same topic**, driving the same three
+consecutive acks:
+
+```
+ack #1 -> last_offset=10  up_to=9   unread_count=0
+ack #2 -> last_offset=11  up_to=10  unread_count=0
+ack #3 -> last_offset=12  up_to=11  unread_count=0
+```
+
+The `latest - up_to = 1` gap reproduces exactly as filed. `unread_count` is **0**
+every time. Both are true, and only one of them is the product's answer.
+
+`count_unread` (`crates/termlink-cli/src/commands/channel.rs`) has skipped
+`receipt` via `UNREAD_META_TYPES` since **T-1332**, so `latest - receipt_up_to` is
+not the definition of unread — it is a subtraction this task performed by hand and
+then attributed to the system. The convergence the task demanded was already the
+shipping behaviour.
+
+This is the failure mode the filing itself names one paragraph later — *"the
+assertion is adjacent to the property"* — committed by the filing. The measurement
+was real; the inference from it was not checked against the verb.
+
+**What survives, and it is the useful half.** *"The defect is only visible when you
+ask for convergence, and no test asks"* was **correct**. The six existing
+`count_unread` tests are static-slice tests; `count_unread_excludes_meta_envelopes`
+places a receipt mid-list but never exercises the ack LOOP, where each ack appends a
+receipt and advances the tail. Nothing asserted that repeated acking terminates.
+That test now exists and is load-bearing: removing `"receipt"` from
+`UNREAD_META_TYPES` turns it red, so had the code carried the filed defect this test
+would have caught it.
+
+**Prior art nobody joined to this filing.** `PL-317` (T-2589, 2026-08-10) describes
+this mechanism precisely — *"a receipt acking up_to=N is ITSELF an envelope at an
+offset > N included in the topic total, so the difference never reaches 0"* — and
+records the fix. `check-outbox.sh` was repaired there; `check-receiver-ack-lag.sh`
+carries its own note (line 34) that `lag: 0` was once unreachable and now uses
+`latest_content_offset`. Three surfaces had already been through this class. The
+learning existed and did not reach the re-discovery, which is the more durable
+finding than the one filed.
+
+### As filed (2026-08-31)
 
 `unread` is `latest - receipt_up_to`. `channel ack` posts the receipt as an ordinary
 envelope on the topic, which advances `latest`. So an ack sets `receipt_up_to` to the
@@ -105,43 +151,20 @@ fix.
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] **Establish where the off-by-one belongs.** Decide between (a) `ack` resolving `up_to` to the offset its own receipt will occupy rather than the pre-post latest, and (b) `unread` excluding envelopes authored by the querying identity. Record which, and why the other was rejected — they differ in whether a peer's view of our unread also changes.
-- [ ] **A repeated ack converges.** Acking a topic the local identity posts to twice in succession leaves `unread=0`, not `1`. Regression test drives ≥3 consecutive acks and asserts `unread` reaches 0 and stays there — the current shape passes any single-ack test, which is why nothing caught it.
-- [ ] **The receiver-ack-lag guard is re-verified after a broadcast.** `check-receiver-ack-lag.sh` reports lag=0 on `agent-chat-arc` *after* a post from this identity, not merely at a quiet moment. Today it returns to non-zero on every broadcast.
-- [ ] **`/check-arc`'s unread count is checked against the fix.** Confirm the skill's inbox view reaches a genuine zero, since a count that can never reach zero trains operators to stop reading it.
+- [x] **Establish where the off-by-one belongs.** Answered: **neither (a) nor (b) — there is no off-by-one in `unread`.** `count_unread` already excludes `receipt` (`UNREAD_META_TYPES`, T-1332), so option (a) would move an offset that nothing reads and option (b) would re-exclude what is already excluded. The gap lives only in the hand-computed `latest - up_to`, which no shipping surface uses. Recorded rather than implemented, because implementing either would have been a change with no defect under it.
+- [x] **A repeated ack converges.** Verified twice, independently. Live: three consecutive acks on `dm:d1993c2c3ec44c94:deadbeefdeadbeef` hold `unread_count=0` while `last_offset - up_to` sits at 1 throughout. In-tree: `count_unread_converges_across_repeated_acks` models the ack loop (ack through tail, append receipt above it, ×3) and asserts both the reproduced gap of 1 and the true count of 0 — so the discrepancy is legible at the point of failure instead of being re-discovered.
+- [x] **The regression test is load-bearing.** Removing `"receipt"` from `UNREAD_META_TYPES` fails it (`MUTANT_RC=101`); restoring returns 7/7 green. A test that cannot go red is not a test, and this one goes red on precisely the defect that was filed.
+- [ ] **Decide whether self-authored posts should count toward one's OWN lag.** This is the residual, and it is a genuine judgement rather than a bug. `check-receiver-ack-lag.sh` currently reports `agent-chat-arc lag=7` for our own identity — classified `ok` (threshold 25), guard rc=0, and it *does* reach 0 when acked; it re-grows because we posted, which for a frontier metric is correct, not self-defeating. The open question is narrower than the filing: should envelopes an identity authored itself count as that identity's own unacked backlog? Arguably not — you have read what you wrote — but it is protocol-visible to peers reading our receipt frontier, so it is not a change to make in passing. **Owner: human** (see Human AC).
 
 ### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
+- [ ] [REVIEW] Decide whether an identity's OWN posts should count toward its own ack-lag / unread frontier.
+  **Steps:**
+  1. `timeout 240 bash scripts/check-receiver-ack-lag.sh`
+  2. Read the `agent-chat-arc` row. Today it shows `ok  d1993c2c3ec44c94  lag=7` — that identity is us, and those 7 are largely our own broadcasts.
+  3. Decide one of: **(A) leave as-is** — lag counts all unacked content regardless of author, so posting raises your own lag until you ack; simple, and already correct against its own definition. **(B) exclude self-authored envelopes** from an identity's own lag/unread — "you have read what you wrote"; quieter, but changes what a peer infers from our receipt frontier, so it is protocol-visible.
+  **Expected:** A or B recorded here, with one line of reasoning. If **B**, a follow-up build task is filed against `check-receiver-ack-lag.sh` and `count_unread`; if **A**, no code changes and this task closes.
+  **If not:** leave unchecked — the guard is green at threshold 25 and nothing is degrading while this sits.
 
-     ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
-     If your Expected clause is grep-able / file-exists / structural (a deterministic
-     shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
-     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
-     verification genuinely needs human taste (tone, feel, layout rhythm).
-     See CLAUDE.md §AC Classification Guidance for the conversion rule.
-
-     [REVIEW] example (genuine human judgment):
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
-
-     [REVIEWER] example (static-scan-verifiable — convert to Agent AC + Verification):
-       - [ ] [REVIEWER] Block message names both bypass mechanisms
-         **Steps:**
-         1. Run `bin/fw reviewer T-XXX`
-         **Expected:** Verdict: PASS; no findings on `block-message-completeness`
-         **If not:** Inspect hook block-message string and add missing mechanism
-       Conversion: this AC should be moved to ### Agent and
-       `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
-       added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
-       Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
--->
 
 ## Verification
 
@@ -203,6 +226,11 @@ fix.
 # reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
 # Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
 # the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+
+grep -q "count_unread_converges_across_repeated_acks" crates/termlink-cli/src/commands/channel.rs
+grep -q "\"receipt\", \"reaction\", \"redaction\", \"edit\", \"topic_metadata\"" crates/termlink-cli/src/commands/channel.rs
+timeout 600 cargo test -p termlink count_unread > /tmp/.t2872-tests.txt 2>&1 && grep -q "count_unread_converges_across_repeated_acks ... ok" /tmp/.t2872-tests.txt
+timeout 240 bash scripts/check-receiver-ack-lag.sh > /tmp/.t2872-lag.txt 2>&1
 
 ## RCA
 
