@@ -1,0 +1,93 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2876: Cross-session message prover: assert delivery on the receiver, not the sender
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-01T20:47:24Z
+# ============================================================================
+
+task_id: T-2876
+task_name: "Cross-session message prover: assert delivery on the receiver, not the sender"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-01T18:47:39Z
+completed: 2026-09-01T20:47:10Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-01T20:52:14+02:00
+last_commit: 2026-09-01T22:47:06+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  cross-session message prover (UNRUN — fixtures pending, see task status block). session-to-session message prover — run it, and two premises die. fabric card for the prover's fixture suite
+
+# Key outcomes
+outcomes:
+  - '`scripts/session-message-selftest.sh` exists and proves the one rail no existing prover covers: Claude-session → Claude-session messaging. (`comms-selftest.sh` = TermLink discover/exchange, `session-selftest.sh` = PTY control, `substrate-smoke.sh` = claim work; none touch this.)'
+  - 'It asserts on the **receiver''s** transcript, never on the sender''s return value — the T-2873/T-2874/T-2875 pattern is that a layer reporting success says nothing about the next layer acting.'
+  - 'It distinguishes the outcomes that are byte-identical from the sender''s side: DELIVERED (sentinel is a `user` turn), BLOCKED (sentinel queued, target at rest — delivery was fine), ENQUEUED (sentinel queued, target still busy — may yet drain), UNDELIVERED (sentinel absent). A prover that collapsed these would reproduce the exact confusion it exists to remove. **Corrected during implementation:** this AC originally named `waitingFor` in `claude agents --json` as the BLOCKED signal. That field does not exist (0 of 56 agents), so the split is derived from the receiver''s transcript instead — see the measurement block above.'
+  - 'Subcommands `prepare` / `assert` / `cleanup` compose around the send, because the send leg has no CLI verb and must be an agent tool call. The script does not pretend to perform it.'
+  - 'Exit codes follow the repo convention: 0 proven, 1 broken (naming the stage), 2 tooling — **fail-closed**, so a missing `claude`, missing `python3`, or unreadable transcript exits 2 and never a false "proven".'
+  - '`--json` for scripting, and test seams (PL-213) `SESSION_MSG_TEST_AGENTS_JSON` + `SESSION_MSG_TEST_TRANSCRIPT_DIR` so the fixtures run with no live session and no network.'
+  - '`tests/session-message-selftest-fixtures.sh` covers all three classifications plus the fail-closed paths, and is weighted toward the FIRING cases — a prover that only ever goes green is not a prover.'
+  - 'Load-bearing: the fixtures fail if the BLOCKED classification is removed, proving that branch is doing work rather than decorating the output.'
+  - 'It carries the `# guard-layer: source` marker only if it is safe to run with no live session; if it is not, it is deliberately left out of the runner and the reason is stated in the script header.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  - description: 'fabric card for the prover''s fixture suite'
+    source: git-mined
+  - description: 'cross-session message prover (UNRUN — fixtures pending, see task status block)'
+    source: git-mined
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - 'CLAUDE.md'
+  - '.fabric/components/tests-session-message-selftest-fixtures.yaml'
+  - 'scripts/session-message-selftest.sh'
+  - '.tasks/active/T-2876-cross-session-message-prover-assert-deli.md'
+  - 'tests/session-message-selftest-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-01T20:52:14'
+    action: 'T-2876: cross-session message prover (UNRUN — fixtures pending, see task status block)'
+  - time: '2026-09-01T22:46:08'
+    action: 'T-2876: session-to-session message prover — run it, and two premises die'
+  - time: '2026-09-01T22:47:06'
+    action: 'T-2876: fabric card for the prover''s fixture suite'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 3 commit(s), 119 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 119
+  commits: 3
+  files_changed: 5
+  lines_added: 1286
+  lines_removed: 187
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2876-cross-session-message-prover-assert-deli.md
+generated_by: context-agent-hybrid
