@@ -249,7 +249,7 @@ termlink_remote_exec  # unexamined — no parity assertion exists; expansion tra
 termlink_remote_inbox_clear  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_remote_inbox_list  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_remote_inbox_status  # unexamined — no parity assertion exists; expansion tracked in T-2748
-termlink_remote_inject  # unexamined — no parity assertion exists; expansion tracked in T-2748
+termlink_remote_inject  # T-2873: still no parity.rs assertion, but no longer UNEXAMINED — it was examined and was broken (bare-string keys, -32602 against every hub). Wire-shape now pinned by build_inject_keys_* tests in tools.rs, which decode against the real KeyEntry type. A full MCP-vs-CLI parity case is still owed; expansion tracked in T-2748.
 termlink_remote_list  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_remote_ping  # unexamined — no parity assertion exists; expansion tracked in T-2748
 termlink_request  # unexamined — no parity assertion exists; expansion tracked in T-2748

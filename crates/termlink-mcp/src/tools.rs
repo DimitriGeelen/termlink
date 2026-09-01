@@ -47,6 +47,23 @@ fn new_transfer_id() -> String {
     format!("xfer-mcp-{}-{}-{}", std::process::id(), ts, nonce)
 }
 
+/// T-2873: pure helper — build the `command.inject` `keys` array.
+///
+/// The wire type is `KeyEntry`, declared `#[serde(tag = "type", content =
+/// "value")]` in `termlink-protocol`, so each element MUST be
+/// `{"type": ..., "value": ...}`. `termlink_remote_inject` previously emitted
+/// bare strings, one per character, and every call was rejected -32602 on the
+/// first character. Extracted so the shape is assertable without a live hub —
+/// the defect was invisible to every test because the construction was inline
+/// in an async fn that needs a hub to reach.
+pub(crate) fn build_inject_keys(text: &str, enter: bool) -> Vec<serde_json::Value> {
+    let mut keys = vec![serde_json::json!({"type": "text", "value": text})];
+    if enter {
+        keys.push(serde_json::json!({"type": "key", "value": "Enter"}));
+    }
+    keys
+}
+
 /// TermLink MCP server — exposes terminal orchestration as structured tools.
 #[derive(Clone)]
 pub struct TermLinkTools {
@@ -16057,12 +16074,19 @@ impl TermLinkTools {
                 Err(e) => return e,
             };
 
-            // Build keys array: text chars, optionally followed by Enter
-            let mut keys: Vec<serde_json::Value> =
-                p.text.chars().map(|c| serde_json::json!(c.to_string())).collect();
-            if enter {
-                keys.push(serde_json::json!("Enter"));
-            }
+            // T-2873: `command.inject` takes `KeyEntry`, which is
+            // `#[serde(tag = "type", content = "value")]` — an adjacently tagged
+            // enum. This built bare strings (`["p"]`) instead of
+            // `[{"type":"text","value":"p"}]`, so the hub rejected EVERY call
+            // with -32602 "invalid type: string, expected adjacently tagged enum
+            // KeyEntry" on the first character. It was reported as 0.9.0-vs-0.11.x
+            // hub skew; it is not — it reproduces byte-identically against the
+            // newest hub in the fleet, because the payload never was valid.
+            //
+            // One Text entry for the whole string, not one per char: that is what
+            // the CLI sibling (`remote.rs` cmd_remote_inject) sends, and matching
+            // it is the point.
+            let keys = build_inject_keys(&p.text, enter);
 
             let params = serde_json::json!({
                 "target": p.session,
@@ -30350,6 +30374,53 @@ impl TermLinkTools {
 
 #[cfg(test)]
 mod tests {
+
+    /// T-2873: the payload `termlink_remote_inject` sends must DESERIALIZE into
+    /// the real wire type. Asserting against a hand-written JSON shape would be
+    /// the PL-148 tautology — it would pass just as happily against the bare
+    /// strings that caused the outage, since both are valid JSON. Round-tripping
+    /// through `KeyEntry` is what makes this test able to fail.
+    #[test]
+    fn build_inject_keys_round_trips_through_the_wire_type() {
+        use termlink_protocol::control::KeyEntry;
+
+        let keys = super::build_inject_keys("hello", false);
+        let parsed: Vec<KeyEntry> = serde_json::from_value(serde_json::Value::Array(keys))
+            .expect("keys must deserialize as Vec<KeyEntry> — the hub does exactly this");
+        assert_eq!(parsed.len(), 1, "one Text entry for the whole string, not one per char");
+        assert!(matches!(parsed[0], KeyEntry::Text(ref t) if t == "hello"));
+    }
+
+    #[test]
+    fn build_inject_keys_appends_enter_as_a_key_entry() {
+        use termlink_protocol::control::KeyEntry;
+
+        let keys = super::build_inject_keys("ls", true);
+        let parsed: Vec<KeyEntry> = serde_json::from_value(serde_json::Value::Array(keys))
+            .expect("keys with enter must deserialize as Vec<KeyEntry>");
+        assert_eq!(parsed.len(), 2);
+        assert!(matches!(parsed[0], KeyEntry::Text(ref t) if t == "ls"));
+        assert!(
+            matches!(parsed[1], KeyEntry::Key(ref k) if k == "Enter"),
+            "Enter must be a tagged Key entry, not the bare string that failed -32602"
+        );
+    }
+
+    /// The regression itself, pinned: the pre-T-2873 construction is still valid
+    /// JSON, so only a decode against `KeyEntry` rejects it. This is the assertion
+    /// whose absence let the tool ship broken against every hub in the fleet.
+    #[test]
+    fn bare_string_keys_are_rejected_by_the_wire_type() {
+        use termlink_protocol::control::KeyEntry;
+
+        let legacy = serde_json::json!(["p"]); // what the tool used to send
+        let parsed: Result<Vec<KeyEntry>, _> = serde_json::from_value(legacy);
+        assert!(
+            parsed.is_err(),
+            "bare strings must not decode as KeyEntry — if this passes, the hub \
+             would have accepted the old payload and T-2873 was misdiagnosed"
+        );
+    }
     use super::*;
 
     // === T-2691: procfs probe parity with the CLI (Directive #4 portability) ===
