@@ -22,7 +22,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-01T10:44:04Z
-last_update: 2026-09-01T11:03:25Z
+last_update: 2026-09-01T11:40:05Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -74,7 +74,7 @@ tools buys something real.
 - [x] **The wire shape is proven, and proven able to fail.** Three tests decode the built array against the REAL `KeyEntry` type from `termlink-protocol`, not a hand-written JSON shape — a shape assertion would pass just as happily against the bare strings that caused the outage, since both are valid JSON (the PL-148 tautology). Load-bearing: restoring the exact pre-fix construction fails both positive tests (`MUTANT_RC=101`); restoring the fix returns green. A third test pins the regression directly — bare `["p"]` must NOT decode as `KeyEntry`; if it ever does, this diagnosis was wrong.
 - [x] **The version-skew hypothesis is disproved, with evidence.** `fleet doctor` puts .122 at `0.11.1411`, not `0.9.0`; the `0.9.0` reading came from session metadata, which is the T-2744 defect (`termlink-session` stamped the Cargo.toml constant into every session ever created, while the same binary reported `0.11.720` from `--version`). The failure reproduced **byte-identically against the local `0.11.1716` hub** — the newest binary in the fleet — so no hub version is implicated. Control on the same hub and same session: the CLI path injected 20 bytes successfully while the MCP path failed.
 - [x] **The parity census reason is corrected rather than cleared.** `termlink_remote_inject` stays in `.context/checks/mcp-parity-census-allowlist` because no `parity.rs` assertion exists yet and deleting the line would make the census claim coverage it does not have (T-2680). Its reason now records that the tool is no longer *unexamined* — it was examined and was broken — and that a full MCP-vs-CLI case is still owed under T-2748. Census re-runs clean: 260 tools, 24 asserted, 236 acknowledged, 0 unexamined.
-- [ ] **End-to-end through the MCP server.** BLOCKED, not skipped. The fix is in the source and the release binary builds clean, but the running MCP server is a long-lived process still executing the old code — re-invoking the tool after the build still returns `-32602`, now failing on `"e"` (first char of the new text), which confirms per-char splitting is still live in the serving process. This is the G-069 / T-2184 shipped-vs-live condition. Verifying it needs an MCP server restart, which is an operator action on this session's own connection.
+- [x] **End-to-end through the MCP server.** PROVEN 2026-09-01, and proven on the RECEIVER rather than the sender. The blocker was never the fix — it was that the MCP server attached to this session is a long-lived process still running pre-fix code, which cannot be restarted from inside the session it serves. That does not require a restart to verify: a **fresh `termlink mcp serve` was spawned from the rebuilt binary** (`/root/.cargo/bin/termlink`, mtime 13:38, postdating the fix commit `93cb3d8d9` at 12:55) and driven over stdio with a real MCP handshake — `initialize` → `notifications/initialized` → `tools/call termlink_remote_inject`. Two runs: against a non-PTY tmux session the call returned `ok:false` with `"No PTY session"` — note the `-32602 Invalid keys format` is **gone**, so the `KeyEntry` payload now deserializes and reaches session resolution; against a PTY-backed session (`spawn --shell --backend background`) it returned `{"ok": true, "result": {"status": "injected", "bytes_len": 21}}`. **The hub saying `injected` is not proof** — that is this task's own finding — so `termlink output t2873pty` was read and shows `echo T2873_INJECT_OK` echoed and its output `T2873_INJECT_OK` on the following line. The command was injected AND executed. Server identified itself as `termlink-mcp 0.11.1766`.
 
 ### Human
 - [ ] [RUBBER-STAMP] Restart the MCP server so the fixed `termlink_remote_inject` goes live.
@@ -85,30 +85,6 @@ tools buys something real.
   **Expected:** `{"ok": true, ...}` instead of `-32602 Invalid keys format`.
   **If not:** confirm the server actually re-execed — `/proc/<pid>/exe` showing `(deleted)` means it is still the old image (PL-209). This is the same shipped-vs-live trap as G-069 / preflight Check 5.
 
-## Verification` instead of a Human AC here. Only keep [REVIEW] if
-     verification genuinely needs human taste (tone, feel, layout rhythm).
-     See CLAUDE.md §AC Classification Guidance for the conversion rule.
-
-     [REVIEW] example (genuine human judgment):
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
-
-     [REVIEWER] example (static-scan-verifiable — convert to Agent AC + Verification):
-       - [ ] [REVIEWER] Block message names both bypass mechanisms
-         **Steps:**
-         1. Run `bin/fw reviewer T-XXX`
-         **Expected:** Verdict: PASS; no findings on `block-message-completeness`
-         **If not:** Inspect hook block-message string and add missing mechanism
-       Conversion: this AC should be moved to ### Agent and
-       `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
-       added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
-       Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
--->
 
 ## Verification
 
@@ -179,19 +155,55 @@ timeout 200 bash scripts/check-mcp-parity-census.sh > /tmp/.t2873c.txt 2>&1
 
 ## RCA
 
-<!-- REQUIRED for bug-class tasks (workflow_type=build with bug-tag, OR title matches
-     fix/bug/rca/broken/crash/error/regression/fail/hotfix).
-     Non-bug-class tasks may leave this section empty or remove it.
+**Symptom:** every `termlink_remote_inject` call failed with `-32602 Invalid keys
+format: invalid type: string "p", expected adjacently tagged enum KeyEntry`, against
+every hub in the fleet, for the life of the tool. Reported externally as suspected
+`0.9.0` ↔ `0.11.x` wire skew.
 
-     For bug-class, fill in:
-       **Symptom:** what was observed (the user-facing manifestation).
-       **Root cause:** the specific structural/logical gap — not "the code was wrong".
-       **Why structurally allowed:** what in the framework/code/tooling let this go undetected.
-       **Prevention:** what catches the next instance (test/lint/gate/doc/learning) — distinct from the fix itself.
+**Root cause:** `command.inject` takes `Vec<KeyEntry>`, and `KeyEntry` is declared
+`#[serde(tag = "type", content = "value")]` — adjacently tagged, so each element must
+be `{"type": ..., "value": ...}`. The MCP tool built the array as bare strings, one per
+character. The payload was never valid against any hub version, which is why the skew
+hypothesis died the moment it was tested against the newest binary in the fleet
+(`0.11.1716`) rather than the oldest.
 
-     The completion gate (T-1550, G-019) blocks --status work-completed when
-     bug-class AND this section is empty/template-only. Use --skip-rca to bypass (logged).
--->
+**Why structurally allowed:** three compounding gaps.
+1. **No parity assertion.** `termlink_remote_inject` had zero cases in `parity.rs`.
+   T-2747's census had already classified it as *unexamined* — the defect was sitting
+   in precisely the gap the census names, which is the strongest evidence so far that
+   enumerating 236 uncovered tools buys something real rather than being bookkeeping.
+2. **Untestable construction.** The payload was built inline inside an async fn that
+   needs a live hub to reach, so no unit test could observe it. Extracting
+   `build_inject_keys` is what made the shape assertable at all.
+3. **A shape test would not have caught it.** Bare strings are valid JSON, so any
+   assertion written against a hand-authored JSON literal passes just as happily as
+   against the correct payload — the PL-148 tautology. Only decoding against the REAL
+   `KeyEntry` type from `termlink-protocol` can fail.
+
+Two sibling surfaces — the CLI path (`remote.rs`) and the local MCP `termlink_inject`
+(`tools.rs`) — already wrapped correctly. Same "hardened in one place, sibling never
+migrated" shape as T-2667 / T-2673 / T-2687.
+
+**A second, unrelated defect was found in this task's own file while verifying it.**
+The task carried an ORPHANED block of template guidance: a stray `-->` at line 111 with
+**no opening `<!--` anywhere above it**, and a line reading `` ## Verification` instead of
+a Human AC here...`` sitting at **column 0** — a wrapped fragment of the template's
+line 59, which is correctly indented in `.tasks/templates/default.md`. Because it was at
+column 0 it read as a real `## Verification` heading, 25 lines above the genuine one.
+`extract_verification_block` takes the FIRST match, so the P-011 gate for this task was
+pointed at template prose (`1. Open https://example.com/dashboard in browser`) and its
+five real verification commands were never reachable. Measured, then repaired: the
+extractor now returns all five. Corpus scan: 23 of 2596 task files carry two
+`## Verification` headings, but in 22 the first is the genuine one — **this file was the
+only one actually mis-extracting**, so the incidence is 1/2596, not systemic.
+
+**Prevention:** the wire-shape tests are the prevention for the reported defect — three
+tests decode against the real `KeyEntry`, and the pre-fix construction fails them
+(`MUTANT_RC=101`), so they can go red. The census line is deliberately kept rather than
+deleted, because a full MCP-vs-CLI parity case is still owed under T-2748. For the
+shadowed-heading defect the prevention is a separate guard and is filed as its own task
+(one bug = one task): `check-verification-misfile.sh` is structurally blind to it, since
+it looks for commands in the wrong SECTION and here the section itself is counterfeit.
 
 ## Evolution
 
@@ -219,32 +231,28 @@ timeout 200 bash scripts/check-mcp-parity-census.sh > /tmp/.t2873c.txt 2>&1
 
 ## Recommendation
 
-<!-- T-2945: same shape as inception.md's block — the gate that reads it
-     (audit_inception_recommendation, lib/task-audit.sh:117) is shared, so the
-     shape is copied rather than reinvented.
+**Recommendation:** GO — the reported defect is fixed and now proven live.
 
-     REQUIRED once this task reaches partial-complete: Agent ACs done, at least
-     one `### Human` AC still unticked. `lib/review.sh:205-211` (T-2421) BLOCKS
-     `fw task review` emission for build/refactor/test/decommission tasks in that
-     state with no substantive block here — the operator would otherwise open
-     /review/<id> to a blank Recommendation card and be asked to approve a form.
+**Rationale:** The wire payload is correct, the fix is covered by three tests that decode
+against the real `KeyEntry` type and are demonstrably able to fail, and the end-to-end
+path has been exercised through a real MCP server built from the current source, asserted
+on the receiving PTY rather than on the hub's own `injected` claim. Nothing about the
+diagnosis rests on inference any more.
 
-     Not required while every Human AC is ticked or the task has none: the gate
-     only fires on the partial-complete transition. It is here from the start so
-     you write it while you still have the evidence, not when the gate refuses.
+**Rationale for the remaining human step:** the only thing still outstanding is that the
+MCP server **attached to this Claude Code session** continues to run pre-fix code, so the
+tool remains broken *from this session* until that connection is restarted. That is a
+property of the session, not of the code, and it cannot be actioned from inside the
+session it serves.
 
-     Format (the parser wants the `**Recommendation:**` line at the start of a
-     line; a leading `-` or `*` bullet is also accepted):
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence — what shipped, what was proven, what remains)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
-
-     DEFER is for evidence gaps, not confidence gaps (CLAUDE.md §Presenting Work
-     for Human Review). If the artefact is complete and you still don't want to
-     commit, that is a calibration failure — recommend GO or NO-GO.
--->
+**Evidence:**
+- Fresh `termlink mcp serve` (`termlink-mcp 0.11.1766`) driven over stdio returned
+  `{"ok": true, "result": {"status": "injected", "bytes_len": 21}}`.
+- `termlink output t2873pty` shows `T2873_INJECT_OK` executed in the PTY — receiver-side
+  confirmation, per this task's own finding that `injected` is a sender-side claim.
+- The intermediate non-PTY run returned `"No PTY session"` rather than `-32602`, which
+  independently confirms the payload now deserializes as `KeyEntry`.
+- Installed binary mtime 13:38 postdates fix commit `93cb3d8d9` at 12:55.
 
 ## Decisions
 
