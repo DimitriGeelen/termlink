@@ -29,21 +29,6 @@ date_finished: 2026-03-25T12:19:42Z
 - [x] Fixes: stale sessions (clean), stale hub pidfile+socket, orphaned sockets
 - [x] All 459 workspace tests pass
 
-## Verification
-
-grep -q "Auto-fix" crates/termlink-cli/src/cli.rs
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-     Optionally prefix with [RUBBER-STAMP] or [REVIEW] for prioritization.
-     Example:
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
--->
 
 ## Verification
 
@@ -55,6 +40,8 @@ grep -q "Auto-fix" crates/termlink-cli/src/cli.rs
        curl -sf http://localhost:3000/page
        grep -q "expected_string" output_file.txt
 -->
+
+grep -q "Auto-fix" crates/termlink-cli/src/cli.rs
 
 ## Decisions
 

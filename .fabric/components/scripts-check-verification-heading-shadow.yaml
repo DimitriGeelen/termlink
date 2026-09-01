@@ -1,0 +1,21 @@
+id: scripts/check-verification-heading-shadow.sh
+name: check-verification-heading-shadow
+type: script
+subsystem: unknown
+location: scripts/check-verification-heading-shadow.sh
+tags: []
+
+purpose: >-
+  Guard (T-2877): asserts that what the P-011 verification gate will EXECUTE is command-shaped, not markdown prose. Wraps the framework's own extract_verification_block rather than reimplementing the heading rule. Fires when a counterfeit '## Verification' at column 0 shadows the genuine heading.
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-09-01
+created_by: unknown

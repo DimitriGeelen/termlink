@@ -1,0 +1,21 @@
+id: tests/verification-heading-shadow-fixtures.sh
+name: verification-heading-shadow-fixtures
+type: script
+subsystem: unknown
+location: tests/verification-heading-shadow-fixtures.sh
+tags: []
+
+purpose: >-
+  Fixture suite for check-verification-heading-shadow.sh (T-2877): 39 assertions weighted to the firing cases and false-positive guards, with three mutants pinned (prose detector disabled, block scan short-circuited, fail-open on a missing extractor).
+
+depends_on:
+  # Format: - target: <relative-path>
+  #          type: calls|reads|writes|triggers|renders
+  []
+
+depended_by:
+  # Same format as depends_on — filled by enrich.py or manually
+  []
+
+last_verified: 2026-09-01
+created_by: unknown
