@@ -1,0 +1,79 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2874: MCP wiring: settings.local.json pins termlink to a gitignored 0.9.13 binary
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-01T11:55:34Z
+# ============================================================================
+
+task_id: T-2874
+task_name: "MCP wiring: settings.local.json pins termlink to a gitignored 0.9.13 binary"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-01T11:52:09Z
+completed: 2026-09-01T11:55:26Z
+duration_days: 0
+updates_count: 1
+first_commit: 2026-09-01T13:55:20+02:00
+last_commit: 2026-09-01T13:55:20+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  delete the dead mcpServers override pinning termlink to a gitignored 0.9.13 binary
+
+# Key outcomes
+outcomes:
+  - 'The `mcpServers` block is removed from `.claude/settings.local.json`, leaving `.mcp.json` as the single declaration of how the `termlink` MCP server is launched.'
+  - 'The removal is justified by evidence recorded in the task, not by assumption: the live server''s `/proc/<pid>/exe` resolved to the PATH binary while this block named a different one, so the block was not what launched it.'
+  - 'The task records why the block was dangerous even while inert: it is git-tracked, it names `.termlink/bin/termlink`, and `.termlink/bin/` is gitignored (`.gitignore:68`) — so the config is reproducible while its target is not, and any reader who trusts it is misled about which binary serves the tool.'
+  - '`python3 -c "import json; json.load(open(''.claude/settings.local.json''))"` still parses and the `permissions` block is byte-identical, verified by diffing the parsed structures before and after.'
+  - 'No change is made to `.mcp.json`, to `.termlink/bin/`, or to any MCP server other than `termlink` — the stale binary is left on disk untouched (deleting it is a separate decision).'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.claude/settings.local.json'
+  - '.tasks/active/T-2874-mcp-wiring-settingslocaljson-pins-termli.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-01T13:55:20'
+    action: 'T-2874: delete the dead mcpServers override pinning termlink to a gitignored 0.9.13 binary'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 3 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 3
+  commits: 1
+  files_changed: 2
+  lines_added: 290
+  lines_removed: 9
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2874-mcp-wiring-settingslocaljson-pins-termli.md
+generated_by: context-agent-hybrid

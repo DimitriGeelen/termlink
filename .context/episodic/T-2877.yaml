@@ -1,0 +1,86 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2877: A counterfeit '## Verification' heading shadows the real one and the gate runs prose
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-01T21:47:23Z
+# ============================================================================
+
+task_id: T-2877
+task_name: "A counterfeit '## Verification' heading shadows the real one and the gate runs prose"
+workflow_type: build
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-09-01T21:19:14Z
+completed: 2026-09-01T21:43:23Z
+duration_days: 0
+updates_count: 2
+first_commit: 2026-09-01T23:43:04+02:00
+last_commit: 2026-09-01T23:43:04+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  a counterfeit ## Verification heading makes the gate run prose — detect it
+
+# Key outcomes
+outcomes:
+  - '**The defect is reproduced against the REAL extractor, not a re-typed copy.** The check must call the framework''s own `extract_verification_block` (`.agentic-framework/lib/verification-port.sh`) rather than reimplement the "find `## Verification`" rule. Two copies of that rule drift, and the copy that drifts is the one that quietly stops catching things (the T-2818 argument, and `update-task.sh`''s own T-2921 comment makes the same point about its former inline copy).'
+  - '**The firing predicate is chosen by measurement, and the rejected candidates are recorded with their measured miss/over-fire counts.** Two obvious predicates were measured and are NOT adequate on their own: `>1` occurrence of `^## Verification` fires on 23/2596 files of which 22 extract correctly, and an orphaned `-->` fires on 14 files of which 1 mis-extracts. A guard that is wrong 22 times out of 23 is the fatigue shape T-2818 documented. Record the numbers, not just the conclusion.'
+  - '**`scripts/check-verification-heading-shadow.sh` exists and asserts the property that matters** — that what the P-011 gate will actually execute is command-shaped, not markdown prose. Exit 0 clean / 1 firing / 2 tooling, **fail-closed**: a missing tasks dir, an unsourceable extractor, absent `python3`, or a corpus of zero task files all exit 2, never a vacuous clean.'
+  - '**It is load-bearing against the real instance, extracted from git rather than a synthetic mutant.** Pointed at `T-2873` as it stood at commit `93cb3d8d9` (orphaned `-->` at line 111, counterfeit heading at line 88), it must FIRE; against the repaired tree it must be clean.'
+  - '**Carries `# guard-layer: source` and is picked up by the runner.** `bash scripts/run-guard-layer.sh --list` names it, and a full run does not report it as unclassified.'
+  - '**Fixture suite with mutants pinned.** `tests/verification-heading-shadow-fixtures.sh`, weighted to the firing cases and the false-positive guards, with at least one mutant per detector arm that turns the suite red when the arm is disabled. A green fixture suite that cannot go red is not evidence.'
+  - '**Acknowledgements are git-tracked under `.context/checks/` (T-2681)**, one signature per line with a cited reason, counted and reported but non-firing. Empty on purpose if the one real instance was repaired rather than acknowledged.'
+  - '**Scope is stated on every output path (T-2680).** The check detects a counterfeit/shadowed heading; it does NOT verify that a task''s verification is adequate, that its commands test its ACs, or that a task has any verification at all — a task with an empty `## Verification` passes this check and still gates on nothing.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.fabric/components/scripts-check-verification-heading-shadow.yaml'
+  - '.fabric/components/tests-verification-heading-shadow-fixtures.yaml'
+  - 'scripts/check-verification-heading-shadow.sh'
+  - '.tasks/active/T-2877-a-counterfeit--verification-heading-shad.md'
+  - '.tasks/completed/T-274-termlink-doctor---fix--auto-remediate-he.md'
+  - 'tests/verification-heading-shadow-fixtures.sh'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-09-01T23:43:04'
+    action: 'T-2877: a counterfeit ## Verification heading makes the gate run prose — detect it'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 1 commit(s), 24 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 24
+  commits: 1
+  files_changed: 6
+  lines_added: 668
+  lines_removed: 15
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2877-a-counterfeit--verification-heading-shad.md
+generated_by: context-agent-hybrid

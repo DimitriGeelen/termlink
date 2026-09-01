@@ -13,12 +13,12 @@ description: >
   itself is counterfeit. Corpus: 23 of 2596 files carry two ## Verification headings;
   22 extract correctly, so measured incidence of actual mis-extraction is 1/2596.
 
-status: started-work
+status: work-completed
 workflow_type: build
 owner: claude-code
-horizon: now
+horizon: null
 tags: []
-components: []
+components: [scripts/check-verification-heading-shadow.sh, tests/verification-heading-shadow-fixtures.sh]
 related_tasks: []
 # arc_id:                         # T-1849: optional — slug (e.g. "arc-grooming") OR arc-NNN (e.g. "arc-005")
 #                                 # When set, must resolve to .context/arcs/<id>.yaml; PreToolUse hook
@@ -31,8 +31,8 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-01T21:19:14Z
-last_update: 2026-09-01T21:20:41Z
-date_finished:
+last_update: 2026-09-01T21:43:23Z
+date_finished: 2026-09-01T21:43:23Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── BVP scoring fields (T-1918, arc-006). See docs/reports/T-1915-bvp-inception.md for semantics. ──
@@ -228,3 +228,20 @@ mkdir -p /tmp/.t2877lb/active && git show 93cb3d8d9:.tasks/active/T-2873-termlin
 
 ### 2026-09-01T21:20:41Z — status-update [task-update-agent]
 - **Change:** status: captured → started-work
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-c118926b
+- **Timestamp:** 2026-09-01T21:47:16Z
+- **Catalogue:** v1.3-seed
+- **Overall:** CONCERN
+- **Needs Human:** no
+- **Findings:** 1
+
+**Per-AC findings:**
+
+- **AC#1 (Agent)** — **The defect is reproduced against the REAL extractor, not a re-typed copy.** The check must call the framework's own `extract_verification_block` (`.agentic-framework/lib/verification-port.sh`) rathe
+  - **AC-verify-mismatch** (narrow, heuristic) — `path=agentic-framework/lib/verification-port.sh in: **The defect is reproduced against the REAL extractor, not a re-typed copy.** The check must call the framework's own `extract_verification_block` (`.`
+
+### 2026-09-01T21:43:23Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
