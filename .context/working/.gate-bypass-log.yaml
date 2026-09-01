@@ -2806,3 +2806,8 @@ FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2859: complete — 
   caller: 'check-active-task focus-drift'
   target: 'T-2866'
   command: 'git add -A && FW_SWITCH_FOCUS=1 .agentic-framework/bin/fw git commit -m "T-2866: teach fw doctors claude-fw check about the T-2854 router; register the vendored divergence" 2>&1 | tail -8'
+- timestamp: '2026-09-01T07:29:51Z'
+  task: 'T-2546'
+  flag: '--skip-sovereignty'
+  caller: 'check_human_sovereignty'
+  reason: 'Inception decision: GO'

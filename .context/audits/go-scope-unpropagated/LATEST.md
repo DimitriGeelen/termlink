@@ -15,9 +15,9 @@ A completed task qualifies when ALL of:
 
 ## Population examined
 
-- completed inceptions: 187
-- with a GO recorded:   157
-- findings:             76
+- completed inceptions: 188
+- with a GO recorded:   158
+- findings:             77
 
 These are candidates for triage, not confirmed abandoned decisions:
 some may have shipped work that was simply never linked back. Deciding
@@ -33,6 +33,7 @@ which is which is the judgement this check exists to force.
 - T-2678 — .tasks/completed/T-2678-charter-guard-coverage-review--non-goal-.md
 - T-2549 — .tasks/completed/T-2549-charter-non-goal-4-termlink-dispatch-orc.md
 - T-2548 — .tasks/completed/T-2548-charter-non-goal-4-conversation-analytic.md
+- T-2546 — .tasks/completed/T-2546-t-1836-mcp-tools-depend-on-repo-scripts-.md
 - T-2540 — .tasks/completed/T-2540-charter-non-goal-4-violation-orchestrato.md
 - T-2477 — .tasks/completed/T-2477-shipped-equals-live-arc-closure-capabili.md
 - T-2476 — .tasks/completed/T-2476-consumption-confirmation-for-the-wake-la.md

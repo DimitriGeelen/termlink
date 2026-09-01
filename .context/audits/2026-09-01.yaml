@@ -1,0 +1,111 @@
+# Audit Results - 2026-09-01-0713
+timestamp: 2026-09-01T05:13:44Z
+sections: "structure"
+summary:
+  pass: 38
+  warn: 9
+  fail: 0
+findings:
+  - level: PASS
+    check: "Tasks directory exists"
+  - level: PASS
+    check: "Tasks/active directory exists"
+  - level: PASS
+    check: "Tasks/completed directory exists"
+  - level: PASS
+    check: "Tasks/templates directory exists"
+  - level: PASS
+    check: "Task template exists"
+  - level: PASS
+    check: "No duplicate task IDs — examined 14281 task file(s) across 6 corpus view(s) (21 ID(s) byte-identical in every view, 2531 same-task at differing revisions)"
+  - level: PASS
+    check: "All project YAML files parse correctly — examined 15 project YAML file(s)"
+  - level: PASS
+    check: "All arc anchor_task references resolve to existing tasks — examined 6 arc anchor_task reference(s)"
+  - level: WARN
+    check: "All onboarding-seed corpus references resolve to existing maps — NOT EVALUATED: candidate set empty (0 onboarding-seed corpus reference(s))"
+    mitigation: "No 'fw corpus explain <id>' reference was found in lib/seeds/tasks — either the seeds stopped routing to maps, or lib/seeds/tasks is absent"
+  - level: WARN
+    check: "Arc 'arc-substrate-fitness' has no task commits in the last 30 days (12 task(s) in arc)"
+    mitigation: "Either close/abandon the arc via 'fw arc close' or run 'fw task update T-XXX --last-update $(date -u +%FT%TZ)' on a relevant task. Configurable via FW_STALE_ARC_DAYS (default 30)."
+  - level: WARN
+    check: "Arc 'mcp-slimming' has no task commits in the last 30 days (2 task(s) in arc)"
+    mitigation: "Either close/abandon the arc via 'fw arc close' or run 'fw task update T-XXX --last-update $(date -u +%FT%TZ)' on a relevant task. Configurable via FW_STALE_ARC_DAYS (default 30)."
+  - level: WARN
+    check: "free driver F-ORCH: retire_when condition appears met (T-1643 completed cleanly OR G-064 closed) — review whether to retire"
+    mitigation: "Review the driver; if truly retired, comment it out or move to candidates section. Silence with FW_RETIRE_WHEN_ADVISORY=0."
+  - level: PASS
+    check: "No inline arc:<slug> tag-only scans outside canonical lib (T-1881) — examined 12 source file(s) under lib/ web/ agents/ bin/ tools/"
+  - level: WARN
+    check: "No PROJECT_ROOT resolution of framework-owned assets (T-2648, OBS-097) — NOT EVALUATED: candidate set empty (0 Python file(s) under web/ + lib/)"
+    mitigation: "The scan walked no .py files under web/ or lib/ — the OBS-097 rail asserted nothing this run"
+  - level: WARN
+    check: "No stale-slice-references (L-417) — NOT EVALUATED: candidate set empty (0 file(s) under web/templates web/blueprints lib)"
+    mitigation: "The scan walked no files — the L-417 rail asserted nothing this run"
+  - level: WARN
+    check: "Found 76 GO-scope-not-propagated inception(s) of 157 GO-recorded completed inception(s) examined — GO recorded, related_tasks empty, nobody back-references, no unlocks_inception_decision"
+    mitigation: "Triage: per inception either backfill related_tasks: / unlocks_inception_decision:, or file the slices its GO approved. Full list: cat /opt/termlink/.context/audits/go-scope-unpropagated/LATEST.md (origin: T-2078, T-2091, T-3099; sibling to L-417/T-1975)"
+  - level: PASS
+    check: "Fabric: 443 registered card(s)"
+  - level: WARN
+    check: "Fabric: 309/473 cards have no edges"
+    mitigation: "Run: fw fabric enrich"
+  - level: PASS
+    check: "Fabric drift: all watched files registered — examined 434 watched file(s)"
+  - level: WARN
+    check: "Fabric: 9 card(s) point at files no watch pattern covers"
+    mitigation: "Widen .fabric/watch-patterns.yaml, or remove the cards if they are not components"
+  - level: PASS
+    check: "Cron registry in sync with /etc/cron.d/agentic-audit-termlink"
+  - level: PASS
+    check: "cron(charter-drift-canary): USER-field syntax installed at /etc/cron.d/termlink-charter-drift-canary"
+  - level: PASS
+    check: "cron(charter-sentence-drift-canary): USER-field syntax installed at /etc/cron.d/termlink-charter-sentence-drift-canary"
+  - level: PASS
+    check: "cron(dead-letter-canary): USER-field syntax installed at /etc/cron.d/termlink-dead-letter-canary"
+  - level: PASS
+    check: "cron(fleet-adoption-snapshot): USER-field syntax installed at /etc/cron.d/termlink-fleet-adoption-snapshot"
+  - level: PASS
+    check: "cron(fleet-binary-canary): USER-field syntax installed at /etc/cron.d/termlink-fleet-binary-canary"
+  - level: PASS
+    check: "cron(fleet-capability-canary): USER-field syntax installed at /etc/cron.d/termlink-fleet-capability-canary"
+  - level: PASS
+    check: "cron(fleet-doorbell-mail-canary): USER-field syntax installed at /etc/cron.d/termlink-fleet-doorbell-mail-canary"
+  - level: PASS
+    check: "cron(forever-archival-canary): USER-field syntax installed at /etc/cron.d/termlink-forever-archival-canary"
+  - level: PASS
+    check: "cron(framework-pickup-canary): USER-field syntax installed at /etc/cron.d/termlink-framework-pickup-canary"
+  - level: PASS
+    check: "cron(frozen-husk-canary): USER-field syntax installed at /etc/cron.d/termlink-frozen-husk-canary"
+  - level: PASS
+    check: "cron(heartbeat): USER-field syntax installed at /etc/cron.d/termlink-heartbeat"
+  - level: PASS
+    check: "cron(hook-counter-integrity-canary): USER-field syntax installed at /etc/cron.d/termlink-hook-counter-integrity-canary"
+  - level: PASS
+    check: "cron(preflight-doc-set-drift-canary): USER-field syntax installed at /etc/cron.d/termlink-preflight-doc-set-drift-canary"
+  - level: PASS
+    check: "cron(presence-sweep): USER-field syntax installed at /etc/cron.d/termlink-presence-sweep"
+  - level: PASS
+    check: "cron(release-mirror-canary): USER-field syntax installed at /etc/cron.d/termlink-release-mirror-canary"
+  - level: PASS
+    check: "cron(session-control-canary): USER-field syntax installed at /etc/cron.d/termlink-session-control-canary"
+  - level: PASS
+    check: "cron(stale-waker-code-canary): USER-field syntax installed at /etc/cron.d/termlink-stale-waker-code-canary"
+  - level: PASS
+    check: "cron(stuck-claims-canary): USER-field syntax installed at /etc/cron.d/termlink-stuck-claims-canary"
+  - level: PASS
+    check: "cron(substrate-preflight-canary): USER-field syntax installed at /etc/cron.d/termlink-substrate-preflight-canary"
+  - level: PASS
+    check: "cron(task-finalization-canary): USER-field syntax installed at /etc/cron.d/termlink-task-finalization-canary"
+  - level: PASS
+    check: "cron(topic-growth-canary): USER-field syntax installed at /etc/cron.d/termlink-topic-growth-canary"
+  - level: PASS
+    check: "cron(unconfirmed-delivery-canary): USER-field syntax installed at /etc/cron.d/termlink-unconfirmed-delivery-canary"
+  - level: PASS
+    check: "cron(waker-liveness-canary): USER-field syntax installed at /etc/cron.d/termlink-waker-liveness-canary"
+  - level: PASS
+    check: "cron(woken-silent-triage): USER-field syntax installed at /etc/cron.d/termlink-woken-silent-triage"
+  - level: INFO
+    check: "Branch hygiene skipped — no master lineage to judge against (origin/master and master both absent)"
+  - level: PASS
+    check: "Hook threshold: no hooks failing over threshold"
