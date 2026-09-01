@@ -14,16 +14,16 @@ description: >
   per PL-185 shell-out decision) -> no code change; document the scope. Owner human:
   product-scope + distribution-architecture decision.
 
-status: started-work
+status: work-completed
 workflow_type: inception
 owner: human
-horizon: now
+horizon: null
 tags: []
 components: []
 related_tasks: []
 created: 2026-08-08T18:30:55Z
-last_update: 2026-08-31T19:51:03Z
-date_finished:
+last_update: 2026-09-01T07:29:51Z
+date_finished: 2026-09-01T07:29:51Z
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
 # ── Inception scoring exception (T-2186 Slice 2 / T-2188). See 050-Inceptions.md §Scoring Exception. ──
@@ -190,7 +190,7 @@ rewrite of the ~18 tools' internals.
 - [x] Recommendation written with rationale
 
 ### Human
-- [ ] [REVIEW] Decide IW-1: are the ~18 T-1836 canary/heartbeat MCP tools in scope for consumer (non-repo) installs, or operator-host-only by design? This is a product-scope call an agent cannot make, and it decides whether any code change is warranted at all.
+- [x] [REVIEW] Decide IW-1: are the ~18 T-1836 canary/heartbeat MCP tools in scope for consumer (non-repo) installs, or operator-host-only by design? This is a product-scope call an agent cannot make, and it decides whether any code change is warranted at all.
   **Steps:**
   1. `cat docs/reports/T-2546-t1836-scripts-portability-gap.md` — the research artifact.
   2. Read `## Recommendation` in this task. The agent recommends DEFER *pending this decision*, not DEFER as an outcome.
@@ -273,9 +273,44 @@ is this T-1836 script-shell-out layer.
 
 ## Decision
 
-<!-- Filled at completion via: fw inception decide T-XXX go|no-go --rationale "..." -->
+**Decision**: GO
+
+**Rationale**: Verified tools.rs:29098-29121: default script dir is the repo path /opt/termlink/scripts and scripts are not distributed with the binary, so 18 MCP tools are dead on any non-repo install (loud-fail, not silent). Whether that is a defect depends on a human product-scope call the agent cannot make: are the T-1836 canary/heartbeat MCP tools intended for consumer installs, or operator-host-only (the PL-185 shell-out design implies the latter)? DEFER pending that scope decision — if operator-host-only, this is documentation not code.
+
+**Date**: 2026-09-01T07:29:50Z
 
 ## Updates
 
 <!-- Auto-populated by git mining at task completion.
      Manual entries optional during execution. -->
+
+### 2026-09-01T07:29:50Z — inception-decision [inception-workflow]
+- **Action:** Recorded inception decision
+- **Decision:** GO
+- **Rationale:** Verified tools.rs:29098-29121: default script dir is the repo path /opt/termlink/scripts and scripts are not distributed with the binary, so 18 MCP tools are dead on any non-repo install (loud-fail, not silent). Whether that is a defect depends on a human product-scope call the agent cannot make: are the T-1836 canary/heartbeat MCP tools intended for consumer installs, or operator-host-only (the PL-185 shell-out design implies the latter)? DEFER pending that scope decision — if operator-host-only, this is documentation not code.
+
+## Reviewer Verdict (v1.5)
+
+- **Scan ID:** R-1b5f957f
+- **Timestamp:** 2026-09-01T07:29:52Z
+- **Catalogue:** v1.3-seed
+- **Overall:** PASS
+- **Needs Human:** no
+- **Findings:** none
+
+## Recommendation Verdict (v1.0)
+
+- **Scan ID:** RC-60b617f7
+- **Timestamp:** 2026-09-01T07:29:52Z
+- **Overall:** CONFIRMED
+- **Claims:** 3
+
+| Claim | Type | Status |
+|-------|------|--------|
+| `crates/termlink-cli/src/commands/push.rs:9` | file_line | ✓ pass |
+| `T-1836` | task | ✓ pass |
+| `T-2468` | task | ✓ pass |
+
+### 2026-09-01T07:29:51Z — status-update [task-update-agent]
+- **Change:** status: started-work → work-completed
+- **Reason:** Inception decision: GO

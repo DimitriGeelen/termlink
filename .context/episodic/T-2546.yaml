@@ -1,0 +1,82 @@
+# ============================================================================
+# EPISODIC MEMORY - T-2546: T-1836 MCP tools depend on repo scripts absent from consumer installs (portability)
+# ============================================================================
+# STATUS: AUTO-GENERATED
+# Hybrid episodic: git-mined timeline/metrics + task-file decisions/AC.
+# Generated: 2026-09-01T07:29:59Z
+# ============================================================================
+
+task_id: T-2546
+task_name: "T-1836 MCP tools depend on repo scripts absent from consumer installs (portability)"
+workflow_type: inception
+enrichment_status: auto-complete  # Mechanical task — AC checked, no decisions to record
+
+# Timeline
+created: 2026-08-08T18:30:55Z
+completed: 2026-09-01T07:29:51Z
+duration_days: 24
+updates_count: 1
+first_commit: 2026-08-08T20:33:35+02:00
+last_commit: 2026-08-31T21:51:02+02:00
+
+# Summary (auto-generated from git commit messages)
+summary: |
+  file portability finding — T-1836 MCP tools depend on repo scripts absent from consumer installs (verified: default /opt/termlink/scripts + bash shell-out, scripts ship nowhere; owner human, DEFER pending consumer-vs-operator-host scope call). tick the three verified agent ACs, replace the vacuous gate with 6 real lines, make the human AC ask IW-1
+
+# Key outcomes
+outcomes:
+  - 'Problem statement validated'
+  - 'Assumptions tested'
+  - 'Recommendation written with rationale'
+  - '[REVIEW] Decide IW-1: are the ~18 T-1836 canary/heartbeat MCP tools in scope for consumer (non-repo) installs, or operator-host-only by design? This is a product-scope call an agent cannot make, and it decides whether any code change is warranted at all.'
+
+# Challenges (auto-detected from git: commits with fix/revert/bug/error)
+challenges:
+  # No challenges detected in commit messages
+
+# Decisions (from task file Decisions section)
+decisions:
+  # No decisions recorded (mechanical task or old template)
+
+# Artifacts (auto-mined from git --name-only)
+artifacts:
+  - '.context/episodic/T-2543.yaml'
+  - '.context/episodic/T-2544.yaml'
+  - '.context/episodic/T-2545.yaml'
+  - '.tasks/active/T-2546-t-1836-mcp-tools-depend-on-repo-scripts-.md'
+
+# Timeline (auto-mined from git log)
+git_timeline:
+  - time: '2026-08-08T20:33:35'
+    action: 'T-2546: file portability finding — T-1836 MCP tools depend on repo scripts absent from consumer installs (verified: default /opt/termlink/scripts + bash shell-out, scripts ship nowhere; owner human, DEFER pending consumer-vs-operator-host scope call)'
+  - time: '2026-08-31T21:51:02'
+    action: 'T-2546: tick the three verified agent ACs, replace the vacuous gate with 6 real lines, make the human AC ask IW-1'
+
+# What worked well (requires judgment — [TODO] if enrichment_status is pending)
+successes:
+  # Completed successfully in 2 commit(s), 33898 min
+
+# Related tasks
+related_tasks:
+  blocked: []
+  absorbed: []
+  spawned: []
+
+# Tags for retrieval
+tags: []
+
+# Passive metrics (derived automatically — do not edit)
+metrics:
+  # git_mining: ok = the four counters below are measurements.
+  #             skipped = git could not be reached from PROJECT_ROOT; the
+  #             counters are null (absent measurement), NOT zero (T-3129).
+  git_mining: ok
+  wall_clock_minutes: 33898
+  commits: 2
+  files_changed: 4
+  lines_added: 490
+  lines_removed: 11
+
+# Metadata
+source_file: /opt/termlink/.tasks/completed/T-2546-t-1836-mcp-tools-depend-on-repo-scripts-.md
+generated_by: context-agent-hybrid
