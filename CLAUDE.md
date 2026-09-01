@@ -2306,6 +2306,70 @@ tooling (fail-closed — hub-down/missing-dep is never "proven"). Test hooks
 `TERMLINK_SESSION_SELFTEST_TEST_SPAWN_RC` + `TERMLINK_SESSION_SELFTEST_TEST_EXEC_JSON`
 + `SESSION_SELFTEST_SENTINEL` (PL-213). See `docs/operations/session-selftest.md`.
 
+### Session-to-session message prover (T-2876) — assert on the receiver, never the sender
+
+The fourth prover, and the only one covering the rail Claude Code sessions actually use
+to reach each other. Its three siblings cover the charter's other rails —
+`comms-selftest.sh` (T-2482) TermLink discover + exchange, `session-selftest.sh` (T-2485)
+PTY control, `substrate-smoke.sh` (T-2151) claim work — and none of them touch this one.
+T-2875 found a peer agent had declared it structurally impossible while it was working
+the whole time.
+
+**It never trusts the sender.** `SendMessage` returns `{"success":true}` the moment the
+message is queued, which says nothing about whether the target received it. Three findings
+in two days share that shape: a hub reported `injected` while the PTY got nothing (T-2873);
+a config looked authoritative and was never read (T-2874); a send succeeded while the target
+sat blocked (T-2875). So the script reads the RECEIVER's own transcript
+(`~/.claude/projects/*/<sessionId>.jsonl`).
+
+Four outcomes that are byte-identical from the sender's side:
+
+| verdict | evidence | meaning | exit |
+|---|---|---|---|
+| `DELIVERED` | sentinel is a `user` turn | the rail works | 0 |
+| `BLOCKED` | sentinel queued, target at rest | **delivery was fine**; target never drained | 1 |
+| `ENQUEUED` | sentinel queued, target still busy | may yet drain — retry with a longer timeout | 1 |
+| `UNDELIVERED` | sentinel absent | the rail is broken | 1 |
+
+The BLOCKED/UNDELIVERED split is the whole point: collapsing them is the T-2875
+misdiagnosis, a working rail declared impossible because the target could not act.
+
+**Two premises died on first execution, and both are worth remembering.** The draft keyed
+BLOCKED off a `waitingFor` field in `claude agents --json` — **that field does not exist**
+(0 of 56 agent records carried it), so the branch was dead code. Its fallback,
+`state == "blocked"`, is the ordinary RESTING state of a finished background session (43 of
+those same 56), so keying off it would have classified almost every broken rail as "target
+merely stuck" — the exact inversion of the bug the prover exists to prevent. `state`/`status`
+now only ANNOTATE an already-queued message; they never decide whether delivery happened.
+
+**Reachability is `status`, not presence in the listing.** A session appears in
+`claude agents --json` without being addressable. The measured predicate is the presence of
+a `status` field — that set matched the SendMessage peer list exactly (15 of 58 records).
+`claude --bg` produces a record with no `status`, no transcript, and SendMessage answers
+"No agent named ... is reachable". So `prepare --spawn` polls until the target is genuinely
+reachable and fails closed otherwise, and `prepare --existing MATCH` targets a session that
+already is — which is how the live pass is actually run.
+
+```bash
+bash scripts/session-message-selftest.sh prepare --existing <id-or-name>   # prints recipient + sentinel
+#   ... then SEND: SendMessage to="<name>" message="<sentinel>"   (agent tool call — there is no CLI verb)
+bash scripts/session-message-selftest.sh assert --session-id <sid> --sentinel <text> --id <short>
+bash scripts/session-message-selftest.sh cleanup --id <short>              # only after --spawn
+```
+
+`prepare`/`cleanup` spawn and stop real sessions, so the script is deliberately **not**
+marked `# guard-layer: source`; `assert` alone is a pure read. Exit 0 proven / 1 broken
+(naming the stage) / 2 tooling — **fail-closed**: a receiver whose transcript cannot be read
+exits 2 and never a delivery verdict. Test seams (PL-213) `SESSION_MSG_TEST_AGENTS_JSON` +
+`SESSION_MSG_TEST_TRANSCRIPT_DIR` run the whole suite with no live session and no network.
+Fixtures: `bash tests/session-message-selftest-fixtures.sh` (71 assertions, weighted to the
+firing cases; 8 mutants pinned, including removing the BLOCKED branch, dropping the
+reachability gate, and collapsing ENQUEUED into UNDELIVERED).
+
+**Live-proven** 2026-09-01 against a real peer: DELIVERED rc 0; a control sentinel that was
+never sent, UNDELIVERED rc 1; an unobservable receiver, TOOLING rc 2.
+
+
 ### Shipped == Live gate (T-2480, G-069 prevention)
 
 Capabilities were repeatedly recorded **closed=shipped** while dark in the field

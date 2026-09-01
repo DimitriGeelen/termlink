@@ -22,7 +22,7 @@ related_tasks: []
 #                                 # session from consuming the captured→started-work transition the demo
 #                                 # worker expects to drive. Origin OBS-057.
 created: 2026-09-01T18:47:39Z
-last_update: 2026-09-01T18:47:39Z
+last_update: 2026-09-01T18:52:17Z
 date_finished: null
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -65,130 +65,86 @@ Design driven by what T-2875 actually measured, not by what the docs claim:
 - **Send is agent-driven.** `claude --help` has no send/message/peer verb (verified), so
   `prepare`/`assert`/`cleanup` compose *around* the send instead of pretending to do it.
 
-## STATUS AT HANDOVER — INCOMPLETE, DO NOT TREAT AS LANDED
+## What the live pass measured (and what it corrected)
 
-`scripts/session-message-selftest.sh` is written and committed. It has **never been
-executed**. `tests/session-message-selftest-fixtures.sh` was blocked mid-write by the
-budget gate at ~98% context and **does not exist**.
+The script was written but never executed. Running it turned three of its stated
+premises into measured facts, two of which were false:
 
-So the script is unproven code, and every claim in its header is a design intention
-rather than a measured fact. Specifically untested: the ANSI-stripping id parser in
-`prepare`, the transcript glob, the DELIVERED/ENQUEUED/BLOCKED/UNDELIVERED branching,
-and all fail-closed exits. It is committed because unfinished work in the tree is
-better than unfinished work in a dead session — not because it is ready.
+**1. `waitingFor` does not exist.** The BLOCKED branch keyed off
+`claude agents --json`'s `waitingFor` field. Measured across the live fleet: 0 of 56
+agent records carried it. The entire branch was dead code, and the AC below was
+written from the same false premise.
 
-**Next session starts here:** write the fixtures (the AC list below is the spec), run
-them, fix what they find, then run one live end-to-end pass. The live pass is what the
-transcript-shape assumptions actually rest on — the JSONL `type` values (`user`,
-`queue-operation`) were read off one real session in T-2875, n=1.
+**2. `state:"blocked"` is the RESTING state, not a permission signal.** 43 of those
+56 agents were `blocked`, 40 of them stale records with no `status` at all. The
+fallback would have classified almost every broken rail as "target merely stuck" —
+the exact inversion of the bug this prover exists to prevent. It is now used only to
+ANNOTATE an already-queued message, never to decide whether delivery happened.
+
+**3. The real observable is the receiver's own transcript.** A `queue-operation`
+carrying the sentinel with no matching `user` turn means accepted-but-never-drained.
+That is the T-2875 shape, and it is readable without consulting the sender at all.
+
+**4. `prepare` handed back an address that could not receive anything.** `claude --bg`
+produces a record that appears in `claude agents --json` but carries no `status`,
+never writes a transcript, and is refused by SendMessage ("No agent named ... is
+reachable"). The reachability predicate turned out to be the presence of a `status`
+field — that set matched the SendMessage peer list exactly (15 of 58 records).
+`prepare` now gates on it and gained `--existing MATCH` to target a session that is
+already reachable, which is how the live pass was actually run.
+
+The fail-closed design held up under all of this: pointed at the unreachable probe,
+the script exited 2 ("cannot observe the receiver") rather than inventing a verdict.
+
+**Live end-to-end result** (peer `resume workflow state aggregation`, 2026-09-01):
+DELIVERED, rc 0 — sentinel present as a `user` turn in the receiver's transcript.
+Control with a sentinel that was never sent: UNDELIVERED, rc 1. Unobservable
+receiver: TOOLING, rc 2. The full exit-code contract is proven against real data,
+not fixtures.
 
 ## Acceptance Criteria
 
 ### Agent
 <!-- Criteria the agent can verify (code, tests, commands). P-010 gates on these. -->
-- [ ] `scripts/session-message-selftest.sh` exists and proves the one rail no existing prover covers: Claude-session → Claude-session messaging. (`comms-selftest.sh` = TermLink discover/exchange, `session-selftest.sh` = PTY control, `substrate-smoke.sh` = claim work; none touch this.)
-- [ ] It asserts on the **receiver's** transcript, never on the sender's return value — the T-2873/T-2874/T-2875 pattern is that a layer reporting success says nothing about the next layer acting.
-- [ ] It distinguishes the three outcomes that are byte-identical from the sender's side: DELIVERED (sentinel is a `user` turn), BLOCKED (delivered, target stuck on a permission prompt — `waitingFor` in `claude agents --json`), NOT-DELIVERED (sentinel absent). A prover that collapsed these would reproduce the exact confusion it exists to remove.
-- [ ] Subcommands `prepare` / `assert` / `cleanup` compose around the send, because the send leg has no CLI verb and must be an agent tool call. The script does not pretend to perform it.
-- [ ] Exit codes follow the repo convention: 0 proven, 1 broken (naming the stage), 2 tooling — **fail-closed**, so a missing `claude`, missing `python3`, or unreadable transcript exits 2 and never a false "proven".
-- [ ] `--json` for scripting, and test seams (PL-213) `SESSION_MSG_TEST_AGENTS_JSON` + `SESSION_MSG_TEST_TRANSCRIPT_DIR` so the fixtures run with no live session and no network.
-- [ ] `tests/session-message-selftest-fixtures.sh` covers all three classifications plus the fail-closed paths, and is weighted toward the FIRING cases — a prover that only ever goes green is not a prover.
-- [ ] Load-bearing: the fixtures fail if the BLOCKED classification is removed, proving that branch is doing work rather than decorating the output.
-- [ ] It carries the `# guard-layer: source` marker only if it is safe to run with no live session; if it is not, it is deliberately left out of the runner and the reason is stated in the script header.
-
-### Human
-<!-- Criteria requiring human verification (UI/UX, subjective quality). Not blocking.
-     Remove this section if all criteria are agent-verifiable.
-     Each criterion MUST include Steps/Expected/If-not so the human can act without guessing.
-
-     ── Prefix routing (T-1811, T-1878): default to [REVIEWER] if Expected is grep-able ──
-     If your Expected clause is grep-able / file-exists / structural (a deterministic
-     shell check), prefer [REVIEWER] — that AC should be an Agent AC with the reviewer
-     command in `## Verification` instead of a Human AC here. Only keep [REVIEW] if
-     verification genuinely needs human taste (tone, feel, layout rhythm).
-     See CLAUDE.md §AC Classification Guidance for the conversion rule.
-
-     [REVIEW] example (genuine human judgment):
-       - [ ] [REVIEW] Dashboard renders correctly
-         **Steps:**
-         1. Open https://example.com/dashboard in browser
-         2. Verify all panels load within 2 seconds
-         3. Check browser console for errors
-         **Expected:** All panels visible, no console errors
-         **If not:** Screenshot the broken panel and note the console error
-
-     [REVIEWER] example (static-scan-verifiable — convert to Agent AC + Verification):
-       - [ ] [REVIEWER] Block message names both bypass mechanisms
-         **Steps:**
-         1. Run `bin/fw reviewer T-XXX`
-         **Expected:** Verdict: PASS; no findings on `block-message-completeness`
-         **If not:** Inspect hook block-message string and add missing mechanism
-       Conversion: this AC should be moved to ### Agent and
-       `bin/fw reviewer T-XXX > /tmp/.rev 2>&1 && grep -q "Overall:.*PASS" /tmp/.rev`
-       added to ## Verification. NEVER `... 2>&1 | grep -q ...` — that is the shape the
-       Pipefail/SIGPIPE section below forbids, and this line used to prescribe it.
--->
+- [x] `scripts/session-message-selftest.sh` exists and proves the one rail no existing prover covers: Claude-session → Claude-session messaging. (`comms-selftest.sh` = TermLink discover/exchange, `session-selftest.sh` = PTY control, `substrate-smoke.sh` = claim work; none touch this.)
+- [x] It asserts on the **receiver's** transcript, never on the sender's return value — the T-2873/T-2874/T-2875 pattern is that a layer reporting success says nothing about the next layer acting.
+- [x] It distinguishes the outcomes that are byte-identical from the sender's side: DELIVERED (sentinel is a `user` turn), BLOCKED (sentinel queued, target at rest — delivery was fine), ENQUEUED (sentinel queued, target still busy — may yet drain), UNDELIVERED (sentinel absent). A prover that collapsed these would reproduce the exact confusion it exists to remove. **Corrected during implementation:** this AC originally named `waitingFor` in `claude agents --json` as the BLOCKED signal. That field does not exist (0 of 56 agents), so the split is derived from the receiver's transcript instead — see the measurement block above.
+- [x] Subcommands `prepare` / `assert` / `cleanup` compose around the send, because the send leg has no CLI verb and must be an agent tool call. The script does not pretend to perform it.
+- [x] Exit codes follow the repo convention: 0 proven, 1 broken (naming the stage), 2 tooling — **fail-closed**, so a missing `claude`, missing `python3`, or unreadable transcript exits 2 and never a false "proven".
+- [x] `--json` for scripting, and test seams (PL-213) `SESSION_MSG_TEST_AGENTS_JSON` + `SESSION_MSG_TEST_TRANSCRIPT_DIR` so the fixtures run with no live session and no network.
+- [x] `tests/session-message-selftest-fixtures.sh` covers all three classifications plus the fail-closed paths, and is weighted toward the FIRING cases — a prover that only ever goes green is not a prover.
+- [x] Load-bearing: the fixtures fail if the BLOCKED classification is removed, proving that branch is doing work rather than decorating the output.
+- [x] It carries the `# guard-layer: source` marker only if it is safe to run with no live session; if it is not, it is deliberately left out of the runner and the reason is stated in the script header.
 
 ## Verification
 
 # Shell commands that MUST pass before work-completed. One per line.
 # Lines starting with # are comments (skipped). Empty lines ignored.
-# The completion gate runs each command — if any exits non-zero, completion is blocked.
 #
-# Toolchain hint (L-291): if you edited *.vbproj/*.csproj/*.xaml add `dotnet build`;
-# *.go → `go build ./...`; Cargo.toml → `cargo check`; tsconfig.json → `tsc --noEmit`;
-# pom.xml → `mvn -q compile`. P-011 runs only what you write — broken builds slip
-# past otherwise (origin: 003-NTB-ATC-Plugin T-077, broken WPF DLL on master 5 days).
+# Every criterion for this task is agent-verifiable, so the Human AC section is
+# omitted per the template's own instruction rather than left as empty boilerplate.
 #
-# ── Pipefail/SIGPIPE: grepping a command's output (L-387, T-2090, T-2743, T-2738) ──
-#
-# THE DEFAULT — redirect to a file, then grep the file:
-#     cmd > /tmp/.out 2>&1 && grep -q "PATTERN" /tmp/.out
-#     curl -sf "$(bin/fw watchtower url)/page" -o /tmp/.out && grep -q "PAT" /tmp/.out
-# Correct at any output size, and `&&` keeps the PRODUCING command's exit code in
-# the verdict. Reach for this first; the alternative below is the special case.
-#
-# NEVER `cmd | grep -q PAT` (L-387) — why: P-011 runs each line under `set -eo
-# pipefail`. When grep matches it exits and closes stdin while cmd is still
-# writing, cmd takes SIGPIPE, the pipeline exits 141 — verification "fails" with
-# the pattern present. Captured 4× (T-1716, T-1838, T-1862, T-1863).
-#
-# THE EXCEPTION — capture first, grep the capture:
-#     out=$(cmd 2>&1); echo "$out" | grep -q "PATTERN"
-# Valid ONLY while "$out" fits the 65536-byte pipe buffer, and it is on you to
-# know that it does. Above that the form inverts and becomes the very failure
-# L-387 describes: echo blocks on the full pipe, grep -q exits, echo takes
-# SIGPIPE, rc=141 (T-2743 — measured on a 146,366-byte Watchtower page, 3/3 runs,
-# deterministic not racy; rendered routes run 50-200KB, so anything that curls a
-# page is over the line). It also discards cmd's exit code, so a 404 yields an
-# empty capture that grep merely fails to match rather than a failed line.
-# If you do use it: single pipe only, no intermediate tail/awk/sed stage between
-# capture and grep (T-2090) — the middle stage is what `grep -q` slams its stdin
-# on, and grep scans the whole captured string anyway, so the `tail -3` was
-# cosmetic. `echo "$out" | grep -q PAT`, nothing between.
-#
-# TEST RUNNERS need a guard either way (T-2738). `set -e` is suppressed inside the
-# `if` condition the gate runs each line in, so in `cmd1; cmd2` only cmd2 is the
-# verdict — and the pass marker you grep for survives a partial failure: a suite
-# printing "3 failed, 9 passed" satisfies `grep -q "9 passed"`, and generalising
-# to `grep -qE "[0-9]+ passed"` matches the same output. Keep the exit code:
-#     python3 -m pytest <file> -q > /tmp/.out 2>&1 && grep -q passed /tmp/.out
-# or add the guard the exit code used to supply:
-#     out=$(python3 -m pytest <file> -q 2>&1); echo "$out" | grep -q passed && ! echo "$out" | grep -q failed
-#     out=$(bats <file> 2>&1); echo "$out" | grep -q '^ok 1 ' && ! echo "$out" | grep -q '^not ok'
-# The close gate refuses the unguarded form. Bypass: FW_ALLOW_UNJUDGED_TEST_RUN=1.
-#
-# REHEARSING A LINE BY HAND DOES NOT REHEARSE THE GATE (T-2743). Your interactive
-# shell has no `set -eo pipefail`. A line has returned 0 by hand and 141 under
-# P-011, from the same directory, the same second. To rehearse for real:
-#     bash -c 'set -eo pipefail; <your verification line>'
-#
-# Enforcement-baseline hint (L-398, T-1886): if you edited `.claude/settings.json`
-# (added/removed/reorganised hooks), add `bin/fw enforcement baseline` to your
-# Verification block. Otherwise the canonical hash diverges and `fw doctor`
-# reports a FAIL ("Enforcement baseline CHANGED") that accumulates silently.
-# Origin: T-1849/T-1730/T-1731 each added a legitimate hook without refreshing
-# the baseline — FAIL sat for multiple sessions until T-1886 cleaned up.
+# Grep markers are read from files, never through a pipe (L-387): under the gate's
+# `set -eo pipefail`, `cmd | grep -q PAT` returns 141 when the pattern MATCHES.
+
+# The prover itself must be present and executable.
+test -x scripts/session-message-selftest.sh
+
+# The fixture suite must be fully green. `&&` keeps the suite's own exit code in the
+# verdict; the marker is grepped from a file, never through a pipe (L-387).
+bash tests/session-message-selftest-fixtures.sh > /tmp/.t2876-fixtures.out 2>&1 && grep -q "0 failed" /tmp/.t2876-fixtures.out
+
+# Fail-closed: an unobservable receiver must exit 2, never a delivery verdict.
+rc=0; SESSION_MSG_TEST_TRANSCRIPT_DIR=/tmp bash scripts/session-message-selftest.sh assert --session-id no-such-session --sentinel x --timeout-secs 0 > /tmp/.t2876-fc.out 2>&1 || rc=$?; test "$rc" -eq 2
+
+# Fail-closed: prepare must refuse to run without an explicit mode.
+rc=0; bash scripts/session-message-selftest.sh prepare --sentinel x > /tmp/.t2876-mode.out 2>&1 || rc=$?; test "$rc" -eq 2
+
+# It must NOT claim guard-layer membership: prepare/cleanup spawn and stop real sessions.
+! grep -q "^# guard-layer: source" scripts/session-message-selftest.sh
+
+# The phantom field must not come back undocumented (0 of 56 agents carry it).
+bash -c 'if grep -q waitingFor scripts/session-message-selftest.sh; then grep -q "DOES NOT EXIST" scripts/session-message-selftest.sh; fi'
 
 ## RCA
 
