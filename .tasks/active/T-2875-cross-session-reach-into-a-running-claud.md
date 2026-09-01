@@ -14,7 +14,7 @@ tags: []
 components: []
 related_tasks: []
 created: 2026-09-01T11:56:19Z
-last_update: 2026-09-01T11:57:37Z
+last_update: 2026-09-01T12:00:03Z
 date_finished:
 # revisit_at: YYYY-MM-DD          # T-1451: set on DEFER decisions to enable G-053 daily revisit scan
 # revisit_evidence_needed:        # T-1451: one-line description of what evidence makes the revisit actionable
@@ -73,9 +73,9 @@ bvp_scores_proposed:
   rationale: Same-machine-only here. Disproof by absence: TermLink's cross-host rail shows `ring20-concierge` (.122) and `ring20-dashboard-agent` (.121) LIVE, and **neither appears** in this session's 14-row `ListAgents`, which lists only `interactive`/`bg`/`shell` kinds with no Remote-Control label. So the peer on .122 genuinely cannot see .107 sessions — its claim is correct *for its vantage point* and wrong as a general statement.
 
 - **IW-2: Does `SendMessage` to an idle *interactive* session actually deliver into its conversation, or only queue until a human types?**
-  confidence: 1
-  disposition: deferred
-  rationale: Being listed is not the same as being deliverable — the T-2873 lesson exactly (a hub reporting "injected" was not proof the PTY received it). Settling this means messaging a real session someone is using, which is the operator's call, not mine. Deferred pending that consent.
+  confidence: 3
+  disposition: answered
+  rationale: It delivers. Tested end-to-end on a session I spawned and owned (no live session touched): `claude --bg` target, `SendMessage` carrying sentinel `HARNESS-PROBE-T2875-9f3c1a`, then asserted independently of the sender's `success:true` — the sentinel appears in the target's own transcript JSONL twice, once as `queue-operation` and once as a **`user` turn**, and the target woke from `state: done` and acted on it. **The false negative is the finding:** the file it was told to write never appeared, because it blocked on a permission prompt (`waitingFor: "permission prompt"`) — from the sender's side that is byte-identical to non-delivery.
 
 - **IW-3: Does `termlink register --shell` from inside a Claude session expose that session's *conversation*, or only a sibling shell?**
   confidence: 2
