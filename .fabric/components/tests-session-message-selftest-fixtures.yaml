@@ -1,0 +1,26 @@
+id: tests/session-message-selftest-fixtures.sh
+name: session-message-selftest-fixtures
+type: script
+subsystem: guard-layer
+location: tests/session-message-selftest-fixtures.sh
+tags: [fixtures, prover, messaging, guard-layer, T-2876]
+
+purpose: >
+  Fixture suite for scripts/session-message-selftest.sh. Pins the four delivery
+  verdicts (DELIVERED / BLOCKED / ENQUEUED / UNDELIVERED), the reachability gate
+  on `prepare`, and every fail-closed path. Weighted toward the firing cases: a
+  prover that only ever goes green is not a prover. Runs with no live session and
+  no network via the SESSION_MSG_TEST_AGENTS_JSON and
+  SESSION_MSG_TEST_TRANSCRIPT_DIR seams (PL-213), so it is a guard-layer member
+  even though the script it tests is not.
+
+depends_on:
+  - target: scripts/session-message-selftest.sh
+    type: calls
+
+depended_by:
+  - target: scripts/run-guard-layer.sh
+    type: triggers
+
+last_verified: 2026-09-01
+created_by: T-2876
