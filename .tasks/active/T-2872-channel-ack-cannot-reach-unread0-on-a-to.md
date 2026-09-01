@@ -286,43 +286,94 @@ timeout 240 bash scripts/check-receiver-ack-lag.sh > /tmp/.t2872-lag.txt 2>&1
 
 ## Recommendation
 
-<!-- T-2945: same shape as inception.md's block — the gate that reads it
-     (audit_inception_recommendation, lib/task-audit.sh:117) is shared, so the
-     shape is copied rather than reinvented.
+**Recommendation:** GO on option (a) — a hub-side monotonic `latest_content_offset`
+counter maintained beside `next_offset`.
 
-     REQUIRED once this task reaches partial-complete: Agent ACs done, at least
-     one `### Human` AC still unticked. `lib/review.sh:205-211` (T-2421) BLOCKS
-     `fw task review` emission for build/refactor/test/decommission tasks in that
-     state with no substantive block here — the operator would otherwise open
-     /review/<id> to a blank Recommendation card and be asked to approve a form.
+**Rationale:** The task framed (a) as "the hub exposes a field", implying the value
+is already known hub-side and only needs surfacing. Measured, it is not — and that
+changes which option is cheapest rather than merely how (a) is worded. `latest_offset`
+is not computed from envelopes at all: it reads the monotonic `next_offset` counter in
+the `offsets` table (`crates/termlink-bus/src/meta.rs:256`). The `records` table
+(`meta.rs:907`) carries only `topic, offset, byte_pos, length, ts_unix_ms` — **no
+`msg_type`**; envelope bodies live in the log file at `byte_pos`. So no hub-side query
+can classify an envelope without reading and parsing it, and (a) is really "add a
+second counter", not "return a value we already have".
 
-     Not required while every Human AC is ticked or the task has none: the gate
-     only fires on the partial-complete transition. It is here from the start so
-     you write it while you still have the evidence, not when the gate refuses.
+That is a smaller change than the task assumed, and it is a shape already proven in
+this codebase: increment on post when `msg_type` is not in `UNREAD_META_TYPES`, O(1),
+never rewound by sweep — structurally identical to `next_offset`, which T-2533 already
+established as the correct basis for unread math.
 
-     Format (the parser wants the `**Recommendation:**` line at the start of a
-     line; a leading `-` or `*` bullet is also accepted):
-     **Recommendation:** GO / NO-GO / DEFER
-     **Rationale:** Why (cite evidence — what shipped, what was proven, what remains)
-     **Evidence:**
-     - Finding 1
-     - Finding 2
+**The obvious implementation of (a) is the wrong one, and it fails exactly as T-2533
+did.** `SELECT MAX(offset) ... WHERE msg_type NOT IN (...)` — the reading (a) invites —
+is not available (no column), but even given the column it would be **sweep-fragile**:
+`MAX` over live records rewinds when content rows are swept, under-reporting latest by
+the number of swept records and silently dropping unread rows. That is the precise
+defect T-2533 fixed by moving off `count - 1`. A stored counter is immune; a query is
+not. Recording this because it is the trap a later implementer walks into.
 
-     DEFER is for evidence gaps, not confidence gaps (CLAUDE.md §Presenting Work
-     for Human Review). If the artefact is complete and you still don't want to
-     commit, that is a calibration failure — recommend GO or NO-GO.
--->
+**Why not (b) — client-side envelope walk.** Correct, no hub change, and it is what
+`channel ack-status` already does (`ack_status_rows`, T-2838). But `agent inbox` is a
+digest over EVERY tracked topic, and the walk is O(N) envelopes per topic. The
+`reconcile_consumption_frontier` docstring already refuses this for the same reason:
+"a full-topic walk per topic would turn a cheap read into an O(topics x ...)". Adopting
+(b) here would make the operator's most-used verb the most expensive one, which is how a
+digest stops being run.
+
+**Why not (c) — `ack` sets `up_to` to its own receipt's offset.** Smallest diff and it
+does converge, but it is protocol-visible: a peer reading our receipt frontier would see
+us claim consumption of an offset that is our own receipt rather than their content.
+`compute_ack_status` (T-2838) derives peer lag from exactly that frontier, so (c) buys
+local convergence by putting a small lie into the value other agents measure us by. It
+also only fixes receipts WE write — a peer's ack on a shared topic still inflates
+`latest`, so `agent-chat-arc` keeps drifting. Wrong axis and incomplete.
+
+**A local-only variant was considered and rejected as incomplete.** The client could
+record the offset its own receipt occupied and fold it into `reconcile_consumption_frontier`
+— purely local, no protocol change, no hub change. It fixes the measured single-identity
+DM case completely. It does NOT fix multi-party topics: another agent's receipt still
+raises `latest`. Since `agent-chat-arc` is named in the filing as the topic that matters,
+a fix that cannot converge there is not a fix.
+
+**Evidence:**
+- `unread_verdict` (`channel.rs:8880`) is `latest - frontier`, with no envelope in scope
+  to classify; its only production caller `compute_unread_rows` (`channel.rs:8953`) takes
+  `topic_latest` from `channel.list`'s `latest_offset`. Confirms the task's location.
+- `latest_content_offset` (`channel.rs:4310`) is **client-side**, over `&[Value]`. It is
+  not a hub field, so option (a) is not already shipped — checked because the task text
+  could be read as implying it was.
+- Hub `latest_offset` (`meta.rs:256`) = `next_offset - 1`, a stored monotonic counter.
+- `records` schema (`meta.rs:907`) has no `msg_type`.
+- Two surfaces already fixed this class client-side by walking envelopes:
+  `ack_status_rows` (T-2838) and `channel reply` (T-1334). Both hold envelopes already;
+  `agent inbox` deliberately does not.
+
+**Version-floor behaviour (required by the first AC, stated so it is not lost):** a hub
+that does not serve the new field must leave the client on today's arithmetic — a loud
+over-count of 1 — and must never be allowed to degrade to a wrong zero. `compute_unread_rows`
+already carries the right shape for this in its `authoritative` flag and its
+`UnreadVerdict::Indeterminate` arm, which exists precisely so an unknown stays visible
+instead of being reported as caught-up.
+
+**What remains after ratification:** one build task against `unread_verdict` /
+`compute_unread_rows` plus the bus counter, carrying ACs 4 and 5 (convergence of
+`agent inbox`, and agreement with `channel unread`) and a convergence regression test on
+`unread_verdict` — the one that would actually have caught this, which the existing
+`count_unread_converges_across_repeated_acks` explicitly does not.
 
 ## Decisions
 
-<!-- Record decisions ONLY when choosing between alternatives.
-     Skip for tasks with no meaningful choices.
-     Format:
-     ### [date] — [topic]
-     - **Chose:** [what was decided]
-     - **Why:** [rationale]
-     - **Rejected:** [alternatives and why not]
--->
+### 2026-09-01 — where the off-by-one fix belongs (analysis; ratification pending)
+- **Analysed:** hub-side `latest_content_offset` counter (option a) recommended; (b)
+  client walk and (c) ack-side `up_to` rejected, along with a local-receipt-offset
+  variant considered during this pass.
+- **Why:** see `## Recommendation` — the deciding measurement is that the hub has no
+  `msg_type` in `records`, so (a) is "add an O(1) counter beside `next_offset`", not
+  "surface an existing value", and the query-based reading of (a) reintroduces T-2533.
+- **Not decided here:** the choice is protocol-adjacent and is reserved to the Human
+  `[REVIEW]` AC. This entry records the evidence, not a ratification — Agent AC 1 stays
+  unticked deliberately, because it asks which option was chosen and that is not the
+  agent's to answer.
 
 ## Decision
 
